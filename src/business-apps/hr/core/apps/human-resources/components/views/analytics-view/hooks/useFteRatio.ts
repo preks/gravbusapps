@@ -1,27 +1,14 @@
-import { useState, useEffect } from 'react';
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import { GET_FTE_DATA } from '../queries/getFteData';
-import { useEmployeeCount } from './useEmployeeCount';
+import { useState, useEffect } from 'react'
+import { useEmployeeCount } from './useEmployeeCount'
+import { QueryType, Services, useQueryExecutionClient } from '@/common/network/dataset'
 
 /**
  * Response type for FTE data query
  */
-interface FteDataResponse {
-  EmployeeWorkingHours: Array<{
-    id: string;
-    fullTimeEquivalent: number;
-    employee: {
-      id: string;
-    };
-  }>;
-  EmployeeWorkingHoursAggregate: {
-    aggregate: {
-      sum: {
-        fullTimeEquivalent: number;
-      };
-      count: number;
-    };
-  };
+type DatasetRow = { category: string; value: number }
+interface DatasetResponse {
+  categories?: string[]
+  data?: DatasetRow[]
 }
 
 /**
@@ -30,51 +17,53 @@ interface FteDataResponse {
  * @returns Object containing ratio, loading state, and error
  */
 export function useFteRatio(accessToken: string) {
-  const [totalFte, setTotalFte] = useState<number>(0);
-  const [ratio, setRatio] = useState<number>(0);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [totalFte, setTotalFte] = useState<number>(0)
+  const [ratio, setRatio] = useState<number>(0)
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<Error | null>(null)
 
-  // Get GraphQL client
-  const graphqlClient = useGraphqlClient(accessToken);
-  
+  // Dataset client
+  const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
+
   // Get employee count
-  const { count: employeeCount, loading: countLoading, error: countError } = useEmployeeCount(accessToken);
+  const { count: employeeCount, loading: countLoading, error: countError } = useEmployeeCount(accessToken)
 
   // Fetch FTE data
   useEffect(() => {
-    if (!graphqlClient || countLoading) return;
-    
-    setLoading(true);
-    setError(null);
+    if (!datasetClient || countLoading) return
 
-    graphqlClient.request<FteDataResponse>(GET_FTE_DATA)
+    setLoading(true)
+    setError(null)
+
+    datasetClient
+      .executeQuery('fteDataCurrentEmployees', QueryType.DATASET, {})
       .then(response => {
-        // Extract FTE sum from response
-        const fteSumData = response?.EmployeeWorkingHoursAggregate?.aggregate?.sum?.fullTimeEquivalent;
-        const fteSum = typeof fteSumData === 'number' ? fteSumData : 0;
-        
-        // Calculate FTE to Employee ratio
-        const totalEmployees = Math.max(employeeCount, 1); // Avoid division by zero
-        const calculatedRatio = fteSum / totalEmployees;
-        
-        setTotalFte(fteSum);
-        setRatio(calculatedRatio);
-        setLoading(false);
+        const data = (response as unknown as DatasetResponse)?.data || []
+        const sumRow = data.find(r => String(r.category).toLowerCase() === 'sum_fte')
+        const countRow = data.find(r => String(r.category).toLowerCase() === 'employee_count')
+        const sumFte = typeof sumRow?.value === 'number' ? sumRow.value : 0
+        const datasetCount = typeof countRow?.value === 'number' ? countRow.value : undefined
+        const effectiveCount = typeof datasetCount === 'number' ? datasetCount : (employeeCount ?? 0)
+        const averageFte = effectiveCount > 0 ? sumFte / effectiveCount : 0
+
+        // totalFte represents the numerator shown in the card (sum of FTEs)
+        setTotalFte(sumFte)
+        setRatio(averageFte)
+        setLoading(false)
       })
       .catch(err => {
-        console.error('[useFteRatio] Error fetching FTE data:', err);
-        setError(err instanceof Error ? err : new Error('Failed to fetch FTE data'));
-        setLoading(false);
-      });
-  }, [graphqlClient, employeeCount, countLoading]);
+        console.error('[useFteRatio] Error fetching FTE data:', err)
+        setError(err instanceof Error ? err : new Error('Failed to fetch FTE data'))
+        setLoading(false)
+      })
+  }, [datasetClient, countLoading])
 
   // Combine errors
   useEffect(() => {
     if (countError) {
-      setError(countError);
+      setError(countError)
     }
-  }, [countError]);
+  }, [countError])
 
   return {
     totalFte,
@@ -82,5 +71,5 @@ export function useFteRatio(accessToken: string) {
     ratio,
     loading: loading || countLoading,
     error
-  };
+  }
 }

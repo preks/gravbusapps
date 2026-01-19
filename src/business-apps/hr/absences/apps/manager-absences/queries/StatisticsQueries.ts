@@ -15,28 +15,32 @@ export const GET_PLANNED_VS_UNPLANNED_2025 = `
         count
       }
     }
-    # Test vacation group specifically (current year only)
-    vacationAbsences: EmployeeAbsenceAggregate(
+    # Planned absences: Vacation group with Vacation value (current year only)
+    plannedAbsences: EmployeeAbsenceAggregate(
       where: {
         isDeleted: {_eq: false},
         status: {_eq: "APPROVED"},
         startDate: {_gte: $currentYearStart, _lte: $currentYearEnd},
         employee: {employeePosition: {supervisor: {id: {_eq: $supervisorId}}}},
-        type: {parentEntryId: {_eq: "AbsenceGroup:v1:RECR"}}
+        type: {
+          parentEntryId: {_eq: "AbsenceGroup:v1:RECR"}
+        }
       }
     ) {
       aggregate {
         count
       }
     }
-    # Test sick leave group specifically (current year only)
-    sickLeaveAbsences: EmployeeAbsenceAggregate(
+    # Unplanned absences: Health group with Sick Leave value (current year only)
+    unplannedAbsences: EmployeeAbsenceAggregate(
       where: {
         isDeleted: {_eq: false},
         status: {_eq: "APPROVED"},
         startDate: {_gte: $currentYearStart, _lte: $currentYearEnd},
         employee: {employeePosition: {supervisor: {id: {_eq: $supervisorId}}}},
-        type: {parentEntryId: {_eq: "AbsenceGroup:v1:HEALTH"}}
+        type: {
+          parentEntryId: {_eq: "AbsenceGroup:v1:HEALTH"}
+        }
       }
     ) {
       aggregate {
@@ -44,17 +48,7 @@ export const GET_PLANNED_VS_UNPLANNED_2025 = `
       }
     }
   }
-`;
-
-// ===== AVERAGE DAYS PER REQUEST QUERY =====
-// Purpose: Calculate average days per absence request for current year
-// Formula: Total effective days / Total approved absence count
-// Filters:
-// - Only approved absences (status: "APPROVED")
-// - Only current year absences (startDate within current year range)
-// - Exclude work leave group (type.parentEntryId != "AbsenceGroup:v1:WORK")
-// - Only absences for employees supervised by the given supervisor
-// - Not deleted absences
+`
 
 export const GET_AVERAGE_DAYS_PER_REQUEST = `
   query GetAverageDaysPerRequest($supervisorId: uuid, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
@@ -63,8 +57,7 @@ export const GET_AVERAGE_DAYS_PER_REQUEST = `
         isDeleted: {_eq: false},
         status: {_eq: "APPROVED"},
         startDate: {_gte: $currentYearStart, _lte: $currentYearEnd},
-        employee: {employeePosition: {supervisor: {id: {_eq: $supervisorId}}}},
-        type: {parentEntryId: {_neq: "AbsenceGroup:v1:WORK"}}
+        employee: {employeePosition: {supervisor: {id: {_eq: $supervisorId}}}}
       }
     ) {
       aggregate {
@@ -75,20 +68,7 @@ export const GET_AVERAGE_DAYS_PER_REQUEST = `
       }
     }
   }
-`;
-
-// ===== USAGE TRENDS DATA QUERY =====
-// Purpose: Fetch absence data for monthly usage and day-of-week pattern analysis
-// Used for: Monthly bar chart and day-of-week preferences calculation
-// Filters:
-// - Only approved absences (status: "APPROVED")
-// - Exclude work leave group (type.parentEntryId != "AbsenceGroup:v1:WORK")
-// - Only absences for employees supervised by the given supervisor
-// - Not deleted absences
-// - Current year filtering with _or condition:
-//   * Absences that start in current year, OR
-//   * Ongoing absences that start before current year but end in current year
-//     (This ensures we capture absences that span across year boundary)
+`
 
 export const GET_USAGE_TRENDS_DATA = `
   query GetUsageTrendsData($supervisorId: uuid, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
@@ -126,18 +106,7 @@ export const GET_USAGE_TRENDS_DATA = `
       }
     }
   }
-`;
-
-// ===== YEAR OVER YEAR COMPARISON QUERY =====
-// Purpose: Fetch absence data for current year and previous year for comparison
-// Used for: Year-over-year comparison chart showing monthly trends
-// Filters:
-// - Only approved absences (status: "APPROVED")
-// - Exclude work leave group (type.parentEntryId != "AbsenceGroup:v1:WORK")
-// - Only absences for employees supervised by the given supervisor
-// - Not deleted absences
-// - Date range covers both current year and previous year
-// - Includes ongoing absences that span across year boundaries
+`
 
 export const GET_YEAR_OVER_YEAR_DATA = `
   query GetYearOverYearData($supervisorId: uuid, $previousYearStart: timestamp!, $currentYearEnd: timestamp!) {
@@ -175,17 +144,7 @@ export const GET_YEAR_OVER_YEAR_DATA = `
       }
     }
   }
-`;
-
-// ===== AVERAGE WORK STREAK QUERY =====
-// Purpose: Calculate average work streak - how many days employees work without absences
-// Used for: Average work streak card showing consecutive work days
-// Filters:
-// - Only approved absences (status: "APPROVED")
-// - Exclude work leave group (type.parentEntryId != "AbsenceGroup:v1:WORK")
-// - Only absences for employees supervised by the given supervisor
-// - Not deleted absences
-// - Current year absences for streak calculation
+`
 
 export const GET_AVERAGE_WORK_STREAK = `
   query GetAverageWorkStreak($supervisorId: uuid, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
@@ -210,16 +169,7 @@ export const GET_AVERAGE_WORK_STREAK = `
       }
     }
   }
-`;
-
-// ===== EMPLOYEE WORK-LIFE BALANCE ANALYSIS QUERY =====
-// Purpose: Fetch detailed employee data and absence patterns for work-life balance analysis
-// Used for: Individual employee work-life balance analysis page
-// Filters:
-// - All employees supervised by the given supervisor
-// - All approved absences (excluding work leave) for these employees
-// - Current year data for analysis
-
+`
 export const GET_EMPLOYEE_WORK_LIFE_BALANCE = `
   query GetEmployeeWorkLifeBalance($supervisorId: uuid!, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
     # Get all employees who report to this supervisor
@@ -262,16 +212,7 @@ export const GET_EMPLOYEE_WORK_LIFE_BALANCE = `
       }
     }
   }
-`;
-
-// ===== TEAM COVERAGE OPTIMIZER QUERY =====
-// Purpose: Fetch comprehensive team coverage data including organizational units, matrix teams, and capabilities
-// Used for: Team coverage optimizer page showing coverage by org unit, matrix, and skills
-// Filters:
-// - All employees supervised by the given supervisor
-// - Current absences (excluding work leave)
-// - Matrix team memberships
-// - Employee capabilities/skills
+`
 
 export const GET_TEAM_COVERAGE_DATA = `
   query GetTeamCoverageData($supervisorId: uuid!, $structureId: uuid, $hasStructureId: Boolean!) {
@@ -338,4 +279,4 @@ export const GET_TEAM_COVERAGE_DATA = `
       name
     }
   }
-`;
+`

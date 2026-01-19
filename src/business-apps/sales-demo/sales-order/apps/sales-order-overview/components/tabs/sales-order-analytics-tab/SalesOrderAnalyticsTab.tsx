@@ -1,18 +1,10 @@
-import React, { useState } from 'react';
-import {
-  Card,
-  List,
-  Typography,
-  Alert,
-  Button
-} from 'antd';
-import {
-  ReloadOutlined
-} from '@ant-design/icons';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { AIActionItem } from '../../../types';
+import React, { useState } from 'react'
+import { Card, List, Typography, Button } from 'antd'
+import { ReloadOutlined } from '@ant-design/icons'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { AIActionItem } from '../../../types'
 
-const { Text } = Typography;
+const { Text } = Typography
 
 export interface SalesOrderAnalyticsTabProps extends BusinessAppContextProps {}
 
@@ -22,7 +14,7 @@ const SalesOrderAnalyticsTab: React.FC<SalesOrderAnalyticsTabProps> = ({
   additionalData,
   activeStructureId
 }) => {
-  const [aiActionsLoading, setAiActionsLoading] = useState(false);
+  const [aiActionsLoading, setAiActionsLoading] = useState(false)
 
   // Mock AI actions data
   const aiActions: AIActionItem[] = [
@@ -68,23 +60,23 @@ const SalesOrderAnalyticsTab: React.FC<SalesOrderAnalyticsTabProps> = ({
       priority: 'low',
       actionType: 'opportunity'
     }
-  ];
+  ]
 
   const handleRefreshAI = () => {
-    setAiActionsLoading(true);
-    setTimeout(() => setAiActionsLoading(false), 1000);
-  };
+    setAiActionsLoading(true)
+    setTimeout(() => setAiActionsLoading(false), 1000)
+  }
 
   const handleActionClick = (action: AIActionItem) => {
-    console.log('AI Action clicked:', action);
+    console.log('AI Action clicked:', action)
     // Navigate to relevant tab or perform action
     if (action.actionType === 'approval' || action.actionType === 'monitoring') {
       // Navigate to orders tab
       if (window.salesOrderTabNavigationAPI) {
-        window.salesOrderTabNavigationAPI.setActiveTab('orders');
+        window.salesOrderTabNavigationAPI.setActiveTab('orders')
       }
     }
-  };
+  }
 
   return (
     <div className="gba:p-6" data-testid="sales-order-analytics-tab">
@@ -111,7 +103,7 @@ const SalesOrderAnalyticsTab: React.FC<SalesOrderAnalyticsTabProps> = ({
       >
         <List
           dataSource={aiActions}
-          renderItem={(item) => (
+          renderItem={item => (
             <List.Item
               key={item.id}
               className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-3 gba:rounded gba:transition-colors"
@@ -123,16 +115,18 @@ const SalesOrderAnalyticsTab: React.FC<SalesOrderAnalyticsTabProps> = ({
                 <div className="gba:flex-1">
                   <Text className="gba:text-sm gba:block">{item.message}</Text>
                   <div className="gba:mt-1 gba:flex gba:items-center gba:gap-2">
-                    <span className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded gba:font-medium ${
-                      item.priority === 'high' ? 'gba:bg-red-100 gba:text-red-700' :
-                      item.priority === 'medium' ? 'gba:bg-yellow-100 gba:text-yellow-700' :
-                      'gba:bg-green-100 gba:text-green-700'
-                    }`}>
+                    <span
+                      className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded gba:font-medium ${
+                        item.priority === 'high'
+                          ? 'gba:bg-red-100 gba:text-red-700'
+                          : item.priority === 'medium'
+                            ? 'gba:bg-yellow-100 gba:text-yellow-700'
+                            : 'gba:bg-green-100 gba:text-green-700'
+                      }`}
+                    >
                       {item.priority.toUpperCase()}
                     </span>
-                    <span className="gba:text-xs gba:text-gray-500 gba:capitalize">
-                      {item.actionType}
-                    </span>
+                    <span className="gba:text-xs gba:text-gray-500 gba:capitalize">{item.actionType}</span>
                   </div>
                 </div>
               </div>
@@ -146,32 +140,38 @@ const SalesOrderAnalyticsTab: React.FC<SalesOrderAnalyticsTabProps> = ({
       <Card title="Sales Analytics Overview" data-testid="analytics-overview-card">
         <div className="gba:space-y-4">
           <div className="gba:p-4 gba:bg-blue-50 gba:rounded-lg">
-            <Text strong className="gba:block gba:mb-2">📈 Performance Insights</Text>
+            <Text strong className="gba:block gba:mb-2">
+              📈 Performance Insights
+            </Text>
             <Text className="gba:text-sm gba:text-gray-600">
-              AI-powered analytics help you identify trends, opportunities, and potential issues 
-              in your sales order pipeline. Click on any suggestion above to take action.
+              AI-powered analytics help you identify trends, opportunities, and potential issues in your sales order
+              pipeline. Click on any suggestion above to take action.
             </Text>
           </div>
-          
+
           <div className="gba:p-4 gba:bg-green-50 gba:rounded-lg">
-            <Text strong className="gba:block gba:mb-2">🎯 Recommendations</Text>
+            <Text strong className="gba:block gba:mb-2">
+              🎯 Recommendations
+            </Text>
             <Text className="gba:text-sm gba:text-gray-600">
-              Based on your sales data, we provide actionable recommendations to improve 
-              order processing efficiency and customer satisfaction.
+              Based on your sales data, we provide actionable recommendations to improve order processing efficiency and
+              customer satisfaction.
             </Text>
           </div>
-          
+
           <div className="gba:p-4 gba:bg-purple-50 gba:rounded-lg">
-            <Text strong className="gba:block gba:mb-2">🔍 Predictive Analysis</Text>
+            <Text strong className="gba:block gba:mb-2">
+              🔍 Predictive Analysis
+            </Text>
             <Text className="gba:text-sm gba:text-gray-600">
-              Our AI models analyze historical patterns to predict future trends and 
-              help you make informed business decisions.
+              Our AI models analyze historical patterns to predict future trends and help you make informed business
+              decisions.
             </Text>
           </div>
         </div>
       </Card>
     </div>
-  );
-};
+  )
+}
 
-export default SalesOrderAnalyticsTab;
+export default SalesOrderAnalyticsTab

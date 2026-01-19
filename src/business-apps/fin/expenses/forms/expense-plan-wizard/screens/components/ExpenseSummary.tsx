@@ -1,10 +1,9 @@
-import React from 'react';
-import { Divider } from 'antd';
-import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils';
-
+import React from 'react'
+import { Divider } from 'antd'
+import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils'
 
 interface ExpenseSummaryProps {
-  planData: any;
+  planData: any
 }
 
 /**
@@ -12,7 +11,7 @@ interface ExpenseSummaryProps {
  * including expenses, non-reimbursable amount, reimbursable amount, and advance payment
  */
 const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ planData }) => {
-  if (!planData) return null;
+  if (!planData) return null
 
   /**
    * Determines which summary sections to display based on plan data
@@ -23,190 +22,177 @@ const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({ planData }) => {
       displayNonReimbursable: false,
       displayReimbursable: false,
       displayAdvance: false
-    };
+    }
+
+    if (planData && planData.nonReimbursableAmount && planData.nonReimbursableAmount !== 0) {
+      displayObject.displayNonReimbursable = true
+    }
+
+    if (planData && planData.reimbursableAmount && planData.reimbursableAmount !== 0) {
+      displayObject.displayReimbursable = true
+    }
 
     if (
-      planData && 
-      planData.nonReimbursableAmount && 
-      planData.nonReimbursableAmount !== 0
-    ) {
-      displayObject.displayNonReimbursable = true;
-    }
-    
-    if (
-      planData && 
-      planData.reimbursableAmount && 
-      planData.reimbursableAmount !== 0
-    ) {
-      displayObject.displayReimbursable = true;
-    }
-    
-    if (
-      planData && 
-      planData.advancePayment && 
-      planData.advancePayment.length > 0 && 
-      planData.advancePayment[0].amount && 
+      planData &&
+      planData.advancePayment &&
+      planData.advancePayment.length > 0 &&
+      planData.advancePayment[0].amount &&
       planData.advancePayment[0].amount !== 0
     ) {
-      displayObject.displayAdvance = true;
+      displayObject.displayAdvance = true
     }
-    return displayObject;
-  };
+    return displayObject
+  }
 
   /**
    * Gets all financial values from plan data
    */
   const getValues = () => {
-    const zeroValue = 0;
-    let returnValues: any = {};
-    const addDataPayload = planData ? planData : "";
-    const addDataPayloadCurrency = (addDataPayload && addDataPayload.currency && addDataPayload.currency.code) 
-      ? addDataPayload.currency.code 
-      : "";
-    
+    const zeroValue = 0
+    let returnValues: any = {}
+    const addDataPayload = planData ? planData : ''
+    const addDataPayloadCurrency =
+      addDataPayload && addDataPayload.currency && addDataPayload.currency.code ? addDataPayload.currency.code : ''
+
     const expensesValue = {
       currency: addDataPayloadCurrency,
-      amount: (addDataPayload.totalAmount ? addDataPayload.totalAmount : zeroValue)
-    };
-    
+      amount: addDataPayload.totalAmount ? addDataPayload.totalAmount : zeroValue
+    }
+
     returnValues = {
       ...returnValues,
       expenses: expensesValue
-    };
-    
+    }
+
     const nonReimbursableValue = {
       currency: addDataPayloadCurrency,
-      amount: (addDataPayload.nonReimbursableAmount ? addDataPayload.nonReimbursableAmount : zeroValue)
-    };
-    
+      amount: addDataPayload.nonReimbursableAmount ? addDataPayload.nonReimbursableAmount : zeroValue
+    }
+
     returnValues = {
       ...returnValues,
       nonReimbursable: nonReimbursableValue
-    };
-    
+    }
+
     const reimbursableValue = {
       currency: addDataPayloadCurrency,
-      amount: (addDataPayload.reimbursableAmount ? addDataPayload.reimbursableAmount : zeroValue)
-    };
-    
+      amount: addDataPayload.reimbursableAmount ? addDataPayload.reimbursableAmount : zeroValue
+    }
+
     returnValues = {
       ...returnValues,
       reimbursable: reimbursableValue
-    };
-    
-    
+    }
+
     const advancePaymentValue = {
       currency: addDataPayloadCurrency,
-      amount: (planData.advancePayment[0]?.amount ? planData.advancePayment[0].amount : zeroValue)
-    };
-    
+      amount: planData.advancePayment[0]?.amount ? planData.advancePayment[0].amount : zeroValue
+    }
+
     returnValues = {
       ...returnValues,
       advancePayment: advancePaymentValue
-    };
-    
-    return returnValues;
-  };
+    }
+
+    return returnValues
+  }
 
   // Get display configuration and values
-  const displayObject = whatToDisplay();
-  const values = getValues();
-  
+  const displayObject = whatToDisplay()
+  const values = getValues()
+
   // Determine which sections are visible to properly place dividers
   const visibleSections = [
     displayObject.displayExpenses,
     displayObject.displayNonReimbursable,
     displayObject.displayReimbursable,
     displayObject.displayAdvance
-  ].filter(Boolean);
-  
-  const sectionCount = visibleSections.length;
-  let currentSectionIndex = 0;
+  ].filter(Boolean)
+
+  const sectionCount = visibleSections.length
+  let currentSectionIndex = 0
 
   return (
     <div className="gba:px-2 [&_.ant-divider-horizontal]:my-6" data-testid="expense-summary-container">
-      {(displayObject.displayExpenses || displayObject.displayNonReimbursable 
-      || displayObject.displayReimbursable || displayObject.displayAdvance) &&
-       (<Divider className="gba:mb-4" data-testid="expense-summary-divider" />
-)}
-      
+      {(displayObject.displayExpenses ||
+        displayObject.displayNonReimbursable ||
+        displayObject.displayReimbursable ||
+        displayObject.displayAdvance) && <Divider className="gba:mb-4" data-testid="expense-summary-divider" />}
+
       {displayObject.displayExpenses && (
         <>
-        <div 
-          className="gba:min-h-[40px] gba:py-4" 
-          data-testid="expense-summary-expenses"
-        >
-          <div className="gba:flex gba:justify-between gba:items-center">
-            <span className="gba:text-sm gba:font-normal">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.request_amount_title_text', 'Estimated Expenses')}
-            </span>
-            <span className="gba:text-3xl gba:font-bold">
-              {formatNumberFunction(values.expenses.amount, "0.00[,]00")} {values.expenses.currency}
-            </span>
+          <div className="gba:min-h-[40px] gba:py-4" data-testid="expense-summary-expenses">
+            <div className="gba:flex gba:justify-between gba:items-center">
+              <span className="gba:text-sm gba:font-normal">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:modify_expense_request.request_amount_title_text',
+                  'Estimated Expenses'
+                )}
+              </span>
+              <span className="gba:text-3xl gba:font-bold">
+                {formatNumberFunction(values.expenses.amount, '0.00[,]00')} {values.expenses.currency}
+              </span>
+            </div>
           </div>
-        </div>
-        {(++currentSectionIndex < sectionCount) && <Divider className="gba:my-0" />}
+          {++currentSectionIndex < sectionCount && <Divider className="gba:my-0" />}
         </>
       )}
-      
+
       {displayObject.displayNonReimbursable && (
         <>
-        <div 
-          className="gba:min-h-[40px] gba:py-4" 
-          data-testid="expense-summary-non-reimbursable"
-        >
-          <div className="gba:flex gba:justify-between gba:items-center">
-            <span className="gba:text-sm gba:font-normal">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.non_reimbursable', 'Not Reimbursable Amount')}
-            </span>
-            <span className="gba:text-sm gba:font-bold gba:text-[#A2519A]">
-              {formatNumberFunction(values.nonReimbursable.amount, "0.00[,]00")} {values.nonReimbursable.currency}
-            </span>
+          <div className="gba:min-h-[40px] gba:py-4" data-testid="expense-summary-non-reimbursable">
+            <div className="gba:flex gba:justify-between gba:items-center">
+              <span className="gba:text-sm gba:font-normal">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:approve_expense_request.non_reimbursable',
+                  'Not Reimbursable Amount'
+                )}
+              </span>
+              <span className="gba:text-sm gba:font-bold gba:text-primary">
+                {formatNumberFunction(values.nonReimbursable.amount, '0.00[,]00')} {values.nonReimbursable.currency}
+              </span>
+            </div>
           </div>
-        </div>
-        {(++currentSectionIndex < sectionCount) && <Divider className="gba:my-0" />}
+          {++currentSectionIndex < sectionCount && <Divider className="gba:my-0" />}
         </>
       )}
-      
+
       {displayObject.displayReimbursable && (
         <>
-        <div 
-          className="gba:min-h-[40px] gba:py-4" 
-          data-testid="expense-summary-reimbursable"
-        >
-          <div className="gba:flex gba:justify-between gba:items-center">
-            <span className="gba:text-sm gba:font-normal">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable', 'Reimbursable Amount')}
-            </span>
-            <span className="gba:text-sm gba:font-bold gba:text-[#0DBC7B]">
-              {formatNumberFunction(values.reimbursable.amount, "0.00[,]00")} {values.reimbursable.currency}
-            </span>
+          <div className="gba:min-h-[40px] gba:py-4" data-testid="expense-summary-reimbursable">
+            <div className="gba:flex gba:justify-between gba:items-center">
+              <span className="gba:text-sm gba:font-normal">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:approve_expense_request.reimbursable',
+                  'Reimbursable Amount'
+                )}
+              </span>
+              <span className="gba:text-sm gba:font-bold gba:text-success">
+                {formatNumberFunction(values.reimbursable.amount, '0.00[,]00')} {values.reimbursable.currency}
+              </span>
+            </div>
           </div>
-        </div>
-        {(++currentSectionIndex < sectionCount) && <Divider className="gba:my-0" />}
+          {++currentSectionIndex < sectionCount && <Divider className="gba:my-0" />}
         </>
       )}
-      
+
       {displayObject.displayAdvance && (
         <>
-        <div 
-          className="gba:min-h-[40px] gba:py-4" 
-          data-testid="expense-summary-advance"
-        >
-          <div className="gba:flex gba:justify-between gba:items-center">
-            <span className="gba:text-sm gba:font-normal">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.advance_payment', 'Advance Payment')}
-            </span>
-            <span className="gba:text-sm gba:font-bold gba:text-[#000000]">
-            {formatNumberFunction(values.advancePayment.amount, "0.00[,]00")} {values.advancePayment.currency}
-            </span>
+          <div className="gba:min-h-[40px] gba:py-4" data-testid="expense-summary-advance">
+            <div className="gba:flex gba:justify-between gba:items-center">
+              <span className="gba:text-sm gba:font-normal">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.advance_payment', 'Advance Payment')}
+              </span>
+              <span className="gba:text-sm gba:font-bold gba:text-foreground">
+                {formatNumberFunction(values.advancePayment.amount, '0.00[,]00')} {values.advancePayment.currency}
+              </span>
+            </div>
           </div>
-        </div>
-        {(++currentSectionIndex < sectionCount) && <Divider className="gba:my-0" />}
+          {++currentSectionIndex < sectionCount && <Divider className="gba:my-0" />}
         </>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default ExpenseSummary; 
+export default ExpenseSummary

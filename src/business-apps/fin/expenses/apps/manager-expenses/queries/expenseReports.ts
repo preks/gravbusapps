@@ -50,7 +50,7 @@ export const GET_MONTHLY_EXPENSE_SUMMARY = `
       }
     }
   }
-`;
+`
 
 // Query to get expense categories breakdown report data
 export const GET_EXPENSE_CATEGORIES_BREAKDOWN = `
@@ -101,7 +101,7 @@ export const GET_EXPENSE_CATEGORIES_BREAKDOWN = `
       totalAmount
     }
   }
-`;
+`
 
 // Query to get team budget analysis report data
 export const GET_TEAM_BUDGET_ANALYSIS = `
@@ -174,4 +174,4 @@ export const GET_TEAM_BUDGET_ANALYSIS = `
       year
     }
   }
-`;
+`

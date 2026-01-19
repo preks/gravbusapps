@@ -1,3 +1,3 @@
-export { LeadData } from './LeadData';
-export { LeadDataTabs } from './LeadData';
-export { default } from './LeadData'; 
+export { LeadData } from './LeadData'
+export { LeadDataTabs } from './LeadData'
+export { default } from './LeadData'

@@ -28,10 +28,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
   Button,
-  Spinner
-} from "@newwork/nw-design-system";
-import { toast } from "sonner";
-import ComponentShowcase from "./ComponentShowcase";
+  Spinner,
+  toast
+} from '@newwork/nw-design-system'
+import ComponentShowcase from './ComponentShowcase'
 
 /**
  * Comprehensive showcase of all feedback and overlay components
@@ -40,65 +40,42 @@ export function FeedbackShowcase() {
   return (
     <div className="gba:space-y-8" data-testid="feedback-showcase">
       {/* Alerts */}
-      <ComponentShowcase
-        title="Alert Components"
-        description="Alert messages for different types of notifications"
-      >
+      <ComponentShowcase title="Alert Components" description="Alert messages for different types of notifications">
         <div className="gba:space-y-4">
           <Alert data-testid="alert-info">
             <AlertTitle>Information</AlertTitle>
-            <AlertDescription>
-              This is an informational alert message to provide context to
-              users.
-            </AlertDescription>
+            <AlertDescription>This is an informational alert message to provide context to users.</AlertDescription>
           </Alert>
 
           <Alert variant="destructive" data-testid="alert-error">
             <AlertTitle>Error</AlertTitle>
-            <AlertDescription>
-              Something went wrong. Please check your input and try again.
-            </AlertDescription>
+            <AlertDescription>Something went wrong. Please check your input and try again.</AlertDescription>
           </Alert>
         </div>
       </ComponentShowcase>
 
       {/* Toast Notifications */}
-      <ComponentShowcase
-        title="Toast Notifications"
-        description="Temporary notification messages with Sonner"
-      >
+      <ComponentShowcase title="Toast Notifications" description="Temporary notification messages with Sonner">
         <div className="gba:space-y-4">
           <div>
-            <h4 className="gba:text-sm gba:font-medium gba:mb-2">
-              Basic Toasts
-            </h4>
+            <h4 className="gba:text-sm gba:font-medium gba:mb-2">Basic Toasts</h4>
             <div className="gba:flex gba:flex-wrap gba:gap-2">
-              <Button
-                variant="outline"
-                onClick={() => toast("Default notification")}
-                data-testid="toast-default"
-              >
+              <Button variant="outline" onClick={() => toast('Default notification')} data-testid="toast-default">
                 Default Toast
               </Button>
               <Button
                 variant="outline"
-                onClick={() =>
-                  toast.success("Operation completed successfully!")
-                }
+                onClick={() => toast.success('Operation completed successfully!')}
                 data-testid="toast-success"
               >
                 Success Toast
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => toast.error("An error occurred!")}
-                data-testid="toast-error"
-              >
+              <Button variant="outline" onClick={() => toast.error('An error occurred!')} data-testid="toast-error">
                 Error Toast
               </Button>
               <Button
                 variant="outline"
-                onClick={() => toast.warning("Please review your input.")}
+                onClick={() => toast.warning('Please review your input.')}
                 data-testid="toast-warning"
               >
                 Warning Toast
@@ -107,13 +84,11 @@ export function FeedbackShowcase() {
           </div>
 
           <div>
-            <h4 className="gba:text-sm gba:font-medium gba:mb-2">
-              Advanced Toasts
-            </h4>
+            <h4 className="gba:text-sm gba:font-medium gba:mb-2">Advanced Toasts</h4>
             <div className="gba:flex gba:flex-wrap gba:gap-2">
               <Button
                 variant="outline"
-                onClick={() => toast.info("This is an informational message.")}
+                onClick={() => toast.info('This is an informational message.')}
                 data-testid="toast-info"
               >
                 Info Toast
@@ -121,10 +96,10 @@ export function FeedbackShowcase() {
               <Button
                 variant="outline"
                 onClick={() =>
-                  toast("Action required", {
+                  toast('Action required', {
                     action: {
-                      label: "Undo",
-                      onClick: () => toast("Action undone!")
+                      label: 'Undo',
+                      onClick: () => toast('Action undone!')
                     }
                   })
                 }
@@ -135,12 +110,11 @@ export function FeedbackShowcase() {
               <Button
                 variant="outline"
                 onClick={() =>
-                  toast("Event created", {
-                    description:
-                      "Your event has been scheduled for tomorrow at 2 PM",
+                  toast('Event created', {
+                    description: 'Your event has been scheduled for tomorrow at 2 PM',
                     action: {
-                      label: "View",
-                      onClick: () => toast("Opening event details...")
+                      label: 'View',
+                      onClick: () => toast('Opening event details...')
                     }
                   })
                 }
@@ -154,15 +128,10 @@ export function FeedbackShowcase() {
       </ComponentShowcase>
 
       {/* Dialogs */}
-      <ComponentShowcase
-        title="Dialog Components"
-        description="Modal dialogs for user interaction and confirmation"
-      >
+      <ComponentShowcase title="Dialog Components" description="Modal dialogs for user interaction and confirmation">
         <div className="gba:space-y-4">
           <div>
-            <h4 className="gba:text-sm gba:font-medium gba:mb-2">
-              Basic Dialog
-            </h4>
+            <h4 className="gba:text-sm gba:font-medium gba:mb-2">Basic Dialog</h4>
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="outline" data-testid="basic-dialog-trigger">
@@ -173,14 +142,13 @@ export function FeedbackShowcase() {
                 <DialogHeader>
                   <DialogTitle>Dialog Title</DialogTitle>
                   <DialogDescription>
-                    This is a basic dialog example. It provides a way to display
-                    content in a modal overlay that requires user attention.
+                    This is a basic dialog example. It provides a way to display content in a modal overlay that
+                    requires user attention.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="gba:py-4">
                   <p className="gba:text-sm gba:text-muted-foreground">
-                    Dialog content goes here. You can add forms, information, or
-                    any other content.
+                    Dialog content goes here. You can add forms, information, or any other content.
                   </p>
                 </div>
                 <div className="gba:flex gba:justify-end gba:space-x-2">
@@ -192,15 +160,10 @@ export function FeedbackShowcase() {
           </div>
 
           <div>
-            <h4 className="gba:text-sm gba:font-medium gba:mb-2">
-              Alert Dialog
-            </h4>
+            <h4 className="gba:text-sm gba:font-medium gba:mb-2">Alert Dialog</h4>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  data-testid="alert-dialog-trigger"
-                >
+                <Button variant="destructive" data-testid="alert-dialog-trigger">
                   Delete Item
                 </Button>
               </AlertDialogTrigger>
@@ -208,15 +171,12 @@ export function FeedbackShowcase() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete
-                    the item and remove it from our servers.
+                    This action cannot be undone. This will permanently delete the item and remove it from our servers.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => toast.success("Item deleted successfully")}
-                  >
+                  <AlertDialogAction onClick={() => toast.success('Item deleted successfully')}>
                     Delete
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -227,30 +187,22 @@ export function FeedbackShowcase() {
       </ComponentShowcase>
 
       {/* Popover */}
-      <ComponentShowcase
-        title="Popover Components"
-        description="Floating content panels triggered by user interaction"
-      >
+      <ComponentShowcase title="Popover Components" description="Floating content panels triggered by user interaction">
         <div className="gba:space-y-4">
           <div>
-            <h4 className="gba:text-sm gba:font-medium gba:mb-2">
-              Basic Popover
-            </h4>
+            <h4 className="gba:text-sm gba:font-medium gba:mb-2">Basic Popover</h4>
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" data-testid="popover-trigger">
                   Open Popover
                 </Button>
               </PopoverTrigger>
-              <PopoverContent
-                className="gba:w-80"
-                data-testid="popover-content"
-              >
+              <PopoverContent className="gba:w-80" data-testid="popover-content">
                 <div className="gba:space-y-2">
                   <h4 className="gba:font-medium">Popover Content</h4>
                   <p className="gba:text-sm gba:text-muted-foreground">
-                    This is a popover that appears when you click the trigger
-                    button. It can contain any content you need.
+                    This is a popover that appears when you click the trigger button. It can contain any content you
+                    need.
                   </p>
                   <div className="gba:flex gba:gap-2">
                     <Button size="sm">Action</Button>
@@ -266,10 +218,7 @@ export function FeedbackShowcase() {
       </ComponentShowcase>
 
       {/* Tooltip */}
-      <ComponentShowcase
-        title="Tooltip Components"
-        description="Contextual information that appears on hover"
-      >
+      <ComponentShowcase title="Tooltip Components" description="Contextual information that appears on hover">
         <div className="gba:space-y-4">
           <TooltipProvider>
             <div className="gba:flex gba:gap-4">
@@ -293,9 +242,7 @@ export function FeedbackShowcase() {
                 <TooltipContent>
                   <div className="gba:space-y-1">
                     <p className="gba:font-medium">Advanced Feature</p>
-                    <p className="gba:text-xs">
-                      This button provides advanced functionality
-                    </p>
+                    <p className="gba:text-xs">This button provides advanced functionality</p>
                   </div>
                 </TooltipContent>
               </Tooltip>
@@ -305,10 +252,7 @@ export function FeedbackShowcase() {
       </ComponentShowcase>
 
       {/* Hover Card */}
-      <ComponentShowcase
-        title="Hover Card"
-        description="Rich content that appears when hovering over elements"
-      >
+      <ComponentShowcase title="Hover Card" description="Rich content that appears when hovering over elements">
         <div className="gba:space-y-4">
           <HoverCard>
             <HoverCardTrigger asChild>
@@ -316,16 +260,12 @@ export function FeedbackShowcase() {
                 @username
               </Button>
             </HoverCardTrigger>
-            <HoverCardContent
-              className="gba:w-80"
-              data-testid="hover-card-content"
-            >
+            <HoverCardContent className="gba:w-80" data-testid="hover-card-content">
               <div className="gba:space-y-2">
                 <div>
                   <h4 className="gba:text-sm gba:font-semibold">@username</h4>
                   <p className="gba:text-sm gba:text-muted-foreground">
-                    Software Developer at NEWWORK SE. Building amazing user
-                    experiences with modern web technologies.
+                    Software Developer at NEWWORK SE. Building amazing user experiences with modern web technologies.
                   </p>
                 </div>
                 <div className="gba:flex gba:items-center gba:text-xs gba:text-muted-foreground">
@@ -338,15 +278,10 @@ export function FeedbackShowcase() {
       </ComponentShowcase>
 
       {/* Loading States */}
-      <ComponentShowcase
-        title="Loading States"
-        description="Spinner components for indicating loading states"
-      >
+      <ComponentShowcase title="Loading States" description="Spinner components for indicating loading states">
         <div className="gba:space-y-6">
           <div>
-            <h4 className="gba:text-sm gba:font-medium gba:mb-2">
-              Spinner Sizes
-            </h4>
+            <h4 className="gba:text-sm gba:font-medium gba:mb-2">Spinner Sizes</h4>
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:flex-col gba:items-center">
                 <Spinner size="sm" data-testid="spinner-sm" />
@@ -364,9 +299,7 @@ export function FeedbackShowcase() {
           </div>
 
           <div>
-            <h4 className="gba:text-sm gba:font-medium gba:mb-2">
-              Spinner Variants
-            </h4>
+            <h4 className="gba:text-sm gba:font-medium gba:mb-2">Spinner Variants</h4>
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:flex-col gba:items-center">
                 <Spinner variant="default" data-testid="spinner-default" />
@@ -385,7 +318,7 @@ export function FeedbackShowcase() {
         </div>
       </ComponentShowcase>
     </div>
-  );
+  )
 }
 
-export default FeedbackShowcase;
+export default FeedbackShowcase

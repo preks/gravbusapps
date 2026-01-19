@@ -1,4 +1,4 @@
-import FulfillmentDeliveryTab from './FulfillmentDeliveryTab';
+import FulfillmentDeliveryTab from './FulfillmentDeliveryTab'
 
-export { FulfillmentDeliveryTab };
-export default FulfillmentDeliveryTab;
+export { FulfillmentDeliveryTab }
+export default FulfillmentDeliveryTab

@@ -1,21 +1,20 @@
-/**
- * Custom hook for fetching and processing dashboard data
- * ✅ USES: True server-side GraphQL aggregations for optimal performance
- */
-
-import { useEffect, useState } from 'react';
-import { useGraphQLClient } from '../../../../../../common/network/graphql/useGraphQLClient';
-import { useCatalogManagerClient } from '../../../../../../common/network/catalogs/useCatalogManagerClient';
-import { getOptimizedDashboardQuery } from '../queries/ServerSideAggregationQueries';
-import { processCompleteServerSideAggregations } from '../utils/serverSideAggregationUtils';
-import { DashboardData, TimeFilter } from '../types';
+import { useEffect, useState } from 'react'
+import { useGraphQLClient } from '../../../../../../common/network/graphql/useGraphQLClient'
+import { useCatalogManagerClient } from '../../../../../../common/network/catalogs/useCatalogManagerClient'
+import { getCurrentActiveUserLocale } from '../../../../../../common/utils/windowUtils'
+import { getOptimizedDashboardQuery } from '../queries/ServerSideAggregationQueries'
+import { processCompleteServerSideAggregations } from '../utils/serverSideAggregationUtils'
+import { DashboardData, TimeFilter } from '../types'
 
 export interface UseDashboardDataProps {
-  accessToken: string;
-  timeFilter?: TimeFilter;
+  accessToken: string
+  timeFilter?: TimeFilter
 }
 
-export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: UseDashboardDataProps): DashboardData => {
+export const useDashboardData = ({
+  accessToken,
+  timeFilter = 'current-year'
+}: UseDashboardDataProps): DashboardData => {
   const [data, setData] = useState<DashboardData>({
     totalAbsences: 0,
     pendingAbsences: 0,
@@ -24,100 +23,98 @@ export const useDashboardData = ({ accessToken, timeFilter = 'current-year' }: U
     cancelledAbsences: 0,
     averageDuration: 0,
     approvalRate: 0,
-    
+
     averageVacationDays: 0,
     averageUsed: 0,
     averagePending: 0,
     totalVacationLiability: 0,
-    
+
     departmentStats: [],
     monthlyData: [],
     rawAbsences: [],
     statusBreakdown: [],
     typeBreakdown: [],
-    
+
     entitlements: {
       averageVacationPerEmployee: 0,
       totalActiveEmployees: 0,
       averageAvailable: 0,
       averageUsed: 0,
-      totalVacationLiability: 0
+      totalVacationLiability: 0,
+      totalVacationEntitlement: 0
     },
-    
+
     isLoading: true,
     error: null
-  });
+  })
 
-  const graphQLClient = useGraphQLClient(accessToken);
-  const catalogClient = useCatalogManagerClient(accessToken);
+  const graphQLClient = useGraphQLClient(accessToken)
+  const catalogClient = useCatalogManagerClient(accessToken)
 
   const fetchData = async () => {
     try {
-      setData(prev => ({ ...prev, isLoading: true, error: null }));
+      setData(prev => ({ ...prev, isLoading: true, error: null }))
 
-      // ✅ STEP 1: Fetch absence groups catalog (required for proper type mapping)
-      await catalogClient.setAccessToken(accessToken);
+      await catalogClient.setAccessToken(accessToken)
+      const userLocale = getCurrentActiveUserLocale() ?? 'en-US'
+
       const absenceGroupsData = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier: "AbsenceGroup", version: "v1" },
-        { 
-          limit: 100, 
-          offset: 0, 
+        { catalogIdentifier: 'AbsenceGroup', version: 'v1' },
+        {
+          limit: 100,
+          offset: 0,
           returnTotalRecords: true,
+          localeCode: userLocale,
           includeChildCatalogEntries: true
         }
-      );
-      
-      const absenceGroups: Record<string, string> = {};
+      )
+
+      const absenceGroups: Record<string, string> = {}
       absenceGroupsData.data.forEach((group: any) => {
-        absenceGroups[group.id] = group.value;
+        absenceGroups[group.id] = group.value
         if (group.catalogEntryLocalId) {
-          absenceGroups[group.catalogEntryLocalId] = group.value;
+          absenceGroups[group.catalogEntryLocalId] = group.value
         }
-      });
+      })
 
-      // ✅ STEP 2: Find vacation group ID for entitlement filtering (FIXED LOGIC)
-      const vacationGroup = absenceGroupsData.data.find((group: any) => 
-        group.value && (
-          group.value.toLowerCase().includes('vacation') ||
-          group.value.toLowerCase().includes('annual') ||
-          group.value.toLowerCase().includes('holiday') ||
-          (group.value.toLowerCase().includes('leave') && !group.value.toLowerCase().includes('sick'))
-        )
-      );
-      const vacationGroupId = vacationGroup?.id;
-      
-      // ✅ SERVER-SIDE AGGREGATIONS: True server-side processing
-      const query = getOptimizedDashboardQuery(timeFilter, vacationGroupId);
-      
-      const result = await graphQLClient.request<any>(query);
-      
-      // Process aggregation results with minimal client-side work
-      const processedData = processCompleteServerSideAggregations(
-        result,
-        absenceGroups,
-        timeFilter
-      );
+      const absenceTypesData = await catalogClient.getCatalogEntriesList(
+        { catalogIdentifier: 'AbsenceType', version: 'v1' },
+        {
+          limit: 100,
+          offset: 0,
+          returnTotalRecords: true,
+          localeCode: userLocale,
+          includeChildCatalogEntries: true
+        }
+      )
 
-      setData(processedData);
-      
+      const vacationType = absenceTypesData.data.find((type: any) => type.id === 'AbsenceType:v1:A001')
+      const vacationGroupId = vacationType?.id
+
+      const query = getOptimizedDashboardQuery(timeFilter, vacationGroupId)
+
+      const result = await graphQLClient.request<any>(query)
+
+      const processedData = processCompleteServerSideAggregations(result, absenceGroups, timeFilter)
+
+      setData(processedData)
     } catch (error) {
-      console.error('❌ Error fetching dashboard data:', error);
-      setData(prev => ({ 
-        ...prev, 
-        isLoading: false, 
+      console.error('❌ Error fetching dashboard data:', error)
+      setData(prev => ({
+        ...prev,
+        isLoading: false,
         error: error instanceof Error ? error.message : 'Unknown error'
-      }));
+      }))
     }
-  };
+  }
 
   useEffect(() => {
     if (accessToken) {
-      fetchData();
+      fetchData()
     }
-  }, [accessToken, timeFilter]);
+  }, [accessToken, timeFilter])
 
-  return data;
-};
+  return data
+}
 
-// Default export for easier importing
-export default useDashboardData; 
+export default useDashboardData

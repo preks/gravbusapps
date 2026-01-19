@@ -1,8 +1,8 @@
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { useFlowClient } from "@/common/network/flows/useFlowClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { showToast } from "../../utils/notificationUtils";
-import { formatDateWithTimezone } from "./utils/dateUtils";
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useFlowClient } from '@/common/network/flows/useFlowClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { showToast } from '../../utils/notificationUtils'
+import { formatDateWithTimezone } from './utils/dateUtils'
 
 /**
  * Hook for fetching employee rule data
@@ -10,8 +10,8 @@ import { formatDateWithTimezone } from "./utils/dateUtils";
  * @returns Function to fetch employee rule data
  */
 export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps, 'accessToken'>) => {
-  const flowClient = useFlowClient(contextProps);
-  
+  const flowClient = useFlowClient(contextProps)
+
   /**
    * Fetch employee rule data
    * @param employeeId Employee ID
@@ -20,21 +20,24 @@ export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps,
    */
   const fetchEmployeeRule = async (employeeId: string, date: string) => {
     try {
-      const formattedDate = formatDateWithTimezone(date);
-      const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`;
-      
-      return await flowClient.getResource(path);
-    } catch (error) {
+      const formattedDate = formatDateWithTimezone(date)
+      const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`
+
+      return await flowClient.getResource(path)
+    } catch {
       showToast(
-        getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
-        "error"
-      );
-      return null;
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_type_item.process_error_data_fetch',
+          'Error fetching data'
+        ),
+        'error'
+      )
+      return null
     }
-  };
-  
-  return { fetchEmployeeRule };
-};
+  }
+
+  return { fetchEmployeeRule }
+}
 
 /**
  * Legacy function for fetching employee rule data
@@ -43,28 +46,30 @@ export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps,
 export const fetchEmployeeRule = async (employeeId: string, date: string, accessToken: string) => {
   try {
     // Import flowClient directly for non-hook usage
-    const { flowClient } = await import("@/common/network/flows/FlowClient");
-    
+    const { flowClient } = await import('@/common/network/flows/FlowClient')
+
     // Set access token
-    flowClient.setAccessToken(accessToken);
-    
+    flowClient.setAccessToken(accessToken)
+
     // Format date as required by the API
-    const formattedDate = formatDateWithTimezone(date);
-    const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`;
-    
+    const formattedDate = formatDateWithTimezone(date)
+    const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`
+
     // Use the getResource method
-    return await flowClient.getResource(path);
-  } catch (error) {
+    return await flowClient.getResource(path)
+  } catch {
     showToast(
-      getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
-      "error"
-    );
-    return null;
+      getTranslationFromI18nKeyAndLabel(
+        'lowcoder:create_expense_type_item.process_error_data_fetch',
+        'Error fetching data'
+      ),
+      'error'
+    )
+    return null
   }
-};
+}
 
-
-export const fetchExpenseData =`query MyQuery($expenseId:uuid! ,$activeUserLocale: String) {
+export const fetchExpenseData = `query MyQuery($expenseId:uuid! ,$activeUserLocale: String) {
    ExpenseItemByPk(id: $expenseId) {
     id
     version
@@ -143,18 +148,7 @@ export const fetchExpenseData =`query MyQuery($expenseId:uuid! ,$activeUserLocal
       expenseRuleGeneralExpenseId
       expenseRuleMileageId
       id
-      measurementUnit {
-        id
-        code
-        value
-    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
-      localeCode
-      value
-    }
-    catalog {
-      defaultLocale
-    }
-      }
+      expenseItemId
       positionOrder
       totalAmount
       version
@@ -167,16 +161,16 @@ export const fetchExpenseData =`query MyQuery($expenseId:uuid! ,$activeUserLocal
     expenseRequest {
       id
       title
+      status
     }
     title
     autoCalculated
     expenseRuleGeneralExpenseId
     additionalProperties
     multiplePositions
-    source
-  }
+}
 }`
-export const fetchExpenseRuleGeneralData =`query fetchExpenseRuleGeneralData ($objectFilter: jsonb!,$activeUserLocale:String!,$expenseRuleId: uuid) {
+export const fetchExpenseRuleGeneralData = `query fetchExpenseRuleGeneralData ($objectFilter: jsonb!,$activeUserLocale:String!,$expenseRuleId: uuid) {
 ExpenseRuleGeneralExpense(
     where: {
       expenseRuleId: { _eq: $expenseRuleId }, 
@@ -205,12 +199,12 @@ ExpenseRuleGeneralExpense(
 
 }`
 
-export const fetchExpenseCatalogueData =`query fetchExpenseCatalogueData ($employeeId: uuid,$objectFilter: jsonb!,$activeUserLocale:String!,$expenseRuleId: uuid) {
+export const fetchExpenseCatalogueData = `query fetchExpenseCatalogueData ($employeeId: uuid,$objectFilter: jsonb!,$activeUserLocale:String!,$expenseRuleId: uuid) {
   EmployeePosition(where: {employeeId: {_eq: $employeeId}}) {
     structureId
     costCenterId
   }
-  ExpenseRequest(where: { currencyRef: { _isNull: true } ,isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}, status: {_in: ["CREATED"]}}) {
+  ExpenseRequest(where: { currencyRef: { _isNull: true } ,isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}, status: {_in: ["CREATED", "REJECTED"]}}) {
     id
     status
     title
@@ -280,7 +274,7 @@ export const fetchExpenseCatalogueData =`query fetchExpenseCatalogueData ($emplo
   }
 
 }`
-export const getNewTypes =`query MyQuery($expenseRuleId: uuid, $objectFilter: jsonb, $expenseGroupId: [String!]) {
+export const getNewTypes = `query MyQuery($expenseRuleId: uuid, $objectFilter: jsonb, $expenseGroupId: [String!]) {
   ExpenseRuleGeneralExpense(where: {expenseRuleId: {_eq: $expenseRuleId}, expenseGroupRef: {_in: $expenseGroupId}, isDeleted: {_eq: false}, expenseGroup: {objectValue: {_contains: $objectFilter}}}) {
     id
     code
@@ -292,7 +286,7 @@ export const getNewTypes =`query MyQuery($expenseRuleId: uuid, $objectFilter: js
   }
 }
 `
-export const getCustomFields =`query MyQuery($expenseRuleGeneralId: [uuid!]) {
+export const getCustomFields = `query MyQuery($expenseRuleGeneralId: [uuid!]) {
   ExpenseRuleOtherInfo(where: {expenseRuleGeneralExpenseId: {_in: $expenseRuleGeneralId}, isDeleted: {_eq: false}}) {
     id
     infoValue
@@ -305,8 +299,18 @@ export const getCustomFields =`query MyQuery($expenseRuleGeneralId: [uuid!]) {
   }
 }
 `
-export const expenseRequestByCurrencyQuery =`query fetchCurrency ($employeeId: uuid,$givenCurrency: String) {
-  ExpenseRequest(where: { currencyRef:{_eq:$givenCurrency},isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}, status: {_in: ["CREATED"]}}) {
+export const expenseRequestByCurrencyQuery = `query fetchCurrency ($employeeId: uuid, $givenCurrency: String) {
+  ExpenseRequest(
+    where: {
+      isDeleted: { _eq: false }
+      employeeId: { _eq: $employeeId }
+      status: { _in: ["CREATED", "REJECTED"] }
+      _or: [
+        { currencyRef: { _isNull: true } }
+        { currencyRef: { _eq: $givenCurrency } }
+      ]
+    }
+  ) {
     id
     status
     title
@@ -314,7 +318,7 @@ export const expenseRequestByCurrencyQuery =`query fetchCurrency ($employeeId: u
     currencyRef
   }
 }`
-export const getStructureCostCenter =`query MyQuery($structureId: uuid!) {
+export const getStructureCostCenter = `query MyQuery($structureId: uuid!) {
   userCostCenters: CostCenter(where: {structureId: {_eq: $structureId}, isDeleted: {_eq: false}}) {
     id
     name
@@ -330,7 +334,7 @@ export const GET_EXPENSE_CLASSES = `
       code
     }
   }
-`;
+`
 
 export const GET_EXPENSE_TYPES = `
   query GetExpenseTypes($classId: uuid!) {
@@ -341,7 +345,7 @@ export const GET_EXPENSE_TYPES = `
       classId
     }
   }
-`;
+`
 
 export const GET_COST_CENTERS = `
   query GetCostCenters {
@@ -351,7 +355,7 @@ export const GET_COST_CENTERS = `
       code
     }
   }
-`;
+`
 
 export const GET_CURRENCIES = `
   query GetCurrencies {
@@ -361,8 +365,7 @@ export const GET_CURRENCIES = `
       name
     }
   }
-`;
-
+`
 
 export const UPLOAD_FILE = `
   mutation UploadFile($file: Upload!) {
@@ -371,7 +374,7 @@ export const UPLOAD_FILE = `
       fileName
     }
   }
-`;
+`
 
 export const GET_EXPENSE_REQUESTS = `
   query GetExpenseRequests($employeeId: uuid!) {
@@ -382,4 +385,4 @@ export const GET_EXPENSE_REQUESTS = `
       status
     }
   }
-`;
+`

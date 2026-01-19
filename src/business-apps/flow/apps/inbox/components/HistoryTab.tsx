@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Timeline, Card, Tag, Typography, Space, Spin, Alert, Button } from 'antd';
-import { 
-  CheckCircleOutlined, 
-  ClockCircleOutlined, 
-  UserOutlined, 
+import React, { useState, useEffect } from 'react'
+import { Timeline, Card, Tag, Typography, Space, Spin, Alert, Button } from 'antd'
+import {
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  UserOutlined,
   MessageOutlined,
   SwapOutlined,
   PlayCircleOutlined,
@@ -12,47 +12,47 @@ import {
   DislikeOutlined,
   UserAddOutlined,
   CloseCircleOutlined
-} from '@ant-design/icons';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+} from '@ant-design/icons'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-const { Text, Title, Paragraph } = Typography;
+const { Text, Title, Paragraph } = Typography
 
-import { env } from '@/common/env/EnvUtils';
+import { getFlowEngineBaseUrl } from '@/common/network/flows/flowEngineUrl'
 
 interface Task {
-  id: string;
-  flowId: string;
+  id: string
+  flowId: string
   workflowMeta?: {
-    rootWorkflowId: string;
-  };
+    rootWorkflowId: string
+  }
 }
 
 interface HistoryTabProps extends BusinessAppContextProps {
-  task: Task;
-  getAssignmentStatusColor: (status: string) => string;
-  prefixDataTestId?: string;
+  task: Task
+  getAssignmentStatusColor: (status: string) => string
+  prefixDataTestId?: string
 }
 
 interface HistoryEvent {
-  type: 'step' | 'assignment' | 'comment';
-  timestamp: string;
-  stepIndex: number;
-  stepTitle: string;
-  eventTitle: string;
-  description: string;
-  action?: string;
-  userId?: string;
-  userName?: string;
-  comment?: string;
-  metadata?: any;
+  type: 'step' | 'assignment' | 'comment'
+  timestamp: string
+  stepIndex: number
+  stepTitle: string
+  eventTitle: string
+  description: string
+  action?: string
+  userId?: string
+  userName?: string
+  comment?: string
+  metadata?: any
 }
 
 interface HistorySummary {
-  totalSteps: number;
-  completedSteps: number;
-  totalAssignmentEvents: number;
-  totalComments: number;
-  participants: string[];
+  totalSteps: number
+  completedSteps: number
+  totalAssignmentEvents: number
+  totalComments: number
+  participants: string[]
 }
 
 export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
@@ -61,125 +61,136 @@ export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
   prefixDataTestId = 'flow-history',
   ...context
 }) => {
-  const [events, setEvents] = useState<HistoryEvent[]>([]);
-  const [filteredEvents, setFilteredEvents] = useState<HistoryEvent[]>([]);
-  const [summary, setSummary] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
+  const [events, setEvents] = useState<HistoryEvent[]>([])
+  const [filteredEvents, setFilteredEvents] = useState<HistoryEvent[]>([])
+  const [summary, setSummary] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set())
 
-  const flowId = task.workflowMeta?.rootWorkflowId || task.flowId;
+  const flowId = task.workflowMeta?.rootWorkflowId || task.flowId
 
   useEffect(() => {
     if (flowId) {
-      loadHistoryData();
+      loadHistoryData()
     }
-  }, [flowId]);
+  }, [flowId])
 
   // Filter events whenever events or activeFilters change
   useEffect(() => {
     if (activeFilters.size === 0) {
-      setFilteredEvents(events);
+      setFilteredEvents(events)
     } else {
       const filtered = events.filter(event => {
-        if (activeFilters.has('steps') && event.type === 'step') return true;
-        if (activeFilters.has('completed') && event.action === 'STEP_COMPLETE') return true;
-        if (activeFilters.has('assignmentEvents') && event.type === 'assignment') return true;
-        if (activeFilters.has('comments') && event.type === 'comment') return true;
-        return false;
-      });
-      setFilteredEvents(filtered);
+        if (activeFilters.has('steps') && event.type === 'step') return true
+        if (activeFilters.has('completed') && event.action === 'STEP_COMPLETE') return true
+        if (activeFilters.has('assignmentEvents') && event.type === 'assignment') return true
+        if (activeFilters.has('comments') && event.type === 'comment') return true
+        return false
+      })
+      setFilteredEvents(filtered)
     }
-  }, [events, activeFilters]);
+  }, [events, activeFilters])
 
   const toggleFilter = (filterType: string) => {
-    const newFilters = new Set(activeFilters);
+    const newFilters = new Set(activeFilters)
     if (newFilters.has(filterType)) {
-      newFilters.delete(filterType);
+      newFilters.delete(filterType)
     } else {
-      newFilters.add(filterType);
+      newFilters.add(filterType)
     }
-    setActiveFilters(newFilters);
-  };
+    setActiveFilters(newFilters)
+  }
 
   const clearAllFilters = () => {
-    setActiveFilters(new Set());
-  };
+    setActiveFilters(new Set())
+  }
 
   const loadHistoryData = async () => {
-    setIsLoading(true);
-    setError(null);
-    
+    setIsLoading(true)
+    setError(null)
+
     try {
       // Use the new comprehensive history API
-      const API_BASE = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine';
-      const response = await fetch(`${API_BASE}/api/flows/${flowId}/history`);
-      
+      const baseUrl = getFlowEngineBaseUrl()
+      const response = await fetch(`${baseUrl}/api/flows/${flowId}/history`)
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch history: ${response.status}`);
+        throw new Error(`Failed to fetch history: ${response.status}`)
       }
-      
-      const data = await response.json();
-      setEvents(data.events || []);
-      setSummary(data.summary || null);
-      
+
+      const data = await response.json()
+      setEvents(data.events || [])
+      setSummary(data.summary || null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load history data');
+      setError(err instanceof Error ? err.message : 'Failed to load history data')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   const getEventIcon = (event: HistoryEvent) => {
     switch (event.type) {
       case 'step':
-        return <CheckCircleOutlined />;
+        return <CheckCircleOutlined />
       case 'assignment':
         switch (event.action) {
-          case 'CLAIM': return <UserAddOutlined />;
-          case 'UNCLAIM': return <CloseCircleOutlined />;
-          case 'REASSIGN': return <SwapOutlined />;
-          case 'COMPLETE': return <CheckCircleOutlined />;
-          case 'REJECT': return <DislikeOutlined />;
-          default: return <PlayCircleOutlined />;
+          case 'CLAIM':
+            return <UserAddOutlined />
+          case 'UNCLAIM':
+            return <CloseCircleOutlined />
+          case 'REASSIGN':
+            return <SwapOutlined />
+          case 'COMPLETE':
+            return <CheckCircleOutlined />
+          case 'REJECT':
+            return <DislikeOutlined />
+          default:
+            return <PlayCircleOutlined />
         }
       case 'comment':
-        return <MessageOutlined />;
+        return <MessageOutlined />
       default:
-        return <ClockCircleOutlined />;
+        return <ClockCircleOutlined />
     }
-  };
+  }
 
   const getEventColor = (event: HistoryEvent) => {
     switch (event.type) {
       case 'step':
-        return 'green';
+        return 'green'
       case 'assignment':
         switch (event.action) {
-          case 'CLAIM': return 'blue';
-          case 'UNCLAIM': return 'orange';
-          case 'REASSIGN': return 'purple';
-          case 'COMPLETE': return 'green';
-          case 'REJECT': return 'red';
-          default: return 'blue';
+          case 'CLAIM':
+            return 'blue'
+          case 'UNCLAIM':
+            return 'orange'
+          case 'REASSIGN':
+            return 'purple'
+          case 'COMPLETE':
+            return 'green'
+          case 'REJECT':
+            return 'red'
+          default:
+            return 'blue'
         }
       case 'comment':
-        return 'cyan';
+        return 'cyan'
       default:
-        return 'gray';
+        return 'gray'
     }
-  };
+  }
 
   const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
-  };
+    return new Date(timestamp).toLocaleString()
+  }
 
   if (isLoading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
         <Spin size="large" />
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -195,36 +206,36 @@ export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
           </Button>
         }
       />
-    );
+    )
   }
 
   return (
     <div data-testid={prefixDataTestId} style={{ padding: '16px' }}>
       <div style={{ marginBottom: '16px' }}>
         <Title level={5}>Flow History</Title>
-        <Text type="secondary">
-          Complete timeline of workflow steps, task assignments, and user comments
-        </Text>
-        
+        <Text type="secondary">Complete timeline of workflow steps, task assignments, and user comments</Text>
+
         {summary && (
-          <div style={{ 
-            display: 'flex', 
-            gap: '12px', 
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            marginBottom: '20px',
-            padding: '16px',
-            backgroundColor: '#fafafa',
-            borderRadius: '8px',
-            border: '1px solid #e8e8e8'
-          }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: '12px',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              marginBottom: '20px',
+              padding: '16px',
+              backgroundColor: '#fafafa',
+              borderRadius: '8px',
+              border: '1px solid #e8e8e8'
+            }}
+          >
             <Text type="secondary" style={{ marginRight: '8px', fontSize: '14px', fontWeight: 500 }}>
               Filter by:
             </Text>
-            
-            <div 
+
+            <div
               onClick={() => toggleFilter('steps')}
-              style={{ 
+              style={{
                 cursor: 'pointer',
                 padding: '6px 12px',
                 borderRadius: '6px',
@@ -236,25 +247,25 @@ export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
                 fontWeight: 500,
                 boxShadow: activeFilters.has('steps') ? '0 2px 4px rgba(24, 144, 255, 0.2)' : 'none'
               }}
-              onMouseEnter={(e) => {
+              onMouseEnter={e => {
                 if (!activeFilters.has('steps')) {
-                  e.currentTarget.style.backgroundColor = '#f0f9ff';
-                  e.currentTarget.style.borderColor = '#1890ff';
+                  e.currentTarget.style.backgroundColor = '#f0f9ff'
+                  e.currentTarget.style.borderColor = '#1890ff'
                 }
               }}
-              onMouseLeave={(e) => {
+              onMouseLeave={e => {
                 if (!activeFilters.has('steps')) {
-                  e.currentTarget.style.backgroundColor = 'white';
-                  e.currentTarget.style.borderColor = '#d9d9d9';
+                  e.currentTarget.style.backgroundColor = 'white'
+                  e.currentTarget.style.borderColor = '#d9d9d9'
                 }
               }}
             >
               {summary.totalSteps} Steps
             </div>
-            
-            <div 
+
+            <div
               onClick={() => toggleFilter('completed')}
-              style={{ 
+              style={{
                 cursor: 'pointer',
                 padding: '6px 12px',
                 borderRadius: '6px',
@@ -266,25 +277,25 @@ export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
                 fontWeight: 500,
                 boxShadow: activeFilters.has('completed') ? '0 2px 4px rgba(82, 196, 26, 0.2)' : 'none'
               }}
-              onMouseEnter={(e) => {
+              onMouseEnter={e => {
                 if (!activeFilters.has('completed')) {
-                  e.currentTarget.style.backgroundColor = '#f6ffed';
-                  e.currentTarget.style.borderColor = '#52c41a';
+                  e.currentTarget.style.backgroundColor = '#f6ffed'
+                  e.currentTarget.style.borderColor = '#52c41a'
                 }
               }}
-              onMouseLeave={(e) => {
+              onMouseLeave={e => {
                 if (!activeFilters.has('completed')) {
-                  e.currentTarget.style.backgroundColor = 'white';
-                  e.currentTarget.style.borderColor = '#d9d9d9';
+                  e.currentTarget.style.backgroundColor = 'white'
+                  e.currentTarget.style.borderColor = '#d9d9d9'
                 }
               }}
             >
               {summary.completedSteps} Completed
             </div>
-            
-            <div 
+
+            <div
               onClick={() => toggleFilter('assignmentEvents')}
-              style={{ 
+              style={{
                 cursor: 'pointer',
                 padding: '6px 12px',
                 borderRadius: '6px',
@@ -296,25 +307,25 @@ export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
                 fontWeight: 500,
                 boxShadow: activeFilters.has('assignmentEvents') ? '0 2px 4px rgba(114, 46, 209, 0.2)' : 'none'
               }}
-              onMouseEnter={(e) => {
+              onMouseEnter={e => {
                 if (!activeFilters.has('assignmentEvents')) {
-                  e.currentTarget.style.backgroundColor = '#f9f0ff';
-                  e.currentTarget.style.borderColor = '#722ed1';
+                  e.currentTarget.style.backgroundColor = '#f9f0ff'
+                  e.currentTarget.style.borderColor = '#722ed1'
                 }
               }}
-              onMouseLeave={(e) => {
+              onMouseLeave={e => {
                 if (!activeFilters.has('assignmentEvents')) {
-                  e.currentTarget.style.backgroundColor = 'white';
-                  e.currentTarget.style.borderColor = '#d9d9d9';
+                  e.currentTarget.style.backgroundColor = 'white'
+                  e.currentTarget.style.borderColor = '#d9d9d9'
                 }
               }}
             >
               {summary.totalAssignmentEvents} Assignments
             </div>
-            
-            <div 
+
+            <div
               onClick={() => toggleFilter('comments')}
-              style={{ 
+              style={{
                 cursor: 'pointer',
                 padding: '6px 12px',
                 borderRadius: '6px',
@@ -326,16 +337,16 @@ export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
                 fontWeight: 500,
                 boxShadow: activeFilters.has('comments') ? '0 2px 4px rgba(19, 194, 194, 0.2)' : 'none'
               }}
-              onMouseEnter={(e) => {
+              onMouseEnter={e => {
                 if (!activeFilters.has('comments')) {
-                  e.currentTarget.style.backgroundColor = '#e6fffb';
-                  e.currentTarget.style.borderColor = '#13c2c2';
+                  e.currentTarget.style.backgroundColor = '#e6fffb'
+                  e.currentTarget.style.borderColor = '#13c2c2'
                 }
               }}
-              onMouseLeave={(e) => {
+              onMouseLeave={e => {
                 if (!activeFilters.has('comments')) {
-                  e.currentTarget.style.backgroundColor = 'white';
-                  e.currentTarget.style.borderColor = '#d9d9d9';
+                  e.currentTarget.style.backgroundColor = 'white'
+                  e.currentTarget.style.borderColor = '#d9d9d9'
                 }
               }}
             >
@@ -345,10 +356,10 @@ export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
             {activeFilters.size > 0 && (
               <>
                 <div style={{ width: '1px', height: '20px', backgroundColor: '#e8e8e8', margin: '0 4px' }} />
-                <Button 
-                  size="small" 
+                <Button
+                  size="small"
                   onClick={clearAllFilters}
-                  style={{ 
+                  style={{
                     borderRadius: '6px',
                     fontSize: '12px',
                     height: '28px'
@@ -386,54 +397,42 @@ export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
                     <div style={{ marginTop: '8px' }}>
                       <Text>{event.description}</Text>
                     </div>
-                    
+
                     {/* Show comment if this is a comment event */}
                     {event.type === 'comment' && event.comment && (
-                      <div style={{ 
-                        marginTop: '8px', 
-                        padding: '8px', 
-                        backgroundColor: '#f6ffed', 
-                        border: '1px solid #b7eb8f',
-                        borderRadius: '4px'
-                      }}>
+                      <div
+                        style={{
+                          marginTop: '8px',
+                          padding: '8px',
+                          backgroundColor: '#f6ffed',
+                          border: '1px solid #b7eb8f',
+                          borderRadius: '4px'
+                        }}
+                      >
                         <MessageOutlined style={{ marginRight: '4px', color: '#52c41a' }} />
                         <Text style={{ fontStyle: 'italic' }}>"{event.comment}"</Text>
                       </div>
                     )}
-                    
+
                     {/* Show metadata tags */}
                     <div style={{ marginTop: '8px' }}>
                       <Space wrap>
                         {/* Show appropriate category tag based on action type */}
                         {event.type === 'assignment' && ['COMPLETE', 'REJECT'].includes(event.action || '') ? (
-                          <Tag color="volcano">
-                            TASK ACTION
-                          </Tag>
+                          <Tag color="volcano">TASK ACTION</Tag>
                         ) : (
-                          <Tag color={getEventColor(event)}>
-                            {event.type.toUpperCase()}
-                          </Tag>
+                          <Tag color={getEventColor(event)}>{event.type.toUpperCase()}</Tag>
                         )}
-                        {event.action && (
-                          <Tag color="default">
-                            {event.action}
-                          </Tag>
-                        )}
+                        {event.action && <Tag color="default">{event.action}</Tag>}
                         {event.userId && (
                           <Tag color="blue">
                             <UserOutlined /> {event.userName || event.userId}
                           </Tag>
                         )}
                         {event.metadata?.assignmentMode && (
-                          <Tag color="purple">
-                            {event.metadata.assignmentMode} Mode
-                          </Tag>
+                          <Tag color="purple">{event.metadata.assignmentMode} Mode</Tag>
                         )}
-                        {event.metadata?.reassignedTo && (
-                          <Tag color="orange">
-                            → {event.metadata.reassignedTo}
-                          </Tag>
-                        )}
+                        {event.metadata?.reassignedTo && <Tag color="orange">→ {event.metadata.reassignedTo}</Tag>}
                       </Space>
                     </div>
                   </div>
@@ -444,5 +443,5 @@ export const FlowHistoryTab: React.FC<HistoryTabProps> = ({
         </Timeline>
       )}
     </div>
-  );
-}; 
+  )
+}

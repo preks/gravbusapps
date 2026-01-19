@@ -1,155 +1,214 @@
-import { Card, Spinner, Alert } from "@newwork/nw-design-system";
-import { BusinessAppContextProps } from "../../../../../../../../../common/BusinessAppContext";
-import { RiBarChartLine } from "@remixicon/react";
-import { useState, useEffect } from "react";
-
-import { navigateTo } from "../../../../../../../../../common/utils/navigationUtils";
+import { Card, Spin, Alert } from 'antd'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { RiBarChartLine } from '@remixicon/react'
+import { useState, useEffect } from 'react'
+import { env } from '@/common/env/EnvUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 interface ResourceUrl {
-  id: string;
-  url: string;
-  name: string;
-  name_i18n: Record<string, string>;
-  description?: string | null;
-  description_i18n?: Record<string, string>;
-  [key: string]: any;
+  id: string
+  url: string
+  name: string
+  name_i18n: Record<string, string>
+  description?: string | null
+  description_i18n?: Record<string, string>
+  [key: string]: any
 }
 interface MenuItem {
-  id: string;
-  name: string;
-  description?: string;
-  descriptionTranslated?: Record<string, string>;
-  icon: string | null;
-  children?: MenuItem[];
-  resourceUrl?: ResourceUrl;
-  [key: string]: any;
+  id: string
+  name: string
+  description?: string
+  nameTranslated?: Record<string, string>
+  descriptionTranslated?: Record<string, string>
+  icon: string | null
+  children?: MenuItem[]
+  resourceUrl?: ResourceUrl
+  [key: string]: any
 }
 
 interface Report {
-  id: string;
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  category: string;
-  favorite: boolean;
-  url: string;
+  id: string
+  title: string
+  description: string
+  icon: React.ReactNode
+  category: string
+  favorite: boolean
+  url: string
 }
 
+const getTranslatedValue = (
+  translatedObject: Record<string, string> | undefined,
+  fallback: string,
+  currentLocale: string
+): string => {
+  if (!translatedObject) return fallback
 
-const findMenuItem = (items: MenuItem[], name: string): MenuItem | undefined => {
-  for (const item of items) {
-    if (item.name === name) {
-      return item;
-    }
-    if (item.children) {
-      const found = findMenuItem(item.children, name);
-      if (found) return found;
-    }
+  if (translatedObject[currentLocale]) {
+    return translatedObject[currentLocale]
   }
-  return undefined;
-};
+
+  if (translatedObject['en-US']) {
+    return translatedObject['en-US']
+  }
+
+  const firstTranslation = Object.values(translatedObject)[0]
+  return firstTranslation || fallback
+}
+
+const transformMenuItemsToReports = (menuItems: MenuItem[], currentLocale: string): Report[] => {
+  const reports: Report[] = []
+
+  const processItems = (items: MenuItem[]) => {
+    items.forEach(item => {
+      if (item.resourceUrl?.url) {
+        if (item.name === 'Absence Reports') {
+          reports.push({
+            id: item.id,
+            title: getTranslatedValue(item.nameTranslated, item.name, currentLocale),
+            description: getTranslatedValue(
+              item.descriptionTranslated,
+              item.description || 'No description available',
+              currentLocale
+            ),
+            icon: <RiBarChartLine className="h-5 w-5" />,
+            category: getTranslatedValue(item.resourceUrl.name_i18n, item.resourceUrl.name || 'Report', currentLocale),
+            favorite: false,
+            url: `${env('NEXT_PUBLIC_BASE_URL') || ''}${item.resourceUrl.url}`
+          })
+        }
+      }
+
+      if (item.children && item.children.length > 0) {
+        processItems(item.children)
+      }
+    })
+  }
+
+  processItems(menuItems)
+  return reports
+}
 
 export const AbsenceReports: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
-  const [filteredReports, _setFilteredReports] = useState<Report[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [filteredReports, setFilteredReports] = useState<Report[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [currentLocale, setCurrentLocale] = useState<string>(getCurrentActiveUserLocale() ?? 'en-US')
 
   useEffect(() => {
     const fetchMenuItems = async () => {
       if (!accessToken) {
-        setError('No access token available');
-        return;
+        setError('No access token available')
+        return
       }
 
-      setLoading(true);
+      setLoading(true)
       try {
-        // 🚨 TEMPORARY: Skip navigation service call to isolate 401 error
-        setLoading(false);
-        return;
-        
-      } catch (err) {
-        console.error('Error fetching menu items:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load menu items. Please try again later.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchMenuItems();
-  }, [accessToken]);
+        const response = await fetch(`${env('NEXT_PUBLIC_NAVIGATION_SERVICE_API')}/menuItems`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          credentials: 'same-origin'
+        })
 
-  
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const data = await response.json()
+
+        if (!data || !Array.isArray(data.menuItems)) {
+          throw new Error('Invalid response format: menuItems array not found')
+        }
+
+        const reports = transformMenuItemsToReports(data.menuItems, currentLocale)
+        setFilteredReports(reports)
+      } catch (err) {
+        console.error('Error fetching menu items:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load menu items. Please try again later.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchMenuItems()
+  }, [accessToken, currentLocale])
+
+  useEffect(() => {
+    const checkLocale = () => {
+      const newLocale = getCurrentActiveUserLocale() ?? 'en-US'
+      if (newLocale !== currentLocale) {
+        setCurrentLocale(newLocale)
+      }
+    }
+
+    checkLocale()
+
+    const interval = setInterval(checkLocale, 1000)
+
+    return () => clearInterval(interval)
+  }, [currentLocale])
+
   if (loading) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="absence-reports-loading">
-        <Spinner size="lg" />
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
+        <Spin size="large" />
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
-      <div className="gba:p-4" data-testid="absence-reports-error">
-        <Alert variant="destructive">
-          <div>
-            <h4 className="gba:font-medium">Error</h4>
-            <p className="gba:text-sm">{error}</p>
-          </div>
-        </Alert>
+      <div className="gba:p-4">
+        <Alert message="Error" description={error} type="error" showIcon />
       </div>
-    );
+    )
   }
-  
-  // Fallback static report when mapping service is unavailable
-  const defaultReport: Report = {
-    id: 'absence-overview-default',
-    title: 'Absence Overview',
-    description: 'Open Absence Overview in platform',
-    icon: <RiBarChartLine className="gba:h-6 gba:w-6 gba:text-gray-600" />,
-    category: 'Platform',
-    favorite: false,
-    url: '/platform/landing_screen/srn_absenceOverviewEntryScreen'
-  };
 
-  const absenceReport = filteredReports.find((report) =>
-    report.url === '/platform/landing_screen/srn_absenceOverviewEntryScreen' ||
-    report.title === 'Absence Overview' ||
-    report.title === 'Absence Reports'
-  ) || defaultReport;
+  if (filteredReports.length === 0) {
+    return (
+      <div className="gba:p-4">
+        <Alert message="No Absence Reports found" type="info" showIcon />
+      </div>
+    )
+  }
 
-  // absenceReport always exists (defaults to static card)
+  const absenceReport = filteredReports[0]
 
   return (
-    <div className="gba:bg-white gba:rounded-lg gba:border gba:border-gray-200" data-testid="absence-reports-container">
-      <div className="gba:p-2">
-        <a 
-          href={absenceReport.url}
-          onClick={(e) => {
-            e.preventDefault();
-            navigateTo(absenceReport.url);
-          }}
-          className="gba:block gba:hover:no-underline"
-          data-testid="absence-report-link"
-        >
-          <Card className="gba:border-0 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow gba:cursor-pointer gba:p-4">
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:bg-gray-100 gba:p-3 gba:rounded-lg" data-testid="absence-report-icon">
-                <RiBarChartLine className="gba:h-6 gba:w-6 gba:text-gray-600" />
+    <div className="gba:w-full">
+      <div className="gba:bg-card gba:rounded-lg gba:border">
+        <div className="gba:p-4">
+          <a
+            href={absenceReport.url}
+            onClick={e => {
+              e.preventDefault()
+              navigateTo(absenceReport.url)
+            }}
+            className="gba:block gba:hover:no-underline"
+          >
+            <Card
+              className="gba:border-0 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow gba:cursor-pointer"
+              hoverable={false}
+            >
+              <div className="gba:p-4">
+                <div className="gba:flex gba:items-center gba:gap-4">
+                  <div className="gba:bg-muted gba:p-3 gba:rounded-lg">
+                    <RiBarChartLine className="gba:h-6 gba:w-6 gba:text-muted-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="gba:text-base gba:font-medium gba:text-foreground">{absenceReport.title}</h3>
+                    {absenceReport.category && (
+                      <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{absenceReport.category}</p>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div>
-                <h3 className="gba:text-base gba:font-medium gba:text-gray-900" data-testid="absence-report-title">
-                  {absenceReport.title}
-                </h3>
-                {absenceReport.category && (
-                  <p className="gba:text-sm gba:text-gray-500 gba:mt-1" data-testid="absence-report-category">
-                    {absenceReport.category}
-                  </p>
-                )}
-              </div>
-            </div>
-          </Card>
-        </a>
+            </Card>
+          </a>
+        </div>
       </div>
     </div>
-  );
-};
+  )
+}

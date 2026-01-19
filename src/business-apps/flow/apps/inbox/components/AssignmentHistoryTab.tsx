@@ -1,26 +1,26 @@
-import React from 'react';
-import { List, Tag, Typography } from 'antd';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import React from 'react'
+import { List, Tag, Typography } from 'antd'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-const { Text, Title } = Typography;
+const { Text, Title } = Typography
 
 interface Task {
-  id: string;
+  id: string
   assignment?: {
-    currentStatus?: string;
-    assignmentIteration?: number;
+    currentStatus?: string
+    assignmentIteration?: number
     assignmentHistory?: Array<{
-      action: string;
-      changedBy: string;
-      userId?: string;
-      changedAt: string;
-    }>;
-  };
+      action: string
+      changedBy: string
+      userId?: string
+      changedAt: string
+    }>
+  }
 }
 
 interface AssignmentHistoryTabProps extends BusinessAppContextProps {
-  task: Task;
-  getAssignmentStatusColor: (status: string) => string;
+  task: Task
+  getAssignmentStatusColor: (status: string) => string
 }
 
 export const AssignmentHistoryTab: React.FC<AssignmentHistoryTabProps> = ({
@@ -35,22 +35,35 @@ export const AssignmentHistoryTab: React.FC<AssignmentHistoryTabProps> = ({
           <div style={{ marginBottom: '16px' }}>
             <Text strong>Current Status: </Text>
             <Tag color={getAssignmentStatusColor(task.assignment.currentStatus || '')}>
-              {task.assignment.currentStatus}
+              {task.assignment.assignmentStatus}
             </Tag>
-            <Text style={{ marginLeft: '8px' }}>
-              (Iteration {task.assignment.assignmentIteration || 0})
-            </Text>
+            <Text style={{ marginLeft: '8px' }}>(Iteration {task.assignment.assignmentIteration || 0})</Text>
           </div>
-          
+
           <Title level={5}>Action History</Title>
           <List
             dataSource={task.assignment.assignmentHistory}
             renderItem={(historyItem: any, index: number) => (
               <List.Item>
                 <div style={{ width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '4px'
+                    }}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Tag color={historyItem.action === 'claim' ? 'green' : historyItem.action === 'release' ? 'orange' : 'blue'}>
+                      <Tag
+                        color={
+                          historyItem.action === 'claim'
+                            ? 'green'
+                            : historyItem.action === 'release'
+                              ? 'orange'
+                              : 'blue'
+                        }
+                      >
                         {historyItem.action.toUpperCase()}
                       </Tag>
                       <Text strong>{historyItem.changedBy}</Text>
@@ -73,5 +86,5 @@ export const AssignmentHistoryTab: React.FC<AssignmentHistoryTabProps> = ({
         </div>
       )}
     </div>
-  );
-}; 
+  )
+}

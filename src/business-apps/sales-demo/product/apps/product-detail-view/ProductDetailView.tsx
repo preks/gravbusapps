@@ -1,50 +1,37 @@
-import React, { useState, useCallback } from 'react';
-import { 
-  Row, 
-  Col, 
-  Card, 
-  Tabs, 
-  Statistic, 
-  Tag, 
-  Space, 
-  Typography, 
-  Alert,
-  Button,
-  Spin,
-  Descriptions
-} from 'antd';
-import { 
-  PiPackage, 
-  PiArrowLeft, 
-  PiEye, 
-  PiInfo, 
-  PiWarehouse, 
-  PiCurrencyEur, 
-  PiTruck, 
-  PiChartLine, 
+import React, { useState, useCallback } from 'react'
+import { Row, Col, Card, Tabs, Statistic, Tag, Space, Typography, Alert, Button, Spin, Descriptions } from 'antd'
+import {
+  PiPackage,
+  PiArrowLeft,
+  PiEye,
+  PiInfo,
+  PiWarehouse,
+  PiCurrencyEur,
+  PiTruck,
+  PiChartLine,
   PiFolder,
   PiArrowUp,
   PiArrowDown,
   PiMinus
-} from 'react-icons/pi';
-import { ActionButton } from '@newwork/gravity-ui-catalog';
-import dayjs from 'dayjs';
-import weekday from 'dayjs/plugin/weekday';
-import localeData from 'dayjs/plugin/localeData';
+} from 'react-icons/pi'
+import { ActionButton } from '@newwork/gravity-ui-catalog'
+import dayjs from 'dayjs'
+import weekday from 'dayjs/plugin/weekday'
+import localeData from 'dayjs/plugin/localeData'
 
-import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext';
-import { useProductDetailData } from './hooks/useProductDetailData';
-import { ProductDetailTab } from './types';
+import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
+import { useProductDetailData } from './hooks/useProductDetailData'
+import { ProductDetailTab } from './types'
 
 // Extend dayjs with plugins
-dayjs.extend(weekday);
-dayjs.extend(localeData);
+dayjs.extend(weekday)
+dayjs.extend(localeData)
 
-const { Title, Text } = Typography;
+const { Title, Text } = Typography
 
 export interface ProductDetailViewProps extends BusinessAppContextProps {
-  productId: string;
-  onBack?: () => void;
+  productId: string
+  onBack?: () => void
 }
 
 const ProductDetailView: React.FC<ProductDetailViewProps> = ({
@@ -55,7 +42,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   additionalData
 }) => {
   // State
-  const [activeTab, setActiveTab] = useState<ProductDetailTab>('overview');
+  const [activeTab, setActiveTab] = useState<ProductDetailTab>('overview')
 
   // Hooks
   const {
@@ -71,21 +58,21 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     error,
     isUsingDemoData,
     refreshData
-  } = useProductDetailData({ accessToken, productId });
+  } = useProductDetailData({ accessToken, productId })
 
   // Handle back navigation
   const handleBack = useCallback(() => {
     if (onBack) {
-      onBack();
+      onBack()
     } else {
-      window.history.back();
+      window.history.back()
     }
-  }, [onBack]);
+  }, [onBack])
 
   // Handle tab change
   const handleTabChange = useCallback((key: string) => {
-    setActiveTab(key as ProductDetailTab);
-  }, []);
+    setActiveTab(key as ProductDetailTab)
+  }, [])
 
   // Format currency
   const formatCurrency = (amount: number, currency: string = 'EUR') => {
@@ -93,33 +80,38 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       style: 'currency',
       currency: currency,
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
+      maximumFractionDigits: 2
+    }).format(amount)
+  }
 
   // Format date
   const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
-    return dayjs(dateString).format('MMM D, YYYY');
-  };
+    if (!dateString) return 'N/A'
+    return dayjs(dateString).format('MMM D, YYYY')
+  }
 
   // Get trend icon
   const getTrendIcon = (trend: number) => {
-    if (trend > 0) return <PiArrowUp className="gba:text-green-500" />;
-    if (trend < 0) return <PiArrowDown className="gba:text-red-500" />;
-    return <PiMinus className="gba:text-gray-400" />;
-  };
+    if (trend > 0) return <PiArrowUp className="gba:text-green-500" />
+    if (trend < 0) return <PiArrowDown className="gba:text-red-500" />
+    return <PiMinus className="gba:text-gray-400" />
+  }
 
   // Get status color
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'active': return 'green';
-      case 'inactive': return 'red';
-      case 'draft': return 'orange';
-      case 'discontinued': return 'gray';
-      default: return 'default';
+      case 'active':
+        return 'green'
+      case 'inactive':
+        return 'red'
+      case 'draft':
+        return 'orange'
+      case 'discontinued':
+        return 'gray'
+      default:
+        return 'default'
     }
-  };
+  }
 
   // Actions dropdown configuration
   const actionItems = [
@@ -159,7 +151,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       label: 'Export Product Data',
       onClick: () => console.log('Export data:', productId)
     }
-  ];
+  ]
 
   // Loading state
   if (loading) {
@@ -167,7 +159,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="loading-container">
         <Spin size="large" />
       </div>
-    );
+    )
   }
 
   // Error state
@@ -191,7 +183,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           }
         />
       </div>
-    );
+    )
   }
 
   // No product found
@@ -210,7 +202,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           }
         />
       </div>
-    );
+    )
   }
 
   return (
@@ -252,9 +244,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 </Tag>
                 <Tag color="blue">{product.productTypeCode || 'N/A'}</Tag>
               </Space>
-              <Text className="gba:text-gray-600 gba:block">
-                {product.description || 'No description available'}
-              </Text>
+              <Text className="gba:text-gray-600 gba:block">{product.description || 'No description available'}</Text>
             </div>
           </Col>
           <Col xs={24} md={8}>
@@ -266,9 +256,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 prefix="€"
                 valueStyle={{ fontSize: '24px', fontWeight: 'bold', color: '#1890ff' }}
               />
-              <Text className="gba:text-gray-500">
-                Last updated: {formatDate(product.updatedAt)}
-              </Text>
+              <Text className="gba:text-gray-500">Last updated: {formatDate(product.updatedAt)}</Text>
             </div>
           </Col>
         </Row>
@@ -372,21 +360,13 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     <Col xs={24} md={12}>
                       <Card title="Product Information" data-testid="basic-product-info">
                         <Descriptions column={1} size="small">
-                          <Descriptions.Item label="Product Type">
-                            {product.productTypeCode || 'N/A'}
-                          </Descriptions.Item>
+                          <Descriptions.Item label="Product Type">{product.productTypeCode || 'N/A'}</Descriptions.Item>
                           <Descriptions.Item label="Product Structure">
                             {product.productStructure || 'N/A'}
                           </Descriptions.Item>
-                          <Descriptions.Item label="Is Kit">
-                            {product.isKit ? 'Yes' : 'No'}
-                          </Descriptions.Item>
-                          <Descriptions.Item label="Stock Item">
-                            {product.isStockItem ? 'Yes' : 'No'}
-                          </Descriptions.Item>
-                          <Descriptions.Item label="Supplier">
-                            {product.supplierName || 'N/A'}
-                          </Descriptions.Item>
+                          <Descriptions.Item label="Is Kit">{product.isKit ? 'Yes' : 'No'}</Descriptions.Item>
+                          <Descriptions.Item label="Stock Item">{product.isStockItem ? 'Yes' : 'No'}</Descriptions.Item>
+                          <Descriptions.Item label="Supplier">{product.supplierName || 'N/A'}</Descriptions.Item>
                           <Descriptions.Item label="Valid From">
                             {formatDate(product.validFromDate || '')}
                           </Descriptions.Item>
@@ -399,9 +379,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     <Col xs={24} md={12}>
                       <Card title="Pricing Summary" data-testid="pricing-summary">
                         <Descriptions column={1} size="small">
-                          <Descriptions.Item label="List Price">
-                            {formatCurrency(product.price)}
-                          </Descriptions.Item>
+                          <Descriptions.Item label="List Price">{formatCurrency(product.price)}</Descriptions.Item>
                           <Descriptions.Item label="Standard Cost">
                             {formatCurrency(product.standardCost || 0)}
                           </Descriptions.Item>
@@ -409,17 +387,12 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                             {formatCurrency(product.currentCost || 0)}
                           </Descriptions.Item>
                           <Descriptions.Item label="Margin">
-                            {product.price && product.currentCost 
+                            {product.price && product.currentCost
                               ? `${(((product.price - product.currentCost) / product.price) * 100).toFixed(1)}%`
-                              : 'N/A'
-                            }
+                              : 'N/A'}
                           </Descriptions.Item>
-                          <Descriptions.Item label="Currency">
-                            {product.currency || 'EUR'}
-                          </Descriptions.Item>
-                          <Descriptions.Item label="Exchange Rate">
-                            {product.exchangeRate || 1.0}
-                          </Descriptions.Item>
+                          <Descriptions.Item label="Currency">{product.currency || 'EUR'}</Descriptions.Item>
+                          <Descriptions.Item label="Exchange Rate">{product.exchangeRate || 1.0}</Descriptions.Item>
                         </Descriptions>
                       </Card>
                     </Col>
@@ -441,12 +414,8 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     <Col xs={24} md={12}>
                       <Card title="General Information" data-testid="general-info-card">
                         <Descriptions column={1} size="small" bordered>
-                          <Descriptions.Item label="Product Name">
-                            {product.name}
-                          </Descriptions.Item>
-                          <Descriptions.Item label="Product Number">
-                            {product.productNumber}
-                          </Descriptions.Item>
+                          <Descriptions.Item label="Product Name">{product.name}</Descriptions.Item>
+                          <Descriptions.Item label="Product Number">{product.productNumber}</Descriptions.Item>
                           <Descriptions.Item label="Description">
                             {product.description || 'No description available'}
                           </Descriptions.Item>
@@ -455,11 +424,11 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                               <a href={product.productUrl} target="_blank" rel="noopener noreferrer">
                                 {product.productUrl}
                               </a>
-                            ) : 'N/A'}
+                            ) : (
+                              'N/A'
+                            )}
                           </Descriptions.Item>
-                          <Descriptions.Item label="Size">
-                            {product.size || 'N/A'}
-                          </Descriptions.Item>
+                          <Descriptions.Item label="Size">{product.size || 'N/A'}</Descriptions.Item>
                           <Descriptions.Item label="Weight">
                             {product.stockWeight ? `${product.stockWeight} kg` : 'N/A'}
                           </Descriptions.Item>
@@ -479,26 +448,18 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                             <Tag color="green">{product.productStructure || 'N/A'}</Tag>
                           </Descriptions.Item>
                           <Descriptions.Item label="Status">
-                            <Tag color={getStatusColor(product.stateCode || '')}>
-                              {product.stateCode || 'Unknown'}
-                            </Tag>
+                            <Tag color={getStatusColor(product.stateCode || '')}>{product.stateCode || 'Unknown'}</Tag>
                           </Descriptions.Item>
-                          <Descriptions.Item label="Status Code">
-                            {product.statusCode || 'N/A'}
-                          </Descriptions.Item>
+                          <Descriptions.Item label="Status Code">{product.statusCode || 'N/A'}</Descriptions.Item>
                           <Descriptions.Item label="Is Kit Product">
-                            <Tag color={product.isKit ? 'green' : 'gray'}>
-                              {product.isKit ? 'Yes' : 'No'}
-                            </Tag>
+                            <Tag color={product.isKit ? 'green' : 'gray'}>{product.isKit ? 'Yes' : 'No'}</Tag>
                           </Descriptions.Item>
                           <Descriptions.Item label="Stock Item">
                             <Tag color={product.isStockItem ? 'green' : 'gray'}>
                               {product.isStockItem ? 'Yes' : 'No'}
                             </Tag>
                           </Descriptions.Item>
-                          <Descriptions.Item label="Hierarchy Path">
-                            {product.hierarchyPath || 'N/A'}
-                          </Descriptions.Item>
+                          <Descriptions.Item label="Hierarchy Path">{product.hierarchyPath || 'N/A'}</Descriptions.Item>
                         </Descriptions>
                       </Card>
                     </Col>
@@ -527,9 +488,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                             valueStyle={{ fontSize: '24px', fontWeight: 'bold' }}
                           />
                           <div className="gba:mt-4">
-                            <Text className="gba:text-gray-600">
-                              Across {inventoryLocations.length} locations
-                            </Text>
+                            <Text className="gba:text-gray-600">Across {inventoryLocations.length} locations</Text>
                           </div>
                         </Card>
                       </Col>
@@ -537,7 +496,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                         <Card title="Inventory Locations" data-testid="inventory-locations-card">
                           {inventoryLocations.length > 0 ? (
                             <div className="gba:space-y-4">
-                              {inventoryLocations.map((location) => (
+                              {inventoryLocations.map(location => (
                                 <div key={location.id} className="gba:border gba:rounded gba:p-4">
                                   <Row gutter={[16, 8]}>
                                     <Col xs={24} sm={12}>
@@ -548,11 +507,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                                     <Col xs={24} sm={12}>
                                       <Row gutter={[8, 8]}>
                                         <Col span={8}>
-                                          <Statistic
-                                            title="On Hand"
-                                            value={location.quantityOnHand}
-                                            size="small"
-                                          />
+                                          <Statistic title="On Hand" value={location.quantityOnHand} size="small" />
                                         </Col>
                                         <Col span={8}>
                                           <Statistic
@@ -562,11 +517,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                                           />
                                         </Col>
                                         <Col span={8}>
-                                          <Statistic
-                                            title="Reserved"
-                                            value={location.quantityReserved}
-                                            size="small"
-                                          />
+                                          <Statistic title="Reserved" value={location.quantityReserved} size="small" />
                                         </Col>
                                       </Row>
                                     </Col>
@@ -620,21 +571,22 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                             {formatCurrency(product.currentCost || 0)}
                           </Descriptions.Item>
                           <Descriptions.Item label="Gross Margin">
-                            <Text strong className={
-                              product.price && product.currentCost &&
-                              ((product.price - product.currentCost) / product.price) > 0.3
-                                ? 'gba:text-green-600'
-                                : 'gba:text-orange-600'
-                            }>
+                            <Text
+                              strong
+                              className={
+                                product.price &&
+                                product.currentCost &&
+                                (product.price - product.currentCost) / product.price > 0.3
+                                  ? 'gba:text-green-600'
+                                  : 'gba:text-orange-600'
+                              }
+                            >
                               {product.price && product.currentCost
                                 ? `${(((product.price - product.currentCost) / product.price) * 100).toFixed(1)}%`
-                                : 'N/A'
-                              }
+                                : 'N/A'}
                             </Text>
                           </Descriptions.Item>
-                          <Descriptions.Item label="Currency">
-                            {product.currency || 'EUR'}
-                          </Descriptions.Item>
+                          <Descriptions.Item label="Currency">{product.currency || 'EUR'}</Descriptions.Item>
                         </Descriptions>
                       </Card>
                     </Col>
@@ -642,7 +594,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       <Card title="Price History" data-testid="price-history-card">
                         {priceHistory.length > 0 ? (
                           <div className="gba:space-y-3">
-                            {priceHistory.slice(0, 5).map((priceEntry) => (
+                            {priceHistory.slice(0, 5).map(priceEntry => (
                               <div key={priceEntry.id} className="gba:border-b gba:pb-2">
                                 <Row justify="space-between" align="middle">
                                   <Col>
@@ -657,9 +609,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                                   </Col>
                                 </Row>
                                 {priceEntry.reason && (
-                                  <Text className="gba:text-sm gba:text-gray-600">
-                                    {priceEntry.reason}
-                                  </Text>
+                                  <Text className="gba:text-sm gba:text-gray-600">{priceEntry.reason}</Text>
                                 )}
                               </div>
                             ))}
@@ -684,44 +634,37 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               children: (
                 <div data-testid="supplier-vendor-tab">
                   <Row gutter={[16, 16]}>
-                    {suppliers.map((supplier) => (
+                    {suppliers.map(supplier => (
                       <Col xs={24} md={12} key={supplier.id}>
                         <Card
                           title={supplier.supplierName}
                           data-testid={`supplier-card-${supplier.id}`}
-                          extra={
-                            <Tag color={supplier.status === 'Preferred' ? 'gold' : 'blue'}>
-                              {supplier.status}
-                            </Tag>
-                          }
+                          extra={<Tag color={supplier.status === 'Preferred' ? 'gold' : 'blue'}>{supplier.status}</Tag>}
                         >
                           <Descriptions column={1} size="small">
-                            <Descriptions.Item label="Supplier Code">
-                              {supplier.supplierCode}
-                            </Descriptions.Item>
+                            <Descriptions.Item label="Supplier Code">{supplier.supplierCode}</Descriptions.Item>
                             <Descriptions.Item label="Contact Person">
                               {supplier.contactPerson || 'N/A'}
                             </Descriptions.Item>
                             <Descriptions.Item label="Email">
-                              {supplier.email ? (
-                                <a href={`mailto:${supplier.email}`}>{supplier.email}</a>
-                              ) : 'N/A'}
+                              {supplier.email ? <a href={`mailto:${supplier.email}`}>{supplier.email}</a> : 'N/A'}
                             </Descriptions.Item>
-                            <Descriptions.Item label="Phone">
-                              {supplier.phone || 'N/A'}
-                            </Descriptions.Item>
-                            <Descriptions.Item label="Lead Time">
-                              {supplier.leadTime} days
-                            </Descriptions.Item>
+                            <Descriptions.Item label="Phone">{supplier.phone || 'N/A'}</Descriptions.Item>
+                            <Descriptions.Item label="Lead Time">{supplier.leadTime} days</Descriptions.Item>
                             <Descriptions.Item label="Min Order Qty">
                               {supplier.minimumOrderQuantity} units
                             </Descriptions.Item>
                             <Descriptions.Item label="Performance Rating">
-                              <Text strong className={
-                                supplier.performanceRating >= 9 ? 'gba:text-green-600' :
-                                supplier.performanceRating >= 7 ? 'gba:text-orange-600' :
-                                'gba:text-red-600'
-                              }>
+                              <Text
+                                strong
+                                className={
+                                  supplier.performanceRating >= 9
+                                    ? 'gba:text-green-600'
+                                    : supplier.performanceRating >= 7
+                                      ? 'gba:text-orange-600'
+                                      : 'gba:text-red-600'
+                                }
+                              >
                                 {supplier.performanceRating}/10
                               </Text>
                             </Descriptions.Item>
@@ -779,7 +722,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       <Card title="Top Customers" data-testid="top-customers-card">
                         {salesMetrics?.topCustomers && salesMetrics.topCustomers.length > 0 ? (
                           <div className="gba:space-y-3">
-                            {salesMetrics.topCustomers.map((customer) => (
+                            {salesMetrics.topCustomers.map(customer => (
                               <div key={customer.customerId} className="gba:border gba:rounded gba:p-3">
                                 <Row justify="space-between" align="middle">
                                   <Col>
@@ -811,7 +754,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       <Card title="Sales Trend" data-testid="sales-trend-card">
                         {salesMetrics?.salesTrend && salesMetrics.salesTrend.length > 0 ? (
                           <Row gutter={[16, 16]}>
-                            {salesMetrics.salesTrend.map((trend) => (
+                            {salesMetrics.salesTrend.map(trend => (
                               <Col xs={24} sm={8} key={trend.period}>
                                 <div className="gba:text-center gba:border gba:rounded gba:p-4">
                                   <Text strong className="gba:block gba:text-lg">
@@ -823,9 +766,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                                     prefix="€"
                                     valueStyle={{ fontSize: '16px' }}
                                   />
-                                  <Text className="gba:text-gray-500">
-                                    {trend.quantity} units
-                                  </Text>
+                                  <Text className="gba:text-gray-500">{trend.quantity} units</Text>
                                 </div>
                               </Col>
                             ))}
@@ -851,7 +792,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 <div data-testid="documents-media-tab">
                   <Row gutter={[16, 16]}>
                     {documents.length > 0 ? (
-                      documents.map((document) => (
+                      documents.map(document => (
                         <Col xs={24} sm={12} md={8} lg={6} key={document.id}>
                           <Card
                             hoverable
@@ -906,7 +847,7 @@ const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         />
       </Card>
     </div>
-  );
-};
+  )
+}
 
-export default ProductDetailView;
+export default ProductDetailView

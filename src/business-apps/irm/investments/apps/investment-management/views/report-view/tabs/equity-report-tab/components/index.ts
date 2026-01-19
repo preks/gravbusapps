@@ -1,0 +1,1 @@
+export { EquityAnalyticsTable } from './EquityAnalyticsTable'

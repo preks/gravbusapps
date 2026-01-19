@@ -1,4 +1,4 @@
-import ExpenseRequestInvalid from './ExpenseRequestInvalid';
+import ExpenseRequestInvalid from './ExpenseRequestInvalid'
 
-export { ExpenseRequestInvalid };
-export default ExpenseRequestInvalid;
+export { ExpenseRequestInvalid }
+export default ExpenseRequestInvalid

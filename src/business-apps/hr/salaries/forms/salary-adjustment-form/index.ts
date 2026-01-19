@@ -1,4 +1,4 @@
-import SalaryAdjustmentForm from './SalaryAdjustmentForm';
+import SalaryAdjustmentForm from './SalaryAdjustmentForm'
 
-export { SalaryAdjustmentForm };
-export default SalaryAdjustmentForm;
+export { SalaryAdjustmentForm }
+export default SalaryAdjustmentForm

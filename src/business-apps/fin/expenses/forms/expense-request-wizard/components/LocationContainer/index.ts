@@ -1,4 +1,4 @@
-import LocationContainer from './LocationContainer';
+import LocationContainer from './LocationContainer'
 
-export { LocationContainer };
-export default LocationContainer;
+export { LocationContainer }
+export default LocationContainer

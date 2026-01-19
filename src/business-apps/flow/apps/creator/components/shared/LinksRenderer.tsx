@@ -1,24 +1,21 @@
-import React from 'react';
-import { Card, Tag } from 'antd';
-import { PaperClipOutlined } from '@ant-design/icons';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { Card, Tag } from 'antd'
+import { PaperClipOutlined } from '@ant-design/icons'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface LinksRendererProps {
-  links: any[];
-  testId?: string;
+  links: any[]
+  testId?: string
 }
 
-export const LinksRenderer: React.FC<LinksRendererProps> = ({
-  links,
-  testId = 'links-renderer'
-}) => {
+export const LinksRenderer: React.FC<LinksRendererProps> = ({ links, testId = 'links-renderer' }) => {
   if (!links || links.length === 0) {
-    return null;
+    return null
   }
 
   return (
-    <Card 
-      size="small" 
+    <Card
+      size="small"
       title={
         <div className="gba:flex gba:items-center gba:gap-2">
           <PaperClipOutlined />
@@ -29,8 +26,8 @@ export const LinksRenderer: React.FC<LinksRendererProps> = ({
     >
       <div className="gba:space-y-2">
         {links.map((link, index) => (
-          <div 
-            key={index} 
+          <div
+            key={index}
             className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:bg-gray-50 gba:rounded"
             data-testid={`${testId}-link-${index}`}
           >
@@ -42,5 +39,5 @@ export const LinksRenderer: React.FC<LinksRendererProps> = ({
         ))}
       </div>
     </Card>
-  );
-}; 
+  )
+}

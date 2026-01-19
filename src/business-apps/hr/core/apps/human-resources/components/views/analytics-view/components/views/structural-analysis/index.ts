@@ -1,7 +1,7 @@
-export { StructuralAnalysisReport } from './StructuralAnalysisReport';
-export { default } from './StructuralAnalysisReport';
-export * from './types/structuralTypes';
-export * from '../../../hooks/useStructuralAnalysisDataIntegration';
-export * from './components/SunburstVisualization';
-export * from './components/SpanOfControlChart';
-export * from './components/ReportingChainAnalysis'; 
+export { StructuralAnalysisReport } from './StructuralAnalysisReport'
+export { default } from './StructuralAnalysisReport'
+export * from './types/structuralTypes'
+export * from '../../../hooks/useStructuralAnalysisDataIntegration'
+export * from './components/SunburstVisualization'
+export * from './components/SpanOfControlChart'
+export * from './components/ReportingChainAnalysis'

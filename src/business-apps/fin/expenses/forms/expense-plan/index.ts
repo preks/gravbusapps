@@ -1,2 +1,2 @@
-export { default } from './ExpensePlan';
-export { default as ExpensePlan } from './ExpensePlan'; 
+export { default } from './ExpensePlan'
+export { default as ExpensePlan } from './ExpensePlan'

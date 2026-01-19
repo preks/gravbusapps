@@ -1,7 +1,6 @@
-import { showToast } from "@/business-apps/fin/expenses/utils/notificationUtils";
-import { flowClient } from "@/common/network/flows/FlowClient";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-
+import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
+import { flowClient } from '@/common/network/flows/FlowClient'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 /**
  * Initiates a workflow process for expense item changes
@@ -12,34 +11,31 @@ import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
 export const initiateFlow = async (
   accessToken: string,
   employeeId: string,
-  flowDomain:string,
-  flowProcessName:string
+  flowDomain: string,
+  flowProcessName: string
 ): Promise<any> => {
   if (!employeeId) {
     showToast(
       getTranslationFromI18nKeyAndLabel(
-        "lowcoder:create_expense_request.employee_id_not_found", 
-        "Employee ID not found"
+        'lowcoder:create_expense_request.employee_id_not_found',
+        'Employee ID not found'
       ),
-      "error"
-    );
-    return null;
+      'error'
+    )
+    return null
   }
 
   try {
-    flowClient.setAccessToken(accessToken);
-    return await flowClient.initiateFlow(flowDomain, flowProcessName, { employeeId });
-  } catch (error) {
+    flowClient.setAccessToken(accessToken)
+    return await flowClient.initiateFlow(flowDomain, flowProcessName, { employeeId })
+  } catch {
     showToast(
-      getTranslationFromI18nKeyAndLabel(
-        "lowcoder:create_expense_type_item.error_flows", 
-        "Error in flow process"
-      ),
-      "error"
-    );
-    return null;
+      getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
+      'error'
+    )
+    return null
   }
-};
+}
 
 /**
  * Gets the opened task flow for a specific process instance
@@ -52,34 +48,28 @@ export const getOpenedTaskFlow = async (
   accessToken: string,
   userId: string,
   processInstanceId: string,
-  flowDomain:string,
-  flowProcessName:string
+  flowDomain: string,
+  flowProcessName: string
 ): Promise<any> => {
   if (!processInstanceId) {
     showToast(
-      getTranslationFromI18nKeyAndLabel(
-        "lowcoder:create_expense_type_item.error_flows", 
-        "Error in flow process"
-      ),
-      "error"
-    );
-    return null;
+      getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
+      'error'
+    )
+    return null
   }
 
   try {
-    flowClient.setAccessToken(accessToken);
-    return await flowClient.getOpenedTaskFlow(flowDomain, flowProcessName, processInstanceId, userId);
-  } catch (error) {
+    flowClient.setAccessToken(accessToken)
+    return await flowClient.getOpenedTaskFlow(flowDomain, flowProcessName, processInstanceId, userId)
+  } catch {
     showToast(
-      getTranslationFromI18nKeyAndLabel(
-        "lowcoder:create_expense_type_item.error_flows", 
-        "Error in flow process"
-      ),
-      "error"
-    );
-    return null;
+      getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
+      'error'
+    )
+    return null
   }
-};
+}
 
 /**
  * Completes a task in the workflow process
@@ -103,34 +93,28 @@ export const completeTaskFlow = async (
 ): Promise<any> => {
   if (!processInstanceId || !taskId || !taskName) {
     showToast(
-      getTranslationFromI18nKeyAndLabel(
-        "lowcoder:create_expense_type_item.error_flows", 
-        "Error in flow process"
-      ),
-      "error"
-    );
-    return null;
+      getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
+      'error'
+    )
+    return null
   }
 
   try {
-    flowClient.setAccessToken(accessToken);
+    flowClient.setAccessToken(accessToken)
     return await flowClient.completeTaskFlow(
-      flowDomain, 
-      flowProcessName, 
-      processInstanceId, 
-      taskName, 
-      taskId, 
-      userId, 
+      flowDomain,
+      flowProcessName,
+      processInstanceId,
+      taskName,
+      taskId,
+      userId,
       submitData
-    );
-  } catch (error) {
+    )
+  } catch {
     showToast(
-      getTranslationFromI18nKeyAndLabel(
-        "lowcoder:create_expense_type_item.error_flows", 
-        "Error in flow process"
-      ),
-      "error"
-    );
-    return null;
+      getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
+      'error'
+    )
+    return null
   }
-};
+}

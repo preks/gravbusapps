@@ -1,10 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect } from 'react'
 
 interface ProcessStartEventDetail {
-  domain: string;
-  processName: string;
-  startProcessBody: any;
-  processInstanceId?: string;
+  domain: string
+  processName: string
+  startProcessBody: any
+  processInstanceId?: string
 }
 
 /**
@@ -17,13 +17,13 @@ interface ProcessStartEventDetail {
 export const useProcessListener = (): void => {
   useEffect(() => {
     const handleProcessStartEvent = (event: CustomEvent<ProcessStartEventDetail>) => {
-      const { domain, processName, startProcessBody, processInstanceId } = event.detail;
-      
+      const { domain, processName, startProcessBody, processInstanceId } = event.detail
+
       // Check if running on localhost
-      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+
       if (isLocalhost) {
-        // Local development handling        
+        // Local development handling
         const ideEvent = new CustomEvent('com.newwork.business.app.ide.localdev', {
           detail: {
             domain,
@@ -31,23 +31,17 @@ export const useProcessListener = (): void => {
             startProcessBody,
             processInstanceId
           }
-        });
-        window.dispatchEvent(ideEvent);
+        })
+        window.dispatchEvent(ideEvent)
       }
-    };
-    
+    }
+
     // Add event listener
-    window.addEventListener(
-      'com.newwork.process.start',
-      handleProcessStartEvent as EventListener
-    );
-    
+    window.addEventListener('com.newwork.process.start', handleProcessStartEvent as EventListener)
+
     // Cleanup function
     return () => {
-      window.removeEventListener(
-        'com.newwork.process.start',
-        handleProcessStartEvent as EventListener
-      );
-    };
-  }, []);
-};
+      window.removeEventListener('com.newwork.process.start', handleProcessStartEvent as EventListener)
+    }
+  }, [])
+}

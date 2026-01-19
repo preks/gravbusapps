@@ -1,72 +1,71 @@
-import React from 'react';
-import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
-import type { HeadcountStatistics } from '../../../../../hooks/useHeadcountTrendsData';
+import React from 'react'
+import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
+import { UsersIcon, CalendarIcon } from '@phosphor-icons/react'
+import type { HeadcountStatistics } from '../../../../../hooks/useHeadcountTrendsData'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 interface HeadcountStatisticsProps {
-  statistics: HeadcountStatistics;
-  isLoading: boolean;
-  dataTestId: string;
+  statistics: HeadcountStatistics
+  isLoading: boolean
+  dataTestId: string
 }
 
-const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({
-  statistics,
-  isLoading,
-  dataTestId
-}) => {
+const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({ statistics, isLoading, dataTestId }) => {
+  const { t } = useTranslation(hrTranslations)
   const kpiCards: KpiCardData[] = [
     {
       id: 'monthly-hires',
-      title: 'Monthly Hires',
+      title: t('hr-analytics-monthly-hires'),
       value: statistics.monthlyHires,
-      icon: 'users',
-      iconColor: '#52c41a',
-      footer: 'New hires this month'
+      icon: <Icon icon={UsersIcon} size="sm" decorative />,
+      iconColor: 'var(--nw-success)',
+      footer: t('hr-analytics-new-hires-this-month')
     },
     {
       id: 'monthly-departures',
-      title: 'Monthly Departures',
+      title: t('hr-analytics-monthly-departures'),
       value: statistics.monthlyExits,
-      icon: 'users',
-      iconColor: '#ff4d4f',
-      footer: 'Departures this month'
+      icon: <Icon icon={UsersIcon} size="sm" decorative />,
+      iconColor: 'var(--nw-destructive)',
+      footer: t('hr-analytics-departures-this-month')
     },
     {
       id: 'net-change',
-      title: 'Net Change',
+      title: t('hr-analytics-net-change'),
       value: statistics.netChange > 0 ? `+${statistics.netChange}` : statistics.netChange.toString(),
-      icon: 'users',
-      iconColor: statistics.netChange >= 0 ? '#52c41a' : '#ff4d4f',
-      footer: 'Monthly headcount change'
+      icon: <Icon icon={UsersIcon} size="sm" decorative />,
+      iconColor: statistics.netChange >= 0 ? 'var(--nw-success)' : 'var(--nw-destructive)',
+      footer: t('hr-analytics-monthly-headcount-change')
     },
     {
       id: 'growth-rate',
-      title: 'Growth Rate',
+      title: t('hr-analytics-growth-rate'),
       value: `${statistics.growthRate > 0 ? '+' : ''}${statistics.growthRate.toFixed(2)}%`,
-      icon: 'calendar',
-      iconColor: statistics.growthRate >= 0 ? '#52c41a' : '#ff4d4f',
-      footer: 'Monthly growth percentage'
+      icon: <Icon icon={CalendarIcon} size="sm" decorative />,
+      iconColor: statistics.growthRate >= 0 ? 'var(--nw-success)' : 'var(--nw-destructive)',
+      footer: t('hr-analytics-monthly-growth-percentage')
     }
-  ];
+  ]
 
   if (isLoading) {
     // Create loading placeholder cards
     const loadingCards: KpiCardData[] = kpiCards.map(card => ({
       ...card,
-      value: 'Loading...'
-    }));
-    
+      value: t('hr-data-filter-loading')
+    }))
+
     return (
       <div data-testid={`${dataTestId}-statistics`}>
         <SectionKpiCards cards={loadingCards} />
       </div>
-    );
+    )
   }
 
   return (
     <div data-testid={`${dataTestId}-statistics`}>
       <SectionKpiCards cards={kpiCards} />
     </div>
-  );
-};
+  )
+}
 
-export default HeadcountStatistics; 
+export default HeadcountStatistics

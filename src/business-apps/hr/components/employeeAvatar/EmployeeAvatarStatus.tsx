@@ -1,30 +1,26 @@
-'use client';
+'use client'
 
-import React from 'react';
-import { OnlineStatus, ONLINE_STATUS_COLORS } from './types';
+import { OnlineStatus, ONLINE_STATUS_COLORS } from './types'
 
 interface EmployeeAvatarStatusProps {
-  readonly size: number;
-  readonly onlineStatus?: OnlineStatus;
+  readonly size: number
+  readonly onlineStatus?: OnlineStatus
 }
 
 /**
  * Component to display the online status of an employee
- * 
+ *
  * @param size - Size of the avatar in pixels
  * @param onlineStatus - Online status of the employee
  */
-export function EmployeeAvatarStatus({
-  size,
-  onlineStatus
-}: EmployeeAvatarStatusProps) {
-  if (!onlineStatus) return null;
+export function EmployeeAvatarStatus({ size, onlineStatus }: EmployeeAvatarStatusProps) {
+  if (!onlineStatus) return null
 
-  const statusColor = ONLINE_STATUS_COLORS[onlineStatus];
-  const indicatorSize = Math.max(16, size * 0.33); // Scale indicator size with avatar size to match Teams ratio
+  const statusColor = ONLINE_STATUS_COLORS[onlineStatus]
+  const indicatorSize = Math.max(16, size * 0.33) // Scale indicator size with avatar size to match Teams ratio
 
   return (
-    <div 
+    <div
       className="gba:absolute"
       style={{
         bottom: 0,
@@ -34,9 +30,9 @@ export function EmployeeAvatarStatus({
         backgroundColor: statusColor,
         borderRadius: '50%',
         border: `${Math.max(2, size * 0.05)}px solid white`,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+        boxShadow: '0 1px 3px var(--nw-shadow)',
         zIndex: 10
       }}
     />
-  );
+  )
 }

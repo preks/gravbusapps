@@ -1,4 +1,4 @@
-import React, { useState, useMemo, ReactNode } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Input, Card, PageHeader, IconAvatar } from '@newwork/nw-design-system'
 import { PiCaretRight } from 'react-icons/pi'
@@ -11,6 +11,7 @@ export interface SettingsCardEntry {
   basePath?: string // New pattern: base platform path
   params?: Record<string, string> // New pattern: query parameters
   disabled?: boolean
+  onClick?: () => void
 }
 
 export interface SettingsCard {
@@ -53,56 +54,62 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
 
     const normalizedSearchTerm = searchTerm.toLowerCase().trim()
 
-    return cards.map((card: SettingsCard) => {
-      const cardTitleMatches = card.title.toLowerCase().includes(normalizedSearchTerm)
-      const cardDescriptionMatches = card.description?.toLowerCase().includes(normalizedSearchTerm)
-      
-      // Filter entries that match the search term
-      const filteredEntries = card.entries?.filter((entry: SettingsCardEntry) => 
-        entry.label.toLowerCase().includes(normalizedSearchTerm)
-      ) || []
+    return cards
+      .map((card: SettingsCard) => {
+        const cardTitleMatches = card.title.toLowerCase().includes(normalizedSearchTerm)
+        const cardDescriptionMatches = card.description?.toLowerCase().includes(normalizedSearchTerm)
 
-      // If specific entries match, prioritize showing only those entries
-      if (filteredEntries.length > 0) {
-        return {
-          ...card,
-          entries: filteredEntries
+        // Filter entries that match the search term
+        const filteredEntries =
+          card.entries?.filter((entry: SettingsCardEntry) =>
+            entry.label.toLowerCase().includes(normalizedSearchTerm)
+          ) || []
+
+        // If specific entries match, prioritize showing only those entries
+        if (filteredEntries.length > 0) {
+          return {
+            ...card,
+            entries: filteredEntries
+          }
         }
-      }
-      
-      // If no entries match but card title matches, show all entries
-      else if (cardTitleMatches) {
-        return card
-      }
-      
-      // If no entries match and no title matches but description matches, show all entries
-      else if (cardDescriptionMatches) {
-        return card
-      }
 
-      // Nothing matches, exclude this card
-      return null
-    }).filter((card): card is SettingsCard => card !== null)
+        // If no entries match but card title matches, show all entries
+        else if (cardTitleMatches) {
+          return card
+        }
+
+        // If no entries match and no title matches but description matches, show all entries
+        else if (cardDescriptionMatches) {
+          return card
+        }
+
+        // Nothing matches, exclude this card
+        return null
+      })
+      .filter((card): card is SettingsCard => card !== null)
   }, [cards, searchTerm])
 
   return (
-    <div 
-      className={cn(
-        "gba:min-h-screen gba:bg-gradient-to-b gba:from-slate-50 gba:to-slate-100",
-        className
-      )}
+    <div
+      className={cn('gba:min-h-screen gba:bg-gradient-to-b gba:from-slate-50 gba:to-slate-100', className)}
       data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
     >
       {/* Header */}
       <PageHeader
-        phosphorIcon={headerPhosphorIcon}
+        avatar={
+          <IconAvatar
+            icon={headerPhosphorIcon.icon}
+            variant={headerPhosphorIcon.variant || 'default'}
+            size={headerPhosphorIcon.size || 'lg'}
+          />
+        }
         title={headerLabel}
-        actions={
+        extra={
           <div>
             <Input
               placeholder={searchPlaceholder || t('common.search_placeholder', 'Search settings...')}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
               className="gba:w-full"
               data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Search-Input`}
             />
@@ -117,14 +124,12 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
             <h4 className="gba:text-lg gba:font-medium gba:text-slate-600 gba:mb-2">
               {t('common.no_results_found', 'No results found')}
             </h4>
-            <p className="gba:text-slate-500">
-              {t('common.try_different_search', 'Try a different search term')}
-            </p>
+            <p className="gba:text-slate-500">{t('common.try_different_search', 'Try a different search term')}</p>
           </div>
         ) : (
           <div className="gba:flex gba:flex-wrap gba:gap-6 gba:justify-start">
             {filteredCards.map((card: SettingsCard, idx: number) => (
-              <Card 
+              <Card
                 key={`${idx}-${card.title}`}
                 className="gba:max-w-96 gba:flex-1 gba:min-w-80 gba:shadow-md hover:gba:shadow-lg gba:transition-shadow gba:duration-200 gba:rounded-xl gba:border gba:border-slate-200 gba:overflow-hidden"
                 data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Card-${idx}`}
@@ -140,16 +145,12 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
                         data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Card-${idx}-Icon`}
                       />
                     )}
-                    <h3 className="gba:text-base gba:font-bold gba:text-blue-900">
-                      {card.title}
-                    </h3>
+                    <h3 className="gba:text-base gba:font-bold gba:text-blue-900">{card.title}</h3>
                   </div>
 
                   {/* Card Description */}
                   {card.description && (
-                    <p className="gba:text-xs gba:text-slate-600 gba:leading-relaxed">
-                      {card.description}
-                    </p>
+                    <p className="gba:text-xs gba:text-slate-600 gba:leading-relaxed">{card.description}</p>
                   )}
                 </div>
 
@@ -164,36 +165,40 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
                         <div
                           key={`${entryIndex}-${entry.label}`}
                           className={cn(
-                            "gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:rounded-lg gba:border gba:transition-all gba:duration-200",
-                            entry.disabled 
-                              ? "gba:bg-slate-50 gba:border-slate-200 gba:cursor-not-allowed gba:opacity-50"
-                              : "gba:bg-slate-50 gba:border-slate-200 hover:gba:bg-blue-50 hover:gba:border-blue-200 gba:cursor-pointer"
+                            'gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:rounded-lg gba:border gba:transition-all gba:duration-200',
+                            entry.disabled
+                              ? 'gba:bg-slate-50 gba:border-slate-200 gba:cursor-not-allowed gba:opacity-50'
+                              : 'gba:bg-slate-50 gba:border-slate-200 hover:gba:bg-blue-50 hover:gba:border-blue-200 gba:cursor-pointer'
                           )}
                           onClick={() => {
                             if (!entry.disabled) {
+                              if (entry.onClick) {
+                                entry.onClick()
+                                return
+                              }
                               // Use new pattern with basePath and params, or fallback to legacy url
-                              const finalUrl = entry.basePath 
+                              const finalUrl = entry.basePath
                                 ? buildPlatformUrl(entry.basePath, entry.params)
-                                : entry.url;
-                              
+                                : entry.url
+
                               if (finalUrl) {
-                                navigateTo(finalUrl);
+                                navigateTo(finalUrl)
                               }
                             }
                           }}
                           data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Entry-${idx}-${entryIndex}`}
                         >
-                          <span className={cn(
-                            "gba:text-sm gba:font-medium",
-                            entry.disabled ? "gba:text-slate-400" : "gba:text-slate-700"
-                          )}>
+                          <span
+                            className={cn(
+                              'gba:text-sm gba:font-medium',
+                              entry.disabled ? 'gba:text-slate-400' : 'gba:text-slate-700'
+                            )}
+                          >
                             {entry.label}
                           </span>
-                          <PiCaretRight 
-                            size={16} 
-                            className={cn(
-                              entry.disabled ? "gba:text-slate-300" : "gba:text-slate-500"
-                            )}
+                          <PiCaretRight
+                            size={16}
+                            className={cn(entry.disabled ? 'gba:text-slate-300' : 'gba:text-slate-500')}
                           />
                         </div>
                       ))}
@@ -207,4 +212,4 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
       </div>
     </div>
   )
-} 
+}

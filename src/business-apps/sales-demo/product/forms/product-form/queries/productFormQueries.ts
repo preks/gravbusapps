@@ -27,7 +27,7 @@ export const createProduct = `
       isDeleted
     }
   }
-`;
+`
 
 // Mutation to update an existing product
 export const updateProduct = `
@@ -57,7 +57,7 @@ export const updateProduct = `
       version
     }
   }
-`;
+`
 
 // Query to get a single product by ID (for editing)
 export const getProductById = `
@@ -87,7 +87,7 @@ export const getProductById = `
       version
     }
   }
-`;
+`
 
 // Query to check if product number already exists (for validation)
 export const checkProductNumberExists = `
@@ -103,7 +103,7 @@ export const checkProductNumberExists = `
       productNumber
     }
   }
-`;
+`
 
 // Query to get product type codes from catalog (if available)
 export const getProductTypeCodes = `
@@ -118,7 +118,7 @@ export const getProductTypeCodes = `
       productTypeCode
     }
   }
-`;
+`
 
 // Query to get suppliers list (if available)
 export const getSuppliers = `
@@ -137,7 +137,7 @@ export const getSuppliers = `
       supplierName
     }
   }
-`;
+`
 
 // Query to generate next product number (if auto-generation is needed)
 export const getNextProductNumber = `
@@ -153,4 +153,4 @@ export const getNextProductNumber = `
       }
     }
   }
-`;
+`

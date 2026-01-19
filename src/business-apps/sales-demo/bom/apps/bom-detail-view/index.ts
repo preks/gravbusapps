@@ -1,4 +1,4 @@
-import BomDetailView from './BomDetailView';
+import BomDetailView from './BomDetailView'
 
-export { BomDetailView };
-export default BomDetailView;
+export { BomDetailView }
+export default BomDetailView

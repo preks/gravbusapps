@@ -52,7 +52,7 @@ export const getBillOfMaterials = `
       }
     }
   }
-`;
+`
 
 export const getBomKPIs = `
   query GetBomKPIs($where: BillOfMaterialsBoolExp) {
@@ -101,7 +101,7 @@ export const getBomKPIs = `
       }
     }
   }
-`;
+`
 
 export const searchBillOfMaterials = `
   query SearchBillOfMaterials(
@@ -172,7 +172,7 @@ export const searchBillOfMaterials = `
       }
     }
   }
-`;
+`
 
 export const getBomsByParentProduct = `
   query GetBomsByParentProduct(
@@ -206,7 +206,7 @@ export const getBomsByParentProduct = `
       updatedAt
     }
   }
-`;
+`
 
 export const getBomStatusCounts = `
   query GetBomStatusCounts($where: BillOfMaterialsBoolExp) {
@@ -262,7 +262,7 @@ export const getBomStatusCounts = `
       }
     }
   }
-`;
+`
 
 export const getBomTrendData = `
   query GetBomTrendData(
@@ -295,4 +295,4 @@ export const getBomTrendData = `
       }
     }
   }
-`;
+`

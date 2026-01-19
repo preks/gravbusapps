@@ -1,86 +1,136 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { 
-  GET_EXPENSE_REQUESTS_BY_MANAGER, 
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  GET_EXPENSE_REQUESTS_BY_MANAGER,
   APPROVE_EXPENSE_REQUEST,
   REJECT_EXPENSE_REQUEST,
-  GET_EXPENSE_REQUEST_STATISTICS 
-} from '../queries/expenseRequests';
-import { env } from '@/common/env/EnvUtils';
+  GET_EXPENSE_REQUEST_STATISTICS,
+  GET_EXPENSE_REQUEST_STATISTICS_WITH_CURRENCY
+} from '../queries/expenseRequests'
+import { env } from '@/common/env/EnvUtils'
 
-// Props for the hook, ensuring accessToken and userInfo are provided
-export interface UseGetExpenseRequestsProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {}
+export interface UseGetExpenseRequestsProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
+  pageSize?: number
+  searchTerm?: string
+  currentStatusFilter?: string[] | null
+  currentCurrencyFilter?: string | null
+  statisticsOnly?: boolean
+}
 
-// Define types for the hook
 export interface ExpenseRequest {
-  id: string;
-  code?: string;
-  title: string;
-  description?: string;
-  requestDate?: string;
-  startDate?: string | null;
-  endDate?: string | null;
-  amount: number;
-  currency: string;
-  status: string;
+  id: string
+  code?: string
+  title: string
+  description?: string
+  requestDate?: string
+  startDate?: string | null
+  endDate?: string | null
+  amount: number
+  totalAmount?: number
+  currency: string
+  status: string
+  createdAt?: string
+  updatedAt?: string
   attachments?: {
-    fileUrl: string;
-    fileName: string;
-  }[];
+    fileUrl: string
+    fileName: string
+  }[]
+  requestType?: {
+    value: string
+    translations?: Array<{
+      value: string
+      localeCode: string
+    }>
+  }
+  /**
+   * Linked expense plan (if any). Added to avoid 'any' assertions when rendering Plan Code.
+   */
+  expensePlan?: {
+    code?: string
+    requestType?: {
+      value: string
+      translations?: Array<{
+        value: string
+        localeCode: string
+      }>
+    }
+  } | null
+  employeeDocument?: {
+    file: string
+    fileSize: number
+    id: string
+    description: string
+    mimeType: string
+    name: string
+    type: string
+    employee: {
+      id: string
+    }
+  } | null
   employee?: {
-    id: string;
-    displayName?: string;
-    fullName: string;
-    department?: string;
-    pictureThumbnail?: string;
-    additionalProperties?: Record<string, any>;
-  };
+    id: string
+    code?: string
+    displayName?: string
+    fullName: string
+    firstName: string
+    lastName: string
+    department?: string
+    pictureThumbnail?: string
+    employeePosition?: {
+      organizationalUnit?: {
+        id: string
+        name: string
+      }
+      siteLocation?: {
+        id: string
+        name: string
+      }
+    }
+    additionalProperties?: {
+      [key: string]: any
+    }
+  }
+  currencyRef?: string
 }
 
 export interface ExpenseRequestStatisticsData {
-  pendingCount: number;
-  pendingAmount: number | null;
-  approvedCount: number;
-  approvedAmount: number | null;
-  rejectedCount: number;
-  rejectedAmount: number | null;
-  totalSubmittedAmount: number | null;
+  pendingCount: number
+  pendingAmount: number | null
+  totalRequestsSubmitted: number
+  totalSubmittedAmount: number | null
 }
 
-// Define the type for sortable fields
-export type SortField = 'title' | 'requestDate' | 'startDate' | 'endDate' | 'amount' | 'status' | 'employee.fullName';
+export type SortField = 'title' | 'requestDate' | 'startDate' | 'endDate' | 'amount' | 'status' | 'employee.fullName'
 
-// Define the type for sort order
-export type SortOrder = 'ASC' | 'DESC';
+export type SortOrder = 'ASC' | 'DESC'
 
-// Define the type for sort configuration
 export interface SortConfig {
-  field: SortField;
-  order: SortOrder;
+  field: SortField
+  order: SortOrder
 }
 
 export interface ExpenseRequestsResult {
-  requests: ExpenseRequest[];
-  isLoading: boolean;
-  error: string | null;
-  totalCount: number;
+  requests: ExpenseRequest[]
+  isLoading: boolean
+  error: string | null
+  totalCount: number
   fetchRequests: (
-    searchTerm?: string, 
-    page?: number, 
-    pageSize?: number, 
+    searchTerm?: string,
+    page?: number,
+    pageSize?: number,
     sortBy?: string,
     status?: string[],
     requestDateStart?: string,
     currencyFilter?: string | null
-  ) => Promise<void>;
-  approveRequest: (requestId: string) => Promise<boolean>;
-  rejectRequest: (requestId: string, rejectionReason?: string) => Promise<boolean>;
-  requestStats: ExpenseRequestStatisticsData | null;
-  requestStatsLoading: boolean;
-  requestStatsError: string | null;
-  fetchRequestStatistics: (currencyFilter?: string | null) => Promise<void>;
-  sorting: SortConfig;
-  updateSorting: (field: SortField) => void;
+  ) => Promise<void>
+  approveRequest: (requestId: string) => Promise<boolean>
+  rejectRequest: (requestId: string, rejectionReason?: string) => Promise<boolean>
+  requestStats: ExpenseRequestStatisticsData | null
+  requestStatsLoading: boolean
+  requestStatsError: string | null
+  fetchRequestStatistics: (currencyFilter?: string | null) => Promise<void>
+  sorting: SortConfig
+  updateSorting: (field: SortField) => void
 }
 
 /**
@@ -88,48 +138,117 @@ export interface ExpenseRequestsResult {
  * @param context Business app context containing user info and access token
  * @returns Object containing expense requests, loading state, error, total count, and fetch function
  */
-export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRequestsProps): ExpenseRequestsResult => {
-  const [requests, setRequests] = useState<ExpenseRequest[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [totalCount, setTotalCount] = useState<number>(0);
-  const [requestStats, setRequestStats] = useState<ExpenseRequestStatisticsData | null>(null);
-  const [requestStatsLoading, setRequestStatsLoading] = useState<boolean>(false);
-  const [requestStatsError, setRequestStatsError] = useState<string | null>(null);
-  
-  // Default sorting configuration - by requestDate descending
+export const useGetExpenseRequests = ({
+  accessToken,
+  userInfo,
+  pageSize = 20,
+  searchTerm,
+  currentStatusFilter,
+  currentCurrencyFilter,
+  statisticsOnly = false
+}: UseGetExpenseRequestsProps): ExpenseRequestsResult => {
+  const [requests, setRequests] = useState<ExpenseRequest[]>([])
+  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
+  const [totalCount, setTotalCount] = useState<number>(0)
+  const [requestStats, setRequestStats] = useState<ExpenseRequestStatisticsData | null>(null)
+  const [requestStatsLoading, setRequestStatsLoading] = useState<boolean>(false)
+  const [requestStatsError, setRequestStatsError] = useState<string | null>(null)
+
   const [sorting, setSorting] = useState<SortConfig>({
     field: 'requestDate',
     order: 'DESC'
-  });
+  })
 
-  // Get supervisor employee ID from user info
-  const supervisorEmployeeId = userInfo?.employeeDetails?.employeeId || "00000000-0000-0000-0000-000000000000";
-  
-  // Track the last fetch parameters to avoid redundant requests
+  const supervisorEmployeeId = userInfo?.employeeDetails?.employeeId || '00000000-0000-0000-0000-000000000000'
+
   const lastFetchParams = useRef<{
-    searchTerm: string;
-    page: number;
-    pageSize: number;
-    sortBy: string;
-    status: string[];
-    requestDateStart?: string;
-    currencyFilter?: string | null;
-  } | null>(null);
-  
-  // Track the last statistics fetch parameters
-  const lastStatsFetchParams = useRef<{ currencyFilter?: string | null } | null>(null);
-  
-  // Debounce timers
-  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
-  const statsDebounceTimer = useRef<NodeJS.Timeout | null>(null);
+    searchTerm: string
+    page: number
+    pageSize: number
+    sortBy: string
+    status: string[]
+    requestDateStart?: string
+    currencyFilter?: string | null
+  } | null>(null)
+
+  const lastStatsFetchParams = useRef<{
+    currencyFilter?: string | null
+  } | null>(null)
 
   /**
-   * Helper function to map API response to ExpenseRequest objects
+   * Maps status values to valid GraphQL status values
+   * Reduces cognitive complexity by extracting status mapping logic
+   */
+  const mapStatusValues = useCallback((statusValues: string[]): string[] => {
+    const validStatuses = new Set([
+      'PENDING',
+      'APPROVED',
+      'VERIFIED',
+      'BOOKED',
+      'TRANSFERRED',
+      'PAID',
+      'CLOSED',
+      'RETURNED',
+      'REJECTED'
+    ])
+
+    return statusValues.map(statusValue => {
+      if (validStatuses.has(statusValue.toUpperCase())) {
+        return statusValue.toUpperCase()
+      }
+      if (statusValue.toLowerCase() === 'in_approval') {
+        return 'PENDING'
+      }
+      return statusValue
+    })
+  }, [])
+
+  /**
+   * Builds orderBy array from sortBy string
+   * Reduces cognitive complexity by extracting orderBy parsing logic
+   */
+  const buildOrderByFromSortString = useCallback((sortBy: string): any[] | undefined => {
+    if (!sortBy || sortBy === 'none') {
+      return sortBy === 'none' ? undefined : [{ requestDate: 'DESC' }]
+    }
+
+    const [field, order] = sortBy.split(':')
+    if (!field || !order) {
+      return [{ requestDate: 'DESC' }]
+    }
+
+    const orderDirection = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC'
+
+    // Handle nested fields like 'employee.fullName'
+    if (field.includes('.')) {
+      const [parent, child] = field.split('.')
+      if (parent === 'employee' && child === 'fullName') {
+        return [{ employee: { firstName: orderDirection } }, { employee: { lastName: orderDirection } }]
+      }
+      return [{ [parent]: { [child]: orderDirection } }]
+    }
+
+    // Handle specific field mappings
+    const fieldMap: Record<string, string> = {
+      amount: 'totalAmount',
+      requestDate: 'requestDate',
+      status: 'status',
+      title: 'title',
+      startDate: 'startDate',
+      endDate: 'endDate'
+    }
+
+    const mappedField = fieldMap[field] || field
+    return [{ [mappedField]: orderDirection }]
+  }, [])
+
+  /**
+   * Maps GraphQL response data to ExpenseRequest array
    */
   const mapResponseToRequests = (data: any): ExpenseRequest[] => {
-    const fetchedRequests = data?.ExpenseRequest ?? [];
-    
+    const fetchedRequests = data?.ExpenseRequest ?? []
+
     return fetchedRequests.map((request: any) => {
       return {
         id: request.id,
@@ -139,423 +258,362 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
         requestDate: request.requestDate,
         startDate: request.startDate,
         endDate: request.endDate,
-        amount: request.totalAmount ?? 0,
-        currency: request.currencyRef ? request.currencyRef.replace('Currency:v1:', '') : 'EUR',
+        amount: request.totalAmount,
+        currency: (() => {
+          const extractedCurrency = request.currencyRef ? request.currencyRef.replaceAll('Currency:v1:', '') : 'EUR'
+
+          return extractedCurrency
+        })(),
         status: request.status ?? 'PENDING',
-        attachments: request.employeeDocument ? [{
-          fileUrl: request.employeeDocument.file,
-          fileName: request.employeeDocument.name
-        }] : [],
-        employee: request.employee ? {
-          id: request.employee.id,
-          displayName: request.employee.displayName,
-          fullName: request.employee.fullName,
-          department: request.employee.employeePosition?.organizationalUnit?.name,
-          pictureThumbnail: request.employee.pictureThumbnail,
-          additionalProperties: request.employee.additionalProperties
-        } : undefined
-      };
-    });
-  };
+        attachments: request.employeeDocument
+          ? [
+              {
+                fileUrl: request.employeeDocument.file,
+                fileName: request.employeeDocument.name
+              }
+            ]
+          : [],
+        employeeDocument: request.employeeDocument || null,
+        employee: request.employee
+          ? {
+              id: request.employee.id,
+              displayName: request.employee.displayName,
+              fullName: request.employee.fullName,
+              department: request.employee.employeePosition?.organizationalUnit?.name,
+              pictureThumbnail: request.employee.pictureThumbnail,
+              additionalProperties: request.employee.additionalProperties
+            }
+          : undefined,
+        // expose linked plan code for table column
+        expensePlan: request.expensePlan ? { code: request.expensePlan.code } : undefined
+      }
+    })
+  }
 
-  // Function to fetch requests with search, pagination, and filtering
-  const fetchRequests = useCallback(async (
-    searchTerm: string = '', 
-    page: number = 1, 
-    pageSize: number = 10, 
-    sortBy?: string,
-    status: string[] = [],
-    requestDateStart?: string,
-    currencyFilter: string | null = null
-  ) => {
-    // Use current sorting state if no sortBy is provided
-    const effectiveSortBy = sortBy || `${sorting.field}:${sorting.order.toLowerCase()}`;
-    
-    if (!accessToken) {
-      setError('Access token not available.');
-      setIsLoading(false);
-      return;
-    }
-    
-    // Create a params object for comparison and logging
-    const currentParams = {
-      searchTerm: searchTerm || '',
-      page,
-      pageSize,
-      sortBy: effectiveSortBy,
-      status: status || [],
-      requestDateStart,
-      currencyFilter
-    };
-    
-    // Compare current parameters with last fetch parameters
-    const isDuplicateRequest = lastFetchParams.current && 
-      lastFetchParams.current.searchTerm === currentParams.searchTerm &&
-      lastFetchParams.current.page === currentParams.page &&
-      lastFetchParams.current.pageSize === currentParams.pageSize &&
-      lastFetchParams.current.sortBy === currentParams.sortBy &&
-      JSON.stringify(lastFetchParams.current.status) === JSON.stringify(currentParams.status) &&
-      lastFetchParams.current.requestDateStart === currentParams.requestDateStart &&
-      lastFetchParams.current.currencyFilter === currentParams.currencyFilter;
-      
-    if (isDuplicateRequest) {
-      console.log('Skipping duplicate expense requests fetch with same parameters');
-      return;
-    }
-    
-    // Update last fetch parameters
-    lastFetchParams.current = currentParams;
-    
-    console.log('Fetching expense requests with:', {
-      managerId: supervisorEmployeeId,
-      searchTerm,
-      page,
-      pageSize,
-      sortBy,
-      status,
-      requestDateStart,
-      currencyFilter,
-      query: GET_EXPENSE_REQUESTS_BY_MANAGER.substring(0, 100) + '...' // Log first 100 chars of query
-    });
-    
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      // Calculate pagination offset
-      const offset = (page - 1) * pageSize;
-      
-      // Build the where clause for filtering
-      const whereClause: Record<string, any> = {
-        employee: {
-          employeePosition: {
-            supervisorEmployeeId: { _eq: supervisorEmployeeId }
-          }
-        },
-        isDeleted: { _eq: false }
-      };
+  const fetchRequests = useCallback(
+    async (
+      searchTerm: string = '',
+      page: number = 1,
+      pageSize: number = 10,
+      sortBy?: string,
+      status: string[] = [],
+      requestDateStart?: string,
+      currencyFilter: string | null = null
+    ) => {
+      const effectiveSortBy = sortBy || `${sorting.field}:${sorting.order.toLowerCase()}`
 
-      // Add currency filter if specified
-      if (currencyFilter) {
-        console.log(`Applying currency filter: ${currencyFilter}`);
-        whereClause.currencyRef = { _eq: `Currency:v1:${currencyFilter}` };
-      } else {
-        // When no currency filter is specified, don't add any currency filter to the query
-        // This ensures all currencies are included
-        console.log('No currency filter applied');
+      if (!accessToken) {
+        setError('Access token not available.')
+        setIsLoading(false)
+        return
       }
 
-      // Add search functionality
-      if (searchTerm && searchTerm.trim() !== '') {
-        whereClause._or = [
-          { title: { _ilike: `%${searchTerm}%` } },
-          { description: { _ilike: `%${searchTerm}%` } }
-        ];
+      const currentParams = {
+        searchTerm: searchTerm || '',
+        page,
+        pageSize,
+        sortBy: effectiveSortBy,
+        status: status || [],
+        requestDateStart,
+        currencyFilter
       }
 
-      // Add status filter - always include PENDING status by default if no status is provided
-      if (status && status.length > 0) {
-        // Map filter values to actual database status values
-        const mappedStatuses = status.map(statusValue => {
-          let actualStatus = statusValue;
-          
-          // If the status is already a valid ExpenseStatus enum value for expense requests, use it as is
-          const validStatuses = [
-            'CREATED', 'PENDING', 'APPROVED', 'VERIFIED', 'BOOKED', 
-            'TRANSFERRED', 'PAID', 'CLOSED', 'RETURNED', 'REJECTED'
-          ];
-          
-          if (validStatuses.includes(statusValue.toUpperCase())) {
-            actualStatus = statusValue.toUpperCase();
-          } else if (statusValue.toLowerCase() === 'in_approval') {
-            // Special handling for the UI filter value that maps to PENDING
-            actualStatus = 'PENDING';
-          }
-          
-          return actualStatus;
-        });
-        
-        console.log('Mapped statuses:', mappedStatuses);
-        whereClause.status = { _in: mappedStatuses };
-      } else {
-        // If no status filter is provided, default to PENDING
-        console.log('No status filter provided, defaulting to PENDING');
-        whereClause.status = { _in: ['PENDING'] };
+      const isDuplicateRequest =
+        lastFetchParams.current &&
+        lastFetchParams.current.searchTerm === currentParams.searchTerm &&
+        lastFetchParams.current.page === currentParams.page &&
+        lastFetchParams.current.pageSize === currentParams.pageSize &&
+        lastFetchParams.current.sortBy === currentParams.sortBy &&
+        JSON.stringify(lastFetchParams.current.status) === JSON.stringify(currentParams.status) &&
+        lastFetchParams.current.requestDateStart === currentParams.requestDateStart &&
+        lastFetchParams.current.currencyFilter === currentParams.currencyFilter
+
+      if (isDuplicateRequest) {
+        return
       }
 
-      const variables = {
-        where: whereClause,
-        limit: pageSize,
-        offset
-      };
-      
-      console.log('GraphQL variables being sent:', variables);
-      
-      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          query: GET_EXPENSE_REQUESTS_BY_MANAGER,
-          variables,
-        }),
-      });
+      lastFetchParams.current = currentParams
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const offset = (page - 1) * pageSize
+
+        const whereClause: Record<string, any> = {
+          employee: {
+            employeePosition: {
+              supervisorEmployeeId: { _eq: supervisorEmployeeId }
+            }
+          },
+          isDeleted: { _eq: false }
+        }
+
+        if (currencyFilter) {
+          whereClause.currencyRef = { _eq: `Currency:v1:${currencyFilter}` }
+        }
+
+        if (searchTerm && searchTerm.trim() !== '') {
+          whereClause._or = [{ title: { _ilike: `%${searchTerm}%` } }, { description: { _ilike: `%${searchTerm}%` } }]
+        }
+
+        // Apply status filter using helper function
+        if (status && status.length > 0) {
+          const mappedStatuses = mapStatusValues(status)
+          whereClause.status = { _in: mappedStatuses }
+        } else {
+          // Exclude CREATED status by default when no specific filter is provided
+          whereClause.status = { _neq: 'CREATED' }
+        }
+
+        // Build orderBy using helper function
+        const orderBy = buildOrderByFromSortString(effectiveSortBy)
+
+        const variables: any = {
+          where: whereClause,
+          limit: pageSize,
+          offset
+        }
+
+        // Only include orderBy if it's defined
+        if (orderBy) {
+          variables.orderBy = orderBy
+        }
+
+        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({
+            query: GET_EXPENSE_REQUESTS_BY_MANAGER,
+            variables
+          })
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`)
+        }
+
+        const result = await response.json()
+
+        if (result.errors) {
+          throw new Error(result.errors.map((e: any) => e.message).join(', '))
+        }
+
+        const count = result.data?.ExpenseRequestAggregate?.aggregate?.count ?? 0
+        setTotalCount(count)
+
+        const mappedRequests = mapResponseToRequests(result.data)
+
+        setRequests(mappedRequests)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+        setRequests([])
+        setTotalCount(0)
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [
+      accessToken,
+      supervisorEmployeeId,
+      setIsLoading,
+      setError,
+      setRequests,
+      setTotalCount,
+      mapStatusValues,
+      buildOrderByFromSortString
+    ]
+  )
+
+  const approveRequest = useCallback(
+    async (requestId: string): Promise<boolean> => {
+      if (!accessToken) {
+        setError('Access token not available for approval.')
+        return false
       }
 
-      const result = await response.json();
+      try {
+        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({
+            query: APPROVE_EXPENSE_REQUEST,
+            variables: { requestId }
+          })
+        })
 
-      if (result.errors) {
-        console.error('GraphQL errors in expense requests:', result.errors);
-        throw new Error(result.errors.map((e: any) => e.message).join(', '));
-      }
-      
-      console.log('Expense requests data received:', {
-        requestsCount: result.data.ExpenseRequest?.length,
-        totalCount: result.data.ExpenseRequestAggregate?.aggregate?.count
-      });
-      
-      // Get total count from aggregate query
-      const count = result.data?.ExpenseRequestAggregate?.aggregate?.count ?? 0;
-      setTotalCount(count);
-      
-      // Map the requests using helper function
-      const mappedRequests = mapResponseToRequests(result.data);
-      
-      setRequests(mappedRequests);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      setRequests([]); // Clear requests on error
-      setTotalCount(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accessToken, supervisorEmployeeId, setIsLoading, setError, setRequests, setTotalCount]);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
 
-  // Function to approve an expense request
-  const approveRequest = useCallback(async (requestId: string): Promise<boolean> => {
-    if (!accessToken) {
-      setError('Access token not available for approval.');
-      return false;
-    }
-    
-    try {
-      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          query: APPROVE_EXPENSE_REQUEST,
-          variables: { requestId }
-        }),
-      });
+        const result = await response.json()
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+        if (result.errors && result.errors.length > 0) {
+          throw new Error(result.errors.map((e: any) => e.message).join(', '))
+        }
 
-      const result = await response.json();
-
-      if (result.errors && result.errors.length > 0) {
-        throw new Error(result.errors.map((e: any) => e.message).join(', '));
-      }
-      
-      // Update the local state
-      setRequests(prevRequests => 
-        prevRequests.map(request => 
-          request.id === requestId 
-            ? { ...request, status: 'APPROVED' } 
-            : request
+        setRequests(prevRequests =>
+          prevRequests.map(request => (request.id === requestId ? { ...request, status: 'APPROVED' } : request))
         )
-      );
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      return false;
-    }
-  }, [accessToken, setError, setRequests]);
+        return true
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+        return false
+      }
+    },
+    [accessToken, setError, setRequests]
+  )
 
-  // Function to reject an expense request
-  const rejectRequest = useCallback(async (requestId: string, rejectionReason?: string): Promise<boolean> => {
-    if (!accessToken) {
-      setError('Access token not available for rejection.');
-      return false;
-    }
-    
-    try {
-      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          query: REJECT_EXPENSE_REQUEST,
-          variables: { 
-            requestId,
-            rejectionReason: rejectionReason || ''
-          }
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+  const rejectRequest = useCallback(
+    async (requestId: string, rejectionReason?: string): Promise<boolean> => {
+      if (!accessToken) {
+        setError('Access token not available for rejection.')
+        return false
       }
 
-      const result = await response.json();
+      try {
+        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({
+            query: REJECT_EXPENSE_REQUEST,
+            variables: {
+              requestId,
+              rejectionReason: rejectionReason || ''
+            }
+          })
+        })
 
-      if (result.errors && result.errors.length > 0) {
-        throw new Error(result.errors.map((e: any) => e.message).join(', '));
-      }
-      
-      // Update the local state
-      setRequests(prevRequests => 
-        prevRequests.map(request => 
-          request.id === requestId 
-            ? { ...request, status: 'REJECTED' } 
-            : request
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const result = await response.json()
+
+        if (result.errors && result.errors.length > 0) {
+          throw new Error(result.errors.map((e: any) => e.message).join(', '))
+        }
+
+        setRequests(prevRequests =>
+          prevRequests.map(request => (request.id === requestId ? { ...request, status: 'REJECTED' } : request))
         )
-      );
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      return false;
-    }
-  }, [accessToken, setError, setRequests]);
-
-  // Function to fetch request statistics
-  const fetchRequestStatistics = useCallback(async (currencyFilter?: string | null) => {
-    if (!accessToken) {
-      setRequestStatsError('Access token not available for statistics.');
-      setRequestStatsLoading(false);
-      return;
-    }
-    
-    // Check if this is a duplicate request with the same parameters
-    if (lastStatsFetchParams.current && 
-        lastStatsFetchParams.current.currencyFilter === currencyFilter) {
-      console.log('Skipping duplicate expense request statistics fetch with same parameters');
-      return;
-    }
-    
-    // Update last fetch parameters
-    lastStatsFetchParams.current = { currencyFilter };
-    
-    setRequestStatsLoading(true);
-    setRequestStatsError(null);
-    try {
-      const currencyRefValue = currencyFilter ? `Currency:v1:${currencyFilter}` : null;
-      console.log(`Fetching expense request statistics with currency filter: ${currencyFilter || 'none'}`);
-      
-      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          query: GET_EXPENSE_REQUEST_STATISTICS,
-          variables: { employeeId: supervisorEmployeeId, currencyRef: currencyRefValue }
-        }),
-      });
-      const result = await response.json();
-      if (result.errors) {
-        console.error('GraphQL errors in expense request statistics:', result.errors);
-        throw new Error(result.errors.map((e: any) => e.message).join(', '));
+        return true
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+        return false
       }
-      
-      console.log('Expense request statistics received:', result.data);
-      const data = result.data;
-      setRequestStats({
-        pendingCount: data.pendingRequests?.aggregate?.count ?? 0,
-        pendingAmount: data.pendingRequests?.aggregate?.sum?.totalAmount ?? null,
-        approvedCount: data.approvedRequests?.aggregate?.count ?? 0,
-        approvedAmount: data.approvedRequests?.aggregate?.sum?.totalAmount ?? null,
-        rejectedCount: data.rejectedRequests?.aggregate?.count ?? 0,
-        rejectedAmount: data.rejectedRequests?.aggregate?.sum?.totalAmount ?? null,
-        totalSubmittedAmount: data.allSubmittedRequests?.aggregate?.sum?.totalAmount ?? null,
-      });
-    } catch (err: any) {
-      console.error('Error fetching expense request statistics:', err);
-      setRequestStatsError(err.message ?? 'Failed to fetch expense request statistics.');
-      setRequestStats(null);
-    } finally {
-      setRequestStatsLoading(false);
-    }
-  }, [accessToken, supervisorEmployeeId, setRequestStats, setRequestStatsLoading, setRequestStatsError]);
+    },
+    [accessToken, setError, setRequests]
+  )
 
-  // Initial data fetch (requests) with debouncing
+  const fetchRequestStatistics = useCallback(
+    async (currencyFilter?: string | null) => {
+      if (!accessToken) {
+        setRequestStatsError('Access token not available for statistics.')
+        setRequestStatsLoading(false)
+        return
+      }
+
+      if (lastStatsFetchParams.current && lastStatsFetchParams.current.currencyFilter === currencyFilter) {
+        return
+      }
+
+      lastStatsFetchParams.current = { currencyFilter }
+
+      setRequestStatsLoading(true)
+      setRequestStatsError(null)
+      try {
+        const query = currencyFilter ? GET_EXPENSE_REQUEST_STATISTICS_WITH_CURRENCY : GET_EXPENSE_REQUEST_STATISTICS
+
+        const variables = currencyFilter
+          ? {
+              employeeId: supervisorEmployeeId,
+              currencyRef: `Currency:v1:${currencyFilter}`
+            }
+          : {
+              employeeId: supervisorEmployeeId
+            }
+
+        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({
+            query,
+            variables
+          })
+        })
+        const result = await response.json()
+        if (result.errors) {
+          throw new Error(result.errors.map((e: any) => e.message).join(', '))
+        }
+
+        const data = result.data
+
+        const stats = {
+          pendingCount: data.pendingRequests?.aggregate?.count ?? 0,
+          pendingAmount: data.pendingAmount?.aggregate?.sum?.totalAmount ?? null,
+          totalRequestsSubmitted: data.totalRequestsSubmitted?.aggregate?.count ?? 0,
+          totalSubmittedAmount: data.totalSubmittedAmount?.aggregate?.sum?.totalAmount ?? null
+        }
+
+        setRequestStats(stats)
+      } catch (err: any) {
+        setRequestStatsError(err.message ?? 'Failed to fetch expense request statistics.')
+        setRequestStats(null)
+      } finally {
+        setRequestStatsLoading(false)
+      }
+    },
+    [accessToken, supervisorEmployeeId, setRequestStats, setRequestStatsLoading, setRequestStatsError]
+  )
+
   useEffect(() => {
-    if (!accessToken) return;
-    
-    // Clear any existing timer
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current);
+    if (!statisticsOnly) {
+      fetchRequests(
+        searchTerm || '',
+        1,
+        pageSize,
+        undefined,
+        currentStatusFilter || [],
+        undefined,
+        currentCurrencyFilter
+      )
     }
-    
-    // Set a new timer to debounce the fetch
-    debounceTimer.current = setTimeout(() => {
-      console.log('Executing debounced fetchRequests() for calendar');
-      fetchRequests('', 1, 1000); // Use larger page size for calendar view
-    }, 300); // 300ms debounce delay
-    
-    // Cleanup function to clear the timer if the component unmounts
-    return () => {
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current);
-      }
-    };
-  }, [accessToken, fetchRequests]);
-  
-  // Initial data fetch (statistics) with debouncing
-  useEffect(() => {
-    if (!accessToken) return;
-    
-    // Clear any existing timer
-    if (statsDebounceTimer.current) {
-      clearTimeout(statsDebounceTimer.current);
-    }
-    
-    // Set a new timer to debounce the fetch
-    statsDebounceTimer.current = setTimeout(() => {
-      console.log('Executing debounced fetchRequestStatistics()');
-      fetchRequestStatistics();
-    }, 300); // 300ms debounce delay
-    
-    // Cleanup function to clear the timer if the component unmounts
-    return () => {
-      if (statsDebounceTimer.current) {
-        clearTimeout(statsDebounceTimer.current);
-      }
-    };
-  }, [accessToken, fetchRequestStatistics]);
+  }, [fetchRequests, statisticsOnly, searchTerm, pageSize, currentStatusFilter, currentCurrencyFilter])
 
-  // Function to update sorting configuration
+  useEffect(() => {
+    if (currentCurrencyFilter) {
+      fetchRequestStatistics(currentCurrencyFilter)
+    }
+  }, [currentCurrencyFilter, fetchRequestStatistics])
+
   const updateSorting = useCallback((field: SortField) => {
     setSorting(prevSorting => {
-      // If clicking on the same field, toggle the order
       if (prevSorting.field === field) {
         return {
           field,
           order: prevSorting.order === 'ASC' ? 'DESC' : 'ASC'
-        };
+        }
       }
-      // If clicking on a new field, default to DESC order
+
       return {
         field,
         order: 'DESC'
-      };
-    });
-    
-    // No need to reset page here - it will be handled by the component
-    // when it detects sorting changes and triggers a new fetch
-  }, []);
+      }
+    })
+  }, [])
 
   return {
     requests,
@@ -571,5 +629,5 @@ export const useGetExpenseRequests = ({ accessToken, userInfo }: UseGetExpenseRe
     fetchRequestStatistics,
     sorting,
     updateSorting
-  };
-};
+  }
+}

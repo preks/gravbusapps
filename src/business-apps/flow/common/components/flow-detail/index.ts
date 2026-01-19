@@ -1,1 +1,1 @@
-export { FlowDetailView } from './FlowDetailView';
+export { FlowDetailView } from './FlowDetailView'

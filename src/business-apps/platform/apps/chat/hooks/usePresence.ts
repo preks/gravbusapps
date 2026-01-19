@@ -1,0 +1,245 @@
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
+import type { PresenceUpdate } from '../types'
+
+interface UsePresenceOptions {
+  wsClient: ChatWebSocketClient | null
+  currentUserId: string | null
+}
+
+export type PresenceState = 'online' | 'away' | 'offline'
+
+export interface PresenceData {
+  state: PresenceState
+  lastSeen?: string // ISO timestamp
+}
+
+// Backward compatibility alias for V1 components
+export type UserPresence = {
+  status: PresenceState
+  lastSeen?: Date | string
+}
+
+// Global presence cache (shared across all components)
+// Now stores full presence data including lastSeen timestamp
+const presenceCache = new Map<string, PresenceData>()
+
+/**
+ * User Presence Hook with Global Cache
+ *
+ * Features:
+ * - Global presence cache (one source of truth)
+ * - Lazy updates (only re-render when accessed)
+ * - Batch presence updates for conversation participants
+ * - Show presence in conversation list and headers
+ */
+export function usePresence(options: UsePresenceOptions) {
+  const { wsClient, currentUserId } = options
+
+  const [, forceUpdate] = useState({})
+  const isMountedRef = useRef(true)
+
+  /**
+   * Get user presence from cache
+   */
+  const getUserPresence = useCallback((userId: string): PresenceState => {
+    return presenceCache.get(userId)?.state || 'offline'
+  }, [])
+
+  /**
+   * Get full presence data (including lastSeen)
+   */
+  const getPresenceData = useCallback((userId: string): PresenceData => {
+    return presenceCache.get(userId) || { state: 'offline' }
+  }, [])
+
+  /**
+   * Get the entire presence map (for efficient bulk lookups)
+   * Returns a stable Map reference that only changes when presence data updates
+   */
+  const getPresenceMap = useCallback((): ReadonlyMap<string, PresenceData> => {
+    return presenceCache
+  }, [])
+
+  // Track version for change detection (incremented on batch updates)
+  const [presenceVersion, setPresenceVersion] = useState(0)
+
+  /**
+   * Update user presence
+   */
+  const updatePresence = useCallback((userId: string, state: PresenceState, lastSeen?: string) => {
+    const oldData = presenceCache.get(userId)
+
+    // Skip update if state hasn't changed (optimization to prevent unnecessary re-renders)
+    if (oldData?.state === state && oldData?.lastSeen === lastSeen) {
+      return
+    }
+
+    const presenceData: PresenceData = {
+      state,
+      lastSeen: state === 'offline' ? lastSeen : undefined // Only store lastSeen for offline users
+    }
+
+    presenceCache.set(userId, presenceData)
+    setPresenceVersion(v => v + 1)
+
+    if (isMountedRef.current) {
+      forceUpdate({})
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      // Presence updated
+    }
+  }, [])
+
+  /**
+   * Batch update multiple users
+   */
+  const batchUpdatePresence = useCallback(
+    (updates: Array<{ userId: string; state: PresenceState; lastSeen?: string }>) => {
+      updates.forEach(({ userId, state, lastSeen }) => {
+        const presenceData: PresenceData = {
+          state,
+          lastSeen: state === 'offline' ? lastSeen : undefined
+        }
+        presenceCache.set(userId, presenceData)
+      })
+
+      setPresenceVersion(v => v + 1)
+
+      if (isMountedRef.current) {
+        forceUpdate({})
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        // Batch presence updated
+      }
+    },
+    []
+  )
+
+  /**
+   * Get presence for multiple users (optimized)
+   */
+  const getBatchPresence = useCallback((userIds: string[]): Map<string, PresenceState> => {
+    const result = new Map<string, PresenceState>()
+    userIds.forEach(id => {
+      result.set(id, presenceCache.get(id)?.state || 'offline')
+    })
+    return result
+  }, [])
+
+  /**
+   * Handle presence update from WebSocket
+   */
+  const handlePresenceUpdate = useCallback(
+    (update: PresenceUpdate) => {
+      // Ignore own presence updates (handled separately)
+      if (update.userId === currentUserId) {
+        if (process.env.NODE_ENV === 'development') {
+          // Ignoring own presence update
+        }
+        return
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        // Received presence update
+      }
+
+      // Convert timestamp to string if it's a Date object
+      const timestampString = update.timestamp instanceof Date ? update.timestamp.toISOString() : update.timestamp
+
+      updatePresence(update.userId, update.state as PresenceState, timestampString)
+    },
+    [currentUserId, updatePresence]
+  )
+
+  /**
+   * Subscribe to presence updates
+   * Backend sends: { userId, isOnline, timestamp }
+   * We convert to: { userId, state, timestamp }
+   */
+  useEffect(() => {
+    if (!wsClient) return
+
+    // Bridge backend format to V2 format
+    const handleBackendPresence = (data: any) => {
+      // TRACK BACKEND DATA
+      const update: PresenceUpdate = {
+        userId: data.userId,
+        state: data.isOnline ? 'online' : 'offline',
+        timestamp: data.timestamp || new Date().toISOString()
+      }
+      handlePresenceUpdate(update)
+    }
+
+    wsClient.onPresence(handleBackendPresence)
+
+    if (process.env.NODE_ENV === 'development') {
+      // Subscribed to presence updates
+    }
+
+    return () => {
+      // Cleanup: remove the listener
+      if (process.env.NODE_ENV === 'development') {
+        // Unsubscribed from presence updates
+      }
+    }
+  }, [wsClient, handlePresenceUpdate])
+
+  /**
+   * Cleanup on unmount
+   */
+  useEffect(() => {
+    isMountedRef.current = true
+
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
+  // PERFORMANCE: Memoize return object to prevent cascade re-renders
+  // Callbacks are already stable via useCallback, so object is always the same
+  return useMemo(
+    () => ({
+      getUserPresence,
+      getPresenceData,
+      getPresenceMap,
+      updatePresence,
+      batchUpdatePresence,
+      getBatchPresence,
+      presenceVersion
+    }),
+    [
+      getUserPresence,
+      getPresenceData,
+      getPresenceMap,
+      updatePresence,
+      batchUpdatePresence,
+      getBatchPresence,
+      presenceVersion
+    ]
+  )
+}
+
+/**
+ * Get presence from cache without subscribing
+ * Useful for non-reactive reads
+ */
+export function getPresenceFromCache(userId: string): PresenceState {
+  return presenceCache.get(userId)?.state || 'offline'
+}
+
+/**
+ * Get full presence data from cache
+ */
+export function getPresenceDataFromCache(userId: string): PresenceData {
+  return presenceCache.get(userId) || { state: 'offline' }
+}
+
+/**
+ * Clear all presence cache (useful for logout)
+ */
+export function clearPresenceCache(): void {
+  presenceCache.clear()
+}

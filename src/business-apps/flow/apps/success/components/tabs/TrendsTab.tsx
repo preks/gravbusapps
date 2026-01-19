@@ -1,94 +1,112 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Alert } from '@newwork/nw-design-system';
-import { Spinner } from '@newwork/nw-design-system';
-import { TrendingUp, TrendingDown, Minus, Calendar, Play, CheckCircle, Users, Target, Clock, Activity, Info } from 'lucide-react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useTrendComparison } from '../../hooks/useFlowAnalytics';
+import React, { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, Alert } from '@newwork/nw-design-system'
+import { Spinner } from '@newwork/nw-design-system'
+import {
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Calendar,
+  Play,
+  CheckCircle,
+  Users,
+  Target,
+  Clock,
+  Activity,
+  Info
+} from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useTrendComparison } from '../../hooks/useFlowAnalytics'
 
 interface TrendsTabProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
+  prefixDataTestId?: string
 }
 
-export const TrendsTab: React.FC<TrendsTabProps> = ({
-  prefixDataTestId = 'trends-tab',
-  accessToken,
-  ...context
-}) => {
-  const [timeframe, setTimeframe] = useState('wtd');
-  
-  const { data: trendData, isLoading, error, refetch } = useTrendComparison({
+export const TrendsTab: React.FC<TrendsTabProps> = ({ prefixDataTestId = 'trends-tab', accessToken, ...context }) => {
+  const [timeframe, setTimeframe] = useState('wtd')
+
+  const {
+    data: trendData,
+    isLoading,
+    error,
+    refetch
+  } = useTrendComparison({
     timeframe,
     accessToken
-  });
+  })
 
   // Helper function to get trend icon based on direction with context-aware colors
   const getTrendIcon = (direction: 'up' | 'down' | 'stable', size = 16, metricKey?: string) => {
-    const sizeClass = size === 32 ? 'gba:h-8 gba:w-8' : 
-                      size === 20 ? 'gba:h-5 gba:w-5' : 'gba:h-4 gba:w-4';
-    
+    const sizeClass = size === 32 ? 'gba:h-8 gba:w-8' : size === 20 ? 'gba:h-5 gba:w-5' : 'gba:h-4 gba:w-4'
+
     // For metrics where "up" is bad (cycle time), reverse the color logic
-    const isBadWhenUp = metricKey === 'avg-cycle-time-trend';
-    
+    const isBadWhenUp = metricKey === 'avg-cycle-time-trend'
+
     switch (direction) {
       case 'up':
-        const upColor = isBadWhenUp ? 'gba:text-red-600' : 'gba:text-green-600';
-        return <TrendingUp className={`${sizeClass} ${upColor}`} />;
+        const upColor = isBadWhenUp ? 'gba:text-red-600' : 'gba:text-green-600'
+        return <TrendingUp className={`${sizeClass} ${upColor}`} />
       case 'down':
-        const downColor = isBadWhenUp ? 'gba:text-green-600' : 'gba:text-red-600';
-        return <TrendingDown className={`${sizeClass} ${downColor}`} />;
+        const downColor = isBadWhenUp ? 'gba:text-green-600' : 'gba:text-red-600'
+        return <TrendingDown className={`${sizeClass} ${downColor}`} />
       default:
-        return <Minus className={`${sizeClass} gba:text-gray-500`} />;
+        return <Minus className={`${sizeClass} gba:text-gray-500`} />
     }
-  };
+  }
 
   // Helper function to format trend percentage with context-aware colors
-  const formatTrendPercentage = (trend: { change: number; percentage: number; direction: 'up' | 'down' | 'stable' }, metricKey?: string) => {
-    const sign = trend.direction === 'up' ? '+' : trend.direction === 'down' ? '-' : '';
-    const absPercentage = Math.abs(trend.percentage);
-    
+  const formatTrendPercentage = (
+    trend: { change: number; percentage: number; direction: 'up' | 'down' | 'stable' },
+    metricKey?: string
+  ) => {
+    const sign = trend.direction === 'up' ? '+' : trend.direction === 'down' ? '-' : ''
+    const absPercentage = Math.abs(trend.percentage)
+
     // For metrics where "up" is bad (cycle time), reverse the color logic
-    const isBadWhenUp = metricKey === 'avg-cycle-time-trend';
-    
-    let color = 'gba:text-gray-500';
+    const isBadWhenUp = metricKey === 'avg-cycle-time-trend'
+
+    let color = 'gba:text-gray-500'
     if (trend.direction === 'up') {
-      color = isBadWhenUp ? 'gba:text-red-600' : 'gba:text-green-600';
+      color = isBadWhenUp ? 'gba:text-red-600' : 'gba:text-green-600'
     } else if (trend.direction === 'down') {
-      color = isBadWhenUp ? 'gba:text-green-600' : 'gba:text-red-600';
+      color = isBadWhenUp ? 'gba:text-green-600' : 'gba:text-red-600'
     }
-    
+
     return {
       sign,
       percentage: absPercentage,
       color
-    };
-  };
+    }
+  }
 
   // Helper function to format current vs previous period labels
   const getPeriodLabels = (timeframe: string) => {
     switch (timeframe) {
       case 'last24h':
-        return { current: 'Last 24 Hours', previous: 'Previous 24 Hours' };
+        return { current: 'Last 24 Hours', previous: 'Previous 24 Hours' }
       case 'wtd':
-        return { current: 'This Week', previous: 'Previous Week' };
+        return { current: 'This Week', previous: 'Previous Week' }
       case 'mtd':
-        return { current: 'This Month', previous: 'Previous Month' };
+        return { current: 'This Month', previous: 'Previous Month' }
       case 'qtd':
-        return { current: 'This Quarter', previous: 'Previous Quarter' };
+        return { current: 'This Quarter', previous: 'Previous Quarter' }
       case 'ytd':
-        return { current: 'This Year', previous: 'Previous Year' };
+        return { current: 'This Year', previous: 'Previous Year' }
       default:
-        return { current: 'Current Period', previous: 'Previous Period' };
+        return { current: 'Current Period', previous: 'Previous Period' }
     }
-  };
+  }
 
-  const periodLabels = getPeriodLabels(timeframe);
+  const periodLabels = getPeriodLabels(timeframe)
 
   if (isLoading) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid={`${prefixDataTestId}-loading`}>
+      <div
+        className="gba:flex gba:justify-center gba:items-center gba:h-64"
+        data-testid={`${prefixDataTestId}-loading`}
+      >
         <Spinner />
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -96,14 +114,14 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
       <Alert variant="destructive" data-testid={`${prefixDataTestId}-error`}>
         <h3>Error Loading Trend Analysis</h3>
         <p>{error.message}</p>
-        <button 
+        <button
           onClick={refetch}
           className="gba:mt-2 gba:px-4 gba:py-2 gba:bg-red-600 gba:text-white gba:rounded gba:hover:bg-red-700"
         >
           Retry
         </button>
       </Alert>
-    );
+    )
   }
 
   if (!trendData) {
@@ -112,7 +130,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
         <h3>No Trend Data Available</h3>
         <p>Unable to load trend comparison data. Please try again later.</p>
       </Alert>
-    );
+    )
   }
 
   // Prepare trend comparison data
@@ -176,7 +194,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
       description: `${periodLabels.current} vs ${periodLabels.previous}`,
       trend: trendData.trends.avgTasksPerUser
     }
-  ];
+  ]
 
   return (
     <div className="gba:space-y-6" data-testid={prefixDataTestId}>
@@ -186,12 +204,12 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
           <h2 className="gba:text-2xl gba:font-bold gba:text-gray-900">Trend Analysis</h2>
           <p className="gba:text-gray-600">Compare current performance with previous periods</p>
         </div>
-        
+
         <div className="gba:flex gba:items-center gba:gap-2">
           <Calendar className="gba:h-4 gba:w-4 gba:text-gray-500" />
           <select
             value={timeframe}
-            onChange={(e) => setTimeframe(e.target.value)}
+            onChange={e => setTimeframe(e.target.value)}
             className="gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:text-sm gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
             data-testid={`${prefixDataTestId}-timeframe-selector`}
           >
@@ -206,12 +224,17 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
 
       {/* Data Availability Warning */}
       {trendData?.metadata && !trendData.metadata.hasPreviousData && (
-        <Alert variant="default" className="gba:bg-amber-50 gba:border-amber-200" data-testid={`${prefixDataTestId}-data-warning`}>
+        <Alert
+          variant="default"
+          className="gba:bg-amber-50 gba:border-amber-200"
+          data-testid={`${prefixDataTestId}-data-warning`}
+        >
           <Info className="gba:h-4 gba:w-4 gba:text-amber-600" />
           <div>
             <h4 className="gba:font-medium gba:text-amber-800">Limited Comparison Data</h4>
             <p className="gba:text-amber-700 gba:mt-1">
-              {trendData.metadata.message}. Current period metrics are shown, but trend indicators may not be meaningful.
+              {trendData.metadata.message}. Current period metrics are shown, but trend indicators may not be
+              meaningful.
             </p>
           </div>
         </Alert>
@@ -220,59 +243,59 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
       {/* Trend Comparison Cards - Focus on Change */}
       <div className="gba:space-y-4">
         <h3 className="gba:text-lg gba:font-semibold gba:text-gray-800">Performance Trends</h3>
-        
+
         {/* Compact Trend Cards - Smaller Side-by-Side Layout */}
         <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-3 lg:gba:grid-cols-6 gba:gap-4">
-          {trendMetrics.map((metric) => {
-            const trendFormat = metric.trend ? formatTrendPercentage(metric.trend, metric.key) : null;
-            
+          {trendMetrics.map(metric => {
+            const trendFormat = metric.trend ? formatTrendPercentage(metric.trend, metric.key) : null
+
             // For cycle time, reverse the positive/negative logic since up is bad
-            const isBadWhenUp = metric.key === 'avg-cycle-time-trend';
-            const isGoodTrend = isBadWhenUp ? 
-              metric.trend?.direction === 'down' : 
-              metric.trend?.direction === 'up';
-            const isBadTrend = isBadWhenUp ? 
-              metric.trend?.direction === 'up' : 
-              metric.trend?.direction === 'down';
-            
+            const isBadWhenUp = metric.key === 'avg-cycle-time-trend'
+            const isGoodTrend = isBadWhenUp ? metric.trend?.direction === 'down' : metric.trend?.direction === 'up'
+            const isBadTrend = isBadWhenUp ? metric.trend?.direction === 'up' : metric.trend?.direction === 'down'
+
             return (
-              <Card key={metric.key} className="gba:relative gba:shadow-md gba:border gba:border-gray-200 gba:bg-white gba:hover:shadow-lg gba:transition-all gba:duration-200">
+              <Card
+                key={metric.key}
+                className="gba:relative gba:shadow-md gba:border gba:border-gray-200 gba:bg-white gba:hover:shadow-lg gba:transition-all gba:duration-200"
+              >
                 <CardContent className="gba:p-3">
                   <div className="gba:space-y-2">
                     {/* Compact Header */}
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <div className="gba:p-1 gba:rounded gba:bg-gray-100">
-                        {metric.prefix}
-                      </div>
+                      <div className="gba:p-1 gba:rounded gba:bg-gray-100">{metric.prefix}</div>
                       <h4 className="gba:text-xs gba:font-medium gba:text-gray-600 gba:leading-tight">
                         {metric.title}
                       </h4>
                     </div>
-                    
+
                     {/* Compact Trend Display */}
                     <div className="gba:text-center">
                       {metric.trend ? (
                         <div className="gba:space-y-1">
                           {/* Smaller Trend Icon */}
                           <div className="gba:flex gba:justify-center">
-                            <div className={`gba:p-1.5 gba:rounded-full ${
-                              isGoodTrend ? 'gba:bg-green-100' : 
-                              isBadTrend ? 'gba:bg-red-100' : 'gba:bg-gray-100'
-                            }`}>
+                            <div
+                              className={`gba:p-1.5 gba:rounded-full ${
+                                isGoodTrend ? 'gba:bg-green-100' : isBadTrend ? 'gba:bg-red-100' : 'gba:bg-gray-100'
+                              }`}
+                            >
                               {getTrendIcon(metric.trend.direction, 16, metric.key)}
                             </div>
                           </div>
-                          
+
                           {/* Percentage Change */}
                           <div className={`gba:text-xl gba:font-bold ${trendFormat?.color}`}>
-                            {trendFormat?.sign}{trendFormat?.percentage.toFixed(1)}%
+                            {trendFormat?.sign}
+                            {trendFormat?.percentage.toFixed(1)}%
                           </div>
-                          
+
                           {/* Change Value - Compact */}
                           <div className="gba:text-xs gba:text-gray-500">
-                            ({metric.trend.change > 0 ? '+' : ''}{metric.trend.change})
+                            ({metric.trend.change > 0 ? '+' : ''}
+                            {metric.trend.change})
                           </div>
-                          
+
                           {/* Show note if no comparison data for this metric */}
                           {metric.trend.note && (
                             <div className="gba:text-xs gba:text-amber-600 gba:mt-1 gba:italic">
@@ -289,12 +312,12 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                         </div>
                       )}
                     </div>
-                    
+
                     {/* Current Value - Very Compact */}
                     <div className="gba:text-center gba:pt-1 gba:border-t gba:border-gray-200">
                       <div className="gba:text-xs gba:text-gray-500">Current</div>
                       <div className="gba:text-sm gba:font-semibold gba:text-gray-700">
-                        {typeof metric.value === 'number' && metric.precision !== undefined 
+                        {typeof metric.value === 'number' && metric.precision !== undefined
                           ? metric.value.toFixed(metric.precision)
                           : metric.value}
                         {metric.suffix && <span className="gba:text-xs gba:text-gray-500">{metric.suffix}</span>}
@@ -303,7 +326,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                   </div>
                 </CardContent>
               </Card>
-            );
+            )
           })}
         </div>
       </div>
@@ -326,11 +349,15 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
               <div className="gba:space-y-2 gba:text-gray-700">
                 <div className="gba:flex gba:justify-between">
                   <span>Workflows Started:</span>
-                  <span className="gba:font-medium">{trendData.current.workflowsStarted} ({periodLabels.current})</span>
+                  <span className="gba:font-medium">
+                    {trendData.current.workflowsStarted} ({periodLabels.current})
+                  </span>
                 </div>
                 <div className="gba:flex gba:justify-between">
                   <span>Workflows Completed:</span>
-                  <span className="gba:font-medium">{trendData.current.workflowsCompleted} ({periodLabels.current})</span>
+                  <span className="gba:font-medium">
+                    {trendData.current.workflowsCompleted} ({periodLabels.current})
+                  </span>
                 </div>
                 <div className="gba:flex gba:justify-between">
                   <span>Completion Rate:</span>
@@ -342,7 +369,7 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
                 </div>
               </div>
             </div>
-            
+
             {/* Trend Direction Summary */}
             <div className="gba:space-y-3">
               <h4 className="gba:font-semibold gba:text-blue-800 gba:border-b gba:border-blue-200 gba:pb-2">
@@ -351,13 +378,17 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
               <div className="gba:space-y-2">
                 {trendData?.metadata?.hasPreviousData ? (
                   // Show trend data when available
-                  trendMetrics.slice(0, 4).map((metric) => (
+                  trendMetrics.slice(0, 4).map(metric => (
                     <div key={metric.key} className="gba:flex gba:items-center gba:justify-between">
                       <span className="gba:text-gray-700">{metric.title}:</span>
                       <div className="gba:flex gba:items-center gba:gap-2">
                         {getTrendIcon(metric.trend?.direction || 'stable', 16, metric.key)}
-                        <span className={`gba:font-medium ${formatTrendPercentage(metric.trend || { change: 0, percentage: 0, direction: 'stable' }, metric.key).color}`}>
-                          {metric.trend ? `${formatTrendPercentage(metric.trend, metric.key).sign}${formatTrendPercentage(metric.trend, metric.key).percentage.toFixed(1)}%` : '0%'}
+                        <span
+                          className={`gba:font-medium ${formatTrendPercentage(metric.trend || { change: 0, percentage: 0, direction: 'stable' }, metric.key).color}`}
+                        >
+                          {metric.trend
+                            ? `${formatTrendPercentage(metric.trend, metric.key).sign}${formatTrendPercentage(metric.trend, metric.key).percentage.toFixed(1)}%`
+                            : '0%'}
                         </span>
                       </div>
                     </div>
@@ -376,5 +407,5 @@ export const TrendsTab: React.FC<TrendsTabProps> = ({
         </CardContent>
       </Card>
     </div>
-  );
-}; 
+  )
+}

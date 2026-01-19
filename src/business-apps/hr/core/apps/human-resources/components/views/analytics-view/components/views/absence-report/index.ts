@@ -1,1 +1,1 @@
-export { default } from './AbsenceReport'; 
+export { default } from './AbsenceReport'

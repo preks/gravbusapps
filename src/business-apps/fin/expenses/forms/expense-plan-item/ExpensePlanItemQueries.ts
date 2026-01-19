@@ -11,11 +11,11 @@ export {
   GET_EXPENSE_CLASSES,
   GET_EXPENSE_TYPES,
   GET_COST_CENTERS,
-  GET_CURRENCIES,
-} from "../expense-item/ExpenseItemQueries";
+  GET_CURRENCIES
+} from '../expense-item/ExpenseItemQueries'
 
 // Add expense plan item specific query
-export const fetchExpenseData =`query MyQuery($expenseId:uuid! ,$activeUserLocale: String) {
+export const fetchExpenseData = `query MyQuery($expenseId:uuid! ,$activeUserLocale: String) {
    ExpensePlanItemByPk(id: $expenseId) {
     id
     version
@@ -81,8 +81,7 @@ export const fetchExpenseData =`query MyQuery($expenseId:uuid! ,$activeUserLocal
   }
 }`
 
-
-export const fetchExpenseCatalogueData =`query fetchExpenseCatalogueData ($employeeId: uuid,$objectFilter: jsonb!,$activeUserLocale:String!,$expenseRuleId: uuid) {
+export const fetchExpenseCatalogueData = `query fetchExpenseCatalogueData ($employeeId: uuid,$objectFilter: jsonb!,$activeUserLocale:String!,$expenseRuleId: uuid) {
   EmployeePosition(where: {employeeId: {_eq: $employeeId}}) {
     structureId
     costCenterId

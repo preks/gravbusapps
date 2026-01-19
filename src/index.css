@@ -19,22 +19,79 @@
   utilities,
   all-newwork-tw-utilities;
 
-@import "@newwork/gravity-ui-catalog/dist/assets/style.css";
+@import '@newwork/gravity-ui-catalog/dist/assets/style.css';
 
-@import "@newwork/nw-design-system/index.css";
+@import '@newwork/nw-design-system/index.css';
 
-@import "tailwindcss" prefix(gba);
-@import "tw-animate-css";
+@import 'react-quill/dist/quill.snow.css';
 
-@import "./business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css" layer(legacy-unlayered-override);
+@import '@newwork/nw-design-system/core';
+@import '@newwork/nw-design-system/layout';
+@import '@newwork/nw-design-system/colors';
+@import '@newwork/nw-design-system/effects';
+@import '@newwork/nw-design-system/spacing';
 
+@import 'tailwindcss/theme' layer(gravity-business-apps-theme) prefix(gba);
+@import 'tailwindcss/preflight' layer(gravity-business-apps-base) prefix(gba);
+@import 'tailwindcss/utilities' layer(all-newwork-tw-utilities) prefix(gba);
+@import 'tw-animate-css';
 
-@import "./business-apps/hr/absences/apps/personal-absences/styles/absenceHub.css" layer(legacy-unlayered-override);
-@import "./business-apps/hr/absences/apps/personal-absences/styles/absenceListCard.css" layer(legacy-unlayered-override);
-@import "./business-apps/hr/absences/apps/personal-absences/styles/entitlementCard.css" layer(legacy-unlayered-override);
-@import "./business-apps/hr/absences/apps/personal-absences/styles/statisticsTab.css" layer(legacy-unlayered-override);
-@import "./business-apps/hr/absences/apps/personal-absences/styles/upcomingAbsenceCard.css" layer(legacy-unlayered-override);
-@import "./business-apps/hr/absences/apps/personal-absences/styles/statsCard.css" layer(legacy-unlayered-override);
+@import './business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css';
+
+/* Tooltip styles for absence calendar segments */
+.ant-tooltip-inner {
+  background: #f8f9fa !important;
+  color: #374151 !important;
+  border-radius: 8px;
+  padding: 12px;
+  max-width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.ant-tooltip-arrow::before {
+  background: #f8f9fa !important;
+  border: 1px solid #e5e7eb;
+}
+
+/* Absence segment text styling */
+.gba\:absence-segment-text {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  font-weight: 500;
+  letter-spacing: 0.025em;
+}
+
+/* Calendar legend styling */
+.gba\:calendar-legend {
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+}
+
+.gba\:calendar-legend .gba\:flex {
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.gba\:calendar-legend .gba\:text-sm {
+  font-weight: 500;
+  color: #374151;
+  margin-right: 0.5rem;
+}
+
+.gba\:calendar-legend .gba\:text-xs {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+@import './business-apps/hr/absences/apps/personal-absences/styles/absenceHub.css' layer(legacy-unlayered-override);
+@import './business-apps/hr/absences/apps/personal-absences/styles/absenceListCard.css' layer(legacy-unlayered-override);
+@import './business-apps/hr/absences/apps/personal-absences/styles/entitlementCard.css' layer(legacy-unlayered-override);
+@import './business-apps/hr/absences/apps/personal-absences/styles/statisticsTab.css' layer(legacy-unlayered-override);
+@import './business-apps/hr/absences/apps/personal-absences/styles/upcomingAbsenceCard.css';
+@import './business-apps/hr/absences/apps/personal-absences/styles/statsCard.css' layer(legacy-unlayered-override);
 
 @source "../index.html";
 @source "./*.{ts,tsx,js,jsx}";
@@ -46,26 +103,44 @@
   html {
     scroll-behavior: smooth;
   }
+  html,
+  body,
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
   button:not(:disabled),
-  [role="button"]:not(:disabled) {
+  [role='button']:not(:disabled) {
     cursor: pointer;
   }
   :root {
-    --font-primary: "Roboto Flex", sans-serif;
-    --font-secondary: "Roboto Flex", sans-serif;
+    --font-primary: 'Roboto Flex', sans-serif;
+    --font-secondary: 'Roboto Flex', sans-serif;
+
+    /* AI Color Tokens - Orange theme for EveryAI */
+    --nw-ai: #f59e0b; /* Orange - main AI color */
+    --nw-ai-foreground: #ffffff; /* White text on AI backgrounds */
+    --nw-ai-secondary: #fbbf24; /* Lighter orange for secondary elements */
+    --nw-ai-secondary-foreground: #000000; /* Dark text on secondary AI backgrounds */
+  }
+}
+
+@layer gravity-business-apps-theme {
+  @theme {
+    /* AI Color Tokens - Proper Tailwind color definitions */
+    --color-ai: var(--nw-ai);
+    --color-ai-foreground: var(--nw-ai-foreground);
+    --color-ai-secondary: var(--nw-ai-secondary);
+    --color-ai-secondary-foreground: var(--nw-ai-secondary-foreground);
   }
 }
 
 @utility font-primary {
-  font-family: var(--nw-font-primary, "Roboto", sans-serif) !important;
+  font-family: var(--nw-font-primary, 'Roboto', sans-serif) !important;
 }
 
 @utility font-secondary {
-  font-family: var(
-    --nw-font-secondary,
-    "Dela Gothic One",
-    sans-serif
-  ) !important;
+  font-family: var(--nw-font-secondary, 'Dela Gothic One', sans-serif) !important;
 }
 
 @layer properties {
@@ -76,6 +151,52 @@
     }
     100% {
       transform: rotate(360deg);
+    }
+  }
+
+  /* AI Button gradient animation */
+  @keyframes gradient-shift {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  /* AI Button shimmer animation */
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-200%) skewX(-15deg);
+    }
+    100% {
+      transform: translateX(400%) skewX(-15deg);
+    }
+  }
+
+  /* NEWWORK CREATE - Fade in up animation for staggered reveals */
+  @keyframes fadeInUp {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* NEWWORK CREATE - Subtle pulse animation for badges */
+  @keyframes subtlePulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
     }
   }
 }
@@ -101,10 +222,11 @@
 
   /* Filter pill specific styling for DataController */
   .gba\:filter-pill {
-    max-width: 320px !important;
-    min-width: 115px !important;
+    max-width: 280px !important;
+    min-width: fit-content !important;
     word-wrap: break-word !important;
     overflow: hidden !important;
+    flex-shrink: 0 !important;
   }
 
   .gba\:filter-pill-text {
@@ -216,39 +338,76 @@
   .gba\:category-expanded {
     animation: slideDown 0.3s ease;
   }
-  
+
   /* Responsive improvements */
   @media (max-width: 768px) {
     .gba\:flow-wizard-dialog .ant-modal {
       width: 95vw !important;
       max-width: none !important;
     }
-    
+
     .gba\:pattern-selector-grid {
       grid-template-columns: 1fr !important;
     }
-    
+
     .gba\:step-config-grid {
       grid-template-columns: 1fr !important;
     }
   }
-  
+
   /* Custom scrollbar for dialog content */
   .gba\:flow-wizard-dialog .ant-modal-body::-webkit-scrollbar {
     width: 6px;
   }
-  
+
   .gba\:flow-wizard-dialog .ant-modal-body::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 3px;
   }
-  
+
   .gba\:flow-wizard-dialog .ant-modal-body::-webkit-scrollbar-thumb {
     background: #c1c1c1;
     border-radius: 3px;
   }
-  
+
   .gba\:flow-wizard-dialog .ant-modal-body::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
   }
+}
+
+/* Widget Group Cursor Handling */
+.widget-group-cards {
+  cursor: default;
+}
+
+/* Make individual cards clickable only when they have onClick handlers */
+.widget-group-cards [data-widget-key] {
+  cursor: default;
+}
+
+.widget-group-cards [data-widget-key].clickable {
+  cursor: pointer !important;
+}
+
+/* Elegant hover add button animation for expense settings */
+@keyframes fadeInScale {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* Hover add row styling */
+.gba\:hover-add-row {
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.gba\:hover-add-row:hover {
+  background-color: #f0f9ff !important;
+  border-color: #3b82f6 !important;
 }

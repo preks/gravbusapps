@@ -1,147 +1,220 @@
-import React from "react";
-import { RevenueTrendChart, RevenueTrendData, TimeFilter } from "@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/RevenueTrendChart";
-import { PipelineHealthOverview, PipelineHealthMetrics } from "@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/PipelineHealthOverview";
-import { GeographicChart, GeographicData } from "@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/GeographicChart";
-import { ActivityHeatmapChart, ActivityHeatmapData } from "@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/ActivityHeatmapChart";
-import { TopPerformers, TopPerformerItem } from "@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/TopPerformers";
-import OverviewMetricsWidgets from "@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/OverviewMetricsWidgets";
+import React from 'react'
+import {
+  RevenueTrendChart,
+  RevenueTrendData,
+  TimeFilter
+} from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/RevenueTrendChart'
+import {
+  PipelineHealthOverview,
+  PipelineHealthMetrics
+} from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/PipelineHealthOverview'
+import {
+  GeographicChart,
+  GeographicData
+} from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/GeographicChart'
+import { ActivityHeatmapChart } from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/ActivityHeatmapChart'
+import {
+  TopPerformers,
+  TopPerformerItem
+} from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/TopPerformers'
+import OverviewMetricsWidgets, {
+  KpiLabels,
+  KpiVisibility
+} from '@/common/components/common-relations/view-layouts/analytics-layout/overview/widgets/OverviewMetricsWidgets'
+import type { ActivityHeatmapData, OverviewTrendData } from '../hooks'
 
 export interface OverviewCounts {
-  leads: number;
-  accounts: number;
-  opportunities: number;
-  contacts: number;
+  leads: number
+  accounts: number
+  opportunities: number
+  contacts: number
 }
 
 export interface ConversionMetrics {
-  leadToOpportunityRate: number;
-  opportunityWinRate: number;
-  avgDealSize: number;
-  salesCycleLength: number;
-}
-
-export interface TrendData {
-  totalLeadsThisMonth: number;
-  totalLeadsLastMonth: number;
-  totalAccountsThisMonth: number;
-  totalAccountsLastMonth: number;
-  totalOpportunitiesThisMonth: number;
-  totalOpportunitiesLastMonth: number;
-  totalContactsThisMonth: number;
-  totalContactsLastMonth: number;
-  currentMonthWonOpportunities: number;
-  previousMonthWonOpportunities: number;
+  leadToOpportunityRate: number
+  opportunityWinRate: number
+  avgDealSize: number
+  totalWonRevenue: number
+  salesCycleLength?: number // Optional: not always used
 }
 
 export interface OverviewTabLayoutProps {
-  title?: string;
-  moduleColor?: string;
-  counts: OverviewCounts;
-  conversionMetrics: ConversionMetrics;
-  trendData?: TrendData | null;
-  trendLoading?: boolean;
+  title?: string
+  moduleColor?: string
 
-  pipelines: Array<{ id: string; name: string }>;
-  selectedPipelineId?: string;
-  onPipelineChange?: (pipelineId: string | undefined) => void;
-  revenueTimeFilter?: TimeFilter;
-  onRevenueTimeFilterChange?: (timeFilter: TimeFilter) => void;
-  revenueTrends: RevenueTrendData[];
-  revenueLoading?: boolean;
+  // Required: Core KPI metrics
+  counts: OverviewCounts
+  conversionMetrics: ConversionMetrics
+  trendData?: OverviewTrendData | null
+  trendLoading?: boolean
 
-  pipelineHealth: {
-    data?: PipelineHealthMetrics | null;
-    isLoading?: boolean;
-    error?: string | null;
-  };
+  // Optional: Customize KPI labels and visibility
+  kpiLabels?: KpiLabels
+  kpiVisibility?: KpiVisibility
 
-  geographicDistribution: {
-    data: GeographicData[];
-    isLoading?: boolean;
-  };
+  // Required: Revenue trends
+  pipelines: Array<{ id: string; name: string }>
+  revenuePipelineId?: string
+  onRevenuePipelineChange?: (pipelineId: string | undefined) => void
+  revenueTimeFilter?: TimeFilter
+  onRevenueTimeFilterChange?: (timeFilter: TimeFilter) => void
+  revenueTrends: RevenueTrendData[]
+  revenueLoading?: boolean
 
-  activityHeatmap: {
-    data: ActivityHeatmapData[];
-    isLoading?: boolean;
-  };
+  // Optional: Pipeline Health chart (can be hidden)
+  pipelineHealth?: {
+    data?: PipelineHealthMetrics | null
+    isLoading?: boolean
+    error?: string | null
+  }
+  healthPipelineId?: string
+  onHealthPipelineChange?: (pipelineId: string | undefined) => void
 
-  topPerformers: TopPerformerItem[];
+  // Optional: Geographic distribution chart (can be hidden)
+  geographicDistribution?: {
+    data: GeographicData[]
+    isLoading?: boolean
+  }
+
+  // Optional: Activity timeline chart (can be hidden)
+  activityHeatmap?: {
+    data: ActivityHeatmapData[]
+    isLoading?: boolean
+  }
+
+  // Optional: Top performers table (can be hidden)
+  topPerformers?: TopPerformerItem[]
+  topPerformersLoading?: boolean
+  topPerformersCurrency?: string
+  onTopPerformersCurrencyChange?: (currency: string) => void
+
+  // Currency filters for KPIs and charts
+  kpiCurrency?: string
+  onKpiCurrencyChange?: (currency: string) => void
+  availableCurrencies?: string[]
+  revenueCurrency?: string
+  onRevenueCurrencyChange?: (currency: string) => void
 }
 
-
 export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
-  title = "CRM Overview",
+  title = 'CRM Overview',
   counts,
   conversionMetrics,
   trendData,
   trendLoading = false,
+  kpiLabels,
+  kpiVisibility,
   pipelines,
-  selectedPipelineId,
-  onPipelineChange,
+  revenuePipelineId,
+  onRevenuePipelineChange,
   revenueTimeFilter = 'sixMonths',
   onRevenueTimeFilterChange,
   revenueTrends,
   revenueLoading = false,
+  healthPipelineId,
+  onHealthPipelineChange,
   pipelineHealth,
   geographicDistribution,
   activityHeatmap,
   topPerformers,
+  topPerformersLoading = false,
   moduleColor = 'default',
+  kpiCurrency = 'EUR',
+  onKpiCurrencyChange,
+  availableCurrencies = ['EUR', 'USD'],
+  revenueCurrency = 'EUR',
+  onRevenueCurrencyChange,
+  topPerformersCurrency = 'EUR',
+  onTopPerformersCurrencyChange
 }) => {
-
   return (
     <div className="gba:space-y-6" data-testid="overview-analytics-tab">
       <div>
         <h2 className="gba:text-2xl gba:font-bold gba:mb-4">{title}</h2>
-        <OverviewMetricsWidgets 
+        <OverviewMetricsWidgets
           counts={counts}
           conversionMetrics={conversionMetrics}
           trendData={trendData}
           trendLoading={trendLoading}
+          selectedCurrency={kpiCurrency}
+          onCurrencyChange={onKpiCurrencyChange}
+          availableCurrencies={availableCurrencies}
+          kpiLabels={kpiLabels}
+          kpiVisibility={kpiVisibility}
         />
       </div>
 
-      <RevenueTrendChart 
+      {/* Revenue Trends - Always shown */}
+      <RevenueTrendChart
+        key={`revenue-trends-${revenueTimeFilter}-${revenuePipelineId || 'all'}-${revenueCurrency}`}
         moduleColor={moduleColor as any}
         data={revenueTrends}
         isLoading={revenueLoading}
         pipelines={pipelines}
-        selectedPipelineId={selectedPipelineId}
-        onPipelineChange={onPipelineChange}
+        selectedPipelineId={revenuePipelineId}
+        onPipelineChange={onRevenuePipelineChange}
         selectedTimeFilter={revenueTimeFilter}
         onTimeFilterChange={onRevenueTimeFilterChange}
+        selectedCurrency={revenueCurrency}
+        onCurrencyChange={onRevenueCurrencyChange}
+        availableCurrencies={availableCurrencies}
       />
 
-      <div className="gba:flex gba:gap-6" data-testid="analytics-charts-container">
-        <div className="gba:min-w-0 gba:w-full lg:gba:w-2/3" data-testid="pipeline-health-container">
-          <PipelineHealthOverview 
-            isLoading={pipelineHealth?.isLoading}
-            error={pipelineHealth?.error ?? null}
-            data={pipelineHealth?.data ?? null}
-            moduleColor={moduleColor}
-          />
+      {/* Optional: Pipeline Health & Geographic Distribution */}
+      {(pipelineHealth || geographicDistribution) && (
+        <div className="gba:flex gba:gap-6" data-testid="analytics-charts-container">
+          {pipelineHealth && (
+            <div className="gba:min-w-0 gba:w-full lg:gba:w-2/3" data-testid="pipeline-health-container">
+              <PipelineHealthOverview
+                isLoading={pipelineHealth.isLoading}
+                error={pipelineHealth.error ?? null}
+                data={pipelineHealth.data ?? null}
+                moduleColor={moduleColor}
+                pipelines={pipelines}
+                selectedPipelineId={healthPipelineId}
+                onPipelineChange={onHealthPipelineChange}
+              />
+            </div>
+          )}
+          {geographicDistribution && (
+            <div
+              className={`gba:min-w-0 gba:w-full ${pipelineHealth ? 'lg:gba:w-1/3' : ''}`}
+              data-testid="geographic-chart-container"
+            >
+              <GeographicChart
+                data={geographicDistribution.data}
+                isLoading={geographicDistribution.isLoading}
+                moduleColor={moduleColor}
+              />
+            </div>
+          )}
         </div>
-        <div className="gba:min-w-0 gba:w-full lg:gba:w-1/3" data-testid="geographic-chart-container">
-          <GeographicChart 
-            data={geographicDistribution.data} 
-            isLoading={geographicDistribution?.isLoading} 
-            moduleColor={moduleColor}
-          />
-        </div>
-      </div>
+      )}
 
-      <div className="gba:grid gba:grid-cols-1 gba:gap-6">
-        <ActivityHeatmapChart 
-          data={activityHeatmap.data} 
-          isLoading={activityHeatmap?.isLoading} 
+      {/* Optional: Activity Timeline */}
+      {activityHeatmap && (
+        <div className="gba:grid gba:grid-cols-1 gba:gap-6">
+          <ActivityHeatmapChart
+            data={activityHeatmap.data}
+            isLoading={activityHeatmap.isLoading}
+            moduleColor={moduleColor}
+          />
+        </div>
+      )}
+
+      {/* Optional: Top Performers */}
+      {topPerformers !== undefined && (
+        <TopPerformers
+          performers={topPerformers}
+          isLoading={topPerformersLoading}
           moduleColor={moduleColor}
+          selectedCurrency={topPerformersCurrency}
+          onCurrencyChange={onTopPerformersCurrencyChange}
+          availableCurrencies={availableCurrencies}
         />
-      </div>
-
-      <TopPerformers performers={topPerformers} moduleColor={moduleColor} />
+      )}
     </div>
-  );
-};
+  )
+}
 
-export default OverviewTabLayout;
-
+export default OverviewTabLayout

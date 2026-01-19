@@ -1,24 +1,9 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react'
+import { Row, Col, Card, Table, Statistic, Tag, Space, Typography, Select, Button } from 'antd'
 import {
-  Row,
-  Col,
-  Card,
-  Table,
-  Statistic,
-  Tag,
-  Space,
-  Typography,
-  Alert,
-  Input,
-  Select,
-  Button,
-  Tooltip,
-  Modal
-} from 'antd';
-import { 
-  PiCube, 
-  PiStack, 
-  PiGear, 
+  PiCube,
+  PiStack,
+  PiGear,
   PiChartLine,
   PiMagnifyingGlass,
   PiArrowUp,
@@ -26,37 +11,33 @@ import {
   PiMinus,
   PiCalendar,
   PiTag as PiTagIcon
-} from 'react-icons/pi';
-import { PageLayout } from '@/components/layout/pageLayout/PageLayout';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import dayjs from 'dayjs';
-import weekday from 'dayjs/plugin/weekday';
-import localeData from 'dayjs/plugin/localeData';
+} from 'react-icons/pi'
+import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
+import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import dayjs from 'dayjs'
+import weekday from 'dayjs/plugin/weekday'
+import localeData from 'dayjs/plugin/localeData'
 
-import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext';
-import { useBomData } from './hooks/useBomData';
-import { BillOfMaterials, BomFilters } from './types';
-import { generateDemoBoms, generateDemoBomKPIData } from './hooks/demoData';
-import BomDetailView from '../bom-detail-view/BomDetailView';
+import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
+import { useBomData } from './hooks/useBomData'
+import { BillOfMaterials } from './types'
+import { generateDemoBoms, generateDemoBomKPIData } from './hooks/demoData'
+import BomDetailView from '../bom-detail-view/BomDetailView'
 
 // Extend dayjs with plugins
-dayjs.extend(weekday);
-dayjs.extend(localeData);
+dayjs.extend(weekday)
+dayjs.extend(localeData)
 
-const { Title, Text } = Typography;
-const { Option } = Select;
+const { Title, Text } = Typography
+const { Option } = Select
 
 export interface BomManagementOverviewProps extends BusinessAppContextProps {}
 
-const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({
-  accessToken,
-  userInfo,
-  additionalData
-}) => {
+const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({ accessToken, userInfo, additionalData }) => {
   // State for selected BOM and view mode
-  const [selectedBomId, setSelectedBomId] = useState<string | null>(null);
-  const [showDetailView, setShowDetailView] = useState(false);
+  const [selectedBomId, setSelectedBomId] = useState<string | null>(null)
+  const [showDetailView, setShowDetailView] = useState(false)
 
   // Hooks
   const {
@@ -70,7 +51,7 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({
     setFilters,
     setPagination,
     refreshData
-  } = useBomData({ accessToken });
+  } = useBomData({ accessToken })
 
   // Debug logging
   console.log('BomManagementOverview render:', {
@@ -82,157 +63,172 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({
     error: error ? error.message : 'none',
     filters,
     pagination
-  });
+  })
 
   // Test demo data generation on first render
   React.useEffect(() => {
-    console.log('Testing demo data generation...');
-    const testData = generateDemoBoms(1, 20);
-    console.log('Demo data test:', testData);
-    const testKPIs = generateDemoBomKPIData();
-    console.log('Demo KPI test:', testKPIs);
-  }, []);
+    console.log('Testing demo data generation...')
+    const testData = generateDemoBoms(1, 20)
+    console.log('Demo data test:', testData)
+    const testKPIs = generateDemoBomKPIData()
+    console.log('Demo KPI test:', testKPIs)
+  }, [])
 
   // Extract filter values for UI
-  const searchTerm = filters.search || '';
-  const bomTypeFilter = filters.bomType;
-  const bomStatusFilter = filters.bomStatus;
-  const activeOnlyFilter = filters.activeOnly;
+  const searchTerm = filters.search || ''
+  const bomTypeFilter = filters.bomType
+  const bomStatusFilter = filters.bomStatus
+  const activeOnlyFilter = filters.activeOnly
 
   // Helper function to get trend icon
   const getTrendIcon = (trend: number) => {
-    if (trend > 0) return <PiArrowUp className="gba:text-green-500" />;
-    if (trend < 0) return <PiArrowDown className="gba:text-red-500" />;
-    return <PiMinus className="gba:text-gray-400" />;
-  };
+    if (trend > 0) return <PiArrowUp className="gba:text-green-500" />
+    if (trend < 0) return <PiArrowDown className="gba:text-red-500" />
+    return <PiMinus className="gba:text-gray-400" />
+  }
 
   // Helper function to format date
   const formatDate = (dateString: string) => {
-    return dayjs(dateString).format('MMM DD, YYYY');
-  };
+    return dayjs(dateString).format('MMM DD, YYYY')
+  }
 
   // Helper function to get BOM status color
   const getBomStatusColor = (status: string, activeFrom?: string, activeTo?: string) => {
-    const now = dayjs();
-    const isCurrentlyActive = (!activeFrom || dayjs(activeFrom).isBefore(now)) && 
-                             (!activeTo || dayjs(activeTo).isAfter(now));
-    
+    const now = dayjs()
+    const isCurrentlyActive =
+      (!activeFrom || dayjs(activeFrom).isBefore(now)) && (!activeTo || dayjs(activeTo).isAfter(now))
+
     switch (status) {
       case 'ACTIVE':
-        return isCurrentlyActive ? 'green' : 'orange';
+        return isCurrentlyActive ? 'green' : 'orange'
       case 'INACTIVE':
-        return 'red';
+        return 'red'
       case 'PENDING':
-        return 'blue';
+        return 'blue'
       case 'OBSOLETE':
-        return 'gray';
+        return 'gray'
       default:
-        return 'default';
+        return 'default'
     }
-  };
+  }
 
   // Helper function to get BOM type color
   const getBomTypeColor = (type: string) => {
     switch (type) {
       case 'PRODUCTION':
-        return 'blue';
+        return 'blue'
       case 'ENGINEERING':
-        return 'purple';
+        return 'purple'
       case 'SALES':
-        return 'green';
+        return 'green'
       case 'COSTING':
-        return 'orange';
+        return 'orange'
       default:
-        return 'default';
+        return 'default'
     }
-  };
+  }
 
   // Helper function to get complexity level
   const getComplexityLevel = (componentCount: number) => {
-    if (componentCount < 20) return { level: 'Low', color: 'green' };
-    if (componentCount < 50) return { level: 'Medium', color: 'blue' };
-    if (componentCount < 100) return { level: 'High', color: 'orange' };
-    return { level: 'Very High', color: 'red' };
-  };
+    if (componentCount < 20) return { level: 'Low', color: 'green' }
+    if (componentCount < 50) return { level: 'Medium', color: 'blue' }
+    if (componentCount < 100) return { level: 'High', color: 'orange' }
+    return { level: 'Very High', color: 'red' }
+  }
 
   // Handle search
-  const handleSearch = useCallback((value: string) => {
-    setFilters({
-      ...filters,
-      search: value
-    });
-    // Reset pagination to first page when searching
-    setPagination({
-      ...pagination,
-      page: 1
-    });
-  }, [filters, setFilters, pagination, setPagination]);
+  const handleSearch = useCallback(
+    (value: string) => {
+      setFilters({
+        ...filters,
+        search: value
+      })
+      // Reset pagination to first page when searching
+      setPagination({
+        ...pagination,
+        page: 1
+      })
+    },
+    [filters, setFilters, pagination, setPagination]
+  )
 
   // Handle filter changes
-  const handleBomTypeChange = useCallback((value: string) => {
-    setFilters({
-      ...filters,
-      bomType: value as any
-    });
-    // Reset pagination to first page when filtering
-    setPagination({
-      ...pagination,
-      page: 1
-    });
-  }, [filters, setFilters, pagination, setPagination]);
+  const handleBomTypeChange = useCallback(
+    (value: string) => {
+      setFilters({
+        ...filters,
+        bomType: value as any
+      })
+      // Reset pagination to first page when filtering
+      setPagination({
+        ...pagination,
+        page: 1
+      })
+    },
+    [filters, setFilters, pagination, setPagination]
+  )
 
-  const handleBomStatusChange = useCallback((value: string) => {
-    setFilters({
-      ...filters,
-      bomStatus: value as any
-    });
-    // Reset pagination to first page when filtering
-    setPagination({
-      ...pagination,
-      page: 1
-    });
-  }, [filters, setFilters, pagination, setPagination]);
+  const handleBomStatusChange = useCallback(
+    (value: string) => {
+      setFilters({
+        ...filters,
+        bomStatus: value as any
+      })
+      // Reset pagination to first page when filtering
+      setPagination({
+        ...pagination,
+        page: 1
+      })
+    },
+    [filters, setFilters, pagination, setPagination]
+  )
 
-  const handleActiveOnlyChange = useCallback((value: boolean) => {
-    setFilters({
-      ...filters,
-      activeOnly: value
-    });
-    // Reset pagination to first page when filtering
-    setPagination({
-      ...pagination,
-      page: 1
-    });
-  }, [filters, setFilters, pagination, setPagination]);
+  const handleActiveOnlyChange = useCallback(
+    (value: boolean) => {
+      setFilters({
+        ...filters,
+        activeOnly: value
+      })
+      // Reset pagination to first page when filtering
+      setPagination({
+        ...pagination,
+        page: 1
+      })
+    },
+    [filters, setFilters, pagination, setPagination]
+  )
 
   // Handle table changes (pagination, sorting)
-  const handleTableChange = useCallback((page: number, pageSize?: number) => {
-    setPagination({
-      ...pagination,
-      page,
-      pageSize: pageSize || pagination.pageSize
-    });
-  }, [pagination, setPagination]);
+  const handleTableChange = useCallback(
+    (page: number, pageSize?: number) => {
+      setPagination({
+        ...pagination,
+        page,
+        pageSize: pageSize || pagination.pageSize
+      })
+    },
+    [pagination, setPagination]
+  )
 
   // Handle row click
   const handleRowClick = useCallback((record: BillOfMaterials) => {
-    console.log('Row clicked:', record);
-    setSelectedBomId(record.id);
-    setShowDetailView(true);
-    console.log('Detail view should show for BOM ID:', record.id);
-  }, []);
+    console.log('Row clicked:', record)
+    setSelectedBomId(record.id)
+    setShowDetailView(true)
+    console.log('Detail view should show for BOM ID:', record.id)
+  }, [])
 
   // Handle back from detail view
   const handleBackFromDetail = useCallback(() => {
-    setShowDetailView(false);
-    setSelectedBomId(null);
-  }, []);
+    setShowDetailView(false)
+    setSelectedBomId(null)
+  }, [])
 
   // Handle create BOM
   const handleOpenCreateBomModal = useCallback(() => {
     // TODO: Implement BOM creation modal
-    console.log('Create BOM clicked');
-  }, []);
+    console.log('Create BOM clicked')
+  }, [])
 
   // Table columns
   const columns = [
@@ -244,7 +240,9 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({
       fixed: 'left' as const,
       render: (text: string, record: BillOfMaterials) => (
         <div>
-          <Text strong className="gba:text-blue-600">{text}</Text>
+          <Text strong className="gba:text-blue-600">
+            {text}
+          </Text>
           <br />
           <Text className="gba:text-xs gba:text-gray-500">v{record.version}</Text>
         </div>
@@ -278,9 +276,7 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({
         <div>
           <Text strong>{parentProduct?.name || 'N/A'}</Text>
           <br />
-          <Text className="gba:text-sm gba:text-gray-500">
-            {parentProduct?.productNumber || 'N/A'}
-          </Text>
+          <Text className="gba:text-sm gba:text-gray-500">{parentProduct?.productNumber || 'N/A'}</Text>
         </div>
       )
     },
@@ -301,10 +297,7 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({
       key: 'bomStatus',
       width: 120,
       render: (status: string, record: BillOfMaterials) => (
-        <Tag 
-          color={getBomStatusColor(status, record.activeFrom, record.activeTo)}
-          icon={<PiTagIcon />}
-        >
+        <Tag color={getBomStatusColor(status, record.activeFrom, record.activeTo)} icon={<PiTagIcon />}>
           {status}
         </Tag>
       )
@@ -315,16 +308,18 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({
       key: 'componentCount',
       width: 120,
       render: (count: number, record: BillOfMaterials) => {
-        const complexity = getComplexityLevel(count);
+        const complexity = getComplexityLevel(count)
         return (
           <div className="gba:text-center">
-            <Text strong className="gba:text-lg">{count}</Text>
+            <Text strong className="gba:text-lg">
+              {count}
+            </Text>
             <br />
             <Tag color={complexity.color} size="small">
               {complexity.level}
             </Tag>
           </div>
-        );
+        )
       }
     },
     {
@@ -336,22 +331,16 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({
           {record.activeFrom && (
             <div className="gba:flex gba:items-center gba:gap-1">
               <PiCalendar className="gba:text-gray-400" />
-              <Text className="gba:text-sm">
-                {formatDate(record.activeFrom)}
-              </Text>
+              <Text className="gba:text-sm">{formatDate(record.activeFrom)}</Text>
             </div>
           )}
           {record.activeTo && (
             <div className="gba:flex gba:items-center gba:gap-1 gba:mt-1">
               <PiCalendar className="gba:text-gray-400" />
-              <Text className="gba:text-sm">
-                to {formatDate(record.activeTo)}
-              </Text>
+              <Text className="gba:text-sm">to {formatDate(record.activeTo)}</Text>
             </div>
           )}
-          {!record.activeFrom && !record.activeTo && (
-            <Text className="gba:text-gray-400">No limits</Text>
-          )}
+          {!record.activeFrom && !record.activeTo && <Text className="gba:text-gray-400">No limits</Text>}
         </div>
       )
     },
@@ -360,16 +349,14 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({
       dataIndex: 'updatedAt',
       key: 'updatedAt',
       width: 120,
-      render: (date: string) => (
-        <Text className="gba:text-sm">{formatDate(date)}</Text>
-      )
+      render: (date: string) => <Text className="gba:text-sm">{formatDate(date)}</Text>
     }
-  ];
+  ]
 
   // Show detail view if a BOM is selected
-  console.log('Detail view check:', { showDetailView, selectedBomId });
+  console.log('Detail view check:', { showDetailView, selectedBomId })
   if (showDetailView && selectedBomId) {
-    console.log('Rendering BOM detail view for:', selectedBomId);
+    console.log('Rendering BOM detail view for:', selectedBomId)
     return (
       <BomDetailView
         accessToken={accessToken}
@@ -378,7 +365,7 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({
         bomId={selectedBomId}
         onBack={handleBackFromDetail}
       />
-    );
+    )
   }
 
   return (
@@ -406,7 +393,6 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({
       }
       contentContainer={
         <div className="gba:p-6" data-testid="bom-management-overview">
-
           {/* KPI Cards */}
           <Row gutter={[16, 16]} className="gba:mb-6">
             <Col xs={24} sm={12} md={6}>
@@ -418,9 +404,7 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({
                   suffix={
                     <Space>
                       {getTrendIcon(kpiData?.totalBoms.trend || 0)}
-                      <Text className="gba:text-sm gba:text-gray-500">
-                        {Math.abs(kpiData?.totalBoms.trend || 0)}%
-                      </Text>
+                      <Text className="gba:text-sm gba:text-gray-500">{Math.abs(kpiData?.totalBoms.trend || 0)}%</Text>
                     </Space>
                   }
                 />
@@ -435,9 +419,7 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({
                   suffix={
                     <Space>
                       {getTrendIcon(kpiData?.activeBoms.trend || 0)}
-                      <Text className="gba:text-sm gba:text-gray-500">
-                        {Math.abs(kpiData?.activeBoms.trend || 0)}%
-                      </Text>
+                      <Text className="gba:text-sm gba:text-gray-500">{Math.abs(kpiData?.activeBoms.trend || 0)}%</Text>
                     </Space>
                   }
                 />
@@ -536,12 +518,7 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({
                 </Select>
               </Col>
               <Col xs={24} sm={12} md={4}>
-                <Button 
-                  onClick={refreshData}
-                  loading={loading}
-                  className="gba:w-full"
-                  data-testid="refresh-button"
-                >
+                <Button onClick={refreshData} loading={loading} className="gba:w-full" data-testid="refresh-button">
                   Refresh
                 </Button>
               </Col>
@@ -561,12 +538,11 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({
                 total: pagination.total,
                 showSizeChanger: true,
                 showQuickJumper: true,
-                showTotal: (total, range) => 
-                  `${range[0]}-${range[1]} of ${total} BOMs`,
+                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} BOMs`,
                 onChange: handleTableChange,
                 onShowSizeChange: handleTableChange
               }}
-              onRow={(record) => ({
+              onRow={record => ({
                 onClick: () => handleRowClick(record),
                 className: selectedBomId === record.id ? 'gba:bg-blue-50' : '',
                 style: { cursor: 'pointer' },
@@ -579,7 +555,7 @@ const BomManagementOverview: React.FC<BomManagementOverviewProps> = ({
         </div>
       }
     />
-  );
-};
+  )
+}
 
-export default BomManagementOverview;
+export default BomManagementOverview

@@ -1,18 +1,18 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { CatalogEntry } from '@/common/types/CatalogTypes';
+import { useState, useEffect, useMemo } from 'react'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { CatalogEntry } from '@/common/types/CatalogTypes'
 
 // Extend from the base CatalogEntry type
 type ReligionEntry = CatalogEntry & {
   // We ensure all fields are required for our specific use case
-  additionalValue1: string;
-};
+  additionalValue1: string
+}
 
 interface UseReligionCatalogResult {
-  religionEntries: ReligionEntry[];
-  loading: boolean;
-  error: Error | null;
-  getReligionValueById: (id: string) => string;
+  religionEntries: ReligionEntry[]
+  loading: boolean
+  error: Error | null
+  getReligionValueById: (id: string) => string
 }
 
 /**
@@ -21,22 +21,22 @@ interface UseReligionCatalogResult {
  * @returns Religion catalog data and utilities
  */
 export const useReligionCatalog = (accessToken: string): UseReligionCatalogResult => {
-  const [religionEntries, setReligionEntries] = useState<ReligionEntry[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<Error | null>(null);
-  
+  const [religionEntries, setReligionEntries] = useState<ReligionEntry[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<Error | null>(null)
+
   // Get catalog manager client instance
-  const catalogClient = useCatalogManagerClient(accessToken);
-  
+  const catalogClient = useCatalogManagerClient(accessToken)
+
   // Fetch religion catalog entries
   useEffect(() => {
     const fetchReligions = async () => {
-      if (!accessToken) return;
-      
+      if (!accessToken) return
+
       try {
-        setLoading(true);
-        setError(null);
-        
+        setLoading(true)
+        setError(null)
+
         // Fetch religion catalog entries
         const response = await catalogClient.getCatalogEntriesList(
           {
@@ -50,39 +50,39 @@ export const useReligionCatalog = (accessToken: string): UseReligionCatalogResul
             includeChildCatalogEntries: true
             // Removed 'value' parameter since it's not part of GetCatalogsParams
           }
-        );
-        
+        )
+
         // Set religion entries from the response with type assertion
         // Since we know the Religion catalog entries match our ReligionEntry type
-        setReligionEntries((response.data || []) as unknown as ReligionEntry[]);
+        setReligionEntries((response.data || []) as unknown as ReligionEntry[])
       } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to fetch religion catalog'));
-        console.error('Error fetching religion catalog:', err);
+        setError(err instanceof Error ? err : new Error('Failed to fetch religion catalog'))
+        console.error('Error fetching religion catalog:', err)
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
-    
-    fetchReligions();
-  }, [accessToken, catalogClient]);
-  
+    }
+
+    fetchReligions()
+  }, [accessToken, catalogClient])
+
   // Memoized function to get religion value by ID
   const getReligionValueById = useMemo(() => {
     return (id: string): string => {
-      if (!id) return '';
-      
+      if (!id) return ''
+
       // Find matching religion entry by ID
-      const matchingEntry = religionEntries.find(entry => entry.id === id);
-      
+      const matchingEntry = religionEntries.find(entry => entry.id === id)
+
       // Return the human-readable value or the original ID if no match found
-      return matchingEntry?.value || id;
-    };
-  }, [religionEntries]);
-  
+      return matchingEntry?.value || id
+    }
+  }, [religionEntries])
+
   return {
     religionEntries,
     loading,
     error,
     getReligionValueById
-  };
-};
+  }
+}

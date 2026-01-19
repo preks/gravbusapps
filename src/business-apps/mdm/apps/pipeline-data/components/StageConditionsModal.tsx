@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Modal } from 'antd';
+import React, { useState, useEffect } from 'react'
+import { Modal } from 'antd'
 import {
   Card,
   Button,
@@ -20,124 +20,101 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea,
-  Badge,
-} from '@newwork/nw-design-system';
-import {
-  Plus,
-  Edit,
-  Trash2,
-  GripVertical,
-  Clock,
-  CheckSquare,
-} from 'lucide-react';
+  Badge
+} from '@newwork/nw-design-system'
+import { Plus, Edit, Trash2, GripVertical, Clock, CheckSquare } from 'lucide-react'
 import {
   DndContext,
-  closestCenter,
   closestCorners,
   DragEndEvent,
   DragOverlay,
   DragStartEvent,
   PointerSensor,
   useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { useForm } from 'react-hook-form';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useStageConditions } from '../hooks/useStageConditions';
-import { useMeasurementUnits, MeasurementUnit } from '../hooks/useMeasurementUnits';
-import { EnhancedSalesPipelineStage } from '../types';
-import { getPipelineCatalogConfig } from '../utils/catalogConfig';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
+  useSensors
+} from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { useForm } from 'react-hook-form'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useStageConditions } from '../hooks/useStageConditions'
+import { useMeasurementUnits, MeasurementUnit } from '../hooks/useMeasurementUnits'
+import { EnhancedSalesPipelineStage } from '../types'
+import { getPipelineCatalogConfig } from '../utils/catalogConfig'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
 // Catalog constants are dynamic based on CRM/IRM selection
 
 interface StageConditionObjectValue {
-  description?: string;
-  generateTask?: boolean;
-  check_type?: 'Automated' | 'User' | 'Manager' | 'Owner';
-  deadline_enabled?: boolean;
-  deadline_duration?: number;
-  deadline_duration_measurement_unit_ref?: string;
+  description?: string
+  generateTask?: boolean
+  check_type?: 'Automated' | 'User' | 'Manager' | 'Owner'
+  deadline_enabled?: boolean
+  deadline_duration?: number
+  deadline_duration_measurement_unit_ref?: string
 }
 
 interface StageCondition {
-  id: string;
-  name: string;
-  description: string;
-  rank: number;
-  code: string;
-  alternativeCode: string;
-  objectValue: StageConditionObjectValue;
-  additionalValue1?: string;
-  additionalValue2?: string;
-  additionalValue3?: string;
-  generateTask?: boolean;
-  checkedType?: 'Automated' | 'User' | 'Manager' | 'Owner';
-  deadlineEnabled?: boolean;
-  deadlineDuration?: number;
-  deadlineUnit?: string;
+  id: string
+  name: string
+  description: string
+  rank: number
+  code: string
+  alternativeCode: string
+  objectValue: StageConditionObjectValue
+  additionalValue1?: string
+  additionalValue2?: string
+  additionalValue3?: string
+  generateTask?: boolean
+  checkedType?: 'Automated' | 'User' | 'Manager' | 'Owner'
+  deadlineEnabled?: boolean
+  deadlineDuration?: number
+  deadlineUnit?: string
 }
 
 interface ConditionFormData {
-  name: string;
-  description: string;
-  generate_task: boolean;
-  checked_type: 'Automated' | 'User' | 'Manager' | 'Owner';
-  deadline_enabled: boolean;
-  deadline_duration: number;
-  deadline_duration_measurement_unit_ref: string; // CatalogRef for Catalog_MeasurementUnit
-  rank: number;
+  name: string
+  description: string
+  generate_task: boolean
+  checked_type: 'Automated' | 'User' | 'Manager' | 'Owner'
+  deadline_enabled: boolean
+  deadline_duration: number
+  deadline_duration_measurement_unit_ref: string // CatalogRef for Catalog_MeasurementUnit
+  rank: number
 }
 
 interface StageConditionsModalProps extends BusinessAppContextProps {
-  stage: EnhancedSalesPipelineStage | null;
-  visible: boolean;
-  onClose: () => void;
-  prefixDataTestId?: string;
-  sourceApp?: 'CRM' | 'IRM';
+  stage: EnhancedSalesPipelineStage | null
+  visible: boolean
+  onClose: () => void
+  prefixDataTestId?: string
+  sourceApp?: 'CRM' | 'IRM'
 }
 
 // Draggable Condition Item Component
 const DraggableConditionItem: React.FC<{
-  condition: StageCondition;
-  index: number;
-  prefixDataTestId?: string;
-  onEdit: (condition: StageCondition) => void;
-  onDelete: (condition: StageCondition) => void;
+  condition: StageCondition
+  index: number
+  prefixDataTestId?: string
+  onEdit: (condition: StageCondition) => void
+  onDelete: (condition: StageCondition) => void
 }> = ({ condition, index, prefixDataTestId, onEdit, onDelete }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: condition.id,
     data: {
       type: 'condition',
-      condition,
-    },
-  });
+      condition
+    }
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
+    opacity: isDragging ? 0.5 : 1
+  }
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      data-testid={`${prefixDataTestId}-draggable-condition-${condition.id}`}
-    >
+    <div ref={setNodeRef} style={style} data-testid={`${prefixDataTestId}-draggable-condition-${condition.id}`}>
       <Card className="gba:border-gray-200 hover:gba:border-blue-400 hover:gba:shadow-md gba:transition-all gba:cursor-pointer gba:relative">
         <div className="gba:p-2 gba:flex gba:items-start gba:gap-2">
           {/* Order Number */}
@@ -153,7 +130,7 @@ const DraggableConditionItem: React.FC<{
           >
             <GripVertical className="gba:w-4 gba:h-4" />
           </div>
-          
+
           {/* Condition Content */}
           <div className="gba:flex-1 gba:min-w-0">
             {/* Header with name and badges */}
@@ -163,17 +140,23 @@ const DraggableConditionItem: React.FC<{
                   {condition.name}
                 </h5>
               </div>
-              
+
               {/* Configuration Badges */}
               <div className="gba:flex gba:gap-1 gba:flex-shrink-0">
                 {condition.generateTask && (
-                  <Badge variant="secondary" className="gba:text-xs gba:px-1.5 gba:py-0.5 gba:flex gba:items-center gba:gap-1">
+                  <Badge
+                    variant="secondary"
+                    className="gba:text-xs gba:px-1.5 gba:py-0.5 gba:flex gba:items-center gba:gap-1"
+                  >
                     <CheckSquare className="gba:w-3 gba:h-3" />
                     Task
                   </Badge>
                 )}
                 {condition.deadlineEnabled && (
-                  <Badge variant="outline" className="gba:text-xs gba:px-1.5 gba:py-0.5 gba:flex gba:items-center gba:gap-1">
+                  <Badge
+                    variant="outline"
+                    className="gba:text-xs gba:px-1.5 gba:py-0.5 gba:flex gba:items-center gba:gap-1"
+                  >
                     <Clock className="gba:w-3 gba:h-3" />
                     {condition.deadlineDuration} {condition.deadlineUnit}
                   </Badge>
@@ -183,12 +166,15 @@ const DraggableConditionItem: React.FC<{
 
             {/* Description and checked by info */}
             <div className="gba:flex gba:items-start gba:justify-between gba:gap-1">
-                             <p className="gba:text-gray-500 gba:text-xs gba:leading-tight gba:flex-1" style={{ 
+              <p
+                className="gba:text-gray-500 gba:text-xs gba:leading-tight gba:flex-1"
+                style={{
                   display: '-webkit-box',
                   WebkitLineClamp: 2,
                   WebkitBoxOrient: 'vertical',
                   overflow: 'hidden'
-                }}>
+                }}
+              >
                 {condition.description}
               </p>
               <div className="gba:flex gba:items-center gba:gap-1 gba:flex-shrink-0">
@@ -205,9 +191,9 @@ const DraggableConditionItem: React.FC<{
             <Button
               variant="ghost"
               size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(condition);
+              onClick={e => {
+                e.stopPropagation()
+                onEdit(condition)
               }}
               className="gba:text-gray-400 hover:gba:text-blue-500 gba:p-1 gba:h-7 gba:w-7"
               data-testid={`${prefixDataTestId}-edit-condition-${condition.id}`}
@@ -217,9 +203,9 @@ const DraggableConditionItem: React.FC<{
             <Button
               variant="ghost"
               size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(condition);
+              onClick={e => {
+                e.stopPropagation()
+                onDelete(condition)
               }}
               className="gba:text-gray-400 hover:gba:text-red-500 gba:p-1 gba:h-7 gba:w-7"
               data-testid={`${prefixDataTestId}-delete-condition-${condition.id}`}
@@ -230,8 +216,8 @@ const DraggableConditionItem: React.FC<{
         </div>
       </Card>
     </div>
-  );
-};
+  )
+}
 
 export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
   stage,
@@ -241,24 +227,24 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
   sourceApp,
   ...context
 }) => {
-  const [conditions, setConditions] = useState<StageCondition[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [operationLoading, setOperationLoading] = useState(false);
+  const [conditions, setConditions] = useState<StageCondition[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [operationLoading, setOperationLoading] = useState(false)
 
   // Condition modal states
-  const [isConditionModalVisible, setIsConditionModalVisible] = useState(false);
-  const [editingCondition, setEditingCondition] = useState<StageCondition | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [conditionToDelete, setConditionToDelete] = useState<StageCondition | null>(null);
+  const [isConditionModalVisible, setIsConditionModalVisible] = useState(false)
+  const [editingCondition, setEditingCondition] = useState<StageCondition | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [conditionToDelete, setConditionToDelete] = useState<StageCondition | null>(null)
 
   // Measurement units state
-  const [measurementUnits, setMeasurementUnits] = useState<MeasurementUnit[]>([]);
-  const [loadingMeasurementUnits, setLoadingMeasurementUnits] = useState(false);
+  const [measurementUnits, setMeasurementUnits] = useState<MeasurementUnit[]>([])
+  const [loadingMeasurementUnits, setLoadingMeasurementUnits] = useState(false)
 
-  const { fetchStageConditions } = useStageConditions(context);
-  const { fetchTimeMeasurementUnits } = useMeasurementUnits(context);
-  const catalogClient = useCatalogManagerClient(context.accessToken);
+  const { fetchStageConditions } = useStageConditions(context)
+  const { fetchTimeMeasurementUnits } = useMeasurementUnits(context)
+  const catalogClient = useCatalogManagerClient(context.accessToken)
 
   const conditionForm = useForm<ConditionFormData>({
     defaultValues: {
@@ -271,96 +257,97 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
       deadline_duration_measurement_unit_ref: '',
       rank: 1
     }
-  });
+  })
 
   // Drag and drop states
-  const [activeCondition, setActiveCondition] = useState<StageCondition | null>(null);
+  const [activeCondition, setActiveCondition] = useState<StageCondition | null>(null)
 
   // Drag and drop sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
-      },
+        distance: 8
+      }
     })
-  );
+  )
 
   // Load conditions when stage changes
   useEffect(() => {
     if (stage && visible) {
-      loadConditions();
+      loadConditions()
     }
-  }, [stage, visible]);
+  }, [stage, visible])
 
   // Load measurement units when modal becomes visible
   useEffect(() => {
     if (visible && measurementUnits.length === 0) {
-      loadMeasurementUnits();
+      loadMeasurementUnits()
     }
-  }, [visible]);
+  }, [visible])
 
   // Load measurement units when condition modal becomes visible
   useEffect(() => {
     if (isConditionModalVisible && measurementUnits.length === 0) {
-      loadMeasurementUnits();
+      loadMeasurementUnits()
     }
-  }, [isConditionModalVisible]);
+  }, [isConditionModalVisible])
 
   const loadMeasurementUnits = async () => {
-    setLoadingMeasurementUnits(true);
+    setLoadingMeasurementUnits(true)
     try {
-      const units = await fetchTimeMeasurementUnits();
-      console.log('Loaded measurement units:', units);
-      setMeasurementUnits(units);
+      const units = await fetchTimeMeasurementUnits()
+      console.log('Loaded measurement units:', units)
+      setMeasurementUnits(units)
     } catch (error) {
-      console.error('Error loading measurement units:', error);
+      console.error('Error loading measurement units:', error)
     } finally {
-      setLoadingMeasurementUnits(false);
+      setLoadingMeasurementUnits(false)
     }
-  };
+  }
 
   const loadConditions = async () => {
-    if (!stage) return;
+    if (!stage) return
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
       // Ensure measurement units are loaded first
       if (measurementUnits.length === 0) {
-        await loadMeasurementUnits();
+        await loadMeasurementUnits()
       }
 
       // Fetch real condition data from GraphQL
-      const conditionEntries = await fetchStageConditions(stage.code, sourceApp || (stage.pipeline?.type as 'CRM' | 'IRM') || 'CRM');
-      
+      const conditionEntries = await fetchStageConditions(
+        stage.code,
+        sourceApp || (stage.pipeline?.type as 'CRM' | 'IRM') || 'CRM'
+      )
+
       // Transform GraphQL data to StageCondition format
       const transformedConditions: StageCondition[] = conditionEntries.map((entry, index) => {
         // Parse additional values for enhanced fields
-        const additionalValue1 = entry.additionalValue1 || '';
-        const additionalValue2 = entry.additionalValue2 || '';
-        const additionalValue3 = entry.additionalValue3 || '';
-        
+        const additionalValue1 = entry.additionalValue1 || ''
+        const additionalValue2 = entry.additionalValue2 || ''
+        const additionalValue3 = entry.additionalValue3 || ''
+
         // Try to parse objectValue for extended configuration
-        let objectValue: StageConditionObjectValue = {};
+        let objectValue: StageConditionObjectValue = {}
         try {
-          objectValue = typeof entry.objectValue === 'string' 
-            ? JSON.parse(entry.objectValue) 
-            : entry.objectValue || {};
-          console.log('Parsed objectValue for condition:', entry.value, objectValue);
+          objectValue = typeof entry.objectValue === 'string' ? JSON.parse(entry.objectValue) : entry.objectValue || {}
+          console.log('Parsed objectValue for condition:', entry.value, objectValue)
         } catch (e) {
-          objectValue = {};
-          console.error('Error parsing objectValue for condition:', entry.value, e);
+          objectValue = {}
+          console.error('Error parsing objectValue for condition:', entry.value, e)
         }
 
         // Resolve measurement unit value from catalog
-        const measurementUnitRef = objectValue.deadline_duration_measurement_unit_ref;
-        let resolvedDeadlineUnit = 'Days'; // Default fallback
-        
+        const measurementUnitRef = objectValue.deadline_duration_measurement_unit_ref
+        let resolvedDeadlineUnit = 'Days' // Default fallback
+
         if (measurementUnitRef && measurementUnits.length > 0) {
-          const foundUnit = measurementUnits.find(unit => unit.id === measurementUnitRef);
+          const foundUnit = measurementUnits.find(unit => unit.id === measurementUnitRef)
           if (foundUnit) {
-            resolvedDeadlineUnit = foundUnit.value;
+            resolvedDeadlineUnit = foundUnit.value
           }
         }
 
@@ -381,65 +368,70 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
           deadlineEnabled: objectValue.deadline_enabled || false,
           deadlineDuration: objectValue.deadline_duration || 1,
           deadlineUnit: resolvedDeadlineUnit
-        };
-      });
+        }
+      })
 
       // Sort conditions by their rank
-      const sortedConditions = transformedConditions.sort((a, b) => a.rank - b.rank);
-      setConditions(sortedConditions);
+      const sortedConditions = transformedConditions.sort((a, b) => a.rank - b.rank)
+      setConditions(sortedConditions)
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to load stage conditions';
-      setError(errorMsg);
-      console.error('Error loading stage conditions:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Failed to load stage conditions'
+      setError(errorMsg)
+      console.error('Error loading stage conditions:', err)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   // Drag and drop handlers
   const handleDragStart = (event: DragStartEvent) => {
-    const { active } = event;
-    const condition = conditions.find(c => c.id === active.id);
-    setActiveCondition(condition || null);
-  };
+    const { active } = event
+    const condition = conditions.find(c => c.id === active.id)
+    setActiveCondition(condition || null)
+  }
 
   const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveCondition(null);
+    const { active, over } = event
+    setActiveCondition(null)
 
     if (!over || active.id === over.id) {
-      return;
+      return
     }
 
-    const activeIndex = conditions.findIndex(condition => condition.id === active.id);
-    const overIndex = conditions.findIndex(condition => condition.id === over.id);
+    const activeIndex = conditions.findIndex(condition => condition.id === active.id)
+    const overIndex = conditions.findIndex(condition => condition.id === over.id)
 
     if (activeIndex === -1 || overIndex === -1) {
-      return;
+      return
     }
 
-    const newConditions = [...conditions];
-    const [movedCondition] = newConditions.splice(activeIndex, 1);
-    newConditions.splice(overIndex, 0, movedCondition);
+    const newConditions = [...conditions]
+    const [movedCondition] = newConditions.splice(activeIndex, 1)
+    newConditions.splice(overIndex, 0, movedCondition)
 
     const updatedConditions = newConditions.map((condition, index) => ({
       ...condition,
-      rank: index + 1,
-    }));
-    setConditions(updatedConditions);
+      rank: index + 1
+    }))
+    setConditions(updatedConditions)
 
     // Update condition ranks via API
     try {
-      setOperationLoading(true);
-      
+      setOperationLoading(true)
+
       if (!stage) {
-        throw new Error('Stage is required for updating conditions');
+        throw new Error('Stage is required for updating conditions')
       }
-      
-      console.log('Updating condition order:', updatedConditions.map(c => ({ id: c.id, name: c.name, rank: c.rank })));
-      
+
+      console.log(
+        'Updating condition order:',
+        updatedConditions.map(c => ({ id: c.id, name: c.name, rank: c.rank }))
+      )
+
       for (const condition of updatedConditions) {
-        const cfg = getPipelineCatalogConfig(sourceApp || (stage.type as 'CRM' | 'IRM') || (stage.pipeline?.type as 'CRM' | 'IRM') || 'CRM');
+        const cfg = getPipelineCatalogConfig(
+          sourceApp || (stage.type as 'CRM' | 'IRM') || (stage.pipeline?.type as 'CRM' | 'IRM') || 'CRM'
+        )
         const payload = {
           id: condition.id,
           code: condition.code,
@@ -447,41 +439,37 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
           alternativeCode: condition.alternativeCode,
           parentEntryId: `${cfg.stageCatalog}:${cfg.version}:${stage.code}`,
           additionalValue1: condition.rank.toString(), // Order stored here
+          displayOrder: condition.rank,
           objectValue: condition.objectValue as any, // Convert to JSONValue
           translations: []
-        };
+        }
 
-        console.log(`Updating condition ${condition.name} with rank ${condition.rank}`);
+        console.log(`Updating condition ${condition.name} with rank ${condition.rank}`)
 
-        await catalogClient.updateCatalogEntry(
-          cfg.conditionCatalog,
-          cfg.version,
-          condition.id,
-          payload
-        );
+        await catalogClient.updateCatalogEntry(cfg.conditionCatalog, cfg.version, condition.id, payload)
       }
-      
-      console.log('Condition order updated successfully');
+
+      console.log('Condition order updated successfully')
     } catch (error) {
-      console.error('Error updating condition order:', error);
+      console.error('Error updating condition order:', error)
       // Reload conditions to reset to server state
-      await loadConditions();
+      await loadConditions()
     } finally {
-      setOperationLoading(false);
+      setOperationLoading(false)
     }
-  };
+  }
 
   const handleAddCondition = () => {
-    if (!stage) return;
-    
-    console.log('Opening add condition modal, measurement units:', measurementUnits);
-    
+    if (!stage) return
+
+    console.log('Opening add condition modal, measurement units:', measurementUnits)
+
     // Ensure measurement units are loaded before opening modal
     if (measurementUnits.length === 0) {
-      loadMeasurementUnits();
+      loadMeasurementUnits()
     }
-    
-    setEditingCondition(null);
+
+    setEditingCondition(null)
     conditionForm.reset({
       name: '',
       description: '',
@@ -491,21 +479,24 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
       deadline_duration: 1,
       deadline_duration_measurement_unit_ref: '',
       rank: conditions.length + 1
-    });
-    setIsConditionModalVisible(true);
-  };
+    })
+    setIsConditionModalVisible(true)
+  }
 
   const handleEditCondition = (condition: StageCondition) => {
-    console.log('Opening edit condition modal, measurement units:', measurementUnits);
-    console.log('Condition deadline_duration_measurement_unit_ref:', condition.objectValue.deadline_duration_measurement_unit_ref);
-    console.log('Condition objectValue:', condition.objectValue);
-    
+    console.log('Opening edit condition modal, measurement units:', measurementUnits)
+    console.log(
+      'Condition deadline_duration_measurement_unit_ref:',
+      condition.objectValue.deadline_duration_measurement_unit_ref
+    )
+    console.log('Condition objectValue:', condition.objectValue)
+
     // Ensure measurement units are loaded before opening modal
     if (measurementUnits.length === 0) {
-      loadMeasurementUnits();
+      loadMeasurementUnits()
     }
-    
-    setEditingCondition(condition);
+
+    setEditingCondition(condition)
     conditionForm.reset({
       name: condition.name,
       description: condition.description,
@@ -515,50 +506,52 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
       deadline_duration: condition.objectValue.deadline_duration || 1,
       deadline_duration_measurement_unit_ref: condition.objectValue.deadline_duration_measurement_unit_ref || '',
       rank: condition.rank
-    });
-    setIsConditionModalVisible(true);
-  };
+    })
+    setIsConditionModalVisible(true)
+  }
 
   const handleDeleteCondition = (condition: StageCondition) => {
-    setConditionToDelete(condition);
-    setDeleteDialogOpen(true);
-  };
+    setConditionToDelete(condition)
+    setDeleteDialogOpen(true)
+  }
 
   const confirmDeleteCondition = async () => {
-    if (!conditionToDelete) return;
-    
+    if (!conditionToDelete) return
+
     try {
-      setOperationLoading(true);
-      
+      setOperationLoading(true)
+
       await catalogClient.deleteCatalogEntry(
         SALES_PIPELINE_STAGE_CONDITION_CATALOG,
         SALES_PIPELINE_STAGE_CONDITION_VERSION,
         conditionToDelete.id
-      );
-      
-      console.log(`Condition "${conditionToDelete.name}" deleted successfully`);
-      
+      )
+
+      console.log(`Condition "${conditionToDelete.name}" deleted successfully`)
+
       // Remove from local state
-      setConditions(prev => prev.filter(c => c.id !== conditionToDelete.id));
+      setConditions(prev => prev.filter(c => c.id !== conditionToDelete.id))
     } catch (error) {
-      console.error('Error deleting condition:', error);
+      console.error('Error deleting condition:', error)
       // Reload conditions to reset to server state
-      await loadConditions();
+      await loadConditions()
     } finally {
-      setOperationLoading(false);
-      setDeleteDialogOpen(false);
-      setConditionToDelete(null);
+      setOperationLoading(false)
+      setDeleteDialogOpen(false)
+      setConditionToDelete(null)
     }
-  };
+  }
 
   const handleConditionModalSubmit = async (values: ConditionFormData) => {
-    if (!stage) return;
+    if (!stage) return
 
     try {
-      setOperationLoading(true);
+      setOperationLoading(true)
 
       if (editingCondition) {
-        const cfg = getPipelineCatalogConfig((stage.type as 'CRM' | 'IRM') || (stage.pipeline?.type as 'CRM' | 'IRM') || 'CRM');
+        const cfg = getPipelineCatalogConfig(
+          (stage.type as 'CRM' | 'IRM') || (stage.pipeline?.type as 'CRM' | 'IRM') || 'CRM'
+        )
         // Update existing condition
         const payload = {
           id: editingCondition.id,
@@ -576,22 +569,25 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
             deadline_duration_measurement_unit_ref: values.deadline_duration_measurement_unit_ref
           } as any,
           translations: []
-        };
+        }
 
-        await catalogClient.updateCatalogEntry(cfg.conditionCatalog, cfg.version, editingCondition.id, payload);
-        
-        console.log(`Condition "${values.name}" updated successfully`);
+        await catalogClient.updateCatalogEntry(cfg.conditionCatalog, cfg.version, editingCondition.id, payload)
+
+        console.log(`Condition "${values.name}" updated successfully`)
       } else {
         // Create new condition
-        const cfg = getPipelineCatalogConfig(sourceApp || (stage.type as 'CRM' | 'IRM') || (stage.pipeline?.type as 'CRM' | 'IRM') || 'CRM');
-        const code = `CONDITION_${Date.now()}`; // Generate a unique code
-        
+        const cfg = getPipelineCatalogConfig(
+          sourceApp || (stage.type as 'CRM' | 'IRM') || (stage.pipeline?.type as 'CRM' | 'IRM') || 'CRM'
+        )
+        const code = `CONDITION_${Date.now()}` // Generate a unique code
+
         const payload = {
           code,
           value: values.name,
           alternativeCode: 'CONDITION',
           parentEntryId: `${cfg.stageCatalog}:${cfg.version}:${stage.code}`,
           additionalValue1: values.rank.toString(),
+          displayOrder: values.rank,
           objectValue: {
             description: values.description,
             generateTask: values.generate_task,
@@ -601,23 +597,23 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
             deadline_duration_measurement_unit_ref: values.deadline_duration_measurement_unit_ref
           } as any,
           translations: []
-        };
+        }
 
-        await catalogClient.createCatalogEntry(cfg.conditionCatalog, cfg.version, payload);
-        
-        console.log(`Condition "${values.name}" created successfully`);
+        await catalogClient.createCatalogEntry(cfg.conditionCatalog, cfg.version, payload)
+
+        console.log(`Condition "${values.name}" created successfully`)
       }
 
-      setIsConditionModalVisible(false);
-      await loadConditions(); // Reload conditions to get updated data
+      setIsConditionModalVisible(false)
+      await loadConditions() // Reload conditions to get updated data
     } catch (error) {
-      console.error('Error saving condition:', error);
+      console.error('Error saving condition:', error)
     } finally {
-      setOperationLoading(false);
+      setOperationLoading(false)
     }
-  };
+  }
 
-  if (!stage) return null;
+  if (!stage) return null
 
   return (
     <Modal
@@ -627,21 +623,14 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
       width="50vw"
       centered
       maskClosable={false}
-      title={
-        <div className="gba:flex gba:items-center gba:gap-2">
-          Stage Conditions: {stage.value}
-        </div>
-      }
+      title={<div className="gba:flex gba:items-center gba:gap-2">Stage Conditions: {stage.value}</div>}
       data-testid={`${prefixDataTestId}-stage-conditions-modal`}
     >
       <div className="gba:max-h-[80vh] gba:overflow-hidden gba:flex gba:flex-col">
-
         {/* Header with Add Condition Button - Outside scrollable area */}
         <div className="gba:flex gba:justify-between gba:items-center gba:px-6 gba:pb-4 gba:border-b gba:border-gray-200">
           <div>
-            <h4 className="gba:text-lg gba:font-medium gba:mb-1">
-              Configure Stage Conditions
-            </h4>
+            <h4 className="gba:text-lg gba:font-medium gba:mb-1">Configure Stage Conditions</h4>
             <p className="gba:text-gray-600 gba:text-sm">
               Drag and drop conditions to reorder them. Each condition represents a requirement for this stage.
             </p>
@@ -657,7 +646,6 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
         </div>
 
         <div className="gba:flex-1 gba:overflow-y-auto gba:p-6">
-
           {/* Loading State */}
           {isLoading && (
             <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
@@ -671,12 +659,7 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
             <Alert variant="destructive" className="gba:mb-6">
               <AlertDescription>
                 Error loading conditions: {error}
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={loadConditions}
-                  className="gba:ml-2"
-                >
+                <Button variant="outline" size="sm" onClick={loadConditions} className="gba:ml-2">
                   Retry
                 </Button>
               </AlertDescription>
@@ -690,9 +673,7 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
                 <div className="gba:flex gba:justify-center gba:items-center gba:py-12 gba:bg-gray-50 gba:rounded-lg gba:border-2 gba:border-dashed gba:border-gray-300">
                   <div className="gba:text-center">
                     <Plus className="gba:w-12 gba:h-12 gba:text-gray-400 gba:mb-4 gba:mx-auto" />
-                    <h5 className="gba:text-lg gba:font-medium gba:text-gray-500 gba:mb-2">
-                      No Conditions Configured
-                    </h5>
+                    <h5 className="gba:text-lg gba:font-medium gba:text-gray-500 gba:mb-2">No Conditions Configured</h5>
                     <p className="gba:text-gray-400 gba:mb-4">
                       Add the first condition to define requirements for this stage
                     </p>
@@ -723,12 +704,14 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
 
                     <DragOverlay>
                       {activeCondition ? (
-                        <div style={{ 
-                          opacity: 0.8, 
-                          transform: 'rotate(1deg)',
-                          cursor: 'grabbing',
-                          pointerEvents: 'none'
-                        }}>
+                        <div
+                          style={{
+                            opacity: 0.8,
+                            transform: 'rotate(1deg)',
+                            cursor: 'grabbing',
+                            pointerEvents: 'none'
+                          }}
+                        >
                           <DraggableConditionItem
                             condition={activeCondition}
                             index={conditions.findIndex(c => c.id === activeCondition.id) + 1}
@@ -747,11 +730,7 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
         </div>
 
         <div className="gba:flex gba:justify-end gba:pt-4 gba:border-t gba:border-gray-200 gba:mt-4">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            data-testid={`${prefixDataTestId}-close-conditions-modal`}
-          >
+          <Button variant="outline" onClick={onClose} data-testid={`${prefixDataTestId}-close-conditions-modal`}>
             Close
           </Button>
         </div>
@@ -772,8 +751,10 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
             <form onSubmit={conditionForm.handleSubmit(handleConditionModalSubmit)} className="gba:space-y-6">
               {/* Basic Information Section */}
               <div className="gba:space-y-4">
-                <h4 className="gba:font-medium gba:text-gray-900 gba:text-sm gba:border-b gba:border-gray-200 gba:pb-2">Basic Information</h4>
-                
+                <h4 className="gba:font-medium gba:text-gray-900 gba:text-sm gba:border-b gba:border-gray-200 gba:pb-2">
+                  Basic Information
+                </h4>
+
                 <FormField
                   control={conditionForm.control}
                   name="name"
@@ -782,8 +763,8 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
                     <FormItem>
                       <FormLabel>Condition Name</FormLabel>
                       <FormControl>
-                        <Input 
-                          {...field} 
+                        <Input
+                          {...field}
                           placeholder="Please Enter..."
                           data-testid={`${prefixDataTestId}-condition-name-input`}
                         />
@@ -801,8 +782,8 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
                     <FormItem>
                       <FormLabel>Description</FormLabel>
                       <FormControl>
-                        <Textarea 
-                          {...field} 
+                        <Textarea
+                          {...field}
                           placeholder="Describe what this condition requires..."
                           rows={3}
                           data-testid={`${prefixDataTestId}-condition-description-input`}
@@ -817,7 +798,7 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
               {/* Task Configuration Section */}
               <div className="gba:space-y-4 gba:border gba:border-gray-200 gba:rounded-lg gba:p-4 gba:bg-gray-50">
                 <h4 className="gba:font-medium gba:text-gray-900 gba:text-sm">Task Configuration</h4>
-                
+
                 <FormField
                   control={conditionForm.control}
                   name="generate_task"
@@ -846,7 +827,9 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
                   rules={{ required: 'Please select who checks this condition' }}
                   render={({ field }) => (
                     <FormItem className="gba:flex gba:items-center gba:gap-4">
-                      <FormLabel className="gba:w-24 gba:flex-shrink-0 gba:text-sm gba:font-medium">Checked By</FormLabel>
+                      <FormLabel className="gba:w-24 gba:flex-shrink-0 gba:text-sm gba:font-medium">
+                        Checked By
+                      </FormLabel>
                       <div className="gba:flex-1">
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
@@ -870,10 +853,12 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
                 <div>
                   <h4 className="gba:font-medium gba:text-gray-900 gba:text-sm gba:mb-2">Deadline Configuration</h4>
                   <p className="gba:text-xs gba:text-gray-600 gba:leading-relaxed">
-                    Deadlines are calculated from when the opportunity enters the current stage.<br/>Set a time limit for completing this condition.
+                    Deadlines are calculated from when the opportunity enters the current stage.
+                    <br />
+                    Set a time limit for completing this condition.
                   </p>
                 </div>
-                
+
                 <FormField
                   control={conditionForm.control}
                   name="deadline_enabled"
@@ -888,9 +873,7 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
                       </FormControl>
                       <div className="gba:space-y-1 gba:leading-none">
                         <FormLabel className="gba:text-sm gba:font-medium">Enable Deadline</FormLabel>
-                        <p className="gba:text-xs gba:text-gray-500">
-                          Set a deadline for completing this condition
-                        </p>
+                        <p className="gba:text-xs gba:text-gray-500">Set a deadline for completing this condition</p>
                       </div>
                     </FormItem>
                   )}
@@ -901,17 +884,20 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
                     <FormField
                       control={conditionForm.control}
                       name="deadline_duration"
-                      rules={{ required: 'Please enter deadline duration', min: { value: 1, message: 'Duration must be at least 1' } }}
+                      rules={{
+                        required: 'Please enter deadline duration',
+                        min: { value: 1, message: 'Duration must be at least 1' }
+                      }}
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Duration</FormLabel>
                           <FormControl>
-                            <Input 
-                              {...field} 
+                            <Input
+                              {...field}
                               type="number"
                               min="1"
                               placeholder="1"
-                              onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                              onChange={e => field.onChange(parseInt(e.target.value) || 1)}
                               data-testid={`${prefixDataTestId}-condition-deadline-duration-input`}
                             />
                           </FormControl>
@@ -925,7 +911,12 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
                       name="deadline_duration_measurement_unit_ref"
                       rules={{ required: 'Please select measurement unit' }}
                       render={({ field }) => {
-                        console.log('Rendering measurement unit dropdown. Field value:', field.value, 'Available units:', measurementUnits);
+                        console.log(
+                          'Rendering measurement unit dropdown. Field value:',
+                          field.value,
+                          'Available units:',
+                          measurementUnits
+                        )
                         return (
                           <FormItem>
                             <FormLabel>Unit</FormLabel>
@@ -937,7 +928,7 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
                                 data-testid={`${prefixDataTestId}-condition-measurement-unit-select`}
                               >
                                 <option value="">Select unit</option>
-                                {measurementUnits.map((unit) => (
+                                {measurementUnits.map(unit => (
                                   <option key={unit.id} value={unit.id}>
                                     {unit.value}
                                   </option>
@@ -946,7 +937,7 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
                             </FormControl>
                             <FormMessage />
                           </FormItem>
-                        );
+                        )
                       }}
                     />
                   </div>
@@ -989,10 +980,7 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
         data-testid={`${prefixDataTestId}-delete-condition-confirmation`}
       >
         <div className="gba:py-4">
-          <p>
-            Are you sure you want to delete condition "{conditionToDelete?.name}"? 
-            This action cannot be undone.
-          </p>
+          <p>Are you sure you want to delete condition "{conditionToDelete?.name}"? This action cannot be undone.</p>
         </div>
 
         <div className="gba:flex gba:gap-2 gba:pt-4">
@@ -1015,5 +1003,5 @@ export const StageConditionsModal: React.FC<StageConditionsModalProps> = ({
         </div>
       </Modal>
     </Modal>
-  );
-};
+  )
+}

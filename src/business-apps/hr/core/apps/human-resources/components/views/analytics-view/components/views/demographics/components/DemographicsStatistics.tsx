@@ -1,72 +1,73 @@
-import React from 'react';
-import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
-import type { DemographicsStatistics } from '../../../../hooks/useDemographicsDataIntegration';
+import React from 'react'
+import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
+import { UsersIcon, CalendarIcon, EnvelopeIcon } from '@phosphor-icons/react'
+import type { DemographicsStatistics } from '../../../../hooks/useDemographicsDataIntegration'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 interface DemographicsStatisticsProps {
-  statistics: DemographicsStatistics;
-  isLoading: boolean;
-  dataTestId: string;
+  statistics: DemographicsStatistics
+  isLoading: boolean
+  dataTestId: string
 }
 
-const DemographicsStatistics: React.FC<DemographicsStatisticsProps> = ({
-  statistics,
-  isLoading,
-  dataTestId
-}) => {
+const DemographicsStatistics: React.FC<DemographicsStatisticsProps> = ({ statistics, isLoading, dataTestId }) => {
+  const { t } = useTranslation(hrTranslations)
   const kpiCards: KpiCardData[] = [
     {
       id: 'gender-diversity',
-      title: 'Gender Diversity',
-      value: `${statistics.genderDiversity.toFixed(1)}%`,
-      icon: 'users',
-      iconColor: '#eb2f96',
-      footer: 'Gender distribution balance'
+      title: t('hr-analytics-gender-diversity'),
+      value: statistics.genderRatio || t('hr-analytics-not-available'),
+      icon: <Icon icon={UsersIcon} size="sm" decorative />,
+      iconColor: 'var(--nw-chart-1)',
+      footer: t('hr-analytics-gender-distribution-balance')
     },
     {
       id: 'common-gender',
-      title: 'Most Common Gender',
-      value: statistics.mostCommonGender || 'N/A',
-      icon: 'users',
-      iconColor: '#fa8c16',
-      footer: 'Most frequent gender'
+      title: t('hr-analytics-most-common-gender'),
+      value: statistics.mostCommonGender || t('hr-analytics-not-available'),
+      icon: <Icon icon={UsersIcon} size="sm" decorative />,
+      iconColor: 'var(--nw-chart-2)',
+      footer: t('hr-analytics-most-frequent-gender')
     },
     {
       id: 'average-age',
-      title: 'Average Age',
-      value: statistics.averageAge ? `${statistics.averageAge.toFixed(1)} years` : 'N/A',
-      icon: 'calendar',
-      iconColor: '#722ed1',
-      footer: 'Average employee age'
+      title: t('hr-analytics-average-age'),
+      value: statistics.averageAge
+        ? `${Math.round(statistics.averageAge)} ${t('hr-analytics-years')}`
+        : t('hr-analytics-not-available'),
+      icon: <Icon icon={CalendarIcon} size="sm" decorative />,
+      iconColor: 'var(--nw-chart-3)',
+      footer: t('hr-analytics-average-employee-age')
     },
     {
       id: 'nationality-overview',
-      title: 'Nationality Distribution',
-      value: statistics.mostCommonNationality || 'N/A',
-      icon: 'mail',
-      iconColor: '#13c2c2',
-      footer: `Most common • ${statistics.nationalityDiversity} different nationalities`
+      title: t('hr-analytics-nationality-distribution'),
+      value: statistics.mostCommonNationality || t('hr-analytics-not-available'),
+      icon: <Icon icon={EnvelopeIcon} size="sm" decorative />,
+      iconColor: 'var(--nw-chart-4)',
+      footer: `${t('hr-analytics-most-common')} • ${statistics.nationalityDiversity} ${t('hr-analytics-different-nationalities')}`
     }
-  ];
+  ]
 
   if (isLoading) {
     // Create loading placeholder cards
     const loadingCards: KpiCardData[] = kpiCards.map(card => ({
       ...card,
-      value: 'Loading...'
-    }));
-    
+      value: t('hr-data-filter-loading')
+    }))
+
     return (
       <div data-testid={`${dataTestId}-statistics`}>
         <SectionKpiCards cards={loadingCards} />
       </div>
-    );
+    )
   }
 
   return (
     <div data-testid={`${dataTestId}-statistics`}>
       <SectionKpiCards cards={kpiCards} />
     </div>
-  );
-};
+  )
+}
 
-export default DemographicsStatistics; 
+export default DemographicsStatistics

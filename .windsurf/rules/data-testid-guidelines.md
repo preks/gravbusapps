@@ -1,14 +1,17 @@
 ---
 alwaysApply: true
 ---
+
 # Data-TestID Implementation Guidelines for AI Agents
 
 ## Core Principle
+
 EVERY interactive, meaningful, or testable element in React components MUST have a data-testid attribute for reliable automated testing and debugging.
 
 ## Required Elements for data-testid
 
 ### Always Include
+
 - **Buttons**: All button elements (`<button>`, `<Button>`, etc.)
 - **Input Fields**: Text inputs, selects, checkboxes, radio buttons, textareas
 - **Links**: Navigation links and actionable text
@@ -22,11 +25,13 @@ EVERY interactive, meaningful, or testable element in React components MUST have
 ## Naming Convention Rules
 
 ### Structure Pattern
+
 ```
 {prefix}-{component}-{element}-{identifier?}
 ```
 
 ### Component Type Suffixes
+
 - **Buttons**: `-button`, `-btn`
 - **Inputs**: `-input`, `-field`, `-select`
 - **Tables**: `-table`, `-row`, `-cell`
@@ -36,6 +41,7 @@ EVERY interactive, meaningful, or testable element in React components MUST have
 - **Forms**: `-form`, `-fieldset`
 
 ### Examples of Good Naming
+
 ```typescript
 // Buttons and Inputs
 data-testid="lead-list-add-button"
@@ -56,6 +62,7 @@ data-testid="lead-creation-modal"
 ## Component Patterns
 
 ### Table Components
+
 ```typescript
 <Table data-testid="leads-table">
   <tr data-testid={`leads-table-row-${record.id}`}>
@@ -66,6 +73,7 @@ data-testid="lead-creation-modal"
 ```
 
 ### Form Components
+
 ```typescript
 <Form data-testid="expense-creation-form">
   <FormItem data-testid="expense-form-title-field">
@@ -76,6 +84,7 @@ data-testid="lead-creation-modal"
 ```
 
 ### List Components
+
 ```typescript
 <div data-testid="investment-list-container">
   {investments.map(investment => (
@@ -88,6 +97,7 @@ data-testid="lead-creation-modal"
 ```
 
 ### Modal Components
+
 ```typescript
 <Modal data-testid="lead-conversion-modal">
   <div data-testid="lead-conversion-modal-content">
@@ -128,11 +138,13 @@ data-testid="lead-creation-modal"
 ## Dynamic Content Guidelines
 
 ### Use IDs for Uniqueness
+
 - Always append record IDs for dynamic list items: `data-testid={`item-${record.id}`}`
 - Use meaningful identifiers for generated content
 - Avoid array indices unless items are truly static
 
 ### Conditional Elements
+
 ```typescript
 // ✅ Good: Specific testids for each state
 {isEditing ? (
@@ -143,6 +155,7 @@ data-testid="lead-creation-modal"
 ```
 
 ## Search and Filter Elements
+
 ```typescript
 <DebouncedInput
   data-testid="lead-list-search-input"
@@ -179,12 +192,14 @@ data-testid="expense-edit-button"       // Appropriate length
 ## Implementation Checklist for AI Agents
 
 ### Before Implementation
+
 1. [ ] Identify all interactive elements
 2. [ ] Plan testid naming convention for component
 3. [ ] Consider dynamic content patterns
 4. [ ] Plan for different states (loading, error, empty)
 
 ### During Implementation
+
 1. [ ] Add testid to component container
 2. [ ] Add testids to all buttons and links
 3. [ ] Add testids to all form inputs
@@ -193,6 +208,7 @@ data-testid="expense-edit-button"       // Appropriate length
 6. [ ] Include unique identifiers for dynamic content
 
 ### After Implementation
+
 1. [ ] Verify all interactive elements have testids
 2. [ ] Check naming consistency
 3. [ ] Ensure dynamic content has unique identifiers
@@ -201,6 +217,7 @@ data-testid="expense-edit-button"       // Appropriate length
 ## Special Cases
 
 ### AppActionButton Integration
+
 ```typescript
 <AppActionButton
   data-testid={`${entityType}-update-button-${record.id}`}
@@ -209,7 +226,9 @@ data-testid="expense-edit-button"       // Appropriate length
 ```
 
 ### Complex Components (300+ lines)
+
 Plan testids before splitting:
+
 ```typescript
 // Main component
 data-testid="expense-management-app"
@@ -221,7 +240,8 @@ data-testid="expense-table-section"
 ```
 
 ## Key Principles
+
 - **Consistency**: Use the same patterns across the application
 - **Specificity**: Generic testids are harder to maintain
 - **Testability**: Think like a tester - what needs to be interacted with?
-- **Maintainability**: Use patterns that scale with the application 
+- **Maintainability**: Use patterns that scale with the application

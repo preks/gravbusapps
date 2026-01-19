@@ -1,33 +1,23 @@
-import React from 'react';
-import { Button, Input, Select, Checkbox, Card, Tag, Typography } from 'antd';
-import { PlusOutlined, DeleteOutlined, FormOutlined } from '@ant-design/icons';
-import { 
-  Type, 
-  MessageSquare, 
-  Hash, 
-  List, 
-  Radio, 
-  CheckSquare, 
-  Calendar, 
-  Upload, 
-  PenTool 
-} from 'lucide-react';
-import { InputType } from '@/common/network/flows/FlowTemplateClient';
+import React from 'react'
+import { Button, Input, Select, Checkbox, Card, Tag, Typography } from 'antd'
+import { PlusOutlined, DeleteOutlined, FormOutlined } from '@ant-design/icons'
+import { Type, MessageSquare, Hash, List, Radio, CheckSquare, Calendar, Upload, PenTool } from 'lucide-react'
+import { InputType } from '@/common/network/flows/FlowTemplateClient'
 
-const { Text } = Typography;
+const { Text } = Typography
 
 interface InputBlock {
-  id: string;
-  type: InputType;
-  label: string;
-  required: boolean;
-  placeholder?: string;
+  id: string
+  type: InputType
+  label: string
+  required: boolean
+  placeholder?: string
 }
 
 interface InputsEditorProps {
-  inputs: InputBlock[];
-  onUpdate: (blocks: InputBlock[]) => void;
-  'data-testid'?: string;
+  inputs: InputBlock[]
+  onUpdate: (blocks: InputBlock[]) => void
+  'data-testid'?: string
 }
 
 // Input block type configurations
@@ -72,7 +62,7 @@ const INPUT_BLOCK_CONFIG = {
     color: '#f5222d',
     description: 'File upload functionality'
   }
-};
+}
 
 export const InputsEditor: React.FC<InputsEditorProps> = ({
   inputs,
@@ -86,20 +76,20 @@ export const InputsEditor: React.FC<InputsEditorProps> = ({
       label: '',
       required: false,
       placeholder: ''
-    };
-    onUpdate([...inputs, newBlock]);
-  };
+    }
+    onUpdate([...inputs, newBlock])
+  }
 
   const handleUpdateBlock = (index: number, updates: Partial<InputBlock>) => {
-    const updatedBlocks = [...inputs];
-    updatedBlocks[index] = { ...updatedBlocks[index], ...updates };
-    onUpdate(updatedBlocks);
-  };
+    const updatedBlocks = [...inputs]
+    updatedBlocks[index] = { ...updatedBlocks[index], ...updates }
+    onUpdate(updatedBlocks)
+  }
 
   const handleDeleteBlock = (index: number) => {
-    const updatedBlocks = inputs.filter((_, i) => i !== index);
-    onUpdate(updatedBlocks);
-  };
+    const updatedBlocks = inputs.filter((_, i) => i !== index)
+    onUpdate(updatedBlocks)
+  }
 
   const getInputTypeOptions = () => [
     { value: InputType.TEXT, label: 'Text Input' },
@@ -110,7 +100,7 @@ export const InputsEditor: React.FC<InputsEditorProps> = ({
     { value: InputType.CHECKBOX, label: 'Checkbox' },
     { value: InputType.DATE, label: 'Date' },
     { value: InputType.FILE, label: 'File Upload' }
-  ];
+  ]
 
   return (
     <div className="gba:space-y-4" data-testid={testId}>
@@ -120,9 +110,13 @@ export const InputsEditor: React.FC<InputsEditorProps> = ({
             <FormOutlined className="gba:text-green-600" />
           </div>
           <div>
-            <Text strong className="gba:text-base gba:text-gray-800">Input Blocks</Text>
+            <Text strong className="gba:text-base gba:text-gray-800">
+              Input Blocks
+            </Text>
             <div className="gba:flex gba:items-center gba:space-x-2 gba:mt-1">
-              <Tag color="green" className="gba:text-xs">{inputs.length}</Tag>
+              <Tag color="green" className="gba:text-xs">
+                {inputs.length}
+              </Tag>
               <Text className="gba:text-xs gba:text-gray-500">Data to collect from users</Text>
             </div>
           </div>
@@ -138,7 +132,7 @@ export const InputsEditor: React.FC<InputsEditorProps> = ({
           Add
         </Button>
       </div>
-      
+
       <div className="gba:space-y-3 gba:max-h-64 gba:overflow-y-auto gba:pr-2">
         {inputs.length === 0 ? (
           <div className="gba:text-center gba:py-8 gba:border-2 gba:border-dashed gba:border-gray-200 gba:rounded-lg gba:bg-gray-50">
@@ -150,18 +144,16 @@ export const InputsEditor: React.FC<InputsEditorProps> = ({
           </div>
         ) : (
           inputs.map((block, index) => {
-            const blockConfig = INPUT_BLOCK_CONFIG[block.type];
+            const blockConfig = INPUT_BLOCK_CONFIG[block.type]
             return (
               <Card key={block.id} className="gba:border gba:border-gray-200 gba:bg-white gba:shadow-sm">
                 <div className="gba:p-3 gba:space-y-3">
                   <div className="gba:flex gba:items-center gba:justify-between">
                     <div className="gba:flex gba:items-center gba:space-x-2">
-                      <div style={{ color: blockConfig.color }}>
-                        {blockConfig.icon}
-                      </div>
+                      <div style={{ color: blockConfig.color }}>{blockConfig.icon}</div>
                       <Select
                         value={block.type}
-                        onChange={(value) => handleUpdateBlock(index, { type: value })}
+                        onChange={value => handleUpdateBlock(index, { type: value })}
                         options={getInputTypeOptions()}
                         size="small"
                         style={{ width: 120 }}
@@ -170,7 +162,7 @@ export const InputsEditor: React.FC<InputsEditorProps> = ({
                     <div className="gba:flex gba:items-center gba:space-x-2">
                       <Checkbox
                         checked={block.required}
-                        onChange={(e) => handleUpdateBlock(index, { required: e.target.checked })}
+                        onChange={e => handleUpdateBlock(index, { required: e.target.checked })}
                         className="gba:text-xs"
                       >
                         Required
@@ -189,13 +181,13 @@ export const InputsEditor: React.FC<InputsEditorProps> = ({
                     <div className="gba:grid gba:grid-cols-2 gba:gap-2">
                       <Input
                         value={block.label}
-                        onChange={(e) => handleUpdateBlock(index, { label: e.target.value })}
+                        onChange={e => handleUpdateBlock(index, { label: e.target.value })}
                         placeholder="Label"
                         size="small"
                       />
                       <Input
                         value={block.placeholder}
-                        onChange={(e) => handleUpdateBlock(index, { placeholder: e.target.value })}
+                        onChange={e => handleUpdateBlock(index, { placeholder: e.target.value })}
                         placeholder="Placeholder"
                         size="small"
                       />
@@ -203,10 +195,10 @@ export const InputsEditor: React.FC<InputsEditorProps> = ({
                   </div>
                 </div>
               </Card>
-            );
+            )
           })
         )}
       </div>
     </div>
-  );
-}; 
+  )
+}

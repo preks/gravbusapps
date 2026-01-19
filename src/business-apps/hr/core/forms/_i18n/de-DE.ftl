@@ -1,0 +1,349 @@
+adjust-salary-title = Gehalt anpassen
+adjust-salary-adjustment-type = Anpassungstyp
+adjust-salary-adjustment-type-amount = Betragserhöhung
+adjust-salary-adjustment-type-percentage = Prozentsatzerhöhung
+adjust-salary-increase-amount = Erhöhungsbetrag
+adjust-salary-increase-percentage = Erhöhungsprozentsatz (%)
+adjust-salary-calculated-amount = Berechneter Betrag:
+adjust-salary-calculated-percentage = Berechneter Prozentsatz:
+adjust-salary-new-salary = Neues Jahresgehalt
+adjust-salary-currency = Währung
+adjust-salary-effective-date = Gültigkeitsdatum
+adjust-salary-reason = Grund
+adjust-salary-reason-promotion = Beförderung
+adjust-salary-reason-merit-increase = Leistungssteigerung
+adjust-salary-reason-market-adjustment = Marktanpassung
+adjust-salary-reason-other = Sonstiges
+adjust-salary-description = Beschreibung
+adjust-salary-notes = Notizen
+adjust-salary-adjustment-type-required = Anpassungstyp ist erforderlich. Bitte wählen Sie einen Anpassungstyp.
+adjust-salary-adjustment-value-required = Betrag oder Prozentsatz eingeben
+adjust-salary-adjustment-value-positive = Wert muss positiv sein
+adjust-salary-currency-required = Währung ist erforderlich. Bitte wählen Sie eine Währung.
+adjust-salary-effective-date-required = Gültigkeitsdatum ist erforderlich. Bitte wählen Sie ein Gültigkeitsdatum.
+adjust-salary-reason-required = Grund ist erforderlich. Bitte wählen Sie einen Grund.
+adjust-salary-frequency = Gehaltsanpassungstyp
+adjust-salary-frequency-required = Gehaltsanpassungstyp ist erforderlich. Bitte wählen Sie einen Gehaltsanpassungstyp.
+adjust-salary-frequency-annually = Jährlich
+adjust-salary-frequency-monthly = Monatlich
+adjust-salary-frequency-hourly = Stündlich
+adjust-salary-current-salary = Aktuelles Gehalt
+adjust-salary-calculation-breakdown = Gehaltsanpassung Zusammenfassung
+
+# Assign Salary Mode (new employee without existing salary)
+assign-salary-title = Gehalt zuweisen
+assign-salary-type = Vergütungsart
+assign-salary-type-required = Vergütungsart ist erforderlich. Bitte wählen Sie eine Vergütungsart.
+assign-salary-type-yearly-monthly = Monatsgehalt
+assign-salary-type-hourly = Stundenlohn
+assign-salary-monthly-salary = Monatsbruttogehalt
+assign-salary-monthly-salary-required = Monatsbruttogehalt ist erforderlich. Bitte geben Sie das Monatsbruttogehalt ein.
+assign-salary-monthly-salary-positive = Das Monatsbruttogehalt muss größer als Null sein.
+assign-salary-hourly-salary = Stundenlohn
+assign-salary-hourly-salary-required = Stundenlohn ist erforderlich. Bitte geben Sie den Stundenlohn ein.
+assign-salary-hourly-salary-positive = Der Stundenlohn muss größer als Null sein.
+assign-salary-currency-required = Währung ist erforderlich. Bitte wählen Sie eine Währung.
+assign-salary-annual-equivalent = Jahresäquivalent
+assign-salary-expected-monthly-wage = Erwarteter Monatslohn
+assign-salary-expected-monthly-wage-description = Basierend auf den Arbeitszeiten des Mitarbeiters
+assign-salary-start-date = Startdatum
+assign-salary-start-date-required = Startdatum ist erforderlich. Bitte wählen Sie ein Startdatum.
+
+# Adjust Employee Salary Review Form
+adjust-salary-review-title = Gehaltsanpassungsprüfung für { $employeeName }
+adjust-salary-review-initiated-by = Initiiert von { $initiatorName }
+adjust-salary-review-salary-comparison = Gehaltsvergleich
+adjust-salary-review-current-salary = Aktuelles Gehalt
+adjust-salary-review-new-salary = Neues Gehalt
+adjust-salary-review-adjustment-details = Anpassungsdetails
+adjust-salary-review-total-increase = Gesamterhöhung
+adjust-salary-review-effective-date = Gültigkeitsdatum
+adjust-salary-review-reason = Grund
+adjust-salary-review-notes = Notizen
+adjust-salary-review-acknowledge = Bestätigen
+adjust-salary-review-reject = Ablehnen
+adjust-salary-review-annual-gross-salary = Jahresbruttogehalt
+adjust-salary-review-monthly-gross-salary = Monatliches Bruttogehalt
+adjust-salary-review-hourly-gross-salary = Stündliches Bruttogehalt
+adjust-salary-review-increase-text = { $percentage }% Erhöhung
+adjust-salary-review-hourly-suffix = /h
+
+# Assign Employee Salary Review Form (new employee without existing salary)
+assign-salary-review-title = Erstmalige Gehaltszuweisung prüfen für { $employeeName }
+assign-salary-review-salary-details = Gehaltsdetails
+assign-salary-review-assignment-details = Zuweisungsdetails
+assign-salary-review-annual-salary = Jahresbruttogehalt
+assign-salary-review-monthly-salary = Monatliches Bruttogehalt
+assign-salary-review-hourly-salary = Stündliches Bruttogehalt
+assign-salary-review-currency = Währung
+assign-salary-review-start-date = Startdatum
+assign-salary-review-notes = Notizen
+
+# Common Actions
+action-select-placeholder = Bitte auswählen
+action-enter-placeholder = Bitte eingeben
+
+# Grant Employee Bonus Form - German Translations
+
+# Form Title
+form-title = Mitarbeiterbonus gewähren
+
+# Form Actions
+action-cancel = Abbrechen
+action-submit = Einreichen
+
+# Placeholders
+placeholder-select = Bitte auswählen
+placeholder-enter = Bitte eingeben
+
+# Field Labels
+field-bonus-type = Bonusart
+field-amount = Betrag
+field-currency = Währung
+field-payment-month = Zahlungsmonat
+field-fiscal-year = Geschäftsjahr
+field-notes = Notizen
+
+# Validation Messages
+validation-bonus-type-required = Bonusart ist erforderlich. Bitte wählen Sie eine Bonusart aus.
+validation-amount-required = Betrag ist erforderlich. Bitte geben Sie den Bonusbetrag ein.
+validation-amount-positive = Der Betrag muss größer als Null sein.
+validation-payment-month-required = Zahlungsmonat ist erforderlich. Bitte wählen Sie einen Zahlungsmonat aus.
+validation-payment-month-invalid = Bitte wählen Sie einen gültigen Zahlungsmonat aus.
+validation-fiscal-year-required = Geschäftsjahr ist erforderlich. Bitte geben Sie das Geschäftsjahr ein.
+validation-fiscal-year-range = Das Geschäftsjahr muss zwischen {$minYear} und {$maxYear} liegen.
+
+# Month Names
+month-january = Januar
+month-february = Februar
+month-march = März
+month-april = April
+month-may = Mai
+month-june = Juni
+month-july = Juli
+month-august = August
+month-september = September
+month-october = Oktober
+month-november = November
+month-december = Dezember
+
+# Grant Employee Bonus Review Form
+grant-bonus-review-title = Bonusprüfung für { $employeeName }
+grant-bonus-review-initiated-by = Initiiert von { $initiatorName }
+grant-bonus-review-bonus-details = Bonusdetails
+grant-bonus-review-bonus-type = Bonusart
+grant-bonus-review-amount = Betrag
+grant-bonus-review-payment-month = Zahlungsmonat
+grant-bonus-review-fiscal-year = Geschäftsjahr
+grant-bonus-review-additional-info = Zusätzliche Informationen
+grant-bonus-review-description = Beschreibung
+grant-bonus-review-notes = Notizen
+grant-bonus-review-acknowledge = Genehmigen
+grant-bonus-review-reject = Ablehnen
+
+# ============================================
+# Common Review Form Translations
+# ============================================
+
+# Common Card Titles
+card-title-unchanged = Alle anderen Felder
+
+# Common Badges
+badge-new = Neu
+badge-changed = Geändert
+badge-unchanged = Unverändert
+badge-not-set = Nicht gesetzt
+badge-changes = { $count } { $count ->
+    [one] Änderung
+   *[other] Änderungen
+}
+
+# Common Field Values
+value-not-set = Nicht gesetzt
+value-na = K.A.
+
+# Common Actions
+action-acknowledge = Bestätigen
+action-retry = Erneut versuchen
+
+# Common States
+loading = Wird geladen...
+
+# Common Field Labels
+label-first-name = Vorname
+label-last-name = Nachname
+label-email = E-Mail
+label-notes = Notizen
+label-birth-date = Geburtsdatum
+label-country = Land
+label-city = Stadt
+label-currency = Währung
+
+# Common Text
+common-characters = Zeichen
+
+# Benefit Summary Card Translations
+benefit-provider = Anbieter
+benefit-value-yearly = Jahreswert
+benefit-details-monthly-value = Monatswert
+current-annually = Jährlich
+current-monthly = Monatlich
+modal-request-start-date-label = Startdatum
+
+# Deactivate Employee Benefit Review Form
+deactivate-benefit-review-title = Deaktivierungsanfrage für Zusatzleistung
+deactivate-benefit-review-requested-by = Angefordert von { $initiatorName }
+deactivate-benefit-review-loading = Lade Deaktivierungsanfrage für Zusatzleistung...
+deactivate-benefit-review-error-title = Daten können nicht geladen werden
+deactivate-benefit-review-error-description = Fehler beim Laden der Deaktivierungsanfrage für Zusatzleistung
+deactivate-benefit-review-benefit-details = Details zur Zusatzleistung
+deactivate-benefit-review-deactivation-details = Deaktivierungsanfrage
+deactivate-benefit-review-submit = Zusatzleistung deaktivieren
+deactivate-benefit-review-benefit-type = Art der Zusatzleistung
+deactivate-benefit-review-provider = Anbieter
+deactivate-benefit-review-value = Wert
+deactivate-benefit-review-yearly-value = Jahreswert
+deactivate-benefit-review-monthly-value = Monatswert
+deactivate-benefit-review-period = Zeitraum
+deactivate-benefit-review-start-date = Startdatum
+deactivate-benefit-review-employee-yearly-contribution = Mitarbeiter-Jahresbeitrag
+deactivate-benefit-review-employee-monthly-contribution = Mitarbeiter-Monatsbeitrag
+deactivate-benefit-review-employee-contributions = Mitarbeiterbeiträge
+deactivate-benefit-review-end-date = Angefordertes Enddatum
+deactivate-benefit-review-reason = Grund für Deaktivierung
+
+# Request Employee Benefit Review Form
+request-benefit-review-title = Zusatzleistungsanfrage überprüfen
+request-benefit-review-initiated-by = Initiiert von { $initiatorName }
+request-benefit-review-benefit-details = Details zur Zusatzleistung
+request-benefit-review-benefit-type = Art der Zusatzleistung
+request-benefit-review-provider = Anbieter
+request-benefit-review-value = Wert
+request-benefit-review-period = Zeitraum
+
+# Period translations
+period-monthly = Monatlich
+period-yearly = Jährlich
+period-daily = Täglich
+request-benefit-review-start-date = Gewünschtes Startdatum
+request-benefit-review-employee-yearly-contribution = Jährlicher Beitrag des Mitarbeiters
+request-benefit-review-employee-monthly-contribution = Monatlicher Beitrag des Mitarbeiters
+request-benefit-review-additional-info = Zusätzliche Informationen
+request-benefit-review-justification = Begründung
+request-benefit-review-financial-details = Finanzielle Details
+request-benefit-review-employee-contributions = Mitarbeiterbeiträge
+request-benefit-review-approve = Genehmigen
+request-benefit-review-reject = Ablehnen
+request-benefit-review-loading = Lade Zusatzleistungsdaten...
+request-benefit-review-error-title = Daten können nicht geladen werden
+request-benefit-review-error-description = Fehler beim Laden der Mitarbeiter-Zusatzleistungsdaten
+
+# Deactivate Employee Benefit Form
+modal-deactivate-title = Mitarbeiter-Zusatzleistung deaktivieren
+modal-deactivate-end-date-label = Enddatum
+modal-deactivate-submit-button = Zusatzleistung deaktivieren
+
+# Deactivate Employee Benefit Form - Validation Messages
+error-end-date-required = Enddatum ist erforderlich. Bitte wählen Sie ein Enddatum aus.
+error-end-date-today-or-later = Das Enddatum muss heute oder später sein.
+error-end-date-after-start-date = Das Enddatum kann nicht vor dem Startdatum der Zusatzleistung liegen.
+
+# ============================================
+# Pending Submission Status Messages
+# ============================================
+
+# Change Bank Account Form
+change-bank-account-process-title = Bankkontoänderung
+change-bank-account-pending-status = Ausstehend
+
+# Change Address Form
+change-address-process-title = Adressänderung
+change-address-pending-status = Ausstehend
+
+# Change Personal Data Form
+change-personal-data-process-title = Persönliche Datenänderung
+change-personal-data-pending-status = Ausstehend
+
+# Change Communication Form
+change-communication-process-title = Kommunikationsänderung
+change-communication-pending-status = Ausstehend
+
+# Grant Bonus Form
+grant-bonus-process-title = Bonusgewährung
+grant-bonus-pending-status = Ausstehend
+
+# Adjust Salary Form
+adjust-salary-process-title = Gehaltsanpassung
+adjust-salary-pending-status = Ausstehend
+
+# Update Working Conditions Form
+working-conditions-probation-period = Probezeit
+working-conditions-probation-exception-warning = Sie haben das Enddatum der Probezeit manuell vom Vertragswert geändert. Bitte überprüfen.
+working-conditions-unit-day = { $count ->
+    [one] Tag
+   *[other] Tage
+}
+working-conditions-unit-week = { $count ->
+    [one] Woche
+   *[other] Wochen
+}
+working-conditions-unit-month = { $count ->
+    [one] Monat
+   *[other] Monate
+}
+working-conditions-unit-year = { $count ->
+    [one] Jahr
+   *[other] Jahre
+}
+
+# Create Request Correction Form
+complete-notification = Die Anfrage wird zur Genehmigung an den Manager gesendet
+notification-working-conditions-updated-success = Aktualisierungen der Arbeitsbedingungen zur Genehmigung an die Personalabteilung gesendet
+notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
+notification-feedback-request-sent-success = Ihre Feedbackanfrage wurde gesendet
+
+# ============================================
+# Create Employee Form
+# ============================================
+
+# Section Headers
+employee-form-personal-information = Persönliche Informationen
+employee-form-employment-information = Beschäftigungsinformationen
+employee-form-additional-attributes = Zusätzliche Attribute
+
+# Field Labels
+employee-form-first-name = Vorname
+employee-form-last-name = Nachname
+employee-form-email = E-Mail
+employee-form-organizational-unit = Organisationseinheit
+employee-form-job-position = Stelle
+employee-form-hire-date = Einstellungsdatum
+employee-form-preferred-name = Bevorzugter Name
+employee-form-employment-type = Beschäftigungsart
+employee-form-contract-type = Vertragsart
+
+# Validation Messages
+employee-form-email-invalid = Bitte geben Sie eine gültige E-Mail-Adresse ein
+
+# Empty States
+employee-form-no-results = Keine Ergebnisse gefunden
+employee-form-no-positions = Keine Stellen verfügbar
+employee-form-no-vacant-positions = Keine freien Stellen in der ausgewählten Organisationseinheit verfügbar
+
+# Tooltips
+employee-form-create-job-position-tooltip = Neue Stelle erstellen
+employee-form-select-org-unit-first = Bitte zuerst eine Organisationseinheit auswählen
+
+# Buttons
+employee-form-create-employee = Mitarbeiter erstellen
+employee-form-update-employee = Mitarbeiter aktualisieren
+
+# ============================================
+# Create Job Position Modal
+# ============================================
+
+create-job-position-title = Stelle erstellen
+create-job-position-name = Name
+create-job-position-total-open = Anzahl offener Stellen
+create-job-position-organizational-unit = Organisationseinheit
+create-job-position-error = Stelle konnte nicht erstellt werden. Bitte versuchen Sie es erneut.

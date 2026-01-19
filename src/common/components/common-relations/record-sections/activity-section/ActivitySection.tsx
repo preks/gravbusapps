@@ -1,128 +1,283 @@
-import React, { useMemo } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Button, Alert, Spinner, TimelineLayout } from '@newwork/nw-design-system';
-import { PlusCircleOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
-import { AppAction } from '@/components/app-action';
-import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-interface ActivitySectionProps extends BusinessAppContextProps {
-  accountId?: string;
-  contactId?: string;
-  opportunityId?: string;
-  leadId?: string;
-  defaultTab?: 'activities' | 'notes' | 'approvals' | 'documents' | 'ai-summary';
-  'data-testid'?: string;
-  activities?: any[];
-  activitiesLoading?: boolean;
-  activitiesError?: string | null;
-  onReloadActivities?: () => void;
+import React, { useMemo } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { Spinner, TimelineLayout, Button, Alert, EmptyState } from '@newwork/nw-design-system'
+import {
+  PhoneIcon,
+  EnvelopeIcon,
+  CalendarBlankIcon,
+  UserIcon,
+  PlusIcon,
+  DotsThreeVerticalIcon
+} from '@phosphor-icons/react'
+import dayjs from 'dayjs'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
+import { FileInfo } from '@/common/types/FileTypes'
+import type { Activity } from '@/common/data/relations/types/activityTypes'
+
+export type ActivityDocument = {
+  id: string
+  name: string
+  mimeType?: string
+  fileSize?: number
+  file?: string
+  fileInfo?: FileInfo
 }
 
-const ActivitySection: React.FC<ActivitySectionProps> = ({ defaultTab = 'activities', ...context }) => {
-  const activities = (context as any).activities || [];
-  const activitiesLoading = (context as any).activitiesLoading || false;
-  const activitiesError = (context as any).activitiesError || null;
-  // approvals handled in dedicated approval-section; kept here for future integration if needed
+export type ActivityItem = {
+  id: string
+  title: string
+  description?: string
+  occurredAt?: string
+  createdAt?: string
+  ownerEmployee?: {
+    id?: string
+    displayName?: string
+    firstName?: string
+    lastName?: string
+    pictureThumbnail?: string
+  }
+  createdBy?: string
+  activityType?: {
+    id?: string
+    code?: string
+    value?: string
+    type?: string
+  }
+  documents?: ActivityDocument[]
+}
 
-  const entity = useMemo(() => ({
-    accountId: (context as any).accountId,
-    contactId: (context as any).contactId,
-    opportunityId: (context as any).opportunityId,
-    leadId: (context as any).leadId,
-  }), [context]);
+export interface ActivitySectionProps extends BusinessAppContextProps {
+  activities?: Activity[]
+  activitiesLoading?: boolean
+  activitiesError?: string | null
+  onReloadActivities?: () => void
+  activitySectionActionProps?: Omit<AppActionCommonProps, 'accessToken'>
+  activityEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>
+  className?: string
+  alignment?: 'left' | 'right'
+}
 
-  const loadActivities = () => (context as any).onReloadActivities?.();
-  // no approvals/notes here – they live in their own sections
+// Standard React component that can be used with SectionWrapper
+const ActivitySection: React.FC<ActivitySectionProps> = props => {
+  const {
+    accessToken,
+    activities: rawActivities = [],
+    activitiesLoading = false,
+    activitiesError = null,
+    onReloadActivities,
+    activityEntityActionProps,
+    className,
+    alignment = 'left'
+  } = props
 
-  const getEmployeeDisplayNameFromObject = (emp: any) => emp?.displayName || (emp?.firstName && emp?.lastName ? `${emp.firstName} ${emp.lastName}` : 'Unknown User');
+  // Process activities - map from Activity to ActivityItem
+  const processedActivities = useMemo(() => {
+    if (!rawActivities || rawActivities.length === 0) return []
+
+    return rawActivities.map((activity: Activity) => ({
+      id: activity.id,
+      title: activity.title || 'Untitled Activity',
+      description: activity.description || '',
+      occurredAt: activity.occurredAt || activity.createdAt,
+      createdAt: activity.createdAt,
+      ownerEmployee: activity.ownerEmployee,
+      createdBy: activity.ownerEmployee
+        ? `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() ||
+          activity.ownerEmployee.displayName
+        : undefined,
+      activityType: activity.activityType,
+      documents: activity.documents || []
+    }))
+  }, [rawActivities])
+
+  // Handle document download
+  const handleDocumentClick = (document: ActivityDocument, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    if (!document.fileInfo) {
+      return
+    }
+
+    try {
+      const fileUrl = buildFileUrl(document.fileInfo)
+      window.open(fileUrl, '_blank')
+    } catch {
+      // Silent fail - fileInfo structure invalid
+    }
+  }
+
+  const getActivityIcon = (activityType: string) => {
+    switch (activityType?.toLowerCase()) {
+      case 'call':
+        return (props: any) => <PhoneIcon weight="bold" {...props} />
+      case 'email':
+        return (props: any) => <EnvelopeIcon weight="bold" {...props} />
+      case 'meeting':
+        return (props: any) => <CalendarBlankIcon weight="bold" {...props} />
+      default:
+        return (props: any) => <UserIcon weight="bold" {...props} />
+    }
+  }
+
+  const getActivityTypeLabel = (activityType: any) => activityType?.value || 'Activity'
+  const getOwnerName = (ownerEmployee: any) => {
+    if (!ownerEmployee) return 'Unknown'
+
+    // Use firstName + lastName first
+    const fullName = `${ownerEmployee.firstName || ''} ${ownerEmployee.lastName || ''}`.trim()
+    if (fullName) return fullName
+
+    // Fallback to displayName
+    return ownerEmployee.displayName || 'Unknown'
+  }
+
+  const handleEmployeeClick = (employeeId: string) => {
+    navigateTo(buildPlatformUrl('/platform/hr/core/employees/employee-record', { employeeId }))
+  }
 
   return (
-    <div data-testid={context['data-testid'] || 'activity-section'}>
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: 'var(--nw-spacing-xl) var(--nw-spacing-xl) var(--nw-spacing-md) var(--nw-spacing-xl)'
-        }}
-      >
-        <div style={{ fontSize: '18px', fontWeight: 500 }}>Activities</div>
-        <AppAction
-          accessToken={context.accessToken}
-          contextsArray={[FlowContextName.investmentActivityEntity]}
-          externalContextData={{ ...entity }}
-          prefixDataTestId="activities"
-          emptyStateBehavior="enable"
-        >
-          <Button data-testid="add-activity-button">
-            <span className="gba:flex gba:items-center gba:gap-2"><PlusCircleOutlined /> Add Activity</span>
-          </Button>
-        </AppAction>
-      </div>
-
-      {/* Content */}
-      <div style={{ padding: '0 var(--nw-spacing-xl) var(--nw-spacing-xl)' }}>
-        {activitiesLoading && (
-          <div style={{ textAlign: 'center', padding: 'var(--nw-spacing-2xl) 0' }}><Spinner /></div>
-        )}
-        {activitiesError && (
-          <Alert variant="destructive" className="gba:mb-4">
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span>Error Loading Activities: {activitiesError}</span>
-              <Button onClick={loadActivities} variant="outline" size="sm">Retry</Button>
-            </div>
-          </Alert>
-        )}
-        {!activitiesLoading && !activitiesError && activities.length === 0 && (
-          <div style={{ textAlign: 'center', padding: 'var(--nw-spacing-2xl) 0', color: 'var(--nw-color-text-secondary)' }} data-testid="empty-activities">
-            No activities yet. Start by adding your first activity.
+    <div data-testid="activity-section-new-content" className={className}>
+      {activitiesLoading ? (
+        <div className="gba:flex gba:justify-center gba:py-8">
+          <Spinner size="lg" />
+        </div>
+      ) : activitiesError ? (
+        <Alert variant="destructive" data-testid="activity-error-alert">
+          <div>
+            <strong>
+              {getTranslationFromI18nKeyAndLabel('crm.activities.errorTitle', 'Error loading activities')}
+            </strong>
+            <div>{activitiesError}</div>
+            {onReloadActivities && (
+              <Button variant="secondary" size="sm" onClick={onReloadActivities} data-testid="activity-retry-button">
+                {getTranslationFromI18nKeyAndLabel('crm.common.retry', 'Retry')}
+              </Button>
+            )}
           </div>
-        )}
-        {!activitiesLoading && !activitiesError && activities.length > 0 && (() => {
-          const items = activities.map((activity: any, index: number) => {
-            const title = activity.title || 'New Activity';
-            const dateSource = activity.occurredAt || activity.createdAt;
-            const occurred = dayjs(dateSource).isValid() ? dayjs(dateSource).format('MMM D, YYYY [at] h:mm A') : '';
-            const ownerName = activity.ownerEmployee ? getEmployeeDisplayNameFromObject(activity.ownerEmployee) : (activity.createdBy || 'Unknown User');
-            const ownerId = activity.ownerEmployee?.id;
-            const activityTypeLabel = activity.activityType?.value || activity.activityType;
-            const description = [activityTypeLabel, activity.description].filter(Boolean).join('\n');
+        </Alert>
+      ) : processedActivities.length === 0 ? (
+        <EmptyState
+          type="no-data"
+          title="No Activities"
+          description="No activities yet. Create your first activity."
+          data-testid="activity-section-empty-state"
+        />
+      ) : (
+        <TimelineLayout
+          items={processedActivities.map((activity: any) => {
+            const activityTypeLabel = getActivityTypeLabel(activity.activityType)
+            const ownerName = getOwnerName(activity.ownerEmployee)
+            const description = activity.description
+
+            const activityActions = activityEntityActionProps ? (
+              <AppActionMenu
+                accessToken={accessToken}
+                contextsArray={activityEntityActionProps.contextsArray}
+                externalContextData={{
+                  ...activityEntityActionProps.externalContextData,
+                  activityId: activity.id,
+                  activityType: activity.activityType?.value
+                }}
+                prefixDataTestId={`${activityEntityActionProps.prefixDataTestId}-${activity.id}`}
+                deferMainContextRequestsUntilClick={true}
+                emptyStateBehavior="enable"
+              >
+                <div
+                  className="gba:flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:cursor-pointer gba:rounded gba:hover:bg-muted gba:transition-colors"
+                  data-testid={`activity-menu-${activity.id}`}
+                >
+                  <DotsThreeVerticalIcon size={16} />
+                </div>
+              </AppActionMenu>
+            ) : null
+
             return {
-              id: index,
-              date: occurred,
-              title: title,
-              actor: ownerName
-                ? ownerId
-                  ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const url = buildPlatformUrl('/platform/employee-record', { employeeId: ownerId });
-                          navigateTo(url);
-                        }}
-                        className="gba:underline"
-                        data-testid={`activity-owner-link-${ownerId}`}
-                      >
-                        {ownerName}
-                      </button>
-                    )
-                  : ownerName
-                : undefined,
-              description,
-              color: 'pending',
-            } as any;
-          });
-          return (
-            <TimelineLayout size="sm" items={items} className="gba:w-full" />
-          );
-        })()}
-      </div>
+              id: activity.id,
+              date: dayjs(activity.occurredAt).format('MMM D, YYYY h:mm A'),
+              actor: activity.ownerEmployee ? (
+                <a
+                  href={buildPlatformUrl('/platform/hr/core/employees/employee-record', {
+                    employeeId: activity.ownerEmployee.id
+                  })}
+                  onClick={e => {
+                    e.preventDefault()
+                    handleEmployeeClick(activity.ownerEmployee.id)
+                  }}
+                  className="gba:font-medium gba:text-primary gba:hover:underline gba:cursor-pointer"
+                >
+                  {ownerName}
+                </a>
+              ) : undefined,
+              title: (
+                <div className="gba:flex gba:items-center gba:justify-between gba:w-full">
+                  <span className="gba:flex-1 gba:truncate">{activity.title}</span>
+                  {activityActions}
+                </div>
+              ),
+              description: (
+                <div className="gba:flex gba:flex-col gba:gap-2">
+                  {description && <span>{description}</span>}
+                  {activity.documents && activity.documents.length > 0 && (
+                    <div className="gba:flex gba:flex-wrap gba:gap-2">
+                      {activity.documents.map((doc: ActivityDocument) => {
+                        const FileIcon = getFileIcon(doc.mimeType)
+                        return (
+                          <button
+                            key={doc.id}
+                            onClick={e => handleDocumentClick(doc, e)}
+                            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:text-xs gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors"
+                            data-testid={`activity-document-${activity.id}-${doc.id}`}
+                            title={doc.name}
+                          >
+                            <FileIcon size={14} weight="bold" />
+                            <span className="gba:truncate gba:max-w-[150px]">{doc.name}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              ),
+              icon: getActivityIcon(activityTypeLabel)
+            } as any
+          })}
+          variant="default"
+          orientation="vertical"
+          alignment={alignment}
+          className="gba:w-full"
+        />
+      )}
     </div>
-  );
-};
+  )
+}
 
-export default ActivitySection;
+// Static properties for SectionWrapper
+;(ActivitySection as any).sectionTitle = 'Activities'
+;(ActivitySection as any).getActionButtonConfig = (_pageData: any, _pageIndex: number, props: ActivitySectionProps) => {
+  const { accessToken, activitySectionActionProps } = props
 
+  if (!activitySectionActionProps || !accessToken) {
+    return null
+  }
 
+  return {
+    type: 'AppAction' as const,
+    config: {
+      contextsArray: activitySectionActionProps.contextsArray,
+      externalContextData: activitySectionActionProps.externalContextData,
+      prefixDataTestId: activitySectionActionProps.prefixDataTestId,
+      emptyStateBehavior: activitySectionActionProps.emptyStateBehavior || 'enable',
+      children: (
+        <Button data-testid="add-activity-button" variant="secondary" size="icon">
+          <PlusIcon />
+        </Button>
+      )
+    }
+  }
+}
+
+export default ActivitySection

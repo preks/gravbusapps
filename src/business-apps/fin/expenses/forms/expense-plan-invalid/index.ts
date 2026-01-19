@@ -1,4 +1,4 @@
-import ExpensePlanInvalid from './ExpensePlanInvalid';
+import ExpensePlanInvalid from './ExpensePlanInvalid'
 
-export { ExpensePlanInvalid };
-export default ExpensePlanInvalid; 
+export { ExpensePlanInvalid }
+export default ExpensePlanInvalid

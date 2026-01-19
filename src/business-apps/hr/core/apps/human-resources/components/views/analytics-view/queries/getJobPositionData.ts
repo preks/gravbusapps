@@ -9,7 +9,12 @@ export const GET_JOB_POSITION_DATA = `
       where: {
         _and: [
           { isDeleted: { _eq: false } },
-          { organizationalUnitEmployees: { structureId: { _eq: $structureId } } }
+          { organizationalUnitEmployees: { 
+              structureId: { _eq: $structureId },
+              jobPositionId: { _isNull: false },
+              organizationalUnit: { isDeleted: { _eq: false } }
+            } 
+          }
         ]
       }
     ) {
@@ -25,7 +30,9 @@ export const GET_JOB_POSITION_DATA = `
           { isDeleted: { _eq: false } },
           { organizationalUnitEmployees: { 
               structureId: { _eq: $structureId },
-              employeeId: { _isNull: true }
+              jobPositionId: { _isNull: false },
+              employeeId: { _isNull: true },
+              organizationalUnit: { isDeleted: { _eq: false } }
             }
           }
         ]
@@ -36,4 +43,4 @@ export const GET_JOB_POSITION_DATA = `
       }
     }
   }
-`;
+`

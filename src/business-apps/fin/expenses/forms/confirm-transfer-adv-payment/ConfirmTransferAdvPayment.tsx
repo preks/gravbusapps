@@ -1,144 +1,178 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Spinner,
   Alert,
   AlertTitle,
   AlertDescription,
-  Button,
-} from "@newwork/nw-design-system";
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  useTranslation
+} from '@newwork/nw-design-system'
+import { CheckCircle } from 'lucide-react'
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-import { useGetAdvancePaymentForApproval } from "./queries";
-import { AdvancePaymentData } from "./types";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+dayjs.extend(utc)
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/components/TaskDetailHeader'
+import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
+import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
+import { useGetAdvancePaymentForApproval } from './queries'
+import { AdvancePaymentData } from './types'
 
 // Component imports
-import PaymentHeader from "./components/PaymentHeader";
-import EmployeeInfoSection from "./components/EmployeeInfoSection";
-import SupervisorInfoSection from "./components/SupervisorInfoSection";
-import TransactionSection from "./components/TransactionSection";
-import ActionButtons from "./components/ActionButtons";
+import EmployeeInfoSection from './components/EmployeeInfoSection'
+import SupervisorInfoSection from './components/SupervisorInfoSection'
+import TransactionSection from './components/TransactionSection'
+import TransactionConfirmationDetailsSection from './components/TransactionConfirmationDetailsSection'
+import translations from './_i18n'
 
-const ConfirmTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
+/**
+ * Extended interface for additionalData with form-specific properties
+ */
+interface ExtendedAdditionalData {
+  [k: string]: unknown
+  psi_taskCompletedAt?: string
+  psi_taskPayload?: {
+    [k: string]: unknown
+  }
+  psi_processMetadata?: {
+    [k: string]: unknown
+  }
+  psi_taskStatus?: string
+}
+
+interface ConfirmTransferAdvPaymentProps extends BusinessAppContextProps {
+  onClose?: () => void
+}
+
+const ConfirmTransferAdvPaymentContent: React.FC<ConfirmTransferAdvPaymentProps> = ({
   additionalData,
   accessToken,
   userInfo,
-  ...contextProps
+  onClose
 }) => {
-  const [paymentData, setPaymentData] = useState<AdvancePaymentData | null>(
-    null
-  );
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [transactionDate, setTransactionDate] = useState<string>("");
-  const [transactionId, setTransactionId] = useState<string>("");
-  const [confirmationChecked, setConfirmationChecked] = useState(false);
-  const [extractedPaymentId, setExtractedPaymentId] = useState<string>("");
+  const { t } = useTranslation(translations)
 
-  const { fetchAdvancePaymentData } =
-    useGetAdvancePaymentForApproval(accessToken);
+  // Cast additionalData to extended interface for proper typing
+  const extendedAdditionalData = additionalData as ExtendedAdditionalData | undefined
+
+  const [paymentData, setPaymentData] = useState<AdvancePaymentData | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [transactionDate, setTransactionDate] = useState<string>('')
+  const [transactionId, setTransactionId] = useState<string>('')
+  const [confirmationChecked, setConfirmationChecked] = useState(false)
+  const [extractedPaymentId, setExtractedPaymentId] = useState<string>('')
+  const [isConfirming, setIsConfirming] = useState(false)
+
+  const { fetchAdvancePaymentData } = useGetAdvancePaymentForApproval(accessToken)
+
+  // Extract task metadata
+  const processMetadata = additionalData?.psi_processMetadata || {}
+  const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
+  const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
+  const isTaskCompleted = taskStatus === 'COMPLETED' || !!taskCompletedAt
+  const taskTitle = processMetadata?.referenceTaskName || processMetadata?.nodeName || t('task-title')
 
   const formatDateToISO = (dateString: string): string => {
     if (!dateString) {
-      return new Date().toISOString();
+      return dayjs().utc().startOf('day').toISOString()
     }
 
     try {
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-      if (!dateRegex.test(dateString)) {
-        return new Date().toISOString();
+      // Parse the date string (should be YYYY-MM-DD format from date input)
+      const parsed = dayjs(dateString)
+
+      if (!parsed.isValid()) {
+        return dayjs().utc().startOf('day').toISOString()
       }
 
-      const dateWithTime = dateString + "T00:00:00";
-      const date = new Date(dateWithTime);
-
-      if (isNaN(date.getTime())) {
-        return new Date().toISOString();
-      }
-
-      return date.toISOString();
-    } catch (error) {
-      return new Date().toISOString();
+      // Return ISO format string with time set to start of day in UTC
+      // This ensures consistent date handling regardless of user's timezone
+      return parsed.utc().startOf('day').toISOString()
+    } catch {
+      return dayjs().utc().startOf('day').toISOString()
     }
-  };
+  }
 
   useEffect(() => {
     if (!extractedPaymentId) {
-      const paymentId = additionalData?.psi_taskPayload?.advancePayment?.id;
+      const paymentId = additionalData?.psi_taskPayload?.advancePayment?.id
       if (paymentId) {
-        setExtractedPaymentId(paymentId);
+        setExtractedPaymentId(paymentId)
       }
     }
-  }, [extractedPaymentId, additionalData]);
+  }, [extractedPaymentId, additionalData])
 
   useEffect(() => {
     if (extractedPaymentId) {
-      fetchPaymentData();
+      fetchPaymentData()
     }
-  }, [extractedPaymentId]);
+  }, [extractedPaymentId])
 
   const fetchPaymentData = async () => {
     if (!extractedPaymentId) {
-      return;
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
-      const data = await fetchAdvancePaymentData(extractedPaymentId);
+      const data = await fetchAdvancePaymentData(extractedPaymentId)
 
       if (data) {
-        setPaymentData(data);
+        setPaymentData(data)
       } else {
-        setError("No payment data received from server");
+        setError(t('error-no-payment-received'))
       }
     } catch (err) {
-      if (err instanceof Error && err.message.includes("429")) {
-        setError(
-          "API rate limit exceeded. Please wait a moment and try again."
-        );
+      if (err instanceof Error && err.message.includes('429')) {
+        setError(t('error-rate-limit'))
       } else {
-        setError(
-          err instanceof Error ? err.message : "Failed to fetch payment data"
-        );
+        setError(err instanceof Error ? err.message : 'Failed to fetch payment data')
       }
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    const today = new Date();
-    const todayString = today.toISOString().split("T")[0];
-    setTransactionDate(todayString);
-  }, []);
+    // Set today's date in YYYY-MM-DD format for the date input
+    const todayString = dayjs().format('YYYY-MM-DD')
+    setTransactionDate(todayString)
+  }, [])
 
   const handleConfirm = async () => {
     if (!userInfo?.employeeDetails?.employeeId) {
-      return;
+      return
     }
 
     if (!transactionDate) {
-      setError("Transaction date is required");
-      return;
+      setError(t('error-transaction-date-required'))
+      return
     }
 
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/
     if (!dateRegex.test(transactionDate)) {
-      setError("Please enter a valid transaction date (YYYY-MM-DD)");
-      return;
+      setError(t('error-invalid-date'))
+      return
     }
 
     if (!confirmationChecked) {
-      setError("Please confirm the payment transfer");
-      return;
+      setError(t('error-confirm-required'))
+      return
     }
 
     try {
-      setIsLoading(true);
-      setError(null);
+      setIsConfirming(true)
+      setError(null)
 
-      const formattedTransactionDate = formatDateToISO(transactionDate);
+      const formattedTransactionDate = formatDateToISO(transactionDate)
 
       const payload = {
         advancePayment: {
@@ -148,141 +182,243 @@ const ConfirmTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
           transactionDate: formattedTransactionDate,
           transactionNumber: transactionId,
           transactionConfirmed: confirmationChecked,
-          transactionConfirmedByEmployee: userInfo.employeeDetails.employeeId,
-        },
-      };
+          transactionConfirmedByEmployee: userInfo.employeeDetails.employeeId
+        }
+      }
 
-      window.dispatchEvent(
-        new CustomEvent("com.newwork.process.continue", {
-          detail: {
-            event: "pse_approve",
-            payload,
-          },
-        })
-      );
-    } catch (error) {
-      setError("Failed to confirm payment. Please try again.");
+      dispatchProcessContinueEvent('pse_approve', payload)
+    } catch {
+      setError(t('error-confirm-failed'))
     } finally {
-      setIsLoading(false);
+      setIsConfirming(false)
     }
-  };
+  }
+
+  const handleClose = () => {
+    if (onClose) {
+      onClose()
+    } else {
+      dispatchProcessContinueEvent('pse_abort', {
+        event: 'pse_abort'
+      })
+    }
+  }
+
+  // Detect if we're in every-box context (has onClose callback)
+  const isEveryBoxContext = !!onClose
+
+  // Prepare employee data for header
+  const employeeDataForHeader = useMemo(() => {
+    if (!paymentData?.expensePlan?.employee) {
+      return undefined
+    }
+
+    const employee = paymentData.expensePlan.employee
+
+    return {
+      displayName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || t('value-employee') || 'Employee',
+      firstName: employee.firstName,
+      lastName: employee.lastName,
+      avatarUrl: employee.pictureThumbnail ? `data:image/jpeg;base64,${employee.pictureThumbnail}` : undefined,
+      position: employee.employeePosition?.jobPosition?.name
+    }
+  }, [paymentData])
 
   if (isLoading) {
     return (
-      <div
-        className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px]"
-        data-testid="confirm-transfer-adv-payment-loading"
-      >
-        <Spinner size="lg" />
+      <div className="gba:flex gba:flex-col gba:h-full gba:px-6" data-testid="confirm-transfer-adv-payment-container">
+        <TaskDetailHeader title={taskTitle} onClose={isEveryBoxContext ? handleClose : undefined} />
+        <div
+          className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px] gba:flex-1"
+          data-testid="confirm-transfer-adv-payment-loading"
+        >
+          <Spinner size="lg" />
+        </div>
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
-      <Alert
-        variant="destructive"
-        data-testid="confirm-transfer-adv-payment-error"
-      >
-        <AlertTitle>Error Loading Payment Data</AlertTitle>
-        <AlertDescription>
-          {error}
-          {error.includes("rate limit") && (
-            <div style={{ marginTop: "var(--nw-spacing-md)" }}>
-              <Button
-                onClick={() => {
-                  fetchPaymentData();
-                }}
-                variant="outline"
-                size="sm"
-                data-testid="retry-button"
-              >
-                Retry
-              </Button>
-            </div>
-          )}
-        </AlertDescription>
-      </Alert>
-    );
+      <div className="gba:flex gba:flex-col gba:h-full gba:px-6" data-testid="confirm-transfer-adv-payment-container">
+        <TaskDetailHeader title={taskTitle} onClose={isEveryBoxContext ? handleClose : undefined} />
+        <div className="gba:flex-1 gba:overflow-y-auto gba:py-6">
+          <Alert variant="destructive" data-testid="confirm-transfer-adv-payment-error">
+            <AlertTitle>{t('error-loading-title')}</AlertTitle>
+            <AlertDescription>
+              {error}
+              {error.includes('rate limit') && (
+                <div style={{ marginTop: 'var(--nw-spacing-md)' }}>
+                  <button
+                    onClick={() => {
+                      fetchPaymentData()
+                    }}
+                    className="gba:px-3 gba:py-1 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:text-sm"
+                    data-testid="retry-button"
+                  >
+                    {t('action-retry')}
+                  </button>
+                </div>
+              )}
+            </AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    )
   }
 
   if (!paymentData) {
     return (
-      <Alert data-testid="confirm-transfer-adv-payment-no-data">
-        <AlertTitle>No Payment Data</AlertTitle>
-        <AlertDescription>
-          Unable to load payment information. Please try refreshing the page.
-        </AlertDescription>
-      </Alert>
-    );
+      <div className="gba:flex gba:flex-col gba:h-full gba:px-6" data-testid="confirm-transfer-adv-payment-container">
+        <TaskDetailHeader title={taskTitle} onClose={isEveryBoxContext ? handleClose : undefined} />
+        <div className="gba:flex-1 gba:overflow-y-auto gba:flex gba:items-center gba:justify-center gba:py-6">
+          <Alert data-testid="confirm-transfer-adv-payment-no-data">
+            <AlertTitle>{t('error-no-data-title')}</AlertTitle>
+            <AlertDescription>{t('error-no-data-description')}</AlertDescription>
+          </Alert>
+        </div>
+      </div>
+    )
   }
 
-  const { expensePlan } = paymentData;
-  const { employee } = expensePlan;
+  const { expensePlan } = paymentData
+  const { employee } = expensePlan
 
   const handleTransactionDateChange = (value: string) => {
-    setTransactionDate(value);
-  };
+    setTransactionDate(value)
+  }
 
   const handleTransactionIdChange = (value: string) => {
-    setTransactionId(value);
-  };
+    setTransactionId(value)
+  }
 
   const handleConfirmationChange = (checked: boolean) => {
-    setConfirmationChecked(checked);
-  };
+    setConfirmationChecked(checked)
+  }
 
   return (
-    <div
-      className="gba:border-0"
+    <TaskFormLayout
       data-testid="confirm-transfer-adv-payment-container"
+      header={
+        <TaskDetailHeader
+          title={taskTitle}
+          showEmployeeInfo={true}
+          employeeData={employeeDataForHeader}
+          isLoadingEmployee={isLoading}
+          onClose={isEveryBoxContext ? handleClose : undefined}
+        />
+      }
+      footer={
+        isTaskCompleted ? undefined : (
+          <TaskDetailFooter
+            data-testid="confirm-transfer-adv-payment-actions"
+            actions={[
+              {
+                label: t('action-confirm'),
+                onClick: handleConfirm,
+                variant: 'default' as const,
+                disabled: isConfirming || !confirmationChecked,
+                loading: isConfirming,
+                icon: CheckCircle,
+                className: 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90',
+                testId: 'confirm-button'
+              }
+            ]}
+          />
+        )
+      }
+      contentClassName="gba:space-y-4"
     >
-      <PaymentHeader />
+      {/* Error Messages */}
+      {error && (
+        <Alert variant="destructive" data-testid="error-message">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
-      <EmployeeInfoSection
-        employee={employee}
-        amount={paymentData.amount}
-        currency={paymentData.currency}
-        status={paymentData.status}
-        expensePlan={expensePlan}
-        accessToken={accessToken}
-      />
+      {/* Request Details Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('section-request-details')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <EmployeeInfoSection
+            employee={employee}
+            amount={paymentData.amount}
+            currency={paymentData.currency}
+            status={paymentData.status}
+            expensePlan={expensePlan}
+            accessToken={accessToken}
+          />
+        </CardContent>
+      </Card>
 
-      <SupervisorInfoSection
-        supervisor={employee.employeePosition.supervisor}
-      />
+      {/* Approved By Section */}
+      {employee.employeePosition?.supervisor && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('section-approved-by')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SupervisorInfoSection supervisor={employee.employeePosition.supervisor} />
+          </CardContent>
+        </Card>
+      )}
 
-      <TransactionSection
-        transactionDate={transactionDate}
-        transactionId={transactionId}
-        confirmationChecked={confirmationChecked}
-        onTransactionDateChange={handleTransactionDateChange}
-        onTransactionIdChange={handleTransactionIdChange}
-        onConfirmationChange={handleConfirmationChange}
-      />
+      {/* Transaction Confirmation Section - Only for non-completed tasks */}
+      {!isTaskCompleted && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('section-transaction-confirmation')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TransactionSection
+              transactionDate={transactionDate}
+              transactionId={transactionId}
+              confirmationChecked={confirmationChecked}
+              onTransactionDateChange={handleTransactionDateChange}
+              onTransactionIdChange={handleTransactionIdChange}
+              onConfirmationChange={handleConfirmationChange}
+            />
+          </CardContent>
+        </Card>
+      )}
 
-      <ActionButtons
-        onConfirm={handleConfirm}
-        isLoading={isLoading}
-        confirmationChecked={confirmationChecked}
-      />
-    </div>
-  );
-};
+      {/* Transaction Confirmation Details - Only for completed tasks */}
+      {isTaskCompleted && paymentData.transactionDate && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('section-transaction-confirmation-details')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TransactionConfirmationDetailsSection
+              transactionDate={paymentData.transactionDate}
+              transactionId={paymentData.transactionNumber}
+              transactionConfirmedBy={
+                paymentData.transactionConfirmedByEmployee
+                  ? `${paymentData.transactionConfirmedByEmployee.firstName} ${paymentData.transactionConfirmedByEmployee.lastName}`
+                  : undefined
+              }
+            />
+          </CardContent>
+        </Card>
+      )}
+    </TaskFormLayout>
+  )
+}
 
 /**
  * Confirm Transfer Advance Payment component
  * @param props - Business app context props
  * @returns Confirm Transfer Advance Payment component
  */
-const ConfirmTransferAdvPayment: React.FC<BusinessAppContextProps> = (
-  props
-) => {
+const ConfirmTransferAdvPayment: React.FC<ConfirmTransferAdvPaymentProps> = props => {
   return (
     <div data-testid="confirm-transfer-adv-payment-wrapper">
       <ConfirmTransferAdvPaymentContent {...props} />
     </div>
-  );
-};
+  )
+}
 
-export default ConfirmTransferAdvPayment;
+export default ConfirmTransferAdvPayment

@@ -1,189 +1,198 @@
-import React, { useState, useCallback } from 'react';
-import { Settings, ChevronDown, UserCircle, Users, Building2, DollarSign, FileCheck, X, Search, Plus } from 'lucide-react';
-import { AssignmentMode, TaskAssignment } from '../../types/flowTemplate';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { Button, Input, Popover, Tag, Select } from 'antd';
-import { useMockData } from '../../../../providers/MockDataProvider';
-
-interface AssignmentConfigurationProps {
-  step: any;
-  testId: string;
-  onUpdateStep: (updates: any) => void;
-}
+import React, { useState, useCallback } from 'react'
+import { Settings, ChevronDown, UserCircle, Users, Building2, DollarSign, FileCheck, Search, Plus } from 'lucide-react'
+import { AssignmentMode, TaskAssignment } from '../../types/flowTemplate'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { Button, Input, Popover, Tag, Select } from 'antd'
+import { useMockData } from '../../../../providers/MockDataProvider'
 
 interface AssignmentTriggerProps {
-  step: any;
-  testId: string;
-  onUpdateStep: (updates: any) => void;
+  step: any
+  testId: string
+  onUpdateStep: (updates: any) => void
 }
 
 interface AssignmentContentProps {
-  step: any;
-  testId: string;
-  onUpdateStep: (updates: any) => void;
+  step: any
+  testId: string
+  onUpdateStep: (updates: any) => void
 }
 
 interface SimpleAssignmentSelectorProps {
-  value: TaskAssignment;
-  onChange: (assignment: TaskAssignment) => void;
-  'data-testid'?: string;
+  value: TaskAssignment
+  onChange: (assignment: TaskAssignment) => void
+  'data-testid'?: string
 }
 
 // Assignment type options - moved outside component to prevent recreation
 const ASSIGNMENT_TYPES = [
-  { 
-    key: 'users', 
-    label: 'Specific Users', 
+  {
+    key: 'users',
+    label: 'Specific Users',
     icon: UserCircle,
-    field: 'userIds',
+    field: 'users',
     dataSource: 'users'
   },
-  { 
-    key: 'departments', 
-    label: 'Departments', 
+  {
+    key: 'departments',
+    label: 'Departments',
     icon: Users,
     field: 'organizationalUnits',
     dataSource: 'departments'
   },
-  { 
-    key: 'teams', 
-    label: 'Matrix Teams', 
+  {
+    key: 'teams',
+    label: 'Matrix Teams',
     icon: Users,
     field: 'matrixTeams',
     dataSource: 'matrixTeams'
   },
-  { 
-    key: 'companies', 
-    label: 'Companies', 
+  {
+    key: 'companies',
+    label: 'Companies',
     icon: Building2,
     field: 'companies',
     dataSource: 'companies'
   },
-  { 
-    key: 'costCenters', 
-    label: 'Cost Centers', 
+  {
+    key: 'costCenters',
+    label: 'Cost Centers',
     icon: DollarSign,
     field: 'costCenters',
     dataSource: 'costCenters'
   },
-  { 
-    key: 'capabilities', 
-    label: 'Capabilities', 
+  {
+    key: 'capabilities',
+    label: 'Capabilities',
     icon: FileCheck,
     field: 'capabilities',
     dataSource: 'capabilities'
   }
-] as const;
+] as const
 
 const SimpleAssignmentSelector: React.FC<SimpleAssignmentSelectorProps> = ({
   value,
   onChange,
   'data-testid': testId = 'simple-assignment-selector'
 }) => {
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const { users, departments, capabilities, companies, costCenters, matrixTeams } = useMockData();
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const { users, departments, capabilities, companies, costCenters, matrixTeams } = useMockData()
 
   // Get current target (single object)
-  const currentTarget = value.targets || {};
+  const currentTarget = value.targets || {}
 
   // Get data source for the selected type - simplified without memoization
   const getDataSource = (dataSource: string) => {
     switch (dataSource) {
-      case 'users': return users || [];
-      case 'departments': return departments || [];
-      case 'capabilities': return capabilities || [];
-      case 'companies': return companies || [];
-      case 'costCenters': return costCenters || [];
-      case 'matrixTeams': return matrixTeams || [];
-      default: return [];
+      case 'users':
+        return users || []
+      case 'departments':
+        return departments || []
+      case 'capabilities':
+        return capabilities || []
+      case 'companies':
+        return companies || []
+      case 'costCenters':
+        return costCenters || []
+      case 'matrixTeams':
+        return matrixTeams || []
+      default:
+        return []
     }
-  };
+  }
 
   // Get all selected entities as flat list for pills
   const getAllSelectedEntities = () => {
-    const allSelected: Array<{id: string, name: string, type: string, config: any}> = [];
-    
+    const allSelected: Array<{ id: string; name: string; type: string; config: any }> = []
+
     ASSIGNMENT_TYPES.forEach(type => {
-      const fieldValues = currentTarget[type.field as keyof typeof currentTarget] || [];
+      const fieldValues = currentTarget[type.field as keyof typeof currentTarget] || []
       fieldValues.forEach((entityId: string) => {
-        const entityName = entityId === 'ANY' ? 'Anyone' : 
-          getDataSource(type.dataSource).find(e => e.id === entityId)?.name || entityId;
-        
+        const entityName =
+          entityId === 'ANY' ? 'Anyone' : getDataSource(type.dataSource).find(e => e.id === entityId)?.name || entityId
+
         allSelected.push({
           id: entityId,
           name: entityName,
           type: type.key,
           config: type
-        });
-      });
-    });
-    
-    return allSelected;
-  };
+        })
+      })
+    })
+
+    return allSelected
+  }
 
   // Handle adding an entity - using useCallback only for event handlers
-  const handleAddEntity = useCallback((typeKey: string, entityId: string) => {
-    const typeConfig = ASSIGNMENT_TYPES.find(t => t.key === typeKey);
-    if (!typeConfig) return;
+  const handleAddEntity = useCallback(
+    (typeKey: string, entityId: string) => {
+      const typeConfig = ASSIGNMENT_TYPES.find(t => t.key === typeKey)
+      if (!typeConfig) return
 
-    const fieldKey = typeConfig.field as keyof typeof currentTarget;
-    const currentValues = currentTarget[fieldKey] || [];
+      const fieldKey = typeConfig.field as keyof typeof currentTarget
+      const currentValues = currentTarget[fieldKey] || []
 
-    if (!currentValues.includes(entityId)) {
+      if (!currentValues.includes(entityId)) {
+        const newTarget = {
+          ...currentTarget,
+          [fieldKey]: [...currentValues, entityId]
+        }
+
+        onChange({
+          ...value,
+          targets: newTarget,
+          allowReassignment: true
+        })
+      }
+
+      setSearchQuery('')
+      setSelectedCategory(null)
+      setIsPopoverOpen(false)
+    },
+    [onChange, currentTarget, value]
+  )
+
+  // Handle removing an entity
+  const handleRemoveEntity = useCallback(
+    (typeKey: string, entityId: string) => {
+      const typeConfig = ASSIGNMENT_TYPES.find(t => t.key === typeKey)
+      if (!typeConfig) return
+
+      const fieldKey = typeConfig.field as keyof typeof currentTarget
+      const currentValues = currentTarget[fieldKey] || []
+      const newValues = currentValues.filter((v: string) => v !== entityId)
+
       const newTarget = {
         ...currentTarget,
-        [fieldKey]: [...currentValues, entityId]
-      };
+        [fieldKey]: newValues
+      }
 
       onChange({
         ...value,
-        targets: newTarget,
-        allowReassignment: true
-      });
-    }
-
-    setSearchQuery('');
-    setSelectedCategory(null);
-    setIsPopoverOpen(false);
-  }, [onChange, currentTarget, value]);
-
-  // Handle removing an entity
-  const handleRemoveEntity = useCallback((typeKey: string, entityId: string) => {
-    const typeConfig = ASSIGNMENT_TYPES.find(t => t.key === typeKey);
-    if (!typeConfig) return;
-
-    const fieldKey = typeConfig.field as keyof typeof currentTarget;
-    const currentValues = currentTarget[fieldKey] || [];
-    const newValues = currentValues.filter((v: string) => v !== entityId);
-
-    const newTarget = {
-      ...currentTarget,
-      [fieldKey]: newValues
-    };
-
-    onChange({
-      ...value,
-      targets: newTarget
-    });
-  }, [onChange, currentTarget, value]);
+        targets: newTarget
+      })
+    },
+    [onChange, currentTarget, value]
+  )
 
   // Filter entities within a category
   const getFilteredEntitiesForCategory = (categoryKey: string) => {
-    const categoryConfig = ASSIGNMENT_TYPES.find(t => t.key === categoryKey);
-    if (!categoryConfig) return [];
+    const categoryConfig = ASSIGNMENT_TYPES.find(t => t.key === categoryKey)
+    if (!categoryConfig) return []
 
-    const entities = getDataSource(categoryConfig.dataSource);
-    const currentValues = currentTarget[categoryConfig.field as keyof typeof currentTarget] || [];
+    const entities = getDataSource(categoryConfig.dataSource)
+    const currentValues = currentTarget[categoryConfig.field as keyof typeof currentTarget] || []
 
-    return searchQuery.trim() === '' 
+    return searchQuery.trim() === ''
       ? entities.slice(0, 8).filter(e => !currentValues.includes(e.id))
-      : entities.filter(entity => 
-          entity.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-          !currentValues.includes(entity.id)
-        ).slice(0, 10);
-  };
+      : entities
+          .filter(
+            entity =>
+              entity.name.toLowerCase().includes(searchQuery.toLowerCase()) && !currentValues.includes(entity.id)
+          )
+          .slice(0, 10)
+  }
 
   // Popover content - simple function, no memoization
   const popoverContent = (
@@ -194,7 +203,7 @@ const SimpleAssignmentSelector: React.FC<SimpleAssignmentSelectorProps> = ({
           <Input
             placeholder={`Search ${ASSIGNMENT_TYPES.find(t => t.key === selectedCategory)?.label.toLowerCase()}...`}
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={e => setSearchQuery(e.target.value)}
             prefix={<Search className="gba:w-4 gba:h-4 gba:text-gray-400" />}
             size="small"
             data-testid={`${testId}-search-input`}
@@ -211,7 +220,7 @@ const SimpleAssignmentSelector: React.FC<SimpleAssignmentSelectorProps> = ({
               Assignment Types
             </div>
             {ASSIGNMENT_TYPES.map(type => {
-              const IconComponent = type.icon;
+              const IconComponent = type.icon
               return (
                 <div
                   key={type.key}
@@ -225,7 +234,7 @@ const SimpleAssignmentSelector: React.FC<SimpleAssignmentSelectorProps> = ({
                   <span className="gba:text-sm gba:font-medium gba:flex-1">{type.label}</span>
                   <ChevronDown className="gba:w-4 gba:h-4 gba:text-gray-400" />
                 </div>
-              );
+              )
             })}
           </div>
         ) : (
@@ -233,7 +242,10 @@ const SimpleAssignmentSelector: React.FC<SimpleAssignmentSelectorProps> = ({
           <div className="gba:p-1">
             <div
               className="gba:flex gba:items-center gba:gap-2 gba:mx-1 gba:px-3 gba:py-2 gba:rounded-md gba:cursor-pointer gba:text-sm gba:text-blue-600 hover:gba:bg-blue-50 gba:transition-colors gba:border-b gba:border-gray-100 gba:mb-1"
-              onClick={() => {setSelectedCategory(null); setSearchQuery('');}}
+              onClick={() => {
+                setSelectedCategory(null)
+                setSearchQuery('')
+              }}
             >
               ← Back to categories
             </div>
@@ -264,7 +276,7 @@ const SimpleAssignmentSelector: React.FC<SimpleAssignmentSelectorProps> = ({
         )}
       </div>
     </div>
-  );
+  )
 
   return (
     <div className="gba:space-y-3" data-testid={testId}>
@@ -275,7 +287,7 @@ const SimpleAssignmentSelector: React.FC<SimpleAssignmentSelectorProps> = ({
         </span>
         <Select
           value={value.assignmentMode || AssignmentMode.CLAIM}
-          onChange={(mode) => onChange({ ...value, assignmentMode: mode })}
+          onChange={mode => onChange({ ...value, assignmentMode: mode })}
           size="small"
           style={{ width: '120px' }}
           data-testid={`${testId}-mode-select`}
@@ -294,8 +306,7 @@ const SimpleAssignmentSelector: React.FC<SimpleAssignmentSelectorProps> = ({
         <div className="gba:text-sm gba:text-gray-600">
           {getAllSelectedEntities().length === 0
             ? getTranslationFromI18nKeyAndLabel('flow.creator.noAssignments', 'No assignments configured')
-            : `${getAllSelectedEntities().length} assignment${getAllSelectedEntities().length === 1 ? '' : 's'} configured`
-          }
+            : `${getAllSelectedEntities().length} assignment${getAllSelectedEntities().length === 1 ? '' : 's'} configured`}
         </div>
 
         <Popover
@@ -321,7 +332,7 @@ const SimpleAssignmentSelector: React.FC<SimpleAssignmentSelectorProps> = ({
       {getAllSelectedEntities().length > 0 && (
         <div className="gba:flex gba:flex-wrap gba:gap-2 gba:p-3 gba:bg-gray-50 gba:rounded gba:border gba:border-gray-200">
           {getAllSelectedEntities().map(({ id, name, type, config }) => {
-            const IconComponent = config.icon;
+            const IconComponent = config.icon
             return (
               <Tag
                 key={`${type}-${id}`}
@@ -335,19 +346,15 @@ const SimpleAssignmentSelector: React.FC<SimpleAssignmentSelectorProps> = ({
                 </span>
                 <span className="gba:text-sm gba:font-medium">{name}</span>
               </Tag>
-            );
+            )
           })}
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-export const AssignmentTrigger: React.FC<AssignmentTriggerProps> = ({
-  step,
-  testId,
-  onUpdateStep
-}) => {
+export const AssignmentTrigger: React.FC<AssignmentTriggerProps> = ({ step }) => {
   return (
     <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:pr-4">
       <div className="gba:flex gba:items-center gba:gap-2">
@@ -362,20 +369,16 @@ export const AssignmentTrigger: React.FC<AssignmentTriggerProps> = ({
         )}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export const AssignmentContent: React.FC<AssignmentContentProps> = ({
-  step,
-  testId,
-  onUpdateStep
-}) => {
+export const AssignmentContent: React.FC<AssignmentContentProps> = ({ step, testId, onUpdateStep }) => {
   // Initialize assignment only if it doesn't exist, but don't force empty arrays
   const assignment = step.assignment || {
     targets: null, // null targets means flexible assignment
     assignmentMode: AssignmentMode.CLAIM,
     allowReassignment: true
-  };
+  }
 
   return (
     <div className="gba:pt-2">
@@ -385,5 +388,5 @@ export const AssignmentContent: React.FC<AssignmentContentProps> = ({
         data-testid={`${testId}-assignment-selector`}
       />
     </div>
-  );
-}; 
+  )
+}

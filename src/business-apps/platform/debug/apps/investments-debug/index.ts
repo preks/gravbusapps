@@ -1,10 +1,10 @@
 // Investment Data Foundation Debug App
 // For testing all aspects of the newly created investment data system
 
-import InvestmentsDebug from './InvestmentsDebug';
+import InvestmentsDebug from './InvestmentsDebug'
 
 // Named export
-export { InvestmentsDebug };
+export { InvestmentsDebug }
 
 // Default export
-export default InvestmentsDebug;
+export default InvestmentsDebug

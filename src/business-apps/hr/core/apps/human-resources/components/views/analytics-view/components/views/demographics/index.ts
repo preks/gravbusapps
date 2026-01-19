@@ -1,2 +1,2 @@
-export { default as Demographics } from './Demographics';
-export { default } from './Demographics'; 
+export { default as Demographics } from './Demographics'
+export { default } from './Demographics'

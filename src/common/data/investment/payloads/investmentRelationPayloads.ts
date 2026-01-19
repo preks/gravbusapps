@@ -1,139 +1,175 @@
-import { Activity } from '@/common/components/common-relations/form-segments';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { toISOFormat } from '@/common/utils/dateFormatter';
-import type { NoteSegmentSchema } from '@/common/components/common-relations/form-segments';
+import { Activity } from '@/common/components/common-relations/form-segments/activity-segment/ActivitySegment'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { toISOFormat } from '@/common/utils/dateFormatter'
+import type { NoteSegmentSchema } from '@/common/components/common-relations/form-segments/note-segment/NoteSegment'
+
+// Helper to extract entity ID from object or string
+const getEntityId = (entity: any): string | undefined => {
+  if (!entity) return undefined
+  if (typeof entity === 'string') return entity
+  return entity.id
+}
+
+// Helper to extract investment ID from additional data
+const extractInvestmentId = (additionalDataRecord: Record<string, any>): string | undefined => {
+  const external = additionalDataRecord.externalContextData || {}
+  return (
+    external.investmentId ||
+    external.investment?.id ||
+    external.investment ||
+    additionalDataRecord.investmentId ||
+    additionalDataRecord.investment?.id ||
+    additionalDataRecord.investment
+  )
+}
+
+// Helper to extract account ID from additional data
+const extractAccountId = (additionalDataRecord: Record<string, any>): string | undefined => {
+  const external = additionalDataRecord.externalContextData || {}
+  return (
+    additionalDataRecord.accountId || additionalDataRecord.account?.id || external.accountId || external.account?.id
+  )
+}
+
+// Helper to extract contact ID from additional data
+const extractContactId = (additionalDataRecord: Record<string, any>): string | undefined => {
+  const external = additionalDataRecord.externalContextData || {}
+  return (
+    additionalDataRecord.contactId || additionalDataRecord.contact?.id || external.contactId || external.contact?.id
+  )
+}
+
+// Helper to extract opportunity ID from additional data
+const extractOpportunityId = (additionalDataRecord: Record<string, any>): string | undefined => {
+  const external = additionalDataRecord.externalContextData || {}
+  return (
+    additionalDataRecord.opportunityId ||
+    additionalDataRecord.opportunity?.id ||
+    external.opportunityId ||
+    external.opportunity?.id
+  )
+}
+
+// Helper to add investment and account from context
+const addInvestmentAndAccountFromContext = (
+  refs: Record<string, any>,
+  additionalDataRecord: Record<string, any>
+): void => {
+  const investmentId = extractInvestmentId(additionalDataRecord)
+  if (investmentId) {
+    refs.investment = investmentId
+    const accountIdFromContext = extractAccountId(additionalDataRecord)
+    if (accountIdFromContext && !refs.account) {
+      refs.account = accountIdFromContext
+    }
+  }
+}
+
+// Helper to add entities from context as fallback
+const addEntitiesFromContextFallback = (refs: Record<string, any>, additionalDataRecord: Record<string, any>): void => {
+  if (!refs.account) {
+    const accountIdFromContext = extractAccountId(additionalDataRecord)
+    if (accountIdFromContext) {
+      refs.account = accountIdFromContext
+    }
+  }
+  if (!refs.contact) {
+    const contactIdFromContext = extractContactId(additionalDataRecord)
+    if (contactIdFromContext) {
+      refs.contact = contactIdFromContext
+    }
+  }
+  if (!refs.opportunity) {
+    const opportunityIdFromContext = extractOpportunityId(additionalDataRecord)
+    if (opportunityIdFromContext) {
+      refs.opportunity = opportunityIdFromContext
+    }
+  }
+}
+
+// Helper to add lead from context
+const addLeadFromContext = (refs: Record<string, any>, additionalDataRecord: Record<string, any>): void => {
+  if (refs.lead) return
+  const external = additionalDataRecord.externalContextData || {}
+  const leadId = additionalDataRecord.leadId || additionalDataRecord.lead?.id || external.leadId || external.lead?.id
+  if (leadId) {
+    refs.lead = leadId
+  }
+}
 
 export const buildActivityPayload = (
   activity: Activity,
   businessAppContext: BusinessAppContextProps,
   options: { isUpdate?: boolean } = {}
 ) => {
-  // Helper to get the single entity reference
+  // Helper to build entity references
   const getEntityRef = () => {
-    if (activity.account) return { account: activity.account.id };
-    if (activity.contact) return { contact: activity.contact.id };
-    if (activity.opportunity) return { opportunity: activity.opportunity.id };
-    if (activity.lead) return { lead: activity.lead.id };
-    return {};
-  };
+    const refs: Record<string, any> = {}
+    const accountId = getEntityId(activity.account)
+    const contactId = getEntityId(activity.contact)
+    const opportunityId = getEntityId(activity.opportunity)
+    const leadId = getEntityId(activity.lead)
 
+    if (accountId) refs.account = accountId
+    if (contactId) refs.contact = contactId
+    if (opportunityId) refs.opportunity = opportunityId
+    if (leadId) refs.lead = leadId
 
+    // Always include parent investment when provided via additional/external context
+    const additionalData = (businessAppContext as any)?.additionalData || {}
+    const initialParameters = additionalData?.psi_taskPayload?.psi_initialParameters
+    const additionalDataRecord = initialParameters ? { ...additionalData, ...initialParameters } : additionalData
+    addInvestmentAndAccountFromContext(refs, additionalDataRecord)
+    addEntitiesFromContextFallback(refs, additionalDataRecord)
+    addLeadFromContext(refs, additionalDataRecord)
+    return refs
+  }
 
   // Get owner employee ID from business app context
   const getOwnerEmployee = () => {
+    // Activity payload debug (sensitive data removed)
+
     if (activity.ownerEmployee?.id) {
-      return activity.ownerEmployee.id;
+      // Using activity.ownerEmployee.id
+      return activity.ownerEmployee.id
     }
-    
+    // Also support flat field from UI segment
+    const ownerId = (activity as any)?.ownerEmployeeId
+    if (ownerId) {
+      // Using activity.ownerEmployeeId
+      return ownerId
+    }
+
     // Fallback to current user's employee ID from context
     if (businessAppContext.userInfo?.employeeDetails?.employeeId) {
-      return businessAppContext.userInfo.employeeDetails.employeeId;
+      // Falling back to current user employee ID
+      return businessAppContext.userInfo.employeeDetails.employeeId
     }
-    
-    return undefined;
-  };
 
-  const payloadBody = {
+    return undefined
+  }
+
+  const payloadBody: any = {
     title: activity.title,
     description: activity.description,
     occurredAt: toISOFormat(activity.occurredAt),
     activityTypeRef: activity.activityTypeRef || undefined,
     ownerEmployee: getOwnerEmployee(),
-    ...getEntityRef(),
-    ...(options.isUpdate && activity.id && {
-      id: activity.id,
-      version: activity.version,
-    }),
-  };
+    ...getEntityRef()
+  }
+
+  // Always pass documents array - empty array will delete all, IDs will keep existing, objects will create new
+  payloadBody.documents = (activity as any).documents || []
+
+  if (options.isUpdate && activity.id) {
+    payloadBody.id = activity.id
+    payloadBody.version = activity.version
+  }
 
   return {
-    investmentActivity: payloadBody,
-  };
-};
-
-// ==============================
-// Investment Task Payload
-// ==============================
-
-export interface InvestmentTaskFormData {
-  id?: string;
-  version?: number;
-  title: string;
-  code?: string;
-  description: string;
-  taskTypeRef: string;
-  taskPriorityRef: string;
-  taskStatusRef?: string;
-  taskTiming?: string; // DEADLINE | SCHEDULED
-  dueDate: string | null;
-  // optional scheduling fields
-  templateStartDate?: string | null;
-  startDate?: string | null;
-  endDate?: string | null;
-  assignedEmployeeId?: string;
-  assignedUserId?: string;
-  creatorEmployeeId?: string;
-  creatorUserId?: string;
-  // related entity (only one)
-  account?: { id: string };
-  contact?: { id: string };
-  opportunity?: { id: string };
-  lead?: { id: string };
+    investmentActivity: payloadBody
+  }
 }
-
-export const buildInvestmentTaskPayload = (
-  task: InvestmentTaskFormData,
-  businessAppContext: BusinessAppContextProps,
-  options: { isUpdate?: boolean } = {}
-) => {
-  const getEntityRef = () => {
-    if (task.account) return { account: task.account.id };
-    if (task.contact) return { contact: task.contact.id };
-    if (task.opportunity) return { opportunity: task.opportunity.id };
-    if (task.lead) return { lead: task.lead.id };
-    return {} as Record<string, any>;
-  };
-
-
-  const payloadBody: any = {
-    name: task.title,
-    code: task.code || undefined,
-    description: task.description,
-    taskTypeRef: task.taskTypeRef,
-    taskPriorityRef: task.taskPriorityRef,
-    taskStatusRef: task.taskStatusRef || undefined,
-    taskTiming: task.taskTiming || undefined,
-    dueDate: task.dueDate ? toISOFormat(task.dueDate) : null,
-    templateStartDate: task.templateStartDate ? toISOFormat(task.templateStartDate) : undefined,
-    startDate: task.startDate ? toISOFormat(task.startDate) : undefined,
-    endDate: task.endDate ? toISOFormat(task.endDate) : undefined,
-    assignedEmployee: task.assignedEmployeeId || undefined,
-    assignedUserId: task.assignedUserId || undefined,
-    ...getEntityRef(),
-  };
-
-  // Creator fields handling: create vs update
-  if (options.isUpdate) {
-    if (task.creatorEmployeeId) {
-      payloadBody.creatorEmployee = task.creatorEmployeeId;
-    }
-    if (task.creatorUserId) {
-      payloadBody.creatorUserId = task.creatorUserId;
-    }
-  } else {
-    payloadBody.creatorEmployee = businessAppContext.userInfo?.employeeDetails?.employeeId;
-    payloadBody.creatorUserId = businessAppContext.userInfo?.id;
-  }
-
-  if (options.isUpdate && task.id) {
-    payloadBody.id = task.id;
-    payloadBody.version = task.version;
-  }
-
-  return {
-    investmentTask: payloadBody,
-  };
-};
 
 // ==============================
 // Investment Note Payload
@@ -142,35 +178,64 @@ export const buildInvestmentTaskPayload = (
 export const buildInvestmentNotePayload = (
   note: NoteSegmentSchema,
   businessAppContext: BusinessAppContextProps,
-  additionalData?: { accountId?: string; contactId?: string; opportunityId?: string; leadId?: string },
   options: { isUpdate?: boolean } = {}
 ) => {
+  // Helper to build entity references (same pattern as activity)
   const getEntityRef = () => {
-    if (note.account) return { account: note.account.id };
-    if (note.contact) return { contact: note.contact.id };
-    if (note.opportunity) return { opportunity: note.opportunity.id };
-    if (note.lead) return { lead: note.lead.id };
-    // Fallback to additionalData if provided
-    if (additionalData?.accountId) return { account: additionalData.accountId };
-    if (additionalData?.contactId) return { contact: additionalData.contactId };
-    if (additionalData?.opportunityId) return { opportunity: additionalData.opportunityId };
-    if (additionalData?.leadId) return { lead: additionalData.leadId };
-    return {} as Record<string, any>;
-  };
+    const refs: Record<string, any> = {}
+    const accountId = getEntityId(note.account)
+    const contactId = getEntityId(note.contact)
+    const opportunityId = getEntityId(note.opportunity)
+    const leadId = getEntityId(note.lead)
+
+    if (accountId) refs.account = accountId
+    if (contactId) refs.contact = contactId
+    if (opportunityId) refs.opportunity = opportunityId
+    if (leadId) refs.lead = leadId
+
+    // Always include parent investment when provided via additionalData or externalContextData
+    const additionalData = (businessAppContext as any)?.additionalData || {}
+    const initialParameters = additionalData?.psi_taskPayload?.psi_initialParameters
+    const additionalDataRecord = initialParameters ? { ...additionalData, ...initialParameters } : additionalData
+    addInvestmentAndAccountFromContext(refs, additionalDataRecord)
+    addEntitiesFromContextFallback(refs, additionalDataRecord)
+    addLeadFromContext(refs, additionalDataRecord)
+    return refs
+  }
+
+  // Get author employee ID from business app context (same pattern as activity)
+  const getAuthorEmployee = () => {
+    if (note.authorEmployee?.id) {
+      return note.authorEmployee.id
+    }
+
+    // Fallback to current user's employee ID from context
+    if (businessAppContext.userInfo?.employeeDetails?.employeeId) {
+      return businessAppContext.userInfo.employeeDetails.employeeId
+    }
+
+    console.warn('No author employee ID found in note data or business context')
+    return undefined
+  }
 
   const payloadBody: any = {
     title: note.title,
     text: note.text,
     reminderDate: note.reminderDate ? toISOFormat(note.reminderDate) : null,
-    authorEmployee: businessAppContext.userInfo?.employeeDetails?.employeeId,
-    ...getEntityRef(),
-  };
+    authorEmployee: getAuthorEmployee(),
+    ...getEntityRef()
+  }
 
-  if (options.isUpdate) {
-    // The form currently does not provide id/version; extend when edit support is added
+  // Always pass documents array - empty array will delete all, IDs will keep existing, objects will create new
+  payloadBody.documents = (note as any).documents || []
+
+  // Add id and version for update mode
+  if (options.isUpdate && (note as any).id) {
+    payloadBody.id = (note as any).id
+    payloadBody.version = note.version
   }
 
   return {
-    investmentNote: payloadBody,
-  };
-};
+    investmentNote: payloadBody
+  }
+}

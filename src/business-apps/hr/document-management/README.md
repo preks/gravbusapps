@@ -24,7 +24,7 @@ None
 #### Usage
 
 ```tsx
-import { DocumentTypes } from './document-management';
+import { DocumentTypes } from './document-management'
 
 function App() {
   return (
@@ -32,7 +32,7 @@ function App() {
       <h1>Document Management</h1>
       <DocumentTypes />
     </div>
-  );
+  )
 }
 ```
 
@@ -59,19 +59,19 @@ A custom hook that manages the state and logic for document types.
 #### Usage
 
 ```tsx
-import { useDocumentTypes } from './hooks/useDocumentTypes';
+import { useDocumentTypes } from './hooks/useDocumentTypes'
 
 function MyComponent() {
-  const { 
-    documentTypes, 
-    loading, 
+  const {
+    documentTypes,
+    loading,
     error,
     fetchDocumentTypes,
     createDocumentType,
     updateDocumentType,
-    deleteDocumentType 
-  } = useDocumentTypes();
-  
+    deleteDocumentType
+  } = useDocumentTypes()
+
   // Use the hook's methods and state here
 }
 ```
@@ -82,16 +82,16 @@ function MyComponent() {
 
 ```typescript
 interface DocumentType {
-  id: string;
-  name: string;
-  description: string;
-  module: string;
-  fileTypes: string[];
-  maxSize: number;
-  rolePermissions: Record<string, RolePermission>;
-  isActive: boolean;
-  gdprRelevant: boolean;
-  securityLevel: 'public' | 'internal' | 'confidential' | 'restricted';
+  id: string
+  name: string
+  description: string
+  module: string
+  fileTypes: string[]
+  maxSize: number
+  rolePermissions: Record<string, RolePermission>
+  isActive: boolean
+  gdprRelevant: boolean
+  securityLevel: 'public' | 'internal' | 'confidential' | 'restricted'
 }
 ```
 
@@ -99,11 +99,11 @@ interface DocumentType {
 
 ```typescript
 interface RolePermission {
-  upload: boolean;
-  download: boolean;
-  view: boolean;
-  edit: boolean;
-  delete: boolean;
+  upload: boolean
+  download: boolean
+  view: boolean
+  edit: boolean
+  delete: boolean
 }
 ```
 

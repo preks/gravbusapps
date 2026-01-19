@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -6,82 +6,70 @@ import {
   CardTitle,
   CardDescription,
   IconAvatar,
-} from '@newwork/nw-design-system';
-import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
-} from '@newwork/nw-design-system';
-import { BarChart, Bar, XAxis, YAxis } from 'recharts';
-import { GlobeIcon } from '@phosphor-icons/react';
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { BarChart, Bar, XAxis, YAxis } from 'recharts'
+import { GlobeIcon } from '@phosphor-icons/react'
 
 export interface GeographicData {
-  country: string;
-  accounts: number;
+  country: string
+  accounts: number
 }
 
 export interface GeographicChartProps {
-  data: GeographicData[];
-  isLoading?: boolean;
-  moduleColor?: string;
+  data: GeographicData[]
+  isLoading?: boolean
+  moduleColor?: string
 }
 
 const toKey = (value: string): string =>
   value
     .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
 
-export const GeographicChart: React.FC<GeographicChartProps> = ({ 
-  data, 
-  isLoading, 
-  moduleColor = "default" 
-}) => {
-  const dataKey = "accounts";
-  const nameKey = "country";
+export const GeographicChart: React.FC<GeographicChartProps> = ({ data, isLoading, moduleColor = 'default' }) => {
+  const dataKey = 'accounts'
+  const nameKey = 'country'
 
   const chartData = useMemo(() => {
-    if (!data || data.length === 0) return [];
-    return data.slice(0, 5).map((item) => {
-      const key = toKey(item.country);
-      const shortName = item.country.length > 12 ? item.country.substring(0, 10) + '...' : item.country;
+    if (!data || data.length === 0) return []
+    return data.slice(0, 5).map(item => {
+      const key = toKey(item.country)
+      const shortName = item.country.length > 12 ? item.country.substring(0, 10) + '...' : item.country
       return {
         [nameKey]: shortName,
         fullName: item.country,
         [dataKey]: item.accounts,
-        fill: `var(--color-${key})`,
-      } as Record<string, string | number>;
-    });
-  }, [data]);
+        fill: `var(--color-${key})`
+      } as Record<string, string | number>
+    })
+  }, [data])
 
   const chartConfig = useMemo(() => {
-    if (!data || data.length === 0) return {} as ChartConfig;
+    if (!data || data.length === 0) return {} as ChartConfig
     const config: Record<string, { label?: string }> = {
-      [dataKey]: {},
-    };
-    data.slice(0, 5).forEach((item) => {
-      const key = toKey(item.country);
-      config[key] = { label: item.country };
-    });
-    return config as ChartConfig;
-  }, [data]);
+      [dataKey]: {}
+    }
+    data.slice(0, 5).forEach(item => {
+      const key = toKey(item.country)
+      config[key] = { label: item.country }
+    })
+    return config as ChartConfig
+  }, [data])
 
   const totalAccounts = useMemo(() => {
-    return data?.reduce((sum, country) => sum + country.accounts, 0) || 0;
-  }, [data]);
+    return data?.reduce((sum, country) => sum + country.accounts, 0) || 0
+  }, [data])
 
   if (isLoading) {
     return (
       <Card data-testid="geographic-chart-loading">
         <CardHeader className="gba:flex gba:items-center gba:gap-3">
-          <IconAvatar
-            icon={GlobeIcon}
-            variant={moduleColor as any}
-            size="md"
-            iconWeight="regular"
-            decorative={true}
-          />
+          <IconAvatar icon={GlobeIcon} variant={moduleColor as any} size="md" iconWeight="regular" decorative={true} />
           <div>
             <CardTitle>Geographic Distribution</CardTitle>
             <CardDescription>Accounts by country</CardDescription>
@@ -89,26 +77,18 @@ export const GeographicChart: React.FC<GeographicChartProps> = ({
         </CardHeader>
         <CardContent>
           <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
-            <div className="gba:animate-pulse gba:text-gray-500">
-              Loading geographic data...
-            </div>
+            <div className="gba:animate-pulse gba:text-gray-500">Loading geographic data...</div>
           </div>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   if (data.length === 0) {
     return (
       <Card data-testid="geographic-chart-empty">
         <CardHeader className="gba:flex gba:items-center gba:gap-3">
-          <IconAvatar
-            icon={GlobeIcon}
-            variant={moduleColor as any}
-            size="md"
-            iconWeight="regular"
-            decorative={true}
-          />
+          <IconAvatar icon={GlobeIcon} variant={moduleColor as any} size="md" iconWeight="regular" decorative={true} />
           <div>
             <CardTitle>Geographic Distribution</CardTitle>
             <CardDescription>Accounts by country</CardDescription>
@@ -124,19 +104,13 @@ export const GeographicChart: React.FC<GeographicChartProps> = ({
           </div>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   return (
     <Card data-testid="geographic-chart">
       <CardHeader className="gba:flex gba:items-center gba:gap-3">
-        <IconAvatar
-          icon={GlobeIcon}
-          variant={moduleColor as any}
-          size="md"
-          iconWeight="regular"
-          decorative={true}
-        />
+        <IconAvatar icon={GlobeIcon} variant={moduleColor as any} size="md" iconWeight="regular" decorative={true} />
         <div>
           <CardTitle>Top 5 Countries by Accounts</CardTitle>
           <CardDescription>Geographic distribution</CardDescription>
@@ -160,11 +134,13 @@ export const GeographicChart: React.FC<GeographicChartProps> = ({
                 <XAxis type="number" />
                 <YAxis type="category" dataKey={nameKey} width={35} />
                 <ChartTooltip
-                  content={<ChartTooltipContent 
-                    labelFormatter={(label: string) => {
-                      return label;
-                    }}
-                  />}
+                  content={
+                    <ChartTooltipContent
+                      labelFormatter={(label: string) => {
+                        return label
+                      }}
+                    />
+                  }
                 />
                 <Bar dataKey={dataKey} radius={[0, 3, 3, 0]} fill="var(--color-primary)" />
               </BarChart>
@@ -173,8 +149,7 @@ export const GeographicChart: React.FC<GeographicChartProps> = ({
         </div>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default GeographicChart;
-
+export default GeographicChart

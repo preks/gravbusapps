@@ -1,6 +1,2 @@
-export { default as AccountSegment } from './AccountSegment';
-export * from './schema';
-export * from './types';
-
-
-
+export { default as AccountSegment } from './AccountSegment'
+export type { AccountSegmentOption } from './AccountSegment'

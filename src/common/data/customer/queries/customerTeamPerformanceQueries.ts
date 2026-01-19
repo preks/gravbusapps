@@ -1,5 +1,5 @@
 // Customer team performance queries - comprehensive performance analytics and team comparison
-import { 
+import {
   CUSTOMER_TEAM_PERFORMANCE_METRICS,
   CUSTOMER_ACTIVITY_PERFORMANCE,
   CUSTOMER_TEAM_COMPARISON,
@@ -7,16 +7,19 @@ import {
   CUSTOMER_PERFORMANCE_GOAL,
   CUSTOMER_TEAM_PERFORMANCE_SUMMARY,
   CUSTOMER_PERFORMANCE_SUMMARY,
-  CUSTOMER_TEAM_PERFORMANCE_AGGREGATE,
-  CUSTOMER_PERFORMANCE_TREND,
   CUSTOMER_ACTIVITY_WITH_PERFORMANCE
-} from './fragments/customerTeamPerformanceFragments';
-import { buildOrderBy, buildSearch, buildFilter, type Descriptor } from '@/common/network/graphql/queryHelpers';
+} from './fragments/customerTeamPerformanceFragments'
+import { buildOrderBy, buildSearch, buildFilter, type Descriptor } from '@/common/network/graphql/queryHelpers'
 
 // Unified descriptors for Customer Team Performance (search, sort, filters, and option metadata)
 export const CUSTOMER_TEAM_PERFORMANCE_DESCRIPTORS: Descriptor[] = [
   // Search/sort fields
-  { key: 'employeeName', searchPaths: ['employee.displayName', 'employee.firstName', 'employee.lastName'], sortPath: 'employee.displayName', type: 'text' },
+  {
+    key: 'employeeName',
+    searchPaths: ['employee.displayName', 'employee.firstName', 'employee.lastName'],
+    sortPath: 'employee.displayName',
+    type: 'text'
+  },
   { key: 'totalRevenue', searchPaths: ['totalRevenue'], sortPath: 'totalRevenue', type: 'number' },
   { key: 'activityScore', searchPaths: ['activityScore'], sortPath: 'activityScore', type: 'number' },
   { key: 'leadConversionRate', searchPaths: ['leadConversionRate'], sortPath: 'leadConversionRate', type: 'number' },
@@ -30,7 +33,7 @@ export const CUSTOMER_TEAM_PERFORMANCE_DESCRIPTORS: Descriptor[] = [
   { key: 'currencyIds', path: 'currency.id', kind: 'inIds' },
   { key: 'periodTypes', path: 'periodType', kind: 'inStrings' },
   { key: 'performanceGrades', path: 'performanceGrade', kind: 'inStrings' },
-  
+
   // Range filters
   { key: 'revenueMin', path: 'totalRevenue', kind: 'gte' },
   { key: 'revenueMax', path: 'totalRevenue', kind: 'lte' },
@@ -38,66 +41,107 @@ export const CUSTOMER_TEAM_PERFORMANCE_DESCRIPTORS: Descriptor[] = [
   { key: 'activityScoreMax', path: 'activityScore', kind: 'lte' },
   { key: 'conversionRateMin', path: 'leadConversionRate', kind: 'gte' },
   { key: 'conversionRateMax', path: 'leadConversionRate', kind: 'lte' },
-  
+
   // Date range filters
   { key: 'periodStartFrom', path: 'periodStart', kind: 'dateFrom' },
   { key: 'periodStartTo', path: 'periodStart', kind: 'dateTo' },
   { key: 'periodEndFrom', path: 'periodEnd', kind: 'dateFrom' },
   { key: 'periodEndTo', path: 'periodEnd', kind: 'dateTo' }
-];
+]
 
 export interface CustomerTeamPerformanceQueryVariables {
-  search?: string;
-  employeeIds?: string[];
-  teamIds?: string[];
-  currencyIds?: string[];
-  periodTypes?: string[];
-  performanceGrades?: string[];
-  
-  revenueMin?: number;
-  revenueMax?: number;
-  activityScoreMin?: number;
-  activityScoreMax?: number;
-  conversionRateMin?: number;
-  conversionRateMax?: number;
-  
-  periodStartFrom?: string;
-  periodStartTo?: string;
-  periodEndFrom?: string;
-  periodEndTo?: string;
-  
-  limit?: number;
-  offset?: number;
+  search?: string
+  employeeIds?: string[]
+  teamIds?: string[]
+  currencyIds?: string[]
+  periodTypes?: string[]
+  performanceGrades?: string[]
+
+  revenueMin?: number
+  revenueMax?: number
+  activityScoreMin?: number
+  activityScoreMax?: number
+  conversionRateMin?: number
+  conversionRateMax?: number
+
+  periodStartFrom?: string
+  periodStartTo?: string
+  periodEndFrom?: string
+  periodEndTo?: string
+
+  limit?: number
+  offset?: number
   orderBy?: Array<{
-    field: string;
-    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST';
-  }>;
+    field: string
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
+  }>
 }
 
 // Build where condition for Customer Team Performance queries
 export const buildCustomerTeamPerformanceWhereCondition = (variables: CustomerTeamPerformanceQueryVariables = {}) => {
-  let whereClause = 'where: { isDeleted: { _eq: false }';
+  const whereObj: Record<string, any> = {
+    isDeleted: { _eq: false }
+  }
 
   // Generic search across dot-paths from descriptors
-  const searchOr = buildSearch(variables.search || '', CUSTOMER_TEAM_PERFORMANCE_DESCRIPTORS);
-  if (searchOr) whereClause += `, ${searchOr}`;
+  const searchObj = buildSearch(variables.search || '', CUSTOMER_TEAM_PERFORMANCE_DESCRIPTORS)
+  if (searchObj) {
+    whereObj._or = searchObj._or
+  }
 
   // Generic AND filters from descriptors
-  const andFilters = buildFilter(variables as any, CUSTOMER_TEAM_PERFORMANCE_DESCRIPTORS);
-  if (andFilters) whereClause += `, ${andFilters}`;
+  const filterObj = buildFilter(variables as any, CUSTOMER_TEAM_PERFORMANCE_DESCRIPTORS)
+  if (filterObj && filterObj._and) {
+    if (whereObj._and) {
+      whereObj._and.push(...filterObj._and)
+    } else {
+      whereObj._and = filterObj._and
+    }
+  }
 
-  whereClause += ' }';
-  return whereClause;
-};
+  // Convert object to GraphQL string format
+  const buildWhereString = (obj: any, indent = 0): string => {
+    const spaces = '  '.repeat(indent)
+    if (Array.isArray(obj)) {
+      return `[${obj.map(item => buildWhereString(item, indent + 1)).join(', ')}]`
+    }
+    if (obj && typeof obj === 'object') {
+      const entries = Object.entries(obj)
+      if (entries.length === 0) return '{}'
+      return `{\n${entries
+        .map(([key, value]) => {
+          if (value && typeof value === 'object' && !Array.isArray(value)) {
+            return `${spaces}  ${key}: ${buildWhereString(value, indent + 1)}`
+          }
+          if (Array.isArray(value)) {
+            return `${spaces}  ${key}: ${buildWhereString(value, indent + 1)}`
+          }
+          if (typeof value === 'string') {
+            return `${spaces}  ${key}: "${value}"`
+          }
+          return `${spaces}  ${key}: ${value}`
+        })
+        .join(',\n')}\n${spaces}}`
+    }
+    if (typeof obj === 'string') {
+      return `"${obj}"`
+    }
+    return String(obj)
+  }
+
+  return `where: ${buildWhereString(whereObj)}`
+}
 
 // Get Customer Team Performance Metrics with full details and aggregate count
-export const GET_CUSTOMER_TEAM_PERFORMANCE_METRICS = (variables: CustomerTeamPerformanceQueryVariables = {}): string => {
-  const limit = Math.min(variables.limit || 50, 100);
-  const offset = variables.offset || 0;
-  const where = buildCustomerTeamPerformanceWhereCondition(variables);
+export const GET_CUSTOMER_TEAM_PERFORMANCE_METRICS = (
+  variables: CustomerTeamPerformanceQueryVariables = {}
+): string => {
+  const limit = Math.min(variables.limit || 50, 100)
+  const offset = variables.offset || 0
+  const where = buildCustomerTeamPerformanceWhereCondition(variables)
 
-  const orderByBuilt = buildOrderBy(variables.orderBy || [], CUSTOMER_TEAM_PERFORMANCE_DESCRIPTORS);
-  const orderByClause = orderByBuilt || 'orderBy: [{ totalRevenue: DESC }]';
+  const orderByBuilt = buildOrderBy(variables.orderBy || [], CUSTOMER_TEAM_PERFORMANCE_DESCRIPTORS)
+  const orderByClause = orderByBuilt || 'orderBy: [{ totalRevenue: DESC }]'
 
   return `
     query GetCustomerTeamPerformanceMetrics {
@@ -114,8 +158,8 @@ export const GET_CUSTOMER_TEAM_PERFORMANCE_METRICS = (variables: CustomerTeamPer
         aggregate { count }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Team Performance Metrics by Employee ID
 export const GET_CUSTOMER_TEAM_PERFORMANCE_BY_EMPLOYEE_ID = (employeeId: string, period?: string): string => {
@@ -123,13 +167,13 @@ export const GET_CUSTOMER_TEAM_PERFORMANCE_BY_EMPLOYEE_ID = (employeeId: string,
     where: { 
       employeeId: { _eq: "${employeeId}" }, 
       isDeleted: { _eq: false }
-  `;
-  
+  `
+
   if (period) {
-    whereCondition += `, periodType: { _eq: "${period}" }`;
+    whereCondition += `, periodType: { _eq: "${period}" }`
   }
-  
-  whereCondition += ' }';
+
+  whereCondition += ' }'
 
   return `
     query GetCustomerTeamPerformanceByEmployeeId {
@@ -141,8 +185,8 @@ export const GET_CUSTOMER_TEAM_PERFORMANCE_BY_EMPLOYEE_ID = (employeeId: string,
         ${CUSTOMER_TEAM_PERFORMANCE_METRICS}
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Team Performance Comparison
 export const GET_CUSTOMER_TEAM_PERFORMANCE_COMPARISON = (teamId: string, period: string): string => {
@@ -159,14 +203,17 @@ export const GET_CUSTOMER_TEAM_PERFORMANCE_COMPARISON = (teamId: string, period:
         ${CUSTOMER_TEAM_COMPARISON}
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Activity Performance by Employee ID
 export const GET_CUSTOMER_ACTIVITY_PERFORMANCE_BY_EMPLOYEE = (employeeId: string, period: string): string => {
-  const startDate = period === 'monthly' ? 'DATE_SUB(NOW(), INTERVAL 1 MONTH)' : 
-                   period === 'quarterly' ? 'DATE_SUB(NOW(), INTERVAL 3 MONTH)' : 
-                   'DATE_SUB(NOW(), INTERVAL 1 YEAR)';
+  const startDate =
+    period === 'monthly'
+      ? 'DATE_SUB(NOW(), INTERVAL 1 MONTH)'
+      : period === 'quarterly'
+        ? 'DATE_SUB(NOW(), INTERVAL 3 MONTH)'
+        : 'DATE_SUB(NOW(), INTERVAL 1 YEAR)'
 
   return `
     query GetCustomerActivityPerformanceByEmployee {
@@ -182,8 +229,8 @@ export const GET_CUSTOMER_ACTIVITY_PERFORMANCE_BY_EMPLOYEE = (employeeId: string
         ${CUSTOMER_ACTIVITY_PERFORMANCE}
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Team Performance Summary
 export const GET_CUSTOMER_TEAM_PERFORMANCE_SUMMARY = (teamId: string, period: string): string => {
@@ -201,8 +248,8 @@ export const GET_CUSTOMER_TEAM_PERFORMANCE_SUMMARY = (teamId: string, period: st
         ${CUSTOMER_TEAM_PERFORMANCE_SUMMARY}
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Performance Periods for Employee
 export const GET_CUSTOMER_PERFORMANCE_PERIODS = (employeeId: string, periodType?: string): string => {
@@ -210,13 +257,13 @@ export const GET_CUSTOMER_PERFORMANCE_PERIODS = (employeeId: string, periodType?
     where: { 
       employeeId: { _eq: "${employeeId}" }, 
       isDeleted: { _eq: false }
-  `;
-  
+  `
+
   if (periodType) {
-    whereCondition += `, periodType: { _eq: "${periodType}" }`;
+    whereCondition += `, periodType: { _eq: "${periodType}" }`
   }
-  
-  whereCondition += ' }';
+
+  whereCondition += ' }'
 
   return `
     query GetCustomerPerformancePeriods {
@@ -228,8 +275,8 @@ export const GET_CUSTOMER_PERFORMANCE_PERIODS = (employeeId: string, periodType?
         ${CUSTOMER_PERFORMANCE_PERIOD}
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Performance Goals for Employee
 export const GET_CUSTOMER_PERFORMANCE_GOALS = (employeeId: string): string => {
@@ -245,15 +292,19 @@ export const GET_CUSTOMER_PERFORMANCE_GOALS = (employeeId: string): string => {
         ${CUSTOMER_PERFORMANCE_GOAL}
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Performance Leaderboard
 export const GET_CUSTOMER_PERFORMANCE_LEADERBOARD = (metric: string, period: string, limit: number = 10): string => {
-  const sortField = metric === 'revenue' ? 'totalRevenue' :
-                   metric === 'activity_score' ? 'activityScore' :
-                   metric === 'conversion_rate' ? 'leadConversionRate' :
-                   'totalRevenue';
+  const sortField =
+    metric === 'revenue'
+      ? 'totalRevenue'
+      : metric === 'activity_score'
+        ? 'activityScore'
+        : metric === 'conversion_rate'
+          ? 'leadConversionRate'
+          : 'totalRevenue'
 
   return `
     query GetCustomerPerformanceLeaderboard {
@@ -268,8 +319,8 @@ export const GET_CUSTOMER_PERFORMANCE_LEADERBOARD = (metric: string, period: str
         ${CUSTOMER_PERFORMANCE_SUMMARY}
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Team Performance with Trends
 export const GET_CUSTOMER_TEAM_PERFORMANCE_WITH_TRENDS = (teamId: string): string => {
@@ -315,8 +366,8 @@ export const GET_CUSTOMER_TEAM_PERFORMANCE_WITH_TRENDS = (teamId: string): strin
         ${CUSTOMER_TEAM_PERFORMANCE_SUMMARY}
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Activities with Performance for Employee
 export const GET_CUSTOMER_ACTIVITIES_WITH_PERFORMANCE = (employeeId: string, limit: number = 50): string => {
@@ -342,12 +393,12 @@ export const GET_CUSTOMER_ACTIVITIES_WITH_PERFORMANCE = (employeeId: string, lim
         aggregate { count }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Conversion Funnel Metrics
 export const GET_CUSTOMER_CONVERSION_FUNNEL_METRICS = (employeeIds: string[]): string => {
-  const employeeIdList = employeeIds.map(id => `"${id}"`).join(', ');
+  const employeeIdList = employeeIds.map(id => `"${id}"`).join(', ')
 
   return `
     query GetCustomerConversionFunnelMetrics {
@@ -392,5 +443,5 @@ export const GET_CUSTOMER_CONVERSION_FUNNEL_METRICS = (employeeIds: string[]): s
         aggregate { count }
       }
     }
-  `;
-};
+  `
+}

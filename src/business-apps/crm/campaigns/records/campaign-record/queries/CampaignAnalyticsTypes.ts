@@ -1,0 +1,68 @@
+// Analytics Data Interfaces
+export interface CampaignAnalyticsMetrics {
+  totalEntities: {
+    leads: number
+    accounts: number
+    contacts: number
+    opportunities: number
+  }
+  conversionMetrics: {
+    leadsConverted: number
+    conversionRate: number
+  }
+  revenueMetrics: {
+    totalPipeline: number
+    wonRevenue: number
+    averageDealSize: number
+    winRate: number
+  }
+  performanceMetrics: {
+    activitiesCount: number
+    avgDaysToClose: number
+    topPerformers: Array<{
+      employeeId: string
+      employeeName: string
+      entitiesCount: number
+      revenue: number
+    }>
+  }
+}
+
+export interface CampaignConversionFunnel {
+  stages: Array<{
+    stage: string
+    count: number
+    percentage: number
+    dropoffRate?: number
+  }>
+}
+
+export interface CampaignRevenueAnalysis {
+  monthlyRevenue: Array<{
+    month: string
+    pipeline: number
+    won: number
+    lost: number
+  }>
+  revenueBySource: Array<{
+    source: string
+    amount: number
+    count: number
+  }>
+}
+
+export interface CampaignTimelineAnalysis {
+  entityCreationTimeline: Array<{
+    date: string
+    leads: number
+    accounts: number
+    contacts: number
+    opportunities: number
+    cumulativeLeads: number
+    cumulativeAccounts: number
+    cumulativeContacts: number
+    cumulativeOpportunities: number
+    dailyRevenue: number
+    cumulativeRevenue: number
+  }>
+}

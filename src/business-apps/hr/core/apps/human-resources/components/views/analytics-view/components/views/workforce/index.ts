@@ -1,2 +1,2 @@
-export { default } from './Workforce';
-export { default as Workforce } from './Workforce'; 
+export { default } from './Workforce'
+export { default as Workforce } from './Workforce'

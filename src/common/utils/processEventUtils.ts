@@ -7,16 +7,13 @@
  * @param event The event identifier
  * @param payload The payload data to include with the event
  */
-export function dispatchProcessContinueEvent(
-  event: string,
-  payload: any
-): void {
+export function dispatchProcessContinueEvent(event: string, payload: any): void {
   window.dispatchEvent(
-    new CustomEvent("com.newwork.process.continue", {
+    new CustomEvent('com.newwork.process.continue', {
       detail: {
         event,
-        payload,
-      },
+        payload
+      }
     })
-  );
+  )
 }

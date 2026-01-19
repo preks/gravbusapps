@@ -1,4 +1,4 @@
-import ExpenseItemCard from './ExpenseItemCard';
+import ExpenseItemCard from './ExpenseItemCard'
 
-export { ExpenseItemCard };
-export default ExpenseItemCard;
+export { ExpenseItemCard }
+export default ExpenseItemCard

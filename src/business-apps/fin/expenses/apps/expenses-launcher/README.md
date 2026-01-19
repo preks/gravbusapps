@@ -5,6 +5,7 @@ This expenses launcher supports different views based on user roles determined t
 ## Role Detection Method
 
 ### Permission-Based Authentication ✅
+
 The system uses **AuthorizationClient** via the `useExpensePermissions` hook, following the established HR app pattern with **actual SpiceDB schema**:
 
 - **Finance Role**: Requires `employee_expense/configuration` read permission (br_expense_admin)
@@ -16,22 +17,25 @@ Role detection is **automatically determined** from the user's access token perm
 ## Business Role Mapping
 
 ### SpiceDB Business Roles → UI Roles:
+
 - **`br_expense_admin`** → Finance View (configuration access)
-- **`br_expense_specialist`** → Manager View (approve expenses/plans)  
+- **`br_expense_specialist`** → Manager View (approve expenses/plans)
 - **`br_hcm_manager`** → Manager View (approve expenses/plans)
 - **`br_user`** → Employee View (personal expenses only)
 
 ## Supported Roles
 
 ### Employee View (Default)
+
 - **Role**: `employee` (br_user)
 - **Layout**: 3-column grid with 6 cards
-- **Features**: 
+- **Features**:
   - Personal expense management cards
   - Quick actions section
   - Header stats display
 
 ### Manager View
+
 - **Role**: `manager` (br_expense_specialist, br_hcm_manager)
 - **Layout**: 2x2 centered grid with 4 cards
 - **Features**:
@@ -42,6 +46,7 @@ Role detection is **automatically determined** from the user's access token perm
   - Simplified header display
 
 ### Finance View
+
 - **Role**: `finance` (br_expense_admin)
 - **Layout**: Same as manager view (2x2 grid)
 - **Features**: Same as manager view with additional financial access
@@ -49,28 +54,32 @@ Role detection is **automatically determined** from the user's access token perm
 ## Manager/Finance View Cards
 
 ### 1. Personal Expenses Card
+
 - **KPI**: Personal monthly expenses (€2,450 default)
-- **Links**: 
+- **Links**:
   - Expense Items
-  - Expense Plans  
+  - Expense Plans
   - Advance Payments
   - Expense Requests
 - **Button**: "Go to Personal Expenses"
 
 ### 2. Team Expenses Card
+
 - **KPI**: Team monthly expenses (€18,750 default)
 - **Links**:
   - Team Expense Items
   - Team Expense Plans
   - Team Advance Payments
-  - Team Expense Requests  
+  - Team Expense Requests
 - **Button**: "Go to Team Expenses"
 
 ### 3. My Expense Analytics Card
+
 - **KPI**: Active reports count (12 default)
 - **Button**: "View My Analytics"
 
 ### 4. Team Expense Analytics Card
+
 - **KPI**: Active reports count (12 default)
 - **Button**: "View Team Analytics"
 
@@ -91,20 +100,20 @@ const expensePermissionMap: Record<string, ResourcePermissionMap> = {
   personalExpenses: {
     domain: 'employee_expense',
     resource: 'expense_item',
-    permission: 'read',
+    permission: 'read'
   },
   expenseApproval: {
     domain: 'employee_expense',
     resource: 'expense_request',
-    permission: 'approve',
+    permission: 'approve'
   },
   expensePolicyManagement: {
     domain: 'employee_expense',
     resource: 'configuration',
-    permission: 'read',
-  },
+    permission: 'read'
+  }
   // ... more permissions
-};
+}
 ```
 
 ## SpiceDB Schema Reference
@@ -112,11 +121,12 @@ const expensePermissionMap: Record<string, ResourcePermissionMap> = {
 The expense launcher uses the following SpiceDB definitions:
 
 - `employee_expense/expense_request`: Request approvals and management
-- `employee_expense/expense_plan`: Budget planning and approvals  
+- `employee_expense/expense_plan`: Budget planning and approvals
 - `employee_expense/expense_item`: Individual expense entries
 - `employee_expense/configuration`: System configuration (admin only)
 
 **Business Role Permissions**:
+
 - `br_user`: Basic read/create access to personal expenses
 - `br_expense_specialist`: Approve and manage team expenses
 - `br_hcm_manager`: Approve expenses with HR oversight
@@ -144,7 +154,7 @@ Enable browser console to see detailed permission checking logs from the `usePer
 
 - Manager/Finance cards use orange theming (`#F97316`)
 - Employee cards use category-based theming (blue, green, purple)
-- Manager/Finance view uses 2x2 responsive grid 
+- Manager/Finance view uses 2x2 responsive grid
 - Employee view uses 3-column responsive grid
 - All actions log to console for debugging
 - **Architecture**: Follows established HR app permission patterns

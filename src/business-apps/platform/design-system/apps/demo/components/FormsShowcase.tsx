@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { useForm } from 'react-hook-form'
 import {
   Input,
   Label,
@@ -25,10 +25,10 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Combobox
-} from "@newwork/nw-design-system";
-import { toast } from "sonner";
-import ComponentShowcase from "./ComponentShowcase";
+  Combobox,
+  toast
+} from '@newwork/nw-design-system'
+import ComponentShowcase from './ComponentShowcase'
 
 /**
  * Comprehensive showcase of all form components and validation patterns
@@ -36,63 +36,41 @@ import ComponentShowcase from "./ComponentShowcase";
 export function FormsShowcase() {
   const basicForm = useForm({
     defaultValues: {
-      email: "",
-      password: "",
-      role: "",
-      skills: "",
-      experience: "",
-      description: "",
+      email: '',
+      password: '',
+      role: '',
+      skills: '',
+      experience: '',
+      description: '',
       notifications: false
     }
-  });
+  })
 
   const onBasicSubmit = (data: any) => {
-    console.log("Form submitted:", data);
-    toast.success("Form submitted successfully!");
-  };
+    console.log('Form submitted:', data)
+    toast.success('Form submitted successfully!')
+  }
 
   return (
     <div className="gba:space-y-8" data-testid="forms-showcase">
       {/* Basic Input Components */}
-      <ComponentShowcase
-        title="Input Components"
-        description="Basic input controls with different types and states"
-      >
+      <ComponentShowcase title="Input Components" description="Basic input controls with different types and states">
         <div className="gba:space-y-4 gba:max-w-md">
           <div className="gba:space-y-2">
             <Label htmlFor="text-input">Text Input</Label>
-            <Input
-              id="text-input"
-              placeholder="Enter your name"
-              data-testid="text-input"
-            />
+            <Input id="text-input" placeholder="Enter your name" data-testid="text-input" />
           </div>
           <div className="gba:space-y-2">
             <Label htmlFor="email-input">Email Input</Label>
-            <Input
-              id="email-input"
-              type="email"
-              placeholder="your@email.com"
-              data-testid="email-input"
-            />
+            <Input id="email-input" type="email" placeholder="your@email.com" data-testid="email-input" />
           </div>
           <div className="gba:space-y-2">
             <Label htmlFor="password-input">Password Input</Label>
-            <Input
-              id="password-input"
-              type="password"
-              placeholder="••••••••"
-              data-testid="password-input"
-            />
+            <Input id="password-input" type="password" placeholder="••••••••" data-testid="password-input" />
           </div>
           <div className="gba:space-y-2">
             <Label htmlFor="disabled-input">Disabled Input</Label>
-            <Input
-              id="disabled-input"
-              disabled
-              placeholder="Disabled input"
-              data-testid="disabled-input"
-            />
+            <Input id="disabled-input" disabled placeholder="Disabled input" data-testid="disabled-input" />
           </div>
         </div>
       </ComponentShowcase>
@@ -111,28 +89,18 @@ export function FormsShowcase() {
                 <Label htmlFor="terms">Accept terms and conditions</Label>
               </div>
               <div className="gba:flex gba:items-center gba:space-x-2">
-                <Checkbox
-                  id="newsletter"
-                  defaultChecked
-                  data-testid="newsletter-checkbox"
-                />
+                <Checkbox id="newsletter" defaultChecked data-testid="newsletter-checkbox" />
                 <Label htmlFor="newsletter">Subscribe to newsletter</Label>
               </div>
               <div className="gba:flex gba:items-center gba:space-x-2">
-                <Checkbox
-                  id="disabled-checkbox"
-                  disabled
-                  data-testid="disabled-checkbox"
-                />
+                <Checkbox id="disabled-checkbox" disabled data-testid="disabled-checkbox" />
                 <Label htmlFor="disabled-checkbox">Disabled option</Label>
               </div>
             </div>
           </div>
 
           <div>
-            <h4 className="gba:text-sm gba:font-medium gba:mb-2">
-              Radio Group
-            </h4>
+            <h4 className="gba:text-sm gba:font-medium gba:mb-2">Radio Group</h4>
             <RadioGroup defaultValue="option-one" data-testid="radio-group">
               <div className="gba:flex gba:items-center gba:space-x-2">
                 <RadioGroupItem value="option-one" id="option-one" />
@@ -143,11 +111,7 @@ export function FormsShowcase() {
                 <Label htmlFor="option-two">Option Two</Label>
               </div>
               <div className="gba:flex gba:items-center gba:space-x-2">
-                <RadioGroupItem
-                  value="option-three"
-                  id="option-three"
-                  disabled
-                />
+                <RadioGroupItem value="option-three" id="option-three" disabled />
                 <Label htmlFor="option-three">Option Three (Disabled)</Label>
               </div>
             </RadioGroup>
@@ -170,23 +134,13 @@ export function FormsShowcase() {
       </ComponentShowcase>
 
       {/* Text Areas and Sliders */}
-      <ComponentShowcase
-        title="Text Areas & Range Controls"
-        description="Multi-line text input and slider controls"
-      >
+      <ComponentShowcase title="Text Areas & Range Controls" description="Multi-line text input and slider controls">
         <div className="gba:space-y-6 gba:max-w-lg">
           <div>
             <h4 className="gba:text-sm gba:font-medium gba:mb-2">Text Areas</h4>
             <div className="gba:space-y-4">
-              <Textarea
-                placeholder="Type your message here..."
-                data-testid="textarea-normal"
-              />
-              <Textarea
-                placeholder="Disabled textarea"
-                disabled
-                data-testid="textarea-disabled"
-              />
+              <Textarea placeholder="Type your message here..." data-testid="textarea-normal" />
+              <Textarea placeholder="Disabled textarea" disabled data-testid="textarea-disabled" />
             </div>
           </div>
 
@@ -195,21 +149,11 @@ export function FormsShowcase() {
             <div className="gba:space-y-8">
               <div>
                 <Label>Single Value Slider</Label>
-                <Slider
-                  defaultValue={[50]}
-                  max={100}
-                  step={1}
-                  data-testid="single-slider"
-                />
+                <Slider defaultValue={[50]} max={100} step={1} data-testid="single-slider" />
               </div>
               <div>
                 <Label>Range Slider</Label>
-                <Slider
-                  defaultValue={[20, 80]}
-                  max={100}
-                  step={1}
-                  data-testid="range-slider"
-                />
+                <Slider defaultValue={[20, 80]} max={100} step={1} data-testid="range-slider" />
               </div>
             </div>
           </div>
@@ -217,15 +161,10 @@ export function FormsShowcase() {
       </ComponentShowcase>
 
       {/* Select and Combobox */}
-      <ComponentShowcase
-        title="Dropdown Controls"
-        description="Select dropdowns and searchable comboboxes"
-      >
+      <ComponentShowcase title="Dropdown Controls" description="Select dropdowns and searchable comboboxes">
         <div className="gba:space-y-6 gba:max-w-md">
           <div>
-            <h4 className="gba:text-sm gba:font-medium gba:mb-2">
-              Select Dropdown
-            </h4>
+            <h4 className="gba:text-sm gba:font-medium gba:mb-2">Select Dropdown</h4>
             <Select data-testid="basic-select">
               <SelectTrigger>
                 <SelectValue placeholder="Select a framework" />
@@ -240,16 +179,14 @@ export function FormsShowcase() {
           </div>
 
           <div>
-            <h4 className="gba:text-sm gba:font-medium gba:mb-2">
-              Combobox (Searchable)
-            </h4>
+            <h4 className="gba:text-sm gba:font-medium gba:mb-2">Combobox (Searchable)</h4>
             <Combobox
               options={[
-                { value: "react", label: "React" },
-                { value: "vue", label: "Vue.js" },
-                { value: "angular", label: "Angular" },
-                { value: "svelte", label: "Svelte" },
-                { value: "next", label: "Next.js" }
+                { value: 'react', label: 'React' },
+                { value: 'vue', label: 'Vue.js' },
+                { value: 'angular', label: 'Angular' },
+                { value: 'svelte', label: 'Svelte' },
+                { value: 'next', label: 'Next.js' }
               ]}
               placeholder="Select framework..."
               searchPlaceholder="Search frameworks..."
@@ -271,33 +208,24 @@ export function FormsShowcase() {
           </CardHeader>
           <CardContent>
             <Form {...basicForm}>
-              <form
-                onSubmit={basicForm.handleSubmit(onBasicSubmit)}
-                className="gba:space-y-4"
-              >
+              <form onSubmit={basicForm.handleSubmit(onBasicSubmit)} className="gba:space-y-4">
                 <FormField
                   control={basicForm.control}
                   name="email"
                   rules={{
-                    required: "Email is required",
+                    required: 'Email is required',
                     pattern: {
                       value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                      message: "Invalid email address"
+                      message: 'Invalid email address'
                     }
                   }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="example@example.com"
-                          {...field}
-                          data-testid="form-email"
-                        />
+                        <Input placeholder="example@example.com" {...field} data-testid="form-email" />
                       </FormControl>
-                      <FormDescription>
-                        Your professional email address
-                      </FormDescription>
+                      <FormDescription>Your professional email address</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -306,29 +234,20 @@ export function FormsShowcase() {
                 <FormField
                   control={basicForm.control}
                   name="role"
-                  rules={{ required: "Please select a role" }}
+                  rules={{ required: 'Please select a role' }}
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Role</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="form-role">
                             <SelectValue placeholder="Select your role" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="developer">
-                            Software Developer
-                          </SelectItem>
-                          <SelectItem value="designer">
-                            UI/UX Designer
-                          </SelectItem>
-                          <SelectItem value="manager">
-                            Project Manager
-                          </SelectItem>
+                          <SelectItem value="developer">Software Developer</SelectItem>
+                          <SelectItem value="designer">UI/UX Designer</SelectItem>
+                          <SelectItem value="manager">Project Manager</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -350,19 +269,13 @@ export function FormsShowcase() {
                       </FormControl>
                       <div className="gba:space-y-1 gba:leading-none">
                         <FormLabel>Email Notifications</FormLabel>
-                        <FormDescription>
-                          Receive updates about new features
-                        </FormDescription>
+                        <FormDescription>Receive updates about new features</FormDescription>
                       </div>
                     </FormItem>
                   )}
                 />
 
-                <Button
-                  type="submit"
-                  className="gba:w-full"
-                  data-testid="form-submit"
-                >
+                <Button type="submit" className="gba:w-full" data-testid="form-submit">
                   Create Account
                 </Button>
               </form>
@@ -371,7 +284,7 @@ export function FormsShowcase() {
         </Card>
       </ComponentShowcase>
     </div>
-  );
+  )
 }
 
-export default FormsShowcase;
+export default FormsShowcase

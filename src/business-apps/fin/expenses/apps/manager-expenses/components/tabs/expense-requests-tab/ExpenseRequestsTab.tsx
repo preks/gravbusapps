@@ -1,160 +1,213 @@
-import React, { useEffect, useMemo } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests';
-import { useExpenseRequestFilters, ExpenseRequestStatusMap } from '../../../hooks/useExpenseRequestFilters';
-import { ExpenseStatus } from '../../../utils';
-import { useCurrencyStore } from '../../../store/useCurrencyStore';
-import { useAppCurrency } from '../../../hooks/useAppCurrency';
-import ExpenseRequestStatistics from './ExpenseRequestStatistics';
-import ExpenseRequestsTable from './ExpenseRequestsTable';
+import React, { useMemo, useEffect, useCallback, useState, useRef } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters'
+import ExpenseRequestStatistics from './ExpenseRequestStatistics'
+import ExpenseRequestsTable from './ExpenseRequestsTable'
+import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
+import { standardizeCurrencyRef, extractCurrencyCode } from '../../../utils/currencyUtils'
 
-export interface ExpenseRequestsTabProps extends BusinessAppContextProps {
-  moduleColor?: string;
-}
+export type ExpenseRequestsTabProps = BusinessAppContextProps
 
-const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
-  // Extract only the necessary props to prevent unnecessary re-renders
-  const contextProps = useMemo(() => ({
-    accessToken: props.accessToken,
-    userInfo: props.userInfo
-  }), [props.accessToken, props.userInfo]);
-  
-  // Get managerId from userInfo for currency filtering
-  const managerId = props.userInfo?.employeeDetails?.employeeId || '';
-  
-  // Use the app currency hook to ensure most used currency is loaded
-  useAppCurrency(contextProps);
-  
-  // Use the currency store for the primary currency and most used currency
-  const { primaryCurrency, mostUsedCurrency, setUserSelected } = useCurrencyStore();
-  
-  // Track if this is the first tab activation
-  const isFirstActivation = React.useRef(true);
-  
-  // Initialize currency filter with most used currency on first load
-  useEffect(() => {
-    if (isFirstActivation.current && mostUsedCurrency) {
-      console.log('ExpenseRequestsTab: Setting initial currency to most used currency:', mostUsedCurrency);
-      // Set the primary currency to the most used currency without marking it as user-selected
-      setUserSelected(false);
-      isFirstActivation.current = false;
-    }
-  }, [mostUsedCurrency, setUserSelected]);
-  
-  // Use the expense request filters hook with accessToken and managerId for dynamic currency data
-  useExpenseRequestFilters({
-    accessToken: props.accessToken,
-    managerId
-  }); // Most filter functionality is used in ExpenseRequestsTable component
-  
-  // Use hook for statistics and to initialize default filters
+const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
+  const managerId = props.userInfo?.employeeDetails?.employeeId || ''
+
   const {
-    requestStats,
-    requestStatsLoading,
-    requestStatsError,
-    fetchRequestStatistics,
-    fetchRequests
-  } = useGetExpenseRequests(contextProps);
-  
-  // Use the expense request filters hook
-  useExpenseRequestFilters({
+    search: searchTerm,
+    setSearch: setSearchTerm,
+    selectedFilters,
+    primaryCurrency,
+    filterGroups,
+    handleDataFilterChange,
+    filterLabelMap,
+    addFilter,
+    removeFilter,
+    setFilters
+  } = useExpenseRequestFilters({
     accessToken: props.accessToken,
-    managerId
-  }); // Most filter functionality is used in ExpenseRequestsTable component
-  
-  // Ensure we fetch data with default filters when the component mounts
-  useEffect(() => {
-    // Only perform the initial fetch if we have a valid currency
-    if (primaryCurrency) {
-      // Fetch with PENDING status and most used currency
-      const initialFetch = async () => {
-        // Use the same status value that's used in the filters hook
-        const pendingStatus = ExpenseRequestStatusMap[ExpenseStatus.PENDING];
-        
-        console.log('ExpenseRequestsTab: Initial fetch with default filters:', {
-          status: pendingStatus,
-          currency: primaryCurrency
-        });
-        
-        // Force the status filter to be applied by using both the UI filter value and the backend value
-        // This ensures the filter is properly mapped and applied in the GraphQL query
-        await fetchRequests(
-          '', // No search term
-          1,  // First page
-          10, // Default page size
-          'requestDate:desc', // Default sorting
-          ['PENDING', pendingStatus], // Include both formats to ensure it's applied
-          undefined, // No request date filter
-          primaryCurrency // Use primary currency (which should be the most used currency)
-        );
-      };
-      
-      initialFetch();
+    managerId,
+    userInfo: props.userInfo
+  })
+
+  // Stats will be computed from overview (declared below)
+
+  // Local paging + sorting managed here; overview hook refetches on dependency change
+  const [pageSize, setPageSize] = useState<number>(20)
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const [sortBy, setSortBy] = useState<string>('requestDate:desc')
+
+  const reqOrderBy = useMemo(() => {
+    const [field, dirRaw] = String(sortBy || 'requestDate:desc').split(':')
+    const dir = (dirRaw || 'desc').toUpperCase()
+    switch (field) {
+      case 'title':
+        return [{ title: dir } as any]
+      case 'startDate':
+        return [{ startDate: dir } as any]
+      case 'endDate':
+        return [{ endDate: dir } as any]
+      case 'employee.fullName':
+        return [{ employee: { fullName: dir } } as any]
+      case 'requestDate':
+        return [{ requestDate: dir } as any]
+      case 'amount':
+        return [{ totalAmount: dir } as any]
+      case 'status':
+        return [{ status: dir } as any]
+      default:
+        return [{ requestDate: 'DESC' } as any]
     }
-  }, [fetchRequests, primaryCurrency, ExpenseRequestStatusMap, ExpenseStatus]);
-  
-  // Use a ref to track the last currency used for statistics fetching
-  const lastStatsCurrency = React.useRef<string | null>(null);
-  
-  // Debounced statistics fetch to prevent redundant requests
-  const debouncedFetchStats = React.useCallback(
-    (() => {
-      let timeoutId: NodeJS.Timeout | null = null;
-      
-      return (currency: string | null) => {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
+  }, [sortBy])
+
+  const currencyRef = useMemo(
+    () => (primaryCurrency ? standardizeCurrencyRef(primaryCurrency) : undefined),
+    [primaryCurrency]
+  )
+
+  const overview = useManagerExpensesOverview(props, {
+    managerId,
+    currencyRef,
+    searchTerm,
+    requests: { limit: pageSize, offset: (currentPage - 1) * pageSize, orderBy: reqOrderBy },
+    requestsStatus: selectedFilters,
+    plans: { limit: 0, offset: 0 },
+    payments: { limit: 0, offset: 0 }
+  })
+
+  // Use ref to keep the last valid stats to prevent flickering/height changes
+  const lastValidStatsRef = useRef<any>(null)
+
+  // Compute stats from overview now that it's declared
+  const requestStats = useMemo(() => {
+    const newStats = overview.data
+      ? {
+          // Use currency-agnostic counts for card totals
+          pendingCount: overview.data.pendingRequestsAll || 0,
+          pendingAmount: overview.data.requestPendingAmount || 0,
+          totalRequestsSubmitted: overview.data.totalRequestsAll || 0,
+          totalSubmittedAmount: overview.data.requestSubmittedAmount || 0
         }
-        
-        timeoutId = setTimeout(() => {
-          console.log('Fetching statistics with currency:', currency);
-          fetchRequestStatistics(currency);
-          timeoutId = null;
-        }, 300); // 300ms debounce time
-      };
-    })(),
-    [fetchRequestStatistics]
-  );
-  
-  // Fetch statistics on component mount and when primary currency changes
-  useEffect(() => {
-    // Skip redundant fetches with the same currency
-    if (lastStatsCurrency.current === primaryCurrency) {
-      return;
+      : null
+
+    // Update ref with new stats if available
+    if (newStats) {
+      lastValidStatsRef.current = newStats
     }
-    
-    // Update last currency ref
-    lastStatsCurrency.current = primaryCurrency;
-    
-    // Use debounced fetch
-    debouncedFetchStats(primaryCurrency);
-  }, [primaryCurrency, debouncedFetchStats]);
+
+    // Return new stats if available, otherwise return last valid stats to prevent flickering
+    return newStats || lastValidStatsRef.current
+  }, [overview.data])
+
+  // Only show loading on initial load when there's no cached data
+  const requestStatsLoading = overview.isLoading && !overview.data
+  const requestStatsError = overview.error
+  const fetchRequestStatistics = useCallback(async () => {
+    await overview.refetch()
+  }, [overview])
+
+  const expenseRequests = useMemo(() => {
+    const rows = overview.data?.expenseRequests || []
+    return rows.map((r: any) => {
+      // Extract currency code from currencyRef
+      const currency = r?.currencyRef ? extractCurrencyCode(r.currencyRef) : undefined
+
+      return {
+        id: r.id,
+        code: r.code,
+        title: r.title,
+        requestDate: r.requestDate,
+        startDate: r.startDate,
+        endDate: r.endDate,
+        description: r.description,
+        amount: Number(r.totalAmount ?? 0),
+        totalAmount: Number(r.totalAmount ?? 0),
+        currency: currency || primaryCurrency || 'EUR',
+        currencyRef: r.currencyRef,
+        status: r.status,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+        requestType: r.requestType,
+        employeeDocument: r.employeeDocument || null,
+        expensePlan: r.expensePlan || null,
+        employee: r.employee || null
+      } as any
+    })
+  }, [overview.data?.expenseRequests, primaryCurrency])
+
+  // Only show loading on initial load when there's no cached data
+  const requestsLoading = overview.isLoading && !overview.data
+  const requestsError = overview.error
+  const totalCount = overview.data?.expenseRequestsTotal ?? 0
+
+  // Reset pagination when filters or search change so filtered results are visible from page 1.
+  const prevFilterSignatureRef = useRef<string | null>(null)
+  useEffect(() => {
+    const signature = JSON.stringify({
+      searchTerm,
+      selectedFilters,
+      primaryCurrency
+    })
+    const prev = prevFilterSignatureRef.current
+    if (prev !== null && prev !== signature) {
+      setCurrentPage(1)
+    }
+    prevFilterSignatureRef.current = signature
+  }, [searchTerm, selectedFilters, primaryCurrency])
+
+  const fetchRequests = useCallback(
+    (newSearchTerm?: string, page?: number, newPageSize?: number, newSortBy?: string) => {
+      if (typeof newSearchTerm === 'string') setSearchTerm(newSearchTerm)
+      if (typeof page === 'number') setCurrentPage(page)
+      if (typeof newPageSize === 'number') setPageSize(newPageSize)
+      if (typeof newSortBy === 'string' && newSortBy.length > 0) setSortBy(newSortBy)
+      return Promise.resolve()
+    },
+    [setSearchTerm]
+  )
+
+  useEffect(() => {
+    if (props.accessToken) {
+      // Ensure initial load via overview hook defaults
+    }
+  }, [props.accessToken])
 
   return (
-    <div className="gba:h-full gba:flex gba:flex-col">
-      {/* Filter groups are now handled by the DataFilter component in ExpenseRequestsTable */}
-      
-      {/* Statistics Section - Now inside the tab content */}
+    <div className="gba:h-full gba:flex gba:flex-col" data-testid="expense-requests-tab-container">
       <div className="gba:mb-6">
-        <ExpenseRequestStatistics 
-          requestStats={requestStats} 
-          requestStatsLoading={requestStatsLoading} 
-          requestStatsError={requestStatsError} 
+        <ExpenseRequestStatistics
+          requestStats={requestStats}
+          requestStatsLoading={requestStatsLoading}
+          requestStatsError={requestStatsError}
           fetchRequestStatistics={fetchRequestStatistics}
           currencyFilter={primaryCurrency}
+          setFilters={setFilters}
+          selectedFilters={selectedFilters}
         />
       </div>
-      
-      {/* Table Container */}
+
       <div className="gba:flex-1">
         <div data-testid="expense-requests-table-container">
           <ExpenseRequestsTable
-            {...contextProps}
+            accessToken={props.accessToken}
+            userInfo={props.userInfo}
+            expenseRequests={expenseRequests}
+            loading={requestsLoading}
+            error={requestsError}
+            totalCount={totalCount}
+            fetchRequests={fetchRequests}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            selectedFilters={selectedFilters}
+            filterGroups={filterGroups}
+            filterLabelMap={filterLabelMap}
+            addFilter={addFilter}
+            removeFilter={removeFilter}
+            handleDataFilterChange={handleDataFilterChange}
+            primaryCurrency={primaryCurrency}
           />
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default ExpenseRequestsTab;
+export default ExpenseRequestsTab

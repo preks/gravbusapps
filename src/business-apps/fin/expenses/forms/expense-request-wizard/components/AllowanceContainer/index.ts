@@ -1,4 +1,4 @@
-import AllowanceContainer from './AllowanceContainer';
+import AllowanceContainer from './AllowanceContainer'
 
-export { AllowanceContainer };
-export default AllowanceContainer;
+export { AllowanceContainer }
+export default AllowanceContainer

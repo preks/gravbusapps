@@ -69,24 +69,40 @@ export const GET_ALL_CURRENCIES = `
       currencyRef
     }
   }
-`;
+`
 
 // For backward compatibility, we'll keep these exports but they'll use the same query
-export const GET_DISTINCT_CURRENCIES = GET_ALL_CURRENCIES;
-export const GET_MOST_USED_CURRENCY = GET_ALL_CURRENCIES;
+export const GET_DISTINCT_CURRENCIES = GET_ALL_CURRENCIES
+export const GET_MOST_USED_CURRENCY = GET_ALL_CURRENCIES
 export const GET_EXPENSE_ANALYTICS_DATA = `
-  query GetExpenseAnalyticsData($managerId: uuid!, $startDate: timestamptz, $endDate: timestamptz, $currencyRef: String) {
-    # Expense Items analytics
+  query GetExpenseAnalyticsDataV2(
+    $managerId: uuid!,
+    $startDateTs: timestamp,
+    $endDateTs: timestamp,
+    $itemCurrencyWhere: ExpenseItemBoolExp = {},
+    $reqCurrencyWhere: ExpenseRequestBoolExp = {},
+    $planCurrencyWhere: ExpensePlanBoolExp = {},
+    $payCurrencyWhere: AdvancePaymentBoolExp = {}
+  ) {
+    # Expense Items analytics (actual spend) with correct period logic
+    # NO createdAt filtering - only expenseDate/startDate based on type
     expenseItems: ExpenseItem(
       where: {
-        employee: {
-          employeePosition: {
-            supervisorEmployeeId: {_eq: $managerId}
-          }
-        },
-        createdAt: {_gte: $startDate, _lte: $endDate},
-        isDeleted: {_eq: false},
-        currencyRef: {_eq: $currencyRef}
+        _and: [
+          $itemCurrencyWhere,
+          { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
+          { status: { _in: ["PAID", "CLOSED"] } },
+          { isDeleted: { _eq: false } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $startDateTs, _lte: $endDateTs } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ]},
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $startDateTs, _lte: $endDateTs } } }
+            ]}
+          ]}
+        ]
       }
     ) {
       id
@@ -100,32 +116,36 @@ export const GET_EXPENSE_ANALYTICS_DATA = `
         id
         fullName
         employeePosition {
-          organizationalUnit {
-            id
-            name
-          }
-          siteLocation {
-            id
-            name
-          }
+          organizationalUnit { id name }
+          siteLocation { id name }
         }
       }
+      expenseRequest { requestTypeRef startDate }
       expensePosition {
         expenseGroupRef
+        expenseGroup { value translations { value localeCode } }
       }
     }
     
-    # Expense Requests analytics
+    # Expense Requests analytics with aligned period logic
+    # EXPENSES → expenseItem.expenseDate; TRIP → request.startDate
     expenseRequests: ExpenseRequest(
       where: {
-        employee: {
-          employeePosition: {
-            supervisorEmployeeId: {_eq: $managerId}
-          }
-        },
-        createdAt: {_gte: $startDate, _lte: $endDate},
-        isDeleted: {_eq: false},
-        currencyRef: {_eq: $currencyRef}
+        _and: [
+          $reqCurrencyWhere,
+          { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
+          { isDeleted: { _eq: false } },
+          { _or: [
+            { _and: [
+              { requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } },
+              { expenseItem: { expenseDate: { _gte: $startDateTs, _lte: $endDateTs } } }
+            ]},
+            { _and: [
+              { requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" } },
+              { startDate: { _gte: $startDateTs, _lte: $endDateTs } }
+            ]}
+          ]}
+        ]
       }
     ) {
       id
@@ -134,6 +154,8 @@ export const GET_EXPENSE_ANALYTICS_DATA = `
       status
       totalAmount
       currencyRef
+      requestTypeRef
+      startDate
       employee {
         id
         fullName
@@ -150,17 +172,25 @@ export const GET_EXPENSE_ANALYTICS_DATA = `
       }
     }
     
-    # Expense Plans analytics
+    # Expense Plans analytics (committed budgets) with aligned period logic
+    # EXPENSES → planItem.expenseDate; TRIP → plan.startDate
     expensePlans: ExpensePlan(
       where: {
-        employee: {
-          employeePosition: {
-            supervisorEmployeeId: {_eq: $managerId}
-          }
-        },
-        createdAt: {_gte: $startDate, _lte: $endDate},
-        isDeleted: {_eq: false},
-        currencyRef: {_eq: $currencyRef}
+        _and: [
+          $planCurrencyWhere,
+          { employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } } },
+          { isDeleted: { _eq: false } },
+          { _or: [
+            { _and: [
+              { requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } },
+              { expensePlanItem: { expenseDate: { _gte: $startDateTs, _lte: $endDateTs } } }
+            ]},
+            { _and: [
+              { requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" } },
+              { startDate: { _gte: $startDateTs, _lte: $endDateTs } }
+            ]}
+          ]}
+        ]
       }
     ) {
       id
@@ -170,6 +200,9 @@ export const GET_EXPENSE_ANALYTICS_DATA = `
       status
       totalAmount
       currencyRef
+      requestTypeRef
+      startDate
+      planDate
       employee {
         id
         fullName
@@ -186,19 +219,21 @@ export const GET_EXPENSE_ANALYTICS_DATA = `
       }
     }
     
-    # Advance Payments analytics
+    # Advance Payments analytics with aligned period logic via associated plan
+    # EXPENSES → plan.expensePlanItem.expenseDate; TRIP → plan.startDate
     advancePayments: AdvancePayment(
       where: {
-        expensePlan: {
-          employee: {
-            employeePosition: {
-              supervisorEmployeeId: {_eq: $managerId}
-            }
-          }
-        },
-        createdAt: {_gte: $startDate, _lte: $endDate},
-        isDeleted: {_eq: false},
-        currencyRef: {_eq: $currencyRef}
+        _and: [
+          $payCurrencyWhere,
+          { expensePlan: {
+            employee: { employeePosition: { supervisorEmployeeId: {_eq: $managerId} } }
+          }},
+          { isDeleted: {_eq: false} },
+          { _or: [
+            { expensePlan: { requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" }, expensePlanItem: { expenseDate: { _gte: $startDateTs, _lte: $endDateTs } } } },
+            { expensePlan: { requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $startDateTs, _lte: $endDateTs } } }
+          ]}
+        ]
       }
     ) {
       id
@@ -211,6 +246,9 @@ export const GET_EXPENSE_ANALYTICS_DATA = `
       expensePlan {
         id
         title
+        requestTypeRef
+        startDate
+        expensePlanItem { expenseDate }
         employee {
           id
           fullName
@@ -228,4 +266,4 @@ export const GET_EXPENSE_ANALYTICS_DATA = `
       }
     }
   }
-`;
+`

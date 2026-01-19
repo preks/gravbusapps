@@ -1,11 +1,11 @@
 /* FileManager overrides: hide Copy / Move actions in FileExplorer menus */
 
 /* Context menu items (right-click) */
-:where([data-radix-menu-content], [data-radix-collection-root]) [data-radix-collection-item]:has([data-lucide="copy"]) {
+:where([data-radix-menu-content], [data-radix-collection-root]) [data-radix-collection-item]:has([data-lucide='copy']) {
   display: none !important;
 }
 
-:where([data-radix-menu-content], [data-radix-collection-root]) [data-radix-collection-item]:has([data-lucide="move"]) {
+:where([data-radix-menu-content], [data-radix-collection-root]) [data-radix-collection-item]:has([data-lucide='move']) {
   display: none !important;
 }
 
@@ -14,19 +14,16 @@
 /* (optional) text-based fallback not used currently */
 
 /* Dropdown menu (header actions) */
-:where([data-radix-dropdown-menu-content]) [data-radix-collection-item]:has([data-lucide="copy"]) {
+:where([data-radix-dropdown-menu-content]) [data-radix-collection-item]:has([data-lucide='copy']) {
   display: none !important;
 }
 
-:where([data-radix-dropdown-menu-content]) [data-radix-collection-item]:has([data-lucide="move"]) {
+:where([data-radix-dropdown-menu-content]) [data-radix-collection-item]:has([data-lucide='move']) {
   display: none !important;
 }
-
 
 /* Hide selected toolbar shown when items are selected */
-[data-testid="file-explorer-view-container"] .nw-flex.nw-items-center.nw-gap-2.nw-px-3.nw-py-2.nw-bg-info-secondary.nw-rounded-lg.nw-border {
+[data-testid='file-explorer-view-container']
+  .nw-flex.nw-items-center.nw-gap-2.nw-px-3.nw-py-2.nw-bg-info-secondary.nw-rounded-lg.nw-border {
   display: none !important;
 }
-
-
-

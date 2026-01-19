@@ -15,9 +15,13 @@ export const GET_EXPENSE_ITEMS_BY_MANAGER = `
         },
         isDeleted: {_eq: false},
         _or: [
-          {description: {_ilike: $searchTerm}},
+          {title: {_ilike: $searchTerm}},
           {expensePosition: {expenseGroupRef: {_ilike: $searchTerm}}},
-          {employee: {fullName: {_ilike: $searchTerm}}}
+          {employee: {fullName: {_ilike: $searchTerm}}},
+          {employee: {firstName: {_ilike: $searchTerm}}},
+          {employee: {lastName: {_ilike: $searchTerm}}},
+          {expenseRequest: {code: {_ilike: $searchTerm}}},
+          {expenseRequest: {status: {_ilike: $searchTerm}}}
         ]
       }
     ) {
@@ -37,15 +41,18 @@ export const GET_EXPENSE_ITEMS_BY_MANAGER = `
         },
         isDeleted: {_eq: false},
         _or: [
-          {description: {_ilike: $searchTerm}},
+          {title: {_ilike: $searchTerm}},
           {expensePosition: {expenseGroupRef: {_ilike: $searchTerm}}},
-          {employee: {fullName: {_ilike: $searchTerm}}}
+          {employee: {fullName: {_ilike: $searchTerm}}},
+          {employee: {firstName: {_ilike: $searchTerm}}},
+          {employee: {lastName: {_ilike: $searchTerm}}},
+          {expenseRequest: {code: {_ilike: $searchTerm}}},
+          {expenseRequest: {status: {_ilike: $searchTerm}}}
         ]
       }
     ) {
       id
       title
-      description
       expensePosition {
         expenseGroupRef
       }
@@ -54,12 +61,19 @@ export const GET_EXPENSE_ITEMS_BY_MANAGER = `
       expenseRequestId
       expenseRequest {
         id
+        code
         createdAt
+        startDate
+        requestTypeRef
+        currencyRef
+        status
       }
       employee {
         id
         fullName
+        firstName
+        lastName
       }
     }
   }
-`;
+`

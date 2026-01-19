@@ -72,11 +72,17 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
         startDate
         endDate
         currencyRef
+        expenseRequest(where: { isDeleted: { _eq: false } }) {
+          id
+          code
+        }
         employee {
           id
+          code
           displayName
           fullName
           pictureThumbnail
+          additionalProperties
           employeePosition {
             organizationalUnit {
               id
@@ -91,7 +97,7 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
       }
     }
   }
-`;
+`
 
 // Query for advance payment statistics in the main view
 export const GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS = `
@@ -106,6 +112,7 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS = `
           },
           isDeleted: {_eq: false}
         },
+        status: {_nin: ["CREATED", "REJECTED"]},
         currencyRef: {_eq: $currencyRef}
       }
     ) {
@@ -126,7 +133,7 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS = `
           },
           isDeleted: {_eq: false}
         },
-        status: {_eq: "PENDING"},
+        status: {_in: ["PENDING", "PREPARED"]},
         currencyRef: {_eq: $currencyRef}
       }
     ) {
@@ -139,4 +146,4 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS = `
     }
     # Currency stats are now handled at the app level via useAppCurrency
   }
-`;
+`

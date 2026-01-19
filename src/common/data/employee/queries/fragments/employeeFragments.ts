@@ -7,8 +7,9 @@ export const EMPLOYEE_REF = `
     fullName
     picture
     pictureThumbnail
+    userId
     employeePosition {
       jobPosition { name }
       organizationalUnit { id name }
     }
-`;
+`

@@ -1,1 +1,1 @@
-export { default, AbsenceCalendar } from './AbsenceCalendar';
+export { default, AbsenceCalendar } from './AbsenceCalendar'

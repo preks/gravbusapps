@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react'
 import {
   Card,
   Row,
@@ -13,72 +13,60 @@ import {
   Tag,
   Tabs,
   Statistic,
-  Dropdown,
-  Select,
-  Steps,
-  message
-} from 'antd';
+  Dropdown
+} from 'antd'
 import {
   ArrowLeftOutlined,
   ShoppingCartOutlined,
   UserOutlined,
-  CalendarOutlined,
-  DollarOutlined,
   EnvironmentOutlined,
   PhoneOutlined,
   MailOutlined,
   EyeOutlined,
-  InfoCircleOutlined,
   SettingOutlined,
   MoreOutlined,
   DownOutlined,
   PlusOutlined,
   MessageOutlined
-} from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
-import dayjs from 'dayjs';
-import weekday from 'dayjs/plugin/weekday';
-import localeData from 'dayjs/plugin/localeData';
+} from '@ant-design/icons'
+import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
+import weekday from 'dayjs/plugin/weekday'
+import localeData from 'dayjs/plugin/localeData'
 // ActionButton not available, using Ant Design Dropdown instead
 
-import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext';
-import { useSalesOrderDetails } from './hooks/useSalesOrderDetails';
-import { SalesOrderItem } from './types';
-import Pill from '../../../../../components/pill/Pill';
-import StatusChangeModal from './components/StatusChangeModal';
-import LineItemDetailDrawer from './components/LineItemDetailDrawer';
+import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
+import { useSalesOrderDetails } from './hooks/useSalesOrderDetails'
+import { SalesOrderItem } from './types'
+import Pill from '../../../../../components/pill/Pill'
+import StatusChangeModal from './components/StatusChangeModal'
+import LineItemDetailDrawer from './components/LineItemDetailDrawer'
 
 // Extend dayjs with plugins
-dayjs.extend(weekday);
-dayjs.extend(localeData);
+dayjs.extend(weekday)
+dayjs.extend(localeData)
 
-const { Title, Text } = Typography;
+const { Title, Text } = Typography
 
 interface SalesOrderDetailsProps extends BusinessAppContextProps {
-  orderId: string;
-  onBack?: () => void;
+  orderId: string
+  onBack?: () => void
 }
 
-const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
-  accessToken,
-  orderId,
-  onBack
-}) => {
+const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({ accessToken, orderId, onBack }) => {
   // State
-  const [activeTab, setActiveTab] = useState('overview');
-  const [isLineItemDrawerVisible, setIsLineItemDrawerVisible] = useState(false);
-  const [selectedLineItem, setSelectedLineItem] = useState<SalesOrderItem | null>(null);
-  const [isStatusChangeModalVisible, setIsStatusChangeModalVisible] = useState(false);
-  const [isLineItemStatusChangeModalVisible, setIsLineItemStatusChangeModalVisible] = useState(false);
-  const [selectedLineItemForStatus, setSelectedLineItemForStatus] = useState<SalesOrderItem | null>(null);
+  const [activeTab, setActiveTab] = useState('overview')
+  const [isLineItemDrawerVisible, setIsLineItemDrawerVisible] = useState(false)
+  const [selectedLineItem, setSelectedLineItem] = useState<SalesOrderItem | null>(null)
+  const [isStatusChangeModalVisible, setIsStatusChangeModalVisible] = useState(false)
+  const [isLineItemStatusChangeModalVisible, setIsLineItemStatusChangeModalVisible] = useState(false)
+  const [selectedLineItemForStatus, setSelectedLineItemForStatus] = useState<SalesOrderItem | null>(null)
 
   // Hooks
   const { order, loading, error, isUsingDemoData, refreshData } = useSalesOrderDetails({
     accessToken,
     orderId
-  });
-
-
+  })
 
   // Actions dropdown configuration
   const actionItems = [
@@ -87,8 +75,8 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
     { key: 'send-out', label: 'Send to Csutomer' },
     { key: 'approve', label: 'Approve' },
     { key: 'reject', label: 'Reject' },
-    { key: 'convert-invoice', label: 'Convert to Invoice' },
-  ];
+    { key: 'convert-invoice', label: 'Convert to Invoice' }
+  ]
 
   // Helper functions
   const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
@@ -96,24 +84,24 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
       style: 'currency',
       currency: currency,
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
+      maximumFractionDigits: 2
+    }).format(amount)
+  }
 
   const getStatusPillType = (status: string): 'completed' | 'draft' | 'error' | 'waiting' => {
     switch (status?.toUpperCase()) {
       case 'RELEASED':
-        return 'completed';
+        return 'completed'
       case 'DRAFT':
-        return 'draft';
+        return 'draft'
       case 'CANCELLED':
-        return 'error';
+        return 'error'
       case 'INVOICED':
-        return 'waiting';
+        return 'waiting'
       default:
-        return 'waiting';
+        return 'waiting'
     }
-  };
+  }
 
   // Helper function to determine if a line item is a comment
   const isCommentLineItem = (record: SalesOrderItem) => {
@@ -126,111 +114,123 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
       taxAmount: record.taxAmount,
       description: record.description,
       id: record.id
-    });
+    })
 
     // Check if it's explicitly marked as comment type
     if (record.type === 'comment') {
-      console.log('✅ Line', record.lineItemNumber, 'is COMMENT type');
-      return true;
+      console.log('✅ Line', record.lineItemNumber, 'is COMMENT type')
+      return true
     }
 
     // Check if it has comment fields populated
     if (record.commentShort || record.commentLong) {
-      console.log('✅ Line', record.lineItemNumber, 'has comment fields');
-      return true;
+      console.log('✅ Line', record.lineItemNumber, 'has comment fields')
+      return true
     }
 
     // Check if it has taxAmount = 0 AND has comment-like characteristics
     if (record.taxAmount === 0 && (record.commentShort || record.commentLong)) {
-      console.log('✅ Line', record.lineItemNumber, 'has zero tax and comment fields');
-      return true;
+      console.log('✅ Line', record.lineItemNumber, 'has zero tax and comment fields')
+      return true
     }
 
-    console.log('❌ Line', record.lineItemNumber, 'is NOT a comment');
-    return false;
-  };
+    console.log('❌ Line', record.lineItemNumber, 'is NOT a comment')
+    return false
+  }
 
   // Helper function to render comment content with proper typography hierarchy
   const renderCommentContent = (record: SalesOrderItem) => {
-    const { commentShort, commentLong, description } = record;
+    const { commentShort, commentLong, description } = record
 
     // Priority 1: Use commentShort and commentLong if available
     if (commentShort && commentLong) {
       return (
         <div style={{ lineHeight: '1.6' }}>
-          <div style={{
-            fontWeight: 'bold',
-            fontSize: '14px',
-            color: '#1f2937',
-            marginBottom: '8px'
-          }}>
+          <div
+            style={{
+              fontWeight: 'bold',
+              fontSize: '14px',
+              color: '#1f2937',
+              marginBottom: '8px'
+            }}
+          >
             {commentShort}
           </div>
-          <div style={{
-            fontSize: '13px',
-            color: '#4b5563',
-            whiteSpace: 'pre-wrap'
-          }}>
+          <div
+            style={{
+              fontSize: '13px',
+              color: '#4b5563',
+              whiteSpace: 'pre-wrap'
+            }}
+          >
             {commentLong.split('\n').map((line, index) => (
               <div key={index}>{line}</div>
             ))}
           </div>
         </div>
-      );
+      )
     }
 
     // Priority 2: Use commentShort only
     if (commentShort) {
       return (
-        <div style={{
-          fontWeight: 'bold',
-          fontSize: '14px',
-          color: '#1f2937'
-        }}>
+        <div
+          style={{
+            fontWeight: 'bold',
+            fontSize: '14px',
+            color: '#1f2937'
+          }}
+        >
           {commentShort}
         </div>
-      );
+      )
     }
 
     // Priority 3: Use commentLong only
     if (commentLong) {
       return (
-        <div style={{
-          fontSize: '13px',
-          color: '#4b5563',
-          whiteSpace: 'pre-wrap'
-        }}>
+        <div
+          style={{
+            fontSize: '13px',
+            color: '#4b5563',
+            whiteSpace: 'pre-wrap'
+          }}
+        >
           {commentLong.split('\n').map((line, index) => (
             <div key={index}>{line}</div>
           ))}
         </div>
-      );
+      )
     }
 
     // Priority 4: Fall back to description for legacy comment items
     if (description) {
       return (
-        <div style={{
-          fontSize: '13px',
-          color: '#6b7280',
-          fontStyle: 'italic'
-        }}>
+        <div
+          style={{
+            fontSize: '13px',
+            color: '#6b7280',
+            fontStyle: 'italic'
+          }}
+        >
           {description}
         </div>
-      );
+      )
     }
 
     // Default fallback
     return (
-      <div style={{
-        fontSize: '13px',
-        color: '#9ca3af',
-        fontStyle: 'italic'
-      }}>
+      <div
+        style={{
+          fontSize: '13px',
+          color: '#9ca3af',
+          fontStyle: 'italic'
+        }}
+      >
         Comment line item
       </div>
-    );
-  };
+    )
+  }
 
   // Table columns for line items
   const itemColumns: ColumnsType<SalesOrderItem> = [
@@ -241,9 +241,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
       width: 80,
       render: (text, record) => (
         <div className="gba:flex gba:items-center gba:gap-2">
-          {isCommentLineItem(record) && (
-            <MessageOutlined className="gba:text-blue-500" />
-          )}
+          {isCommentLineItem(record) && <MessageOutlined className="gba:text-blue-500" />}
           <Text strong>{text}</Text>
         </div>
       )
@@ -254,12 +252,12 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
       render: (_, record) => {
         if (isCommentLineItem(record)) {
           // Comment rows use custom rendering, return null to hide this cell
-          return null;
+          return null
         }
 
         // For product items, show the actual product name
-        const productName = record.product?.name || record.description || 'N/A';
-        const productCode = record.product?.code;
+        const productName = record.product?.name || record.description || 'N/A'
+        const productCode = record.product?.code
 
         return (
           <div>
@@ -272,7 +270,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
               </div>
             )}
           </div>
-        );
+        )
       }
     },
     {
@@ -283,9 +281,9 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
       render: (text, record) => {
         if (isCommentLineItem(record)) {
           // Comment rows use custom rendering, return null to hide this cell
-          return null;
+          return null
         }
-        return text;
+        return text
       }
     },
     {
@@ -296,9 +294,9 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
       align: 'right',
       render: (quantity, record) => {
         if (isCommentLineItem(record)) {
-          return null; // Comment rows use custom rendering
+          return null // Comment rows use custom rendering
         }
-        return quantity?.toLocaleString();
+        return quantity?.toLocaleString()
       }
     },
     {
@@ -309,9 +307,9 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
       align: 'right',
       render: (price, record) => {
         if (isCommentLineItem(record)) {
-          return null; // Comment rows use custom rendering
+          return null // Comment rows use custom rendering
         }
-        return formatCurrency(price || record.unitPrice || 0, order?.currency);
+        return formatCurrency(price || record.unitPrice || 0, order?.currency)
       }
     },
     {
@@ -322,9 +320,9 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
       align: 'right',
       render: (taxAmount, record) => {
         if (isCommentLineItem(record)) {
-          return null; // Comment rows use custom rendering
+          return null // Comment rows use custom rendering
         }
-        return formatCurrency(taxAmount || 0, order?.currency);
+        return formatCurrency(taxAmount || 0, order?.currency)
       }
     },
     {
@@ -335,13 +333,9 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
       align: 'right',
       render: (amount, record) => {
         if (isCommentLineItem(record)) {
-          return null; // Comment rows use custom rendering
+          return null // Comment rows use custom rendering
         }
-        return (
-          <Text strong>
-            {formatCurrency(amount, order?.currency)}
-          </Text>
-        );
+        return <Text strong>{formatCurrency(amount, order?.currency)}</Text>
       }
     },
     {
@@ -350,18 +344,18 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
       width: 100,
       render: (_, record) => {
         if (isCommentLineItem(record)) {
-          return null; // Comment rows use custom rendering
+          return null // Comment rows use custom rendering
         }
         if (record.quantityCancelled && record.quantityCancelled > 0) {
-          return <Tag color="red">Cancelled</Tag>;
+          return <Tag color="red">Cancelled</Tag>
         }
         if (record.quantityShipped && record.quantityShipped >= record.quantity) {
-          return <Tag color="green">Shipped</Tag>;
+          return <Tag color="green">Shipped</Tag>
         }
         if (record.quantityShipped && record.quantityShipped > 0) {
-          return <Tag color="orange">Partial</Tag>;
+          return <Tag color="orange">Partial</Tag>
         }
-        return <Tag color="blue">New</Tag>;
+        return <Tag color="blue">New</Tag>
       }
     },
     {
@@ -370,7 +364,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
       width: 100,
       render: (_, record) => {
         if (isCommentLineItem(record)) {
-          return null; // Comment rows use custom rendering
+          return null // Comment rows use custom rendering
         }
         return (
           <Dropdown
@@ -417,113 +411,113 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
               className="gba:hover:bg-gray-200 gba:hover:border-gray-400 gba:hover:text-gray-700"
             />
           </Dropdown>
-        );
+        )
       }
     }
-  ];
+  ]
 
   // Handle back navigation
   const handleBack = () => {
     if (onBack) {
-      onBack();
+      onBack()
     } else {
       // Default back behavior - could navigate to overview
-      window.history.back();
+      window.history.back()
     }
-  };
+  }
 
   // Handle action selection
   const handleActionSelect = ({ key }: { key: string }) => {
-    console.log('Action selected:', key);
+    console.log('Action selected:', key)
     switch (key) {
       case 'change-status':
-        setIsStatusChangeModalVisible(true);
-        break;
+        setIsStatusChangeModalVisible(true)
+        break
       default:
         // TODO: Implement other action handlers
-        break;
+        break
     }
-  };
+  }
 
   // Handle tab change
   const handleTabChange = (key: string) => {
-    setActiveTab(key);
+    setActiveTab(key)
     // TODO: Consider updating URL query parameter
-  };
+  }
 
   // Handle line item actions
   const handleLineItemAction = (action: string, lineItem: SalesOrderItem) => {
     switch (action) {
       case 'details':
-        setSelectedLineItem(lineItem);
-        setIsLineItemDrawerVisible(true);
-        break;
+        setSelectedLineItem(lineItem)
+        setIsLineItemDrawerVisible(true)
+        break
       case 'edit':
-        console.log('Edit line item:', lineItem.id);
+        console.log('Edit line item:', lineItem.id)
         // TODO: Implement edit functionality
-        break;
+        break
       case 'change-status':
-        setSelectedLineItemForStatus(lineItem);
-        setIsLineItemStatusChangeModalVisible(true);
-        break;
+        setSelectedLineItemForStatus(lineItem)
+        setIsLineItemStatusChangeModalVisible(true)
+        break
       case 'remove':
-        console.log('Remove line item:', lineItem.id);
+        console.log('Remove line item:', lineItem.id)
         // TODO: Implement remove functionality
-        break;
+        break
       case 'duplicate':
-        console.log('Duplicate line item:', lineItem.id);
+        console.log('Duplicate line item:', lineItem.id)
         // TODO: Implement duplicate functionality
-        break;
+        break
       default:
-        break;
+        break
     }
-  };
+  }
 
   // Handle drawer close
   const handleLineItemDrawerClose = () => {
-    setIsLineItemDrawerVisible(false);
-    setSelectedLineItem(null);
-  };
+    setIsLineItemDrawerVisible(false)
+    setSelectedLineItem(null)
+  }
 
   // Handle status change modal close
   const handleStatusChangeModalClose = () => {
-    setIsStatusChangeModalVisible(false);
-  };
+    setIsStatusChangeModalVisible(false)
+  }
 
   // Handle status change success
   const handleStatusChangeSuccess = () => {
-    refreshData(); // Refresh the order data to show updated status
-  };
+    refreshData() // Refresh the order data to show updated status
+  }
 
   // Handle line item status change modal close
   const handleLineItemStatusChangeModalClose = () => {
-    setIsLineItemStatusChangeModalVisible(false);
-    setSelectedLineItemForStatus(null);
-  };
+    setIsLineItemStatusChangeModalVisible(false)
+    setSelectedLineItemForStatus(null)
+  }
 
   // Handle line item status change success
   const handleLineItemStatusChangeSuccess = () => {
-    refreshData(); // Refresh the order data to show updated line item status
-  };
+    refreshData() // Refresh the order data to show updated line item status
+  }
 
   // Handle line item drawer actions
   const handleLineItemDrawerAction = ({ key }: { key: string }) => {
-    console.log('Line item drawer action selected:', key);
+    console.log('Line item drawer action selected:', key)
     // TODO: Implement drawer action handlers
     switch (key) {
       case 'go-to-product':
-        console.log('Navigate to product details');
-        break;
+        console.log('Navigate to product details')
+        break
       case 'go-to-pricing':
-        console.log('Navigate to pricing details');
-        break;
+        console.log('Navigate to pricing details')
+        break
       case 'check-stock':
-        console.log('Check stock information');
-        break;
+        console.log('Check stock information')
+        break
       default:
-        break;
+        break
     }
-  };
+  }
 
   // Loading state
   if (loading) {
@@ -531,7 +525,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
       <div className="gba:flex gba:justify-center gba:items-center gba:min-h-screen" data-testid="loading-spinner">
         <Spin size="large" tip="Loading sales order details..." />
       </div>
-    );
+    )
   }
 
   // Error state
@@ -555,7 +549,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
           }
         />
       </div>
-    );
+    )
   }
 
   // No order found
@@ -568,13 +562,13 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
           type="warning"
           showIcon
           action={
-            <Button  size="small" onClick={handleBack}>
+            <Button size="small" onClick={handleBack}>
               Go Back
             </Button>
           }
         />
       </div>
-    );
+    )
   }
 
   // Debug logging for order data
@@ -589,7 +583,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
       taxAmount: item.taxAmount,
       description: item.description
     }))
-  });
+  })
 
   return (
     <div className="gba:p-6 gba:bg-gray-50 gba:min-h-screen" data-testid="sales-order-details">
@@ -668,7 +662,9 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
                             <Space>
                               <span>Order Number</span>
                               {isUsingDemoData && (
-                                <Tag color="blue" size="small">DEMO</Tag>
+                                <Tag color="blue" size="small">
+                                  DEMO
+                                </Tag>
                               )}
                             </Space>
                           }
@@ -697,18 +693,14 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
                         <Statistic
                           title="Total Amount"
                           value={order.totalAmount}
-                          formatter={(value) => formatCurrency(Number(value), order.currency)}
+                          formatter={value => formatCurrency(Number(value), order.currency)}
                           valueStyle={{ color: '#1890ff', fontSize: '24px', fontWeight: 'bold' }}
                         />
                       </Card>
                     </Col>
                     <Col xs={24} sm={12} md={8} lg={4}>
                       <Card className="gba:text-center gba:h-full" data-testid="customer-kpi">
-                        <Statistic
-                          title="Customer"
-                          value={order.customer.name}
-                          valueStyle={{ fontSize: '16px' }}
-                        />
+                        <Statistic title="Customer" value={order.customer.name} valueStyle={{ fontSize: '16px' }} />
                       </Card>
                     </Col>
                     <Col xs={24} sm={12} md={8} lg={4}>
@@ -748,11 +740,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
                       <Text strong>{order.orderNumber}</Text>
                     </Descriptions.Item>
                     <Descriptions.Item label="Status">
-                      <Pill
-                        label={order.status}
-                        type={getStatusPillType(order.status)}
-                        className="gba:inline-block"
-                      />
+                      <Pill label={order.status} type={getStatusPillType(order.status)} className="gba:inline-block" />
                     </Descriptions.Item>
                     <Descriptions.Item label="Order Date">
                       {order.orderDate ? dayjs(order.orderDate).format('MMM D, YYYY') : 'N/A'}
@@ -824,7 +812,11 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
                       <Descriptions.Item label="Owner">
                         <Space>
                           <UserOutlined />
-                          <Text>{order.owner.fullName || `${order.owner.firstName || ''} ${order.owner.lastName || ''}`.trim() || 'N/A'}</Text>
+                          <Text>
+                            {order.owner.fullName ||
+                              `${order.owner.firstName || ''} ${order.owner.lastName || ''}`.trim() ||
+                              'N/A'}
+                          </Text>
                         </Space>
                       </Descriptions.Item>
                     )}
@@ -846,16 +838,16 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
                     <Descriptions.Item label="Customer Name">
                       <Text strong>{order.customer.name}</Text>
                     </Descriptions.Item>
-                    <Descriptions.Item label="Contact Person">
-                      {order.customer.contactName || 'N/A'}
-                    </Descriptions.Item>
+                    <Descriptions.Item label="Contact Person">{order.customer.contactName || 'N/A'}</Descriptions.Item>
                     <Descriptions.Item label="Email">
                       {order.customer.email ? (
                         <Space>
                           <MailOutlined />
                           <Text>{order.customer.email}</Text>
                         </Space>
-                      ) : 'N/A'}
+                      ) : (
+                        'N/A'
+                      )}
                     </Descriptions.Item>
 
                     {/* Additional Contact Details */}
@@ -877,18 +869,16 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
                     {order.customer.billingAddress && (
                       <Descriptions.Item label="Billing Address" span={2}>
                         <Space direction="vertical" size={0}>
-                          {order.customer.billingAddress.line1 && (
-                            <Text>{order.customer.billingAddress.line1}</Text>
-                          )}
-                          {order.customer.billingAddress.line2 && (
-                            <Text>{order.customer.billingAddress.line2}</Text>
-                          )}
+                          {order.customer.billingAddress.line1 && <Text>{order.customer.billingAddress.line1}</Text>}
+                          {order.customer.billingAddress.line2 && <Text>{order.customer.billingAddress.line2}</Text>}
                           <Text>
                             {[
                               order.customer.billingAddress.city,
                               order.customer.billingAddress.stateOrProvince,
                               order.customer.billingAddress.postalCode
-                            ].filter(Boolean).join(', ')}
+                            ]
+                              .filter(Boolean)
+                              .join(', ')}
                           </Text>
                           {order.customer.billingAddress.country && (
                             <Text>{order.customer.billingAddress.country}</Text>
@@ -977,9 +967,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
                         )}
                         {order.processInstanceId && (
                           <Descriptions.Item label="Process Instance">
-                            <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>
-                              {order.processInstanceId}
-                            </Text>
+                            <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>{order.processInstanceId}</Text>
                           </Descriptions.Item>
                         )}
                         {order.url && (
@@ -1018,31 +1006,34 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
           components={{
             body: {
               row: ({ children, ...props }: any) => {
-                const record = order.items.find(item => props['data-row-key'] === item.id);
+                const record = order.items.find(item => props['data-row-key'] === item.id)
 
                 if (record && isCommentLineItem(record)) {
                   // Full-width comment row design
                   return (
-                    <tr
-                      {...props}
-                      className="comment-row-style"
-                      data-testid={`comment-row-${record.id}`}
-                    >
+                    <tr {...props} className="comment-row-style" data-testid={`comment-row-${record.id}`}>
                       {/* Line # column */}
-                      <td className="ant-table-cell" style={{
-                        padding: '16px 12px',
-                        verticalAlign: 'top',
-                        borderRight: '1px solid #f0f0f0'
-                      }}>
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px'
-                        }}>
-                          <MessageOutlined style={{
-                            color: '#3b82f6',
-                            fontSize: '16px'
-                          }} />
+                      <td
+                        className="ant-table-cell"
+                        style={{
+                          padding: '16px 12px',
+                          verticalAlign: 'top',
+                          borderRight: '1px solid #f0f0f0'
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}
+                        >
+                          <MessageOutlined
+                            style={{
+                              color: '#3b82f6',
+                              fontSize: '16px'
+                            }}
+                          />
                           <Text strong style={{ color: '#1f2937' }}>
                             {record.lineItemNumber}
                           </Text>
@@ -1060,20 +1051,25 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
                           borderRadius: '6px'
                         }}
                       >
-                        <div style={{
-                          fontStyle: 'italic',
-                          lineHeight: '1.6'
-                        }}>
+                        <div
+                          style={{
+                            fontStyle: 'italic',
+                            lineHeight: '1.6'
+                          }}
+                        >
                           {renderCommentContent(record)}
                         </div>
                       </td>
 
                       {/* Actions column */}
-                      <td className="ant-table-cell" style={{
-                        padding: '16px 12px',
-                        verticalAlign: 'top',
-                        borderLeft: '1px solid #f0f0f0'
-                      }}>
+                      <td
+                        className="ant-table-cell"
+                        style={{
+                          padding: '16px 12px',
+                          verticalAlign: 'top',
+                          borderLeft: '1px solid #f0f0f0'
+                        }}
+                      >
                         <Dropdown
                           menu={{
                             items: [
@@ -1115,25 +1111,22 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
                         </Dropdown>
                       </td>
                     </tr>
-                  );
+                  )
                 }
 
                 // Regular product rows use default rendering
                 return (
-                  <tr
-                    {...props}
-                    data-testid={`product-row-${record?.id}`}
-                  >
+                  <tr {...props} data-testid={`product-row-${record?.id}`}>
                     {children}
                   </tr>
-                );
+                )
               }
             }
           }}
-          summary={(pageData) => {
+          summary={pageData => {
             const totalAmount = pageData
               .filter(item => !isCommentLineItem(item))
-              .reduce((sum, item) => sum + (item.extendedAmount || 0), 0);
+              .reduce((sum, item) => sum + (item.extendedAmount || 0), 0)
             return (
               <Table.Summary.Row>
                 <Table.Summary.Cell index={0} colSpan={6}>
@@ -1146,7 +1139,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={2} />
               </Table.Summary.Row>
-            );
+            )
           }}
           data-testid="line-items-table"
         />
@@ -1160,7 +1153,6 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
         onAction={handleLineItemDrawerAction}
         orderCurrency={order?.currency}
       />
-
 
       {/* Status Change Modal */}
       {order && (
@@ -1189,7 +1181,7 @@ const SalesOrderDetails: React.FC<SalesOrderDetailsProps> = ({
         />
       )}
     </div>
-  );
-};
+  )
+}
 
-export default SalesOrderDetails;
+export default SalesOrderDetails

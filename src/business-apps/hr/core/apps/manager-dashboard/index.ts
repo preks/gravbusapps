@@ -1,4 +1,4 @@
-import { ManagerDashboard } from './ManagerDashboard';
+import { ManagerDashboard } from './ManagerDashboard'
 
-export { ManagerDashboard };
-export default ManagerDashboard;
+export { ManagerDashboard }
+export default ManagerDashboard

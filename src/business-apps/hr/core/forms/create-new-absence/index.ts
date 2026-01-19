@@ -1,4 +1,4 @@
-import CreateNewAbsence from "./CreateNewAbsence";
+import CreateNewAbsence from './CreateNewAbsence'
 
-export { CreateNewAbsence };
-export default CreateNewAbsence;
+export { CreateNewAbsence }
+export default CreateNewAbsence

@@ -1,239 +1,230 @@
-// Customer Task Queries - generic task list queries for customer relations
-import { CUSTOMER_TASK, CUSTOMER_ACCOUNT_REF, CUSTOMER_CONTACT_REF, CUSTOMER_OPPORTUNITY_REF, CUSTOMER_LEAD_REF } from './fragments/customerRelationFragments';
-import { buildOrderBy, buildSearch, buildFilter, type Descriptor } from '@/common/network/graphql/queryHelpers';
+/**
+ * Customer Task Queries (New)
+ * GraphQL queries for Customer Task entities using fields mapping
+ * Extends Common Task Queries with CRM-specific fields
+ */
 
-// Unified descriptors for Sales Task (search, sort, filters, and option metadata)
-export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
-  // Search/sort
-  { key: 'name', searchPaths: ['name', 'code', 'description'], sortPath: 'name', type: 'text' },
-  { key: 'taskType', searchPaths: ['typeRef'], sortPath: 'typeRef', type: 'text' },
-  { key: 'taskPriority', searchPaths: ['priorityRef'], sortPath: 'priorityRef', type: 'text' },
-  { key: 'taskStatus', searchPaths: ['statusRef'], sortPath: 'statusRef', type: 'text' },
-  { key: 'assignedEmployee', searchPaths: ['assignedEmployee.displayName', 'assignedEmployee.firstName', 'assignedEmployee.lastName'], sortPath: 'assignedEmployee.displayName', type: 'text' },
-  { key: 'creatorEmployee', searchPaths: ['creatorEmployee.displayName', 'creatorEmployee.firstName', 'creatorEmployee.lastName'], sortPath: 'creatorEmployee.displayName', type: 'text' },
-  { key: 'dueDate', searchPaths: ['dueDate'], type: 'date' },
-  { key: 'startDate', searchPaths: ['startDate'], type: 'date' },
-  { key: 'endDate', searchPaths: ['endDate'], type: 'date' },
-  { key: 'createdAt', searchPaths: ['createdAt'], type: 'date' },
+import {
+  buildTaskQuery,
+  buildTaskByIdQuery,
+  buildTaskSearchQuery,
+  buildTaskWhereCondition,
+  buildTaskOrderBy,
+  buildTaskByLeadIdQuery,
+  buildTaskByAccountIdQuery,
+  buildTaskByContactIdQuery,
+  buildTaskByOpportunityIdQuery,
+  type CommonTaskQueryVariables,
+  type TaskRelationBuilders,
+  type TaskRelationFields
+} from '@/common/data/relations/queries/taskQueries'
+import { CustomerTaskFields, CUSTOMER_TASK_DESCRIPTORS } from '../types/customerTaskTypes'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
-  // Filters (IDs, strings, booleans, dates, custom)
-  { key: 'taskTypeIds', path: 'typeRef', kind: 'inStrings' },
-  { key: 'taskPriorityIds', path: 'priorityRef', kind: 'inStrings' },
-  { key: 'taskStatusIds', path: 'statusRef', kind: 'inStrings' },
-  { key: 'assignedEmployeeIds', path: 'assignedEmployee.id', kind: 'inIds' },
-  { key: 'creatorEmployeeIds', path: 'creatorEmployee.id', kind: 'inIds' },
-  { key: 'timingTypes', path: 'taskTiming', kind: 'inStrings' },
+// Import Common REF Fragment Builders (no relations - to avoid circular dependencies)
+import {
+  buildAccountFragment,
+  buildContactFragment,
+  buildDocumentFragment,
+  buildLeadFragment,
+  buildOpportunityFragment
+} from '@/common/data/relations/queries/relationFragments'
 
-  // Relation filters
-  { key: 'accountIds', path: 'account.id', kind: 'inIds' },
-  { key: 'contactIds', path: 'contact.id', kind: 'inIds' },
-  { key: 'leadIds', path: 'lead.id', kind: 'inIds' },
-  { key: 'opportunityIds', path: 'opportunity.id', kind: 'inIds' },
+// Import Customer Fields
+import { CustomerDocumentFields } from '../types/customerDocumentTypes'
+import { CustomerAccountFields } from '../types/customerAccountTypes'
+import { CustomerContactFields } from '../types/customerContactTypes'
+import { CustomerLeadFields } from '../types/customerLeadTypes'
+import { CustomerOpportunityFields } from '../types/customerOpportunityTypes'
 
-  // Date range filters
-  { key: 'dueDateFrom', path: 'dueDate', kind: 'dateFrom' },
-  { key: 'dueDateTo', path: 'dueDate', kind: 'dateTo' },
-  { key: 'startDateFrom', path: 'startDate', kind: 'dateFrom' },
-  { key: 'startDateTo', path: 'startDate', kind: 'dateTo' },
-  { key: 'endDateFrom', path: 'endDate', kind: 'dateFrom' },
-  { key: 'endDateTo', path: 'endDate', kind: 'dateTo' }
-];
-
-export interface CustomerTaskQueryVariables {
-  search?: string;
-  taskTypeIds?: string[];
-  taskPriorityIds?: string[];
-  taskStatusIds?: string[];
-  assignedEmployeeIds?: string[];
-  creatorEmployeeIds?: string[];
-  timingTypes?: string[];
-
-  accountIds?: string[];
-  contactIds?: string[];
-  leadIds?: string[];
-  opportunityIds?: string[];
-
-  dueDateFrom?: string;
-  dueDateTo?: string;
-  startDateFrom?: string;
-  startDateTo?: string;
-  endDateFrom?: string;
-  endDateTo?: string;
-
-  limit?: number;
-  offset?: number;
-  orderBy?: Array<{
-    field: string;
-    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST';
-  }>;
+/**
+ * Customer Task Query Variables Interface
+ * Extends CommonTaskQueryVariables with CRM-specific filters
+ */
+export interface CustomerTaskQueryVariables extends CommonTaskQueryVariables {
+  referenceTypes?: string[]
 }
 
-// Build where condition for Customer Task queries
-export const buildCustomerTaskWhereCondition = (variables: CustomerTaskQueryVariables = {}) => {
-  let whereClause = 'where: { isDeleted: { _eq: false }';
+/**
+ * Build Customer Task query with fields mapping
+ * CRM uses "SalesTask" as entity name (not "CustomerTask")
+ */
+export const buildCustomerTaskQuery = (fields: typeof CustomerTaskFields = CustomerTaskFields): string => {
+  // Build relation builders and fields for references
+  const relationBuilders: Partial<TaskRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
 
-  // Generic search across dot-paths from descriptors
-  const searchOr = buildSearch(variables.search || '', CUSTOMER_TASK_DESCRIPTORS);
-  if (searchOr) whereClause += `, ${searchOr}`;
+  const relationFields: Partial<TaskRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
 
-  // Generic AND filters from descriptors
-  const andFilters = buildFilter(variables as any, CUSTOMER_TASK_DESCRIPTORS);
-  if (andFilters) whereClause += `, ${andFilters}`;
+  return buildTaskQuery('SalesTask', fields, relationBuilders, relationFields)
+}
 
-  whereClause += ' }';
-  return whereClause;
-};
+/**
+ * Build Customer Task by ID query
+ */
+export const buildCustomerTaskByIdQuery = (
+  fields: typeof CustomerTaskFields = CustomerTaskFields,
+  id: string
+): string => {
+  // Build relation builders and fields for common relations
+  const relationBuilders: TaskRelationBuilders = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
 
-// Get Customer Tasks with full details and aggregate count
-export const GET_CUSTOMER_TASKS = (variables: CustomerTaskQueryVariables = {}): string => {
-  const limit = Math.min(variables.limit || 50, 100);
-  const offset = variables.offset || 0;
-  const where = buildCustomerTaskWhereCondition(variables);
+  const relationFields: TaskRelationFields = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
 
-  const orderByBuilt = buildOrderBy(variables.orderBy || [], CUSTOMER_TASK_DESCRIPTORS);
-  const orderByClause = orderByBuilt || 'orderBy: [{ createdAt: DESC }]';
+  return buildTaskByIdQuery('SalesTask', id, fields, relationBuilders, relationFields)
+}
 
-  return `
-    query GetCustomerTasks {
-      SalesTask(
-        limit: ${limit}
-        offset: ${offset}
-        ${orderByClause}
-        ${where}
-      ) {
-        ${CUSTOMER_TASK}
+/**
+ * Build Customer Task search query
+ */
+export const buildCustomerTaskSearchQuery = (fields: typeof CustomerTaskFields = CustomerTaskFields): string => {
+  return buildTaskSearchQuery('SalesTask', fields)
+}
 
-        # Entity references (minimal for display)
-        account { ${CUSTOMER_ACCOUNT_REF} }
-        contact { ${CUSTOMER_CONTACT_REF} }
-        lead { ${CUSTOMER_LEAD_REF} }
-        opportunity { ${CUSTOMER_OPPORTUNITY_REF} }
-      }
+/**
+ * Build WHERE condition for Customer Task queries
+ * Uses CUSTOMER_TASK_DESCRIPTORS which includes common descriptors
+ */
+export const buildCustomerTaskWhereCondition = (
+  variables: CustomerTaskQueryVariables = {},
+  additionalDescriptors: Descriptor[] = [],
+  customConditions: Record<string, any>[] = []
+): Record<string, any> => {
+  // CUSTOMER_TASK_DESCRIPTORS already includes common descriptors
+  const descriptors = [...CUSTOMER_TASK_DESCRIPTORS, ...additionalDescriptors]
+  return buildTaskWhereCondition(variables, descriptors, customConditions)
+}
 
-      SalesTaskAggregate(${where}) {
-        aggregate { count }
-      }
-    }
-  `;
-};
+/**
+ * Build ORDER BY for Customer Task queries
+ */
+export const buildCustomerTaskOrderBy = (
+  orderBy: CustomerTaskQueryVariables['orderBy'] = [],
+  additionalDescriptors: Descriptor[] = []
+): any[] => {
+  const descriptors = [...CUSTOMER_TASK_DESCRIPTORS, ...additionalDescriptors]
+  return buildTaskOrderBy(orderBy, descriptors)
+}
 
-// Get Customer Tasks by Account ID
-export const GET_CUSTOMER_TASKS_BY_ACCOUNT_ID = (accountId: string): string => {
-  return `
-    query GetCustomerTasksByAccountId {
-      SalesTask(
-        where: { 
-          account: { id: { _eq: "${accountId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${CUSTOMER_TASK}
+// =====================================================
+// CUSTOMER TASK BY ENTITY ID QUERY BUILDERS
+// =====================================================
 
-        # Entity references
-        account {
-          id
-          code
-          name
-        }
-      }
-    }
-  `;
-};
+/**
+ * Build Customer Task query filtered by Lead ID
+ * Uses common buildTaskByLeadIdQuery with Customer-specific fields and relations
+ */
+export const buildCustomerTaskByLeadIdQuery = (): string => {
+  const relationBuilders: Partial<TaskRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
 
-// Get Customer Tasks by Contact ID
-export const GET_CUSTOMER_TASKS_BY_CONTACT_ID = (contactId: string): string => {
-  return `
-    query GetCustomerTasksByContactId {
-      SalesTask(
-        where: { 
-          contact: { id: { _eq: "${contactId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${CUSTOMER_TASK}
+  const relationFields: Partial<TaskRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
 
-        # Entity references
-        contact {
-          id
-          code
-          firstName
-          lastName
-        }
-      }
-    }
-  `;
-};
+  return buildTaskByLeadIdQuery('SalesTask', CustomerTaskFields, relationBuilders, relationFields)
+}
 
-// Get Customer Tasks by Lead ID
-export const GET_CUSTOMER_TASKS_BY_LEAD_ID = (leadId: string): string => {
-  return `
-    query GetCustomerTasksByLeadId {
-      SalesTask(
-        where: { 
-          lead: { id: { _eq: "${leadId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${CUSTOMER_TASK}
+/**
+ * Build Customer Task query filtered by Account ID
+ * Uses common buildTaskByAccountIdQuery with Customer-specific fields and relations
+ */
+export const buildCustomerTaskByAccountIdQuery = (): string => {
+  const relationBuilders: Partial<TaskRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
 
-        # Entity references
-        lead {
-          id
-          code
-          firstName
-          lastName
-          email
-        }
-      }
-    }
-  `;
-};
+  const relationFields: Partial<TaskRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
 
-// Get Customer Tasks by Opportunity ID
-export const GET_CUSTOMER_TASKS_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
-  return `
-    query GetCustomerTasksByOpportunityId {
-      SalesTask(
-        where: { 
-          opportunity: { id: { _eq: "${opportunityId}" } }, 
-          isDeleted: { _eq: false } 
-        }
-        orderBy: [{ createdAt: DESC }]
-      ) {
-        ${CUSTOMER_TASK}
+  return buildTaskByAccountIdQuery('SalesTask', CustomerTaskFields, relationBuilders, relationFields)
+}
 
-        # Entity references
-        opportunity {
-          id
-          code
-          name
-        }
-      }
-    }
-  `;
-};
+/**
+ * Build Customer Task query filtered by Contact ID
+ * Uses common buildTaskByContactIdQuery with Customer-specific fields and relations
+ */
+export const buildCustomerTaskByContactIdQuery = (): string => {
+  const relationBuilders: Partial<TaskRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
 
-// Get Customer Task by ID for editing
-export const GET_CUSTOMER_TASK_BY_ID = (taskId: string): string => {
-  return `
-    query GetCustomerTaskById {
-      SalesTask(
-        where: { 
-          id: { _eq: "${taskId}" }, 
-          isDeleted: { _eq: false } 
-        }
-      ) {
-        ${CUSTOMER_TASK}
+  const relationFields: Partial<TaskRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
 
-        # Entity references (full for editing)
-        account { ${CUSTOMER_ACCOUNT_REF} }
-        contact { ${CUSTOMER_CONTACT_REF} }
-        lead { ${CUSTOMER_LEAD_REF} }
-        opportunity { ${CUSTOMER_OPPORTUNITY_REF} }
-      }
-    }
-  `;
-};
+  return buildTaskByContactIdQuery('SalesTask', CustomerTaskFields, relationBuilders, relationFields)
+}
+
+/**
+ * Build Customer Task query filtered by Opportunity ID
+ * Uses common buildTaskByOpportunityIdQuery with Customer-specific fields and relations
+ */
+export const buildCustomerTaskByOpportunityIdQuery = (): string => {
+  const relationBuilders: Partial<TaskRelationBuilders> = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: Partial<TaskRelationFields> = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildTaskByOpportunityIdQuery('SalesTask', CustomerTaskFields, relationBuilders, relationFields)
+}

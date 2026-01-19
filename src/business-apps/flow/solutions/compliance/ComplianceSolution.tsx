@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import React, { useState, useEffect } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Button,
-
   Dialog,
   DialogContent,
   DialogHeader,
@@ -17,35 +16,29 @@ import {
   Input,
   Textarea,
   PageLayout
-} from '@newwork/nw-design-system';
-import { 
-  Shield, 
-  BarChart3, 
-  FileSearch, 
-  Plus,
-  Upload,
-  FileText,
-} from 'lucide-react';
-import { AssignmentSelector } from '@/components/assignment-selector';
-import { AssignmentMode } from '@/common/network/flows/FlowTemplateClient';
-import { useForm } from 'react-hook-form';
-import { DashboardTab } from './components/DashboardTab';
-import { AnalyticsTab } from './components/AnalyticsTab';
-import { AuditTab } from './components/AuditTab';
-import { ComplianceFlowService } from './services/ComplianceFlowService';
-import { env } from '@/common/env/EnvUtils';
+} from '@newwork/nw-design-system'
+import { Shield, BarChart3, FileSearch, Plus, Upload, FileText } from 'lucide-react'
+import { AssignmentSelector } from '@/components/assignment-selector'
+import { AssignmentMode } from '@/common/network/flows/FlowTemplateClient'
+import { useForm } from 'react-hook-form'
+import { DashboardTab } from './components/DashboardTab'
+import { AnalyticsTab } from './components/AnalyticsTab'
+import { AuditTab } from './components/AuditTab'
+import { ComplianceFlowService } from './services/ComplianceFlowService'
+import { getFlowEngineBaseUrl } from '@/common/network/flows/flowEngineUrl'
+import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
 
 export interface ComplianceSolutionProps extends BusinessAppContextProps {}
 
 interface ComplianceFlowFormData {
-  title: string;
-  message: string;
-  documents: File[];
-  assignments: any;
-  dueDate: string;
+  title: string
+  message: string
+  documents: File[]
+  assignments: any
+  dueDate: string
 }
 
-export const ComplianceSolution: React.FC<ComplianceSolutionProps> = (context) => {
+export const ComplianceSolution: React.FC<ComplianceSolutionProps> = context => {
   const viewOptions = [
     {
       key: 'dashboard',
@@ -62,23 +55,23 @@ export const ComplianceSolution: React.FC<ComplianceSolutionProps> = (context) =
       icon: <FileSearch className="gba:w-4 gba:h-4" />,
       label: 'Audit'
     }
-  ];
+  ]
 
   // Get initial view from URL or default to first view
   const getInitialView = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const viewFromUrl = urlParams.get('view');
+    const urlParams = new URLSearchParams(window.location.search)
+    const viewFromUrl = urlParams.get('view')
 
-    if (viewFromUrl && viewOptions.some((option) => option.key === viewFromUrl)) {
-      return viewFromUrl;
+    if (viewFromUrl && viewOptions.some(option => option.key === viewFromUrl)) {
+      return viewFromUrl
     }
 
-    return viewOptions[0].key;
-  };
+    return viewOptions[0].key
+  }
 
-  const [activeTab, setActiveTab] = useState<string>(getInitialView());
-  const [isFlowModalOpen, setIsFlowModalOpen] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [activeTab, setActiveTab] = useState<string>(getInitialView())
+  const [isFlowModalOpen, setIsFlowModalOpen] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
 
   const form = useForm<ComplianceFlowFormData>({
     defaultValues: {
@@ -88,57 +81,57 @@ export const ComplianceSolution: React.FC<ComplianceSolutionProps> = (context) =
       assignments: null,
       dueDate: ''
     }
-  });
+  })
 
   // Update URL when view changes
   const updateUrl = (view: string) => {
-    const urlParams = new URLSearchParams(window.location.search);
-    urlParams.set('view', view);
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
-    window.history.replaceState({}, '', newUrl);
-  };
+    const urlParams = new URLSearchParams(window.location.search)
+    urlParams.set('view', view)
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
+    window.history.replaceState({}, '', newUrl)
+  }
 
   const handleTabChange = (key: string) => {
-    if (!key) return;
-    setActiveTab(key);
-    updateUrl(key);
-  };
+    if (!key) return
+    setActiveTab(key)
+    updateUrl(key)
+  }
 
   // Ensure URL always has view parameter on initial load
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(window.location.search)
     if (!urlParams.has('view')) {
-      updateUrl(activeTab);
+      updateUrl(activeTab)
     }
-  }, []);
+  }, [])
 
   // Listen for browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
-      const newView = getInitialView();
-      setActiveTab(newView);
-    };
+      const newView = getInitialView()
+      setActiveTab(newView)
+    }
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    setUploadedFiles(prev => [...prev, ...files]);
-    form.setValue('documents', [...form.getValues('documents'), ...files]);
-  };
+    const files = Array.from(event.target.files || [])
+    setUploadedFiles(prev => [...prev, ...files])
+    form.setValue('documents', [...form.getValues('documents'), ...files])
+  }
 
   const removeFile = (index: number) => {
-    const updatedFiles = uploadedFiles.filter((_, i) => i !== index);
-    setUploadedFiles(updatedFiles);
-    form.setValue('documents', updatedFiles);
-  };
+    const updatedFiles = uploadedFiles.filter((_, i) => i !== index)
+    setUploadedFiles(updatedFiles)
+    form.setValue('documents', updatedFiles)
+  }
 
   const onSubmit = async (data: ComplianceFlowFormData) => {
     try {
-      console.log('Creating compliance flow with data:', data);
-      console.log('Assignment data structure:', JSON.stringify(data.assignments, null, 2));
+      console.log('Creating compliance flow with data:', data)
+      console.log('Assignment data structure:', JSON.stringify(data.assignments, null, 2))
 
       // Generate dynamic workflow template with tags
       const flowTemplate = ComplianceFlowService.generateFlowTemplate({
@@ -152,25 +145,25 @@ export const ComplianceSolution: React.FC<ComplianceSolutionProps> = (context) =
           targets: null, // null means runtime assignment via stepAssignments
           allowReassignment: false
         }
-      });
+      })
 
-      console.log('Generated flow template with tags:', flowTemplate);
+      console.log('Generated flow template with tags:', flowTemplate)
 
       // Create execution payload
       const executionPayload = ComplianceFlowService.createWorkflowExecutionPayload(
         flowTemplate,
         context.userInfo?.id || 'unknown'
-      );
+      )
 
-      console.log('Execution payload:', executionPayload);
+      console.log('Execution payload:', executionPayload)
 
       // Execute the workflow via template dynamic execution API
-      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'http://localhost:3000';
+      const baseUrl = getFlowEngineBaseUrl()
       const response = await fetch(`${baseUrl}/api/templates/execute-dynamic`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${context.accessToken}`
+          Authorization: `Bearer ${context.accessToken}`
         },
         body: JSON.stringify({
           templateDefinition: flowTemplate,
@@ -194,43 +187,52 @@ export const ComplianceSolution: React.FC<ComplianceSolutionProps> = (context) =
             }
           }
         })
-      });
+      })
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create compliance flow');
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to create compliance flow')
       }
 
-      const result = await response.json();
-      console.log('Compliance flow created successfully:', result);
+      const result = await response.json()
+      console.log('Compliance flow created successfully:', result)
 
       // Close modal and show success
-      setIsFlowModalOpen(false);
-      form.reset();
-      setUploadedFiles([]);
+      setIsFlowModalOpen(false)
+      form.reset()
+      setUploadedFiles([])
 
       // Notify dashboard to refresh and show success
-      try { window.dispatchEvent(new CustomEvent('compliance-flow-created')); } catch {}
-      alert(`Compliance flow "${data.title}" created successfully! Workflow ID: ${result.data.workflowId}`);
-
+      try {
+        window.dispatchEvent(new CustomEvent('compliance-flow-created'))
+      } catch {}
+      showToast(
+        `Compliance flow "${data.title}" created successfully! Workflow ID: ${result.data.workflowId}`,
+        'success',
+        'Flow Created'
+      )
     } catch (error) {
-      console.error('Error creating compliance flow:', error);
-      alert(`Error creating compliance flow: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Error creating compliance flow:', error)
+      showToast(
+        `Error creating compliance flow: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'error',
+        'Flow Creation Failed'
+      )
     }
-  };
+  }
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <DashboardTab {...context} />;
+        return <DashboardTab {...context} />
       case 'analytics':
-        return <AnalyticsTab {...context} />;
+        return <AnalyticsTab {...context} />
       case 'audit':
-        return <AuditTab {...context} />;
+        return <AuditTab {...context} />
       default:
-        return null;
+        return null
     }
-  };
+  }
 
   return (
     <div data-testid="compliance-solution-app">
@@ -246,7 +248,7 @@ export const ComplianceSolution: React.FC<ComplianceSolutionProps> = (context) =
         headerSubViews={{
           value: activeTab,
           onValueChange: handleTabChange,
-          items: viewOptions.map((option) => ({
+          items: viewOptions.map(option => ({
             value: option.key,
             label: option.label,
             icon: option.icon
@@ -264,7 +266,7 @@ export const ComplianceSolution: React.FC<ComplianceSolutionProps> = (context) =
               <DialogHeader>
                 <DialogTitle>Start New Compliance Flow</DialogTitle>
               </DialogHeader>
-              
+
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="gba:space-y-6">
                   {/* Title Field */}
@@ -330,7 +332,7 @@ export const ComplianceSolution: React.FC<ComplianceSolutionProps> = (context) =
                           Upload Documents
                         </label>
                       </div>
-                      
+
                       {uploadedFiles.length > 0 && (
                         <div className="gba:space-y-2">
                           {uploadedFiles.map((file, index) => (
@@ -342,12 +344,7 @@ export const ComplianceSolution: React.FC<ComplianceSolutionProps> = (context) =
                                 <FileText className="gba:w-4 gba:h-4 gba:text-blue-500" />
                                 <span className="gba:text-sm">{file.name}</span>
                               </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeFile(index)}
-                              >
+                              <Button type="button" variant="ghost" size="sm" onClick={() => removeFile(index)}>
                                 Remove
                               </Button>
                             </div>
@@ -356,8 +353,6 @@ export const ComplianceSolution: React.FC<ComplianceSolutionProps> = (context) =
                       )}
                     </div>
                   </FormItem>
-
-
 
                   {/* Assignment Selector */}
                   <FormField
@@ -404,11 +399,7 @@ export const ComplianceSolution: React.FC<ComplianceSolutionProps> = (context) =
 
                   {/* Submit Button */}
                   <div className="gba:flex gba:justify-end gba:gap-3 gba:pt-4 gba:border-t">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsFlowModalOpen(false)}
-                    >
+                    <Button type="button" variant="outline" onClick={() => setIsFlowModalOpen(false)}>
                       Cancel
                     </Button>
                     <Button type="submit" variant="default">
@@ -422,12 +413,10 @@ export const ComplianceSolution: React.FC<ComplianceSolutionProps> = (context) =
         }
         className="gba:min-h-screen"
       >
-        <div className="gba:h-full gba:overflow-auto">
-          {renderTabContent()}
-        </div>
+        <div className="gba:h-full gba:overflow-auto">{renderTabContent()}</div>
       </PageLayout>
     </div>
-  );
-};
+  )
+}
 
-export default ComplianceSolution;
+export default ComplianceSolution

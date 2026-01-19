@@ -1,2 +1,2 @@
-export { default } from './ExpenseDashboardTab';
-export * from './ExpenseDashboardTab';
+export { default } from './ExpenseDashboardTab'
+export * from './ExpenseDashboardTab'

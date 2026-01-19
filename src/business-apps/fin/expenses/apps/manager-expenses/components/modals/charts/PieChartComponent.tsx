@@ -1,33 +1,82 @@
-import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { formatNumberFunction } from '@/common/utils/windowUtils';
+import React from 'react'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  ChartContainer,
+  ChartConfig,
+  ChartTooltip,
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { PieChart, Pie, Cell, Legend } from 'recharts'
+import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { resolveCssVar } from './chartUtils'
 
 interface PieChartProps {
-  data: {
-    name: string;
-    value: number;
-  }[];
-  title: string;
-  nameKey?: string;
-  dataKey?: string;
-  height?: number;
-  colors?: string[];
-  currency?: string;
+  data: Array<{
+    name: string
+    value: number
+    [key: string]: any // Allow additional dynamic properties
+  }>
+  title: string
+  dataKey?: string
+  height?: number
+  colors?: string[]
+  currency?: string
+  valueType?: 'amount' | 'count'
+  countLabel?: string
+  getColor?: (entry: any, index: number) => string | undefined
+  dataTestId?: string
 }
 
 /**
  * Reusable pie chart component for analytics
  */
-const PieChartComponent: React.FC<PieChartProps> = ({ 
-  data, 
-  title, 
-  nameKey = 'name',
+const PieChartComponent: React.FC<PieChartProps> = ({
+  data,
+  title,
   dataKey = 'value',
   height = 300,
-  colors = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2', '#fa8c16'],
-  currency = 'EUR'
+  colors = [
+    'var(--nw-primary)',
+    'var(--nw-success)',
+    'var(--nw-warning)',
+    'var(--nw-destructive)',
+    'var(--nw-info)',
+    'var(--nw-accent)',
+    'var(--nw-muted)'
+  ],
+  currency = 'EUR',
+  valueType = 'amount',
+  countLabel = 'items',
+  getColor,
+  dataTestId
 }) => {
+  const resolvedColors = React.useMemo(() => colors.map(resolveCssVar), [colors])
+
+  // Create chart config dynamically from data
+  const chartConfig = React.useMemo(() => {
+    const config: ChartConfig = {
+      [dataKey]: {
+        label:
+          valueType === 'count'
+            ? getTranslationFromI18nKeyAndLabel('lowcoder:charts.tooltip.count', 'Count')
+            : getTranslationFromI18nKeyAndLabel('lowcoder:charts.tooltip.amount', 'Amount')
+      }
+    }
+
+    // Add each data item to config
+    for (const item of data) {
+      const key = item.name.toLowerCase().replaceAll(/\s+/g, '_')
+      config[key] = {
+        label: item.name
+      }
+    }
+
+    return config
+  }, [data, dataKey, valueType])
   if (!data || data.length === 0) {
     return (
       <Card className="gba:w-full">
@@ -38,16 +87,19 @@ const PieChartComponent: React.FC<PieChartProps> = ({
         )}
         <CardContent>
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center gba:min-h-[200px]">
-            <div className="gba:text-gray-500 gba:text-lg gba:font-medium gba:mb-2">
-              No data available
+            <div className="gba:text-muted-foreground gba:text-lg gba:font-medium gba:mb-2">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:charts.empty.title', 'No data available')}
             </div>
-            <div className="gba:text-gray-400 gba:text-sm">
-              There is no data to display for this chart.
+            <div className="gba:text-muted-foreground gba:text-sm">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:charts.empty.description',
+                'There is no data to display for this chart.'
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   return (
@@ -58,35 +110,60 @@ const PieChartComponent: React.FC<PieChartProps> = ({
         </CardHeader>
       )}
       <CardContent>
-        <div style={{ height: height }} data-testid={`${title.toLowerCase().replace(/\s+/g, '-')}-chart`}>
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                outerRadius={100}
-                innerRadius={60}
-                fill="#8884d8"
-                dataKey={dataKey}
-                label={(entry) => `${entry[nameKey]}: ${formatNumberFunction(entry[dataKey].toString(), "0.00[,]00")} ${currency}`}
-              >
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                ))}
-              </Pie>
-              <Tooltip 
-                formatter={(value) => [`${formatNumberFunction(value.toString(), "0.00[,]00")} ${currency}`, 'Amount']}
-                labelFormatter={(name) => `${name}`}
-              />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
+        <ChartContainer
+          config={chartConfig}
+          className="gba:mx-auto"
+          style={{ minHeight: height, width: '100%' }}
+          data-testid={dataTestId ?? `${title.toLowerCase().replaceAll(/\s+/g, '-')}-chart`}
+        >
+          <PieChart width={500} height={400}>
+            <ChartTooltip
+              cursor={false}
+              content={
+                <ChartTooltipContent
+                  formatter={(value: any, _name: any, props: any) => {
+                    const num = Number(value ?? 0)
+                    if (valueType === 'count') {
+                      const itemsLabel = getTranslationFromI18nKeyAndLabel('lowcoder:charts.tooltip.items', countLabel)
+                      return `${num} ${itemsLabel}`
+                    }
+                    const fixed = Number.isFinite(num) ? Math.round(num * 100) / 100 : 0
+                    const count = props?.payload?.count ?? null
+                    const amountText = formatCurrencyDisplay(fixed, currency)
+                    const countLabelText = getTranslationFromI18nKeyAndLabel('lowcoder:charts.tooltip.count', 'Count')
+                    return count === null ? amountText : `${amountText} (${countLabelText}: ${count})`
+                  }}
+                  nameKey="name"
+                />
+              }
+            />
+            <Pie
+              data={data}
+              cx="50%"
+              cy="45%"
+              labelLine={false}
+              label={false}
+              outerRadius={100}
+              innerRadius={60}
+              fill="var(--nw-chart-1)"
+              dataKey={dataKey}
+              nameKey="name"
+            >
+              {data.map((entry, index) => {
+                const base = resolvedColors[index % resolvedColors.length]
+                const custom = getColor ? getColor(entry, index) : undefined
+                const resolved = custom ? resolveCssVar(custom) : base
+                // Use entry name or value as key fallback to ensure uniqueness
+                const entryKey = entry.name || entry[dataKey] || index
+                return <Cell key={`cell-${entryKey}`} fill={resolved} />
+              })}
+            </Pie>
+            <Legend layout="horizontal" align="center" verticalAlign="bottom" iconSize={10} />
+          </PieChart>
+        </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default PieChartComponent;
+export default PieChartComponent

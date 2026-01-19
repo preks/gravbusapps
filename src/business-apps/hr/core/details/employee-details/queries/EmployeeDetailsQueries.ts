@@ -1,14 +1,14 @@
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { EmployeeDetailsResponse } from '../types';
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { EmployeeDetailsResponse } from '../types'
 
 export interface EmployeeDetailsQueryVariables {
-  employeeId: string;
-  structureId?: string;
-  hasStructureId?: boolean;
+  employeeId: string
+  structureId?: string
+  hasStructureId?: boolean
 }
 
-export const GET_EMPLOYEE_DETAILS = /*sql*/`
+export const GET_EMPLOYEE_DETAILS = /*sql*/ `
   query GetEmployeeDetails($employeeId: uuid!, $structureId: uuid, $hasStructureId: Boolean!) {
     EmployeePosition(where: {
       employeeId: {_eq: $employeeId}
@@ -82,7 +82,7 @@ export const GET_EMPLOYEE_DETAILS = /*sql*/`
             id
           }
         }
-        communication(where: {isDeleted: {_eq: false}}) {
+        communication(where: {_and: [{isDeleted: {_eq: false}}, {purpose: {_eq: "INTERNAL"}}]}) {
           channel {
             translations {
               value
@@ -112,10 +112,18 @@ export const GET_EMPLOYEE_DETAILS = /*sql*/`
           probationEnd
           contractType {
             value
+            translations {
+              value
+              localeCode
+            }
             id
           }
           employmentType {
             value
+            translations {
+              value
+              localeCode
+            }
             id
           }
           region {
@@ -133,25 +141,25 @@ export const GET_EMPLOYEE_DETAILS = /*sql*/`
       }
     }
   }
-`;
+`
 
 export const useGetEmployeeDetails = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphqlClient(context.accessToken);
-  
+  const graphqlClient = useGraphqlClient(context.accessToken)
+
   const fetchEmployeeDetails = async (variables: EmployeeDetailsQueryVariables) => {
-    const query = GET_EMPLOYEE_DETAILS;
+    const query = GET_EMPLOYEE_DETAILS
     try {
       const result = await graphqlClient.request<EmployeeDetailsResponse>(query, {
         employeeId: variables.employeeId,
         structureId: variables.structureId,
         hasStructureId: !!variables.structureId
-      });
-      return result;
+      })
+      return result
     } catch (error) {
-      console.error('Error fetching employee details:', error);
-      throw error;
+      console.error('Error fetching employee details:', error)
+      throw error
     }
-  };
+  }
 
-  return { fetchEmployeeDetails };
-}; 
+  return { fetchEmployeeDetails }
+}

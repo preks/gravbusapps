@@ -1,7 +1,7 @@
-export { StatisticsTab } from './StatisticsTab';
-export { KeyInsightsSection } from './KeyInsightsSection';
-export { QuickActionsSection } from './QuickActionsSection';
-export { UsagePatternsSection } from './UsagePatternsSection';
-export { YearComparisonSection } from './YearComparisonSection';
-export { AbsenceDistributionSection } from './AbsenceDistributionSection';
-export { AbsenceTrendsSection } from './AbsenceTrendsSection'; 
+export { StatisticsTab } from './StatisticsTab'
+export { KeyInsightsSection } from './KeyInsightsSection'
+export { QuickActionsSection } from './QuickActionsSection'
+export { UsagePatternsSection } from './UsagePatternsSection'
+export { YearComparisonSection } from './YearComparisonSection'
+export { AbsenceDistributionSection } from './AbsenceDistributionSection'
+export { AbsenceTrendsSection } from './AbsenceTrendsSection'

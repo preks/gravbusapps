@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import dayjs from 'dayjs';
-import { useExpenseRequestWizardContext } from '../context/ExpenseRequestWizardContext';
+import { useState, useEffect } from 'react'
+import dayjs from 'dayjs'
+import { useExpenseRequestWizardContext } from '../context/ExpenseRequestWizardContext'
 
 /**
  * Checks if a date or date-time is in the future
@@ -9,23 +9,23 @@ import { useExpenseRequestWizardContext } from '../context/ExpenseRequestWizardC
  * @returns Boolean indicating if the date-time is in the future
  */
 export const isFutureDateTimeFunction = (date: string | Date, time?: string | Date): boolean => {
-  if (!date) return false;
-  
-  let inputDateTime = dayjs(date);
+  if (!date) return false
+
+  let inputDateTime = dayjs(date)
 
   if (time && dayjs(time).isValid()) {
-    const timeObj = dayjs(time);
+    const timeObj = dayjs(time)
     inputDateTime = inputDateTime
-      .set("hour", timeObj.hour())
-      .set("minute", timeObj.minute())
-      .set("second", timeObj.second());
+      .set('hour', timeObj.hour())
+      .set('minute', timeObj.minute())
+      .set('second', timeObj.second())
   }
 
   if (inputDateTime.isSame(dayjs(), 'day')) {
-    return false;
+    return false
   }
-  return dayjs().isBefore(inputDateTime);
-};
+  return dayjs().isBefore(inputDateTime)
+}
 
 /**
  * Validates if expense request dates are in the future
@@ -36,36 +36,35 @@ export const isFutureDateTimeFunction = (date: string | Date, time?: string | Da
 export const validateExpenseRequestDates = (startDate?: string | Date, endDate?: string | Date): boolean => {
   if (startDate && endDate) {
     if (isFutureDateTimeFunction(startDate) || isFutureDateTimeFunction(endDate)) {
-      return true;
+      return true
     }
-    return false;
+    return false
   }
-  return false;
-};
+  return false
+}
 
 /**
  * Hook to check if expense request dates are in the future
  * @returns Object with hasFutureDates boolean and validation function
  */
 export const useExpenseRequestDateValidation = () => {
-  const { expenseRequestData } = useExpenseRequestWizardContext();
-  const [hasFutureDates, setHasFutureDates] = useState<boolean>(false);
-  
+  const { expenseRequestData } = useExpenseRequestWizardContext()
+  const [hasFutureDates, setHasFutureDates] = useState<boolean>(false)
+
   useEffect(() => {
     if (expenseRequestData?.ExpenseRequestByPk) {
-      const requestData = expenseRequestData.ExpenseRequestByPk;
-      const requestStartDate = requestData.startDate;
-      const requestEndDate = requestData.endDate;
-      
+      const requestData = expenseRequestData.ExpenseRequestByPk
+      const requestStartDate = requestData.startDate
+      const requestEndDate = requestData.endDate
+
       if (requestStartDate && requestEndDate) {
-        const futureDetected = isFutureDateTimeFunction(requestStartDate) || 
-                             isFutureDateTimeFunction(requestEndDate);
-        setHasFutureDates(futureDetected);
+        const futureDetected = isFutureDateTimeFunction(requestStartDate) || isFutureDateTimeFunction(requestEndDate)
+        setHasFutureDates(futureDetected)
       } else {
-        setHasFutureDates(false);
+        setHasFutureDates(false)
       }
     }
-  }, [expenseRequestData]);
-  
-  return { hasFutureDates };
-};
+  }, [expenseRequestData])
+
+  return { hasFutureDates }
+}

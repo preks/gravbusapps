@@ -1,41 +1,41 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Alert, Badge } from '@newwork/nw-design-system';
-import { TrendingUp, Target, Clock, Award, Workflow, Calendar, AlertCircle, GitBranch, CheckCircle } from 'lucide-react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
-import { useFlowAnalytics, useFlowsList } from '../../hooks/useFlowAnalytics';
-import { FlowDetailView } from '../../../../common/components/flow-detail/FlowDetailView';
+import React, { useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, Alert, Badge, Button } from '@newwork/nw-design-system'
+import { TrendingUp, Target, Clock, Award, Workflow, Calendar, AlertCircle, GitBranch, CheckCircle } from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
+import { useFlowAnalytics, useFlowsList } from '../../hooks/useFlowAnalytics'
+import { FlowDetailView } from '../../../../common/components/flow-detail/FlowDetailView'
 
 // Helper function to calculate days running from start time
 const calculateDaysRunning = (startTime: string): number => {
-  if (!startTime) return 0;
-  const start = new Date(startTime);
-  const now = new Date();
-  const diffMs = now.getTime() - start.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  return Math.max(0, diffDays);
-};
+  if (!startTime) return 0
+  const start = new Date(startTime)
+  const now = new Date()
+  const diffMs = now.getTime() - start.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  return Math.max(0, diffDays)
+}
 
 // Helper function to format last activity
 const formatLastActivity = (flow: any): { label: string; time: string } => {
   const formatDateTime = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', { 
-      month: 'numeric', 
-      day: 'numeric', 
-      year: 'numeric', 
-      hour: 'numeric', 
-      minute: '2-digit', 
-      hour12: true 
-    });
-  };
+    const date = new Date(dateString)
+    return date.toLocaleString('en-US', {
+      month: 'numeric',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    })
+  }
 
   // Use lastActivityTime if it's more recent than updateTime, otherwise fall back to updateTime or startTime
-  const lastActivity = flow.lastActivityTime || flow.updateTime || flow.startTime;
-  const isRecentActivity = flow.lastActivityTime && 
-    (!flow.updateTime || new Date(flow.lastActivityTime) > new Date(flow.updateTime));
-  
+  const lastActivity = flow.lastActivityTime || flow.updateTime || flow.startTime
+  const isRecentActivity =
+    flow.lastActivityTime && (!flow.updateTime || new Date(flow.lastActivityTime) > new Date(flow.updateTime))
+
   // Debug logging for OverviewTab
   console.debug('OverviewTab formatLastActivity for', flow.flowId, {
     lastActivityTime: flow.lastActivityTime,
@@ -43,56 +43,63 @@ const formatLastActivity = (flow: any): { label: string; time: string } => {
     startTime: flow.startTime,
     isRecentActivity,
     label: isRecentActivity ? 'Last activity' : 'Started'
-  });
-  
+  })
+
   return {
     label: isRecentActivity ? 'Last activity' : 'Started',
     time: formatDateTime(lastActivity)
-  };
-};
+  }
+}
 
 interface OverviewTabProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
+  prefixDataTestId?: string
 }
 
 export const OverviewTab: React.FC<OverviewTabProps> = ({
   prefixDataTestId = 'flow-success-overview',
   accessToken
 }) => {
-  const [timeframe, setTimeframe] = useState<'wtd' | 'mtd' | 'qtd' | 'ytd'>('mtd');
-  const [flowsSearch, setFlowsSearch] = useState('');
-  const [flowsStatus, setFlowsStatus] = useState<string>('');
-  const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
-  
-  const { 
-    data: analytics, 
-    isLoading: analyticsLoading, 
-    error: analyticsError, 
-    refetch: refetchAnalytics 
+  const [timeframe, setTimeframe] = useState<'wtd' | 'mtd' | 'qtd' | 'ytd'>('mtd')
+  const [flowsSearch, setFlowsSearch] = useState('')
+  const [flowsStatus, setFlowsStatus] = useState<string>('')
+  const [flowsPage, setFlowsPage] = useState(0)
+  const [flowsPageSize] = useState(10)
+  const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null)
+
+  const {
+    data: analytics,
+    isLoading: analyticsLoading,
+    error: analyticsError,
+    refetch: refetchAnalytics
   } = useFlowAnalytics({
     timeframe,
     includeBusinessMetrics: true,
     includeOperationalMetrics: false,
     accessToken
-  });
+  })
 
-  const { 
-    data: flowsList, 
-    isLoading: flowsLoading, 
+  const {
+    data: flowsList,
+    isLoading: flowsLoading,
     error: flowsError
   } = useFlowsList({
     search: flowsSearch,
     status: flowsStatus || undefined,
-    limit: 10,
-    offset: 0,
+    limit: flowsPageSize,
+    offset: flowsPage * flowsPageSize,
     orderBy: 'updated_time',
     orderDirection: 'DESC',
     accessToken
-  });
+  })
 
-  const businessKpis = analytics?.businessKpis;
-  
-  const error = analyticsError || flowsError;
+  const businessKpis = analytics?.businessKpis
+
+  const error = analyticsError || flowsError
+
+  // Reset paging when filters change
+  React.useEffect(() => {
+    setFlowsPage(0)
+  }, [flowsSearch, flowsStatus])
 
   // If a flow is selected, show the detail view
   if (selectedFlowId) {
@@ -105,30 +112,30 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         showActions={true}
         accessToken={accessToken}
       />
-    );
+    )
   }
 
   // Helper function to format cycle time
   const formatCycleTime = (hours: number) => {
     if (hours < 1) {
-      const minutes = Math.round(hours * 60);
+      const minutes = Math.round(hours * 60)
       return {
         value: minutes,
         suffix: minutes === 1 ? 'min' : 'min',
         precision: 0
-      };
+      }
     } else {
       return {
         value: hours,
         suffix: 'h',
         precision: 1
-      };
+      }
     }
-  };
+  }
 
   // Prepare metrics data for WidgetGroup (without trend for now to fix layout)
-  const avgCycleTimeHours = businessKpis?.avgCycleTime || 0;
-  const formattedCycleTime = formatCycleTime(avgCycleTimeHours);
+  const avgCycleTimeHours = businessKpis?.avgCycleTime || 0
+  const formattedCycleTime = formatCycleTime(avgCycleTimeHours)
 
   const kpiWidgets: WidgetItem[] = [
     {
@@ -169,7 +176,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
       color: '#8b5cf6',
       description: 'On-time delivery rate'
     }
-  ];
+  ]
 
   if (error) {
     return (
@@ -183,7 +190,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           </div>
         </Alert>
       </div>
-    );
+    )
   }
 
   return (
@@ -194,7 +201,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           <h2 className="gba:text-2xl gba:font-bold gba:text-gray-900">Business Overview</h2>
           <p className="gba:text-gray-600">Key performance indicators and business outcomes</p>
         </div>
-        
+
         {/* Timeframe Selector */}
         <div className="gba:flex gba:bg-white gba:rounded-lg gba:border gba:p-1">
           {[
@@ -207,9 +214,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               key={key}
               onClick={() => setTimeframe(key as any)}
               className={`gba:px-3 gba:py-2 gba:text-sm gba:font-medium gba:rounded-md gba:transition-colors ${
-                timeframe === key 
-                  ? 'gba:bg-blue-100 gba:text-blue-700' 
-                  : 'gba:text-gray-500 hover:gba:text-gray-700'
+                timeframe === key ? 'gba:bg-blue-100 gba:text-blue-700' : 'gba:text-gray-500 hover:gba:text-gray-700'
               }`}
               data-testid={`${prefixDataTestId}-timeframe-${key}`}
             >
@@ -243,7 +248,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               </CardTitle>
             </div>
           </div>
-          
+
           {/* Filter Bar */}
           <div className="gba:flex gba:gap-4 gba:mt-4">
             <div className="gba:flex-1">
@@ -257,14 +262,14 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             </div>
             <select
               value={flowsStatus}
-              onChange={(e) => setFlowsStatus(e.target.value)}
+              onChange={e => setFlowsStatus(e.target.value)}
               className="gba:px-3 gba:py-2 gba:border gba:rounded-md gba:text-sm gba:bg-white"
               data-testid={`${prefixDataTestId}-flows-status-filter`}
             >
               <option value="">All Status</option>
-              <option value="IN_PROGRESS">In Progress</option>
+              <option value="RUNNING">In Progress</option>
               <option value="COMPLETED">Completed</option>
-              <option value="SCHEDULED">Scheduled</option>
+              <option value="TIMED_OUT">Timed out</option>
               <option value="FAILED">Failed</option>
             </select>
           </div>
@@ -289,8 +294,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               <div>
                 <h4 className="gba:font-semibold">Error Loading Flows</h4>
                 <p className="gba:text-sm gba:mt-1">
-                  {flowsError && typeof flowsError === 'object' && 'message' in flowsError 
-                    ? (flowsError as Error).message 
+                  {flowsError && typeof flowsError === 'object' && 'message' in flowsError
+                    ? (flowsError as Error).message
                     : 'Failed to load flows'}
                 </p>
               </div>
@@ -303,43 +308,51 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           ) : (
             <div className="gba:space-y-3">
               {flowsList.flows.map((flow, index) => (
-                <div 
+                <div
                   key={flow.flowId}
                   className="gba:flex gba:items-center gba:gap-4 gba:p-4 gba:border gba:border-gray-200 gba:rounded-xl gba:hover:bg-gray-50 gba:hover:shadow-md gba:transition-all gba:duration-200 gba:cursor-pointer gba:bg-white"
                   data-testid={`${prefixDataTestId}-flow-${index}`}
                   onClick={() => {
-                    setSelectedFlowId(flow.flowId);
+                    setSelectedFlowId(flow.flowId)
                   }}
                 >
                   <div className="gba:flex gba:items-center gba:justify-center gba:w-12 gba:h-12 gba:bg-gradient-to-br gba:from-blue-50 gba:to-blue-100 gba:rounded-lg gba:flex-shrink-0 gba:shadow-sm">
                     <Workflow className="gba:h-6 gba:w-6 gba:text-blue-600" />
                   </div>
-                  
+
                   <div className="gba:flex-1 gba:min-w-0">
                     <div className="gba:flex gba:items-center gba:gap-3 gba:mb-2">
                       <h4 className="gba:font-semibold gba:text-base gba:truncate gba:text-gray-900">
                         {flow.flowName || `Flow ${flow.flowId.slice(-8)}`}
                       </h4>
-                      <Badge 
-                        variant="outline"
-                        className="gba:text-xs gba:font-medium gba:px-3 gba:py-1 gba:border-0"
-                        style={{
-                          backgroundColor: 
-                            flow.status === 'COMPLETED' ? '#10b981' :
-                            flow.status === 'IN_PROGRESS' ? '#3b82f6' :
-                            flow.status === 'RUNNING' ? '#3b82f6' :
-                            flow.status === 'SCHEDULED' ? '#8b5cf6' :
-                            flow.status === 'TIMED_OUT' ? '#f59e0b' :
-                            flow.status === 'FAILED' ? '#ef4444' :
-                            '#6b7280',
-                          color: 'white'
-                        }}
-                      >
-                        {flow.status === 'COMPLETED' ? 'COMPLETED' :
-                         flow.status === 'IN_PROGRESS' ? 'IN PROGRESS' :
-                         flow.status === 'TIMED_OUT' ? 'TIMED OUT' :
-                         flow.status}
-                      </Badge>
+                      {(() => {
+                        const status = flow.status
+                        const statusClassName =
+                          status === 'COMPLETED'
+                            ? 'gba:bg-success gba:text-success-foreground'
+                            : status === 'RUNNING' || status === 'IN_PROGRESS'
+                              ? 'gba:bg-info gba:text-info-foreground'
+                              : status === 'TIMED_OUT'
+                                ? 'gba:bg-warning gba:text-warning-foreground'
+                                : status === 'FAILED'
+                                  ? 'gba:bg-destructive gba:text-destructive-foreground'
+                                  : 'gba:bg-muted gba:text-muted-foreground'
+
+                        return (
+                          <Badge
+                            variant="outline"
+                            className={`gba:text-xs gba:font-medium gba:px-3 gba:py-1 gba:border-0 ${statusClassName}`}
+                          >
+                            {flow.status === 'COMPLETED'
+                              ? 'COMPLETED'
+                              : flow.status === 'RUNNING' || flow.status === 'IN_PROGRESS'
+                                ? 'IN PROGRESS'
+                                : flow.status === 'TIMED_OUT'
+                                  ? 'TIMED OUT'
+                                  : flow.status}
+                          </Badge>
+                        )
+                      })()}
                     </div>
                     {/* Unified Progress and Status Line */}
                     <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-gray-500 gba:mb-2">
@@ -348,9 +361,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                         {formatLastActivity(flow).label}: {formatLastActivity(flow).time}
                       </span>
                       <span>Progress: {flow.progressPercentage || 0}%</span>
-                      <span>{flow.stepStatus?.completed || 0}/{flow.stepStatus?.total || 0} steps</span>
+                      <span>
+                        {flow.stepStatus?.completed || 0}/{flow.stepStatus?.total || 0} steps
+                      </span>
                     </div>
-                    
+
                     {/* Enhanced Time Insights with End Dates */}
                     <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-gray-600 gba:flex-wrap">
                       {(flow.timeInsights || flow.startTime) && (
@@ -359,10 +374,15 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                           {['COMPLETED', 'TIMED_OUT', 'TERMINATED', 'FAILED'].includes(flow.status) && flow.endTime ? (
                             <span className="gba:flex gba:items-center gba:gap-1 gba:text-gray-600">
                               <CheckCircle className="gba:h-3 gba:w-3" />
-                              {flow.status === 'COMPLETED' ? 'Completed' : 
-                               flow.status === 'TIMED_OUT' ? 'Timed out' :
-                               flow.status === 'TERMINATED' ? 'Terminated' :
-                               'Failed'}: {new Date(flow.endTime).toLocaleDateString('en-US', {
+                              {flow.status === 'COMPLETED'
+                                ? 'Completed'
+                                : flow.status === 'TIMED_OUT'
+                                  ? 'Timed out'
+                                  : flow.status === 'TERMINATED'
+                                    ? 'Terminated'
+                                    : 'Failed'}
+                              :{' '}
+                              {new Date(flow.endTime).toLocaleDateString('en-US', {
                                 month: 'short',
                                 day: 'numeric',
                                 year: 'numeric',
@@ -373,42 +393,73 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                           ) : (
                             <span className="gba:flex gba:items-center gba:gap-1 gba:text-blue-600 gba:font-medium">
                               <Clock className="gba:h-3 gba:w-3" />
-                              Running {flow.timeInsights?.daysRunning || calculateDaysRunning(flow.startTime)} day{(flow.timeInsights?.daysRunning || calculateDaysRunning(flow.startTime)) !== 1 ? 's' : ''}
+                              Running {flow.timeInsights?.daysRunning || calculateDaysRunning(flow.startTime)} day
+                              {(flow.timeInsights?.daysRunning || calculateDaysRunning(flow.startTime)) !== 1
+                                ? 's'
+                                : ''}
                             </span>
                           )}
-                          
+
                           {flow.timeInsights?.avgStepDurationHours && (
-                            <span>
-                              ~{flow.timeInsights.avgStepDurationHours.toFixed(1)}h per step
-                            </span>
+                            <span>~{flow.timeInsights.avgStepDurationHours.toFixed(1)}h per step</span>
                           )}
-                          
-                          {flow.timeInsights?.estimatedCompletionDate && !['COMPLETED', 'TIMED_OUT', 'TERMINATED', 'FAILED'].includes(flow.status) && (
-                            <span className="gba:text-blue-600 gba:font-medium">
-                              Due: {new Date(flow.timeInsights.estimatedCompletionDate).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </span>
-                          )}
+
+                          {flow.timeInsights?.estimatedCompletionDate &&
+                            !['COMPLETED', 'TIMED_OUT', 'TERMINATED', 'FAILED'].includes(flow.status) && (
+                              <span className="gba:text-blue-600 gba:font-medium">
+                                Due:{' '}
+                                {new Date(flow.timeInsights.estimatedCompletionDate).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            )}
                         </>
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="gba:text-right gba:text-xs gba:text-gray-500 gba:flex-shrink-0">
                     <div>{flow.flowId.slice(-8)}</div>
                   </div>
                 </div>
               ))}
-              
-              {flowsList.hasMore && (
-                <div className="gba:text-center gba:pt-3 gba:border-t">
-                  <p className="gba:text-sm gba:text-gray-500">
-                    Showing {flowsList.flows.length} of {flowsList.totalCount} flows
+
+              {/* Pagination */}
+              {flowsList.totalCount > flowsPageSize && (
+                <div className="gba:flex gba:items-center gba:justify-between gba:pt-4 gba:border-t">
+                  <p
+                    className="gba:text-sm gba:text-gray-500"
+                    data-testid={`${prefixDataTestId}-flows-pagination-text`}
+                  >
+                    Showing {flowsPage * flowsPageSize + 1}-
+                    {Math.min((flowsPage + 1) * flowsPageSize, flowsList.totalCount)} of {flowsList.totalCount} flows
                   </p>
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFlowsPage(Math.max(0, flowsPage - 1))}
+                      disabled={flowsPage === 0}
+                      data-testid={`${prefixDataTestId}-flows-prev-page`}
+                    >
+                      Previous
+                    </Button>
+                    <span className="gba:text-sm gba:text-gray-600" data-testid={`${prefixDataTestId}-flows-page`}>
+                      Page {flowsPage + 1} of {Math.ceil(flowsList.totalCount / flowsPageSize)}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFlowsPage(flowsPage + 1)}
+                      disabled={!flowsList.hasMore}
+                      data-testid={`${prefixDataTestId}-flows-next-page`}
+                    >
+                      Next
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -416,5 +467,5 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         </CardContent>
       </Card>
     </div>
-  );
-}; 
+  )
+}

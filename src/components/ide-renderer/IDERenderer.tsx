@@ -1,46 +1,39 @@
-import React, { useEffect } from "react";
-import { createElement } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@newwork/nw-design-system";
-import { Alert } from "@newwork/nw-design-system";
-import { Button } from "@newwork/nw-design-system";
-import { useDynamicScreen } from "@/common/hooks/useDynamicScreen";
-import { BusinessAppInfo } from "@/components/ide-main-menu";
-import { UserInfoProps } from "@/common/BusinessAppContext";
+import React, { useEffect } from 'react'
+import { createElement } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
+import { Alert } from '@newwork/nw-design-system'
+import { Button } from '@newwork/nw-design-system'
+import { useDynamicScreen } from '@/common/hooks/useDynamicScreen'
+import { BusinessAppInfo } from '@/components/ide-main-menu'
+import { UserInfoProps } from '@/common/BusinessAppContext'
 
 // Dynamic component wrapper that loads components on demand
 const DynamicComponentWrapper: React.FC<{
-  app: BusinessAppInfo;
-  userInfo?: UserInfoProps;
-  accessToken?: string;
-  additionalData?: { [k: string]: any };
+  app: BusinessAppInfo
+  userInfo?: UserInfoProps
+  accessToken?: string
+  additionalData?: { [k: string]: any }
 }> = ({ app, userInfo, accessToken, additionalData }) => {
-  const { loadScreen, state, getScreenInfo } = useDynamicScreen();
+  const { loadScreen, state, getScreenInfo } = useDynamicScreen()
 
   useEffect(() => {
-    loadScreen(app.screenKey);
-  }, [app.screenKey, loadScreen]);
+    loadScreen(app.screenKey)
+  }, [app.screenKey, loadScreen])
 
   if (state.isLoading) {
-    const screenInfo = getScreenInfo(app.screenKey);
-    const isFromCache = screenInfo?.isCachedGlobally;
+    const screenInfo = getScreenInfo(app.screenKey)
+    const isFromCache = screenInfo?.isCachedGlobally
 
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:min-h-[400px]">
         <div className="gba:text-center">
           <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-blue-600 gba:mx-auto"></div>
           <div className="gba:mt-4 gba:text-gray-600">
-            {isFromCache
-              ? `Loading ${app.name} from cache...`
-              : `Loading ${app.name}...`}
+            {isFromCache ? `Loading ${app.name} from cache...` : `Loading ${app.name}...`}
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   if (state.error) {
@@ -49,14 +42,10 @@ const DynamicComponentWrapper: React.FC<{
         <Alert className="gba:border-red-200 gba:bg-red-50">
           <div className="gba:flex gba:items-start gba:justify-between">
             <div>
-              <h4 className="gba:font-medium gba:text-red-800">
-                Failed to Load Component
-              </h4>
+              <h4 className="gba:font-medium gba:text-red-800">Failed to Load Component</h4>
               <div className="gba:mt-2 gba:text-red-700">
                 <div>{state.error}</div>
-                <div className="gba:mt-2 gba:text-xs gba:text-gray-500">
-                  Screen: {app.screenKey}
-                </div>
+                <div className="gba:mt-2 gba:text-xs gba:text-gray-500">Screen: {app.screenKey}</div>
               </div>
             </div>
             <Button size="sm" onClick={() => loadScreen(app.screenKey)}>
@@ -65,26 +54,26 @@ const DynamicComponentWrapper: React.FC<{
           </div>
         </Alert>
       </div>
-    );
+    )
   }
 
   if (state.component) {
     return createElement(state.component, {
       userInfo,
       accessToken,
-      additionalData,
-    });
+      additionalData
+    })
   }
 
-  return null;
-};
+  return null
+}
 
 export interface IDERendererProps {
-  selectedApp: BusinessAppInfo | null;
-  userInfo?: UserInfoProps;
-  accessToken?: string;
-  additionalData?: { [k: string]: any };
-  onAppSelect: (app: BusinessAppInfo | null) => void;
+  selectedApp: BusinessAppInfo | null
+  userInfo?: UserInfoProps
+  accessToken?: string
+  additionalData?: { [k: string]: any }
+  onAppSelect: (app: BusinessAppInfo | null) => void
 }
 
 export const IDERenderer: React.FC<IDERendererProps> = ({
@@ -92,30 +81,27 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
   userInfo,
   accessToken,
   additionalData,
-  onAppSelect,
+  onAppSelect
 }) => {
   // Manage dialog visibility internally based on app type
-  const [dialogVisible, setDialogVisible] = React.useState<boolean>(false);
+  const [dialogVisible, setDialogVisible] = React.useState<boolean>(false)
 
   // Update dialog visibility when selectedApp changes
   React.useEffect(() => {
-    if (
-      selectedApp &&
-      (selectedApp.type === "form" || selectedApp.type === "popup")
-    ) {
-      setDialogVisible(true);
+    if (selectedApp && (selectedApp.type === 'form' || selectedApp.type === 'popup' || selectedApp.type === 'window')) {
+      setDialogVisible(true)
     } else {
-      setDialogVisible(false);
+      setDialogVisible(false)
     }
-  }, [selectedApp]);
+  }, [selectedApp])
 
   const handleDialogClose = () => {
-    setDialogVisible(false);
-    onAppSelect(null); // Clear the selected app when dialog closes
-  };
+    setDialogVisible(false)
+    onAppSelect(null) // Clear the selected app when dialog closes
+  }
 
   const renderAppContent = () => {
-    if (!selectedApp) return null;
+    if (!selectedApp) return null
 
     return (
       <DynamicComponentWrapper
@@ -123,52 +109,41 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
         userInfo={userInfo}
         accessToken={accessToken}
         additionalData={additionalData}
-        key={`${selectedApp.screenKey}-${JSON.stringify(
-          userInfo
-        )}-${accessToken}-${JSON.stringify(additionalData)}`}
+        key={`${selectedApp.screenKey}-${JSON.stringify(userInfo)}-${accessToken}-${JSON.stringify(additionalData)}`}
       />
-    );
-  };
+    )
+  }
 
-  // Render app content directly in main area
-  if (selectedApp && selectedApp.type === "app") {
-    return (
-      <div className="gba:w-full gba:h-full gba:overflow-auto">
-        {renderAppContent()}
-      </div>
-    );
+  // Render app content directly in main area (fills parent)
+  if (selectedApp && selectedApp.type === 'app') {
+    return <div className="gba:w-full gba:h-full">{renderAppContent()}</div>
   }
 
   // Render forms and popups in dialog
-  if (
-    selectedApp &&
-    (selectedApp.type === "form" || selectedApp.type === "popup")
-  ) {
+  if (selectedApp && (selectedApp.type === 'form' || selectedApp.type === 'popup' || selectedApp.type === 'window')) {
+    // Window type has wider max-width (553px < window <= 1200px)
+    const maxWidth = selectedApp.type === 'window' ? 'gba:max-w-[1200px]' : 'gba:max-w-[553px]'
+    const width = selectedApp.type === 'window' ? 'gba:w-[1200px]' : 'gba:w-[553px]'
+
     return (
-      <Dialog
-        open={dialogVisible}
-        onOpenChange={(open) => !open && handleDialogClose()}
-      >
+      <Dialog open={dialogVisible} onOpenChange={open => !open && handleDialogClose()}>
         <DialogContent
-          className="gba:max-w-[553px] gba:w-[553px] gba:flex gba:flex-col"
+          aria-describedby={undefined}
+          className={`${maxWidth} ${width} gba:flex gba:flex-col gba:bg-background`}
           style={{
-            height:
-              selectedApp.type === "form" ? "calc(100vh - 120px)" : "auto",
-            overflow: selectedApp.type === "form" ? "auto" : "visible",
-            justifyContent: "flex-start",
-            backgroundColor: "#FFFFFF",
+            height: selectedApp.type === 'form' || selectedApp.type === 'window' ? 'calc(100vh - 120px)' : 'auto',
+            overflow: selectedApp.type === 'form' || selectedApp.type === 'window' ? 'auto' : 'visible',
+            justifyContent: 'flex-start'
           }}
         >
           <DialogHeader>
-            <DialogTitle className="gba:text-lg gba:font-semibold">
-              {selectedApp.name}
-            </DialogTitle>
+            <DialogTitle className="gba:text-lg gba:font-semibold">{selectedApp.name}</DialogTitle>
           </DialogHeader>
-            {renderAppContent()}
+          {renderAppContent()}
         </DialogContent>
       </Dialog>
-    );
+    )
   }
 
-  return null;
-};
+  return null
+}

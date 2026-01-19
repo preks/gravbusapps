@@ -13,6 +13,10 @@ dist-ssr
 *.local
 changed-tsx.txt
 
+# Generated Cursor rules (synced from @newwork/cursor-rules)
+.cursor/rules/
+.cursor/commands/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

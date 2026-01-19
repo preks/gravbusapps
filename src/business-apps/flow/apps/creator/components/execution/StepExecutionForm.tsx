@@ -1,37 +1,49 @@
-import React, { useState } from 'react';
-import { Card, Input, Button, Switch, Tooltip, Typography, Divider, Tag } from 'antd';
-import { EditOutlined, CheckOutlined, CloseOutlined, UserOutlined, FormOutlined, PaperClipOutlined } from '@ant-design/icons';
-import { FlowStep, AssignmentTarget } from '../../types/flowTemplate';
-import { AssignmentSelector } from '../shared/AssignmentSelector';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useMockData } from '../../../../providers/MockDataProvider';
+import React, { useState } from 'react'
+import { Card, Input, Button, Switch, Tooltip, Typography, Divider, Tag } from 'antd'
+import {
+  EditOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  UserOutlined,
+  FormOutlined,
+  PaperClipOutlined
+} from '@ant-design/icons'
+import { FlowStep, AssignmentTarget } from '../../types/flowTemplate'
+import { AssignmentSelector } from '../shared/AssignmentSelector'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useMockData } from '../../../../providers/MockDataProvider'
 
-const { TextArea, } = Input;
-const { Text, Title } = Typography;
+const { TextArea } = Input
+const { Text, Title } = Typography
 
 // Helper function to get entity type color
 const getEntityTypeColor = (entityType: string): string => {
   switch (entityType) {
-    case 'user': return 'blue';
-    case 'department': return 'green';
-    case 'capability': return 'orange';
-    case 'role': return 'purple';
-    default: return 'default';
+    case 'user':
+      return 'blue'
+    case 'department':
+      return 'green'
+    case 'capability':
+      return 'orange'
+    case 'role':
+      return 'purple'
+    default:
+      return 'default'
   }
-};
+}
 
 interface StepExecutionFormProps {
-  step: FlowStep;
-  stepIndex: number;
+  step: FlowStep
+  stepIndex: number
   configuration: {
-    title?: string;
-    message?: string;
-    assignment?: any;
-    inputValues?: { [key: string]: any };
-    links?: any[];
-  };
-  onConfigurationChange: (updates: any) => void;
-  'data-testid'?: string;
+    title?: string
+    message?: string
+    assignment?: any
+    inputValues?: { [key: string]: any }
+    links?: any[]
+  }
+  onConfigurationChange: (updates: any) => void
+  'data-testid'?: string
 }
 
 export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
@@ -41,27 +53,27 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
   onConfigurationChange,
   'data-testid': testId = 'step-execution-form'
 }) => {
-  const { resolveEntityName } = useMockData();
-  const [showAdvancedInputs, setShowAdvancedInputs] = useState(false);
-  const [editTitleMessage, setEditTitleMessage] = useState(false);
-  const [editedTitle, setEditedTitle] = useState<string | null>(null);
-  const [editedMessage, setEditedMessage] = useState<string | null>(null);
+  const { resolveEntityName } = useMockData()
+  const [showAdvancedInputs, setShowAdvancedInputs] = useState(false)
+  const [editTitleMessage, setEditTitleMessage] = useState(false)
+  const [editedTitle, setEditedTitle] = useState<string | null>(null)
+  const [editedMessage, setEditedMessage] = useState<string | null>(null)
 
   const updateConfiguration = (field: string, value: any) => {
-    onConfigurationChange({ [field]: value });
-  };
+    onConfigurationChange({ [field]: value })
+  }
 
   const updateInputValue = (inputIndex: number, value: any) => {
-    const newInputValues = { ...configuration.inputValues };
-    newInputValues[`input_${inputIndex}`] = value;
-    onConfigurationChange({ inputValues: newInputValues });
-  };
+    const newInputValues = { ...configuration.inputValues }
+    newInputValues[`input_${inputIndex}`] = value
+    onConfigurationChange({ inputValues: newInputValues })
+  }
 
   return (
     <div className="gba:space-y-6 gba:p-2" data-testid={testId}>
       {/* Title & Message Card */}
-      <Card 
-        size="small" 
+      <Card
+        size="small"
         className="gba:mb-4 gba:shadow-md gba:rounded-lg gba:border gba:bg-white"
         style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
         title={
@@ -91,7 +103,7 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
               />
             </Tooltip>
           </div>
-          
+
           {editTitleMessage && (
             <>
               <Divider className="gba:my-3" />
@@ -115,11 +127,11 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
                     size="small"
                     type="primary"
                     onClick={() => {
-                      updateConfiguration('title', editedTitle ?? step.title);
-                      updateConfiguration('message', editedMessage ?? step.message);
-                      setEditTitleMessage(false);
-                      setEditedTitle(null);
-                      setEditedMessage(null);
+                      updateConfiguration('title', editedTitle ?? step.title)
+                      updateConfiguration('message', editedMessage ?? step.message)
+                      setEditTitleMessage(false)
+                      setEditedTitle(null)
+                      setEditedMessage(null)
                     }}
                     data-testid={`${testId}-edit-title-message-save`}
                   >
@@ -129,9 +141,9 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
                     icon={<CloseOutlined />}
                     size="small"
                     onClick={() => {
-                      setEditTitleMessage(false);
-                      setEditedTitle(null);
-                      setEditedMessage(null);
+                      setEditTitleMessage(false)
+                      setEditedTitle(null)
+                      setEditedMessage(null)
                     }}
                     data-testid={`${testId}-edit-title-message-cancel`}
                   >
@@ -147,25 +159,30 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
       {/* Assignment Configuration */}
       {!step.assignment && (
         <div className="gba:mt-4">
-          <Card 
-            size="small" 
+          <Card
+            size="small"
             className="gba:mb-4 gba:shadow-md gba:rounded-lg gba:border gba:bg-white gba:mt-4"
             style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
             title={
               <div className="gba:flex gba:items-center gba:gap-2">
                 <UserOutlined />
-                <span className="gba:font-semibold">{getTranslationFromI18nKeyAndLabel('flow.execution.assignment', 'Assignment')}</span>
+                <span className="gba:font-semibold">
+                  {getTranslationFromI18nKeyAndLabel('flow.execution.assignment', 'Assignment')}
+                </span>
               </div>
             }
           >
             <div className="gba:space-y-4 gba:p-2">
               <Text className="gba:text-gray-600">
-                {getTranslationFromI18nKeyAndLabel('flow.execution.assignmentDescription', 'Configure who should receive this task at execution time.')}
+                {getTranslationFromI18nKeyAndLabel(
+                  'flow.execution.assignmentDescription',
+                  'Configure who should receive this task at execution time.'
+                )}
               </Text>
-              
+
               <AssignmentSelector
                 value={configuration.assignment}
-                onChange={(assignment) => updateConfiguration('assignment', assignment)}
+                onChange={assignment => updateConfiguration('assignment', assignment)}
                 data-testid={`${testId}-assignment-selector`}
               />
             </div>
@@ -201,9 +218,9 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
                   {Array.isArray(step.assignment.targets) && step.assignment.targets.length > 0 ? (
                     <div className="gba:flex gba:flex-wrap gba:gap-1">
                       {step.assignment.targets.map((target, idx) => (
-                        <Tag 
-                          color={getEntityTypeColor(target.entity)} 
-                          key={idx} 
+                        <Tag
+                          color={getEntityTypeColor(target.entity)}
+                          key={idx}
                           data-testid="step-execution-assignment-target"
                         >
                           {resolveEntityName(target.entity, target.id)}
@@ -224,8 +241,8 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
 
       {/* Links Section */}
       {step.links && step.links.length > 0 && (
-        <Card 
-          size="small" 
+        <Card
+          size="small"
           className="gba:mb-4 gba:shadow-md gba:rounded-lg gba:border gba:bg-white gba:mt-4"
           style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
           title={
@@ -240,7 +257,12 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
               <div key={idx} className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:bg-gray-50 gba:rounded-md">
                 <PaperClipOutlined className="gba:text-gray-500" />
                 {link.url ? (
-                  <a href={link.url} target="_blank" rel="noopener noreferrer" className="gba:text-blue-600 gba:underline gba:flex-1">
+                  <a
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="gba:text-blue-600 gba:underline gba:flex-1"
+                  >
                     {link.name || link.url}
                   </a>
                 ) : (
@@ -254,5 +276,5 @@ export const StepExecutionForm: React.FC<StepExecutionFormProps> = ({
         </Card>
       )}
     </div>
-  );
-};
+  )
+}

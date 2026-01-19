@@ -1,212 +1,292 @@
-import React, { useMemo, useState } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Card, CardHeader, CardTitle, CardContent, Button, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system';
-import dayjs from 'dayjs';
-import { ContactData } from '@/business-apps/crm/common/apps/contact-record/queries/ContactQueries';
+import React from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  IconAvatar,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  EmptyState
+} from '@newwork/nw-design-system'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import type { Contact } from '@/common/data/relations/types/contactTypes'
+import { UserIcon, BriefcaseIcon } from '@phosphor-icons/react'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import { renderCommunicationChannels } from '@/common/utils/communicationChannelRenderer'
+import { createGetPages } from '../utils'
+import { getContactTypeLabel } from '@/common/data/relations/constants/contactConstants'
 
 interface ContactSectionProps extends Partial<BusinessAppContextProps> {
-  contactId?: string;
-  contact?: any;
-  contacts?: any[];
-  'data-testid'?: string;
+  contactId?: string
+  contact?: any
+  contacts?: any[]
+  className?: string
+  'data-testid'?: string
+  // Optional configurable action props
+  actionButtonProps?: {
+    contextsArray?: FlowContextName[]
+    externalContextData?: Record<string, any>
+    prefixDataTestId?: string
+  }
+  recordUrl?: string
 }
 
-const ContactSection: React.FC<ContactSectionProps> = ({ contactId, contact, contacts, ...props }) => {
-  const contactList: ContactData[] = useMemo(() => {
-    const arr = Array.isArray(contacts) ? (contacts as ContactData[]).filter(Boolean) : [];
-    return arr;
-  }, [contacts]);
+const createTitleClickHandler = (recordUrl?: string) => {
+  if (!recordUrl) {
+    return undefined
+  }
+  return () => navigateTo(recordUrl)
+}
 
-  const hasMultiple = contactList.length > 1;
-  const initialSelected: ContactData | null = contact || (contactList.length === 1 ? contactList[0] : null);
-  const [mode, setMode] = useState<'list' | 'detail'>(hasMultiple ? 'list' : 'detail');
-  const [selectedContact, setSelectedContact] = useState<ContactData | null>(initialSelected);
-
-  const handleSelect = (c: ContactData) => {
-    setSelectedContact(c);
-    setMode('detail');
-  };
-
-  const handleBackToList = () => {
-    setMode('list');
-  };
+const ContactSection: React.FC<ContactSectionProps> = ({ contact, contacts, className = '', recordUrl, ...props }) => {
+  // If used directly (not via SectionWrapper), render first contact
+  const contactList = Array.isArray(contacts) ? (contacts as Contact[]).filter(Boolean) : []
+  const displayContact = contact || (contactList.length > 0 ? contactList[0] : null)
 
   return (
-    <div data-testid={props['data-testid'] || 'contact-section'} className="gba:w-full gba:space-y-6">
-      {mode === 'list' ? (
-        <Card className="gba:w-full gba:h-full">
-          <CardHeader>
-            <CardTitle>Contacts</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div data-testid="contacts-list" role="list" className="gba:flex gba:flex-col gba:items-start gba:gap-2 gba:text-left">
-              {contactList.map((c) => {
-                const fullName = `${c.firstName || ''} ${c.lastName || ''}`.trim() || '-';
-                const initials = `${(c.firstName || '').charAt(0)}${(c.lastName || '').charAt(0)}`.toUpperCase() || '?';
-                const rawSrc = (c as any).pictureThumbnailUrl || (c as any).pictureThumbnail || (c as any).avatar || (c as any)?.ownerEmployee?.pictureThumbnail;
-                const src = rawSrc ? (String(rawSrc).startsWith('data:') || String(rawSrc).startsWith('http') ? String(rawSrc) : `data:image/jpeg;base64,${rawSrc}`) : undefined;
-                return (
-                  <button
-                    key={c.id}
-                    data-testid={`contacts-list-item-${c.id}`}
-                    onClick={() => handleSelect(c)}
-                    className="gba:flex gba:items-center gba:gap-2"
-                  >
-                    <Avatar className="gba:h-8 gba:w-8">
-                      {src ? <AvatarImage src={src} alt={fullName} /> : <AvatarFallback>{initials || '?'}</AvatarFallback>}
-                    </Avatar>
-                    <div className="gba:flex gba:flex-col gba:items-start">
-                      <div>{fullName}</div>
-                      {c.email ? <div className="gba:opacity-80">{c.email}</div> : null}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <ContactPersonalInfo
-          contact={selectedContact || (contact as ContactData)}
-          canGoBack={contactList.length > 1}
-          onBack={handleBackToList}
-        />
-      )}
+    <div data-testid={props['data-testid'] || 'contact-section'} className={`gba:w-full gba:h-full ${className}`}>
+      <ContactPersonalInfo contact={displayContact as Contact} onTitleClick={createTitleClickHandler(recordUrl)} />
     </div>
-  );
-};
-
-export default ContactSection;
-
-// Removed redundant Company Information card for contacts
-
-// Inlined from '@/business-apps/crm/common/apps/contact-record/components/ContactPersonalInfo'
-interface ContactPersonalInfoProps {
-  contact: ContactData;
-  canGoBack?: boolean;
-  onBack?: () => void;
+  )
 }
 
-const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, canGoBack, onBack }) => {
+// Static properties for SectionWrapper
+;(ContactSection as any).sectionTitle = 'Contact Information'
+;(ContactSection as any).getPages = createGetPages<any, ContactSectionProps>(
+  (props: ContactSectionProps) => props.contacts,
+  (props: ContactSectionProps) => props.contact
+)
+;(ContactSection as any).renderPage = (pageData: any, _pageIndex: number, props: ContactSectionProps) => {
+  const { recordUrl } = props
+
+  return <ContactPersonalInfo contact={pageData} onTitleClick={createTitleClickHandler(recordUrl)} />
+}
+;(ContactSection as any).getActionButtonConfig = (pageData: any, _pageIndex: number, props: ContactSectionProps) => {
+  const { accessToken, actionButtonProps, contact, contactId } = props
+
+  if (!actionButtonProps || !accessToken) {
+    return null
+  }
+
+  // Use pageData if available (carousel), otherwise fallback to contact/contactId from props
+  const contactIdToUse = pageData?.id || contact?.id || contactId
+
+  if (!contactIdToUse) {
+    return null
+  }
+
+  const config = {
+    type: 'AppActionButton' as const,
+    config: {
+      contextsArray: actionButtonProps.contextsArray || [FlowContextName.customerContactEntity],
+      externalContextData: {
+        ...actionButtonProps.externalContextData,
+        contactId: contactIdToUse // Override with current page contactId (must come after spread)
+      },
+      prefixDataTestId: actionButtonProps.prefixDataTestId || 'contact-section-action',
+      emptyStateBehavior: 'enable' as const,
+      deferMainContextRequestsUntilClick: true
+    }
+  }
+
+  return config
+}
+
+export default ContactSection
+
+interface ContactPersonalInfoProps {
+  contact: Contact
+  hasMultiple?: boolean
+  currentIndex?: number
+  totalCount?: number
+  onPrevious?: () => void
+  onNext?: () => void
+  accessToken?: string
+  actionButtonProps?: {
+    contextsArray?: FlowContextName[]
+    externalContextData?: Record<string, any>
+    prefixDataTestId?: string
+  }
+  onTitleClick?: () => void
+}
+
+const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact, onTitleClick }) => {
+  // Empty state - when no contact data is available
+  if (!contact) {
+    return (
+      <div className="gba:w-full gba:relative gba:flex gba:flex-col gba:h-full">
+        <EmptyState
+          type="no-data"
+          title="No Contact Data"
+          description="No contact data is available for this object. Update its details to see the information here."
+          data-testid="contact-section-empty-state"
+        />
+      </div>
+    )
+  }
+
+  // Helper function to build full name
+  const buildFullName = () => {
+    const parts = []
+    if (contact?.academicTitle?.value) parts.push(contact.academicTitle.value)
+    if (contact?.firstName) parts.push(contact.firstName)
+    if (contact?.lastName) parts.push(contact.lastName)
+    return parts.length > 0 ? parts.join(' ') : '-'
+  }
+
+  // Get contact type from extended contact object (passed from parent via accountContacts/opportunityContacts)
+  const contactType = (contact as any)?.contactType
+
+  // Helper function to build secondary info (Position • Contact Type)
+  const buildSecondaryInfo = () => {
+    const parts = []
+    if (contact?.jobPosition) parts.push(contact.jobPosition)
+
+    // Add contact type if available
+    const contactTypeLabel = getContactTypeLabel(contactType)
+    if (contactTypeLabel) parts.push(contactTypeLabel)
+
+    return parts.length > 0 ? parts.join(' • ') : null
+  }
+
+  // Extract contact image URL - support both pictureThumbnail and URLs
+  // Only use uploaded images or fallback to icon - no random/hardcoded images
+  const contactImageUrl = contact?.pictureThumbnail
+    ? `data:image/gif;base64,${contact.pictureThumbnail}`
+    : contact?.pictureThumbnailUrl || contact?.pictureUrl
+
+  // Get dynamic field values
+  const fullName = buildFullName()
+  const secondaryInfo = buildSecondaryInfo()
+
   return (
-    <Card className="gba:w-full gba:h-full">
-      <CardHeader>
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle>Contact Information</CardTitle>
-          {canGoBack ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onBack}
-              data-testid="contacts-back-to-list-button"
-            >
-              Back to Contacts
-            </Button>
-          ) : null}
+    <div className="gba:w-full gba:relative gba:flex gba:flex-col gba:h-full">
+      <div className="gba:space-y-1 gba:flex-1">
+        {/* Contact Name and Avatar with Action Button */}
+        <div className="gba:flex gba:items-center gba:gap-3">
+          <div className="gba:relative gba:shrink-0">
+            {contactImageUrl ? (
+              <Avatar className="gba:h-12 gba:w-12">
+                <AvatarImage src={contactImageUrl} alt={fullName} />
+                <AvatarFallback>
+                  <UserIcon />
+                </AvatarFallback>
+              </Avatar>
+            ) : (
+              <IconAvatar icon={UserIcon} variant="default" size="lg" title="Contact" />
+            )}
+          </div>
+          <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-0 gba:flex-1">
+            <div className="gba:h-5 gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    {onTitleClick ? (
+                      <button
+                        onClick={onTitleClick}
+                        className="gba:text-sm gba:font-semibold gba:text-card-foreground gba:truncate gba:min-w-0 gba:cursor-pointer gba:hover:underline gba:text-left gba:bg-transparent gba:border-none gba:p-0"
+                        data-testid="contact-name-clickable"
+                        title="Click to view contact record"
+                      >
+                        {fullName || '-'}
+                      </button>
+                    ) : (
+                      <h3
+                        className="gba:text-sm gba:font-semibold gba:text-card-foreground gba:truncate gba:min-w-0"
+                        data-testid="contact-name"
+                      >
+                        {fullName || '-'}
+                      </h3>
+                    )}
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="gba:max-w-xs gba:break-words">{fullName || '-'}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            {/* Position and Department - directly under name */}
+            {secondaryInfo && (
+              <div className="gba:h-5 gba:flex gba:items-center gba:min-w-0">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
+                        className="gba:text-xs gba:text-muted-foreground gba:truncate gba:min-w-0"
+                        data-testid="contact-secondary-info"
+                      >
+                        {secondaryInfo}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="gba:max-w-xs gba:break-words">{secondaryInfo}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            )}
+          </div>
+          {/* Action Button removed - handled by SectionWrapper */}
         </div>
-      </CardHeader>
-      <CardContent>
+
+        {/* Separator */}
+        <div className="gba:border-t"></div>
+
+        {/* Contact Information */}
         <div>
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Academic Title</div>
-            <div style={{ fontSize: '16px', fontWeight: '500' }}>{contact?.academicTitle?.value || '-'}</div>
-          </div>
-          
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>First Name</div>
-            <div style={{ fontSize: '16px', fontWeight: '500' }}>{contact?.firstName || '-'}</div>
-          </div>
-          
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Last Name</div>
-            <div style={{ fontSize: '16px', fontWeight: '500' }}>{contact?.lastName || '-'}</div>
-          </div>
-          
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Email</div>
-            <div style={{ fontSize: '16px', fontWeight: '500' }}>
-              {contact?.email ? (
-                <a 
-                  href={`mailto:${contact.email}`}
-                  style={{ color: '#3b82f6', textDecoration: 'none' }}
-                  data-testid="contact-personal-info-email-link"
-                >
-                  {contact.email}
-                </a>
-              ) : '-'}
-            </div>
-          </div>
-          
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Phone Number</div>
-            <div style={{ fontSize: '16px', fontWeight: '500' }}>
-              {contact?.phone ? (
-                <a 
-                  href={`tel:${contact.phone}`}
-                  style={{ color: '#3b82f6', textDecoration: 'none' }}
-                >
-                  {contact.phone}
-                </a>
-              ) : '-'}
-            </div>
-          </div>
-          
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Job Title</div>
-            <div style={{ fontSize: '16px', fontWeight: '500' }}>{contact?.jobTitle || '-'}</div>
-          </div>
-          
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Department</div>
-            <div style={{ fontSize: '16px', fontWeight: '500' }}>{
-              (contact as any)?.department
-                ? ((contact as any).department as string).charAt(0).toUpperCase() + ((contact as any).department as string).slice(1)
-                : '-'
-            }</div>
-          </div>
-          
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>LinkedIn</div>
-            <div style={{ fontSize: '16px', fontWeight: '500' }}>
-              {contact?.linkedinUrl ? (
-                <a 
-                  href={contact.linkedinUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: '#3b82f6', textDecoration: 'none' }}
-                  data-testid="contact-linkedin-link"
-                >
-                  View Profile
-                </a>
-              ) : '-'}
-            </div>
-          </div>
-          
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>XING</div>
-            <div style={{ fontSize: '16px', fontWeight: '500' }}>
-              {contact?.xingUrl ? (
-                <a 
-                  href={contact.xingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: '#3b82f6', textDecoration: 'none' }}
-                  data-testid="contact-xing-link"
-                >
-                  View Profile
-                </a>
-              ) : '-'}
-            </div>
-          </div>
-          
-          <div>
-            <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Created At</div>
-            <div style={{ fontSize: '16px', fontWeight: '500' }}>
-              {contact?.createdAt ? dayjs(contact.createdAt).format('MMM D, YYYY, h:mm A') : '-'}
-            </div>
-          </div>
+          {(() => {
+            // Dynamically render ALL communication channels that have values
+            const communicationChannelItems = renderCommunicationChannels(contact?.communicationChannels, 'contact')
+
+            // Add department as a static field if it exists
+            const departmentValue = (contact as any)?.department
+            const departmentItem = departmentValue
+              ? {
+                  icon: BriefcaseIcon,
+                  title: 'Department',
+                  value: departmentValue,
+                  render: (value: string) => (
+                    <span className="gba:text-sm gba:text-muted-foreground">
+                      {value.charAt(0).toUpperCase() + value.slice(1)}
+                    </span>
+                  )
+                }
+              : null
+
+            // Combine communication channels with department field
+            const allItems = departmentItem ? [departmentItem, ...communicationChannelItems] : communicationChannelItems
+
+            // Filter out items without values
+            const itemsWithValues = allItems.filter(item => item.value)
+
+            // If no items, show a placeholder
+            if (itemsWithValues.length === 0) {
+              return (
+                <div className="gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded">
+                  <span className="gba:text-sm gba:text-muted-foreground">No contact information available</span>
+                </div>
+              )
+            }
+
+            return itemsWithValues.map((item, index) => {
+              const IconComponent = item.icon
+              const content = item.render(item.value)
+
+              return (
+                <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded">
+                  <IconComponent className="gba:text-sm gba:text-muted-foreground" title={item.title} />
+                  {content}
+                </div>
+              )
+            })
+          })()}
         </div>
-      </CardContent>
-    </Card>
-  );
-};
+      </div>
+
+      {/* Carousel Navigation removed - handled by SectionWrapper */}
+    </div>
+  )
+}

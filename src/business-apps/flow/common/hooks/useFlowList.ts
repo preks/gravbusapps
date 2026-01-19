@@ -1,46 +1,46 @@
-import { useState, useEffect } from 'react';
-import { env } from '@/common/env/EnvUtils';
+import { useState, useEffect } from 'react'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 
-const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api';
+const API_BASE = getFlowEngineApiBaseUrl()
 
 export interface FlowFilters {
-  status?: 'RUNNING' | 'COMPLETED' | 'FAILED' | 'PAUSED' | 'TERMINATED';
-  template?: string[];
-  dateRange?: { start: string; end: string };
-  participants?: string[];
-  searchTerm?: string;
-  limit?: number;
-  offset?: number;
+  status?: 'RUNNING' | 'COMPLETED' | 'FAILED' | 'PAUSED' | 'TERMINATED'
+  template?: string[]
+  dateRange?: { start: string; end: string }
+  participants?: string[]
+  searchTerm?: string
+  limit?: number
+  offset?: number
 }
 
 export interface FlowSummary {
-  flowId: string;
-  workflowId: string;
-  flowName: string;
-  templateId: string;
-  templateName: string;
-  status: string;
-  startTime: string;
-  endTime?: string;
-  updateTime: string;
-  lastActivityTime?: string; // Most recent workflow or task activity
-  progressPercentage: number;
-  currentStep: number;
-  totalSteps: number;
-  initiatedBy: string;
-  participants: string[];
-  priority?: 'HIGH' | 'MEDIUM' | 'LOW';
-  isOverdue?: boolean;
-  durationMinutes?: number;
+  flowId: string
+  workflowId: string
+  flowName: string
+  templateId: string
+  templateName: string
+  status: string
+  startTime: string
+  endTime?: string
+  updateTime: string
+  lastActivityTime?: string // Most recent workflow or task activity
+  progressPercentage: number
+  currentStep: number
+  totalSteps: number
+  initiatedBy: string
+  participants: string[]
+  priority?: 'HIGH' | 'MEDIUM' | 'LOW'
+  isOverdue?: boolean
+  durationMinutes?: number
 }
 
 export interface FlowListResponse {
-  flows: FlowSummary[];
-  totalCount: number;
-  hasMore: boolean;
+  flows: FlowSummary[]
+  totalCount: number
+  hasMore: boolean
 }
 
-export type FlowListVariant = 'initiated' | 'participated' | 'monitoring' | 'active' | 'completed';
+export type FlowListVariant = 'initiated' | 'participated' | 'monitoring' | 'active' | 'completed'
 
 export const useFlowList = (
   variant: FlowListVariant,
@@ -48,71 +48,71 @@ export const useFlowList = (
   accessToken: string,
   filters: FlowFilters = {}
 ) => {
-  const [flows, setFlows] = useState<FlowSummary[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [flows, setFlows] = useState<FlowSummary[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchFlows = async () => {
-    if (!userId || !accessToken) return;
+    if (!userId || !accessToken) return
 
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
 
     try {
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      };
+        Authorization: `Bearer ${accessToken}`
+      }
 
       // Use the existing flow/list endpoint with appropriate filters
-      let endpoint = `${API_BASE}/flows/list`;
-      
+      let endpoint = `${API_BASE}/flows/list`
+
       // Use RESTful endpoints based on variant
       switch (variant) {
         case 'initiated':
-          endpoint = `${API_BASE}/flows/user/${userId}/initiated`;
-          break;
+          endpoint = `${API_BASE}/flows/user/${userId}/initiated`
+          break
         case 'participated':
-          endpoint = `${API_BASE}/flows/user/${userId}/participated`;
-          break;
+          endpoint = `${API_BASE}/flows/user/${userId}/participated`
+          break
         default:
           // For other variants, use the general list endpoint
-          endpoint = `${API_BASE}/flows/list`;
-          break;
+          endpoint = `${API_BASE}/flows/list`
+          break
       }
 
       // Build query parameters
-      const params = new URLSearchParams();
-      
+      const params = new URLSearchParams()
+
       // Add variant-specific status filters for non-user-specific endpoints
       if (variant === 'completed' && !filters.status) {
-        params.append('status', 'COMPLETED');
+        params.append('status', 'COMPLETED')
       } else if ((variant === 'active' || variant === 'monitoring') && !filters.status) {
-        params.append('status', 'IN_PROGRESS');
+        params.append('status', 'IN_PROGRESS')
       }
-      if (filters.status) params.append('status', filters.status);
-      if (filters.searchTerm) params.append('search', filters.searchTerm);
-      if (filters.limit) params.append('limit', filters.limit.toString());
-      if (filters.offset) params.append('offset', filters.offset.toString());
-      if (filters.dateRange?.start) params.append('startDate', filters.dateRange.start);
-      if (filters.dateRange?.end) params.append('endDate', filters.dateRange.end);
+      if (filters.status) params.append('status', filters.status)
+      if (filters.searchTerm) params.append('search', filters.searchTerm)
+      if (filters.limit) params.append('limit', filters.limit.toString())
+      if (filters.offset) params.append('offset', filters.offset.toString())
+      if (filters.dateRange?.start) params.append('startDate', filters.dateRange.start)
+      if (filters.dateRange?.end) params.append('endDate', filters.dateRange.end)
 
-      const finalEndpoint = params.toString() ? `${endpoint}?${params}` : endpoint;
-      const response = await fetch(finalEndpoint, { headers });
+      const finalEndpoint = params.toString() ? `${endpoint}?${params}` : endpoint
+      const response = await fetch(finalEndpoint, { headers })
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch ${variant} flows: ${response.statusText}`);
+        throw new Error(`Failed to fetch ${variant} flows: ${response.statusText}`)
       }
 
-      const result = await response.json();
-      console.debug('API Response structure:', { 
-        status: result.status, 
-        hasData: !!result.data, 
-        dataKeys: result.data ? Object.keys(result.data) : [], 
-        flowsCount: result.data?.flows?.length || 0 
-      });
-      
+      const result = await response.json()
+      console.debug('API Response structure:', {
+        status: result.status,
+        hasData: !!result.data,
+        dataKeys: result.data ? Object.keys(result.data) : [],
+        flowsCount: result.data?.flows?.length || 0
+      })
+
       // Debug: Check if lastActivityTime is present in the response
       if (result.data?.flows?.length > 0) {
         console.debug('First flow data sample:', {
@@ -120,18 +120,18 @@ export const useFlowList = (
           startTime: result.data.flows[0].startTime,
           updateTime: result.data.flows[0].updateTime,
           lastActivityTime: result.data.flows[0].lastActivityTime
-        });
+        })
       }
-      
+
       // The backend returns { status: 'success', data: { flows: [], totalCount: number } }
-      let flowData = result.data?.flows || [];
-      
+      let flowData = result.data?.flows || []
+
       // Ensure flowData is an array
       if (!Array.isArray(flowData)) {
-        console.warn('Expected flowData to be an array, got:', typeof flowData, flowData);
-        flowData = [];
+        console.warn('Expected flowData to be an array, got:', typeof flowData, flowData)
+        flowData = []
       }
-      
+
       // For participated flows, show flows where user has participated
       // This includes flows they initiated (because they likely claim tasks in their own flows)
       // For now, we'll show all flows as a user can participate in any flow
@@ -163,23 +163,22 @@ export const useFlowList = (
         priority: flow.priority,
         isOverdue: flow.timeInsights?.isOverdue || false,
         durationMinutes: flow.durationMinutes
-      }));
+      }))
 
-      setFlows(transformedFlows);
-      setTotalCount(result.data?.totalCount || transformedFlows.length);
-
+      setFlows(transformedFlows)
+      setTotalCount(result.data?.totalCount || transformedFlows.length)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : `Failed to fetch ${variant} flows`;
-      setError(errorMessage);
-      console.error(`Error fetching ${variant} flows:`, err);
+      const errorMessage = err instanceof Error ? err.message : `Failed to fetch ${variant} flows`
+      setError(errorMessage)
+      console.error(`Error fetching ${variant} flows:`, err)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    fetchFlows();
-  }, [variant, userId, accessToken, JSON.stringify(filters)]);
+    fetchFlows()
+  }, [variant, userId, accessToken, JSON.stringify(filters)])
 
   return {
     flows,
@@ -187,5 +186,5 @@ export const useFlowList = (
     loading,
     error,
     refetch: fetchFlows
-  };
-};
+  }
+}

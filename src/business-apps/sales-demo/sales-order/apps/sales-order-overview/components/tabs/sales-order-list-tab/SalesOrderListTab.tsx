@@ -1,4 +1,4 @@
-import React, { useState, ReactNode, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, ReactNode, useCallback, useMemo } from 'react'
 import {
   Card,
   Row,
@@ -13,29 +13,24 @@ import {
   Alert,
   Button,
   Dropdown
-} from 'antd';
-import {
-  SearchOutlined,
-  MoreOutlined,
-  PlusOutlined,
-  DownOutlined
-} from '@ant-design/icons';
-import Pill from '@/components/pill/Pill';
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
-import dayjs from 'dayjs';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useSalesOrderData } from '../../../hooks/useSalesOrderData';
-import { SalesOrder } from '../../../types';
-import SalesOrderCreationForm from '../../../../../forms/sales-order-creation-form';
+} from 'antd'
+import { SearchOutlined, MoreOutlined, PlusOutlined, DownOutlined } from '@ant-design/icons'
+import Pill from '@/components/pill/Pill'
+import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'
+import dayjs from 'dayjs'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useSalesOrderData } from '../../../hooks/useSalesOrderData'
+import { SalesOrder } from '../../../types'
+import SalesOrderCreationForm from '../../../../../forms/sales-order-creation-form'
 
-const { RangePicker } = DatePicker;
-const { Option } = Select;
-const { Text } = Typography;
+const { RangePicker } = DatePicker
+const { Option } = Select
+const { Text } = Typography
 
 export interface SalesOrderListTabProps extends BusinessAppContextProps {
-  activeStructureId?: string;
-  onContentHeaderChange?: (header: ReactNode) => void;
-  onOrderSelect?: (orderId: string) => void;
+  activeStructureId?: string
+  onContentHeaderChange?: (header: ReactNode) => void
+  onOrderSelect?: (orderId: string) => void
 }
 
 const SalesOrderListTab: React.FC<SalesOrderListTabProps> = ({
@@ -47,8 +42,8 @@ const SalesOrderListTab: React.FC<SalesOrderListTabProps> = ({
   onOrderSelect
 }) => {
   // Modal state
-  const [isCreationModalOpen, setIsCreationModalOpen] = useState(false);
-  
+  const [isCreationModalOpen, setIsCreationModalOpen] = useState(false)
+
   // Hooks
   const {
     orders,
@@ -62,23 +57,26 @@ const SalesOrderListTab: React.FC<SalesOrderListTabProps> = ({
     setPagination,
     searchCustomers,
     searchSalespersons
-  } = useSalesOrderData({ accessToken });
-
-
+  } = useSalesOrderData({ accessToken })
 
   // Local state
-  const [form] = Form.useForm();
+  const [form] = Form.useForm()
 
   // Status pill mapping
   const getStatusPillType = (status: string): 'draft' | 'completed' | 'waiting' | 'error' => {
     switch (status) {
-      case 'Draft': return 'draft';
-      case 'Released': return 'waiting';
-      case 'Invoiced': return 'completed';
-      case 'Cancelled': return 'error';
-      default: return 'draft';
+      case 'Draft':
+        return 'draft'
+      case 'Released':
+        return 'waiting'
+      case 'Invoiced':
+        return 'completed'
+      case 'Cancelled':
+        return 'error'
+      default:
+        return 'draft'
     }
-  };
+  }
 
   // Format currency
   const formatCurrency = (value: number, currency: string = 'EUR') => {
@@ -87,8 +85,8 @@ const SalesOrderListTab: React.FC<SalesOrderListTabProps> = ({
       currency,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(value);
-  };
+    }).format(value)
+  }
 
   // Table columns
   const columns: ColumnsType<SalesOrder> = [
@@ -97,14 +95,14 @@ const SalesOrderListTab: React.FC<SalesOrderListTabProps> = ({
       dataIndex: 'orderNumber',
       key: 'orderNumber',
       sorter: true,
-      render: (text) => <Text strong>{text}</Text>
+      render: text => <Text strong>{text}</Text>
     },
     {
       title: 'Order Date',
       dataIndex: 'orderDate',
       key: 'orderDate',
       sorter: true,
-      render: (date) => dayjs(date).format('MMM D, YYYY')
+      render: date => dayjs(date).format('MMM D, YYYY')
     },
     {
       title: 'Customer',
@@ -123,13 +121,7 @@ const SalesOrderListTab: React.FC<SalesOrderListTabProps> = ({
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      render: (status) => (
-        <Pill
-          label={status}
-          type={getStatusPillType(status)}
-          className="gba:inline-block"
-        />
-      )
+      render: status => <Pill label={status} type={getStatusPillType(status)} className="gba:inline-block" />
     },
     {
       title: 'Salesperson',
@@ -172,130 +164,123 @@ const SalesOrderListTab: React.FC<SalesOrderListTabProps> = ({
         </Dropdown>
       )
     }
-  ];
+  ]
 
   // Event handlers
   const handleViewOrder = (orderId: string) => {
     if (onOrderSelect) {
-      onOrderSelect(orderId);
+      onOrderSelect(orderId)
     }
-  };
+  }
 
   const handleEditOrder = (orderId: string) => {
-    console.log('Edit order:', orderId);
-  };
+    console.log('Edit order:', orderId)
+  }
 
   const handleArchiveOrder = (orderId: string) => {
-    console.log('Archive order:', orderId);
-  };
+    console.log('Archive order:', orderId)
+  }
 
   const handleCreateNew = useCallback(() => {
-    setIsCreationModalOpen(true);
-  }, []);
+    setIsCreationModalOpen(true)
+  }, [])
 
   const handleCreationSuccess = (orderId: string) => {
-    console.log('Sales order created successfully:', orderId);
+    console.log('Sales order created successfully:', orderId)
     // Refresh the orders list
-    window.location.reload();
-  };
+    window.location.reload()
+  }
 
   const handleApplyFilters = () => {
-    const values = form.getFieldsValue();
+    const values = form.getFieldsValue()
     setFilters({
       customer: values.customer,
       status: values.status,
-      dateRange: values.dateRange ? [
-        values.dateRange[0].format('YYYY-MM-DD'),
-        values.dateRange[1].format('YYYY-MM-DD')
-      ] : undefined,
+      dateRange: values.dateRange
+        ? [values.dateRange[0].format('YYYY-MM-DD'), values.dateRange[1].format('YYYY-MM-DD')]
+        : undefined,
       salesperson: values.salesperson,
       searchTerm: values.searchTerm
-    });
-  };
+    })
+  }
 
   const handleClearFilters = () => {
-    form.resetFields();
-    setFilters({});
-  };
+    form.resetFields()
+    setFilters({})
+  }
 
   const handleTableChange = (paginationConfig: TablePaginationConfig) => {
     setPagination({
       page: paginationConfig.current || 1,
       pageSize: paginationConfig.pageSize || 20
-    });
-  };
+    })
+  }
 
   // Handle row click to navigate to details
   const handleRowClick = (record: SalesOrder) => {
     if (onOrderSelect) {
-      onOrderSelect(record.id);
+      onOrderSelect(record.id)
     }
-  };
+  }
 
   // Memoize the content header to prevent unnecessary re-renders
-  const contentHeader = useMemo(() => (
-    <div className="gba:flex gba:justify-between gba:items-center" data-testid="orders-content-header">
-      <div className="gba:flex gba:items-center gba:gap-2">
-        <Text strong>Sales Orders</Text>
-        <Text type="secondary">({pagination.total} total)</Text>
-      </div>
-      <Dropdown
-        menu={{
-          items: [
-            {
-              key: 'create-new',
-              label: 'Create New Sales Order',
-              onClick: handleCreateNew
-            }
-          ]
-        }}
-        trigger={['click']}
-      >
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          data-testid="create-order-btn"
-          style={{ backgroundColor: '#000000', borderColor: '#000000', color: '#ffffff' }}
-          className="gba:hover:bg-gray-800 gba:hover:border-gray-800"
+  const contentHeader = useMemo(
+    () => (
+      <div className="gba:flex gba:justify-between gba:items-center" data-testid="orders-content-header">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <Text strong>Sales Orders</Text>
+          <Text type="secondary">({pagination.total} total)</Text>
+        </div>
+        <Dropdown
+          menu={{
+            items: [
+              {
+                key: 'create-new',
+                label: 'Create New Sales Order',
+                onClick: handleCreateNew
+              }
+            ]
+          }}
+          trigger={['click']}
         >
-          Actions <DownOutlined />
-        </Button>
-      </Dropdown>
-    </div>
-  ), [pagination.total, handleCreateNew]);
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            data-testid="create-order-btn"
+            style={{ backgroundColor: '#000000', borderColor: '#000000', color: '#ffffff' }}
+            className="gba:hover:bg-gray-800 gba:hover:border-gray-800"
+          >
+            Actions <DownOutlined />
+          </Button>
+        </Dropdown>
+      </div>
+    ),
+    [pagination.total, handleCreateNew]
+  )
 
   // Set content header - use useRef to track if we need to update
-  const prevHeaderRef = React.useRef<ReactNode>(null);
-  
+  const prevHeaderRef = React.useRef<ReactNode>(null)
+
   React.useEffect(() => {
     if (onContentHeaderChange && prevHeaderRef.current !== contentHeader) {
-      onContentHeaderChange(contentHeader);
-      prevHeaderRef.current = contentHeader;
+      onContentHeaderChange(contentHeader)
+      prevHeaderRef.current = contentHeader
     }
-  }, [contentHeader, onContentHeaderChange]);
+  }, [contentHeader, onContentHeaderChange])
 
   if (error) {
     return (
       <div className="gba:p-6" data-testid="error-container">
-        <Alert
-          message="Error Loading Sales Orders"
-          description={error.message}
-          type="error"
-          showIcon
-        />
+        <Alert message="Error Loading Sales Orders" description={error.message} type="error" showIcon />
       </div>
-    );
+    )
   }
 
   return (
     <div className="gba:p-6" data-testid="sales-order-list-tab">
       {/* Filter Panel */}
       <Card className="gba:mb-6" data-testid="filter-panel">
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleApplyFilters}
-        >
+        <Form form={form} layout="vertical" onFinish={handleApplyFilters}>
           <Row gutter={[16, 16]}>
             <Col xs={24} sm={12} md={6}>
               <Form.Item label="Customer" name="customer">
@@ -350,26 +335,15 @@ const SalesOrderListTab: React.FC<SalesOrderListTabProps> = ({
           <Row gutter={[16, 16]}>
             <Col xs={24} md={12}>
               <Form.Item label="Search by Order Number" name="searchTerm">
-                <Input
-                  placeholder="Enter order number..."
-                  prefix={<SearchOutlined />}
-                  data-testid="search-input"
-                />
+                <Input placeholder="Enter order number..." prefix={<SearchOutlined />} data-testid="search-input" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12} className="gba:flex gba:items-end">
               <Space>
-                <Button
-                  onClick={handleClearFilters}
-                  data-testid="clear-filters-btn"
-                >
+                <Button onClick={handleClearFilters} data-testid="clear-filters-btn">
                   Clear Filters
                 </Button>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  data-testid="apply-filters-btn"
-                >
+                <Button type="primary" htmlType="submit" data-testid="apply-filters-btn">
                   Apply Filters
                 </Button>
               </Space>
@@ -391,11 +365,10 @@ const SalesOrderListTab: React.FC<SalesOrderListTabProps> = ({
             total: pagination.total,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total, range) =>
-              `${range[0]}-${range[1]} of ${total} orders`
+            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} orders`
           }}
           onChange={handleTableChange}
-          onRow={(record) => ({
+          onRow={record => ({
             onClick: () => handleRowClick(record),
             style: { cursor: 'pointer' },
             className: 'gba:hover:bg-gray-50'
@@ -415,7 +388,7 @@ const SalesOrderListTab: React.FC<SalesOrderListTabProps> = ({
         onSuccess={handleCreationSuccess}
       />
     </div>
-  );
-};
+  )
+}
 
-export default SalesOrderListTab;
+export default SalesOrderListTab

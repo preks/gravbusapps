@@ -6,7 +6,7 @@ A React form component for creating and editing employee records with organizati
 
 - **Personal Information**: First name, last name, email (all mandatory)
 - **Employment Information**: Organizational unit and job position selection (both mandatory)
-- **Smart Logic**: 
+- **Smart Logic**:
   - Job position selection filters by organizational unit when one is selected
   - Auto-selects organizational unit when job position is selected without an org unit
   - Shows all vacant positions when no organizational unit is selected
@@ -22,8 +22,8 @@ import { Employee } from '@/business-apps/hr/core/forms/employee';
 <Employee accessToken={accessToken} />
 
 // Edit existing employee
-<Employee 
-  accessToken={accessToken} 
+<Employee
+  accessToken={accessToken}
   initialValues={{
     firstName: 'John',
     lastName: 'Doe',
@@ -53,4 +53,4 @@ import { Employee } from '@/business-apps/hr/core/forms/employee';
 2. Job positions are loaded based on selected organizational unit (or all if none selected)
 3. When organizational unit changes, job positions are filtered accordingly
 4. When job position is selected without org unit, the org unit is auto-selected
-5. Form validates all required fields before submission 
+5. Form validates all required fields before submission

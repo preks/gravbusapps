@@ -41,7 +41,7 @@ export const getBomDetails = `
       additionalProperties
     }
   }
-`;
+`
 
 export const getBomComponents = `
   query GetBomComponents($bomId: uuid!, $limit: Int = 100, $offset: Int = 0) {
@@ -103,7 +103,7 @@ export const getBomComponents = `
       }
     }
   }
-`;
+`
 
 export const getBomKPIs = `
   query GetBomKPIs($bomId: uuid!) {
@@ -196,7 +196,7 @@ export const getBomKPIs = `
       }
     }
   }
-`;
+`
 
 export const getBomHierarchy = `
   query GetBomHierarchy($bomId: uuid!) {
@@ -231,7 +231,7 @@ export const getBomHierarchy = `
       supplierName
     }
   }
-`;
+`
 
 export const getBomCostBreakdown = `
   query GetBomCostBreakdown($bomId: uuid!) {
@@ -311,7 +311,7 @@ export const getBomCostBreakdown = `
       }
     }
   }
-`;
+`
 
 export const getBomValidityInfo = `
   query GetBomValidityInfo($bomId: uuid!) {
@@ -331,7 +331,7 @@ export const getBomValidityInfo = `
       updatedAt
     }
   }
-`;
+`
 
 export const getBomSystemInfo = `
   query GetBomSystemInfo($bomId: uuid!) {
@@ -347,7 +347,7 @@ export const getBomSystemInfo = `
       additionalProperties
     }
   }
-`;
+`
 
 export const getBomUsageInfo = `
   query GetBomUsageInfo($bomId: uuid!) {
@@ -388,4 +388,4 @@ export const getBomUsageInfo = `
       isCritical
     }
   }
-`;
+`

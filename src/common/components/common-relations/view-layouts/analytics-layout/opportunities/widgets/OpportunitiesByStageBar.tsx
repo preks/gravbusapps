@@ -1,78 +1,87 @@
-import React, { useMemo } from "react";
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle, 
+import React, { useMemo } from 'react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
   CardDescription,
   IconAvatar,
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
-} from "@newwork/nw-design-system";
-import { BarChart, Bar, XAxis, YAxis } from "recharts";
-import { ChartBarIcon } from "@phosphor-icons/react";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { BarChart, Bar, XAxis, YAxis } from 'recharts'
+import { ChartBarIcon } from '@phosphor-icons/react'
+import { OpportunitiesStageChartProps } from './types'
+import { PipelineSelector } from './PipelineSelector'
 
-export interface StageItem { stage: string; count: number; value: number }
-
-interface OpportunitiesByStageBarProps {
-  data: StageItem[];
-  moduleColor?: string;
-}
-
-export const OpportunitiesByStageBar: React.FC<OpportunitiesByStageBarProps> = ({ 
-  data, 
-  moduleColor = "default" 
+export const OpportunitiesByStageBar: React.FC<OpportunitiesStageChartProps> = ({
+  data,
+  moduleColor = 'default',
+  pipelines = [],
+  selectedPipelineId,
+  onPipelineChange
 }) => {
-  const chartConfig = useMemo(() => ({
-    count: {
-      label: "Opportunities",
-    },
-    value: {
-      label: "Total Value",
-    },
-  } satisfies ChartConfig), []);
+  // Format large numbers for Y-axis
+  const formatYAxis = (value: number): string => {
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}M`
+    }
+    if (value >= 1000) {
+      return `${(value / 1000).toFixed(1)}K`
+    }
+    return value.toString()
+  }
+
+  const chartConfig = useMemo(
+    () =>
+      ({
+        count: {
+          label: 'Opportunities'
+        }
+      }) satisfies ChartConfig,
+    []
+  )
   return (
     <Card data-testid="opportunities-by-stage-chart">
-      <CardHeader className="gba:flex gba:items-center gba:gap-3">
-        <IconAvatar
-          icon={ChartBarIcon}
-          variant={moduleColor as any}
-          size="md"
-          iconWeight="regular"
-          decorative={true}
-        />
-        <div>
-          <CardTitle>Opportunities by Stage</CardTitle>
-          <CardDescription>Stage progression analysis</CardDescription>
+      <CardHeader>
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <IconAvatar
+              icon={ChartBarIcon}
+              variant={moduleColor as any}
+              size="md"
+              iconWeight="regular"
+              decorative={true}
+            />
+            <div>
+              <CardTitle>Opportunities by Stage</CardTitle>
+              <CardDescription>Stage progression analysis</CardDescription>
+            </div>
+          </div>
+          <PipelineSelector
+            pipelines={pipelines}
+            selectedPipelineId={selectedPipelineId}
+            onPipelineChange={onPipelineChange}
+            dataTestId="opportunities-stage-pipeline-selector"
+          />
         </div>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="gba:w-full gba:h-[300px]">
-          <BarChart data={data} margin={{ bottom: 60 }}>
+          <BarChart data={data} margin={{ top: 20, right: 20, bottom: 60, left: 60 }}>
             <XAxis dataKey="stage" angle={-45} textAnchor="end" height={80} tick={{ fontSize: 11 }} interval={0} />
-            <YAxis tick={{ fontSize: 11 }} />
-            <ChartTooltip 
-              content={<ChartTooltipContent 
-                formatter={(value: number, name: string) => [
-                  name === 'count' ? `${value}` : `€${Number(value).toLocaleString()}`, 
-                  name === 'count' ? 'Opportunities' : 'Total Value'
-                ]}
-              />}
+            <YAxis tick={{ fontSize: 11 }} tickFormatter={formatYAxis} width={60} />
+            <ChartTooltip
+              content={<ChartTooltipContent formatter={(value: number) => [`${value}`, 'Opportunities']} />}
             />
-            <ChartLegend content={<ChartLegendContent />} />
             <Bar dataKey="count" fill="var(--color-count)" radius={[2, 2, 0, 0]} />
-            <Bar dataKey="value" fill="var(--color-value)" radius={[2, 2, 0, 0]} />
           </BarChart>
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default OpportunitiesByStageBar;
-
-
+export default OpportunitiesByStageBar

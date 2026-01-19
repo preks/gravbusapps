@@ -2,18 +2,18 @@
 // Pattern aligned with src/common/data/investment/queries/*
 
 export interface EmployeeSearchVariables {
-	search?: string;
-	limit?: number;
-	offset?: number;
+  search?: string
+  limit?: number
+  offset?: number
 }
 
 // Lightweight employee search for autocomplete
 export const SEARCH_EMPLOYEES_LIGHT = (variables: EmployeeSearchVariables = {}): string => {
-	const search = (variables.search || '').trim();
-	const limit = Math.min(variables.limit ?? 20, 100);
-	const offset = variables.offset ?? 0;
+  const search = (variables.search || '').trim()
+  const limit = Math.min(variables.limit ?? 20, 100)
+  const offset = variables.offset ?? 0
 
-	return `
+  return `
 		query SearchEmployeesLight {
 			Employee(
 				limit: ${limit}
@@ -44,13 +44,12 @@ export const SEARCH_EMPLOYEES_LIGHT = (variables: EmployeeSearchVariables = {}):
 				}
 			}
 		}
-	`;
-};
-
+	`
+}
 
 // Fetch a single employee by id with lightweight fields for selectors
 export const GET_EMPLOYEE_LIGHT_BY_ID = (id: string): string => {
-  const safeId = (id || '').replace(/"/g, '');
+  const safeId = (id || '').replace(/"/g, '')
   return `
     query GetEmployeeLightById {
       Employee(where: { id: { _eq: "${safeId}" } }, limit: 1) {
@@ -66,7 +65,5 @@ export const GET_EMPLOYEE_LIGHT_BY_ID = (id: string): string => {
         }
       }
     }
-  `;
-};
-
-
+  `
+}

@@ -1,6 +1,6 @@
 import { ClassValue, clsx } from 'clsx'
 import { extendTailwindMerge, fromTheme } from 'tailwind-merge'
- 
+
 const customTwMergeConfig = extendTailwindMerge({
   extend: {
     classGroups: {
@@ -11,7 +11,7 @@ const customTwMergeConfig = extendTailwindMerge({
     }
   }
 })
- 
+
 export function cn(...inputs: ClassValue[]) {
   return customTwMergeConfig(clsx(inputs))
 }

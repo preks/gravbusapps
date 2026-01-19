@@ -1,11 +1,11 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle, 
-  Button, 
-  Badge, 
+import React, { useState, useCallback, useMemo } from 'react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Badge,
   Progress,
   Tabs,
   TabsContent,
@@ -13,14 +13,14 @@ import {
   TabsTrigger,
   Alert,
   Separator
-} from '@newwork/nw-design-system';
-import { 
-  ArrowLeft, 
-  Calendar, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle, 
-  User, 
+} from '@newwork/nw-design-system'
+import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  User,
   Activity,
   FileText,
   Settings,
@@ -35,121 +35,120 @@ import {
   X,
   Check,
   Play
-} from 'lucide-react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { env } from '@/common/env/EnvUtils';
-import ReactFlow, {
-  Node,
-  Edge,
-  Controls,
-  Background,
-  useNodesState,
-  useEdgesState,
-  ConnectionMode,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
+} from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { env } from '@/common/env/EnvUtils'
+import ReactFlow, { Node, Edge, Controls, Background, useNodesState, useEdgesState, ConnectionMode } from 'reactflow'
+import 'reactflow/dist/style.css'
 
 // Enhanced interfaces matching our backend data
 interface StepStatus {
-  completed: number;
-  total: number;
-  remaining: number;
+  completed: number
+  total: number
+  remaining: number
 }
 
 interface ProcessHealth {
-  isOnTrack: boolean;
-  hasFailures: boolean;
-  isStalled: boolean;
-  statusMessage: string;
+  isOnTrack: boolean
+  hasFailures: boolean
+  isStalled: boolean
+  statusMessage: string
 }
 
 interface TimeInsights {
-  avgStepDurationHours?: number;
-  estimatedCompletionDate?: string;
-  isOverdue: boolean;
-  daysRunning: number;
-  daysSinceLastUpdate: number;
+  avgStepDurationHours?: number
+  estimatedCompletionDate?: string
+  isOverdue: boolean
+  daysRunning: number
+  daysSinceLastUpdate: number
 }
 
 interface FlowDetailData {
-  flowId: string;
-  flowName: string;
-  templateId: string;
-  status: string;
-  startTime: string;
-  updateTime: string;
-  endTime?: string;
-  progressPercentage: number;
-  stepStatus: StepStatus;
-  currentStep: number;
-  processHealth: ProcessHealth;
-  timeInsights: TimeInsights;
-  durationHours?: number;
-  durationMinutes?: number;
+  flowId: string
+  flowName: string
+  templateId: string
+  status: string
+  startTime: string
+  updateTime: string
+  endTime?: string
+  progressPercentage: number
+  stepStatus: StepStatus
+  currentStep: number
+  processHealth: ProcessHealth
+  timeInsights: TimeInsights
+  durationHours?: number
+  durationMinutes?: number
 }
 
 // Real history data interfaces (from inbox implementation)
 interface HistoryEvent {
-  type: 'step' | 'assignment' | 'comment' | 'flow' | 'status';
-  timestamp: string;
-  stepIndex: number;
-  stepTitle: string;
-  eventTitle: string;
-  description: string;
-  action?: string;
-  userId?: string;
-  userName?: string;
-  comment?: string;
-  metadata?: any;
+  type: 'step' | 'assignment' | 'comment' | 'flow' | 'status'
+  timestamp: string
+  stepIndex: number
+  stepTitle: string
+  eventTitle: string
+  description: string
+  action?: string
+  userId?: string
+  userName?: string
+  comment?: string
+  metadata?: any
 }
 
 interface HistorySummary {
-  totalSteps: number;
-  completedSteps: number;
-  totalAssignmentEvents: number;
-  totalComments: number;
-  participants: string[];
+  totalSteps: number
+  completedSteps: number
+  totalAssignmentEvents: number
+  totalComments: number
+  participants: string[]
 }
 
 interface FlowDetailViewProps extends BusinessAppContextProps {
-  flowId: string;
-  onBack: () => void;
+  flowId: string
+  onBack: () => void
 }
 
 // Custom node component for React Flow
 const FlowStepNode = ({ data }: { data: any }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'COMPLETED': return '#10b981';
-      case 'IN_PROGRESS': return '#3b82f6';
-      case 'SCHEDULED': return '#f59e0b';
-      case 'QUEUED': return '#6b7280';
-      default: return '#6b7280';
+      case 'COMPLETED':
+        return '#10b981'
+      case 'IN_PROGRESS':
+        return '#3b82f6'
+      case 'SCHEDULED':
+        return '#f59e0b'
+      case 'QUEUED':
+        return '#6b7280'
+      default:
+        return '#6b7280'
     }
-  };
+  }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'COMPLETED': return <CheckCircle className="gba:w-4 gba:h-4" />;
-      case 'IN_PROGRESS': return <Activity className="gba:w-4 gba:h-4" />;
-      case 'SCHEDULED': return <Clock className="gba:w-4 gba:h-4" />;
-      default: return <AlertCircle className="gba:w-4 gba:h-4" />;
+      case 'COMPLETED':
+        return <CheckCircle className="gba:w-4 gba:h-4" />
+      case 'IN_PROGRESS':
+        return <Activity className="gba:w-4 gba:h-4" />
+      case 'SCHEDULED':
+        return <Clock className="gba:w-4 gba:h-4" />
+      default:
+        return <AlertCircle className="gba:w-4 gba:h-4" />
     }
-  };
+  }
 
   return (
-    <div 
+    <div
       className="gba:bg-white gba:border-2 gba:rounded-lg gba:p-4 gba:min-w-[200px] gba:shadow-sm"
       style={{ borderColor: getStatusColor(data.status) }}
     >
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-        <div style={{ color: getStatusColor(data.status) }}>
-          {getStatusIcon(data.status)}
-        </div>
-        <Badge 
-          variant="outline" 
-          style={{ 
-            backgroundColor: getStatusColor(data.status), 
+        <div style={{ color: getStatusColor(data.status) }}>{getStatusIcon(data.status)}</div>
+        <Badge
+          variant="outline"
+          style={{
+            backgroundColor: getStatusColor(data.status),
             color: 'white',
             border: 'none'
           }}
@@ -158,18 +157,16 @@ const FlowStepNode = ({ data }: { data: any }) => {
           {data.status}
         </Badge>
       </div>
-      
-      <div className="gba:font-semibold gba:text-sm gba:mb-1 gba:text-gray-900">
-        {data.title}
-      </div>
-      
+
+      <div className="gba:font-semibold gba:text-sm gba:mb-1 gba:text-gray-900">{data.title}</div>
+
       {data.assignedTo && (
         <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-gray-600 gba:mb-1">
           <User className="gba:w-3 gba:h-3" />
           {data.assignedTo}
         </div>
       )}
-      
+
       {data.dueDate && (
         <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-gray-600">
           <Calendar className="gba:w-3 gba:h-3" />
@@ -177,60 +174,55 @@ const FlowStepNode = ({ data }: { data: any }) => {
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
 const nodeTypes = {
-  flowStep: FlowStepNode,
-};
+  flowStep: FlowStepNode
+}
 
-export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
-  flowId,
-  onBack,
-  accessToken
-}) => {
-  const [flowData, setFlowData] = useState<FlowDetailData | null>(null);
-  const [flowSteps, setFlowSteps] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('overview');
-  
+export const FlowDetailView: React.FC<FlowDetailViewProps> = ({ flowId, onBack, accessToken }) => {
+  const [flowData, setFlowData] = useState<FlowDetailData | null>(null)
+  const [flowSteps, setFlowSteps] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState('overview')
+
   // Real history data state
-  const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
-  const [historySummary, setHistorySummary] = useState<HistorySummary | null>(null);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyError, setHistoryError] = useState<string | null>(null);
-  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
-  const [filteredEvents, setFilteredEvents] = useState<HistoryEvent[]>([]);
+  const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([])
+  const [historySummary, setHistorySummary] = useState<HistorySummary | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState<string | null>(null)
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set())
+  const [filteredEvents, setFilteredEvents] = useState<HistoryEvent[]>([])
 
   // Load real history data
   const loadHistoryData = async () => {
-    setHistoryLoading(true);
-    setHistoryError(null);
-    
+    setHistoryLoading(true)
+    setHistoryError(null)
+
     try {
-      const API_BASE = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine';
+      const API_BASE = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
       const response = await fetch(`${API_BASE}/api/flows/${flowId}/history`, {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
-      });
-      
+      })
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch history: ${response.status}`);
+        throw new Error(`Failed to fetch history: ${response.status}`)
       }
-      
-      const data = await response.json();
-      setHistoryEvents(data.events || []);
-      setHistorySummary(data.summary || null);
-      
+
+      const data = await response.json()
+      setHistoryEvents(data.events || [])
+      setHistorySummary(data.summary || null)
     } catch (err) {
-      setHistoryError(err instanceof Error ? err.message : 'Failed to load history data');
+      setHistoryError(err instanceof Error ? err.message : 'Failed to load history data')
     } finally {
-      setHistoryLoading(false);
+      setHistoryLoading(false)
     }
-  };
+  }
 
   // Helper functions for history display (from inbox implementation)
   const getEventIcon = (event: HistoryEvent) => {
@@ -238,147 +230,165 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
       case 'flow':
         // Handle flow events
         if (event.action === 'FLOW_START') {
-          return <Play className="gba:h-4 gba:w-4" />;
+          return <Play className="gba:h-4 gba:w-4" />
         } else if (event.action === 'FLOW_COMPLETED') {
-          return <CheckCircle className="gba:h-4 gba:w-4" />;
+          return <CheckCircle className="gba:h-4 gba:w-4" />
         } else if (event.action === 'FLOW_TERMINATED') {
-          return <X className="gba:h-4 gba:w-4" />;
+          return <X className="gba:h-4 gba:w-4" />
         } else {
-          return <Play className="gba:h-4 gba:w-4" />;
+          return <Play className="gba:h-4 gba:w-4" />
         }
       case 'step':
-        return <CheckCircle className="gba:h-4 gba:w-4" />;
+        return <CheckCircle className="gba:h-4 gba:w-4" />
       case 'status':
-        return <RefreshCw className="gba:h-4 gba:w-4" />;
+        return <RefreshCw className="gba:h-4 gba:w-4" />
       case 'assignment':
         switch (event.action) {
-          case 'CLAIM': return <UserPlus className="gba:h-4 gba:w-4" />;
-          case 'UNCLAIM': return <UserMinus className="gba:h-4 gba:w-4" />;
-          case 'REASSIGN': return <RefreshCw className="gba:h-4 gba:w-4" />;
-          case 'COMPLETE': return <Check className="gba:h-4 gba:w-4" />;
-          case 'REJECT': return <X className="gba:h-4 gba:w-4" />;
-          default: return <Play className="gba:h-4 gba:w-4" />;
+          case 'CLAIM':
+            return <UserPlus className="gba:h-4 gba:w-4" />
+          case 'UNCLAIM':
+            return <UserMinus className="gba:h-4 gba:w-4" />
+          case 'REASSIGN':
+            return <RefreshCw className="gba:h-4 gba:w-4" />
+          case 'COMPLETE':
+            return <Check className="gba:h-4 gba:w-4" />
+          case 'REJECT':
+            return <X className="gba:h-4 gba:w-4" />
+          default:
+            return <Play className="gba:h-4 gba:w-4" />
         }
       case 'comment':
-        return <MessageSquare className="gba:h-4 gba:w-4" />;
+        return <MessageSquare className="gba:h-4 gba:w-4" />
       default:
-        return <Clock className="gba:h-4 gba:w-4" />;
+        return <Clock className="gba:h-4 gba:w-4" />
     }
-  };
+  }
 
   const getEventColor = (event: HistoryEvent) => {
     switch (event.type) {
       case 'flow':
         // Handle flow events
         if (event.action === 'FLOW_START') {
-          return '#3b82f6'; // blue for start
+          return '#3b82f6' // blue for start
         } else if (event.action === 'FLOW_COMPLETED') {
-          return '#10b981'; // green for success
+          return '#10b981' // green for success
         } else if (event.action === 'FLOW_TERMINATED') {
-          return '#ef4444'; // red for termination
+          return '#ef4444' // red for termination
         } else {
-          return '#3b82f6'; // blue default
+          return '#3b82f6' // blue default
         }
       case 'step':
-        return '#10b981'; // green for regular steps
+        return '#10b981' // green for regular steps
       case 'status':
-        return '#8b5cf6'; // purple for status changes
+        return '#8b5cf6' // purple for status changes
       case 'assignment':
         switch (event.action) {
-          case 'CLAIM': return '#3b82f6'; // blue
-          case 'UNCLAIM': return '#f59e0b'; // orange
-          case 'REASSIGN': return '#8b5cf6'; // purple
-          case 'COMPLETE': return '#10b981'; // green
-          case 'REJECT': return '#ef4444'; // red
-          default: return '#3b82f6'; // blue
+          case 'CLAIM':
+            return '#3b82f6' // blue
+          case 'UNCLAIM':
+            return '#f59e0b' // orange
+          case 'REASSIGN':
+            return '#8b5cf6' // purple
+          case 'COMPLETE':
+            return '#10b981' // green
+          case 'REJECT':
+            return '#ef4444' // red
+          default:
+            return '#3b82f6' // blue
         }
       case 'comment':
-        return '#06b6d4'; // cyan
+        return '#06b6d4' // cyan
       default:
-        return '#6b7280'; // gray
+        return '#6b7280' // gray
     }
-  };
+  }
 
   const getEventBgColor = (event: HistoryEvent) => {
     switch (event.type) {
       case 'flow':
         // Handle flow events
         if (event.action === 'FLOW_START') {
-          return 'gba:bg-blue-50';
+          return 'gba:bg-blue-50'
         } else if (event.action === 'FLOW_COMPLETED') {
-          return 'gba:bg-green-50';
+          return 'gba:bg-green-50'
         } else if (event.action === 'FLOW_TERMINATED') {
-          return 'gba:bg-red-50';
+          return 'gba:bg-red-50'
         } else {
-          return 'gba:bg-blue-50';
+          return 'gba:bg-blue-50'
         }
       case 'step':
-        return 'gba:bg-green-50';
+        return 'gba:bg-green-50'
       case 'status':
-        return 'gba:bg-purple-50';
+        return 'gba:bg-purple-50'
       case 'assignment':
         switch (event.action) {
-          case 'CLAIM': return 'gba:bg-blue-50';
-          case 'UNCLAIM': return 'gba:bg-orange-50';
-          case 'REASSIGN': return 'gba:bg-purple-50';
-          case 'COMPLETE': return 'gba:bg-green-50';
-          case 'REJECT': return 'gba:bg-red-50';
-          default: return 'gba:bg-blue-50';
+          case 'CLAIM':
+            return 'gba:bg-blue-50'
+          case 'UNCLAIM':
+            return 'gba:bg-orange-50'
+          case 'REASSIGN':
+            return 'gba:bg-purple-50'
+          case 'COMPLETE':
+            return 'gba:bg-green-50'
+          case 'REJECT':
+            return 'gba:bg-red-50'
+          default:
+            return 'gba:bg-blue-50'
         }
       case 'comment':
-        return 'gba:bg-cyan-50';
+        return 'gba:bg-cyan-50'
       default:
-        return 'gba:bg-gray-50';
+        return 'gba:bg-gray-50'
     }
-  };
+  }
 
   const toggleFilter = (filterType: string) => {
-    const newFilters = new Set(activeFilters);
+    const newFilters = new Set(activeFilters)
     if (newFilters.has(filterType)) {
-      newFilters.delete(filterType);
+      newFilters.delete(filterType)
     } else {
-      newFilters.add(filterType);
+      newFilters.add(filterType)
     }
-    setActiveFilters(newFilters);
-  };
+    setActiveFilters(newFilters)
+  }
 
   const clearAllFilters = () => {
-    setActiveFilters(new Set());
-  };
+    setActiveFilters(new Set())
+  }
 
   // Filter events whenever events or activeFilters change
   React.useEffect(() => {
     if (activeFilters.size === 0) {
-      setFilteredEvents(historyEvents);
+      setFilteredEvents(historyEvents)
     } else {
       const filtered = historyEvents.filter(event => {
-        if (activeFilters.has('steps') && event.type === 'step') return true;
-        if (activeFilters.has('assignmentEvents') && event.type === 'assignment') return true;
-        if (activeFilters.has('statusChanges') && event.type === 'status') return true;
-        if (activeFilters.has('comments') && event.type === 'comment') return true;
-        return false;
-      });
-      setFilteredEvents(filtered);
+        if (activeFilters.has('steps') && event.type === 'step') return true
+        if (activeFilters.has('assignmentEvents') && event.type === 'assignment') return true
+        if (activeFilters.has('statusChanges') && event.type === 'status') return true
+        if (activeFilters.has('comments') && event.type === 'comment') return true
+        return false
+      })
+      setFilteredEvents(filtered)
     }
-  }, [historyEvents, activeFilters]);
+  }, [historyEvents, activeFilters])
 
   // Load history when tab becomes active or flowId changes
   React.useEffect(() => {
     if (activeTab === 'audit' && flowId && accessToken) {
-      loadHistoryData();
+      loadHistoryData()
     }
-  }, [activeTab, flowId, accessToken]);
+  }, [activeTab, flowId, accessToken])
 
   // Mock data for flow details - replace with actual API calls
   React.useEffect(() => {
     const fetchFlowDetail = async () => {
       try {
-        setIsLoading(true);
-        
+        setIsLoading(true)
+
         // TODO: Replace with actual API calls
         // const flowResponse = await fetch(`/api/flows/${flowId}`, { headers: { Authorization: `Bearer ${accessToken}` }});
         // const stepsResponse = await fetch(`/api/flows/${flowId}/steps`, { headers: { Authorization: `Bearer ${accessToken}` }});
-        
+
         // Mock data for demonstration
         setTimeout(() => {
           setFlowData({
@@ -406,59 +416,59 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
             },
             durationHours: 52.5,
             durationMinutes: 3150
-          });
+          })
 
           setFlowSteps([
-            { 
-              id: 'step-1', 
-              title: 'Document Preparation', 
-              status: 'COMPLETED', 
+            {
+              id: 'step-1',
+              title: 'Document Preparation',
+              status: 'COMPLETED',
               assignedTo: 'HR Team',
               dueDate: '2025-08-01T16:00:00Z',
               completedAt: '2025-08-01T15:30:00Z'
             },
-            { 
-              id: 'step-2', 
-              title: 'Manager Approval', 
-              status: 'COMPLETED', 
+            {
+              id: 'step-2',
+              title: 'Manager Approval',
+              status: 'COMPLETED',
               assignedTo: 'John Manager',
               dueDate: '2025-08-02T12:00:00Z',
               completedAt: '2025-08-02T11:45:00Z'
             },
-            { 
-              id: 'step-3', 
-              title: 'IT Setup', 
-              status: 'COMPLETED', 
+            {
+              id: 'step-3',
+              title: 'IT Setup',
+              status: 'COMPLETED',
               assignedTo: 'IT Department',
               dueDate: '2025-08-03T17:00:00Z',
               completedAt: '2025-08-03T16:20:00Z'
             },
-            { 
-              id: 'step-4', 
-              title: 'Onboarding Meeting', 
-              status: 'IN_PROGRESS', 
+            {
+              id: 'step-4',
+              title: 'Onboarding Meeting',
+              status: 'IN_PROGRESS',
               assignedTo: 'Sarah HR',
               dueDate: '2025-08-06T14:00:00Z'
             },
-            { 
-              id: 'step-5', 
-              title: 'Final Review', 
-              status: 'SCHEDULED', 
+            {
+              id: 'step-5',
+              title: 'Final Review',
+              status: 'SCHEDULED',
               assignedTo: 'Manager',
               dueDate: '2025-08-08T10:00:00Z'
             }
-          ]);
+          ])
 
-          setIsLoading(false);
-        }, 1000);
+          setIsLoading(false)
+        }, 1000)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load flow details');
-        setIsLoading(false);
+        setError(err instanceof Error ? err.message : 'Failed to load flow details')
+        setIsLoading(false)
       }
-    };
+    }
 
-    fetchFlowDetail();
-  }, [flowId, accessToken]);
+    fetchFlowDetail()
+  }, [flowId, accessToken])
 
   // Create React Flow nodes and edges
   const { nodes, edges } = useMemo(() => {
@@ -466,8 +476,8 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
       id: step.id,
       type: 'flowStep',
       position: { x: index * 250, y: 100 },
-      data: step,
-    }));
+      data: step
+    }))
 
     const edges: Edge[] = flowSteps.slice(0, -1).map((step, index) => ({
       id: `${step.id}-${flowSteps[index + 1].id}`,
@@ -479,21 +489,21 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
         type: 'arrowclosed',
         width: 20,
         height: 20,
-        color: '#6b7280',
+        color: '#6b7280'
       },
-      animated: step.status === 'COMPLETED' ? false : index === flowSteps.findIndex(s => s.status === 'IN_PROGRESS') - 1,
-    }));
+      animated: step.status === 'COMPLETED' ? false : index === flowSteps.findIndex(s => s.status === 'IN_PROGRESS') - 1
+    }))
 
-    return { nodes, edges };
-  }, [flowSteps]);
+    return { nodes, edges }
+  }, [flowSteps])
 
-  const [nodesState, setNodes, onNodesChange] = useNodesState(nodes);
-  const [edgesState, setEdges, onEdgesChange] = useEdgesState(edges);
+  const [nodesState, setNodes, onNodesChange] = useNodesState(nodes)
+  const [edgesState, setEdges, onEdgesChange] = useEdgesState(edges)
 
   React.useEffect(() => {
-    setNodes(nodes);
-    setEdges(edges);
-  }, [nodes, edges, setNodes, setEdges]);
+    setNodes(nodes)
+    setEdges(edges)
+  }, [nodes, edges, setNodes, setEdges])
 
   if (isLoading) {
     return (
@@ -503,7 +513,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
           <p className="gba:text-gray-600">Loading flow details...</p>
         </div>
       </div>
-    );
+    )
   }
 
   if (error || !flowData) {
@@ -517,7 +527,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
           </div>
         </Alert>
       </div>
-    );
+    )
   }
 
   return (
@@ -525,38 +535,34 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
       {/* Header */}
       <div className="gba:bg-white gba:border-b gba:border-gray-200 gba:px-6 gba:py-4">
         <div className="gba:flex gba:items-center gba:gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onBack}
-            className="gba:flex gba:items-center gba:gap-2"
-          >
+          <Button variant="ghost" size="sm" onClick={onBack} className="gba:flex gba:items-center gba:gap-2">
             <ArrowLeft className="gba:h-4 gba:w-4" />
             Back to Flows
           </Button>
-          
+
           <Separator orientation="vertical" className="gba:h-6" />
-          
+
           <div className="gba:flex-1">
             <div className="gba:flex gba:items-center gba:gap-3 gba:mb-1">
-              <h1 className="gba:text-xl gba:font-semibold gba:text-gray-900">
-                {flowData.flowName}
-              </h1>
-              <Badge 
+              <h1 className="gba:text-xl gba:font-semibold gba:text-gray-900">{flowData.flowName}</h1>
+              <Badge
                 variant="outline"
                 className="gba:border-0 gba:text-white"
                 style={{
-                  backgroundColor: 
-                    flowData.status === 'COMPLETED' ? '#10b981' :
-                    flowData.status === 'IN_PROGRESS' ? '#3b82f6' :
-                    flowData.status === 'TIMED_OUT' ? '#f59e0b' :
-                    '#6b7280'
+                  backgroundColor:
+                    flowData.status === 'COMPLETED'
+                      ? '#10b981'
+                      : flowData.status === 'IN_PROGRESS'
+                        ? '#3b82f6'
+                        : flowData.status === 'TIMED_OUT'
+                          ? '#f59e0b'
+                          : '#6b7280'
                 }}
               >
                 {flowData.status}
               </Badge>
             </div>
-            
+
             <div className="gba:flex gba:items-center gba:gap-6 gba:text-sm gba:text-gray-600">
               <span className="gba:flex gba:items-center gba:gap-1">
                 <Calendar className="gba:h-4 gba:w-4" />
@@ -567,7 +573,8 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                 Running {flowData.timeInsights.daysRunning} day{flowData.timeInsights.daysRunning !== 1 ? 's' : ''}
               </span>
               <span>
-                Progress: {flowData.progressPercentage}% • {flowData.stepStatus.completed}/{flowData.stepStatus.total} steps
+                Progress: {flowData.progressPercentage}% • {flowData.stepStatus.completed}/{flowData.stepStatus.total}{' '}
+                steps
               </span>
             </div>
           </div>
@@ -605,7 +612,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                       </div>
                       <Progress value={flowData.progressPercentage} className="gba:h-2" />
                     </div>
-                    
+
                     <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:text-center">
                       <div>
                         <div className="gba:text-2xl gba:font-bold gba:text-green-600">
@@ -614,9 +621,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                         <div className="gba:text-xs gba:text-gray-600">Completed</div>
                       </div>
                       <div>
-                        <div className="gba:text-2xl gba:font-bold gba:text-blue-600">
-                          {flowData.currentStep}
-                        </div>
+                        <div className="gba:text-2xl gba:font-bold gba:text-blue-600">{flowData.currentStep}</div>
                         <div className="gba:text-xs gba:text-gray-600">Current</div>
                       </div>
                       <div>
@@ -644,7 +649,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                         {flowData.timeInsights.daysRunning} day{flowData.timeInsights.daysRunning !== 1 ? 's' : ''}
                       </span>
                     </div>
-                    
+
                     {flowData.timeInsights.avgStepDurationHours && (
                       <div className="gba:flex gba:justify-between">
                         <span className="gba:text-sm gba:text-gray-600">Avg per Step</span>
@@ -653,7 +658,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                         </span>
                       </div>
                     )}
-                    
+
                     {flowData.timeInsights.estimatedCompletionDate && (
                       <div className="gba:flex gba:justify-between">
                         <span className="gba:text-sm gba:text-gray-600">Est. Completion</span>
@@ -680,7 +685,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                   </CardHeader>
                   <CardContent>
                     <div className="gba:text-center">
-                      <Badge 
+                      <Badge
                         variant="outline"
                         className="gba:mb-3 gba:text-sm gba:px-4 gba:py-2 gba:border-0"
                         style={{
@@ -690,17 +695,21 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                       >
                         {flowData.processHealth.statusMessage}
                       </Badge>
-                      
+
                       <div className="gba:space-y-2 gba:text-sm">
                         <div className="gba:flex gba:justify-between">
                           <span className="gba:text-gray-600">Failures</span>
-                          <span className={flowData.processHealth.hasFailures ? 'gba:text-red-600' : 'gba:text-green-600'}>
+                          <span
+                            className={flowData.processHealth.hasFailures ? 'gba:text-red-600' : 'gba:text-green-600'}
+                          >
                             {flowData.processHealth.hasFailures ? 'Yes' : 'None'}
                           </span>
                         </div>
                         <div className="gba:flex gba:justify-between">
                           <span className="gba:text-gray-600">Stalled</span>
-                          <span className={flowData.processHealth.isStalled ? 'gba:text-red-600' : 'gba:text-green-600'}>
+                          <span
+                            className={flowData.processHealth.isStalled ? 'gba:text-red-600' : 'gba:text-green-600'}
+                          >
                             {flowData.processHealth.isStalled ? 'Yes' : 'No'}
                           </span>
                         </div>
@@ -718,16 +727,25 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                 <CardContent>
                   <div className="gba:space-y-4">
                     {flowSteps.map((step, index) => (
-                      <div key={step.id} className="gba:flex gba:items-center gba:gap-4 gba:p-3 gba:border gba:rounded-lg">
-                        <div className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-sm gba:font-medium" 
-                             style={{
-                               backgroundColor: step.status === 'COMPLETED' ? '#10b981' : 
-                                              step.status === 'IN_PROGRESS' ? '#3b82f6' : '#e5e7eb',
-                               color: step.status === 'COMPLETED' || step.status === 'IN_PROGRESS' ? 'white' : '#6b7280'
-                             }}>
+                      <div
+                        key={step.id}
+                        className="gba:flex gba:items-center gba:gap-4 gba:p-3 gba:border gba:rounded-lg"
+                      >
+                        <div
+                          className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-full gba:text-sm gba:font-medium"
+                          style={{
+                            backgroundColor:
+                              step.status === 'COMPLETED'
+                                ? '#10b981'
+                                : step.status === 'IN_PROGRESS'
+                                  ? '#3b82f6'
+                                  : '#e5e7eb',
+                            color: step.status === 'COMPLETED' || step.status === 'IN_PROGRESS' ? 'white' : '#6b7280'
+                          }}
+                        >
                           {index + 1}
                         </div>
-                        
+
                         <div className="gba:flex-1">
                           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
                             <h4 className="gba:font-medium gba:text-sm">{step.title}</h4>
@@ -802,14 +820,14 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                       className="gba:flex gba:items-center gba:gap-2"
                       onClick={() => {
                         // TODO: Implement full flow data export
-                        const data = JSON.stringify(flowData, null, 2);
-                        const blob = new Blob([data], { type: 'application/json' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `flow-${flowData.flowId}-data.json`;
-                        a.click();
-                        URL.revokeObjectURL(url);
+                        const data = JSON.stringify(flowData, null, 2)
+                        const blob = new Blob([data], { type: 'application/json' })
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = `flow-${flowData.flowId}-data.json`
+                        a.click()
+                        URL.revokeObjectURL(url)
                       }}
                     >
                       <Download className="gba:h-4 gba:w-4" />
@@ -825,44 +843,50 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                         <div className="gba:font-mono gba:text-sm gba:break-all">{flowData.flowId}</div>
                       </CardContent>
                     </Card>
-                    
+
                     <Card className="gba:bg-gray-50">
                       <CardContent className="gba:p-4">
                         <div className="gba:text-sm gba:text-gray-600 gba:mb-1">Template ID</div>
                         <div className="gba:font-mono gba:text-sm">{flowData.templateId}</div>
                       </CardContent>
                     </Card>
-                    
+
                     <Card className="gba:bg-gray-50">
                       <CardContent className="gba:p-4">
                         <div className="gba:text-sm gba:text-gray-600 gba:mb-1">Status</div>
-                        <Badge variant="outline" style={{
-                          backgroundColor: 
-                            flowData.status === 'COMPLETED' ? '#10b981' :
-                            flowData.status === 'IN_PROGRESS' ? '#3b82f6' :
-                            flowData.status === 'TIMED_OUT' ? '#f59e0b' :
-                            '#6b7280',
-                          color: 'white'
-                        }}>
+                        <Badge
+                          variant="outline"
+                          style={{
+                            backgroundColor:
+                              flowData.status === 'COMPLETED'
+                                ? '#10b981'
+                                : flowData.status === 'IN_PROGRESS'
+                                  ? '#3b82f6'
+                                  : flowData.status === 'TIMED_OUT'
+                                    ? '#f59e0b'
+                                    : '#6b7280',
+                            color: 'white'
+                          }}
+                        >
                           {flowData.status}
                         </Badge>
                       </CardContent>
                     </Card>
-                    
+
                     <Card className="gba:bg-gray-50">
                       <CardContent className="gba:p-4">
                         <div className="gba:text-sm gba:text-gray-600 gba:mb-1">Start Time</div>
                         <div className="gba:text-sm">{new Date(flowData.startTime).toLocaleString()}</div>
                       </CardContent>
                     </Card>
-                    
+
                     <Card className="gba:bg-gray-50">
                       <CardContent className="gba:p-4">
                         <div className="gba:text-sm gba:text-gray-600 gba:mb-1">Last Update</div>
                         <div className="gba:text-sm">{new Date(flowData.updateTime).toLocaleString()}</div>
                       </CardContent>
                     </Card>
-                    
+
                     <Card className="gba:bg-gray-50">
                       <CardContent className="gba:p-4">
                         <div className="gba:text-sm gba:text-gray-600 gba:mb-1">Duration</div>
@@ -892,23 +916,25 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                         // TODO: Implement step data export via API
                         const csvContent = [
                           ['Step ID', 'Title', 'Status', 'Assigned To', 'Due Date', 'Completed At'].join(','),
-                          ...flowSteps.map(step => [
-                            step.id,
-                            `"${step.title}"`,
-                            step.status,
-                            step.assignedTo || '',
-                            step.dueDate || '',
-                            step.completedAt || ''
-                          ].join(','))
-                        ].join('\n');
-                        
-                        const blob = new Blob([csvContent], { type: 'text/csv' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `flow-${flowData.flowId}-steps.csv`;
-                        a.click();
-                        URL.revokeObjectURL(url);
+                          ...flowSteps.map(step =>
+                            [
+                              step.id,
+                              `"${step.title}"`,
+                              step.status,
+                              step.assignedTo || '',
+                              step.dueDate || '',
+                              step.completedAt || ''
+                            ].join(',')
+                          )
+                        ].join('\n')
+
+                        const blob = new Blob([csvContent], { type: 'text/csv' })
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = `flow-${flowData.flowId}-steps.csv`
+                        a.click()
+                        URL.revokeObjectURL(url)
                       }}
                     >
                       <Download className="gba:h-4 gba:w-4" />
@@ -934,12 +960,19 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                           <tr key={step.id} className="gba:border-b gba:hover:bg-gray-50">
                             <td className="gba:p-3">
                               <div className="gba:flex gba:items-center gba:gap-3">
-                                <div className="gba:flex gba:items-center gba:justify-center gba:w-6 gba:h-6 gba:rounded-full gba:text-xs gba:font-medium"
-                                     style={{
-                                       backgroundColor: step.status === 'COMPLETED' ? '#10b981' : 
-                                                      step.status === 'IN_PROGRESS' ? '#3b82f6' : '#e5e7eb',
-                                       color: step.status === 'COMPLETED' || step.status === 'IN_PROGRESS' ? 'white' : '#6b7280'
-                                     }}>
+                                <div
+                                  className="gba:flex gba:items-center gba:justify-center gba:w-6 gba:h-6 gba:rounded-full gba:text-xs gba:font-medium"
+                                  style={{
+                                    backgroundColor:
+                                      step.status === 'COMPLETED'
+                                        ? '#10b981'
+                                        : step.status === 'IN_PROGRESS'
+                                          ? '#3b82f6'
+                                          : '#e5e7eb',
+                                    color:
+                                      step.status === 'COMPLETED' || step.status === 'IN_PROGRESS' ? 'white' : '#6b7280'
+                                  }}
+                                >
                                   {index + 1}
                                 </div>
                                 <div>
@@ -967,7 +1000,9 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                                 <div className="gba:text-green-600 gba:text-xs">
                                   ✓ {new Date(step.completedAt).toLocaleDateString()}
                                 </div>
-                              ) : '-'}
+                              ) : (
+                                '-'
+                              )}
                             </td>
                             <td className="gba:p-3">
                               <div className="gba:flex gba:items-center gba:gap-2">
@@ -977,7 +1012,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                                   className="gba:h-6 gba:w-6 gba:p-0"
                                   onClick={() => {
                                     // TODO: Copy step data to clipboard
-                                    navigator.clipboard.writeText(JSON.stringify(step, null, 2));
+                                    navigator.clipboard.writeText(JSON.stringify(step, null, 2))
                                   }}
                                 >
                                   <Copy className="gba:h-3 gba:w-3" />
@@ -988,14 +1023,14 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                                   className="gba:h-6 gba:w-6 gba:p-0"
                                   onClick={() => {
                                     // TODO: Export individual step data
-                                    const data = JSON.stringify(step, null, 2);
-                                    const blob = new Blob([data], { type: 'application/json' });
-                                    const url = URL.createObjectURL(blob);
-                                    const a = document.createElement('a');
-                                    a.href = url;
-                                    a.download = `step-${step.id}-data.json`;
-                                    a.click();
-                                    URL.revokeObjectURL(url);
+                                    const data = JSON.stringify(step, null, 2)
+                                    const blob = new Blob([data], { type: 'application/json' })
+                                    const url = URL.createObjectURL(blob)
+                                    const a = document.createElement('a')
+                                    a.href = url
+                                    a.download = `step-${step.id}-data.json`
+                                    a.click()
+                                    URL.revokeObjectURL(url)
                                   }}
                                 >
                                   <FileJson className="gba:h-3 gba:w-3" />
@@ -1026,13 +1061,11 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                     <div className="gba:grid gba:grid-cols-4 gba:gap-4">
                       <Card className="gba:bg-blue-50">
                         <CardContent className="gba:p-4 gba:text-center">
-                          <div className="gba:text-2xl gba:font-bold gba:text-blue-600">
-                            {historyEvents.length}
-                          </div>
+                          <div className="gba:text-2xl gba:font-bold gba:text-blue-600">{historyEvents.length}</div>
                           <div className="gba:text-sm gba:text-gray-600">Total Events</div>
                         </CardContent>
                       </Card>
-                      
+
                       <Card className="gba:bg-green-50">
                         <CardContent className="gba:p-4 gba:text-center">
                           <div className="gba:text-2xl gba:font-bold gba:text-green-600">
@@ -1041,7 +1074,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                           <div className="gba:text-sm gba:text-gray-600">Step Actions</div>
                         </CardContent>
                       </Card>
-                      
+
                       <Card className="gba:bg-purple-50">
                         <CardContent className="gba:p-4 gba:text-center">
                           <div className="gba:text-2xl gba:font-bold gba:text-purple-600">
@@ -1050,7 +1083,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                           <div className="gba:text-sm gba:text-gray-600">Assignments</div>
                         </CardContent>
                       </Card>
-                      
+
                       <Card className="gba:bg-amber-50">
                         <CardContent className="gba:p-4 gba:text-center">
                           <div className="gba:text-2xl gba:font-bold gba:text-amber-600">
@@ -1080,36 +1113,38 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                         // Export real history events
                         const csvContent = [
                           ['Timestamp', 'Type', 'Action', 'Step', 'User', 'Description'].join(','),
-                          ...historyEvents.map(event => [
-                            new Date(event.timestamp).toISOString(),
-                            event.type,
-                            event.action || '',
-                            `"${event.stepTitle}"`,
-                            event.userName || event.userId || '',
-                            `"${event.description}"`
-                          ].join(','))
-                        ].join('\n');
-                        
-                        const blob = new Blob([csvContent], { type: 'text/csv' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `flow-${flowId}-audit-trail.csv`;
-                        a.click();
-                        URL.revokeObjectURL(url);
+                          ...historyEvents.map(event =>
+                            [
+                              new Date(event.timestamp).toISOString(),
+                              event.type,
+                              event.action || '',
+                              `"${event.stepTitle}"`,
+                              event.userName || event.userId || '',
+                              `"${event.description}"`
+                            ].join(',')
+                          )
+                        ].join('\n')
+
+                        const blob = new Blob([csvContent], { type: 'text/csv' })
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement('a')
+                        a.href = url
+                        a.download = `flow-${flowId}-audit-trail.csv`
+                        a.click()
+                        URL.revokeObjectURL(url)
                       }}
                     >
                       <Download className="gba:h-4 gba:w-4" />
                       Export Audit Trail
                     </Button>
                   </div>
-                  
+
                   {/* Filter Controls moved into audit trail card */}
                   {historySummary && (
                     <div className="gba:mt-4 gba:p-4 gba:bg-gray-50 gba:rounded-lg gba:border">
                       <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap">
                         <span className="gba:text-sm gba:font-medium gba:text-gray-600">Filter by:</span>
-                        
+
                         <Button
                           variant={activeFilters.has('steps') ? 'default' : 'outline'}
                           size="sm"
@@ -1118,7 +1153,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                         >
                           {historySummary.totalSteps} Steps
                         </Button>
-                        
+
                         <Button
                           variant={activeFilters.has('assignmentEvents') ? 'default' : 'outline'}
                           size="sm"
@@ -1131,7 +1166,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                         >
                           {historySummary.totalAssignmentEvents} Assignments
                         </Button>
-                        
+
                         <Button
                           variant={activeFilters.has('statusChanges') ? 'default' : 'outline'}
                           size="sm"
@@ -1144,7 +1179,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                         >
                           Status Changes
                         </Button>
-                        
+
                         <Button
                           variant={activeFilters.has('comments') ? 'default' : 'outline'}
                           size="sm"
@@ -1186,12 +1221,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                       <div>
                         <h4 className="gba:font-semibold">Error Loading Audit Trail</h4>
                         <p className="gba:text-sm gba:mt-1">{historyError}</p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={loadHistoryData}
-                          className="gba:mt-2"
-                        >
+                        <Button variant="outline" size="sm" onClick={loadHistoryData} className="gba:mt-2">
                           Retry
                         </Button>
                       </div>
@@ -1204,15 +1234,15 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                   ) : (
                     <div className="gba:space-y-4">
                       {filteredEvents.map((event, index) => (
-                        <div 
-                          key={`${event.type}-${event.stepIndex}-${index}`} 
+                        <div
+                          key={`${event.type}-${event.stepIndex}-${index}`}
                           className={`gba:flex gba:items-start gba:gap-4 gba:p-4 gba:border gba:rounded-lg ${getEventBgColor(event)}`}
                         >
-                          <div 
+                          <div
                             className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-white gba:shadow-sm"
-                            style={{ 
+                            style={{
                               backgroundColor: getEventColor(event) + '20',
-                              color: getEventColor(event) 
+                              color: getEventColor(event)
                             }}
                           >
                             {getEventIcon(event)}
@@ -1220,8 +1250,8 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                           <div className="gba:flex-1">
                             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
                               <span className="gba:font-medium gba:text-sm">{event.eventTitle}</span>
-                              <Badge 
-                                variant="outline" 
+                              <Badge
+                                variant="outline"
                                 className="gba:text-xs gba:border-0"
                                 style={{
                                   backgroundColor: getEventColor(event) + '20',
@@ -1236,14 +1266,12 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
                                 </Badge>
                               )}
                             </div>
-                            <div className="gba:text-sm gba:text-gray-600 gba:mb-2">
-                              {event.description}
-                            </div>
+                            <div className="gba:text-sm gba:text-gray-600 gba:mb-2">{event.description}</div>
                             <div className="gba:text-xs gba:text-gray-500">
                               {new Date(event.timestamp).toLocaleString()} • {event.stepTitle}
                               {event.userName && ` • ${event.userName}`}
                             </div>
-                            
+
                             {/* Show comment if this is a comment event */}
                             {event.type === 'comment' && event.comment && (
                               <div className="gba:mt-3 gba:p-3 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-md">
@@ -1265,5 +1293,5 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
         </Tabs>
       </div>
     </div>
-  );
-};
+  )
+}

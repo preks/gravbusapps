@@ -1,13 +1,13 @@
-import React from 'react';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useFlowTemplateStore } from '../../../hooks/useFlowTemplateStore';
-import { Input } from '../../../types/flowTemplate';
+import React from 'react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useFlowTemplateStore } from '../../../hooks/useFlowTemplateStore'
+import { Input } from '../../../types/flowTemplate'
 
 interface FileUploadBlockProps {
-  taskId: string;
-  block: Input;
-  onRemove: () => void;
-  'data-testid'?: string;
+  taskId: string
+  block: Input
+  onRemove: () => void
+  'data-testid'?: string
 }
 
 /**
@@ -19,21 +19,19 @@ export const FileUploadBlock: React.FC<FileUploadBlockProps> = ({
   onRemove,
   'data-testid': testId = 'file-upload-block'
 }) => {
-  const { updateInputBlock } = useFlowTemplateStore();
+  const { updateInputBlock } = useFlowTemplateStore()
 
   const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateInputBlock(taskId, block.id, { label: e.target.value });
-  };
+    updateInputBlock(taskId, block.id, { label: e.target.value })
+  }
 
   const handleRequiredChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateInputBlock(taskId, block.id, { required: e.target.checked });
-  };
-  
-  const handleAllowMultipleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateInputBlock(taskId, block.id, { multiple: e.target.checked });
-  };
-  
+    updateInputBlock(taskId, block.id, { required: e.target.checked })
+  }
 
+  const handleAllowMultipleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateInputBlock(taskId, block.id, { multiple: e.target.checked })
+  }
 
   return (
     <div className="gba:border gba:border-gray-200 gba:rounded gba:p-4 gba:bg-gray-50" data-testid={testId}>
@@ -43,16 +41,12 @@ export const FileUploadBlock: React.FC<FileUploadBlockProps> = ({
             {getTranslationFromI18nKeyAndLabel('flow.creator.fileUploadField', 'File Upload Field')}
           </span>
         </div>
-        
-        <button
-          onClick={onRemove}
-          className="gba:text-red-500"
-          data-testid={`${testId}-remove-button`}
-        >
+
+        <button onClick={onRemove} className="gba:text-red-500" data-testid={`${testId}-remove-button`}>
           {getTranslationFromI18nKeyAndLabel('flow.creator.remove', 'Remove')}
         </button>
       </div>
-      
+
       <div className="gba:grid gba:grid-cols-1 gba:gap-4" data-testid={`${testId}-form`}>
         {/* Label */}
         <div className="gba:flex gba:flex-col gba:gap-1" data-testid={`${testId}-label-field`}>
@@ -69,9 +63,7 @@ export const FileUploadBlock: React.FC<FileUploadBlockProps> = ({
             data-testid={`${testId}-label-input`}
           />
         </div>
-        
 
-        
         {/* Configuration options */}
         <div className="gba:flex gba:flex-col gba:gap-2 gba:mt-2" data-testid={`${testId}-config-options`}>
           {/* Required checkbox */}
@@ -88,7 +80,7 @@ export const FileUploadBlock: React.FC<FileUploadBlockProps> = ({
               {getTranslationFromI18nKeyAndLabel('flow.creator.required', 'Required field')}
             </label>
           </div>
-          
+
           {/* Multiple files checkbox */}
           <div className="gba:flex gba:items-center" data-testid={`${testId}-multiple-field`}>
             <input
@@ -106,5 +98,5 @@ export const FileUploadBlock: React.FC<FileUploadBlockProps> = ({
         </div>
       </div>
     </div>
-  );
-};
+  )
+}

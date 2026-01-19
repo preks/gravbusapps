@@ -1,30 +1,27 @@
-import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts';
-import { Card, Spin, Empty, Tooltip, Typography, theme } from 'antd';
-import { InfoCircleOutlined } from '@ant-design/icons';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
+import { Card, Spin, Empty, Tooltip, Typography } from 'antd'
+import { InfoCircleOutlined } from '@ant-design/icons'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
-const { Title } = Typography;
+const { Title } = Typography
 
 // Using the imported type from useEmploymentTypeDistribution hook
-import { EmploymentTypeDistribution } from '../../hooks/useEmploymentTypeDistribution';
+import { EmploymentTypeDistribution } from '../../../../../hooks/useEmploymentTypeDistribution'
 
 interface EmploymentTypePieChartProps {
-  data: EmploymentTypeDistribution[];
-  loading?: boolean;
-  error?: Error | null;
+  data: EmploymentTypeDistribution[]
+  loading?: boolean
+  error?: Error | null
 }
 
 /**
  * Pie chart component for displaying employment type distribution
  */
-const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ 
-  data, 
-  loading = false, 
-  error = null 
-}) => {
-  const { token } = theme.useToken();
-  const [activeIndex, setActiveIndex] = React.useState<number>(-1);
+const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, loading = false, error = null }) => {
+  const [activeIndex, setActiveIndex] = React.useState<number>(-1)
+  const { t } = useTranslation(hrTranslations)
 
   // Transform data for the pie chart
   const chartData = React.useMemo(() => {
@@ -34,24 +31,29 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({
       percentage: item.percentage,
       // Add formatted display value for consistent presentation
       displayValue: `${item.count.toLocaleString()} (${item.percentage}%)`
-    }));
-  }, [data]);
-  
-  // Standard Ant Design colors to match the chart's default color palette
-  const COLORS = [
-    '#1890FF', '#2FC25B', '#FACC14', '#223273', '#8543E0', '#13C2C2', 
-    '#3436C7', '#F04864', '#D0021B', '#5B8FF9', '#5AD8A6', '#5D7092',
-    '#F6BD16', '#E8684A', '#6DC8EC', '#9270CA', '#FF9D4D', '#269A99'
-  ];
+    }))
+  }, [data])
+
+  // Get chart colors that automatically update with theme changes
+  const CHART_COLORS = [
+    'var(--nw-chart-1)',
+    'var(--nw-chart-2)',
+    'var(--nw-chart-3)',
+    'var(--nw-chart-4)',
+    'var(--nw-chart-5)',
+    'var(--nw-chart-6)',
+    'var(--nw-chart-7)',
+    'var(--nw-chart-8)'
+  ]
 
   // Calculate the total number of employees
   const totalEmployees = React.useMemo(() => {
-    return chartData.reduce((sum, item) => sum + item.value, 0);
-  }, [chartData]);
+    return chartData.reduce((sum, item) => sum + item.value, 0)
+  }, [chartData])
 
   // Custom active shape for the pie chart when hovering
   const renderActiveShape = (props: any) => {
-    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, value } = props;
+    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, value } = props
 
     return (
       <g>
@@ -74,81 +76,63 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({
           outerRadius={innerRadius - 2}
           fill={fill}
         />
-        <text x={cx} y={cy - 20} textAnchor="middle" fill={token.colorText} fontSize={20} fontWeight="600">
+        <text x={cx} y={cy - 20} textAnchor="middle" fill="var(--nw-color-foreground)" fontSize={20} fontWeight="600">
           {payload.name}
         </text>
-        <text x={cx} y={cy + 10} textAnchor="middle" fill={token.colorTextSecondary} fontSize={16}>
-          {value.toLocaleString()} employees
+        <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--nw-color-muted-foreground)" fontSize={16}>
+          {value.toLocaleString()} {t('hr-analytics-employees')}
         </text>
-        <text x={cx} y={cy + 35} textAnchor="middle" fill={token.colorPrimary} fontSize={16} fontWeight="600">
+        <text x={cx} y={cy + 35} textAnchor="middle" fill="var(--nw-color-primary)" fontSize={16} fontWeight="600">
           {payload.percentage}%
         </text>
       </g>
-    );
-  };
+    )
+  }
 
   // Tooltip has been removed as per requirement
-  
+
   // Event handlers for pie slice hover
   const onPieEnter = (_: any, index: number) => {
-    setActiveIndex(index);
-  };
-  
+    setActiveIndex(index)
+  }
+
   const onPieLeave = () => {
-    setActiveIndex(-1);
-  };
+    setActiveIndex(-1)
+  }
 
   return (
-    <Card 
-      className="gba:shadow-lg gba:rounded-lg gba:mb-6 gba:overflow-hidden gba:border-0" 
-      style={{ background: 'linear-gradient(to bottom, #ffffff, #f0f2f5)' }}
+    <Card
+      className="gba:shadow-lg gba:rounded-lg gba:mb-6 gba:overflow-hidden gba:border-0"
+      style={{ background: 'var(--gradient-decorative-1)' }}
       title={
         <div>
-          <Title level={4} style={{ margin: 0 }}>
-            {getTranslationFromI18nKeyAndLabel('hr_analytics_employment_type', 'Employment Type')}
-          </Title>
-          <Tooltip title={getTranslationFromI18nKeyAndLabel(
-            'hr_analytics_employment_tooltip', 
-            'Distribution of employees by employment types such as internal, external, full-time, part-time, etc.'
-          )}>
+          <Title level={4} className="gba:m-0">{t('hr-analytics-employment-type')}</Title>
+          <Tooltip
+            title={t('hr-analytics-employment-tooltip')}
+          >
             <InfoCircleOutlined className="gba:ml-2" />
           </Tooltip>
         </div>
       }
       data-testid="employment-type-pie-chart"
     >
-      <div 
-        className="gba:flex gba:flex-col gba:w-full gba:transition-all gba:duration-500" 
-        style={{ 
-          width: '100%', 
-          position: 'relative', 
-          margin: '0', 
-          borderRadius: '12px',
-          padding: '30px 20px',
-          backgroundColor: '#ffffff',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-          border: '1px solid #e8e8e8'
-        }}
+      <div
+        className="gba:flex gba:flex-col gba:w-full gba:relative gba:m-0 gba:py-[30px] gba:px-5 gba:transition-all gba:duration-500 gba:bg-card gba:border gba:rounded-xl"
         data-testid="employment-type-pie-chart-container"
       >
         {/* Chart container with fixed height */}
-        <div className="gba:h-[400px] gba:w-full" style={{ height: '400px' }}>
+        <div className="gba:h-[400px] gba:w-full">
           {loading ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
               <Spin size="large" data-testid="employment-type-pie-chart-loading" />
             </div>
           ) : error ? (
-            <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:text-red-500">
-              <div data-testid="employment-type-pie-chart-error">
-                {getTranslationFromI18nKeyAndLabel('hr_analytics_error_message', 'Error loading data')}
-              </div>
+            <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:text-destructive">
+              <div data-testid="employment-type-pie-chart-error">{t('hr-analytics-error-message')}</div>
             </div>
           ) : data.length === 0 ? (
             <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-              <Empty
-                description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
-                data-testid="employment-type-pie-chart-empty"
-              />
+              <Empty description={t('hr-analytics-no-data')} data-testid="employment-type-pie-chart-empty" />
             </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
@@ -170,18 +154,34 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({
                   animationEasing="ease-out"
                 >
                   {chartData.map((_, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={COLORS[index % COLORS.length]} 
-                      stroke={token.colorBgContainer} 
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={CHART_COLORS[index % CHART_COLORS.length]}
+                      stroke="var(--nw-color-card)"
                       strokeWidth={2}
                     />
                   ))}
                   {/* Custom center label rendered directly instead of using Label component */}
-                  <text x="50%" y="47%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: '20px', fill: token.colorText, fontWeight: 600 }}>
-                    {getTranslationFromI18nKeyAndLabel('hr_analytics_total_employees', 'Total Employees')}
+                  <text
+                    x="50%"
+                    y="47%"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize="20"
+                    fontWeight="600"
+                    fill="var(--nw-color-foreground)"
+                  >
+                    {t('hr-analytics-total-employees')}
                   </text>
-                  <text x="50%" y="57%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: '28px', fontWeight: 'bold', fill: token.colorTextHeading }}>
+                  <text
+                    x="50%"
+                    y="57%"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize="28"
+                    fontWeight="bold"
+                    fill="var(--nw-color-foreground)"
+                  >
                     {totalEmployees.toLocaleString()}
                   </text>
                 </Pie>
@@ -189,67 +189,42 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({
             </ResponsiveContainer>
           )}
         </div>
-        
+
         {/* Custom Legend at bottom with proper colors and formatting */}
         {!loading && !error && data.length > 0 && (
-          <div 
-            className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200" 
+          <div
+            className="gba:mt-6 gba:pt-4 gba:border-t gba:border-border gba:flex gba:flex-wrap gba:justify-center gba:gap-2 gba:py-4 gba:px-2"
             data-testid="employment-type-legend"
-            style={{ 
-              display: 'flex',
-              flexWrap: 'wrap',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '16px 8px 0'  
-            }}
           >
             {chartData.map((item, index) => {
-              // Standard Ant Design Plots colors to match the chart's default color palette
-              const colors = [
-                '#1890FF', '#2FC25B', '#FACC14', '#223273', '#8543E0', '#13C2C2', 
-                '#3436C7', '#F04864', '#D0021B', '#5B8FF9', '#5AD8A6', '#5D7092',
-                '#F6BD16', '#E8684A', '#6DC8EC', '#9270CA', '#FF9D4D', '#269A99'
-              ];
-              const colorIndex = index % colors.length;
-              
+              const colorIndex = index % CHART_COLORS.length
+
               return (
-                <div 
-                  key={`legend-${index}`} 
-                  className="gba:flex gba:items-center gba:mb-3"
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center',
-                    padding: '6px 12px',
-                    backgroundColor: 'rgba(0,0,0,0.02)',
-                    borderRadius: '4px',
-                    border: '1px solid rgba(0,0,0,0.05)'
-                  }}
+                <div
+                  key={`legend-${index}`}
+                  className="gba:flex gba:items-center gba:mb-3 gba:bg-muted gba:border gba:rounded gba:py-1.5 gba:px-3"
                 >
-                  <div 
-                    className="gba:w-3 gba:h-3 gba:rounded-full gba:mr-2"
-                    style={{ 
-                      width: '14px', 
-                      height: '14px', 
-                      borderRadius: '50%', 
-                      backgroundColor: colors[colorIndex],
-                      marginRight: '10px',
-                      boxShadow: '0 0 0 1px rgba(0,0,0,0.1)'
+                  <div
+                    className="gba:w-3.5 gba:h-3.5 gba:rounded-full gba:mr-2.5"
+                    style={{
+                      backgroundColor: CHART_COLORS[colorIndex],
+                      boxShadow: `0 0 0 1px var(--nw-border)`
                     }}
                   />
-                  <div style={{ fontWeight: 500, fontSize: '16px' }}>
-                    <span style={{ marginRight: '8px' }}>{item.name}:</span> 
-                    <span style={{ fontWeight: 700 }}>
+                  <div className="gba:font-medium gba:text-base">
+                    <span className="gba:mr-2">{item.name}:</span>
+                    <span className="gba:font-bold">
                       {item.value.toLocaleString()} ({item.percentage}%)
                     </span>
                   </div>
                 </div>
-              );
+              )
             })}
           </div>
         )}
       </div>
     </Card>
-  );
-};
+  )
+}
 
-export default EmploymentTypePieChart;
+export default EmploymentTypePieChart

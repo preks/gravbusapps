@@ -1,5 +1,5 @@
-import React, { ReactNode } from 'react';
-import { List, Tag, Space, Spin, Empty, Alert } from 'antd';
+import React, { ReactNode } from 'react'
+import { List, Tag, Space, Spin, Empty, Alert } from 'antd'
 
 /**
  * Props for the DataList component.
@@ -9,71 +9,71 @@ export interface DataListProps<T> {
   /**
    * The array of items to render in the list.
    */
-  readonly items: readonly T[];
+  readonly items: readonly T[]
   /**
    * Function to render a list item. Receives the item, its index, and whether it is selected.
    */
-  readonly renderItem?: (item: T, index: number, selected: boolean) => React.ReactNode;
+  readonly renderItem?: (item: T, index: number, selected: boolean) => React.ReactNode
   /**
    * Optional function to extract a unique key for each item. Defaults to index if not provided.
    */
-  readonly getKey?: (item: T, index: number) => React.Key;
+  readonly getKey?: (item: T, index: number) => React.Key
   /**
    * The currently selected item, if any (for highlighting/select logic).
    */
-  readonly selectedItem?: T;
+  readonly selectedItem?: T
   /**
    * Optional handler for item clicks. Receives the clicked item and its index.
    */
-  readonly onItemClick?: (item: T, index: number) => void;
+  readonly onItemClick?: (item: T, index: number) => void
   /**
    * Additional className for the <ul> element.
    */
-  readonly className?: string;
+  readonly className?: string
   /**
    * Additional props for the <ul> element.
    */
-  readonly ulProps?: React.HTMLAttributes<HTMLUListElement>;
+  readonly ulProps?: React.HTMLAttributes<HTMLUListElement>
   /**
    * Loading state for the list.
    */
-  readonly isLoading?: boolean;
+  readonly isLoading?: boolean
   /**
    * Error state for the list.
    */
-  readonly error?: string | null;
+  readonly error?: string | null
   /**
    * Empty state message when no items are available.
    */
-  readonly emptyMessage?: string;
+  readonly emptyMessage?: string
   /**
    * Use Ant Design List component instead of native ul/li.
    */
-  readonly useAntList?: boolean;
+  readonly useAntList?: boolean
   /**
    * Layout for Ant Design List (only used when useAntList is true).
    */
-  readonly itemLayout?: 'horizontal' | 'vertical';
+  readonly itemLayout?: 'horizontal' | 'vertical'
   /**
    * Function to render title for each item (only used when useAntList is true).
    */
-  readonly renderTitle?: (item: T, index: number) => ReactNode;
+  readonly renderTitle?: (item: T, index: number) => ReactNode
   /**
    * Function to render description for each item (only used when useAntList is true).
    */
-  readonly renderDescription?: (item: T, index: number) => ReactNode;
+  readonly renderDescription?: (item: T, index: number) => ReactNode
   /**
    * Function to render actions for each item (only used when useAntList is true).
    */
-  readonly renderActions?: (item: T, index: number) => ReactNode[];
+  readonly renderActions?: (item: T, index: number) => ReactNode[]
   /**
    * Function to render extra content for each item (only used when useAntList is true).
    */
-  readonly renderExtra?: (item: T, index: number) => ReactNode;
+  readonly renderExtra?: (item: T, index: number) => ReactNode
   /**
    * Function to render status tag for each item (only used when useAntList is true).
    */
-  readonly renderStatus?: (item: T, index: number) => { text: string; color: string };
+  readonly renderStatus?: (item: T, index: number) => { text: string; color: string }
 }
 
 /**
@@ -130,17 +130,17 @@ export function DataList<T>({
 }: DataListProps<T>) {
   // Handle loading state
   if (isLoading) {
-    return <Spin size="large" style={{ display: 'block', margin: '40px auto' }} data-testid="data-list-loading" />;
+    return <Spin size="large" style={{ display: 'block', margin: '40px auto' }} data-testid="data-list-loading" />
   }
 
   // Handle error state
   if (error) {
-    return <Alert message="Error" description={error} type="error" showIcon data-testid="data-list-error" />;
+    return <Alert message="Error" description={error} type="error" showIcon data-testid="data-list-error" />
   }
 
   // Handle empty state
   if (!items || items.length === 0) {
-    return <Empty description={emptyMessage} style={{ margin: '40px 0' }} data-testid="data-list-empty" />;
+    return <Empty description={emptyMessage} style={{ margin: '40px 0' }} data-testid="data-list-empty" />
   }
 
   // Use Ant Design List component if specified
@@ -152,29 +152,29 @@ export function DataList<T>({
         dataSource={items as T[]}
         data-testid="data-list-ant-list"
         renderItem={(item, index) => {
-          const key = getKey?.(item, index) ?? index;
-          const selected = selectedItem === item;
-          
+          const key = getKey?.(item, index) ?? index
+          const selected = selectedItem === item
+
           // Prepare actions if provided
-          const actions = renderActions?.(item, index);
-          
+          const actions = renderActions?.(item, index)
+
           // Prepare status tag if provided
-          const status = renderStatus?.(item, index);
-          
+          const status = renderStatus?.(item, index)
+
           // Prepare title with optional status tag
           const title = renderTitle ? (
             <Space>
               {renderTitle(item, index)}
               {status && <Tag color={status.color}>{status.text}</Tag>}
             </Space>
-          ) : undefined;
-          
+          ) : undefined
+
           // Prepare description
-          const description = renderDescription?.(item, index);
-          
+          const description = renderDescription?.(item, index)
+
           // Prepare extra content
-          const extra = renderExtra?.(item, index);
-          
+          const extra = renderExtra?.(item, index)
+
           return (
             <List.Item
               key={key}
@@ -184,29 +184,34 @@ export function DataList<T>({
               className={selected ? 'ant-list-item-selected' : ''}
               data-testid={`data-list-ant-item-${key}`}
             >
-              <List.Item.Meta
-                title={title}
-                description={description}
-              />
+              <List.Item.Meta title={title} description={description} />
               {renderItem?.(item, index, selected)}
             </List.Item>
-          );
+          )
         }}
       />
-    );
+    )
   }
 
   // Use native HTML list
   return (
-    <ul className={`w-full list-none p-0 m-0 border-t border-gray-200 ${className}`.trim()} {...ulProps} data-testid="data-list-native-list">
+    <ul
+      className={`w-full list-none p-0 m-0 border-t border-gray-200 ${className}`.trim()}
+      {...ulProps}
+      data-testid="data-list-native-list"
+    >
       {items.map((item, index) => {
-        const selected = selectedItem === item;
-        const key = getKey ? getKey(item, index) : index;
-        
+        const selected = selectedItem === item
+        const key = getKey ? getKey(item, index) : index
+
         // If item is clickable, wrap in a button for proper accessibility
         if (onItemClick) {
           return (
-            <li key={key} className={`gba:border-b gba:border-gray-200 gba:transition-colors gba:duration-200 ${selected ? 'gba:bg-gray-100' : 'gba:hover:bg-gray-50'}`} data-testid={`data-list-item-${key}`}>
+            <li
+              key={key}
+              className={`gba:border-b gba:border-gray-200 gba:transition-colors gba:duration-200 ${selected ? 'gba:bg-gray-100' : 'gba:hover:bg-gray-50'}`}
+              data-testid={`data-list-item-${key}`}
+            >
               <button
                 type="button"
                 className="gba:w-full gba:text-left gba:bg-transparent gba:border-none gba:py-3 gba:px-4 gba:cursor-pointer gba:block gba:font-inherit gba:text-inherit"
@@ -217,9 +222,9 @@ export function DataList<T>({
                 {renderItem?.(item, index, selected)}
               </button>
             </li>
-          );
+          )
         }
-        
+
         // Non-interactive item
         return (
           <li
@@ -230,8 +235,8 @@ export function DataList<T>({
           >
             {renderItem?.(item, index, selected)}
           </li>
-        );
+        )
       })}
     </ul>
-  );
+  )
 }

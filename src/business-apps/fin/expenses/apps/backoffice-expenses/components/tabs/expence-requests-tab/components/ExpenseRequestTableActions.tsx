@@ -1,110 +1,122 @@
-import React from 'react';
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  Button
-} from '@newwork/nw-design-system';
-import { MoreHorizontal } from 'lucide-react';
-import { ExpenseData } from '../../../../types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { ExpenseData } from '../../../../types'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ExpenseRequestTableActionsProps {
-  record: ExpenseData;
-  onNavigateToExpenseRequest: (record: ExpenseData) => void;
-  onDownloadAccountingNote: (record: ExpenseData) => void;
-  onTriggerCSV: (record: ExpenseData) => void;
-  onPrintExpenseRequest: (record: ExpenseData) => void;
-  onTransferPayment: (record: ExpenseData) => void;
+  record: ExpenseData
+  accessToken: string
+  onNavigateToExpenseRequest: (record: ExpenseData) => void
+  onDownloadAccountingNote: (record: ExpenseData) => void
+  onTriggerCSV: (record: ExpenseData) => void
+  onPrintExpenseRequest: (record: ExpenseData) => void
+  onTransferPayment: (record: ExpenseData) => void
 }
 
 const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
   record,
+  accessToken,
   onNavigateToExpenseRequest,
   onDownloadAccountingNote,
   onTriggerCSV,
   onPrintExpenseRequest,
   onTransferPayment
 }) => {
-  const canPrint = (record.status === 'PAID' ||
-    record.status === 'BOOKED' ||
-    record.status === 'APPROVED' ||
-    record.status === 'VERIFIED' ||
-    record.status === 'TRANSFERRED') &&
-    record.employeeDocumentId !== null;
+  const canPrint =
+    (record.status === 'PAID' ||
+      record.status === 'BOOKED' ||
+      record.status === 'APPROVED' ||
+      record.status === 'VERIFIED' ||
+      record.status === 'TRANSFERRED') &&
+    record.employeeDocumentId !== null
 
-  const canTransferPayment = record.status === 'BOOKED';
+  const canTransferPayment = record.status === 'BOOKED'
 
   return (
-    <div className="gba:flex gba:justify-start gba:gap-2">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            className="gba:h-8 gba:w-8 p-0"
-            data-testid={`expense-request-actions-${record.id}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <span className="gba:sr-only">Open menu</span>
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            onClick={(e) => {
-              e.stopPropagation();
-              onNavigateToExpenseRequest(record);
-            }}
-            data-testid={`view-expense-request-${record.id}`}
-          >
-          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',   'View Request Details')}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={(e) => {
-              e.stopPropagation();
-              onDownloadAccountingNote(record);
-            }}
-            data-testid={`download-accounting-note-${record.id}`}
-          >
-          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.download_text',   'Download Accounting Note')}
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem
-            onClick={(e) => {
-              e.stopPropagation();
-              onTriggerCSV(record);
-            }}
-            data-testid={`trigger-csv-${record.id}`}
-          >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.trigger_csv',   'Trigger CSV')}
-          </DropdownMenuItem>
-          {canTransferPayment && (
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                onTransferPayment(record);
-              }}
-              data-testid={`transfer-payment-${record.id}`}
-            >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:transfer_expense_request.info_message_container.transfer_payment',   'Transfer Payment')}
-            </DropdownMenuItem>
-          )}
-          {canPrint && (
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation();
-                onPrintExpenseRequest(record);
-              }}
-              data-testid={`print-expense-request-${record.id}`}
-            >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.print',   'Print')} 
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+    <div className="gba:flex gba:justify-start gba:gap-2" onClick={e => e.stopPropagation()}>
+      <AppActionButton
+        data-testid={`expense-request-actions-${record.id}`}
+        size="icon"
+        staticFlowData={[
+          {
+            category: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:employee_list.flows_button.navigations',
+              'Navigations'
+            ),
+            key: 'view-expense-request-details',
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
+              'View Request Details'
+            ),
+            onClick: (e?: React.MouseEvent) => {
+              e?.stopPropagation()
+              onNavigateToExpenseRequest(record)
+            }
+          },
+          {
+            category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+            key: 'download-accounting-note',
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_request_list.modal_list_or_flow_button.download_text',
+              'Download Accounting Note'
+            ),
+            onClick: (e?: React.MouseEvent) => {
+              e?.stopPropagation()
+              onDownloadAccountingNote(record)
+            }
+          },
+          {
+            category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+            key: 'trigger-csv',
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_plan_list.expense_plan_flows.trigger_csv',
+              'Trigger CSV'
+            ),
+            onClick: (e?: React.MouseEvent) => {
+              e?.stopPropagation()
+              onTriggerCSV(record)
+            }
+          },
+          ...(canTransferPayment
+            ? [
+                {
+                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+                  key: 'transfer-payment',
+                  label: getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:transfer_expense_request.info_message_container.transfer_payment',
+                    'Transfer Payment'
+                  ),
+                  onClick: (e?: React.MouseEvent) => {
+                    e?.stopPropagation()
+                    onTransferPayment(record)
+                  }
+                }
+              ]
+            : []),
+          ...(canPrint
+            ? [
+                {
+                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
+                  key: 'print-expense-request',
+                  label: getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:expense_plan_list.expense_plan_flows.print',
+                    'Print'
+                  ),
+                  onClick: (e?: React.MouseEvent) => {
+                    e?.stopPropagation()
+                    onPrintExpenseRequest(record)
+                  }
+                }
+              ]
+            : [])
+        ]}
+        prefixDataTestId="expense-request-actions"
+        accessToken={accessToken}
+        emptyStateBehavior="enable"
+        deferMainContextRequestsUntilClick
+      />
     </div>
-  );
-};
+  )
+}
 
-export default ExpenseRequestTableActions; 
+export default ExpenseRequestTableActions

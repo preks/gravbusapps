@@ -1,4 +1,4 @@
-import JobFamilyForm from './JobFamilyForm';
+import JobFamilyForm from './JobFamilyForm'
 
-export { JobFamilyForm };
-export default JobFamilyForm;
+export { JobFamilyForm }
+export default JobFamilyForm

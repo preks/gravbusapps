@@ -1,35 +1,35 @@
-import React, { useEffect, useState } from 'react';
-import dayjs from 'dayjs';
-import { getCurrentActiveStructureId, getCurrentActiveUserLocale } from '../../../../../common/utils/windowUtils';
-import { useEmployeeExpenseData } from '../../../../../common/network/expense-request/useEmployeeExpenseData';
-import { useCostCentersByStructure } from '../../../../../common/network/cost-center/useCostCentersByStructure';
-import { useProjectsByStructure } from '../../../../../common/network/project/useProjectsByStructure';
-import { useEmployeeExpenseRule } from '../../../../../common/network/expense-request/useEmployeeExpenseRule';
-import { BusinessAppContextProps } from '@/business-apps/types';
+import React, { useEffect, useState } from 'react'
+import dayjs from 'dayjs'
+import { getCurrentActiveStructureId, getCurrentActiveUserLocale } from '../../../../../common/utils/windowUtils'
+import { useEmployeeExpenseData } from '../../../../../common/network/expense-request/useEmployeeExpenseData'
+import { useCostCentersByStructure } from '../../../../../common/network/cost-center/useCostCentersByStructure'
+import { useProjectsByStructure } from '../../../../../common/network/project/useProjectsByStructure'
+import { useEmployeeExpenseRule } from '../../../../../common/network/expense-request/useEmployeeExpenseRule'
+import { BusinessAppContextProps } from '@/business-apps/types'
 
 // Define the component props
-interface ExpenseRequestQueriesProps extends BusinessAppContextProps {}
-const currentDate = dayjs().format(`YYYY-MM-DDTHH:mm:ss.SSSZZ`);
+type ExpenseRequestQueriesProps = BusinessAppContextProps
+const currentDate = dayjs().format(`YYYY-MM-DDTHH:mm:ss.SSSZZ`)
 
 const ExpenseRequestQueries: React.FC<ExpenseRequestQueriesProps> = ({ accessToken, userInfo }) => {
   // Constants
-  const EMPLOYEE_ID = userInfo?.employeeDetails?.employeeId;
-  const structureId = getCurrentActiveStructureId();
-  const activeUserLocale = getCurrentActiveUserLocale();
+  const EMPLOYEE_ID = userInfo?.employeeDetails?.employeeId
+  const structureId = getCurrentActiveStructureId()
+  const activeUserLocale = getCurrentActiveUserLocale()
 
   // State for query results
-  const [employeeData, setEmployeeData] = useState<any>(null);
-  const [costCenters, setCostCenters] = useState<any>(null);
-  const [projects, setProjects] = useState<any>(null);
-  const [employeeRule, setEmployeeRule] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [employeeData, setEmployeeData] = useState<any>(null)
+  const [costCenters, setCostCenters] = useState<any>(null)
+  const [projects, setProjects] = useState<any>(null)
+  const [employeeRule, setEmployeeRule] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState<boolean>(true)
 
   // Initialize hooks
-  const fetchEmployeeData = useEmployeeExpenseData(accessToken, EMPLOYEE_ID, activeUserLocale);
-  const fetchCostCenters = useCostCentersByStructure(accessToken, structureId);
-  const fetchProjects = useProjectsByStructure(accessToken, structureId);
-  const getEmployeeRule = useEmployeeExpenseRule(accessToken);
+  const fetchEmployeeData = useEmployeeExpenseData(accessToken, EMPLOYEE_ID, activeUserLocale)
+  const fetchCostCenters = useCostCentersByStructure(accessToken, structureId)
+  const fetchProjects = useProjectsByStructure(accessToken, structureId)
+  const getEmployeeRule = useEmployeeExpenseRule(accessToken)
 
   // Fetch data
   useEffect(() => {
@@ -38,43 +38,52 @@ const ExpenseRequestQueries: React.FC<ExpenseRequestQueriesProps> = ({ accessTok
     }
     const fetchAllData = async () => {
       try {
-        setLoading(true);
-        setError(null);
+        setLoading(true)
+        setError(null)
 
         // Fetch employee data (ExpenseRequestType, ExpenseTransportMean, ExpensePlan, EmployeePosition)
-        const empData = await fetchEmployeeData();
-        setEmployeeData(empData);
+        const empData = await fetchEmployeeData()
+        setEmployeeData(empData)
 
         // Fetch cost centers
-        const costCenterData = await fetchCostCenters();
-        setCostCenters(costCenterData);
+        const costCenterData = await fetchCostCenters()
+        setCostCenters(costCenterData)
 
         // Fetch projects
-        const projectData = await fetchProjects();
-        setProjects(projectData);
+        const projectData = await fetchProjects()
+        setProjects(projectData)
 
         // Fetch employee rule
-        const ruleData = await getEmployeeRule(EMPLOYEE_ID, currentDate);
-        setEmployeeRule(ruleData);
+        const ruleData = await getEmployeeRule(EMPLOYEE_ID, currentDate)
+        setEmployeeRule(ruleData)
       } catch (err) {
-        console.error('Error fetching data:', err);
-        setError(err instanceof Error ? err.message : String(err));
+        console.error('Error fetching data:', err)
+        setError(err instanceof Error ? err.message : String(err))
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
-    fetchAllData();
-  }, [fetchEmployeeData, fetchCostCenters, fetchProjects, getEmployeeRule, currentDate, accessToken]);
+    fetchAllData()
+  }, [fetchEmployeeData, fetchCostCenters, fetchProjects, getEmployeeRule, currentDate, accessToken])
 
   return (
     <div className="gba-p-4" data-testid="expense-request-queries">
-      <h1 className="gba-text-2xl gba-font-bold gba-mb-4" data-testid="expense-request-queries-title">Expense Request API Test</h1>
+      <h1 className="gba-text-2xl gba-font-bold gba-mb-4" data-testid="expense-request-queries-title">
+        Expense Request API Test
+      </h1>
 
-      {loading && <div className="gba-p-2 gba-bg-blue-100 gba-rounded" data-testid="expense-request-loading">Loading data...</div>}
-      
+      {loading && (
+        <div className="gba-p-2 gba-bg-blue-100 gba-rounded" data-testid="expense-request-loading">
+          Loading data...
+        </div>
+      )}
+
       {error && (
-        <div className="gba-p-2 gba-bg-red-100 gba-text-red-700 gba-rounded gba-mb-4" data-testid="expense-request-error">
+        <div
+          className="gba-p-2 gba-bg-red-100 gba-text-red-700 gba-rounded gba-mb-4"
+          data-testid="expense-request-error"
+        >
           Error: {error}
         </div>
       )}
@@ -123,7 +132,7 @@ const ExpenseRequestQueries: React.FC<ExpenseRequestQueriesProps> = ({ accessTok
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default ExpenseRequestQueries;
+export default ExpenseRequestQueries

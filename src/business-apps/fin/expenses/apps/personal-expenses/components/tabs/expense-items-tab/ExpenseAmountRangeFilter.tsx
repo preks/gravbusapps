@@ -1,75 +1,85 @@
-import React, { useCallback, useState, useEffect } from 'react';
-import { Input } from '@newwork/nw-design-system';
+import React, { useCallback, useState, useEffect } from 'react'
+import { Input } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ExpenseAmountRangeFilterProps {
-  amountRange?: { min?: number; max?: number } | null;
-  onAmountRangeChange: (range: { min?: number; max?: number } | null) => void;
-  className?: string;
-  placeholder?: [string, string];
-  label: string;
-  dataTestIdPrefix: string;
+  amountRange?: { min?: number; max?: number } | null
+  onAmountRangeChange: (range: { min?: number; max?: number } | null) => void
+  className?: string
+  placeholder?: [string, string]
+  label: string
+  dataTestIdPrefix: string
 }
 
 export const ExpenseAmountRangeFilter: React.FC<ExpenseAmountRangeFilterProps> = ({
   amountRange,
   onAmountRangeChange,
   className = '',
-  placeholder = [getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.min_amount','Min Amount'), getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.max_amount','Max Amount')],
-  label,
+  placeholder = [
+    getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.min_amount', 'Min Amount'),
+    getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.max_amount', 'Max Amount')
+  ],
   dataTestIdPrefix
 }) => {
-  const [minValue, setMinValue] = useState<string>(amountRange?.min?.toString() || '');
-  const [maxValue, setMaxValue] = useState<string>(amountRange?.max?.toString() || '');
+  const [minValue, setMinValue] = useState<string>(amountRange?.min?.toString() || '')
+  const [maxValue, setMaxValue] = useState<string>(amountRange?.max?.toString() || '')
 
   // Update local state when prop changes
   useEffect(() => {
-    setMinValue(amountRange?.min?.toString() || '');
-    setMaxValue(amountRange?.max?.toString() || '');
-  }, [amountRange]);
+    setMinValue(amountRange?.min?.toString() || '')
+    setMaxValue(amountRange?.max?.toString() || '')
+  }, [amountRange])
 
-  const handleMinChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setMinValue(value);
-    
-    const numValue = value ? parseFloat(value) : undefined;
-    
-    // Only trigger change if we have a valid range or clearing
-    if (numValue !== undefined || maxValue) {
-      onAmountRangeChange({
-        min: numValue,
-        max: maxValue ? parseFloat(maxValue) : undefined
-      });
-    }
-  }, [maxValue, onAmountRangeChange]);
+  const handleMinChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value
+      setMinValue(value)
 
-  const handleMaxChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setMaxValue(value);
-    
-    const numValue = value ? parseFloat(value) : undefined;
-    
-    // Only trigger change if we have a valid range or clearing
-    if (minValue || numValue !== undefined) {
-      onAmountRangeChange({
-        min: minValue ? parseFloat(minValue) : undefined,
-        max: numValue
-      });
-    }
-  }, [minValue, onAmountRangeChange]);
+      const numValue = value ? parseFloat(value) : undefined
+
+      // Only trigger change if we have a valid range or clearing
+      if (numValue !== undefined || maxValue) {
+        onAmountRangeChange({
+          min: numValue,
+          max: maxValue ? parseFloat(maxValue) : undefined
+        })
+      }
+    },
+    [maxValue, onAmountRangeChange]
+  )
+
+  const handleMaxChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value
+      setMaxValue(value)
+
+      const numValue = value ? parseFloat(value) : undefined
+
+      // Only trigger change if we have a valid range or clearing
+      if (minValue || numValue !== undefined) {
+        onAmountRangeChange({
+          min: minValue ? parseFloat(minValue) : undefined,
+          max: numValue
+        })
+      }
+    },
+    [minValue, onAmountRangeChange]
+  )
 
   const handleClear = useCallback(() => {
-    setMinValue('');
-    setMaxValue('');
+    setMinValue('')
+    setMaxValue('')
     // Always trigger the change callback with null to clear the filter
-    onAmountRangeChange(null);
-  }, [onAmountRangeChange]);
+    onAmountRangeChange(null)
+  }, [onAmountRangeChange])
 
   return (
     <div className={`gba:flex gba:flex-col gba:gap-2 gba:p-2 ${className}`}>
       <div className="gba:flex gba:items-center gba:gap-2">
         <div className="gba:flex gba:flex-col gba:gap-1 gba:flex-1">
-          <label className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.min_amount','Min Amount')}</label>
+          <label className="gba:text-xs gba:text-gray-600">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.min_amount', 'Min Amount')}
+          </label>
           <Input
             type="number"
             value={minValue}
@@ -82,7 +92,9 @@ export const ExpenseAmountRangeFilter: React.FC<ExpenseAmountRangeFilterProps> =
           />
         </div>
         <div className="gba:flex gba:flex-col gba:gap-1 gba:flex-1">
-          <label className="gba:text-xs gba:text-gray-600">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.max_amount','Max Amount')}</label>
+          <label className="gba:text-xs gba:text-gray-600">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.max_amount', 'Max Amount')}
+          </label>
           <Input
             type="number"
             value={maxValue}
@@ -105,7 +117,7 @@ export const ExpenseAmountRangeFilter: React.FC<ExpenseAmountRangeFilterProps> =
         </button>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default ExpenseAmountRangeFilter; 
+export default ExpenseAmountRangeFilter

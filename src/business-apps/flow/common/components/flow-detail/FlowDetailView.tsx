@@ -1,140 +1,123 @@
-import React, { useState } from 'react';
-import { 
-  Button, 
-  Badge, 
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  Alert,
-  Separator
-} from '@newwork/nw-design-system';
-import { 
-  ArrowLeft, 
-  Calendar, 
-  Clock, 
-  AlertCircle,
-  CheckCircle
-} from 'lucide-react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { env } from '@/common/env/EnvUtils';
-import { OverviewTab, WorkflowTab, DataTab, AuditTab } from './tabs';
+import React, { useState } from 'react'
+import { Button, Badge, Tabs, TabsContent, TabsList, TabsTrigger, Alert } from '@newwork/nw-design-system'
+import { ArrowLeft, Calendar, Clock, AlertCircle, CheckCircle } from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
+import { OverviewTab, WorkflowTab, DataTab, AuditTab } from './tabs'
 
 // Helper function to calculate running time from start time (for incomplete workflows)
 const calculateRunningTimeFromStart = (startTime: string): number => {
-  const start = new Date(startTime);
-  const now = new Date();
-  return Math.round((now.getTime() - start.getTime()) / (1000 * 60));
-};
+  const start = new Date(startTime)
+  const now = new Date()
+  return Math.round((now.getTime() - start.getTime()) / (1000 * 60))
+}
 
 // Helper function to format duration with minutes resolution
 const formatDuration = (minutesDuration: number): string => {
   if (minutesDuration < 60) {
-    const roundedMinutes = Math.round(minutesDuration);
-    return `${roundedMinutes} minute${roundedMinutes !== 1 ? 's' : ''}`;
+    const roundedMinutes = Math.round(minutesDuration)
+    return `${roundedMinutes} minute${roundedMinutes !== 1 ? 's' : ''}`
   } else if (minutesDuration < 1440) {
     // Less than 1 day (1440 minutes)
-    const hours = Math.floor(minutesDuration / 60);
-    const remainingMinutes = Math.round(minutesDuration % 60);
+    const hours = Math.floor(minutesDuration / 60)
+    const remainingMinutes = Math.round(minutesDuration % 60)
     if (remainingMinutes === 0) {
-      return `${hours} hour${hours !== 1 ? 's' : ''}`;
+      return `${hours} hour${hours !== 1 ? 's' : ''}`
     } else {
-      return `${hours}h ${remainingMinutes}m`;
+      return `${hours}h ${remainingMinutes}m`
     }
   } else {
     // For 1+ days, show days
-    const days = Math.round(minutesDuration / 1440);
-    return `${days} day${days !== 1 ? 's' : ''}`;
+    const days = Math.round(minutesDuration / 1440)
+    return `${days} day${days !== 1 ? 's' : ''}`
   }
-};
+}
 
 // Helper function to format flow duration based on status
 const formatFlowDuration = (flowData: FlowDetailData, minutesRunning: number): { label: string; duration: string } => {
-  const isCompleted = flowData.status === 'COMPLETED' || flowData.endTime;
-  const duration = formatDuration(minutesRunning);
-  
+  const isCompleted = flowData.status === 'COMPLETED' || flowData.endTime
+  const duration = formatDuration(minutesRunning)
+
   return {
     label: isCompleted ? 'Completed in' : 'Running',
     duration: duration
-  };
-};
+  }
+}
 
 // Enhanced interfaces matching our backend data
 interface StepStatus {
-  completed: number;
-  total: number;
-  remaining: number;
+  completed: number
+  total: number
+  remaining: number
 }
 
 interface ProcessHealth {
-  isOnTrack: boolean;
-  hasFailures: boolean;
-  isStalled: boolean;
-  statusMessage: string;
+  isOnTrack: boolean
+  hasFailures: boolean
+  isStalled: boolean
+  statusMessage: string
 }
 
 interface TimeInsights {
-  avgStepDurationMinutes?: number;
-  avgTaskCompletionMinutes?: number;
-  estimatedCompletionDate?: string;
-  isOverdue: boolean;
-  minutesRunning: number;
-  minutesSinceLastUpdate: number;
-  workflowStartTime: string;
-  lastActivityTime?: string;
+  avgStepDurationMinutes?: number
+  avgTaskCompletionMinutes?: number
+  estimatedCompletionDate?: string
+  isOverdue: boolean
+  minutesRunning: number
+  minutesSinceLastUpdate: number
+  workflowStartTime: string
+  lastActivityTime?: string
 }
 
 interface FlowDetailData {
-  flowId: string;
-  flowName: string;
-  templateId: string;
-  status: string;
-  startTime: string;
-  updateTime: string;
-  endTime?: string;
-  progressPercentage: number;
-  stepStatus: StepStatus;
-  currentStep: number;
-  processHealth: ProcessHealth;
-  timeInsights: TimeInsights;
-  durationHours?: number;
-  durationMinutes?: number;
+  flowId: string
+  flowName: string
+  templateId: string
+  status: string
+  startTime: string
+  updateTime: string
+  endTime?: string
+  progressPercentage: number
+  stepStatus: StepStatus
+  currentStep: number
+  processHealth: ProcessHealth
+  timeInsights: TimeInsights
+  durationHours?: number
+  durationMinutes?: number
 }
 
 // Real history data interfaces (from inbox implementation)
 interface HistoryEvent {
-  type: 'step' | 'assignment' | 'comment' | 'flow' | 'status';
-  timestamp: string;
-  stepIndex: number;
-  stepTitle: string;
-  eventTitle: string;
-  description: string;
-  action?: string;
-  userId?: string;
-  userName?: string;
-  comment?: string;
-  metadata?: any;
+  type: 'step' | 'assignment' | 'comment' | 'flow' | 'status'
+  timestamp: string
+  stepIndex: number
+  stepTitle: string
+  eventTitle: string
+  description: string
+  action?: string
+  userId?: string
+  userName?: string
+  comment?: string
+  metadata?: any
 }
 
 interface HistorySummary {
-  totalSteps: number;
-  completedSteps: number;
-  totalAssignmentEvents: number;
-  totalComments: number;
-  participants: string[];
+  totalSteps: number
+  completedSteps: number
+  totalAssignmentEvents: number
+  totalComments: number
+  participants: string[]
 }
 
 interface FlowDetailViewProps extends BusinessAppContextProps {
-  flowId: string;
-  variant?: 'monitoring' | 'inbox' | 'management';
-  onBack?: () => void;
-  onAction?: (action: string, flowId: string) => void;
-  showActions?: boolean;
-  hiddenTabs?: string[];
-  showBackButton?: boolean;
+  flowId: string
+  variant?: 'monitoring' | 'inbox' | 'management'
+  onBack?: () => void
+  onAction?: (action: string, flowId: string) => void
+  showActions?: boolean
+  hiddenTabs?: string[]
+  showBackButton?: boolean
 }
-
-
 
 export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
   flowId,
@@ -146,86 +129,87 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
   showBackButton = true,
   accessToken
 }) => {
-  const [flowData, setFlowData] = useState<FlowDetailData | null>(null);
-  const [flowSteps, setFlowSteps] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('overview');
-  
+  const [flowData, setFlowData] = useState<FlowDetailData | null>(null)
+  const [flowSteps, setFlowSteps] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState('overview')
+
   // Real history data state
-  const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([]);
-  const [historySummary, setHistorySummary] = useState<HistorySummary | null>(null);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [historyError, setHistoryError] = useState<string | null>(null);
-  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
-  const [filteredEvents, setFilteredEvents] = useState<HistoryEvent[]>([]);
+  const [historyEvents, setHistoryEvents] = useState<HistoryEvent[]>([])
+  const [historySummary, setHistorySummary] = useState<HistorySummary | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState<string | null>(null)
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set())
+  const [filteredEvents, setFilteredEvents] = useState<HistoryEvent[]>([])
 
   // Load comprehensive audit data from audit API
   const loadHistoryData = async () => {
-    setHistoryLoading(true);
-    setHistoryError(null);
-    
+    setHistoryLoading(true)
+    setHistoryError(null)
+
     try {
-      const API_BASE = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine';
+      const API_BASE = getFlowEngineApiBaseUrl()
       // Use audit API instead of history API for comprehensive event data
-      const response = await fetch(`${API_BASE}/api/audit/logs?flowId=${flowId}&limit=100`, {
+      const response = await fetch(`${API_BASE}/audit/logs?flowId=${flowId}&limit=100`, {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
           'Content-Type': 'application/json'
         }
-      });
-      
+      })
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch audit data: ${response.status}`);
+        throw new Error(`Failed to fetch audit data: ${response.status}`)
       }
-      
-      const auditData = await response.json();
-      const auditEntries = auditData.data?.entries || [];
-      
+
+      const auditData = await response.json()
+      const auditEntries = auditData.data?.entries || []
+
       // Transform audit entries to HistoryEvent format
       const transformedEvents: HistoryEvent[] = auditEntries.map((entry: any, index: number) => {
         // Determine event type based on action and context
-        let eventType: 'step' | 'assignment' | 'comment' | 'flow' | 'status' = 'step'; // Default to step
-        let stepIndex = 0;
-        let stepTitle = entry.taskName || 'Unknown Step';
-        let eventTitle = entry.action || 'Unknown Action';
-        let description = `${entry.userName || entry.userId || 'Unknown User'} performed ${entry.action}`;
-        
+        let eventType: 'step' | 'assignment' | 'comment' | 'flow' | 'status' = 'step' // Default to step
+        let stepIndex = 0
+        let stepTitle = entry.taskName || 'Unknown Step'
+        let eventTitle = entry.action || 'Unknown Action'
+        let description = `${entry.userName || entry.userId || 'Unknown User'} performed ${entry.action}`
+
         // Extract step index from task name or use order
-        const stepMatch = stepTitle.match(/Step (\d+)/i);
+        const stepMatch = stepTitle.match(/Step (\d+)/i)
         if (stepMatch) {
-          stepIndex = parseInt(stepMatch[1], 10) - 1; // Convert to 0-based index
+          stepIndex = parseInt(stepMatch[1], 10) - 1 // Convert to 0-based index
         } else {
-          stepIndex = index; // Fallback to order
+          stepIndex = index // Fallback to order
         }
-        
+
         // Categorize events properly
         if (entry.action === 'WORKFLOW_STARTED' || entry.action === 'WORKFLOW_COMPLETED') {
-          eventType = 'flow';
-          stepIndex = entry.action === 'WORKFLOW_STARTED' ? -1 : 999;
-          stepTitle = 'Flow Execution';
-          eventTitle = entry.action === 'WORKFLOW_STARTED' ? 'Flow Started' : 'Flow Completed';
-          description = entry.action === 'WORKFLOW_STARTED' 
-            ? 'Workflow was initiated by the system'
-            : 'Workflow completed successfully';
+          eventType = 'flow'
+          stepIndex = entry.action === 'WORKFLOW_STARTED' ? -1 : 999
+          stepTitle = 'Flow Execution'
+          eventTitle = entry.action === 'WORKFLOW_STARTED' ? 'Flow Started' : 'Flow Completed'
+          description =
+            entry.action === 'WORKFLOW_STARTED'
+              ? 'Workflow was initiated by the system'
+              : 'Workflow completed successfully'
         } else if (entry.action === 'CLAIM') {
-          eventType = 'assignment';
-          eventTitle = `${stepTitle} claimed`;
-          description = `${entry.userName || 'User'} claimed the task "${stepTitle}"`;
+          eventType = 'assignment'
+          eventTitle = `${stepTitle} claimed`
+          description = `${entry.userName || 'User'} claimed the task "${stepTitle}"`
         } else if (entry.action === 'UNCLAIM') {
-          eventType = 'assignment';
-          eventTitle = `${stepTitle} released`;
-          description = `${entry.userName || 'User'} released the task "${stepTitle}" back to available pool`;
+          eventType = 'assignment'
+          eventTitle = `${stepTitle} released`
+          description = `${entry.userName || 'User'} released the task "${stepTitle}" back to available pool`
         } else if (entry.action === 'COMPLETE') {
-          eventType = 'step'; // Step completion should be categorized as 'step', not 'assignment'
-          eventTitle = `${stepTitle} completed`;
-          description = `${entry.userName || 'User'} completed the step "${stepTitle}"`;
+          eventType = 'step' // Step completion should be categorized as 'step', not 'assignment'
+          eventTitle = `${stepTitle} completed`
+          description = `${entry.userName || 'User'} completed the step "${stepTitle}"`
         } else if (entry.details?.comment) {
-          eventType = 'comment';
-          eventTitle = `Comment on ${stepTitle}`;
-          description = entry.details.comment;
+          eventType = 'comment'
+          eventTitle = `Comment on ${stepTitle}`
+          description = entry.details.comment
         }
-        
+
         const mainEvent: HistoryEvent = {
           type: eventType,
           timestamp: entry.timestamp,
@@ -238,19 +222,19 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
           userName: entry.userName || entry.userId,
           comment: entry.details?.comment,
           metadata: entry.details || {}
-        };
+        }
 
-        return mainEvent;
-      });
+        return mainEvent
+      })
 
       // Create additional comment events for entries that have comments
-      const additionalCommentEvents: HistoryEvent[] = [];
+      const additionalCommentEvents: HistoryEvent[] = []
       auditEntries.forEach((entry: any, index: number) => {
         if (entry.details?.comment && entry.action !== 'COMMENT') {
-          const stepTitle = entry.taskName || 'Unknown Step';
-          const stepMatch = stepTitle.match(/Step (\d+)/i);
-          const stepIndex = stepMatch ? parseInt(stepMatch[1], 10) - 1 : index;
-          
+          const stepTitle = entry.taskName || 'Unknown Step'
+          const stepMatch = stepTitle.match(/Step (\d+)/i)
+          const stepIndex = stepMatch ? parseInt(stepMatch[1], 10) - 1 : index
+
           additionalCommentEvents.push({
             type: 'comment',
             timestamp: entry.timestamp,
@@ -263,29 +247,30 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
             userName: entry.userName || entry.userId,
             comment: entry.details.comment,
             metadata: entry.details || {}
-          });
+          })
         }
-      });
+      })
 
       // Combine all events and sort by timestamp
-      const allEvents = [...transformedEvents, ...additionalCommentEvents]
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      
+      const allEvents = [...transformedEvents, ...additionalCommentEvents].sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      )
+
       // Calculate summary from combined audit data
-      const workflowEvents = allEvents.filter(e => e.type === 'flow');
-      const assignmentEvents = allEvents.filter(e => e.type === 'assignment');
-      const stepEvents = allEvents.filter(e => e.type === 'step');
-      const commentEvents = allEvents.filter(e => e.type === 'comment');
-      const uniqueParticipants = [...new Set(allEvents.map(e => e.userId).filter(Boolean))];
-      
+      const workflowEvents = allEvents.filter(e => e.type === 'flow')
+      const assignmentEvents = allEvents.filter(e => e.type === 'assignment')
+      const stepEvents = allEvents.filter(e => e.type === 'step')
+      const commentEvents = allEvents.filter(e => e.type === 'comment')
+      const uniqueParticipants = [...new Set(allEvents.map(e => e.userId).filter(Boolean))]
+
       const summary: HistorySummary = {
         totalSteps: stepEvents.length,
         completedSteps: stepEvents.length,
         totalAssignmentEvents: assignmentEvents.length,
         totalComments: commentEvents.length,
         participants: uniqueParticipants as string[]
-      };
-      
+      }
+
       console.log('Audit Summary:', {
         totalEvents: allEvents.length,
         workflowEvents: workflowEvents.length,
@@ -293,121 +278,106 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
         stepEvents: stepEvents.length,
         commentEvents: commentEvents.length,
         participants: uniqueParticipants.length
-      });
-      
-      setHistoryEvents(allEvents); // Use combined events including separate comment events
-      setHistorySummary(summary);
-      
+      })
+
+      setHistoryEvents(allEvents) // Use combined events including separate comment events
+      setHistorySummary(summary)
     } catch (err) {
-      setHistoryError(err instanceof Error ? err.message : 'Failed to load audit data');
+      setHistoryError(err instanceof Error ? err.message : 'Failed to load audit data')
     } finally {
-      setHistoryLoading(false);
+      setHistoryLoading(false)
     }
-  };
-
-
+  }
 
   const toggleFilter = (filterType: string) => {
-    const newFilters = new Set(activeFilters);
+    const newFilters = new Set(activeFilters)
     if (newFilters.has(filterType)) {
-      newFilters.delete(filterType);
+      newFilters.delete(filterType)
     } else {
-      newFilters.add(filterType);
+      newFilters.add(filterType)
     }
-    setActiveFilters(newFilters);
-  };
+    setActiveFilters(newFilters)
+  }
 
   const clearAllFilters = () => {
-    setActiveFilters(new Set());
-  };
+    setActiveFilters(new Set())
+  }
 
   // Filter events whenever events or activeFilters change
   React.useEffect(() => {
     if (activeFilters.size === 0) {
-      setFilteredEvents(historyEvents);
+      setFilteredEvents(historyEvents)
     } else {
       const filtered = historyEvents.filter(event => {
-        if (activeFilters.has('steps') && (event.type === 'step' || event.action === 'COMPLETE')) return true;
-        if (activeFilters.has('assignmentEvents') && event.type === 'assignment') return true;
-        if (activeFilters.has('statusChanges') && event.type === 'status') return true;
-        if (activeFilters.has('comments') && event.type === 'comment') return true;
-        if (activeFilters.has('flowEvents') && event.type === 'flow') return true;
-        return false;
-      });
-      setFilteredEvents(filtered);
+        if (activeFilters.has('steps') && (event.type === 'step' || event.action === 'COMPLETE')) return true
+        if (activeFilters.has('assignmentEvents') && event.type === 'assignment') return true
+        if (activeFilters.has('statusChanges') && event.type === 'status') return true
+        if (activeFilters.has('comments') && event.type === 'comment') return true
+        if (activeFilters.has('flowEvents') && event.type === 'flow') return true
+        return false
+      })
+      setFilteredEvents(filtered)
     }
-  }, [historyEvents, activeFilters]);
+  }, [historyEvents, activeFilters])
 
   // Load history when tab becomes active or flowId changes
   React.useEffect(() => {
-    if (activeTab === 'audit' && flowId && accessToken) {
-      loadHistoryData();
+    if (activeTab === 'audit' && flowId) {
+      loadHistoryData()
     }
-  }, [activeTab, flowId, accessToken]);
+  }, [activeTab, flowId, accessToken])
 
   // Fetch real flow data from enhanced progress API
   React.useEffect(() => {
     const fetchFlowDetail = async () => {
       try {
-        setIsLoading(true);
-        setError(null);
-        
-        const API_BASE = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine';
-        
+        setIsLoading(true)
+        setError(null)
+
+        const API_BASE = getFlowEngineApiBaseUrl()
+
         // Fetch both progress and steps data in parallel
         const [progressResponse, stepsResponse] = await Promise.all([
-          fetch(`${API_BASE}/api/flows/${flowId}/progress`, {
+          fetch(`${API_BASE}/flows/${flowId}/progress`, {
             headers: {
-              'Authorization': `Bearer ${accessToken}`,
+              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
               'Content-Type': 'application/json'
             }
           }),
-          fetch(`${API_BASE}/api/flows/${flowId}`, {
+          fetch(`${API_BASE}/flows/${flowId}`, {
             headers: {
-              'Authorization': `Bearer ${accessToken}`,
+              ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
               'Content-Type': 'application/json'
             }
           })
-        ]);
-        
+        ])
+
         if (!progressResponse.ok) {
-          throw new Error(`Failed to fetch progress: ${progressResponse.status} ${progressResponse.statusText}`);
+          throw new Error(`Failed to fetch progress: ${progressResponse.status} ${progressResponse.statusText}`)
         }
-        
+
         if (!stepsResponse.ok) {
-          throw new Error(`Failed to fetch flow details: ${stepsResponse.status} ${stepsResponse.statusText}`);
+          throw new Error(`Failed to fetch flow details: ${stepsResponse.status} ${stepsResponse.statusText}`)
         }
-        
-        const [progressData, flowDetailData] = await Promise.all([
-          progressResponse.json(),
-          stepsResponse.json()
-        ]);
-        
-        const progress = progressData.data?.flow;
-        const flowDetails = flowDetailData; // API returns data directly, not under .data
-        
+
+        const [progressData, flowDetailData] = await Promise.all([progressResponse.json(), stepsResponse.json()])
+
+        const progress = progressData.data?.flow
+        const flowDetails = flowDetailData // API returns data directly, not under .data
+
         if (!progress) {
-          throw new Error('No progress data found');
+          throw new Error('No progress data found')
         }
 
         // Debug: Log the timeInsights data
-        console.log('🔍 Raw progress.timeInsights:', progress.timeInsights);
-        console.log('🔍 Full progress data:', progress);
-        console.log('🔍 Flow details data:', flowDetails);
-        console.log('🔍 Steps from API:', flowDetails?.steps);
-        
+        console.log('🔍 Raw progress.timeInsights:', progress.timeInsights)
+        console.log('🔍 Full progress data:', progress)
+        console.log('🔍 Flow details data:', flowDetails)
+        console.log('🔍 Steps from API:', flowDetails?.steps)
+
         // Transform API data to match FlowDetailData interface
-        // Calculate actual progress from step data if available
-        let actualProgressPercentage = progress.userTaskProgressPercentage || 0;
-        if (flowDetails?.steps && flowDetails.steps.length > 0) {
-          const totalTasks = flowDetails.steps.reduce((sum: number, step: any) => 
-            sum + (step.totalTasks || step.total_tasks || 0), 0);
-          const completedTasks = flowDetails.steps.reduce((sum: number, step: any) => 
-            sum + (step.completedTasks || step.completed_tasks || 0), 0);
-          if (totalTasks > 0) {
-            actualProgressPercentage = Math.round((completedTasks / totalTasks) * 100);
-          }
-        }
+        // Use smart progress calculation from backend (already accounts for step weights and future steps)
+        const actualProgressPercentage = progress.userTaskProgressPercentage || 0
 
         const flowData: FlowDetailData = {
           flowId: progress.rootWorkflowId,
@@ -427,12 +397,20 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
             isOnTrack: progress.workflowStatus === 'RUNNING' || progress.workflowStatus === 'IN_PROGRESS',
             hasFailures: progress.workflowStatus === 'FAILED' || progress.workflowStatus === 'TIMED_OUT',
             isStalled: progress.workflowStatus === 'PAUSED' || progress.workflowStatus === 'TERMINATED',
-            statusMessage: progress.workflowStatus === 'RUNNING' || progress.workflowStatus === 'IN_PROGRESS' ? 'On Track' :
-                          progress.workflowStatus === 'COMPLETED' ? 'Completed' :
-                          progress.workflowStatus === 'FAILED' ? 'Failed' :
-                          progress.workflowStatus === 'TIMED_OUT' ? 'Timed Out' :
-                          progress.workflowStatus === 'PAUSED' ? 'Paused' :
-                          progress.workflowStatus === 'TERMINATED' ? 'Terminated' : 'Unknown'
+            statusMessage:
+              progress.workflowStatus === 'RUNNING' || progress.workflowStatus === 'IN_PROGRESS'
+                ? 'On Track'
+                : progress.workflowStatus === 'COMPLETED'
+                  ? 'Completed'
+                  : progress.workflowStatus === 'FAILED'
+                    ? 'Failed'
+                    : progress.workflowStatus === 'TIMED_OUT'
+                      ? 'Timed Out'
+                      : progress.workflowStatus === 'PAUSED'
+                        ? 'Paused'
+                        : progress.workflowStatus === 'TERMINATED'
+                          ? 'Terminated'
+                          : 'Unknown'
           },
           timeInsights: progress.timeInsights || {
             avgStepDurationMinutes: undefined,
@@ -444,17 +422,19 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
             workflowStartTime: new Date().toISOString(),
             lastActivityTime: undefined
           },
-          durationHours: progress.timeInsights?.avgStepDurationHours ? 
-            progress.timeInsights.daysRunning * 24 : undefined,
-          durationMinutes: progress.timeInsights?.avgStepDurationHours ? 
-            progress.timeInsights.daysRunning * 24 * 60 : undefined
-        };
-        
-        setFlowData(flowData);
-        
+          durationHours: progress.timeInsights?.avgStepDurationHours
+            ? progress.timeInsights.daysRunning * 24
+            : undefined,
+          durationMinutes: progress.timeInsights?.avgStepDurationHours
+            ? progress.timeInsights.daysRunning * 24 * 60
+            : undefined
+        }
+
+        setFlowData(flowData)
+
         // Transform steps data if available from flow details
         if (flowDetails?.steps) {
-          console.log('🔍 Found steps, transforming...', flowDetails.steps.length, 'steps');
+          console.log('🔍 Found steps, transforming...', flowDetails.steps.length, 'steps')
           const transformedSteps = flowDetails.steps.map((step: any) => ({
             id: step.id || `step-${step.stepIndex}`,
             title: step.title || 'Untitled Step',
@@ -479,48 +459,49 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
             expectedStartAt: step.expectedStartAt || undefined,
             expectedFinishAt: step.expectedFinishAt || undefined,
             completionTimeMinutes: step.completionTimeMinutes || undefined
-          }));
-          console.log('🔍 Transformed steps:', transformedSteps);
+          }))
+          console.log('🔍 Transformed steps:', transformedSteps)
           // Sort strictly by template order (stepIndex)
-          setFlowSteps([...transformedSteps].sort((a, b) => (a.stepIndex ?? 0) - (b.stepIndex ?? 0)));
+          setFlowSteps([...transformedSteps].sort((a, b) => (a.stepIndex ?? 0) - (b.stepIndex ?? 0)))
         } else {
-          console.log('🔍 No steps found, creating fallback steps');
+          console.log('🔍 No steps found, creating fallback steps')
           // Fallback: create steps based on progress data
-          const steps = [];
+          const steps = []
           for (let i = 1; i <= flowData.stepStatus.total; i++) {
             steps.push({
               id: `step-${i}`,
               title: `Step ${i}`,
-              status: i <= flowData.stepStatus.completed ? 'COMPLETED' : 
-                     i === flowData.currentStep ? 'IN_PROGRESS' : 'QUEUED',
+              status:
+                i <= flowData.stepStatus.completed
+                  ? 'COMPLETED'
+                  : i === flowData.currentStep
+                    ? 'IN_PROGRESS'
+                    : 'QUEUED',
               stepIndex: i - 1,
               assignedTo: undefined,
               dueDate: undefined,
-              completedAt: i <= flowData.stepStatus.completed ? 
-                new Date(Date.now() - (flowData.stepStatus.completed - i) * 24 * 60 * 60 * 1000).toISOString() : 
-                undefined
-            });
+              completedAt:
+                i <= flowData.stepStatus.completed
+                  ? new Date(Date.now() - (flowData.stepStatus.completed - i) * 24 * 60 * 60 * 1000).toISOString()
+                  : undefined
+            })
           }
           // Keep template order (ascending by stepIndex)
-          setFlowSteps([...steps].sort((a, b) => (a.stepIndex ?? 0) - (b.stepIndex ?? 0)));
+          setFlowSteps([...steps].sort((a, b) => (a.stepIndex ?? 0) - (b.stepIndex ?? 0)))
         }
-        
-        setIsLoading(false);
+
+        setIsLoading(false)
       } catch (err) {
-        console.error('Failed to fetch flow details:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load flow details');
-        setIsLoading(false);
+        console.error('Failed to fetch flow details:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load flow details')
+        setIsLoading(false)
       }
-    };
+    }
 
     if (flowId && accessToken) {
-      fetchFlowDetail();
+      fetchFlowDetail()
     }
-  }, [flowId, accessToken]);
-
-
-
-
+  }, [flowId, accessToken])
 
   if (isLoading) {
     return (
@@ -530,7 +511,7 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
           <p className="gba:text-gray-600">Loading flow details...</p>
         </div>
       </div>
-    );
+    )
   }
 
   if (error || !flowData) {
@@ -544,91 +525,108 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
           </div>
         </Alert>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="gba:h-screen gba:bg-gray-50 gba:flex gba:flex-col">
+    <div className="gba:flex gba:flex-col" style={{ backgroundColor: 'transparent' }}>
       {/* Header */}
-      <div className="gba:bg-white gba:border-b gba:border-gray-200 gba:px-6 gba:py-4">
-        <div className="gba:flex gba:items-center gba:gap-4">
-          {showBackButton && onBack && (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onBack}
-                className="gba:flex gba:items-center gba:gap-2"
-              >
-                <ArrowLeft className="gba:h-4 gba:w-4" />
-                Back to Flows
-              </Button>
-              
-              <Separator orientation="vertical" className="gba:h-6" />
-            </>
-          )}
-          
-          <div className="gba:flex-1">
-            <div className="gba:flex gba:items-center gba:gap-3 gba:mb-1">
-              <h1 className="gba:text-xl gba:font-semibold gba:text-gray-900">
+      <div
+        style={{
+          backgroundColor: 'var(--color-surface-primary)',
+          borderBottom: 'var(--border-width-thin) solid var(--color-border-default)',
+          padding: `var(--spacing-6) ${showBackButton ? 'var(--spacing-6)' : '0'}`
+        }}
+      >
+        {showBackButton && onBack && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onBack}
+            className="gba:flex gba:items-center gba:gap-2 gba:mb-4"
+            style={{ paddingLeft: 0 }}
+          >
+            <ArrowLeft className="gba:h-4 gba:w-4" />
+            Back to Flows
+          </Button>
+        )}
+
+        <div className="gba:flex gba:flex-col gba:gap-3 md:gba:flex-row md:gba:items-start md:gba:justify-between">
+          <div className="gba:min-w-0">
+            <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-3">
+              <h1 className="gba:text-3xl gba:font-semibold gba:text-gray-900 gba:leading-tight gba:truncate">
                 {flowData.flowName}
               </h1>
-              <Badge 
+              <Badge
                 variant="outline"
-                className="gba:border-0 gba:text-white"
+                className="gba:border-0 gba:text-white gba:rounded-full gba:px-4 gba:py-1 gba:text-sm gba:font-semibold"
                 style={{
-                  backgroundColor: 
-                    flowData.status === 'COMPLETED' ? '#10b981' :
-                    flowData.status === 'IN_PROGRESS' ? '#3b82f6' :
-                    flowData.status === 'RUNNING' ? '#3b82f6' :
-                    flowData.status === 'TIMED_OUT' ? '#f59e0b' :
-                    '#6b7280'
+                  backgroundColor:
+                    flowData.status === 'COMPLETED'
+                      ? '#10b981'
+                      : flowData.status === 'IN_PROGRESS'
+                        ? '#3b82f6'
+                        : flowData.status === 'RUNNING'
+                          ? '#3b82f6'
+                          : flowData.status === 'TIMED_OUT'
+                            ? '#f59e0b'
+                            : '#6b7280'
                 }}
               >
                 {flowData.status}
               </Badge>
             </div>
-            
-            <div className="gba:flex gba:items-center gba:gap-6 gba:text-sm gba:text-gray-600">
-              <span className="gba:flex gba:items-center gba:gap-1">
+
+            <div className="gba:mt-2 gba:flex gba:flex-wrap gba:items-center gba:gap-x-8 gba:gap-y-2 gba:text-sm gba:text-gray-600">
+              <span className="gba:flex gba:items-center gba:gap-2">
+                <span className="gba:font-medium gba:text-gray-700">Flow ID:</span>
+                <span className="gba:font-mono gba:px-3 gba:py-1 gba:rounded-full gba:bg-gray-100 gba:text-gray-800 gba:max-w-full gba:truncate">
+                  {flowData.flowId}
+                </span>
+              </span>
+
+              <span className="gba:flex gba:items-center gba:gap-2">
+                <span className="gba:font-medium gba:text-gray-700">Progress:</span>
+                <span>
+                  {flowData.progressPercentage}% • {flowData.stepStatus.completed}/{flowData.stepStatus.total} steps
+                </span>
+              </span>
+
+              <span className="gba:flex gba:items-center gba:gap-2">
                 <Calendar className="gba:h-4 gba:w-4" />
-                Started {new Date(flowData.startTime).toLocaleString('en-US', { 
-                  month: 'numeric', 
-                  day: 'numeric', 
-                  year: 'numeric', 
-                  hour: 'numeric', 
-                  minute: '2-digit', 
-                  hour12: true 
+                Started{' '}
+                {new Date(flowData.startTime).toLocaleString('en-US', {
+                  month: 'numeric',
+                  day: 'numeric',
+                  year: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
                 })}
               </span>
-              <span className="gba:flex gba:items-center gba:gap-1">
+
+              <span className="gba:flex gba:items-center gba:gap-2">
                 <Clock className="gba:h-4 gba:w-4" />
                 {(() => {
-                  const minutes = flowData.timeInsights?.minutesRunning ?? 
-                    calculateRunningTimeFromStart(flowData.startTime);
-                  const { label, duration } = formatFlowDuration(flowData, minutes);
-                  return `${label} ${duration}`;
+                  const minutes =
+                    flowData.timeInsights?.minutesRunning ?? calculateRunningTimeFromStart(flowData.startTime)
+                  const { label, duration } = formatFlowDuration(flowData, minutes)
+                  return `${label} ${duration}`
                 })()}
               </span>
-              {/* Show end date for completed flows */}
+
               {['COMPLETED', 'TIMED_OUT', 'TERMINATED', 'FAILED'].includes(flowData.status) && flowData.endTime && (
-                <span className="gba:flex gba:items-center gba:gap-1 gba:text-gray-600">
+                <span className="gba:flex gba:items-center gba:gap-2 gba:text-gray-600">
                   <CheckCircle className="gba:h-4 gba:w-4" />
-                  {flowData.status === 'COMPLETED' ? 'Completed' : 
-                   flowData.status === 'TIMED_OUT' ? 'Timed out' :
-                   flowData.status === 'TERMINATED' ? 'Terminated' :
-                   'Failed'}: {new Date(flowData.endTime).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
+                  {flowData.status === 'COMPLETED'
+                    ? 'Completed'
+                    : flowData.status === 'TIMED_OUT'
+                      ? 'Timed out'
+                      : flowData.status === 'TERMINATED'
+                        ? 'Terminated'
+                        : 'Failed'}
                 </span>
               )}
-              <span>
-                Progress: {flowData.progressPercentage}% • {flowData.stepStatus.completed}/{flowData.stepStatus.total} steps
-              </span>
             </div>
           </div>
         </div>
@@ -636,59 +634,70 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
 
       {/* Content */}
       <div className="gba:flex-1 gba:overflow-hidden">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:h-full gba:flex gba:flex-col">
-          <div className="gba:bg-white gba:border-b gba:border-gray-200 gba:px-6">
-            <TabsList className={`gba:grid gba:w-full gba:max-w-md ${
-              hiddenTabs.length === 0 ? 'gba:grid-cols-4' :
-              hiddenTabs.length === 1 ? 'gba:grid-cols-3' :
-              hiddenTabs.length === 2 ? 'gba:grid-cols-2' : 'gba:grid-cols-1'
-            }`}>
-              {!hiddenTabs.includes('overview') && (
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-              )}
-              {!hiddenTabs.includes('workflow') && (
-                <TabsTrigger value="workflow">Definition</TabsTrigger>
-              )}
-              {!hiddenTabs.includes('data') && (
-                <TabsTrigger value="data">Data</TabsTrigger>
-              )}
-              {!hiddenTabs.includes('audit') && (
-                <TabsTrigger value="audit">Audit</TabsTrigger>
-              )}
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="gba:h-full gba:flex gba:flex-col"
+          style={{ backgroundColor: 'var(--color-surface-primary)' }}
+        >
+          <div
+            className="gba:mt-4 gba:pt-4 gba:pb-4"
+            style={{
+              backgroundColor: 'var(--color-surface-primary)',
+              borderBottom: 'var(--border-width-thin) solid var(--color-border-default)',
+              paddingLeft: showBackButton ? 'var(--spacing-6)' : '0',
+              paddingRight: showBackButton ? 'var(--spacing-6)' : '0'
+            }}
+          >
+            <TabsList
+              className={`gba:grid gba:w-full gba:max-w-md ${
+                hiddenTabs.length === 0
+                  ? 'gba:grid-cols-4'
+                  : hiddenTabs.length === 1
+                    ? 'gba:grid-cols-3'
+                    : hiddenTabs.length === 2
+                      ? 'gba:grid-cols-2'
+                      : 'gba:grid-cols-1'
+              }`}
+              style={{ backgroundColor: 'transparent' }}
+            >
+              {!hiddenTabs.includes('overview') && <TabsTrigger value="overview">Overview</TabsTrigger>}
+              {!hiddenTabs.includes('workflow') && <TabsTrigger value="workflow">Definition</TabsTrigger>}
+              {!hiddenTabs.includes('data') && <TabsTrigger value="data">Data</TabsTrigger>}
+              {!hiddenTabs.includes('audit') && <TabsTrigger value="audit">Audit</TabsTrigger>}
             </TabsList>
           </div>
 
-          <div className="gba:flex-1 gba:overflow-auto gba:p-6">
+          <div
+            className="gba:flex-1 gba:overflow-auto"
+            style={{
+              backgroundColor: 'var(--color-surface-primary)',
+              padding: 'var(--spacing-6)',
+              paddingLeft: showBackButton ? 'var(--spacing-6)' : '0',
+              paddingRight: showBackButton ? 'var(--spacing-6)' : '0'
+            }}
+          >
             {!hiddenTabs.includes('overview') && (
               <TabsContent value="overview">
-                <OverviewTab 
-                  flowData={flowData}
-                  flowSteps={flowSteps}
-                />
+                <OverviewTab flowData={flowData} flowSteps={flowSteps} />
               </TabsContent>
             )}
 
             {!hiddenTabs.includes('workflow') && (
               <TabsContent value="workflow">
-                <WorkflowTab 
-                  flowSteps={flowSteps}
-                />
+                <WorkflowTab flowSteps={flowSteps} />
               </TabsContent>
             )}
 
             {!hiddenTabs.includes('data') && (
               <TabsContent value="data">
-                <DataTab 
-                  flowData={flowData}
-                  flowSteps={flowSteps}
-                  accessToken={accessToken}
-                />
+                <DataTab flowData={flowData} flowSteps={flowSteps} accessToken={accessToken} />
               </TabsContent>
             )}
 
             {!hiddenTabs.includes('audit') && (
               <TabsContent value="audit">
-                <AuditTab 
+                <AuditTab
                   flowId={flowId}
                   historyEvents={historyEvents}
                   historySummary={historySummary}
@@ -706,5 +715,5 @@ export const FlowDetailView: React.FC<FlowDetailViewProps> = ({
         </Tabs>
       </div>
     </div>
-  );
-};
+  )
+}

@@ -1,58 +1,30 @@
-import React, { useState, useCallback } from 'react';
-import {
-  Row,
-  Col,
-  Card,
-  Table,
-  Statistic,
-  Tag,
-  Space,
-  Typography,
-  Alert,
-  Input,
-  Select,
-  Button,
-  Tooltip,
-  Modal
-} from 'antd';
-import { 
-  PiPackage, 
-  PiShoppingCart, 
-  PiTag, 
-  PiCurrencyEur,
-  PiMagnifyingGlass,
-  PiArrowUp,
-  PiArrowDown,
-  PiMinus
-} from 'react-icons/pi';
-import {
-  EditOutlined,
-  DeleteOutlined,
-  PlusOutlined
-} from '@ant-design/icons';
-import { PageLayout } from '@/components/layout/pageLayout/PageLayout';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
-import dayjs from 'dayjs';
-import weekday from 'dayjs/plugin/weekday';
-import localeData from 'dayjs/plugin/localeData';
+import React, { useState, useCallback } from 'react'
+import { Row, Col, Card, Table, Statistic, Tag, Space, Typography, Alert, Select, Button, Tooltip, Modal } from 'antd'
+import { PiPackage, PiShoppingCart, PiTag, PiCurrencyEur, PiArrowUp, PiArrowDown, PiMinus } from 'react-icons/pi'
+import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
+import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
+import dayjs from 'dayjs'
+import weekday from 'dayjs/plugin/weekday'
+import localeData from 'dayjs/plugin/localeData'
 
-import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext';
-import { useProductData } from './hooks/useProductData';
-import { Product, ProductFilters } from './types';
-import ProductDetailView from '../product-detail-view/ProductDetailView';
-import ProductForm from '../../forms/product-form/ProductForm';
+import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
+import { useProductData } from './hooks/useProductData'
+import { Product, ProductFilters } from './types'
+import ProductDetailView from '../product-detail-view/ProductDetailView'
+import ProductForm from '../../forms/product-form/ProductForm'
 
 // Extend dayjs with plugins
-dayjs.extend(weekday);
-dayjs.extend(localeData);
+dayjs.extend(weekday)
+dayjs.extend(localeData)
 
-const { Title, Text } = Typography;
-const { Option } = Select;
+const { Title, Text } = Typography
+const { Option } = Select
 
 export interface ProductManagementOverviewProps extends BusinessAppContextProps {}
 
-const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = (props) => {
-  const { accessToken, userInfo, additionalData } = props;
+const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = props => {
+  const { accessToken, userInfo, additionalData } = props
 
   // Early return if no accessToken is provided
   if (!accessToken) {
@@ -65,17 +37,17 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = (pro
           showIcon
         />
       </div>
-    );
+    )
   }
 
   // State for selected product and view mode
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [showDetailView, setShowDetailView] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
+  const [showDetailView, setShowDetailView] = useState(false)
 
   // State for product form modal
-  const [isProductFormModalOpen, setIsProductFormModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [isNewProduct, setIsNewProduct] = useState(true);
+  const [isProductFormModalOpen, setIsProductFormModalOpen] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [isNewProduct, setIsNewProduct] = useState(true)
 
   // Hooks
   const {
@@ -89,80 +61,95 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = (pro
     setFilters,
     setPagination,
     refreshData
-  } = useProductData({ accessToken });
+  } = useProductData({ accessToken })
 
   // Handle search
-  const handleSearch = useCallback((searchValue: string) => {
-    setFilters({ ...filters, search: searchValue });
-    setPagination({ ...pagination, page: 1 });
-  }, [filters, pagination, setFilters, setPagination]);
+  const handleSearch = useCallback(
+    (searchValue: string) => {
+      setFilters({ ...filters, search: searchValue })
+      setPagination({ ...pagination, page: 1 })
+    },
+    [filters, pagination, setFilters, setPagination]
+  )
 
   // Handle filter changes
-  const handleFilterChange = useCallback((key: keyof ProductFilters, value: any) => {
-    setFilters({ ...filters, [key]: value });
-    setPagination({ ...pagination, page: 1 });
-  }, [filters, pagination, setFilters, setPagination]);
+  const handleFilterChange = useCallback(
+    (key: keyof ProductFilters, value: any) => {
+      setFilters({ ...filters, [key]: value })
+      setPagination({ ...pagination, page: 1 })
+    },
+    [filters, pagination, setFilters, setPagination]
+  )
 
   // Handle table pagination
-  const handleTableChange = useCallback((page: number, pageSize: number) => {
-    setPagination({ ...pagination, page, pageSize });
-  }, [pagination, setPagination]);
+  const handleTableChange = useCallback(
+    (page: number, pageSize: number) => {
+      setPagination({ ...pagination, page, pageSize })
+    },
+    [pagination, setPagination]
+  )
 
   // Handle row click
   const handleRowClick = useCallback((product: Product) => {
-    setSelectedProductId(product.id);
-    setShowDetailView(true);
-  }, []);
+    setSelectedProductId(product.id)
+    setShowDetailView(true)
+  }, [])
 
   // Handle back from detail view
   const handleBackFromDetail = useCallback(() => {
-    setShowDetailView(false);
-    setSelectedProductId(null);
-  }, []);
+    setShowDetailView(false)
+    setSelectedProductId(null)
+  }, [])
 
   // Handle product form modal
   const handleOpenCreateProductModal = useCallback(() => {
-    setIsNewProduct(true);
-    setEditingProduct(null);
-    setIsProductFormModalOpen(true);
-  }, []);
+    setIsNewProduct(true)
+    setEditingProduct(null)
+    setIsProductFormModalOpen(true)
+  }, [])
 
   const handleOpenEditProductModal = useCallback((product: Product) => {
-    setIsNewProduct(false);
-    setEditingProduct(product);
-    setIsProductFormModalOpen(true);
-  }, []);
+    setIsNewProduct(false)
+    setEditingProduct(product)
+    setIsProductFormModalOpen(true)
+  }, [])
 
   const handleCloseProductFormModal = useCallback(() => {
-    setIsProductFormModalOpen(false);
-    setEditingProduct(null);
-    setIsNewProduct(true);
-  }, []);
+    setIsProductFormModalOpen(false)
+    setEditingProduct(null)
+    setIsNewProduct(true)
+  }, [])
 
-  const handleProductFormSuccess = useCallback((productId: string) => {
-    setIsProductFormModalOpen(false);
-    setEditingProduct(null);
-    setIsNewProduct(true);
-    // Refresh the data
-    refreshData();
-  }, [refreshData]);
+  const handleProductFormSuccess = useCallback(
+    (productId: string) => {
+      setIsProductFormModalOpen(false)
+      setEditingProduct(null)
+      setIsNewProduct(true)
+      // Refresh the data
+      refreshData()
+    },
+    [refreshData]
+  )
 
   // Handle product deletion
-  const handleDeleteProduct = useCallback((product: Product) => {
-    Modal.confirm({
-      title: 'Delete Product',
-      content: `Are you sure you want to delete "${product.name}"? This action cannot be undone.`,
-      okText: 'Delete',
-      okType: 'danger',
-      cancelText: 'Cancel',
-      onOk: () => {
-        // TODO: Implement actual delete functionality when API is available
-        console.log('Delete product:', product.id);
-        // For now, just refresh the data to simulate deletion
-        refreshData();
-      },
-    });
-  }, [refreshData]);
+  const handleDeleteProduct = useCallback(
+    (product: Product) => {
+      Modal.confirm({
+        title: 'Delete Product',
+        content: `Are you sure you want to delete "${product.name}"? This action cannot be undone.`,
+        okText: 'Delete',
+        okType: 'danger',
+        cancelText: 'Cancel',
+        onOk: () => {
+          // TODO: Implement actual delete functionality when API is available
+          console.log('Delete product:', product.id)
+          // For now, just refresh the data to simulate deletion
+          refreshData()
+        }
+      })
+    },
+    [refreshData]
+  )
 
   // Format currency
   const formatCurrency = (amount: number, currency: string = 'EUR') => {
@@ -170,33 +157,38 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = (pro
       style: 'currency',
       currency: currency,
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
+      maximumFractionDigits: 2
+    }).format(amount)
+  }
 
   // Format date
   const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
-    return dayjs(dateString).format('MMM D, YYYY');
-  };
+    if (!dateString) return 'N/A'
+    return dayjs(dateString).format('MMM D, YYYY')
+  }
 
   // Get trend icon
   const getTrendIcon = (trend: number) => {
-    if (trend > 0) return <PiArrowUp className="gba:text-green-500" />;
-    if (trend < 0) return <PiArrowDown className="gba:text-red-500" />;
-    return <PiMinus className="gba:text-gray-400" />;
-  };
+    if (trend > 0) return <PiArrowUp className="gba:text-green-500" />
+    if (trend < 0) return <PiArrowDown className="gba:text-red-500" />
+    return <PiMinus className="gba:text-gray-400" />
+  }
 
   // Get status color
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'active': return 'green';
-      case 'inactive': return 'red';
-      case 'draft': return 'orange';
-      case 'discontinued': return 'gray';
-      default: return 'default';
+      case 'active':
+        return 'green'
+      case 'inactive':
+        return 'red'
+      case 'draft':
+        return 'orange'
+      case 'discontinued':
+        return 'gray'
+      default:
+        return 'default'
     }
-  };
+  }
 
   // Table columns
   const columns = [
@@ -212,9 +204,9 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = (pro
               type="text"
               size="small"
               icon={<EditOutlined />}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenEditProductModal(record);
+              onClick={e => {
+                e.stopPropagation()
+                handleOpenEditProductModal(record)
               }}
               data-testid={`product-edit-button-${record.id}`}
             />
@@ -225,15 +217,15 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = (pro
               size="small"
               danger
               icon={<DeleteOutlined />}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteProduct(record);
+              onClick={e => {
+                e.stopPropagation()
+                handleDeleteProduct(record)
               }}
               data-testid={`product-delete-button-${record.id}`}
             />
           </Tooltip>
         </Space>
-      ),
+      )
     },
     {
       title: 'Product Number',
@@ -241,7 +233,9 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = (pro
       key: 'productNumber',
       width: 150,
       render: (text: string) => (
-        <Text strong className="gba:text-blue-600">{text}</Text>
+        <Text strong className="gba:text-blue-600">
+          {text}
+        </Text>
       )
     },
     {
@@ -249,27 +243,21 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = (pro
       dataIndex: 'name',
       key: 'name',
       width: 250,
-      render: (text: string) => (
-        <Text className="gba:font-medium">{text}</Text>
-      )
+      render: (text: string) => <Text className="gba:font-medium">{text}</Text>
     },
     {
       title: 'Type',
       dataIndex: 'productTypeCode',
       key: 'productTypeCode',
       width: 120,
-      render: (type: string) => (
-        <Tag color="blue">{type || 'N/A'}</Tag>
-      )
+      render: (type: string) => <Tag color="blue">{type || 'N/A'}</Tag>
     },
     {
       title: 'Status',
       dataIndex: 'stateCode',
       key: 'stateCode',
       width: 100,
-      render: (status: string) => (
-        <Tag color={getStatusColor(status)}>{status || 'N/A'}</Tag>
-      )
+      render: (status: string) => <Tag color={getStatusColor(status)}>{status || 'N/A'}</Tag>
     },
     {
       title: 'Price',
@@ -277,11 +265,7 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = (pro
       key: 'price',
       width: 120,
       align: 'right' as const,
-      render: (price: number) => (
-        <Text className="gba:font-medium">
-          {price ? formatCurrency(price) : 'N/A'}
-        </Text>
-      )
+      render: (price: number) => <Text className="gba:font-medium">{price ? formatCurrency(price) : 'N/A'}</Text>
     },
     {
       title: 'Stock',
@@ -289,31 +273,23 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = (pro
       key: 'quantityOnHand',
       width: 100,
       align: 'right' as const,
-      render: (quantity: number, record: Product) => (
-        <Text>
-          {record.isStockItem ? (quantity || 0) : 'N/A'}
-        </Text>
-      )
+      render: (quantity: number, record: Product) => <Text>{record.isStockItem ? quantity || 0 : 'N/A'}</Text>
     },
     {
       title: 'Supplier',
       dataIndex: 'supplierName',
       key: 'supplierName',
       width: 180,
-      render: (supplier: string) => (
-        <Text>{supplier || 'N/A'}</Text>
-      )
+      render: (supplier: string) => <Text>{supplier || 'N/A'}</Text>
     },
     {
       title: 'Updated',
       dataIndex: 'updatedAt',
       key: 'updatedAt',
       width: 120,
-      render: (date: string) => (
-        <Text className="gba:text-gray-500">{formatDate(date)}</Text>
-      )
+      render: (date: string) => <Text className="gba:text-gray-500">{formatDate(date)}</Text>
     }
-  ];
+  ]
 
   // Show detail view if a product is selected
   if (showDetailView && selectedProductId) {
@@ -325,7 +301,7 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = (pro
         productId={selectedProductId}
         onBack={handleBackFromDetail}
       />
-    );
+    )
   }
 
   return (
@@ -433,7 +409,7 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = (pro
                 <Select
                   placeholder="Product Type"
                   value={filters.productType}
-                  onChange={(value) => handleFilterChange('productType', value)}
+                  onChange={value => handleFilterChange('productType', value)}
                   allowClear
                   className="gba:w-full"
                   data-testid="product-type-filter"
@@ -449,7 +425,7 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = (pro
                 <Select
                   placeholder="Status"
                   value={filters.stateCode}
-                  onChange={(value) => handleFilterChange('stateCode', value)}
+                  onChange={value => handleFilterChange('stateCode', value)}
                   allowClear
                   className="gba:w-full"
                   data-testid="status-filter"
@@ -461,12 +437,7 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = (pro
                 </Select>
               </Col>
               <Col xs={24} sm={12} md={4}>
-                <Button
-                  onClick={refreshData}
-                  loading={loading}
-                  className="gba:w-full"
-                  data-testid="refresh-button"
-                >
+                <Button onClick={refreshData} loading={loading} className="gba:w-full" data-testid="refresh-button">
                   Refresh
                 </Button>
               </Col>
@@ -486,12 +457,11 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = (pro
                 total: pagination.total,
                 showSizeChanger: true,
                 showQuickJumper: true,
-                showTotal: (total, range) => 
-                  `${range[0]}-${range[1]} of ${total} products`,
+                showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} products`,
                 onChange: handleTableChange,
                 onShowSizeChange: handleTableChange
               }}
-              onRow={(record) => ({
+              onRow={record => ({
                 onClick: () => handleRowClick(record),
                 className: selectedProductId === record.id ? 'gba:bg-blue-50' : '',
                 style: { cursor: 'pointer' },
@@ -504,7 +474,7 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = (pro
 
           {/* Product Form Modal */}
           <Modal
-            title={isNewProduct ? "Create New Product" : "Edit Product"}
+            title={isNewProduct ? 'Create New Product' : 'Edit Product'}
             open={isProductFormModalOpen}
             onCancel={handleCloseProductFormModal}
             footer={null}
@@ -527,7 +497,7 @@ const ProductManagementOverview: React.FC<ProductManagementOverviewProps> = (pro
         </div>
       }
     />
-  );
-};
+  )
+}
 
-export default ProductManagementOverview;
+export default ProductManagementOverview

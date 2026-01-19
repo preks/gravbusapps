@@ -1,7 +1,7 @@
 // GraphQL query for fetching expense plan record data
 
 export const getExpensePlanRecordQuery = `
-    query MyQuery($expensePlanId:uuid!){
+    query MyQuery($expensePlanId:uuid!, $activeUserLocale:String!){
       expensePlan:ExpensePlanByPk(id:$expensePlanId){
         code
         title
@@ -24,11 +24,15 @@ export const getExpensePlanRecordQuery = `
         }
         status
         employee{
-          fullName
-        pictureThumbnail
-        employeePosition{
+         fullName
+         firstName
+         lastName
+         pictureThumbnail
+         employeePosition{
             supervisor{
               fullName
+              firstName   
+              lastName
             }
           }
         }
@@ -43,24 +47,40 @@ export const getExpensePlanRecordQuery = `
         }
         expensePlanComment(orderBy:{commentDate:ASC}){
           comment
-          commentDate
+          commentDate   
           commentType
+          authorEmployee{   
+            fullName  
+            firstName
+            lastName
+            pictureThumbnail
+          }
         }
         expensePlanItem(orderBy:{expenseDate:ASC,code:ASC}){
           code
           title
+          currency {
+           code
+          }
           expenseGroup{
             value
+            translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+              localeCode
+              value
+            }
           }
           expenseClass{
-            value
+            value 
+            translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+              localeCode
+              value
+            }
           }
           expenseDate
           totalAmount
           reimbursableAmount
           nonDeductibleAmount
           deductibleAmount
-          nonDeductibleAmount
           
         }
         expenseAllowance(orderBy:{allowanceOrder:ASC,allowanceDate:ASC}){
@@ -85,12 +105,33 @@ export const getExpensePlanRecordQuery = `
           pointType
           country{
             value
+            translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+              localeCode
+              value
+            }
           }
           travelRegion{
             value
+            translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+              localeCode
+              value
+            }
           }
         }
         advancePayment(orderBy:{decisionDate:ASC}){
+        advancePaymentComment{
+            id
+            commentType
+            commentDate
+            comment
+            authorEmployee {
+              id    
+              firstName
+              lastName
+              fullName
+              pictureThumbnail
+            } 
+          }
           code
           description
           decisionDate
@@ -106,9 +147,10 @@ export const getExpensePlanRecordQuery = `
           transactionConfirmedByEmployee{
             fullName
           }
+          
         }
       }
     }
-`;
+`
 
-export default getExpensePlanRecordQuery;
+export default getExpensePlanRecordQuery

@@ -2,11 +2,11 @@
 // Run these tests BEFORE and AFTER NW Design System migration
 
 export interface ActionButtonTest {
-  testId: string;
-  description: string;
-  selector: string;
-  expectedPayload: any;
-  verify: () => boolean;
+  testId: string
+  description: string
+  selector: string
+  expectedPayload: any
+  verify: () => boolean
 }
 
 // Test suite for personal expenses action buttons
@@ -25,7 +25,7 @@ export const personalExpensesActionTests: ActionButtonTest[] = [
     },
     verify: () => {
       // Check if process event was dispatched with correct payload
-      return true; // Implementation needed
+      return true // Implementation needed
     }
   },
   {
@@ -40,7 +40,7 @@ export const personalExpensesActionTests: ActionButtonTest[] = [
       }
     },
     verify: () => {
-      return true; // Implementation needed
+      return true // Implementation needed
     }
   },
   {
@@ -55,10 +55,10 @@ export const personalExpensesActionTests: ActionButtonTest[] = [
       }
     },
     verify: () => {
-      return true; // Implementation needed
+      return true // Implementation needed
     }
   }
-];
+]
 
 // Pre-migration snapshot
 export const captureActionButtonSnapshot = () => {
@@ -67,43 +67,45 @@ export const captureActionButtonSnapshot = () => {
     actionButtons: [],
     processEvents: [],
     dataTestIds: []
-  };
+  }
 
   // Capture all action buttons and their data-testids
-  const buttons = document.querySelectorAll('[data-testid*="actions-"], [data-testid*="add-"], [data-testid*="update-"]');
-  
+  const buttons = document.querySelectorAll(
+    '[data-testid*="actions-"], [data-testid*="add-"], [data-testid*="update-"]'
+  )
+
   buttons.forEach(button => {
     snapshot.actionButtons.push({
       testId: button.getAttribute('data-testid'),
       className: button.className,
       text: button.textContent,
       parentComponent: button.closest('[data-testid]')?.getAttribute('data-testid')
-    });
-  });
+    })
+  })
 
-  console.log('📸 Action Button Snapshot Captured:', snapshot);
-  return snapshot;
-};
+  console.log('📸 Action Button Snapshot Captured:', snapshot)
+  return snapshot
+}
 
 // Verify migration didn't break anything
 export const verifyMigration = (preSnapshot: any) => {
-  const postSnapshot = captureActionButtonSnapshot();
-  
-  const issues = [];
-  
+  const postSnapshot = captureActionButtonSnapshot()
+
+  const issues = []
+
   // Check if all data-testids are preserved
   preSnapshot.actionButtons.forEach((preButton: any) => {
-    const postButton = postSnapshot.actionButtons.find((b: any) => b.testId === preButton.testId);
+    const postButton = postSnapshot.actionButtons.find((b: any) => b.testId === preButton.testId)
     if (!postButton) {
-      issues.push(`❌ Missing data-testid: ${preButton.testId}`);
+      issues.push(`❌ Missing data-testid: ${preButton.testId}`)
     }
-  });
+  })
 
   if (issues.length === 0) {
-    console.log('✅ Migration verification passed!');
+    console.log('✅ Migration verification passed!')
   } else {
-    console.error('❌ Migration issues found:', issues);
+    console.error('❌ Migration issues found:', issues)
   }
 
-  return issues;
-}; 
+  return issues
+}

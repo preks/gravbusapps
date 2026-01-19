@@ -1,31 +1,41 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Typography, Pagination } from 'antd';
-import { useExpenseRequestWizardContext } from '../context/ExpenseRequestWizardContext';
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { BusinessAppContextProps } from '@/business-apps/types';
-import AllowanceContainer from '../components/AllowanceContainer';
-import { CostCenter } from '../utils/types';
-import { getTravelRegionsAndUser, getUserCostCenters, getUserProjects, getAllowanceData } from '../ExpenseRequestWizardQueries';
-import { DEDUCTIONS_TYPES_ENUM, DEDUCTION_KEYS } from '../constants/constants';
-import { getAllowanceItemsFunction } from '../utils/itemsScreenUtils';
-import { createAllowanceScreenLogObject } from '../utils/allowanceScreenUtils';
-import { EVENTS } from '../../../utils/constants';
-import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
-import { showToast } from '../../../utils/notificationUtils';
+import React, { useState, useEffect, useMemo } from 'react'
+import { Typography, Pagination } from 'antd'
+import { useExpenseRequestWizardContext } from '../context/ExpenseRequestWizardContext'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { BusinessAppContextProps } from '@/business-apps/types'
+import AllowanceContainer from '../components/AllowanceContainer'
+import { CostCenter } from '../utils/types'
+import {
+  getTravelRegionsAndUser,
+  getUserCostCenters,
+  getUserProjects,
+  getAllowanceData
+} from '../ExpenseRequestWizardQueries'
+import {
+  DEDUCTIONS_TYPES_ENUM,
+  DEDUCTIONS_TYPES_ENUM_V2,
+  DEDUCTION_KEYS,
+  DEFAULT_ITEM_LIST_LIMIT
+} from '../constants/constants'
+import { getAllowanceItemsFunction } from '../utils/itemsScreenUtils'
+import { createAllowanceScreenLogObject } from '../utils/allowanceScreenUtils'
+import { EVENTS } from '../../../utils/constants'
+import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
+import { showToast } from '../../../utils/notificationUtils'
 
-const { Title } = Typography;
+const { Title } = Typography
 
 /**
  * AllowanceScreen component props
  */
 interface AllowanceScreenProps extends BusinessAppContextProps {
-  additionalData?: { 
+  additionalData?: {
     mdi_modulePayload?: {
-      tripData?: any;
-    };
-    [key: string]: any;
-  };
+      tripData?: any
+    }
+    [key: string]: any
+  }
 }
 
 /**
@@ -33,307 +43,337 @@ interface AllowanceScreenProps extends BusinessAppContextProps {
  * @param props - Component props
  * @returns AllowanceScreen component
  */
-const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
-  const { accessToken, userInfo, additionalData } = props;
-  const graphQLClient = useGraphqlClient(accessToken);
-  const { 
-    employeeRuleId, 
-    expenseRequestData, 
-    currentTitle,
-    updateTripFormValidation
-  } = useExpenseRequestWizardContext();
-  
-  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(props.additionalData);
-  
-  const [, setTravelRegionsData] = useState<any>(null);
-  const [, setCostCentersData] = useState<any>(null);
-  const [deductionsData, setDeductionsData] = useState<any[]>([]);
-  const [visibleDeductionKeys, setVisibleDeductionKeys] = useState<string[]>([]);
-  const [hasDeductions, setHasDeductions] = useState<boolean>(false);
-  const [defaultCostCenter, setDefaultCostCenter] = useState<string>("");
-  const [defaultProject, setDefaultProject] = useState<string>("");
-  const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
-  const [listDataArray, setListDataArray] = useState<any[]>([]);
-  const [collapsedStates, setCollapsedStates] = useState<Record<number, boolean>>({});
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [structureIdArray, setStructureIdArray] = useState<string[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
-  const itemListLimit = 3;
-  
+const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
+  const { accessToken, userInfo, additionalData } = props
+  const graphQLClient = useGraphqlClient(accessToken)
+  const { employeeRuleId, expenseRequestData, currentTitle, updateTripFormValidation } =
+    useExpenseRequestWizardContext()
+
+  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(props.additionalData)
+
+  const [, setTravelRegionsData] = useState<any>(null)
+  const [, setCostCentersData] = useState<any>(null)
+  const [deductionsData, setDeductionsData] = useState<any[]>([])
+  const [visibleDeductionKeys, setVisibleDeductionKeys] = useState<string[]>([])
+  const [hasDeductions, setHasDeductions] = useState<boolean>(false)
+  const [defaultCostCenter, setDefaultCostCenter] = useState<string>('')
+  const [defaultProject, setDefaultProject] = useState<string>('')
+  const [costCenters, setCostCenters] = useState<CostCenter[]>([])
+  const [listDataArray, setListDataArray] = useState<any[]>([])
+  const [collapsedStates, setCollapsedStates] = useState<Record<number, boolean>>({})
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const [structureIdArray, setStructureIdArray] = useState<string[]>([])
+  const [projects, setProjects] = useState<any[]>([])
+  const itemListLimit = DEFAULT_ITEM_LIST_LIMIT
+
   useEffect(() => {
     const fetchTravelRegionsAndCostCenters = async () => {
-      if (!employeeRuleId) return;
-      
+      if (!employeeRuleId) return
+
       try {
-        const employeeIdValue = userInfo?.employeeDetails?.employeeId;
+        const employeeIdValue = userInfo?.employeeDetails?.employeeId
         const locale = getCurrentActiveUserLocale()
         const travelRegionsResponse = await graphQLClient.request(getTravelRegionsAndUser, {
           expenseRuleId: employeeRuleId,
           employeeId: employeeIdValue,
           activeUserLocale: locale
-        });
-        setTravelRegionsData(travelRegionsResponse);
-        if (travelRegionsResponse?.EmployeePosition && 
-            travelRegionsResponse.EmployeePosition.length > 0 && 
-            travelRegionsResponse.EmployeePosition[0].structureId) {
-          
-          const structureId = travelRegionsResponse.EmployeePosition[0].structureId;
-          
+        })
+        setTravelRegionsData(travelRegionsResponse)
+        if (
+          travelRegionsResponse?.EmployeePosition &&
+          travelRegionsResponse.EmployeePosition.length > 0 &&
+          travelRegionsResponse.EmployeePosition[0].structureId
+        ) {
+          const structureId = travelRegionsResponse.EmployeePosition[0].structureId
+
           const costCentersResponse = await graphQLClient.request(getUserCostCenters, {
             structureId
-          });
-          
-          setCostCentersData(costCentersResponse);
+          })
+
+          setCostCentersData(costCentersResponse)
           if (travelRegionsResponse.EmployeePosition[0].costCenterId) {
-            setDefaultCostCenter(travelRegionsResponse.EmployeePosition[0].costCenterId || "");
-          } 
-          if (costCentersResponse?.userCostCenters && 
-                     costCentersResponse.userCostCenters.length > 0) {
-                      setDefaultCostCenter(travelRegionsResponse.EmployeePosition[0].costCenterId || "");
+            setDefaultCostCenter(travelRegionsResponse.EmployeePosition[0].costCenterId || '')
+          }
+          if (costCentersResponse?.userCostCenters && costCentersResponse.userCostCenters.length > 0) {
+            setDefaultCostCenter(travelRegionsResponse.EmployeePosition[0].costCenterId || '')
             const formattedCostCenters = costCentersResponse.userCostCenters.map((cc: any) => ({
               id: cc.id || cc,
-              name: cc.name || "",
+              name: cc.name || '',
               structureId: cc.structureId || ''
-            }));
-            setCostCenters(formattedCostCenters);
+            }))
+            setCostCenters(formattedCostCenters)
           }
         }
-      } catch (error) {
+      } catch {
         showToast(
-          getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.error_fetch_regions_cost_centers",
-          "Error fetching travel regions and cost centers"),
-          "error")
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:modify_expense_request.error_fetch_regions_cost_centers',
+            'Error fetching travel regions and cost centers'
+          ),
+          'error'
+        )
       }
-    };
-    
-    fetchTravelRegionsAndCostCenters();
-  }, [employeeRuleId, graphQLClient, userInfo?.employeeDetails?.employeeId]);
+    }
+
+    fetchTravelRegionsAndCostCenters()
+  }, [employeeRuleId, graphQLClient, userInfo?.employeeDetails?.employeeId])
 
   useEffect(() => {
     const fetchAllowanceData = async () => {
-      if (!expenseRequestData?.ExpenseRequestByPk) return;
+      if (!expenseRequestData?.ExpenseRequestByPk) return
       try {
-        const employeeIdValue = userInfo?.employeeDetails?.employeeId;
+        const employeeIdValue = userInfo?.employeeDetails?.employeeId
         const response = await graphQLClient.request(getAllowanceData, {
           employeeId: employeeIdValue,
           expenseRequestId: additionalData?.psi_taskPayload?.expenseRequest?.id,
           expenseRequestRuleId: expenseRequestData?.ExpenseRequestByPk?.expenseRuleId
-        });
-        const setup = Array.isArray(response?.ExpenseRuleAllowanceSetup) ? response.ExpenseRuleAllowanceSetup : [];
-        const issues = new Set<string>(setup.map((s: any) => s.issue).filter(Boolean));
-        const keys: string[] = [];
-        if (issues.has(DEDUCTIONS_TYPES_ENUM.BREAKFAST)) keys.push(DEDUCTION_KEYS.BREAKFAST);
-        if (issues.has(DEDUCTIONS_TYPES_ENUM.LUNCH)) keys.push(DEDUCTION_KEYS.LUNCH);
-        if (issues.has(DEDUCTIONS_TYPES_ENUM.DINNER)) keys.push(DEDUCTION_KEYS.DINNER);
-        if (issues.has(DEDUCTIONS_TYPES_ENUM.OVERNIGHT)) keys.push(DEDUCTION_KEYS.OVERNIGHT);
-        setVisibleDeductionKeys(keys);
+        })
+        const setup = Array.isArray(response?.ExpenseRuleAllowanceSetup) ? response.ExpenseRuleAllowanceSetup : []
+        const issues = new Set<string>(setup.map((s: any) => s.issue).filter(Boolean))
+        const keys: string[] = []
+        if (issues.has(DEDUCTIONS_TYPES_ENUM.BREAKFAST) || issues.has(DEDUCTIONS_TYPES_ENUM_V2.BREAKFAST))
+          keys.push(DEDUCTION_KEYS.BREAKFAST)
+        if (issues.has(DEDUCTIONS_TYPES_ENUM.LUNCH) || issues.has(DEDUCTIONS_TYPES_ENUM_V2.LUNCH))
+          keys.push(DEDUCTION_KEYS.LUNCH)
+        if (issues.has(DEDUCTIONS_TYPES_ENUM.DINNER) || issues.has(DEDUCTIONS_TYPES_ENUM_V2.DINNER))
+          keys.push(DEDUCTION_KEYS.DINNER)
+        if (issues.has(DEDUCTIONS_TYPES_ENUM.OVERNIGHT) || issues.has(DEDUCTIONS_TYPES_ENUM_V2.OVERNIGHT))
+          keys.push(DEDUCTION_KEYS.OVERNIGHT)
+        setVisibleDeductionKeys(keys)
         if (keys.length === 0) {
-          setDeductionsData([]);
+          setDeductionsData([])
         } else {
-          setDeductionsData(response.TravelBreakdown || []);
+          setDeductionsData(response.TravelBreakdown || [])
         }
-      } catch (error) {
+      } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel(
-            "lowcoder:modify_expense_request.error_fetch_regions_cost_centers",
-            "Error fetching travel regions and cost centers"
+            'lowcoder:modify_expense_request.error_fetch_regions_cost_centers',
+            'Error fetching travel regions and cost centers'
           ),
-          "error"
-        );
+          'error'
+        )
       }
-    };
-    fetchAllowanceData();
-  }, [expenseRequestData]);
+    }
+    fetchAllowanceData()
+  }, [expenseRequestData])
   useEffect(() => {
     // Determine if deductions exist
-    const anyDeductions = Array.isArray(deductionsData) && deductionsData.length > 0;
-    setHasDeductions(anyDeductions);
-  }, [deductionsData]);
-  
+    const anyDeductions = Array.isArray(deductionsData) && deductionsData.length > 0
+    setHasDeductions(anyDeductions)
+  }, [deductionsData])
+
   useEffect(() => {
-    if (!expenseRequestData?.ExpenseRequestByPk) return;
-    
-    const requestProject = expenseRequestData.ExpenseRequestByPk;
-    const allowanceData = getAllowanceItemsFunction(expenseRequestData.ExpenseItem);
-    const tripData = requestProject.ExpenseItem?.expenseRequestTrip || [];
-    
+    if (!expenseRequestData?.ExpenseRequestByPk) return
+
+    const requestProject = expenseRequestData.ExpenseRequestByPk
+    const allowanceData = getAllowanceItemsFunction(expenseRequestData.ExpenseItem)
+    const tripData = requestProject.ExpenseItem?.expenseRequestTrip || []
+
     // Set default project if it exists in the expense request
     if (requestProject.project) {
-      setDefaultProject(requestProject.project.id || "");
+      setDefaultProject(requestProject.project.id || '')
     }
-    
+
     const getDeductionForDate = (date: string) => {
-      const match = (deductionsData || []).find((d: any) => d.expenseDate === date);
-      return match ? {
-        id: match.id,
-        version: match.version,
-        deductionDay: null,
-        breakfast: match.breakfast,
-        lunch: match.lunch,
-        dinner: match.dinner,
-        overnight: match.overnight
-      } : null;
-    };
+      const match = (deductionsData || []).find((d: any) => d.expenseDate === date)
+      return match
+        ? {
+            id: match.id,
+            version: match.version,
+            deductionDay: null,
+            breakfast: match.breakfast,
+            lunch: match.lunch,
+            dinner: match.dinner,
+            overnight: match.overnight
+          }
+        : null
+    }
 
     const getDeductionByDate = (date: string) => {
-      return (arrDeductions || []).find((d: any) => d.expenseDate === date) || null;
-    };
-
-    const arrDeductions = (allowanceData || []).map((item: any) => {
-      const deduction = getDeductionForDate(item.expenseDate);
-      return deduction ? {
-        expenseDate: item.expenseDate,
-        ...deduction
-      } : null;
-    }).filter(Boolean) as any[];
-
-    const processedData = allowanceData.map((element) => {
-      let updatedElement = { ...element };
-      
-      // Set default cost center for all allowances if it exists
-      if (!updatedElement.costCenterId && defaultCostCenter) {
-        updatedElement.costCenterId = defaultCostCenter;
-      }
-      
-      // Set default project for all allowances if it exists
-      if (!updatedElement.projectId && requestProject.project) {
-        updatedElement.projectId = requestProject.project.id || "";
-      }
-      
-      if (!updatedElement.projectId && requestProject && updatedElement.expenseDate && requestProject.validTo && 
-          updatedElement.expenseDate <= requestProject.validTo) {
-        updatedElement.projectId = requestProject.id || "";
-      }
-      
-      const tripMatch = tripData.find((trip: any) => trip.tripOrder === element.itemOrder);
-      updatedElement.travelRegionRef = tripMatch ? tripMatch.travelRegionRef : null;
-      
-      const allowanceRegionRuleDetailMatch = tripData.find((trip: any) => trip.tripOrder === element.itemOrder);
-      updatedElement.allowanceRegionRuleDetailId = (allowanceRegionRuleDetailMatch && allowanceRegionRuleDetailMatch.allowanceRegionRuleDetailId) 
-        ? allowanceRegionRuleDetailMatch.allowanceRegionRuleDetailId 
-        : null;
-      
-      // Attach deductionDay if hasDeductions is true; ensure all flags exist and default to false
-      if (hasDeductions) {
-        const dd = getDeductionByDate(updatedElement.expenseDate);
-        if (dd) {
-          updatedElement.deductionDay = {
-            id: dd.id ?? null,
-            version: dd.version ?? 0,
-            deductionDay: null,
-            breakfast: !!dd.breakfast,
-            lunch: !!dd.lunch,
-            dinner: !!dd.dinner,
-            overnight: !!dd.overnight
-          };
-        } else {
-          updatedElement.deductionDay = {
-            id: null,
-            version: 0,
-            deductionDay: null,
-            breakfast: false,
-            lunch: false,
-            dinner: false,
-            overnight: false
-          };
-        }
-      } else {
-        updatedElement.deductionDay = null;
-      }
-      return updatedElement;
-    }).sort((a:any, b:any) => {
-      const positionA = a.itemOrder ?? 0;
-      const positionB = b.itemOrder ?? 0;
-      return positionA - positionB;
-  })
-    setListDataArray(processedData);
-    
-    const initialCollapsedStates: Record<number, boolean> = {};
-    processedData.forEach((_, index) => {
-      initialCollapsedStates[index] = false;
-    });
-    setCollapsedStates(initialCollapsedStates);
-    
-    if (costCenters.length > 0) {
-      updateStructureIdArrayFromListData(processedData);
+      return (arrDeductions || []).find((d: any) => d.expenseDate === date) || null
     }
-    
-  }, [expenseRequestData, defaultCostCenter, deductionsData, hasDeductions]);
-  
+
+    const arrDeductions = (allowanceData || [])
+      .map((item: any) => {
+        const deduction = getDeductionForDate(item.expenseDate)
+        return deduction
+          ? {
+              expenseDate: item.expenseDate,
+              ...deduction
+            }
+          : null
+      })
+      .filter(Boolean) as any[]
+
+    const processedData = allowanceData
+      .map(element => {
+        const updatedElement = { ...element }
+
+        // Set default cost center for all allowances if it exists
+        if (!updatedElement.costCenterId && defaultCostCenter) {
+          updatedElement.costCenterId = defaultCostCenter
+        }
+
+        // Set default project for all allowances if it exists
+        if (!updatedElement.projectId && requestProject.project) {
+          updatedElement.projectId = requestProject.project.id || ''
+        }
+
+        if (
+          !updatedElement.projectId &&
+          requestProject &&
+          updatedElement.expenseDate &&
+          requestProject.validTo &&
+          updatedElement.expenseDate <= requestProject.validTo
+        ) {
+          updatedElement.projectId = requestProject.id || ''
+        }
+
+        const tripMatch = tripData.find((trip: any) => trip.tripOrder === element.itemOrder)
+        updatedElement.travelRegionRef = tripMatch ? tripMatch.travelRegionRef : null
+
+        const allowanceRegionRuleDetailMatch = tripData.find((trip: any) => trip.tripOrder === element.itemOrder)
+        updatedElement.allowanceRegionRuleDetailId =
+          allowanceRegionRuleDetailMatch && allowanceRegionRuleDetailMatch.allowanceRegionRuleDetailId
+            ? allowanceRegionRuleDetailMatch.allowanceRegionRuleDetailId
+            : null
+
+        // Attach deductionDay if hasDeductions is true; ensure all flags exist and default to false
+        if (hasDeductions) {
+          const dd = getDeductionByDate(updatedElement.expenseDate)
+          if (dd) {
+            updatedElement.deductionDay = {
+              id: dd.id ?? null,
+              version: dd.version ?? 0,
+              deductionDay: null,
+              breakfast: !!dd.breakfast,
+              lunch: !!dd.lunch,
+              dinner: !!dd.dinner,
+              overnight: !!dd.overnight
+            }
+            const initialDeductions: string[] = []
+            if (dd.breakfast && visibleDeductionKeys.includes(DEDUCTION_KEYS.BREAKFAST))
+              initialDeductions.push(DEDUCTION_KEYS.BREAKFAST)
+            if (dd.lunch && visibleDeductionKeys.includes(DEDUCTION_KEYS.LUNCH))
+              initialDeductions.push(DEDUCTION_KEYS.LUNCH)
+            if (dd.dinner && visibleDeductionKeys.includes(DEDUCTION_KEYS.DINNER))
+              initialDeductions.push(DEDUCTION_KEYS.DINNER)
+            if (dd.overnight && visibleDeductionKeys.includes(DEDUCTION_KEYS.OVERNIGHT))
+              initialDeductions.push(DEDUCTION_KEYS.OVERNIGHT)
+            updatedElement.deductions = initialDeductions
+          } else {
+            updatedElement.deductionDay = {
+              id: null,
+              version: 0,
+              deductionDay: null,
+              breakfast: false,
+              lunch: false,
+              dinner: false,
+              overnight: false
+            }
+            updatedElement.deductions = []
+          }
+        } else {
+          updatedElement.deductionDay = null
+        }
+        return updatedElement
+      })
+      .sort((a: any, b: any) => {
+        const positionA = a.itemOrder ?? 0
+        const positionB = b.itemOrder ?? 0
+        return positionA - positionB
+      })
+    setListDataArray(processedData)
+
+    const initialCollapsedStates: Record<number, boolean> = {}
+    processedData.forEach((_, index) => {
+      initialCollapsedStates[index] = false
+    })
+    setCollapsedStates(initialCollapsedStates)
+
+    if (costCenters.length > 0) {
+      updateStructureIdArrayFromListData(processedData)
+    }
+  }, [expenseRequestData, defaultCostCenter, deductionsData, hasDeductions])
+
   const handleToggleCollapse = (index: number) => {
     setCollapsedStates(prev => ({
       ...prev,
       [index]: !prev[index]
-    }));
-  };
+    }))
+  }
   const fetchProjects = async (structureIds: string[]) => {
     if (!structureIds.length) {
-      setProjects([]);
-      return;
+      setProjects([])
+      return
     }
-    
+
     try {
       const projectsResponse = await graphQLClient.request(getUserProjects, {
         structureIdArray: structureIds
-      });
-      
+      })
+
       if (projectsResponse?.Project) {
-        setProjects(projectsResponse.Project);
+        setProjects(projectsResponse.Project)
       }
-    } catch (error) {
+    } catch {
       showToast(
-      getTranslationFromI18nKeyAndLabel("lowcoder:modify_expense_request.error_fetch_projects",
-      "Error fetching projects"),
-      "error")
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:modify_expense_request.error_fetch_projects',
+          'Error fetching projects'
+        ),
+        'error'
+      )
     }
-  };
+  }
   useEffect(() => {
     if (structureIdArray.length > 0) {
-      fetchProjects(structureIdArray);
+      fetchProjects(structureIdArray)
     }
-  }, [structureIdArray]);
+  }, [structureIdArray])
 
   useEffect(() => {
     if (costCenters.length > 0 && listDataArray.length > 0) {
-      updateStructureIdArrayFromListData(listDataArray);
+      updateStructureIdArrayFromListData(listDataArray)
     }
-  }, [costCenters, listDataArray]);
-  
+  }, [costCenters, listDataArray])
+
   const handleCostCenterChange = (index: number, value: string | undefined) => {
     setListDataArray(prev => {
-      const newArray = [...prev];
+      const newArray = [...prev]
       newArray[index] = {
         ...newArray[index],
         costCenterId: value || undefined,
         projectId: undefined // Clear project when cost center changes
-      };
-      const updatedArray = [...newArray];
+      }
+      const updatedArray = [...newArray]
       setTimeout(() => {
-        updateStructureIdArrayFromListData(updatedArray);
-      }, 0);
-      
-      return newArray;
-    });
-  };
-  
+        updateStructureIdArrayFromListData(updatedArray)
+      }, 0)
+
+      return newArray
+    })
+  }
+
   const handleProjectChange = (index: number, value: string | undefined) => {
     setListDataArray(prev => {
-      const newArray = [...prev];
+      const newArray = [...prev]
       newArray[index] = {
         ...newArray[index],
         projectId: value || undefined
-      };
-      return newArray;
-    });
-  };
+      }
+      return newArray
+    })
+  }
 
   const handleDeductionsChange = (index: number, deductions: string[]) => {
     setListDataArray(prev => {
-      const newArray = [...prev];
-      const current = { ...newArray[index] };
+      const newArray = [...prev]
+      const current = { ...newArray[index] }
 
       // Update string list for compatibility
-      current.deductions = deductions;
+      current.deductions = deductions
 
       // Ensure deductionDay exists when toggling
       if (!current.deductionDay) {
@@ -344,57 +384,57 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
           lunch: false,
           dinner: false,
           overnight: false
-        };
-      }
-
-      const setFromList = (key: 'breakfast'|'lunch'|'dinner'|'overnight') => {
-        current.deductionDay[key] = deductions.includes(key);
-      };
-      setFromList('breakfast');
-      setFromList('lunch');
-      setFromList('dinner');
-      setFromList('overnight');
-
-      newArray[index] = current;
-      return newArray;
-    });
-  };
-  
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-  const totalItems = listDataArray.length;
-  const startIndex = (currentPage - 1) * itemListLimit;
-  const endIndex = Math.min(startIndex + itemListLimit, totalItems);
-  const paginatedItems = listDataArray.slice(startIndex, endIndex);
-  
-  const updateStructureIdArrayFromListData = (dataArray: any[]) => {
-    const structureIds: string[] = [];
-    
-    dataArray.forEach(item => {
-      if (item.costCenterId) {
-        const costCenter = costCenters.find(cc => cc.id === item.costCenterId);
-        if (costCenter?.structureId && !structureIds.includes(costCenter.structureId)) {
-          structureIds.push(costCenter.structureId);
         }
       }
-    });
-    
+
+      const setFromList = (key: 'breakfast' | 'lunch' | 'dinner' | 'overnight') => {
+        current.deductionDay[key] = deductions.includes(key)
+      }
+      setFromList('breakfast')
+      setFromList('lunch')
+      setFromList('dinner')
+      setFromList('overnight')
+
+      newArray[index] = current
+      return newArray
+    })
+  }
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
+  const totalItems = listDataArray.length
+  const startIndex = (currentPage - 1) * itemListLimit
+  const endIndex = Math.min(startIndex + itemListLimit, totalItems)
+  const paginatedItems = listDataArray.slice(startIndex, endIndex)
+
+  const updateStructureIdArrayFromListData = (dataArray: any[]) => {
+    const structureIds: string[] = []
+
+    dataArray.forEach(item => {
+      if (item.costCenterId) {
+        const costCenter = costCenters.find(cc => cc.id === item.costCenterId)
+        if (costCenter?.structureId && !structureIds.includes(costCenter.structureId)) {
+          structureIds.push(costCenter.structureId)
+        }
+      }
+    })
+
     if (structureIds.length > 0) {
-      setStructureIdArray(structureIds);
+      setStructureIdArray(structureIds)
     }
-  };
-  
+  }
+
   // Check if all allowance items have a cost center selected
   const isFormValid = useMemo(() => {
-    return listDataArray.every(item => item.costCenterId);
-  }, [listDataArray]);
-  
+    return listDataArray.every(item => item.costCenterId)
+  }, [listDataArray])
+
   // Update the wizard context with the form validation state
   useEffect(() => {
-    updateTripFormValidation(isFormValid);
-  }, [isFormValid, updateTripFormValidation]);
-  
+    updateTripFormValidation(isFormValid)
+  }, [isFormValid, updateTripFormValidation])
+
   // Set up event listeners for save and next actions from the wizard footer
   useEffect(() => {
     // Save event handler
@@ -408,11 +448,11 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
           expenseRequestData,
           deductionsData,
           EVENTS.SAVE
-        );
-        dispatchProcessContinueEventIfEnabled(EVENTS.SAVE, logObject);
+        )
+        dispatchProcessContinueEventIfEnabled(EVENTS.SAVE, logObject)
       }
-    };
-    
+    }
+
     // Next event handler
     const handleNextEvent = () => {
       if (expenseRequestData?.ExpenseRequestByPk) {
@@ -424,31 +464,41 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
           expenseRequestData,
           deductionsData,
           EVENTS.NEXT
-        );
-        dispatchProcessContinueEventIfEnabled(EVENTS.NEXT, logObject);
+        )
+        dispatchProcessContinueEventIfEnabled(EVENTS.NEXT, logObject)
       }
-    };
-    
+    }
+
     // Add event listeners
-    document.addEventListener('expense-request-save-allowance', handleSaveEvent);
-    document.addEventListener('expense-request-next-allowance', handleNextEvent);
-    
+    document.addEventListener('expense-request-save-allowance', handleSaveEvent)
+    document.addEventListener('expense-request-next-allowance', handleNextEvent)
+
     // Clean up event listeners
     return () => {
-      document.removeEventListener('expense-request-save-allowance', handleSaveEvent);
-      document.removeEventListener('expense-request-next-allowance', handleNextEvent);
-    };
-  }, [expenseRequestData, employeeRuleId, currentTitle, listDataArray]);
-  
+      document.removeEventListener('expense-request-save-allowance', handleSaveEvent)
+      document.removeEventListener('expense-request-next-allowance', handleNextEvent)
+    }
+  }, [expenseRequestData, employeeRuleId, currentTitle, listDataArray])
+
   return (
     <div className="gba:flex gba:flex-col gba:w-[100%] gba:px-4" data-testid="expense-request-wizard-allowance-screen">
       {listDataArray.length === 0 ? (
-        <Title level={4} className="gba:text-center gba:text-2xl gba:font-medium gba:pt-6" data-testid="expense-request-wizard-allowance-screen-title">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:add_allowance_info_request.no_allowances_text', 'No allowances created')}
+        <Title
+          level={4}
+          className="gba:text-center gba:text-2xl gba:font-medium gba:pt-6"
+          data-testid="expense-request-wizard-allowance-screen-title"
+        >
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:add_allowance_info_request.no_allowances_text',
+            'No allowances created'
+          )}
         </Title>
       ) : (
         <>
-          <div className="gba:flex gba:flex-col gba:w-[100%] gba:gap-6 gba:mt-4" data-testid="expense-request-wizard-allowance-list">
+          <div
+            className="gba:flex gba:flex-col gba:w-[100%] gba:gap-6 gba:mt-4"
+            data-testid="expense-request-wizard-allowance-list"
+          >
             {paginatedItems.map((item, index) => (
               <AllowanceContainer
                 key={`allowance-${startIndex + index}`}
@@ -468,7 +518,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
               />
             ))}
           </div>
-          
+
           {totalItems > itemListLimit && (
             <div className="gba:mt-4 gba:flex gba:justify-center" data-testid="expense-allowance-pagination-container">
               <Pagination
@@ -484,10 +534,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = (props) => {
         </>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default AllowanceScreen;
-
-
-
+export default AllowanceScreen

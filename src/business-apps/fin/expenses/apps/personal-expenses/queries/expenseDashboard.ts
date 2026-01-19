@@ -23,6 +23,46 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
     $currentYearEndTz: timestamptz!,
     $currency: String!
   ) {
+    # Action feed from plan/request comments (approved/returned), sorted by date desc within selected period
+    requestActivity: ExpenseRequestComment(
+      where: {
+        expenseRequest: { employeeId: {_eq: $employeeId}, isDeleted: {_eq: false} },
+        commentType: { _in: ["APPROVE_COMMENT", "REJECT_COMMENT"] },
+        commentDate: { _gte: $currentMonthStart, _lt: $currentMonthEnd }
+      },
+      orderBy: { commentDate: DESC }
+    ) {
+      id
+      comment
+      commentType
+      commentDate
+      expenseRequest { 
+        id 
+        title 
+        code 
+        status 
+      }
+    }
+
+    planActivity: ExpensePlanComment(
+      where: {
+        expensePlan: { employeeId: {_eq: $employeeId}, isDeleted: {_eq: false} },
+        commentType: { _in: ["APPROVE_COMMENT", "REJECT_COMMENT"] },
+        commentDate: { _gte: $currentMonthStart, _lt: $currentMonthEnd }
+      },
+      orderBy: { commentDate: DESC }
+    ) {
+      id
+      comment
+      commentType
+      commentDate
+      expensePlan { 
+        id 
+        title 
+        code 
+        status
+      }
+    }
 
 
     # Sum of BOOKED expense requests
@@ -62,11 +102,22 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
     # This month's expenses
     currentMonthExpenses: ExpenseRequestAggregate(
       where: {
-        employeeId: {_eq: $employeeId}, 
-        isDeleted: {_eq: false},
-        status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
-        decisionDate: {_gte: $currentMonthStart, _lt: $currentMonthEnd},
-        currencyRef: {_eq: $currency}
+        _and: [
+          { employeeId: {_eq: $employeeId} },
+          { isDeleted: {_eq: false} },
+          { status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]} },
+          { currencyRef: {_eq: $currency} },
+          { _or: [
+              { _and: [
+                  { requestDate: { _gte: $currentMonthStart, _lt: $currentMonthEnd } },
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
+                ] },
+              { _and: [
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:TRIP"} },
+                  { startDate: { _gte: $currentMonthStart, _lt: $currentMonthEnd } }
+                ] }
+            ] }
+        ]
       }
     ) {
       aggregate {
@@ -80,17 +131,55 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
     # Last month's expenses
     previousMonthExpenses: ExpenseRequestAggregate(
       where: {
-        employeeId: {_eq: $employeeId}, 
-        isDeleted: {_eq: false},
-        status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
-        decisionDate: {_gte: $previousMonthStart, _lt: $previousMonthEnd},
-        currencyRef: {_eq: $currency}
+        _and: [
+          { employeeId: {_eq: $employeeId} },
+          { isDeleted: {_eq: false} },
+          { status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]} },
+          { currencyRef: {_eq: $currency} },
+          { _or: [
+              { _and: [
+                  { requestDate: { _gte: $previousMonthStart, _lt: $previousMonthEnd } },
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
+                ] },
+              { _and: [
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:TRIP"} },
+                  { startDate: { _gte: $previousMonthStart, _lt: $previousMonthEnd } }
+                ] }
+            ] }
+        ]
       }
     ) {
       aggregate {
         sum {
           totalAmount
         }
+        count
+      }
+    }
+
+    # This month's BOOKED expenses (pending payout proxy)
+    currentMonthBooked: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { employeeId: {_eq: $employeeId} },
+          { isDeleted: {_eq: false} },
+          { status: {_eq: "BOOKED"} },
+          { currencyRef: {_eq: $currency} },
+          { _or: [
+              { _and: [
+                  { requestDate: { _gte: $currentMonthStart, _lt: $currentMonthEnd } },
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
+                ] },
+              { _and: [
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:TRIP"} },
+                  { startDate: { _gte: $currentMonthStart, _lt: $currentMonthEnd } }
+                ] }
+            ] }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
         count
       }
     }
@@ -98,11 +187,22 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
     # This quarter's expenses
     currentQuarterExpenses: ExpenseRequestAggregate(
       where: {
-        employeeId: {_eq: $employeeId}, 
-        isDeleted: {_eq: false},
-        status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
-        decisionDate: {_gte: $currentQuarterStart, _lt: $currentQuarterEnd},
-        currencyRef: {_eq: $currency}
+        _and: [
+          { employeeId: {_eq: $employeeId} },
+          { isDeleted: {_eq: false} },
+          { status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]} },
+          { currencyRef: {_eq: $currency} },
+          { _or: [
+              { _and: [
+                  { requestDate: { _gte: $currentQuarterStart, _lt: $currentQuarterEnd } },
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
+                ] },
+              { _and: [
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:TRIP"} },
+                  { startDate: { _gte: $currentQuarterStart, _lt: $currentQuarterEnd } }
+                ] }
+            ] }
+        ]
       }
     ) {
       aggregate {
@@ -113,14 +213,52 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
       }
     }
 
+    # This quarter's BOOKED expenses (pending payout proxy)
+    currentQuarterBooked: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { employeeId: {_eq: $employeeId} },
+          { isDeleted: {_eq: false} },
+          { status: {_eq: "BOOKED"} },
+          { currencyRef: {_eq: $currency} },
+          { _or: [
+              { _and: [
+                  { requestDate: { _gte: $currentQuarterStart, _lt: $currentQuarterEnd } },
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
+                ] },
+              { _and: [
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:TRIP"} },
+                  { startDate: { _gte: $currentQuarterStart, _lt: $currentQuarterEnd } }
+                ] }
+            ] }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+        count
+      }
+    }
+
     # Last quarter's expenses
     previousQuarterExpenses: ExpenseRequestAggregate(
       where: {
-        employeeId: {_eq: $employeeId}, 
-        isDeleted: {_eq: false},
-        status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
-        decisionDate: {_gte: $previousQuarterStart, _lt: $previousQuarterEnd},
-        currencyRef: {_eq: $currency}
+        _and: [
+          { employeeId: {_eq: $employeeId} },
+          { isDeleted: {_eq: false} },
+          { status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]} },
+          { currencyRef: {_eq: $currency} },
+          { _or: [
+              { _and: [
+                  { expenseItem: { expenseDate: { _gte: $previousQuarterStart, _lt: $previousQuarterEnd } } },
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
+                ] },
+              { _and: [
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:TRIP"} },
+                  { startDate: { _gte: $previousQuarterStart, _lt: $previousQuarterEnd } }
+                ] }
+            ] }
+        ]
       }
     ) {
       aggregate {
@@ -134,11 +272,22 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
     # This year's expenses
     currentYearExpenses: ExpenseRequestAggregate(
       where: {
-        employeeId: {_eq: $employeeId},
-        isDeleted: {_eq: false},
-        status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
-        decisionDate: {_gte: $currentYearStart, _lt: $currentYearEnd},
-        currencyRef: {_eq: $currency}
+        _and: [
+          { employeeId: {_eq: $employeeId} },
+          { isDeleted: {_eq: false} },
+          { status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]} },
+          { currencyRef: {_eq: $currency} },
+          { _or: [
+              { _and: [
+                  { expenseItem: { expenseDate: { _gte: $currentYearStart, _lt: $currentYearEnd } } },
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
+                ] },
+              { _and: [
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:TRIP"} },
+                  { startDate: { _gte: $currentYearStart, _lt: $currentYearEnd } }
+                ] }
+            ] }
+        ]
       }
     ) {
       aggregate {
@@ -149,14 +298,52 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
       }
     }
 
+    # This year's BOOKED expenses (pending payout proxy)
+    currentYearBooked: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { employeeId: {_eq: $employeeId} },
+          { isDeleted: {_eq: false} },
+          { status: {_eq: "BOOKED"} },
+          { currencyRef: {_eq: $currency} },
+          { _or: [
+              { _and: [
+                  { expenseItem: { expenseDate: { _gte: $currentYearStart, _lt: $currentYearEnd } } },
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
+                ] },
+              { _and: [
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:TRIP"} },
+                  { startDate: { _gte: $currentYearStart, _lt: $currentYearEnd } }
+                ] }
+            ] }
+        ]
+      }
+    ) {
+      aggregate {
+        sum { totalAmount }
+        count
+      }
+    }
+
     # Last year's expenses
     previousYearExpenses: ExpenseRequestAggregate(
       where: {
-        employeeId: {_eq: $employeeId},
-        isDeleted: {_eq: false},
-        status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]},
-        decisionDate: {_gte: $previousYearStart, _lt: $previousYearEnd},
-        currencyRef: {_eq: $currency}
+        _and: [
+          { employeeId: {_eq: $employeeId} },
+          { isDeleted: {_eq: false} },
+          { status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID"]} },
+          { currencyRef: {_eq: $currency} },
+          { _or: [
+              { _and: [
+                  { expenseItem: { expenseDate: { _gte: $previousYearStart, _lte: $previousYearEnd } } },
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} } 
+                ] },
+              { _and: [
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:TRIP"} } ,
+                  { startDate: { _gte: $previousYearStart, _lte: $previousYearEnd } }
+                ] }
+            ] }
+        ]
       }
     ) {
       aggregate {
@@ -207,7 +394,6 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
     ) {
       id
       title
-      description
       status
       updatedAt
       totalAmount
@@ -288,7 +474,18 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
         }
       }
     }
-    
+    pendingItems: ExpenseItemAggregate(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        status: {_eq: "CREATED"},
+        expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}}
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
 
   }
-`;
+`

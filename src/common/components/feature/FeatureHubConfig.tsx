@@ -1,33 +1,33 @@
 'use client'
 
-import { useEffect } from 'react';
-import { useFeatureHub } from 'featurehub-react-sdk';
-import { StrategyAttributeDeviceName } from 'featurehub-javascript-client-sdk';
-import { env } from '@/common/env/EnvUtils';
-import { CustomAttributeType } from '@/common/types/enums/FeatureHub';
+import { useEffect } from 'react'
+import { useFeatureHub } from 'featurehub-react-sdk'
+import { StrategyAttributeDeviceName } from 'featurehub-javascript-client-sdk'
+import { env } from '@/common/env/EnvUtils'
+import { CustomAttributeType } from '@/common/types/enums/FeatureHub'
 
 const tenant = env('NEXT_PUBLIC_FEATURE_HUB_TENANT') ?? ''
 
 const FeatureHubConfig = ({ userId }: { userId: string }): JSX.Element => {
-  const { client } = useFeatureHub();
+  const { client } = useFeatureHub()
 
   const setContextAttributes = async () => {
-    client.attributeValue(CustomAttributeType.Tenant, tenant);
-    client.device(StrategyAttributeDeviceName.Browser);
+    client.attributeValue(CustomAttributeType.Tenant, tenant)
+    client.device(StrategyAttributeDeviceName.Browser)
     if (userId) {
-      client.userKey(userId);
+      client.userKey(userId)
     }
 
-    await client.build();
-  };
+    await client.build()
+  }
 
   useEffect(() => {
     if (userId) {
-      setContextAttributes();
+      setContextAttributes()
     }
-  }, [userId]);
+  }, [userId])
 
   return <></>
-};
+}
 
-export default FeatureHubConfig;
+export default FeatureHubConfig

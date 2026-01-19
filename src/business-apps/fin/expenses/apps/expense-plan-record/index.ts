@@ -1,4 +1,4 @@
-import ExpensePlanRecord from './ExpensePlanRecord';
+import ExpensePlanRecord from './ExpensePlanRecord'
 
-export { ExpensePlanRecord };
-export default ExpensePlanRecord;
+export { ExpensePlanRecord }
+export default ExpensePlanRecord

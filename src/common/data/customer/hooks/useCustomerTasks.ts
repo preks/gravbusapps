@@ -1,129 +1,210 @@
 // Customer Task hooks - list and search operations for customer tasks
-import { useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Types
-import type { BaseCustomerTask, CustomerTask } from '../types';
+import type { CustomerTask } from '../types/customerTaskTypes'
 
-// Queries
-import { 
-  GET_CUSTOMER_TASKS, 
-  GET_CUSTOMER_TASKS_BY_ACCOUNT_ID,
-  GET_CUSTOMER_TASKS_BY_CONTACT_ID,
-  GET_CUSTOMER_TASKS_BY_LEAD_ID,
-  GET_CUSTOMER_TASKS_BY_OPPORTUNITY_ID,
-  GET_CUSTOMER_TASK_BY_ID,
-  type CustomerTaskQueryVariables 
-} from '../queries/customerTaskQueries';
+// Use the new query builder functions
+import {
+  buildCustomerTaskQuery,
+  buildCustomerTaskByIdQuery,
+  buildCustomerTaskByAccountIdQuery,
+  buildCustomerTaskByContactIdQuery,
+  buildCustomerTaskByLeadIdQuery,
+  buildCustomerTaskByOpportunityIdQuery,
+  buildCustomerTaskWhereCondition,
+  buildCustomerTaskOrderBy,
+  type CustomerTaskQueryVariables
+} from '../queries/customerTaskQueries'
 
 // Mapper
-import { toCustomerTask } from '../mappers';
+import { toCustomerTask } from '../mappers/customerTaskMappers'
+import { CustomerTaskFields } from '../types/customerTaskTypes'
 
 export interface CustomerTaskListQueryResponse {
-  SalesTask: BaseCustomerTask[];
+  SalesTask: CustomerTask[]
   SalesTaskAggregate: {
-    aggregate: { count: number };
-  };
+    aggregate: { count: number }
+  }
 }
 
 export interface CustomerTaskByEntityQueryResponse {
-  SalesTask: BaseCustomerTask[];
+  SalesTask: CustomerTask[]
 }
 
 export interface CustomerTaskByIdQueryResponse {
-  SalesTask: BaseCustomerTask[];
+  SalesTask: CustomerTask[]
 }
 
 export interface CustomerTaskListData {
-  tasks: CustomerTask[];
-  total: number;
+  tasks: CustomerTask[]
+  total: number
 }
 
 export const useCustomerTasks = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const fetchCustomerTasks = useCallback(async (variables: CustomerTaskQueryVariables = {}): Promise<CustomerTaskListData> => {
-    const query = GET_CUSTOMER_TASKS(variables);
+  const fetchCustomerTasks = useCallback(
+    async (variables: CustomerTaskQueryVariables = {}): Promise<CustomerTaskListData> => {
+      const query = buildCustomerTaskQuery()
 
-    try {
-      const result = await graphqlClient.request<CustomerTaskListQueryResponse>(query);
-      const tasks = result.SalesTask.map(toCustomerTask);
-      const total = result.SalesTaskAggregate?.aggregate?.count || 0;
-      return { tasks, total };
-    } catch (error) {
-      console.error('Error fetching customer tasks:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+      // Handle reference type filtering - add as custom conditions
+      const customConditions: Record<string, any>[] = []
 
-  const fetchCustomerTasksByAccountId = useCallback(async (accountId: string): Promise<CustomerTask[]> => {
-    const query = GET_CUSTOMER_TASKS_BY_ACCOUNT_ID(accountId);
+      if (variables.referenceTypes && variables.referenceTypes.length > 0) {
+        const referenceConditions = variables.referenceTypes
+          .map(type => {
+            switch (type) {
+              case 'opportunity':
+                return { opportunity: { id: { _neq: null } } }
+              case 'account':
+                return { account: { id: { _neq: null } } }
+              case 'lead':
+                return { lead: { id: { _neq: null } } }
+              case 'contact':
+                return { contact: { id: { _neq: null } } }
+              default:
+                return null
+            }
+          })
+          .filter(c => c !== null)
 
-    try {
-      const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query);
-      return result.SalesTask.map(toCustomerTask);
-    } catch (error) {
-      console.error('Error fetching customer tasks by account ID:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+        if (referenceConditions.length > 0) {
+          customConditions.push({ _or: referenceConditions })
+        }
+      }
 
-  const fetchCustomerTasksByContactId = useCallback(async (contactId: string): Promise<CustomerTask[]> => {
-    const query = GET_CUSTOMER_TASKS_BY_CONTACT_ID(contactId);
+      const whereCondition = buildCustomerTaskWhereCondition(variables, [], customConditions)
 
-    try {
-      const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query);
-      return result.SalesTask.map(toCustomerTask);
-    } catch (error) {
-      console.error('Error fetching customer tasks by contact ID:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+      const orderBy = buildCustomerTaskOrderBy(variables.orderBy || [])
+      if (orderBy.length === 0) {
+        orderBy.push({ createdAt: 'DESC' })
+      }
 
-  const fetchCustomerTasksByLeadId = useCallback(async (leadId: string): Promise<CustomerTask[]> => {
-    const query = GET_CUSTOMER_TASKS_BY_LEAD_ID(leadId);
+      const graphQLVariables: Record<string, any> = {
+        limit: Math.min(variables.limit || 50, 100),
+        offset: variables.offset || 0,
+        where: whereCondition,
+        orderBy: orderBy
+      }
 
-    try {
-      const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query);
-      return result.SalesTask.map(toCustomerTask);
-    } catch (error) {
-      console.error('Error fetching customer tasks by lead ID:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+      try {
+        const result = await graphqlClient.request<CustomerTaskListQueryResponse>(query, graphQLVariables)
+        const tasks = result.SalesTask.map(toCustomerTask)
+        const total = result.SalesTaskAggregate?.aggregate?.count || 0
+        return { tasks, total }
+      } catch (error) {
+        console.error('Error fetching customer tasks:', error)
+        throw error
+      }
+    },
+    [context.accessToken]
+  )
 
-  const fetchCustomerTasksByOpportunityId = useCallback(async (opportunityId: string): Promise<CustomerTask[]> => {
-    const query = GET_CUSTOMER_TASKS_BY_OPPORTUNITY_ID(opportunityId);
+  const fetchCustomerTasksByAccountId = useCallback(
+    async (accountId: string): Promise<CustomerTask[]> => {
+      const query = buildCustomerTaskByAccountIdQuery()
+      const whereCondition = buildCustomerTaskWhereCondition({}, [], [{ account: { id: { _eq: accountId } } }])
+      const orderBy = buildCustomerTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
-    try {
-      const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query);
-      return result.SalesTask.map(toCustomerTask);
-    } catch (error) {
-      console.error('Error fetching customer tasks by opportunity ID:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+      try {
+        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, {
+          where: whereCondition,
+          orderBy: orderBy
+        })
+        return result.SalesTask.map(toCustomerTask)
+      } catch (error) {
+        console.error('Error fetching customer tasks by account ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
 
-  const fetchCustomerTaskById = useCallback(async (taskId: string): Promise<CustomerTask | null> => {
-    const query = GET_CUSTOMER_TASK_BY_ID(taskId);
+  const fetchCustomerTasksByContactId = useCallback(
+    async (contactId: string): Promise<CustomerTask[]> => {
+      const query = buildCustomerTaskByContactIdQuery()
+      const whereCondition = buildCustomerTaskWhereCondition({}, [], [{ contact: { id: { _eq: contactId } } }])
+      const orderBy = buildCustomerTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
-    try {
-      const result = await graphqlClient.request<CustomerTaskByIdQueryResponse>(query);
-      const tasks = result.SalesTask.map(toCustomerTask);
-      return tasks.length > 0 ? tasks[0] : null;
-    } catch (error) {
-      console.error('Error fetching customer task by ID:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+      try {
+        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, {
+          where: whereCondition,
+          orderBy: orderBy
+        })
+        return result.SalesTask.map(toCustomerTask)
+      } catch (error) {
+        console.error('Error fetching customer tasks by contact ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
 
-  return { 
+  const fetchCustomerTasksByLeadId = useCallback(
+    async (leadId: string): Promise<CustomerTask[]> => {
+      const query = buildCustomerTaskByLeadIdQuery()
+      const whereCondition = buildCustomerTaskWhereCondition({}, [], [{ lead: { id: { _eq: leadId } } }])
+      const orderBy = buildCustomerTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
+
+      try {
+        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, {
+          where: whereCondition,
+          orderBy: orderBy
+        })
+        return result.SalesTask.map(toCustomerTask)
+      } catch (error) {
+        console.error('Error fetching customer tasks by lead ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  const fetchCustomerTasksByOpportunityId = useCallback(
+    async (opportunityId: string): Promise<CustomerTask[]> => {
+      const query = buildCustomerTaskByOpportunityIdQuery()
+      const whereCondition = buildCustomerTaskWhereCondition({}, [], [{ opportunity: { id: { _eq: opportunityId } } }])
+      const orderBy = buildCustomerTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
+
+      try {
+        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, {
+          where: whereCondition,
+          orderBy: orderBy
+        })
+        return result.SalesTask.map(toCustomerTask)
+      } catch (error) {
+        console.error('Error fetching customer tasks by opportunity ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  const fetchCustomerTaskById = useCallback(
+    async (taskId: string): Promise<CustomerTask | null> => {
+      const query = buildCustomerTaskByIdQuery(CustomerTaskFields, taskId)
+
+      try {
+        const result = await graphqlClient.request<{ SalesTaskByPk: any }>(query)
+        const task = result.SalesTaskByPk
+        return task ? toCustomerTask(task) : null
+      } catch (error) {
+        console.error('Error fetching customer task by ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return {
     fetchCustomerTasks,
     fetchCustomerTasksByAccountId,
     fetchCustomerTasksByContactId,
     fetchCustomerTasksByLeadId,
     fetchCustomerTasksByOpportunityId,
     fetchCustomerTaskById
-  };
-};
+  }
+}

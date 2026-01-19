@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useMemo, useEffect } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useJobFamilies } from "../../hooks";
-import { JobFamily } from "../../types";
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useJobFamilies } from '../../hooks'
+import { JobFamily } from '../../types'
 import {
   Card,
   Button,
@@ -11,15 +11,14 @@ import {
   Spinner,
   TreeView,
   Badge,
-  TreeViewAction,
-} from "@newwork/nw-design-system";
-import { CardTabHeaderComponent } from "../../../generic-components/card/CardTabHeaderComponent";
-import { DeleteButton } from "../../../generic-components/delete-button/DeleteButton";
-import JobFamilyForm from "@/business-apps/mdm/forms/job-family-form";
-import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
+  TreeViewAction
+} from '@newwork/nw-design-system'
+import { CardTabHeaderComponent } from '../../../generic-components/card/CardTabHeaderComponent'
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
+import JobFamilyForm from '@/business-apps/mdm/forms/job-family-form'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import {
-  GlobeIcon,
   InfoIcon,
   TreeStructureIcon,
   PlusIcon,
@@ -31,63 +30,69 @@ import {
   FolderIcon,
   EyeIcon,
   TrashIcon,
-  CopyIcon,
-} from "@phosphor-icons/react";
-import SheetWrapperComponent from "../../../generic-components/sheet-wrapper/SheetWrapperComponent";
+  CopyIcon
+} from '@phosphor-icons/react'
+import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
+import {
+  JOB_FAMILY_CATALOG,
+  JOB_FAMILY_VERSION
+} from '@/business-apps/hr/core/apps/human-resources/components/views/job-position-view/hooks/useJobFamilyFilters'
 
 export interface JobFamiliesTabProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
+  prefixDataTestId?: string
 }
 
-const DATA_TEST_ID_PREFIX = "JobFamiliesTab";
+const DATA_TEST_ID_PREFIX = 'JobFamiliesTab'
 
-const JobFamiliesTab: React.FC<JobFamiliesTabProps> = (context) => {
-  const { prefixDataTestId, accessToken } = context;
-  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
+const JobFamiliesTab: React.FC<JobFamiliesTabProps> = context => {
+  const { prefixDataTestId, accessToken } = context
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
 
-  const { rootFamilies, isLoading, error, refetch, getFamilyById } =
-    useJobFamilies(context);
+  const { rootFamilies, isLoading, error, refetch, getFamilyById } = useJobFamilies(context)
 
-  const [selectedFamily, setSelectedFamily] = useState<JobFamily | null>(null);
-  const [drawerVisible, setDrawerVisible] = useState(false);
-  const [isRemoveFamilyOpen, setIsRemoveFamilyOpen] = useState(false);
-  const [isEditFamilyOpen, setIsEditFamilyOpen] = useState(false);
+  const [selectedFamily, setSelectedFamily] = useState<JobFamily | null>(null)
+  const [drawerVisible, setDrawerVisible] = useState(false)
+  const [isRemoveFamilyOpen, setIsRemoveFamilyOpen] = useState(false)
+  const [isEditFamilyOpen, setIsEditFamilyOpen] = useState(false)
 
-  const catalogClient = useCatalogManagerClient(accessToken);
+  const catalogClient = useCatalogManagerClient(accessToken)
+  const usedCodes = useMemo(() => {
+    return rootFamilies.map(family => family.code)
+  }, [rootFamilies])
 
   useEffect(() => {
     if (selectedFamily) {
-      const newFamily = getFamilyById(selectedFamily.id);
+      const newFamily = getFamilyById(selectedFamily.id)
 
       if (newFamily) {
-        setSelectedFamily(newFamily);
+        setSelectedFamily(newFamily)
       }
     }
-  }, [rootFamilies]);
+  }, [rootFamilies])
 
   const handleDeleteFamily = async (family: JobFamily) => {
-    await catalogClient.deleteCatalogEntry(family.id);
+    await catalogClient.deleteCatalogEntry(JOB_FAMILY_CATALOG, JOB_FAMILY_VERSION, family.id)
 
-    refetch();
-    setIsRemoveFamilyOpen(false);
-    setSelectedFamily(null);
-  };
+    refetch()
+    setIsRemoveFamilyOpen(false)
+    setSelectedFamily(null)
+  }
 
   // Handle job family selection and drawer open/close
   const handleFamilySelect = useCallback(
     (selectedKeys: string) => {
-      if (selectedKeys.length === 0) return;
-      const family = getFamilyById(selectedKeys.toString());
+      if (selectedKeys.length === 0) return
+      const family = getFamilyById(selectedKeys.toString())
       if (family) {
-        setSelectedFamily(family);
-        setDrawerVisible(true);
+        setSelectedFamily(family)
+        setDrawerVisible(true)
       }
     },
     [getFamilyById]
-  );
+  )
 
   const nodes = useMemo(() => {
-    return rootFamilies.map((family) => ({
+    return rootFamilies.map(family => ({
       id: family.id,
       values: {
         code: family.code,
@@ -98,140 +103,137 @@ const JobFamiliesTab: React.FC<JobFamiliesTabProps> = (context) => {
         ) : (
           <Badge variant="destructive">Inactive</Badge>
         ),
-        description: family.description ?? "-",
+        description: family.description ?? '-'
       },
       icon: FolderIcon,
-      children: [],
-    }));
-  }, [rootFamilies]);
+      children: []
+    }))
+  }, [rootFamilies])
 
   const treeColumns = [
-    { key: "name", header: "Name", sortable: true, align: "left" as const },
-    { key: "code", header: "Code", sortable: true, align: "center" as const },
-    { key: "level", header: "Level", sortable: true, align: "center" as const },
+    { key: 'name', header: 'Name', sortable: true, align: 'left' as const },
+    { key: 'code', header: 'Code', sortable: true, align: 'center' as const },
+    { key: 'level', header: 'Level', sortable: true, align: 'center' as const },
     {
-      key: "status",
-      header: "Status",
+      key: 'status',
+      header: 'Status',
       sortable: true,
-      align: "center" as const,
+      align: 'center' as const
     },
     {
-      key: "description",
-      header: "Description",
+      key: 'description',
+      header: 'Description',
       sortable: true,
-      align: "center" as const,
-    },
-  ];
+      align: 'center' as const
+    }
+  ]
 
   const treeActions: TreeViewAction[] = [
     {
-      id: "view-root-family",
-      label: "View Job Family",
+      id: 'view-root-family',
+      label: 'View Job Family',
       icon: EyeIcon,
-      onClick: (node) => {
-        handleFamilySelect(node?.id ?? "");
+      onClick: node => {
+        handleFamilySelect(node?.id ?? '')
       },
-      variant: "ghost" as const,
-      size: "sm" as const,
+      variant: 'ghost' as const,
+      size: 'sm' as const
     },
     {
-      id: "edit-root-family",
-      label: "Edit Job Family",
+      id: 'edit-root-family',
+      label: 'Edit Job Family',
       icon: PencilSimpleLineIcon,
-      onClick: (node) => {
-        const family = getFamilyById(node?.id ?? "");
+      onClick: node => {
+        const family = getFamilyById(node?.id ?? '')
         if (family) {
-          setSelectedFamily(family);
-          setIsEditFamilyOpen(true);
+          setSelectedFamily(family)
+          setIsEditFamilyOpen(true)
         }
       },
-      variant: "ghost" as const,
-      size: "sm" as const,
+      variant: 'ghost' as const,
+      size: 'sm' as const
     },
     {
-      id: "remove-root-family",
-      label: "Remove Job Family",
+      id: 'remove-root-family',
+      label: 'Delete Job Family',
       icon: TrashIcon,
-      onClick: (node) => {
-        const family = getFamilyById(node?.id ?? "");
+      onClick: node => {
+        const family = getFamilyById(node?.id ?? '')
         if (family) {
-          setSelectedFamily(family);
-          setIsRemoveFamilyOpen(true);
+          setSelectedFamily(family)
+          setIsRemoveFamilyOpen(true)
         }
       },
-      variant: "ghost" as const,
-      size: "sm" as const,
-    },
-  ];
+      variant: 'ghost' as const,
+      size: 'sm' as const
+    }
+  ]
 
   const drawerItems = useMemo(() => {
-    if (!selectedFamily) return [];
+    if (!selectedFamily) return []
     const items = [
       {
         icon: <InfoIcon />,
-        title: "Basic Information",
-        items: [
-          {
-            label: "Name",
-            value: selectedFamily.name ?? "-",
-          },
-          {
-            label: "Code",
-            value: <Badge variant="info">{selectedFamily.code || "N/A"}</Badge>,
-          },
-          {
-            label: "Description",
-            value: selectedFamily?.description ?? "-",
-          },
-          {
-            label: "Hierarchy Level",
-            value: `Level ${selectedFamily.level}  ${
-              selectedFamily.level === 0 ? " (Root)" : ""
-            }`,
-          },
-        ],
-      },
-      {
-        icon: <TreeStructureIcon />,
-        title: "Hierarchy Information",
+        title: 'Basic Information',
         verticalTable: true,
         items: [
           {
-            label: "Parent Family",
-            value: selectedFamily.parentFamily
-              ? selectedFamily.parentFamily.code && (
-                  <Badge variant="info">
-                    {selectedFamily.parentFamily.code}
-                  </Badge>
-                )
-              : "No parent (Root level)",
+            label: 'Name',
+            value: selectedFamily.name ?? '-'
           },
           {
-            label: "Child Families",
+            label: 'Code',
+            value: <Badge variant="info">{selectedFamily.code || 'N/A'}</Badge>
+          },
+          {
+            label: 'Description',
+            value: selectedFamily?.description ?? '-'
+          },
+          {
+            label: 'Hierarchy Level',
+            value: `Level ${selectedFamily.level}  ${selectedFamily.level === 0 ? ' (Root)' : ''}`
+          },
+          {
+            label: 'Status',
+            value: (
+              <Badge variant={selectedFamily.isActive ? 'success' : 'destructive'}>
+                {selectedFamily.isActive ? 'Active' : 'Inactive'}
+              </Badge>
+            )
+          }
+        ]
+      },
+      {
+        icon: <TreeStructureIcon />,
+        title: 'Hierarchy Information',
+        verticalTable: true,
+        items: [
+          {
+            label: 'Parent Family',
+            value: selectedFamily.parentFamily
+              ? selectedFamily.parentFamily.code && <Badge variant="info">{selectedFamily.parentFamily.code}</Badge>
+              : 'No parent (Root level)'
+          },
+          {
+            label: 'Child Families',
             value:
               selectedFamily.children.length > 0 ? (
                 <div className="gba:flex gba:flex-col gba:gap-2">
-                  {selectedFamily.children.map((child) => (
-                    <div className="gba:flex gba:items-center gba:space-x-2 gba:w-full">
+                  {selectedFamily.children.map(child => (
+                    <div className="gba:flex gba:items-center gba:space-x-2 gba:w-full" key={child.id}>
                       <div>
                         <GraphIcon className="gba:text-green-500" />
                       </div>
                       <div className="gba:w-full gba:flex gba:items-center gba:justify-between gba:gap-2 gba:overflow-hidden">
                         <div className="gba:flex-1 gba:flex gba:gap-1 gba:items-center gba:overflow-hidden gba:truncate">
-                          <p className="gba:font-medium gba:overflow-hidden gba:truncate">
-                            {child.name}
-                          </p>
+                          <p className="gba:font-medium gba:overflow-hidden gba:truncate">{child.name}</p>
                           {child.code && (
                             <Badge variant="info" className="gba:max-w-2/3">
                               {child.code}
                             </Badge>
                           )}
                         </div>
-                        {child.children.length > 0 && (
-                          <Badge variant="success">
-                            {child.children.length} children
-                          </Badge>
-                        )}
+                        {child.children.length > 0 && <Badge variant="success">{child.children.length} children</Badge>}
                       </div>
                     </div>
                   ))}
@@ -239,101 +241,55 @@ const JobFamiliesTab: React.FC<JobFamiliesTabProps> = (context) => {
               ) : (
                 <div className="gba:text-center gba:py-8 gba:flex gba:flex-col gba:items-center gba:justify-center">
                   <FolderSimpleIcon className="gba:h-12 gba:w-12 gba:text-gray-400" />
-                  <p className="gba:font-normal gba:text-gray-500">
-                    No child families
-                  </p>
+                  <p className="gba:font-normal gba:text-gray-500">No child families</p>
                 </div>
-              ),
-          },
-        ],
-      },
-      {
-        icon: <GlobeIcon />,
-        title: "Additional Information",
-        verticalTable: true,
-        items: [
-          {
-            label: "ID",
-            value: (
-              <div className="gba:flex gba:items-center gba:gap-1 gba:w-full gba:overflow-hidden">
-                <p className="gba:font-medium gba:truncate">
-                  {selectedFamily.id}
-                </p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    navigator.clipboard.writeText(selectedFamily.id);
-                  }}
-                  data-testid={`${dataTestId}-copy-children-text`}
-                >
-                  <CopyIcon className="gba:h-4 gba:w-4 gba:text-blue-400" />
-                </Button>
-              </div>
-            ),
-          },
-          {
-            label: "Status",
-            value: (
-              <Badge
-                variant={selectedFamily.isActive ? "success" : "destructive"}
-              >
-                {selectedFamily.isActive ? "Active" : "Inactive"}
-              </Badge>
-            ),
-          },
-        ],
-      },
-    ];
+              )
+          }
+        ]
+      }
+    ]
 
     if (selectedFamily.parentEntryId) {
       items[2].items.push({
-        label: "Parent ID",
+        label: 'Parent ID',
         value: (
           <div className="gba:flex gba:items-center gba:gap-1 gba:w-full gba:overflow-hidden">
-            <p className="gba:font-medium gba:truncate">
-              {selectedFamily.parentEntryId}
-            </p>
+            <p className="gba:font-medium gba:truncate">{selectedFamily.parentEntryId}</p>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
-                navigator.clipboard.writeText(selectedFamily.parentEntryId!);
+                navigator.clipboard.writeText(selectedFamily.parentEntryId!)
               }}
               data-testid={`${dataTestId}-copy-children-text`}
             >
               <CopyIcon className="gba:h-4 gba:w-4 gba:text-blue-400" />
             </Button>
           </div>
-        ),
-      });
+        )
+      })
     }
 
     if (selectedFamily.children.length > 0) {
       items[2].items.push({
-        label: "Child Count",
+        label: 'Child Count',
         value: (
           <div className="gba:flex gba:items-center gba:space-x-2 gba:mt-1">
             <TreeStructureIcon className="gba:text-blue-500" />
-            <p className="gba:font-medium">
-              {selectedFamily?.children?.length}
-            </p>
+            <p className="gba:font-medium">{selectedFamily?.children?.length}</p>
             <p className="gba:font-normal gba:text-gray-500">direct children</p>
           </div>
-        ),
-      });
+        )
+      })
     }
 
-    return items;
-  }, [selectedFamily]);
+    return items
+  }, [selectedFamily])
 
   if (error) {
     return (
       <div data-testid={`${prefixDataTestId}-PayGradesTab`} className="gba:p-4">
-        <Alert
-          className="gba:w-full gba:!flex gba:justify-between gba:!items-center"
-          variant="destructive"
-        >
+        <Alert className="gba:w-full gba:!flex gba:justify-between gba:!items-center" variant="destructive">
           <AlertTitle className="gba:flex gba:items-center gba:justify-center gba:gap-2">
             <XCircleIcon className="h-4 w-4" />
             Error Loading Data
@@ -345,18 +301,15 @@ const JobFamiliesTab: React.FC<JobFamiliesTabProps> = (context) => {
           </AlertDescription>
         </Alert>
       </div>
-    );
+    )
   }
 
   if (isLoading && rootFamilies.length === 0) {
     return (
-      <div
-        data-testid={`${dataTestId}`}
-        className="gba:flex gba:justify-center gba:items-center gba:h-64"
-      >
+      <div data-testid={`${dataTestId}`} className="gba:flex gba:justify-center gba:items-center gba:h-64">
         <Spinner />
       </div>
-    );
+    )
   }
 
   return (
@@ -365,10 +318,11 @@ const JobFamiliesTab: React.FC<JobFamiliesTabProps> = (context) => {
         <CardTabHeaderComponent
           addButton={
             <JobFamilyForm
+              usedCodes={usedCodes}
               childAddButton={
                 <Button
                   variant="default"
-                  onClick={(event) => event.stopPropagation()}
+                  onClick={event => event.stopPropagation()}
                   data-testid={`${dataTestId}-add-root-family`}
                 >
                   <PlusIcon /> Add Root Family
@@ -390,15 +344,14 @@ const JobFamiliesTab: React.FC<JobFamiliesTabProps> = (context) => {
         {rootFamilies.length === 0 && !isLoading ? (
           <div className="gba:text-center gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8">
             <FolderSimpleIcon className="gba:h-12 gba:w-12 gba:text-gray-400" />
-            <p className="gba:font-normal gba:text-gray-500">
-              No job families found
-            </p>
+            <p className="gba:font-normal gba:text-gray-500">No job families found</p>
             <div className="gba:mt-2">
               <JobFamilyForm
+                usedCodes={usedCodes}
                 childAddButton={
                   <Button
                     variant="default"
-                    onClick={(event) => event.stopPropagation()}
+                    onClick={event => event.stopPropagation()}
                     data-testid={`${prefixDataTestId}-add-root-family`}
                   >
                     <PlusIcon /> Create First Job Family
@@ -435,6 +388,7 @@ const JobFamiliesTab: React.FC<JobFamiliesTabProps> = (context) => {
       )}
       {selectedFamily && isEditFamilyOpen && (
         <JobFamilyForm
+          usedCodes={usedCodes}
           jobFamily={selectedFamily}
           prefixDataTestId={`${prefixDataTestId}`}
           loading={isLoading}
@@ -449,23 +403,20 @@ const JobFamiliesTab: React.FC<JobFamiliesTabProps> = (context) => {
         <SheetWrapperComponent
           prefixDataTestId={dataTestId}
           isDrawerVisible={drawerVisible}
-          onOpenChange={(openStatus) => {
+          onOpenChange={openStatus => {
             if (!openStatus) {
-              setSelectedFamily(null);
+              setSelectedFamily(null)
             }
-            setDrawerVisible(openStatus);
+            setDrawerVisible(openStatus)
           }}
-          title="Job Function Details"
+          title="Job Family Details"
           titleIcon={FileCodeIcon}
           drawerItems={drawerItems}
           footerButtons={[
             <JobFamilyForm
+              usedCodes={usedCodes}
               childAddButton={
-                <Button
-                  data-testid={`${
-                    prefixDataTestId || ""
-                  }-JobFamiliesTab-EditButton`}
-                >
+                <Button data-testid={`${prefixDataTestId || ''}-JobFamiliesTab-EditButton`}>
                   <PencilSimpleLineIcon /> Edit
                 </Button>
               }
@@ -475,12 +426,13 @@ const JobFamiliesTab: React.FC<JobFamiliesTabProps> = (context) => {
               accessToken={context.accessToken}
               refetch={refetch}
               isDrawerActive={true}
-            />,
+              key={selectedFamily.id}
+            />
           ]}
         />
       )}
     </Card>
-  );
-};
+  )
+}
 
-export default JobFamiliesTab;
+export default JobFamiliesTab

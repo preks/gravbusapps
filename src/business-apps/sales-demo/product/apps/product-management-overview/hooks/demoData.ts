@@ -1,11 +1,14 @@
-import { Product, ProductKPIData } from '../types';
+import { Product, ProductKPIData } from '../types'
 
 /**
  * Generates realistic demo data for product management overview
  * This data structure matches the expected GraphQL response format
  */
 
-export const generateDemoProducts = (page: number = 1, pageSize: number = 20): { products: Product[], total: number } => {
+export const generateDemoProducts = (
+  page: number = 1,
+  pageSize: number = 20
+): { products: Product[]; total: number } => {
   const allDemoProducts: Product[] = [
     {
       id: 'demo-product-1',
@@ -14,8 +17,8 @@ export const generateDemoProducts = (page: number = 1, pageSize: number = 20): {
       description: 'Annual license for professional software suite with full features and support',
       price: 1299.99,
       priceBase: 1299.99,
-      currentCost: 650.00,
-      currentCostBase: 650.00,
+      currentCost: 650.0,
+      currentCostBase: 650.0,
       supplierName: 'TechSoft Solutions',
       productTypeCode: 'License',
       productStructure: 'Standalone',
@@ -35,10 +38,10 @@ export const generateDemoProducts = (page: number = 1, pageSize: number = 20): {
       name: 'Enterprise Hardware Bundle',
       productNumber: 'EHB-2024-002',
       description: 'Complete hardware bundle including server, networking equipment, and accessories',
-      price: 15750.00,
-      priceBase: 15750.00,
-      currentCost: 12600.00,
-      currentCostBase: 12600.00,
+      price: 15750.0,
+      priceBase: 15750.0,
+      currentCost: 12600.0,
+      currentCostBase: 12600.0,
       supplierName: 'Hardware Dynamics',
       productTypeCode: 'Bundle',
       productStructure: 'Bundle',
@@ -60,8 +63,8 @@ export const generateDemoProducts = (page: number = 1, pageSize: number = 20): {
       description: 'Monthly cloud storage service with 1TB capacity and advanced security features',
       price: 49.99,
       priceBase: 49.99,
-      currentCost: 15.00,
-      currentCostBase: 15.00,
+      currentCost: 15.0,
+      currentCostBase: 15.0,
       supplierName: 'CloudTech Inc.',
       productTypeCode: 'Service',
       productStructure: 'Standalone',
@@ -81,10 +84,10 @@ export const generateDemoProducts = (page: number = 1, pageSize: number = 20): {
       name: 'Training Workshop Package',
       productNumber: 'TWP-2024-004',
       description: '3-day intensive training workshop for team development and skill enhancement',
-      price: 2500.00,
-      priceBase: 2500.00,
-      currentCost: 800.00,
-      currentCostBase: 800.00,
+      price: 2500.0,
+      priceBase: 2500.0,
+      currentCost: 800.0,
+      currentCostBase: 800.0,
       supplierName: 'Learning Solutions Ltd.',
       productTypeCode: 'Service',
       productStructure: 'Standalone',
@@ -106,8 +109,8 @@ export const generateDemoProducts = (page: number = 1, pageSize: number = 20): {
       description: 'Complete mobile device kit with tablet, accessories, and protective case',
       price: 899.99,
       priceBase: 899.99,
-      currentCost: 650.00,
-      currentCostBase: 650.00,
+      currentCost: 650.0,
+      currentCostBase: 650.0,
       supplierName: 'Mobile Tech Corp.',
       productTypeCode: 'Kit',
       productStructure: 'Kit',
@@ -127,10 +130,10 @@ export const generateDemoProducts = (page: number = 1, pageSize: number = 20): {
       name: 'Consulting Services',
       productNumber: 'CS-2024-006',
       description: 'Professional consulting services for business process optimization',
-      price: 150.00,
-      priceBase: 150.00,
-      currentCost: 75.00,
-      currentCostBase: 75.00,
+      price: 150.0,
+      priceBase: 150.0,
+      currentCost: 75.0,
+      currentCostBase: 75.0,
       supplierName: 'Business Consultants Inc.',
       productTypeCode: 'Service',
       productStructure: 'Standalone',
@@ -145,7 +148,7 @@ export const generateDemoProducts = (page: number = 1, pageSize: number = 20): {
       updatedAt: '2024-02-25T11:20:00Z',
       isDeleted: false
     }
-  ];
+  ]
 
   // Add more demo products to reach a realistic dataset
   for (let i = 7; i <= 50; i++) {
@@ -171,18 +174,18 @@ export const generateDemoProducts = (page: number = 1, pageSize: number = 20): {
       createdAt: `2024-0${Math.ceil(Math.random() * 2)}-${String(Math.ceil(Math.random() * 28)).padStart(2, '0')}T${String(Math.floor(Math.random() * 24)).padStart(2, '0')}:${String(Math.floor(Math.random() * 60)).padStart(2, '0')}:00Z`,
       updatedAt: `2024-0${Math.ceil(Math.random() * 2)}-${String(Math.ceil(Math.random() * 28)).padStart(2, '0')}T${String(Math.floor(Math.random() * 24)).padStart(2, '0')}:${String(Math.floor(Math.random() * 60)).padStart(2, '0')}:00Z`,
       isDeleted: false
-    });
+    })
   }
 
-  const startIndex = (page - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  const paginatedProducts = allDemoProducts.slice(startIndex, endIndex);
+  const startIndex = (page - 1) * pageSize
+  const endIndex = startIndex + pageSize
+  const paginatedProducts = allDemoProducts.slice(startIndex, endIndex)
 
   return {
     products: paginatedProducts,
     total: allDemoProducts.length
-  };
-};
+  }
+}
 
 export const generateDemoProductKPIData = (): ProductKPIData => {
   return {
@@ -207,5 +210,5 @@ export const generateDemoProductKPIData = (): ProductKPIData => {
       period: 'vs last month',
       currency: 'EUR'
     }
-  };
-};
+  }
+}

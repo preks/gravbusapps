@@ -1,75 +1,71 @@
-import React from 'react';
-import { Card, Typography } from 'antd';
-import { SunburstChart, ResponsiveContainer, Tooltip } from 'recharts';
-import { SunburstNode } from '../types/structuralTypes';
+import React, { useRef, useState } from 'react'
+import { Card, Typography } from 'antd'
+import { SunburstChart, ResponsiveContainer, Tooltip } from 'recharts'
+import { SunburstNode } from '../types/structuralTypes'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
-const { Title, Text } = Typography;
+const { Title, Text } = Typography
 
 interface SunburstVisualizationProps {
-  data: SunburstNode;
-  prefixDataTestId?: string;
+  data: SunburstNode
+  prefixDataTestId?: string
 }
 
 // Custom tooltip component for sunburst
 const SunburstTooltip: React.FC<any> = ({ active, payload }) => {
+  const { t } = useTranslation(hrTranslations)
   if (active && payload && payload.length > 0) {
-    const data = payload[0]?.payload;
-    
+    const data = payload[0]?.payload
+
     // Add defensive checks to ensure data exists and has required properties
     if (!data || typeof data !== 'object') {
-      return null;
+      return null
     }
 
-    const name = data.name || 'Unknown';
-    const value = data.value || 0;
-    const companyName = data.companyName;
+    // Extract the original name by removing the ID suffix
+    const displayName = data.name ? data.name.replace(/\s*\([^)]*\)$/, '') : t('hr-analytics-none')
+    const value = data.value || 0
+    const companyName = data.companyName
 
     return (
-      <div 
-        style={{ 
-          backgroundColor: 'white', 
-          border: '1px solid #ccc', 
-          borderRadius: '4px', 
-          padding: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
-        }}
-      >
-        <p style={{ margin: 0, fontWeight: 'bold' }}>{name}</p>
-        <p style={{ margin: 0, color: '#666' }}>
-          Employees: {value}
+      <div className="gba:bg-card gba:border gba:border-border gba:rounded gba:p-2 gba:shadow-sm">
+        <p className="gba:m-0 gba:font-bold gba:text-foreground">{displayName}</p>
+        <p className="gba:m-0 gba:text-muted-foreground">
+          {t('hr-analytics-employees')}: {value}
         </p>
         {companyName && (
-          <p style={{ margin: 0, color: '#666' }}>
-            Company: {companyName}
+          <p className="gba:m-0 gba:text-muted-foreground">
+            {t('hr-analytics-company')}: {companyName}
           </p>
         )}
       </div>
-    );
+    )
   }
-  return null;
-};
+  return null
+}
 
 // Transform hierarchical data to sunburst format with proper unique keys
-const transformToSunburstFormat = (node: SunburstNode, parentPath = 'root', index = 0): any => {
-  // Create a unique path-based identifier
-  const currentPath = `${parentPath}-${node.name.replace(/\s+/g, '_')}-${index}`;
-  const uniqueId = `${currentPath}-level${node.level}`;
-  
+const transformToSunburstFormat = (node: SunburstNode, index = 0): any => {
+  // Create a unique name that includes the ID to prevent duplicates
+  // Recharts uses the 'name' property as the key, so we need to make names unique
+  const uniqueName = node.id ? `${node.name} (${node.id})` : `${node.name} (${index}-${node.level})`
+
+  const uniqueId = node.id || `sunburst-${node.name.replace(/[^a-zA-Z0-9]/g, '_')}-${index}-level${node.level}`
+
   const result = {
-    name: node.name,
+    name: uniqueName, // Use unique name for Recharts key generation
     value: node.value,
     level: node.level,
     id: uniqueId, // Add unique ID for chart identification
     key: uniqueId, // Ensure unique key for React rendering
     fill: node.color || node.fill, // Preserve color information
     color: node.color, // Keep original color property
-    children: node.children?.map((child, childIndex) => 
-      transformToSunburstFormat(child, currentPath, childIndex)
-    ) || []
-  };
+    children: node.children?.map((child, childIndex) => transformToSunburstFormat(child, childIndex)) || []
+  }
 
-  return result;
-};
+  return result
+}
 
 // Add a fallback data generator for empty/invalid data
 const createFallbackData = () => ({
@@ -79,68 +75,84 @@ const createFallbackData = () => ({
   id: 'fallback-node',
   key: 'fallback-node',
   children: []
-});
+})
 
 export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
   data,
   prefixDataTestId = 'StructuralAnalysis'
 }) => {
+  const { t } = useTranslation(hrTranslations)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | undefined>(undefined)
   // Enhanced data validation
-  const hasValidData = data && 
-    typeof data === 'object' && 
-    data.name && 
-    typeof data.value === 'number' && 
-    data.value > 0;
-  
+  const hasValidData = data && typeof data === 'object' && data.name && typeof data.value === 'number' && data.value > 0
+
   // Transform data to match the working sunburst format with proper keys
-  const sunburstData = hasValidData ? transformToSunburstFormat(data) : createFallbackData();
+  const sunburstData = hasValidData ? transformToSunburstFormat(data) : createFallbackData()
 
   return (
-    <Card
-      data-testid={`${prefixDataTestId}-SunburstVisualization`}
-      style={{ height: '600px' }}
-    >
+    <Card data-testid={`${prefixDataTestId}-SunburstVisualization`} className="gba:h-[600px]">
       <div className="gba:p-4 gba:border-b">
-        <Title level={4} className="gba:m-0 gba:text-gray-800">
-          Organizational Hierarchy Sunburst
+        <Title level={4} className="gba:m-0 gba:text-foreground">
+          {t('hr-analytics-organizational-hierarchy-sunburst')}
         </Title>
-        <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">
-          Interactive hierarchical visualization showing organizational depth and structure distribution across different levels
-        </Text>
+        <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">{t('hr-analytics-sunburst-description')}</Text>
       </div>
-      
-      <div className="gba:p-4">
+
+      <div
+        className="gba:p-4"
+        ref={containerRef}
+        onMouseMove={e => {
+          if (!containerRef.current) return
+          const rect = containerRef.current.getBoundingClientRect()
+          setTooltipPos({ x: e.clientX - rect.left + 12, y: e.clientY - rect.top + 12 })
+        }}
+        onMouseLeave={() => setTooltipPos(undefined)}
+      >
         {hasValidData ? (
           <ResponsiveContainer height={450} width="100%">
             <SunburstChart
               data={sunburstData}
               startAngle={0}
               endAngle={360}
-              fill="#8884d8"
+              fill="var(--nw-color-chart-1)"
               innerRadius={10}
               ringPadding={1}
-              stroke="#fff"
-              textOptions={{}}
+              stroke="var(--nw-color-primary-foreground)"
+              textOptions={{
+                fill: '#ffffff',
+                fontSize: 12 as any,
+                fontWeight: '600',
+                paintOrder: 'stroke fill',
+                stroke: 'rgba(0,0,0,0.7)',
+                // Ensure labels don't block hover on sectors
+                pointerEvents: 'none' as any
+              }}
               dataKey="value"
             >
-              <Tooltip content={<SunburstTooltip />} />
+              <Tooltip
+                content={<SunburstTooltip />}
+                isAnimationActive={false}
+                position={tooltipPos}
+                wrapperStyle={{ transition: 'none' }}
+                allowEscapeViewBox={{ x: true, y: true }}
+                cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+                offset={0}
+              />
             </SunburstChart>
           </ResponsiveContainer>
         ) : (
-          <div 
-            className="gba:flex gba:flex-col gba:justify-center gba:items-center gba:h-96 gba:text-gray-500"
-          >
-            <div className="gba:text-4xl gba:mb-4 gba:text-gray-400">📊</div>
-            <div className="gba:text-lg gba:font-semibold gba:mb-2 gba:text-gray-700">
-              No Organizational Hierarchy Data
+          <div className="gba:flex gba:flex-col gba:justify-center gba:items-center gba:h-96 gba:text-muted-foreground">
+            <div className="gba:text-4xl gba:mb-4 gba:text-muted">📊</div>
+            <div className="gba:text-lg gba:font-semibold gba:mb-2 gba:text-foreground">
+              {t('hr-analytics-no-organizational-hierarchy-data')}
             </div>
-            <div className="gba:text-sm gba:text-center gba:leading-6 gba:text-gray-600">
-              The organizational hierarchy data is either empty or still loading.<br/>
-              Please ensure your structure has organizational units with relationships.
+            <div className="gba:text-sm gba:text-center gba:leading-6 gba:text-muted-foreground">
+              {t('hr-analytics-data-empty-instruction')}
             </div>
           </div>
         )}
       </div>
     </Card>
-  );
-}; 
+  )
+}

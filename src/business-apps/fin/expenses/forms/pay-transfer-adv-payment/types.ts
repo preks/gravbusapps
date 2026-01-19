@@ -1,66 +1,93 @@
 export interface Employee {
-  id: string;
-  userId: string;
-  firstName: string;
-  lastName: string;
-  pictureThumbnail: string;
-  employeePosition: EmployeePosition;
-}
-
-export interface EmployeePosition {
-  supervisor: Employee;
-  jobPosition: JobPosition;
-  organizationalUnit: OrganizationalUnit;
-}
-
-export interface JobPosition {
-  name: string;
-}
-
-export interface OrganizationalUnit {
-  name: string;
+  id: string
+  firstName: string
+  lastName: string
+  pictureThumbnail?: string
+  employeePosition?: {
+    supervisor?: {
+      pictureThumbnail?: string
+      firstName?: string
+      lastName?: string
+      employeePosition?: {
+        jobPosition?: {
+          name?: string
+        }
+        organizationalUnit?: {
+          name?: string
+        }
+      }
+    }
+    jobPosition?: {
+      name: string
+    }
+    organizationalUnit?: {
+      name: string
+    }
+  }
 }
 
 export interface RequestType {
-  code: string;
-  value: string;
+  code: string
+  value: string
 }
 
 export interface Currency {
-  value: string;
-  code: string;
+  code: string
 }
 
 export interface CostCenter {
-  code: string;
-  name: string;
+  code: string
+  name: string
 }
 
 export interface EmployeeDocument {
-  id: string;
-  file: string;
-  mimeType: string;
+  id: string
+  file: string
+  mimeType: string
 }
 
 export interface ExpensePlan {
-  planDate: string;
-  decisionDate: string;
-  employeeDocument: EmployeeDocument;
-  employee: Employee;
-  code: string;
-  requestType: RequestType;
-  currency: Currency;
-  totalAmount: number;
-  title: string;
+  id: string
+  planDate?: string
+  decisionDate?: string
+  employeeDocument?: EmployeeDocument
+  employee: Employee
+  code: string
+  requestType: RequestType
+  currency: Currency
+  totalAmount: number
+  title: string
+  description?: string
+}
+
+export interface AdvancePaymentComment {
+  id: string
+  commentDate: string
+  comment: string
+  commentType: string
+  authorEmployee?: string
+  advancePayment?: string
 }
 
 export interface AdvancePaymentData {
-  expensePlanId: string;
-  status: string;
-  version: number;
-  expensePlan: ExpensePlan;
-  amount: number;
-  currency: Currency;
-  paymentMethod: string;
-  costCenter: CostCenter;
+  id: string
+  expensePlanId: string
+  expensePlan: ExpensePlan
+  amount: number
+  description?: string
+  currency: Currency
+  paymentMethod: string
+  costCenter: CostCenter
+  code?: string
+  status?: string
+  decisionDate?: string
+  transactionDate?: string
+  transactionNumber?: string
+  transactionConfirmed?: boolean
+  transactionConfirmedByEmployee?: {
+    id: string
+    firstName: string
+    lastName: string
+  }
+  advancePaymentComment?: AdvancePaymentComment[]
 }

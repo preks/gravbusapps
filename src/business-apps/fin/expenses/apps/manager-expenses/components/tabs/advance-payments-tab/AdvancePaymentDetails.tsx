@@ -1,217 +1,46 @@
-import React from "react";
-import { Button } from "@newwork/nw-design-system";
-import { PiArrowRight } from "react-icons/pi";
-import Pill from "@/components/pill/Pill";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
-import { formatAmount } from "../../../utils/currencyUtils";
+import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
+import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../utils'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { DetailsPanelContent } from '@/business-apps/fin/expenses/common/components/details-panel/DetailsPanelContent'
+import { buildAdvancePaymentFields } from '@/business-apps/fin/expenses/common/utils/advancePaymentUtils'
+import { AdvancePaymentDetailsFooter } from '@/business-apps/fin/expenses/common/components/AdvancePaymentDetailsFooter'
+import translations from '../../../../personal-expenses/_i18n'
 
 export interface AdvancePaymentDetailsProps extends BusinessAppContextProps {
-  payment: any;
-  onApprove: (paymentId: string) => void;
-  onReject: (paymentId: string) => void;
+  payment: any
 }
 
-// Shared component for expense details view (same as in other components)
-interface ExpenseDetailsViewProps {
-  title: string;
-  code: string;
-  status: string;
-  requester: string;
-  department: string;
-  tripType: string;
-  totalAmount: string;
-  onViewDetails: () => void;
-}
+const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({ payment }) => {
+  const { t } = useTranslation(translations)
+  if (!payment) return null
 
-const ExpenseDetailsView: React.FC<ExpenseDetailsViewProps> = ({
-  title,
-  code,
-  status,
-  requester,
-  department,
-  tripType,
-  totalAmount,
-  onViewDetails,
-}) => {
-  // Helper function to get status display info
-  const getStatusDisplay = (status: string) => {
-    type PillType = "draft" | "completed" | "waiting" | "task" | "error";
-
-    const statusMap: Record<string, { label: string; type: PillType }> = {
-      DRAFT: { label: "Draft", type: "draft" },
-      PENDING: { label: "Pending Approval", type: "waiting" },
-      APPROVED: { label: "Approved", type: "completed" },
-      REJECTED: { label: "Rejected", type: "error" },
-      PAID: { label: "Paid", type: "completed" },
-      CREATED: { label: "Created", type: "waiting" },
-    };
-
-    return statusMap[status] || { label: status, type: "waiting" };
-  };
+  const fields = buildAdvancePaymentFields(payment, {
+    showDuration: true,
+    showDecisionDate: true,
+    showTransactionDate: true,
+    showRequester: true,
+    showManager: true,
+    showPlanTotalAmount: true,
+    formatCurrency: formatCurrencyDisplay,
+    t,
+    getStatusDisplay: getAdvancePaymentStatusDisplay
+  })
 
   return (
-    <div className="gba:p-6">
-      <div className="gba:mb-6">
-        <h3 className="gba:text-lg gba:font-medium gba:mb-2">{title}</h3>
-        <p className="gba:text-sm gba:text-gray-600 gba:mb-4">{code}</p>
-        <Pill
-          type={getStatusDisplay(status).type}
-          label={getStatusDisplay(status).label}
-        />
-      </div>
-
-      <div className="gba:mb-6">
-        <div className="gba:space-y-4">
-          <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-            <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
-                Requester
-              </div>
-              <div className="gba:text-sm">{requester}</div>
-            </div>
-            <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
-                Department
-              </div>
-              <div className="gba:text-sm">{department}</div>
-            </div>
-            <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
-                Purpose
-              </div>
-              <div className="gba:text-sm">{tripType}</div>
-            </div>
-            <div>
-              <div className="gba:text-sm gba:font-medium gba:text-gray-500">
-                Total Amount
-              </div>
-              <div className="gba:text-sm">{totalAmount}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="gba:flex gba:justify-end gba:mt-6">
-        <Button
-          variant="default"
-          onClick={onViewDetails}
-          data-testid="view-full-details-button"
-          className="gba:flex gba:items-center gba:gap-2"
-        >
-          <PiArrowRight className="gba:w-4 gba:h-4" />
-          {getTranslationFromI18nKeyAndLabel(
-            "expense.details.view",
-            "View Full Details"
-          )}
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-const AdvancePaymentDetails: React.FC<AdvancePaymentDetailsProps> = ({
-  payment,
-  onApprove,
-  onReject,
-}) => {
-  const getTextType = (daysRemaining: number) => {
-    if (daysRemaining < 0) return "danger";
-    if (daysRemaining < 7) return "warning";
-    return undefined;
-  };
-
-  const getDaysRemainingText = (daysRemaining: number) => {
-    return daysRemaining < 0
-      ? `${Math.abs(daysRemaining)} days overdue`
-      : `${daysRemaining} days`;
-  };
-
-  const getPillType = (status: string) => {
-    switch (status) {
-      case "APPROVED":
-        return "completed";
-      case "REJECTED":
-        return "error";
-      case "DRAFT":
-        return "draft";
-      default:
-        return "waiting";
-    }
-  };
-
-  // Helper function to get department safely
-  const getDepartment = () => {
-    // Check the expense plan employee first (primary source)
-    if (
-      payment.expensePlan?.employee?.employeePosition?.organizationalUnit?.name
-    ) {
-      return payment.expensePlan.employee.employeePosition.organizationalUnit
-        .name;
-    }
-    if (payment.expensePlan?.employee?.department) {
-      return payment.expensePlan.employee.department;
-    }
-    // Fallback to payment employee
-    if (payment.employee?.employeePosition?.organizationalUnit?.name) {
-      return payment.employee.employeePosition.organizationalUnit.name;
-    }
-    // Fallback to direct department field
-    if (payment.employee?.department) {
-      return payment.employee.department;
-    }
-    // Fallback to additional properties
-    if (payment.employee?.additionalProperties?.department) {
-      return payment.employee.additionalProperties.department;
-    }
-    return "Not specified";
-  };
-
-  const handleViewDetails = () => {
-    const url = buildPlatformUrl(
-      "/platform/fin/expenses/advance-payment-record",
-      { advancePaymentId: payment.id }
-    );
-    navigateTo(url);
-  };
-
-  const handleReject = () => {
-    onReject(payment.id);
-  };
-
-  // Helper function to calculate days remaining until due date
-  const calculateDaysRemaining = () => {
-    if (!payment.dueDate) return null;
-
-    const dueDate = new Date(payment.dueDate);
-    const today = new Date();
-    const diffTime = dueDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    return diffDays;
-  };
-
-  const daysRemaining = calculateDaysRemaining();
-
-  return (
-    <ExpenseDetailsView
-      title={payment.expensePlan?.title || "No title"}
-      code={payment.expensePlan?.code || ""}
-      status={payment.status}
-      requester={
-        payment.expensePlan?.employee?.fullName ||
-        payment.employee?.fullName ||
-        "Unknown"
-      }
-      department={getDepartment()}
-      tripType={payment.purpose || "Advance Payment"}
-      totalAmount={
-        payment.amount ? `€${formatAmount(payment.amount)}` : "€0,00"
-      }
-      onViewDetails={handleViewDetails}
+    <DetailsPanelContent
+      dataTestIdPrefix="advance-payment-details"
+      title={getTranslationFromI18nKeyAndLabel(
+        'lowcoder:personal_expenses.advance_payment_details_title',
+        'Advance Payment Details'
+      )}
+      subtitle={payment.code || undefined}
+      fields={fields}
+      showHeader={false}
+      footer={<AdvancePaymentDetailsFooter expensePlanId={payment.expensePlan?.id} />}
     />
-  );
-};
+  )
+}
 
-export default AdvancePaymentDetails;
+export default AdvancePaymentDetails

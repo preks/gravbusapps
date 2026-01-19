@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
-import { catalogManagerClient } from './CatalogManagerClient';
+import { catalogManagerClient } from './CatalogManagerClient'
 
 export const useCatalogManagerClient = (accessToken: string) => {
-  catalogManagerClient.setAccessToken(accessToken);
-  
+  catalogManagerClient.setAccessToken(accessToken)
+
   useEffect(
     function addRefreshedTokenToAuthorizationHeader() {
       window.addEventListener('com.newwork.token.shouldRefreshAuthorizationHeader', listener as EventListener)
@@ -12,11 +12,11 @@ export const useCatalogManagerClient = (accessToken: string) => {
       }
 
       function listener() {
-        catalogManagerClient.setAccessToken(accessToken);
+        catalogManagerClient.setAccessToken(accessToken)
       }
     },
     [accessToken]
   )
 
-  return catalogManagerClient;
+  return catalogManagerClient
 }

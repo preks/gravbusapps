@@ -1,4 +1,4 @@
-import HrLauncher from './HrLauncher';
+import HrLauncher from './HrLauncher'
 
-export { HrLauncher };
-export default HrLauncher; 
+export { HrLauncher }
+export default HrLauncher

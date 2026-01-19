@@ -33,15 +33,16 @@ const CoreFeature = {
 const HCMFeature = {
   EmployeeProfile: { Key: 'hcm.employee-profile.mode', Values: HCMFeatureEmployeeProfileValue },
   EmployeeAbsence: { Key: 'hcm.employee-absence.enabled' },
-  EmployeeExpenses: { Key: 'hcm.employee-expenses.enabled' }
+  EmployeeExpenses: { Key: 'hcm.employee-expenses.enabled' },
+  Compensation: { Key: 'human-resources.compensation.enabled' }
 }
 
 const CRMFeature = {
   Accounts: { Key: 'crm.accounts.enabled' }
 }
 
-const Servicedesk = {
-  Servicedesk: { Key: 'servicedesk.enabled' }
+const ServicesFeature = {
+  Enabled: { Key: 'services.enabled' }
 }
 
 const FLOWFeature = {
@@ -56,7 +57,16 @@ const PlatformFeature = {
   Cloud: { Key: 'platform.create.cloud.enabled' },
   GlobalManagement: { Key: 'platform.global.manage.enabled' },
   FlowBot: { Key: 'platform.ai.flowbot.enabled' },
-  DashboardLayout: { Key: 'platform.dashboard-layout.mode', Values: PlatformFeatureDashboardLayoutValue }
+  DashboardLayout: { Key: 'platform.dashboard-layout.mode', Values: PlatformFeatureDashboardLayoutValue },
+  EveryAI: { Key: 'everyai.enabled' }
+}
+
+const DevFeature = {
+  Enabled: { Key: 'dev.enabled' }
+}
+
+const PreviewFeature = {
+  Enabled: { Key: 'preview.enabled' }
 }
 
 export const Feature = {
@@ -64,7 +74,9 @@ export const Feature = {
   Core: CoreFeature,
   HCM: HCMFeature,
   CRM: CRMFeature,
-  ServiceDesk: Servicedesk,
+  Services: ServicesFeature,
   FLOW: FLOWFeature,
-  Platform: PlatformFeature
+  Platform: PlatformFeature,
+  Dev: DevFeature,
+  Preview: PreviewFeature
 }

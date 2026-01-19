@@ -1,28 +1,28 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Alert, Badge, Progress, Card } from '@newwork/nw-design-system';
-import { GuardianFilter } from '../../types/guardianTypes';
+import React, { useEffect, useState, useCallback } from 'react'
+import { Alert, Badge, Progress, Card } from '@newwork/nw-design-system'
+import { GuardianFilter } from '../../types/guardianTypes'
 
 interface SLAViolation {
-  id: string;
-  flowName: string;
-  stepName: string;
-  department: string;
-  violationRate: number;
-  avgOverdueHours: number;
-  totalTasks: number;
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  trend: 'improving' | 'worsening' | 'stable';
+  id: string
+  flowName: string
+  stepName: string
+  department: string
+  violationRate: number
+  avgOverdueHours: number
+  totalTasks: number
+  severity: 'critical' | 'high' | 'medium' | 'low'
+  trend: 'improving' | 'worsening' | 'stable'
 }
 
 interface D3SLAViolationCardsProps {
-  workflowData: any;
-  dimensions: { width: number; height: number };
-  filters: GuardianFilter;
-  isRealTime: boolean;
-  onError: (error: string) => void;
-  prefixDataTestId: string;
-  grouping?: 'flow' | 'task';
-  theme?: 'light' | 'dark';
+  workflowData: any
+  dimensions: { width: number; height: number }
+  filters: GuardianFilter
+  isRealTime: boolean
+  onError: (error: string) => void
+  prefixDataTestId: string
+  grouping?: 'flow' | 'task'
+  theme?: 'light' | 'dark'
 }
 
 export const D3SLAViolationCards: React.FC<D3SLAViolationCardsProps> = ({
@@ -35,103 +35,39 @@ export const D3SLAViolationCards: React.FC<D3SLAViolationCardsProps> = ({
   grouping = 'flow',
   theme = 'dark'
 }) => {
-  const [violations, setViolations] = useState<SLAViolation[]>([]);
-  const [highlightedViolations, setHighlightedViolations] = useState<Set<string>>(new Set());
+  const [violations, setViolations] = useState<SLAViolation[]>([])
+  const [highlightedViolations, setHighlightedViolations] = useState<Set<string>>(new Set())
 
-  const isDark = theme === 'dark';
+  const isDark = theme === 'dark'
 
   // Extract and transform SLA violations data
   const extractViolations = useCallback((data: any): SLAViolation[] => {
-    const analytics = data?.analytics || {};
-    const slaKillers = analytics.flowManagement?.slaKillers || [];
+    const analytics = data?.analytics || {}
+    const slaKillers = analytics.flowManagement?.slaKillers || []
 
-    // Create enhanced violations with mock data for better visualization
-    const mockViolations: SLAViolation[] = [
-      {
-        id: 'violation-001',
-        flowName: 'Employee Onboarding',
-        stepName: 'Manager Approval',
-        department: 'Human Resources',
-        violationRate: 65,
-        avgOverdueHours: 48,
-        totalTasks: 124,
-        severity: 'critical',
-        trend: 'worsening'
-      },
-      {
-        id: 'violation-002',
-        flowName: 'Budget Approval',
-        stepName: 'CFO Review',
-        department: 'Finance',
-        violationRate: 45,
-        avgOverdueHours: 72,
-        totalTasks: 89,
-        severity: 'high',
-        trend: 'stable'
-      },
-      {
-        id: 'violation-003',
-        flowName: 'IT Setup Request',
-        stepName: 'Equipment Procurement',
-        department: 'IT Department',
-        violationRate: 35,
-        avgOverdueHours: 24,
-        totalTasks: 156,
-        severity: 'high',
-        trend: 'improving'
-      },
-      {
-        id: 'violation-004',
-        flowName: 'Client Onboarding',
-        stepName: 'Document Verification',
-        department: 'Operations',
-        violationRate: 25,
-        avgOverdueHours: 18,
-        totalTasks: 67,
-        severity: 'medium',
-        trend: 'stable'
-      },
-      {
-        id: 'violation-005',
-        flowName: 'Code Review',
-        stepName: 'Security Scan',
-        department: 'Engineering',
-        violationRate: 18,
-        avgOverdueHours: 12,
-        totalTasks: 234,
-        severity: 'medium',
-        trend: 'improving'
-      },
-      {
-        id: 'violation-006',
-        flowName: 'Purchase Order',
-        stepName: 'Vendor Approval',
-        department: 'Procurement',
-        violationRate: 12,
-        avgOverdueHours: 8,
-        totalTasks: 98,
-        severity: 'low',
-        trend: 'stable'
-      }
-    ];
-
-    // Combine with real data if available
     const realViolations = slaKillers.map((killer: any, index: number) => ({
       id: `real-violation-${index}`,
       flowName: killer.flow_name || 'Unknown Flow',
       stepName: killer.step_name || 'Unknown Step',
-      department: ['HR', 'Finance', 'IT', 'Operations', 'Engineering'][index % 5],
+      // Do not invent departments; use real fields when present.
+      department: killer.department || killer.orgUnit || '—',
       violationRate: killer.violation_rate || 0,
       avgOverdueHours: killer.avg_overdue_hours || 0,
       totalTasks: killer.total_tasks || 0,
-      severity: killer.violation_rate > 50 ? 'critical' :
-                killer.violation_rate > 30 ? 'high' :
-                killer.violation_rate > 15 ? 'medium' : 'low',
-      trend: Math.random() > 0.5 ? 'improving' : 'worsening'
-    }));
+      severity:
+        killer.violation_rate > 50
+          ? 'critical'
+          : killer.violation_rate > 30
+            ? 'high'
+            : killer.violation_rate > 15
+              ? 'medium'
+              : 'low',
+      trend:
+        killer.violation_rate > 50 ? 'worsening' : killer.violation_rate < 15 ? 'improving' : ('stable' as const)
+    }))
 
-    return [...mockViolations, ...realViolations].slice(0, 8);
-  }, []);
+    return realViolations.slice(0, 8)
+  }, [])
 
   // Get severity color and styling
   const getSeverityConfig = (severity: string) => {
@@ -143,7 +79,7 @@ export const D3SLAViolationCards: React.FC<D3SLAViolationCardsProps> = ({
           borderColor: isDark ? '#7f1d1d' : '#fecaca',
           badge: 'destructive' as const,
           icon: '🚨'
-        };
+        }
       case 'high':
         return {
           color: '#f59e0b',
@@ -151,7 +87,7 @@ export const D3SLAViolationCards: React.FC<D3SLAViolationCardsProps> = ({
           borderColor: isDark ? '#7c2d12' : '#fed7aa',
           badge: 'secondary' as const,
           icon: '⚠️'
-        };
+        }
       case 'medium':
         return {
           color: '#eab308',
@@ -159,7 +95,7 @@ export const D3SLAViolationCards: React.FC<D3SLAViolationCardsProps> = ({
           borderColor: isDark ? '#6b5d12' : '#fde047',
           badge: 'outline' as const,
           icon: '⚡'
-        };
+        }
       case 'low':
         return {
           color: '#10b981',
@@ -167,7 +103,7 @@ export const D3SLAViolationCards: React.FC<D3SLAViolationCardsProps> = ({
           borderColor: isDark ? '#14532d' : '#bbf7d0',
           badge: 'outline' as const,
           icon: '✅'
-        };
+        }
       default:
         return {
           color: isDark ? '#9ca3af' : '#6b7280',
@@ -175,71 +111,69 @@ export const D3SLAViolationCards: React.FC<D3SLAViolationCardsProps> = ({
           borderColor: isDark ? '#374151' : '#e5e7eb',
           badge: 'secondary' as const,
           icon: '📊'
-        };
+        }
     }
-  };
+  }
 
   // Get trend styling
   const getTrendConfig = (trend: string) => {
     switch (trend) {
       case 'improving':
-        return { color: '#10b981', icon: '📈', text: 'Improving' };
+        return { color: '#10b981', icon: '📈', text: 'Improving' }
       case 'worsening':
-        return { color: '#ef4444', icon: '📉', text: 'Worsening' };
+        return { color: '#ef4444', icon: '📉', text: 'Worsening' }
       case 'stable':
-        return { color: '#6b7280', icon: '➡️', text: 'Stable' };
+        return { color: '#6b7280', icon: '➡️', text: 'Stable' }
       default:
-        return { color: '#6b7280', icon: '📊', text: 'Unknown' };
+        return { color: '#6b7280', icon: '📊', text: 'Unknown' }
     }
-  };
+  }
 
   // Pulse effect for critical violations
   useEffect(() => {
-    if (!isRealTime) return;
+    if (!isRealTime) return
 
-    const criticalViolations = violations
-      .filter(v => v.severity === 'critical')
-      .map(v => v.id);
+    const criticalViolations = violations.filter(v => v.severity === 'critical').map(v => v.id)
 
-    setHighlightedViolations(new Set(criticalViolations));
+    setHighlightedViolations(new Set(criticalViolations))
 
     const interval = setInterval(() => {
       setHighlightedViolations(prev => {
-        const newSet = new Set(prev);
+        const newSet = new Set(prev)
         criticalViolations.forEach(id => {
           if (newSet.has(id)) {
-            newSet.delete(id);
+            newSet.delete(id)
           } else {
-            newSet.add(id);
+            newSet.add(id)
           }
-        });
-        return newSet;
-      });
-    }, 2000);
+        })
+        return newSet
+      })
+    }, 2000)
 
-    return () => clearInterval(interval);
-  }, [violations, isRealTime]);
+    return () => clearInterval(interval)
+  }, [violations, isRealTime])
 
   // Update violations when data changes
   useEffect(() => {
     if (workflowData) {
       try {
-        const newViolations = extractViolations(workflowData);
-        setViolations(newViolations);
+        const newViolations = extractViolations(workflowData)
+        setViolations(newViolations)
       } catch (error) {
-        console.error('Error extracting SLA violations:', error);
-        onError('Failed to extract SLA violation data');
+        console.error('Error extracting SLA violations:', error)
+        onError('Failed to extract SLA violation data')
       }
     }
-  }, [workflowData, extractViolations, onError]);
+  }, [workflowData, extractViolations, onError])
 
   if (violations.length === 0) {
     return (
-      <div 
-        style={{ 
-          height: '100%', 
-          display: 'flex', 
-          alignItems: 'center', 
+      <div
+        style={{
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'center',
           flexDirection: 'column',
           gap: '16px',
@@ -249,21 +183,19 @@ export const D3SLAViolationCards: React.FC<D3SLAViolationCardsProps> = ({
       >
         <div style={{ fontSize: '48px' }}>🎉</div>
         <div style={{ textAlign: 'center' }}>
-          <h3 style={{ color: '#10b981', margin: 0, marginBottom: '8px' }}>
-            No SLA Violations
-          </h3>
+          <h3 style={{ color: '#10b981', margin: 0, marginBottom: '8px' }}>No SLA Violations</h3>
           <p style={{ color: isDark ? '#9ca3af' : '#6b7280', margin: 0 }}>
             All workflows are meeting their SLA targets
           </p>
         </div>
       </div>
-    );
+    )
   }
 
   return (
-    <div 
-      style={{ 
-        height: '100%', 
+    <div
+      style={{
+        height: '100%',
         padding: '16px',
         overflow: 'auto',
         background: isDark ? 'linear-gradient(135deg, #0b0f19 0%, #111827 100%)' : undefined
@@ -271,9 +203,9 @@ export const D3SLAViolationCards: React.FC<D3SLAViolationCardsProps> = ({
       data-testid={`${prefixDataTestId}-sla-violations`}
     >
       {/* Summary Alert */}
-      <Alert 
-        variant={isDark ? 'default' : 'destructive'} 
-        style={{ 
+      <Alert
+        variant={isDark ? 'default' : 'destructive'}
+        style={{
           marginBottom: '16px',
           backgroundColor: isDark ? '#111827' : undefined,
           color: isDark ? '#e5e7eb' : undefined,
@@ -283,9 +215,7 @@ export const D3SLAViolationCards: React.FC<D3SLAViolationCardsProps> = ({
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <strong>
-              {violations.filter(v => v.severity === 'critical').length} Critical Issues Found
-            </strong>
+            <strong>{violations.filter(v => v.severity === 'critical').length} Critical Issues Found</strong>
             <div style={{ fontSize: '14px', marginTop: '4px' }}>
               {violations.reduce((sum, v) => sum + v.totalTasks, 0)} tasks affected across {violations.length} processes
             </div>
@@ -299,91 +229,99 @@ export const D3SLAViolationCards: React.FC<D3SLAViolationCardsProps> = ({
       </Alert>
 
       {/* Violation Cards Grid */}
-      <div 
-        style={{ 
+      <div
+        style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
           gap: '16px'
         }}
       >
-        {violations.map((violation) => {
-          const severityConfig = getSeverityConfig(violation.severity);
-          const trendConfig = getTrendConfig(violation.trend);
-          const isHighlighted = highlightedViolations.has(violation.id);
+        {violations.map(violation => {
+          const severityConfig = getSeverityConfig(violation.severity)
+          const trendConfig = getTrendConfig(violation.trend)
+          const isHighlighted = highlightedViolations.has(violation.id)
 
           return (
-            <Card 
+            <Card
               key={violation.id}
               style={{
                 borderColor: severityConfig.borderColor,
                 backgroundColor: severityConfig.bgColor,
                 transition: 'all 0.3s ease',
                 transform: isHighlighted ? 'scale(1.02)' : 'scale(1)',
-                boxShadow: isHighlighted 
-                  ? `0 8px 25px rgba(239, 68, 68, 0.15)` 
-                  : '0 1px 3px rgba(0, 0, 0, 0.1)'
+                boxShadow: isHighlighted ? `0 8px 25px rgba(239, 68, 68, 0.15)` : '0 1px 3px rgba(0, 0, 0, 0.1)'
               }}
               data-testid={`${prefixDataTestId}-violation-${violation.id}`}
             >
               <div style={{ padding: '16px' }}>
                 {/* Header */}
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'flex-start',
-                  marginBottom: '12px'
-                }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    marginBottom: '12px'
+                  }}
+                >
                   <div style={{ flex: 1 }}>
-                    <div style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '8px',
-                      marginBottom: '4px'
-                    }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        marginBottom: '4px'
+                      }}
+                    >
                       <span style={{ fontSize: '16px' }}>{severityConfig.icon}</span>
-                      <h4 style={{ 
-                        fontSize: '16px', 
-                        fontWeight: '600', 
-                        color: isDark ? '#e5e7eb' : '#1f2937',
-                        margin: 0
-                      }}>
+                      <h4
+                        style={{
+                          fontSize: '16px',
+                          fontWeight: '600',
+                          color: isDark ? '#e5e7eb' : '#1f2937',
+                          margin: 0
+                        }}
+                      >
                         {grouping === 'task' ? violation.stepName : violation.flowName}
                       </h4>
                     </div>
-                    <p style={{ 
-                      fontSize: '14px', 
-                      color: isDark ? '#9ca3af' : '#6b7280',
-                      margin: 0
-                    }}>
+                    <p
+                      style={{
+                        fontSize: '14px',
+                        color: isDark ? '#9ca3af' : '#6b7280',
+                        margin: 0
+                      }}
+                    >
                       {grouping === 'task' ? `${violation.flowName}` : `${violation.stepName}`} • {violation.department}
                     </p>
                   </div>
-                  <Badge variant={severityConfig.badge}>
-                    {violation.severity.toUpperCase()}
-                  </Badge>
+                  <Badge variant={severityConfig.badge}>{violation.severity.toUpperCase()}</Badge>
                 </div>
 
                 {/* Violation Rate Progress */}
                 <div style={{ marginBottom: '12px' }}>
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    marginBottom: '6px'
-                  }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '6px'
+                    }}
+                  >
                     <span style={{ fontSize: '14px', fontWeight: '500', color: isDark ? '#e5e7eb' : '#374151' }}>
                       Violation Rate
                     </span>
-                    <span style={{ 
-                      fontSize: '18px', 
-                      fontWeight: '700', 
-                      color: severityConfig.color 
-                    }}>
+                    <span
+                      style={{
+                        fontSize: '18px',
+                        fontWeight: '700',
+                        color: severityConfig.color
+                      }}
+                    >
                       {violation.violationRate}%
                     </span>
                   </div>
-                  <Progress 
-                    value={violation.violationRate} 
+                  <Progress
+                    value={violation.violationRate}
                     style={{
                       height: '8px',
                       backgroundColor: isDark ? '#374151' : '#f3f4f6'
@@ -392,85 +330,91 @@ export const D3SLAViolationCards: React.FC<D3SLAViolationCardsProps> = ({
                 </div>
 
                 {/* Metrics */}
-                <div style={{ 
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr 1fr',
-                  gap: '12px',
-                  marginBottom: '12px'
-                }}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr 1fr',
+                    gap: '12px',
+                    marginBottom: '12px'
+                  }}
+                >
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '18px', fontWeight: '600', color: isDark ? '#e5e7eb' : '#374151' }}>
                       {violation.avgOverdueHours}h
                     </div>
-                    <div style={{ fontSize: '12px', color: isDark ? '#9ca3af' : '#6b7280' }}>
-                      Avg Overdue
-                    </div>
+                    <div style={{ fontSize: '12px', color: isDark ? '#9ca3af' : '#6b7280' }}>Avg Overdue</div>
                   </div>
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '18px', fontWeight: '600', color: isDark ? '#e5e7eb' : '#374151' }}>
                       {violation.totalTasks}
                     </div>
-                    <div style={{ fontSize: '12px', color: isDark ? '#9ca3af' : '#6b7280' }}>
-                      Total Tasks
-                    </div>
+                    <div style={{ fontSize: '12px', color: isDark ? '#9ca3af' : '#6b7280' }}>Total Tasks</div>
                   </div>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ 
-                      fontSize: '14px', 
-                      fontWeight: '500', 
-                      color: trendConfig.color,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '4px'
-                    }}>
+                    <div
+                      style={{
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        color: trendConfig.color,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px'
+                      }}
+                    >
                       <span>{trendConfig.icon}</span>
                       <span>{trendConfig.text}</span>
                     </div>
-                    <div style={{ fontSize: '12px', color: isDark ? '#9ca3af' : '#6b7280' }}>
-                      Trend
-                    </div>
+                    <div style={{ fontSize: '12px', color: isDark ? '#9ca3af' : '#6b7280' }}>Trend</div>
                   </div>
                 </div>
 
                 {/* Action Needed Indicator */}
                 {violation.severity === 'critical' && (
-                  <div style={{
-                    padding: '8px 12px',
-                    backgroundColor: isDark ? '#1a0f12' : '#fef2f2',
-                    border: `1px solid ${isDark ? '#7f1d1d' : '#fecaca'}`,
-                    borderRadius: '6px',
-                    textAlign: 'center'
-                  }}>
-                    <span style={{ 
-                      fontSize: '12px', 
-                      fontWeight: '600', 
-                      color: '#dc2626' 
-                    }}>
+                  <div
+                    style={{
+                      padding: '8px 12px',
+                      backgroundColor: isDark ? '#1a0f12' : '#fef2f2',
+                      border: `1px solid ${isDark ? '#7f1d1d' : '#fecaca'}`,
+                      borderRadius: '6px',
+                      textAlign: 'center'
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        color: '#dc2626'
+                      }}
+                    >
                       🚨 IMMEDIATE ACTION REQUIRED
                     </span>
                   </div>
                 )}
               </div>
             </Card>
-          );
+          )
         })}
       </div>
 
       {/* Footer Summary */}
-      <div style={{ 
-        marginTop: '24px',
-        padding: '16px',
-        backgroundColor: isDark ? '#111827' : '#f9fafb',
-        borderRadius: '8px',
-        border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`
-      }}>
-        <div style={{ 
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-          gap: '16px',
-          textAlign: 'center'
-        }}>
+      <div
+        style={{
+          marginTop: '24px',
+          padding: '16px',
+          backgroundColor: isDark ? '#111827' : '#f9fafb',
+          borderRadius: '8px',
+          border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`
+        }}
+      >
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+            gap: '16px',
+            textAlign: 'center'
+          }}
+        >
           <div>
             <div style={{ fontSize: '24px', fontWeight: '700', color: '#ef4444' }}>
               {violations.filter(v => v.severity === 'critical').length}
@@ -498,5 +442,5 @@ export const D3SLAViolationCards: React.FC<D3SLAViolationCardsProps> = ({
         </div>
       </div>
     </div>
-  );
-};
+  )
+}

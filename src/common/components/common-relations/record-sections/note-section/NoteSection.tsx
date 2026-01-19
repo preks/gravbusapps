@@ -1,162 +1,228 @@
-import React from 'react';
-import { Button, Card, CardContent } from '@newwork/nw-design-system';
-import { EditOutlined, CloseOutlined, UserOutlined, CalendarOutlined, PlusCircleOutlined, BellOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
-import { AppAction } from '@/components/app-action';
-import type { AppActionCommonProps } from '@/common/hooks/useAppActionData';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils';
+import React, { useMemo } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, Button, EmptyState } from '@newwork/nw-design-system'
+import { PlusIcon, UserIcon, CalendarBlankIcon, BellIcon, DotsThreeVertical } from '@phosphor-icons/react'
+import dayjs from 'dayjs'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
+import { FileInfo } from '@/common/types/FileTypes'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import type { Note } from '@/common/data/relations/types/noteTypes'
 
-type NoteItem = {
-  id: string;
-  noteTitle: string;
-  noteText: string;
-  createdAt: string;
-  createdBy: string;
-  assigneeEmployee?: { id?: string; displayName?: string; firstName?: string; lastName?: string };
-  reminderAt?: string | null;
-};
-
-interface NoteSectionProps extends BusinessAppContextProps {
-  accountId?: string;
-  contactId?: string;
-  opportunityId?: string;
-  leadId?: string;
-  demo?: boolean;
-  notes?: NoteItem[];
-  'data-testid'?: string;
-  noteActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
+export type NoteDocument = {
+  id: string
+  name: string
+  mimeType?: string
+  fileSize?: number
+  file?: string
+  fileInfo?: FileInfo
 }
 
-const NoteSection: React.FC<NoteSectionProps> = ({ accessToken, accountId, contactId, opportunityId, leadId, notes: notesProp, noteActionProps }) => {
-  const defaultNotes: NoteItem[] = [
-    {
-      id: 'n1',
-      noteTitle: 'Kickoff completed',
-      noteText: 'Discussed scope and next steps with client',
-      createdAt: new Date().toISOString(),
-      createdBy: 'Daniel Vorberg',
-      assigneeEmployee: { id: 'emp_demo_1', displayName: 'Elena Petrova' },
-      reminderAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: 'n2',
-      noteTitle: 'Follow-up scheduled',
-      noteText: 'Reminder set for Friday 10:00',
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-      createdBy: 'You',
-      assigneeEmployee: { id: 'emp_demo_2', displayName: 'Mike Krupskii' },
-      reminderAt: null,
-    },
-  ];
-  const notes = notesProp && notesProp.length ? notesProp : defaultNotes;
+export type NoteItem = {
+  id: string
+  version?: number
+  title: string
+  text: string
+  createdAt: string
+  createdBy: string
+  authorEmployee?: { id?: string; displayName?: string; firstName?: string; lastName?: string }
+  assigneeEmployee?: { id?: string; displayName?: string; firstName?: string; lastName?: string }
+  reminderDate?: string | null
+  documents?: NoteDocument[]
+}
 
-  const externalContextData = noteActionProps?.externalContextData
-    || (accountId ? { accountId } : contactId ? { contactId } : opportunityId ? { opportunityId } : leadId ? { leadId } : {});
+export interface NoteSectionProps extends BusinessAppContextProps {
+  notes?: Note[]
+  noteActionProps?: Omit<AppActionCommonProps, 'accessToken'>
+  noteEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>
+  'data-testid'?: string
+}
+
+// Standard React component that can be used with SectionWrapper
+const NoteSection: React.FC<NoteSectionProps> = props => {
+  const { accessToken, notes: rawNotes, noteEntityActionProps } = props
+
+  // Map raw notes to NoteItem format
+  const notes = useMemo(() => {
+    if (!rawNotes || rawNotes.length === 0) return []
+
+    return rawNotes.map((note: Note) => {
+      // Handle both CustomerNote (title/text) and Note (title/text) field names
+      // Get author display name
+      const authorEmployee = note.authorEmployee
+      const createdBy = authorEmployee
+        ? `${authorEmployee.firstName || ''} ${authorEmployee.lastName || ''}`.trim() ||
+          authorEmployee.displayName ||
+          getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown')
+        : getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown')
+
+      return {
+        id: note.id,
+        version: note.version,
+        title: note.title || getTranslationFromI18nKeyAndLabel('crm.notes.untitled', 'Untitled Note'),
+        text: note.text || '',
+        createdAt: note.createdAt || '',
+        createdBy,
+        authorEmployee: authorEmployee,
+        reminderDate: note.reminderDate,
+        documents: note.documents || []
+      }
+    })
+  }, [rawNotes])
+
+  // Handle document download
+  const handleDocumentClick = (document: NoteDocument, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    if (!document.fileInfo) {
+      return
+    }
+
+    try {
+      const fileUrl = buildFileUrl(document.fileInfo)
+      window.open(fileUrl, '_blank')
+    } catch {
+      // Silent fail - fileInfo structure invalid
+    }
+  }
+
+  const getAuthorName = (authorEmployee: any) => {
+    if (!authorEmployee) return null
+
+    // Use firstName + lastName first
+    const fullName = `${authorEmployee.firstName || ''} ${authorEmployee.lastName || ''}`.trim()
+    if (fullName) return fullName
+
+    // Fallback to displayName
+    return authorEmployee.displayName || null
+  }
+
+  const handleEmployeeClick = (employeeId: string) => {
+    navigateTo(buildPlatformUrl('/platform/hr/core/employees/employee-record', { employeeId }))
+  }
 
   return (
-    <div className="gba:notes-content" data-testid="note-section">
-      <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4">
-        <div className="gba:text-lg gba:font-medium">Notes</div>
-        <AppAction
-          accessToken={accessToken}
-          contextsArray={noteActionProps?.contextsArray}
-          externalContextData={externalContextData}
-          prefixDataTestId={noteActionProps?.prefixDataTestId || 'notes'}
-          emptyStateBehavior={noteActionProps?.emptyStateBehavior || 'enable'}
-        >
-          <Button data-testid="add-note-button"><span className="gba:flex gba:items-center gba:gap-2"><PlusCircleOutlined /> Add Note</span></Button>
-        </AppAction>
-      </div>
-
-      <div className="gba:px-6 gba:pb-6">
-        <div className="gba:flex gba:flex-col gba:space-y-4">
-          {notes.map((note: any) => (
-            <Card
-              key={note.id}
-              data-testid={`note-card-${note.id}`}
-              className="gba:shadow-sm gba:rounded-xl"
-            >
-              <CardContent>
-                {/* Header row: title + optional reminder pill on the left, icons on the right */}
-                <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
-                  <div className="gba:flex gba:items-center gba:flex-wrap gba:gap-3 min-[480px]:gba:flex-nowrap">
-                    <div className="gba:text-lg gba:font-semibold gba:leading-snug">{note.noteTitle}</div>
-                    {note.reminderAt && (
-                      <span className="gba:inline-flex gba:items-center gba:gap-1 gba:text-xs gba:px-3 gba:py-1 gba:rounded-full gba:border gba:whitespace-nowrap" data-testid={`note-reminder-pill-${note.id}`}>
-                        <BellOutlined />
-                        <span>{dayjs(note.reminderAt).format('MMM D, YYYY [at] h:mm A')}</span>
-                      </span>
-                    )}
-                  </div>
-                  <div className="gba:flex gba:items-center gba:gap-3 gba:shrink-0">
-                    <AppAction
-                      accessToken={accessToken}
-                      contextsArray={noteActionProps?.contextsArray}
-                      externalContextData={{ ...externalContextData, noteId: note.id }}
-                      prefixDataTestId={noteActionProps?.prefixDataTestId ? `${noteActionProps?.prefixDataTestId}-edit` : 'notes-edit'}
-                      emptyStateBehavior={noteActionProps?.emptyStateBehavior || 'enable'}
+    <div data-testid={props['data-testid'] || 'note-section-new-content'} className="gba:space-y-4">
+      {notes.length === 0 ? (
+        <EmptyState
+          type="no-data"
+          title="No Notes"
+          description="No notes yet. Create your first note."
+          data-testid="note-section-empty-state"
+        />
+      ) : (
+        notes.map(note => (
+          <Card key={note.id} className="gba:shadow-none gba:border gba:border-gray-200">
+            <CardHeader className="gba:pb-2">
+              <div className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:gap-2 gba:w-full">
+                <CardTitle className="gba:text-base gba:flex-1 gba:truncate gba:min-w-0">{note.title}</CardTitle>
+                {noteEntityActionProps && (
+                  <AppActionMenu
+                    accessToken={accessToken}
+                    contextsArray={noteEntityActionProps.contextsArray}
+                    externalContextData={{
+                      ...noteEntityActionProps.externalContextData,
+                      noteId: note.id,
+                      version: note.version
+                    }}
+                    prefixDataTestId={`${noteEntityActionProps.prefixDataTestId}-${note.id}`}
+                    deferMainContextRequestsUntilClick={true}
+                    emptyStateBehavior="enable"
+                  >
+                    <div
+                      className="gba:flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:cursor-pointer gba:rounded gba:hover:bg-gray-100 gba:transition-colors gba:shrink-0"
+                      data-testid={`note-menu-${note.id}`}
                     >
-                      <span
-                        aria-label="Edit note"
-                        data-testid={`edit-note-action-${note.id}`}
-                        className="gba:inline-flex gba:items-center gba:justify-center gba:cursor-pointer gba:p-1"
-                      >
-                        <EditOutlined />
-                      </span>
-                    </AppAction>
-                    <AppAction
-                      accessToken={accessToken}
-                      contextsArray={noteActionProps?.contextsArray}
-                      externalContextData={{ ...externalContextData, noteId: note.id }}
-                      prefixDataTestId={noteActionProps?.prefixDataTestId ? `${noteActionProps?.prefixDataTestId}-delete` : 'notes-delete'}
-                      emptyStateBehavior={noteActionProps?.emptyStateBehavior || 'enable'}
+                      <DotsThreeVertical size={16} />
+                    </div>
+                  </AppActionMenu>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="gba:pt-0">
+              <p className="gba:text-sm gba:text-gray-700 gba:mb-2">{note.text}</p>
+              <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-4 gba:gap-y-1 gba:text-xs gba:text-muted-foreground">
+                <span className="gba:flex gba:items-center gba:gap-1">
+                  <UserIcon size={12} />
+                  {note.authorEmployee?.id && getAuthorName(note.authorEmployee) ? (
+                    <a
+                      href={buildPlatformUrl('/platform/hr/core/employees/employee-record', {
+                        employeeId: note.authorEmployee.id
+                      })}
+                      onClick={e => {
+                        e.preventDefault()
+                        handleEmployeeClick(note.authorEmployee!.id!)
+                      }}
+                      className="gba:font-medium gba:text-primary gba:hover:underline gba:cursor-pointer"
+                      data-testid={`note-author-link-${note.authorEmployee.id}`}
                     >
-                      <span
-                        aria-label="Delete note"
-                        data-testid={`delete-note-action-${note.id}`}
-                        className="gba:inline-flex gba:items-center gba:justify-center gba:cursor-pointer gba:p-1"
-                      >
-                        <CloseOutlined />
-                      </span>
-                    </AppAction>
-                  </div>
-                </div>
-
-                {/* Body text */}
-                <div className="gba:mt-2">{note.noteText}</div>
-
-                {/* Footer row: assignee link + created date; single line until wrap is required */}
-                <div className="gba:mt-4 gba:flex gba:flex-wrap gba:items-center gba:justify-start gba:text-xs gba:gap-6">
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
-                    <UserOutlined />
-                    {note.assigneeEmployee?.id ? (
+                      {getAuthorName(note.authorEmployee)}
+                    </a>
+                  ) : (
+                    note.createdBy
+                  )}
+                </span>
+                <span className="gba:flex gba:items-center gba:gap-1">
+                  <CalendarBlankIcon size={12} /> {dayjs(note.createdAt).format('MMM D, YYYY h:mm A')}
+                </span>
+                {note.reminderDate && (
+                  <span className="gba:flex gba:items-center gba:gap-1 gba:text-orange-600">
+                    <BellIcon size={12} /> Reminder {dayjs(note.reminderDate).format('MMM D, YYYY h:mm A')}
+                  </span>
+                )}
+              </div>
+              {note.documents && note.documents.length > 0 && (
+                <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-3" data-testid={`note-documents-${note.id}`}>
+                  {note.documents.map(doc => {
+                    const FileIcon = getFileIcon(doc.mimeType)
+                    return (
                       <button
-                        type="button"
-                        onClick={() => navigateTo(buildPlatformUrl('/platform/employee-record', { employeeId: note.assigneeEmployee?.id as string }))}
-                        className="gba:underline gba:whitespace-nowrap"
-                        data-testid={`note-assignee-link-${note.assigneeEmployee.id}`}
+                        key={doc.id}
+                        onClick={e => handleDocumentClick(doc, e)}
+                        className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:text-xs gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors"
+                        data-testid={`note-document-${note.id}-${doc.id}`}
+                        title={doc.name}
                       >
-                        {note.assigneeEmployee.displayName || `${note.assigneeEmployee.firstName || ''} ${note.assigneeEmployee.lastName || ''}`.trim()}
+                        <FileIcon size={14} weight="bold" />
+                        <span className="gba:truncate gba:max-w-[150px]">{doc.name}</span>
                       </button>
-                    ) : (
-                      <span>{note.assigneeEmployee?.displayName || note.createdBy}</span>
-                    )}
-                  </div>
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
-                    <CalendarOutlined />
-                    <span>{dayjs(note.createdAt).format('MMM D, YYYY [at] h:mm A')}</span>
-                  </div>
+                    )
+                  })}
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
+              )}{' '}
+            </CardContent>
+          </Card>
+        ))
+      )}
     </div>
-  );
-};
+  )
+}
 
-export default NoteSection;
+// Static properties for SectionWrapper
+;(NoteSection as any).sectionTitle = 'Notes'
+;(NoteSection as any).getActionButtonConfig = (_pageData: any, _pageIndex: number, props: NoteSectionProps) => {
+  const { accessToken, noteActionProps } = props
 
+  if (!noteActionProps || !accessToken) {
+    return null
+  }
 
+  return {
+    type: 'AppAction' as const,
+    config: {
+      contextsArray: noteActionProps.contextsArray,
+      externalContextData: noteActionProps.externalContextData,
+      prefixDataTestId: noteActionProps.prefixDataTestId,
+      emptyStateBehavior: noteActionProps.emptyStateBehavior || 'enable',
+      children: (
+        <Button data-testid="add-note-button" variant="secondary" size="icon">
+          <PlusIcon />
+        </Button>
+      )
+    }
+  }
+}
+
+export default NoteSection

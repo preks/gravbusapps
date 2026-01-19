@@ -1,4 +1,4 @@
-import ExpenseRequestQueries from './ExpenseRequestQueries';
+import ExpenseRequestQueries from './ExpenseRequestQueries'
 
-export { ExpenseRequestQueries };
-export default ExpenseRequestQueries;
+export { ExpenseRequestQueries }
+export default ExpenseRequestQueries

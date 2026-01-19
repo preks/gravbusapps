@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
+import React, { useState, useEffect } from 'react'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
   TableRow,
   Button,
   Dialog,
@@ -24,80 +24,76 @@ import {
   Alert,
   AlertDescription,
   Spinner
-} from '@newwork/nw-design-system';
-import { Plus, Edit, Trash2, Share2 } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
-import { useForm } from 'react-hook-form';
+} from '@newwork/nw-design-system'
+import { Plus, Edit, Trash2, Share2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
+import { useForm } from 'react-hook-form'
 
 export interface SourcesTabProps extends BusinessAppContextProps {
-  sourceApp: 'CRM' | 'IRM';
-  prefixDataTestId?: string;
+  sourceApp: 'CRM' | 'IRM'
+  prefixDataTestId?: string
 }
 
 interface Source {
-  id: string;
-  code: string;
-  value: string;
-  alternativeCode?: string;
-  additionalValue1?: string;
-  additionalValue2?: string;
-  additionalValue3?: string;
+  id: string
+  code: string
+  value: string
+  alternativeCode?: string
+  additionalValue1?: string
+  additionalValue2?: string
+  additionalValue3?: string
 }
 
 interface SourceFormData {
-  code: string;
-  value: string;
-  alternativeCode?: string;
-  additionalValue1?: string;
+  code: string
+  value: string
+  alternativeCode?: string
+  additionalValue1?: string
 }
 
-const DATA_TEST_ID = 'SourcesTab';
+const DATA_TEST_ID = 'SourcesTab'
 
 const getSourceColor = (code: string) => {
-  const lowerCode = code.toLowerCase();
+  const lowerCode = code.toLowerCase()
   if (lowerCode.includes('website') || lowerCode.includes('online') || lowerCode.includes('digital')) {
-    return 'default';
+    return 'default'
   }
   if (lowerCode.includes('referral') || lowerCode.includes('partner') || lowerCode.includes('word')) {
-    return 'secondary';
+    return 'secondary'
   }
   if (lowerCode.includes('email') || lowerCode.includes('campaign') || lowerCode.includes('marketing')) {
-    return 'outline';
+    return 'outline'
   }
   if (lowerCode.includes('social') || lowerCode.includes('media') || lowerCode.includes('linkedin')) {
-    return 'outline';
+    return 'outline'
   }
-  return 'outline';
-};
+  return 'outline'
+}
 
-export const SourcesTab: React.FC<SourcesTabProps> = ({
-  accessToken,
-  sourceApp,
-  prefixDataTestId
-}) => {
-  const { t } = useTranslation();
-  const [sources, setSources] = useState<Source[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingSource, setEditingSource] = useState<Source | null>(null);
+export const SourcesTab: React.FC<SourcesTabProps> = ({ accessToken, sourceApp, prefixDataTestId }) => {
+  const { t } = useTranslation()
+  const [sources, setSources] = useState<Source[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingSource, setEditingSource] = useState<Source | null>(null)
 
-  const form = useForm<SourceFormData>();
-  const catalogClient = useCatalogManagerClient(accessToken);
-  
+  const form = useForm<SourceFormData>()
+  const catalogClient = useCatalogManagerClient(accessToken)
+
   // Determine catalog name based on source app
-  const catalogName = sourceApp === 'CRM' ? 'SalesLeadSource' : 'InvestmentLeadSource';
+  const catalogName = sourceApp === 'CRM' ? 'SalesLeadSource' : 'InvestmentLeadSource'
 
   // Load sources
   const loadSources = async () => {
     try {
-      setLoading(true);
-      setError(null);
-      
+      setLoading(true)
+      setError(null)
+
       const response = await catalogClient.getCatalogEntriesList(
         {
           catalogIdentifier: catalogName,
@@ -110,100 +106,97 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
           includeChildCatalogEntries: false,
           ...(searchTerm && { searchCriteria: searchTerm })
         }
-      );
+      )
 
-      const entries = response.data?.map((entry: any) => ({
-        id: entry.id,
-        code: entry.code,
-        value: entry.value,
-        alternativeCode: entry.alternativeCode,
-        additionalValue1: entry.additionalValue1,
-        additionalValue2: entry.additionalValue2,
-        additionalValue3: entry.additionalValue3,
-      })) || [];
+      const entries =
+        response.data?.map((entry: any) => ({
+          id: entry.id,
+          code: entry.code,
+          value: entry.value,
+          alternativeCode: entry.alternativeCode,
+          additionalValue1: entry.additionalValue1,
+          additionalValue2: entry.additionalValue2,
+          additionalValue3: entry.additionalValue3
+        })) || []
 
-      setSources(entries);
+      setSources(entries)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load sources';
-      setError(errorMessage);
-      console.error('Error loading sources:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load sources'
+      setError(errorMessage)
+      console.error('Error loading sources:', err)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
     if (accessToken) {
-      loadSources();
+      loadSources()
     }
-  }, [accessToken, searchTerm, catalogName]);
+  }, [accessToken, searchTerm, catalogName])
 
   const handleAdd = () => {
-    setEditingSource(null);
-    form.reset();
-    setIsModalOpen(true);
-  };
+    setEditingSource(null)
+    form.reset()
+    setIsModalOpen(true)
+  }
 
   const handleEdit = (source: Source) => {
-    setEditingSource(source);
+    setEditingSource(source)
     form.reset({
       code: source.code,
       value: source.value,
       alternativeCode: source.alternativeCode || '',
       additionalValue1: source.additionalValue1 || ''
-    });
-    setIsModalOpen(true);
-  };
+    })
+    setIsModalOpen(true)
+  }
 
   const handleDelete = async (id: string) => {
     try {
       // TODO: Implement actual delete operation with catalog API
-      console.log('Delete source:', id);
-      loadSources();
+      console.log('Delete source:', id)
+      loadSources()
     } catch (err) {
-      console.error('Failed to delete source:', err);
+      console.error('Failed to delete source:', err)
     }
-  };
+  }
 
   const handleSubmit = async (data: SourceFormData) => {
     try {
       if (editingSource) {
         // TODO: Implement actual update operation with catalog API
-        console.log('Update source:', data);
+        console.log('Update source:', data)
       } else {
         // TODO: Implement actual create operation with catalog API
-        console.log('Create source:', data);
+        console.log('Create source:', data)
       }
-      
-      setIsModalOpen(false);
-      loadSources();
-    } catch (err) {
-      console.error('Failed to save source:', err);
-    }
-  };
 
-  const filteredSources = sources.filter(item =>
-    item.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.value.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.alternativeCode && item.alternativeCode.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+      setIsModalOpen(false)
+      loadSources()
+    } catch (err) {
+      console.error('Failed to save source:', err)
+    }
+  }
+
+  const filteredSources = sources.filter(
+    item =>
+      item.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.value.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.alternativeCode && item.alternativeCode.toLowerCase().includes(searchTerm.toLowerCase()))
+  )
 
   if (error) {
     return (
       <Alert className="gba:border-red-200 gba:bg-red-50">
         <AlertDescription>
           {t('mdm.sources.error', 'Error Loading Sources')}: {error}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={loadSources}
-            className="gba:ml-2"
-          >
+          <Button variant="outline" size="sm" onClick={loadSources} className="gba:ml-2">
             {t('common.retry', 'Retry')}
           </Button>
         </AlertDescription>
       </Alert>
-    );
+    )
   }
 
   return (
@@ -213,16 +206,14 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
         <div>
           <h3 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-2">
             <Share2 className="gba:h-5 gba:w-5" />
-            {t('mdm.lead_sources', 'Lead Sources')} 
-            <Badge variant={sourceApp === 'CRM' ? 'default' : 'secondary'}>
-              {sourceApp}
-            </Badge>
+            {t('mdm.lead_sources', 'Lead Sources')}
+            <Badge variant={sourceApp === 'CRM' ? 'default' : 'secondary'}>{sourceApp}</Badge>
           </h3>
           <p className="gba:text-sm gba:text-gray-600">
             {t('mdm.lead_sources.description', 'Manage source channels for lead attribution')}
           </p>
         </div>
-        
+
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
             <Button onClick={handleAdd} data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-Add-Button`}>
@@ -236,13 +227,12 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                 {editingSource ? t('mdm.source.edit', 'Edit Source') : t('mdm.source.add', 'Add Source')}
               </DialogTitle>
               <DialogDescription>
-                {editingSource 
+                {editingSource
                   ? t('mdm.source.edit.description', 'Update the source details below.')
-                  : t('mdm.source.add.description', 'Add a new source to the catalog.')
-                }
+                  : t('mdm.source.add.description', 'Add a new source to the catalog.')}
               </DialogDescription>
             </DialogHeader>
-            
+
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="gba:space-y-4">
                 <FormField
@@ -282,7 +272,10 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                     <FormItem>
                       <FormLabel>{t('mdm.alternative_code', 'Alternative Code')}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder={t('mdm.alternative_code.placeholder', 'Enter alternative code')} />
+                        <Input
+                          {...field}
+                          placeholder={t('mdm.alternative_code.placeholder', 'Enter alternative code')}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -296,7 +289,10 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                     <FormItem>
                       <FormLabel>{t('mdm.additional_value_1', 'Additional Value 1')}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder={t('mdm.additional_value_1.placeholder', 'Enter additional value 1')} />
+                        <Input
+                          {...field}
+                          placeholder={t('mdm.additional_value_1.placeholder', 'Enter additional value 1')}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -307,9 +303,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                   <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
                     {t('common.cancel', 'Cancel')}
                   </Button>
-                  <Button type="submit">
-                    {t('common.save', 'Save')}
-                  </Button>
+                  <Button type="submit">{t('common.save', 'Save')}</Button>
                 </div>
               </form>
             </Form>
@@ -351,7 +345,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredSources.map((item) => (
+                filteredSources.map(item => (
                   <TableRow key={item.id}>
                     <TableCell>
                       <Badge variant={getSourceColor(item.code) as any}>{item.code}</Badge>
@@ -392,5 +386,5 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
         )}
       </div>
     </div>
-  );
-}; 
+  )
+}

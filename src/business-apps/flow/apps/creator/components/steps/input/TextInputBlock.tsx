@@ -1,13 +1,13 @@
-import React from 'react';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useFlowTemplateStore } from '../../../hooks/useFlowTemplateStore';
-import { Input } from '../../../types/flowTemplate';
+import React from 'react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useFlowTemplateStore } from '../../../hooks/useFlowTemplateStore'
+import { Input } from '../../../types/flowTemplate'
 
 interface TextInputBlockProps {
-  taskId: string;
-  block: Input;
-  onRemove: () => void;
-  'data-testid'?: string;
+  taskId: string
+  block: Input
+  onRemove: () => void
+  'data-testid'?: string
 }
 
 /**
@@ -19,51 +19,45 @@ export const TextInputBlock: React.FC<TextInputBlockProps> = ({
   onRemove,
   'data-testid': testId = 'text-input-block'
 }) => {
-  const { updateInputBlock } = useFlowTemplateStore();
+  const { updateInputBlock } = useFlowTemplateStore()
 
   const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateInputBlock(taskId, block.id, { label: e.target.value });
-  };
+    updateInputBlock(taskId, block.id, { label: e.target.value })
+  }
 
   const handlePlaceholderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateInputBlock(taskId, block.id, { placeholder: e.target.value });
-  };
+    updateInputBlock(taskId, block.id, { placeholder: e.target.value })
+  }
 
   const handleRequiredChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateInputBlock(taskId, block.id, { required: e.target.checked });
-  };
+    updateInputBlock(taskId, block.id, { required: e.target.checked })
+  }
 
   const getInputTypeLabel = () => {
     switch (block.type) {
       case 'text':
-        return getTranslationFromI18nKeyAndLabel('flow.creator.textField', 'Text Field');
+        return getTranslationFromI18nKeyAndLabel('flow.creator.textField', 'Text Field')
       case 'textarea':
-        return getTranslationFromI18nKeyAndLabel('flow.creator.textareaField', 'Text Area');
+        return getTranslationFromI18nKeyAndLabel('flow.creator.textareaField', 'Text Area')
       case 'number':
-        return getTranslationFromI18nKeyAndLabel('flow.creator.numberField', 'Number Field');
+        return getTranslationFromI18nKeyAndLabel('flow.creator.numberField', 'Number Field')
       default:
-        return getTranslationFromI18nKeyAndLabel('flow.creator.textField', 'Text Field');
+        return getTranslationFromI18nKeyAndLabel('flow.creator.textField', 'Text Field')
     }
-  };
+  }
 
   return (
     <div className="gba:border gba:border-gray-200 gba:rounded gba:p-4 gba:bg-gray-50" data-testid={testId}>
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-4" data-testid={`${testId}-header`}>
         <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${testId}-title`}>
-          <span className="gba:text-blue-500 gba:font-medium">
-            {getInputTypeLabel()}
-          </span>
+          <span className="gba:text-blue-500 gba:font-medium">{getInputTypeLabel()}</span>
         </div>
-        
-        <button
-          onClick={onRemove}
-          className="gba:text-red-500"
-          data-testid={`${testId}-remove-button`}
-        >
+
+        <button onClick={onRemove} className="gba:text-red-500" data-testid={`${testId}-remove-button`}>
           {getTranslationFromI18nKeyAndLabel('flow.creator.remove', 'Remove')}
         </button>
       </div>
-      
+
       <div className="gba:grid gba:grid-cols-1 gba:gap-4" data-testid={`${testId}-form`}>
         {/* Label */}
         <div className="gba:flex gba:flex-col gba:gap-1" data-testid={`${testId}-label-field`}>
@@ -80,7 +74,7 @@ export const TextInputBlock: React.FC<TextInputBlockProps> = ({
             data-testid={`${testId}-label-input`}
           />
         </div>
-        
+
         {/* Placeholder */}
         <div className="gba:flex gba:flex-col gba:gap-1" data-testid={`${testId}-placeholder-field`}>
           <label htmlFor={`${block.id}-placeholder`} className="gba:text-sm gba:text-gray-600">
@@ -96,7 +90,7 @@ export const TextInputBlock: React.FC<TextInputBlockProps> = ({
             data-testid={`${testId}-placeholder-input`}
           />
         </div>
-        
+
         {/* Required checkbox */}
         <div className="gba:flex gba:items-center gba:mt-2" data-testid={`${testId}-required-field`}>
           <input
@@ -113,5 +107,5 @@ export const TextInputBlock: React.FC<TextInputBlockProps> = ({
         </div>
       </div>
     </div>
-  );
-};
+  )
+}

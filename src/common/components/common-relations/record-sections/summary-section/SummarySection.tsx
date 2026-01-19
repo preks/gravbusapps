@@ -1,9 +1,9 @@
-import React from 'react';
+import React from 'react'
 
 interface SummarySectionProps {
-  title?: string;
-  children?: React.ReactNode;
-  'data-testid'?: string;
+  title?: string
+  children?: React.ReactNode
+  'data-testid'?: string
 }
 
 const SummarySection: React.FC<SummarySectionProps> = ({ title = 'AI Summary', children, ...rest }) => {
@@ -12,10 +12,7 @@ const SummarySection: React.FC<SummarySectionProps> = ({ title = 'AI Summary', c
       <div className="gba:text-lg gba:font-medium gba:mb-3">{title}</div>
       <div>{children}</div>
     </div>
-  );
-};
+  )
+}
 
-export default SummarySection;
-
-
-
+export default SummarySection

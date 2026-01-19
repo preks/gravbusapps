@@ -1,4 +1,4 @@
-import SalesPerformanceOverviewTab from './SalesPerformanceOverviewTab';
+import SalesPerformanceOverviewTab from './SalesPerformanceOverviewTab'
 
-export { SalesPerformanceOverviewTab };
-export default SalesPerformanceOverviewTab;
+export { SalesPerformanceOverviewTab }
+export default SalesPerformanceOverviewTab

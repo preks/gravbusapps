@@ -1,15 +1,15 @@
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface JobPositionQueryVariables {
-  structureId: string;
-  limit?: number;
-  offset?: number;
-  vacant?: boolean;
-  filter: any; // JobPositionBoolExp type
-  search: string;
-  sortField?: string;
-  sortOrder?: "ASC" | "DESC";
+  structureId: string
+  limit?: number
+  offset?: number
+  vacant?: boolean
+  filter: any // JobPositionBoolExp type
+  search: string
+  sortField?: string
+  sortOrder?: 'ASC' | 'DESC'
 }
 
 // GraphQL query to fetch job positions with employee positions (RESTORED ORIGINAL)
@@ -64,6 +64,7 @@ export const JOB_POSITION_QUERY = `
     ) {
       id
       name
+      activeTo
       jobFunction { 
         id 
         name 
@@ -86,6 +87,12 @@ export const JOB_POSITION_QUERY = `
         firstName
         lastName
         employee { pictureThumbnail }
+        supervisor {
+        id
+        firstName
+        lastName
+        pictureThumbnail
+      }
       }
       contractType {
         value
@@ -158,20 +165,20 @@ export const JOB_POSITION_QUERY = `
       }
     }
   }
-`;
+`
 
 export const useGetJobPositionData = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphqlClient(context.accessToken);
-  
+  const graphqlClient = useGraphqlClient(context.accessToken)
+
   const fetchJobPositionData = async (variables: JobPositionQueryVariables) => {
     try {
-      const result = await graphqlClient.request(JOB_POSITION_QUERY, variables);
-      return result;
+      const result = await graphqlClient.request(JOB_POSITION_QUERY, variables)
+      return result
     } catch (error) {
-      console.error('Error fetching job position data:', error);
-      throw error;
+      console.error('Error fetching job position data:', error)
+      throw error
     }
-  };
+  }
 
-  return { fetchJobPositionData };
-}; 
+  return { fetchJobPositionData }
+}

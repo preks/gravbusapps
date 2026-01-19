@@ -1,17 +1,15 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { CatalogEntry } from '@/common/types/CatalogTypes';
-import { AbsenceFilters } from '../types';
+import { useState, useEffect, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-// Working GraphQL query for KPI data (using supervisor pattern)
 const GET_EMPLOYEE_ABSENCES_FOR_KPI = `
   query GetEmployeeAbsencesForKPI($supervisorId: uuid!) {
     EmployeeAbsence(
       limit: 500
       where: {
         isDeleted: {_eq: false}
+        status: {_eq: "APPROVED"}
         employee: {employeePosition: {supervisor: {id: {_eq: $supervisorId}}}}
       }
       orderBy: {startDate: DESC}
@@ -42,325 +40,369 @@ const GET_EMPLOYEE_ABSENCES_FOR_KPI = `
         id
         value
         parentEntryId
+        parentEntry {
+          objectValue
+          translations {
+            localeCode
+            value
+          }
+          id
+          value
+        }
       }
     }
   }
-`;
+`
 
 interface EmployeeAbsence {
-  id: string;
-  startDate: string;
-  endDate: string;
-  calendarDays: number;
-  effectiveDays: number;
-  status: string;
+  id: string
+  startDate: string
+  endDate: string
+  calendarDays: number
+  effectiveDays: number
+  status: string
   employee: {
-    id: string;
-    lastName: string;
-    firstName: string;
-    pictureThumbnail?: string;
+    id: string
+    lastName: string
+    firstName: string
+    pictureThumbnail?: string
     employeePosition: {
       organizationalUnit: {
-        name: string;
-      };
-    };
-  };
+        name: string
+      }
+    }
+  }
   type: {
-    objectValue: string;
-    translations: { localeCode: string; value: string }[];
-    id: string;
-    value: string;
-    parentEntryId: string;
-    groupName?: string;
-  };
+    objectValue: any
+    translations: { localeCode: string; value: string }[]
+    id: string
+    value: string
+    parentEntryId: string
+    parentEntry: {
+      objectValue: any
+      translations: { localeCode: string; value: string }[]
+      id: string
+      value: string
+    }
+    groupName?: string
+    color?: string
+  }
 }
 
 interface KPIData {
   barChartData: Array<{
-    month: string;
-    [key: string]: string | number;
-  }>;
+    month: string
+    [key: string]: string | number
+  }>
   pieChartData: Array<{
-    name: string;
-    value: number;
-    color?: string;
-  }>;
+    name: string
+    value: number
+    color?: string
+  }>
+  groupColors: { [key: string]: string }
   topAbsentees: Array<{
-    name: string;
-    department: string;
-    total: number;
-    colorIdx: number;
-    absences: EmployeeAbsence[];
-  }>;
-  totalAbsenceDays: number;
-  maxAbsenceDays: number;
-  vacationShare: number;
+    name: string
+    department: string
+    total: number
+    colorIdx: number
+    absences: EmployeeAbsence[]
+  }>
+  totalAbsenceDays: number
+  maxAbsenceDays: number
+  vacationShare: number
   departmentData: Array<{
-    department: string;
-    total: number;
-    colorIdx: number;
-    absences: EmployeeAbsence[];
-  }>;
+    department: string
+    total: number
+    colorIdx: number
+    absences: EmployeeAbsence[]
+  }>
 }
 
-export const useAbsenceKPIData = (
-  context: BusinessAppContextProps, 
-  filters?: AbsenceFilters
-) => {
-  const { accessToken, userInfo } = context;
-  const [data, setData] = useState<KPIData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export const useAbsenceKPIData = (context: BusinessAppContextProps) => {
+  const { accessToken, userInfo } = context
+  const [data, setData] = useState<KPIData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [currentLocale, setCurrentLocale] = useState<string>(getCurrentActiveUserLocale() ?? 'en-US')
 
-  const graphQLClient = useGraphQLClient(accessToken);
-  const catalogClient = useCatalogManagerClient(accessToken);
-
-  // Memoize the filters to prevent unnecessary re-renders
-  const memoizedFilters = useMemo(() => filters, [
-    filters?.search,
-    filters?.statuses?.join(','),
-    filters?.types?.join(','),
-    filters?.groups?.join(','),
-    filters?.startDate,
-    filters?.endDate
-  ]);
+  const graphQLClient = useGraphQLClient(accessToken)
 
   const getMonthName = (date: string): string => {
+    const monthIndex = new Date(date).getMonth()
+    const monthKeys = [
+      'lowcoder:absence_report.employee_table.january',
+      'lowcoder:absence_report.employee_table.february',
+      'lowcoder:absence_report.employee_table.march',
+      'lowcoder:absence_report.employee_table.april',
+      'lowcoder:absence_report.employee_table.may',
+      'lowcoder:absence_report.employee_table.june',
+      'lowcoder:absence_report.employee_table.july',
+      'lowcoder:absence_report.employee_table.august',
+      'lowcoder:absence_report.employee_table.september',
+      'lowcoder:absence_report.employee_table.october',
+      'lowcoder:absence_report.employee_table.november',
+      'lowcoder:absence_report.employee_table.december'
+    ]
     const monthNames = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December",
-    ];
-    return monthNames[new Date(date).getMonth()];
-  };
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ]
+    return getTranslationFromI18nKeyAndLabel(monthKeys[monthIndex], monthNames[monthIndex])
+  }
 
-  const processData = useCallback((absences: EmployeeAbsence[], groupsMap: { [key: string]: string }): KPIData => {
-    // Define the desired order for absence groups (same as in AbsenceColorsManager)
-    const groupOrder = ['Vacation', 'Sick Leave', 'Special Leave', 'Work Leave'];
-    
-    // Enrich absences with group names
-    const enrichedAbsences = absences.map((absence) => ({
-      ...absence,
-      type: {
-        ...absence.type,
-        groupName: groupsMap[absence.type.parentEntryId] || "Unknown",
-      },
-    }));
+  const getTranslatedName = (translations: { localeCode: string; value: string }[], currentLocale: string): string => {
+    const translation = translations.find(t => t.localeCode === currentLocale)
+    return translation?.value || translations.find(t => t.localeCode === 'en-US')?.value || 'Unknown'
+  }
 
-    // Organize by month and type
-    const organizedAbsences: { [month: string]: { [type: string]: number } } = {};
-    enrichedAbsences.forEach((absence) => {
-      const month = getMonthName(absence.startDate);
-      const type = absence.type.groupName || "Unknown";
-      if (!organizedAbsences[month]) organizedAbsences[month] = {};
-      if (!organizedAbsences[month][type]) organizedAbsences[month][type] = 0;
-      organizedAbsences[month][type] += 1;
-    });
+  const processData = useCallback((absences: EmployeeAbsence[], currentLocale: string): KPIData => {
+    const enrichedAbsences = absences.map(absence => {
+      const groupObjectValue = absence.type.parentEntry.objectValue
+      const rawColor = groupObjectValue?.color
 
-    // All months in order
+      let color = 'var(--nw-chart-1)'
+      if (rawColor) {
+        color = rawColor.startsWith('#') ? rawColor : `#${rawColor}`
+      }
+
+      return {
+        ...absence,
+        type: {
+          ...absence.type,
+          groupName: getTranslatedName(absence.type.parentEntry.translations, currentLocale),
+          color: color
+        }
+      }
+    })
+
+    const organizedAbsences: { [month: string]: { [type: string]: number } } = {}
+    enrichedAbsences.forEach(absence => {
+      const month = getMonthName(absence.startDate)
+      const type = absence.type.groupName || 'Unknown'
+      if (!organizedAbsences[month]) organizedAbsences[month] = {}
+      if (!organizedAbsences[month][type]) organizedAbsences[month][type] = 0
+      organizedAbsences[month][type] += 1
+    })
+
+    const monthKeys = [
+      'lowcoder:absence_report.employee_table.january',
+      'lowcoder:absence_report.employee_table.february',
+      'lowcoder:absence_report.employee_table.march',
+      'lowcoder:absence_report.employee_table.april',
+      'lowcoder:absence_report.employee_table.may',
+      'lowcoder:absence_report.employee_table.june',
+      'lowcoder:absence_report.employee_table.july',
+      'lowcoder:absence_report.employee_table.august',
+      'lowcoder:absence_report.employee_table.september',
+      'lowcoder:absence_report.employee_table.october',
+      'lowcoder:absence_report.employee_table.november',
+      'lowcoder:absence_report.employee_table.december'
+    ]
     const monthNames = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December",
-    ];
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December'
+    ]
+    const translatedMonthNames = monthKeys.map((key, index) =>
+      getTranslationFromI18nKeyAndLabel(key, monthNames[index])
+    )
 
-    // Get all unique groups that appear in the data
-    const allGroupsInData = new Set<string>();
+    const allGroupsInData = new Set<string>()
     Object.values(organizedAbsences).forEach(monthData => {
-      Object.keys(monthData).forEach(group => allGroupsInData.add(group));
-    });
+      Object.keys(monthData).forEach(group => allGroupsInData.add(group))
+    })
 
-    // Sort groups according to desired order, with unknown groups at the end
-    const sortedGroups = Array.from(allGroupsInData).sort((a, b) => {
-      const aIndex = groupOrder.findIndex(orderGroup => 
-        a.toLowerCase().includes(orderGroup.toLowerCase())
-      );
-      const bIndex = groupOrder.findIndex(orderGroup => 
-        b.toLowerCase().includes(orderGroup.toLowerCase())
-      );
-      
-      // If both found, sort by index; if not found, put at end
-      if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
-      if (aIndex === -1) return 1;
-      if (bIndex === -1) return -1;
-      return aIndex - bIndex;
-    });
+    const sortedGroups = Array.from(allGroupsInData).sort((a, b) => a.localeCompare(b))
 
-  
+    const barChartData = translatedMonthNames.map(month => {
+      const monthData: any = { month }
+      sortedGroups.forEach(group => {
+        monthData[group] = organizedAbsences[month]?.[group] || 0
+      })
+      return monthData
+    })
 
-    // Create bar chart data for ALL months with groups in the correct order
-    const barChartData = monthNames.map((month) => {
-      const monthData: any = { month };
-      // Add groups in the desired order
-      sortedGroups.forEach((group) => {
-        monthData[group] = organizedAbsences[month]?.[group] || 0;
-      });
-      return monthData;
-    });
+    const totalAbsenceDays = enrichedAbsences.reduce((total, absence) => total + (absence.calendarDays || 0), 0)
 
-    // Calculate total absence days
-    const totalAbsenceDays = enrichedAbsences.reduce(
-      (total, absence) => total + (absence.calendarDays || 0),
-      0
-    );
-
-    // Filter absences for current year only (for pie chart)
-    const currentYear = new Date().getFullYear();
+    const currentYear = new Date().getFullYear()
     const currentYearAbsences = enrichedAbsences.filter(absence => {
-      const absenceYear = new Date(absence.startDate).getFullYear();
-      return absenceYear === currentYear;
-    });
+      const absenceYear = new Date(absence.startDate).getFullYear()
+      return absenceYear === currentYear
+    })
 
-    // Create pie chart data with current year absences only
-    const groupTotals: { [key: string]: number } = {};
-    currentYearAbsences.forEach((absence) => {
-      const groupName = absence.type.groupName || "Unknown";
-      if (!groupTotals[groupName]) groupTotals[groupName] = 0;
-      groupTotals[groupName] += absence.calendarDays || 0;
-    });
+    const groupTotals: { [key: string]: number } = {}
+    const groupColors: { [key: string]: string } = {}
+    currentYearAbsences.forEach(absence => {
+      const groupName = absence.type.groupName || 'Unknown'
+      const color = absence.type.color || 'var(--nw-chart-1)'
 
-    // Calculate current year total for vacation share
-    const currentYearTotalDays = currentYearAbsences.reduce(
-      (total, absence) => total + (absence.calendarDays || 0),
-      0
-    );
+      if (!groupTotals[groupName]) groupTotals[groupName] = 0
+      groupTotals[groupName] += absence.calendarDays || 0
+      groupColors[groupName] = color
+    })
 
-    // Sort pie chart data by the same group order
-    const sortedPieEntries = Object.entries(groupTotals).sort(([a], [b]) => {
-      const aIndex = groupOrder.findIndex(orderGroup => 
-        a.toLowerCase().includes(orderGroup.toLowerCase())
-      );
-      const bIndex = groupOrder.findIndex(orderGroup => 
-        b.toLowerCase().includes(orderGroup.toLowerCase())
-      );
-      
-      if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
-      if (aIndex === -1) return 1;
-      if (bIndex === -1) return -1;
-      return aIndex - bIndex;
-    });
+    const currentYearTotalDays = currentYearAbsences.reduce((total, absence) => total + (absence.calendarDays || 0), 0)
+
+    const sortedPieEntries = Object.entries(groupTotals).sort(([a], [b]) => a.localeCompare(b))
 
     const pieChartData = sortedPieEntries.map(([name, value]) => ({
       name,
       value,
-    }));
+      color: groupColors[name] || 'var(--nw-chart-1)'
+    }))
 
-    // Calculate top absentees - exclude work leave
-    const employeeAbsences: { [key: string]: { employee: EmployeeAbsence['employee']; totalDays: number; absenceCount: number; absences: EmployeeAbsence[] } } = {};
-    enrichedAbsences.forEach((absence) => {
-      // Skip work leave absences
-      const groupName = absence.type.groupName || '';
-      if (groupName.toLowerCase().includes('work leave')) {
-        return;
+    const employeeAbsences: {
+      [key: string]: {
+        employee: EmployeeAbsence['employee']
+        totalDays: number
+        absenceCount: number
+        absences: EmployeeAbsence[]
       }
-      
-      const employeeId = absence.employee.id;
+    } = {}
+    enrichedAbsences.forEach(absence => {
+      const originalGroupName = absence.type.parentEntry.value || ''
+      if (originalGroupName.toLowerCase().includes('work leave')) {
+        return
+      }
+
+      const employeeId = absence.employee.id
       if (!employeeAbsences[employeeId]) {
         employeeAbsences[employeeId] = {
           employee: absence.employee,
           totalDays: 0,
           absenceCount: 0,
-          absences: [],
-        };
+          absences: []
+        }
       }
-      employeeAbsences[employeeId].totalDays += absence.calendarDays || 0;
-      employeeAbsences[employeeId].absenceCount += 1;
-      employeeAbsences[employeeId].absences.push(absence);
-    });
+      employeeAbsences[employeeId].totalDays += absence.calendarDays || 0
+      employeeAbsences[employeeId].absenceCount += 1
+      employeeAbsences[employeeId].absences.push(absence)
+    })
 
     const topAbsenteesRaw = Object.values(employeeAbsences)
       .sort((a, b) => b.totalDays - a.totalDays)
-      .slice(0, 5);
+      .slice(0, 5)
 
-    // Transform to match TopAbsenteesList interface
     const topAbsentees = topAbsenteesRaw.map((emp, index) => ({
       name: `${emp.employee.firstName} ${emp.employee.lastName}`,
       department: emp.employee.employeePosition.organizationalUnit.name,
       total: emp.totalDays,
       colorIdx: index,
-      absences: emp.absences,
-    }));
+      absences: emp.absences
+    }))
 
-    const maxAbsenceDays = Math.max(...topAbsentees.map(ta => ta.total), 0);
+    const maxAbsenceDays = Math.max(...topAbsentees.map(ta => ta.total), 0)
 
-    // Calculate vacation share for current year
-    const vacationDays = groupTotals["Vacation"] || 0;
-    const vacationShare = currentYearTotalDays > 0 ? (vacationDays / currentYearTotalDays) * 100 : 0;
+    const vacationGroupName = Object.keys(groupTotals).find(
+      groupName =>
+        groupName.toLowerCase().includes('vacation') ||
+        groupName.toLowerCase().includes('urlaub') ||
+        groupName.toLowerCase().includes('vacances') ||
+        groupName.toLowerCase().includes('ferie') ||
+        groupName.toLowerCase().includes('holiday') ||
+        groupName.toLowerCase().includes('concediu') ||
+        groupName.toLowerCase().includes('erholungsurlaub')
+    )
+    const vacationDays = vacationGroupName ? groupTotals[vacationGroupName] : 0
+    const vacationShare = currentYearTotalDays > 0 ? (vacationDays / currentYearTotalDays) * 100 : 0
 
-    // Department data
-    const departmentTotals: { [key: string]: EmployeeAbsence[] } = {};
-    enrichedAbsences.forEach((absence) => {
-      const department = absence.employee.employeePosition.organizationalUnit.name;
-      if (!departmentTotals[department]) departmentTotals[department] = [];
-      departmentTotals[department].push(absence);
-    });
+    const departmentTotals: { [key: string]: EmployeeAbsence[] } = {}
+    enrichedAbsences.forEach(absence => {
+      const department = absence.employee.employeePosition.organizationalUnit.name
+      if (!departmentTotals[department]) departmentTotals[department] = []
+      departmentTotals[department].push(absence)
+    })
 
     const departmentData = Object.entries(departmentTotals).map(([department, absences], index) => ({
       department,
       total: absences.reduce((sum, absence) => sum + (absence.calendarDays || 0), 0),
       colorIdx: index,
-      absences,
-    }));
+      absences
+    }))
 
     return {
       barChartData,
       pieChartData,
+      groupColors,
       topAbsentees,
       totalAbsenceDays,
       maxAbsenceDays,
       vacationShare,
-      departmentData,
-    };
-  }, []);
+      departmentData
+    }
+  }, [])
 
   const loadData = useCallback(async () => {
     if (!userInfo?.employeeDetails?.employeeId) {
-      setError("Employee ID not found");
-      setLoading(false);
-      return;
+      setError('Employee ID not found')
+      setLoading(false)
+      return
     }
 
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
 
     try {
-      // Fetch absence groups (catalogs)
-      const catalogResponse = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier: "AbsenceGroup", version: "v1" },
-        { limit: 100, offset: 0, returnTotalRecords: true }
-      );
-
-      const groupsMap: { [key: string]: string } = {};
-      catalogResponse.data.forEach((group: CatalogEntry) => {
-        groupsMap[group.id] = group.value;
-      });
-
-      // Fetch absence data using working query
       const result = await graphQLClient.request<{
-        EmployeeAbsence: EmployeeAbsence[];
-      }>(GET_EMPLOYEE_ABSENCES_FOR_KPI, { 
+        EmployeeAbsence: EmployeeAbsence[]
+      }>(GET_EMPLOYEE_ABSENCES_FOR_KPI, {
         supervisorId: userInfo.employeeDetails.employeeId
-      });
+      })
 
-      // Process the data
-      const processedData = processData(result.EmployeeAbsence, groupsMap);
-      setData(processedData);
+      const processedData = processData(result.EmployeeAbsence, currentLocale)
+      setData(processedData)
     } catch (err) {
-      console.error('Error fetching KPI data:', err);
-      setError("Failed to fetch data");
+      console.error('Error fetching KPI data:', err)
+      setError('Failed to fetch data')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [userInfo?.employeeDetails?.employeeId, graphQLClient, catalogClient, processData]);
+  }, [userInfo?.employeeDetails?.employeeId, graphQLClient, processData, currentLocale])
+
+  useEffect(() => {
+    const checkLocale = () => {
+      const newLocale = getCurrentActiveUserLocale() ?? 'en-US'
+      if (newLocale !== currentLocale) {
+        setCurrentLocale(newLocale)
+      }
+    }
+
+    checkLocale()
+
+    const interval = setInterval(checkLocale, 1000)
+
+    return () => clearInterval(interval)
+  }, [currentLocale])
 
   useEffect(() => {
     if (accessToken && userInfo?.employeeDetails?.employeeId) {
-      loadData();
+      loadData()
     }
-  }, [loadData, accessToken, userInfo?.employeeDetails?.employeeId]);
+  }, [loadData, accessToken, userInfo?.employeeDetails?.employeeId])
 
   return {
     data,
     loading,
     error,
-    refetch: loadData,
-  };
-}; 
+    refetch: loadData
+  }
+}

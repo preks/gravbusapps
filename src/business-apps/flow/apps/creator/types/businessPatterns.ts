@@ -2,12 +2,12 @@
  * Business pattern definitions for wizard-based flow template creation
  */
 
-import { FlowStepType, InputType, AssignmentMode } from './flowTemplate';
+import { FlowStepType, InputType, AssignmentMode } from './flowTemplate'
 
 // Business pattern categories
 export enum BusinessPatternCategory {
   APPROVAL = 'APPROVAL',
-  INFORMATION = 'INFORMATION', 
+  INFORMATION = 'INFORMATION',
   TASK_COORDINATION = 'TASK_COORDINATION',
   DECISION_MAKING = 'DECISION_MAKING',
   SURVEY = 'SURVEY',
@@ -59,89 +59,89 @@ export enum RequestResponsePattern {
 
 // Configuration requirements for each pattern
 export interface PatternConfiguration {
-  requiresApproval: boolean;
-  requiresAssignment: boolean;
-  requiresDeadline: boolean;
-  requiresEscalation: boolean;
-  allowsMultipleSteps: boolean;
-  recommendedFlowStepTypes: FlowStepType[];
-  forbiddenFlowStepTypes: FlowStepType[];
-  recommendedInputs: InputType[];
-  minSteps: number;
-  maxSteps: number;
+  requiresApproval: boolean
+  requiresAssignment: boolean
+  requiresDeadline: boolean
+  requiresEscalation: boolean
+  allowsMultipleSteps: boolean
+  recommendedFlowStepTypes: FlowStepType[]
+  forbiddenFlowStepTypes: FlowStepType[]
+  recommendedInputs: InputType[]
+  minSteps: number
+  maxSteps: number
 }
 
 // Business pattern definition
 export interface BusinessPattern {
-  id: string;
-  category: BusinessPatternCategory;
-  subPattern: string;
-  title: string;
-  description: string;
-  icon: string;
-  color: string;
-  useCases: string[];
-  configuration: PatternConfiguration;
-  preConfiguredSteps: PreConfiguredStep[];
-  validationRules: ValidationRule[];
+  id: string
+  category: BusinessPatternCategory
+  subPattern: string
+  title: string
+  description: string
+  icon: string
+  color: string
+  useCases: string[]
+  configuration: PatternConfiguration
+  preConfiguredSteps: PreConfiguredStep[]
+  validationRules: ValidationRule[]
 }
 
 // Pre-configured step for patterns
 export interface PreConfiguredStep {
-  title: string;
-  description: string;
-  type: FlowStepType;
-  inputs?: PreConfiguredInputBlock[];
-  links?: any[];
+  title: string
+  description: string
+  type: FlowStepType
+  inputs?: PreConfiguredInputBlock[]
+  links?: any[]
   assignment?: {
-    assignmentMode: AssignmentMode;
-    allowReassignment?: boolean;
-  };
+    assignmentMode: AssignmentMode
+    allowReassignment?: boolean
+  }
 }
 
 export interface PreConfiguredInputBlock {
-  type: InputType;
-  name: string;
-  label: string;
-  required?: boolean;
-  placeholder?: string;
-  options?: Array<{ value: string; label: string }>;
+  type: InputType
+  name: string
+  label: string
+  required?: boolean
+  placeholder?: string
+  options?: Array<{ value: string; label: string }>
 }
 
 // Validation rules for patterns
 export interface ValidationRule {
-  field: string;
-  rule: 'required' | 'min' | 'max' | 'pattern' | 'custom';
-  value?: any;
-  message: string;
-  customValidator?: (value: any, template: any) => boolean;
+  field: string
+  rule: 'required' | 'min' | 'max' | 'pattern' | 'custom'
+  value?: any
+  message: string
+  customValidator?: (value: any, template: any) => boolean
 }
 
 // Wizard step configuration
 export interface WizardStep {
-  id: string;
-  title: string;
-  description: string;
-  component: string;
-  required: boolean;
-  canSkip: boolean;
-  nextStep?: string;
-  previousStep?: string;
+  id: string
+  title: string
+  description: string
+  component: string
+  required: boolean
+  canSkip: boolean
+  nextStep?: string
+  previousStep?: string
 }
 
 // Pattern selection result
 export interface PatternSelection {
-  pattern: BusinessPattern;
-  customizations: Record<string, any>;
-  selectedSteps: PreConfiguredStep[];
+  pattern: BusinessPattern
+  customizations: Record<string, any>
+  selectedSteps: PreConfiguredStep[]
 }
 
 // Wizard state
 export interface WizardState {
-  currentStep: number;
-  steps: WizardStep[];
-  selectedPattern?: BusinessPattern;
-  configuration: Record<string, any>;
-  isValid: boolean;
-  errors: Record<string, string>;
-} 
+  currentStep: number
+  steps: WizardStep[]
+  selectedPattern?: BusinessPattern
+  configuration: Record<string, any>
+  isValid: boolean
+  errors: Record<string, string>
+}

@@ -1,83 +1,83 @@
-import { useState, useEffect } from 'react';
-import { env } from '@/common/env/EnvUtils';
+import { useState, useEffect } from 'react'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 
-const API_BASE = (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api';
+const API_BASE = getFlowEngineApiBaseUrl()
 
 // Reusing interfaces from FlowDetailView for consistency
 export interface StepStatus {
-  completed: number;
-  total: number;
-  remaining: number;
+  completed: number
+  total: number
+  remaining: number
 }
 
 export interface ProcessHealth {
-  isOnTrack: boolean;
-  hasFailures: boolean;
-  isStalled: boolean;
-  statusMessage: string;
+  isOnTrack: boolean
+  hasFailures: boolean
+  isStalled: boolean
+  statusMessage: string
 }
 
 export interface TimeInsights {
-  avgStepDurationMinutes?: number;
-  avgTaskCompletionMinutes?: number;
-  estimatedCompletionDate?: string;
-  isOverdue: boolean;
-  minutesRunning: number;
-  minutesSinceLastUpdate: number;
-  workflowStartTime: string;
-  lastActivityTime?: string;
+  avgStepDurationMinutes?: number
+  avgTaskCompletionMinutes?: number
+  estimatedCompletionDate?: string
+  isOverdue: boolean
+  minutesRunning: number
+  minutesSinceLastUpdate: number
+  workflowStartTime: string
+  lastActivityTime?: string
 }
 
 export interface FlowDetailData {
-  flowId: string;
-  flowName: string;
-  templateId: string;
-  templateName: string;
-  status: string;
-  startTime: string;
-  updateTime: string;
-  endTime?: string;
-  progressPercentage: number;
-  stepStatus: StepStatus;
-  currentStep: number;
-  processHealth: ProcessHealth;
-  timeInsights: TimeInsights;
-  durationHours?: number;
-  durationMinutes?: number;
-  initiatedBy?: string;
-  participants?: string[];
-  priority?: string;
+  flowId: string
+  flowName: string
+  templateId: string
+  templateName: string
+  status: string
+  startTime: string
+  updateTime: string
+  endTime?: string
+  progressPercentage: number
+  stepStatus: StepStatus
+  currentStep: number
+  processHealth: ProcessHealth
+  timeInsights: TimeInsights
+  durationHours?: number
+  durationMinutes?: number
+  initiatedBy?: string
+  participants?: string[]
+  priority?: string
 }
 
 export const useFlowDetail = (flowId: string, accessToken: string) => {
-  const [flowData, setFlowData] = useState<FlowDetailData | null>(null);
-  const [flowSteps, setFlowSteps] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [flowData, setFlowData] = useState<FlowDetailData | null>(null)
+  const [flowSteps, setFlowSteps] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchFlowDetail = async () => {
-    if (!flowId || !accessToken) return;
+    if (!flowId || !accessToken) return
 
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
 
     try {
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      };
-
-      // Fetch flow detailed data using existing endpoints
-      const detailResponse = await fetch(`${API_BASE}/flow/${flowId}`, { headers });
-
-      if (!detailResponse.ok) {
-        throw new Error('Failed to fetch flow details');
+        Authorization: `Bearer ${accessToken}`
       }
 
-      const detailData = await detailResponse.json();
+      // Fetch flow detailed data using existing endpoints
+      const detailResponse = await fetch(`${API_BASE}/flow/${flowId}`, { headers })
+
+      if (!detailResponse.ok) {
+        throw new Error('Failed to fetch flow details')
+      }
+
+      const detailData = await detailResponse.json()
 
       // Transform data to match our interface
-      const flowData = detailData.data || detailData;
+      const flowData = detailData.data || detailData
       const flowDetail: FlowDetailData = {
         flowId: flowData.flowId || flowId,
         flowName: flowData.name || flowData.workflowName || 'Unknown Flow',
@@ -98,9 +98,14 @@ export const useFlowDetail = (flowId: string, accessToken: string) => {
           isOnTrack: flowData.status === 'IN_PROGRESS',
           hasFailures: flowData.status === 'FAILED',
           isStalled: flowData.status === 'PAUSED',
-          statusMessage: flowData.status === 'IN_PROGRESS' ? 'Running normally' : 
-                        flowData.status === 'FAILED' ? 'Flow has failed' :
-                        flowData.status === 'PAUSED' ? 'Flow is paused' : 'Status unknown'
+          statusMessage:
+            flowData.status === 'IN_PROGRESS'
+              ? 'Running normally'
+              : flowData.status === 'FAILED'
+                ? 'Flow has failed'
+                : flowData.status === 'PAUSED'
+                  ? 'Flow is paused'
+                  : 'Status unknown'
         },
         timeInsights: {
           isOverdue: false, // TODO: Calculate based on due dates
@@ -113,23 +118,22 @@ export const useFlowDetail = (flowId: string, accessToken: string) => {
         initiatedBy: flowData.createdBy || flowData.initiatedBy,
         participants: flowData.participants || [],
         priority: flowData.priority
-      };
+      }
 
-      setFlowData(flowDetail);
-      setFlowSteps(detailData.steps || []);
-
+      setFlowData(flowDetail)
+      setFlowSteps(detailData.steps || [])
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch flow details';
-      setError(errorMessage);
-      console.error('Error fetching flow details:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch flow details'
+      setError(errorMessage)
+      console.error('Error fetching flow details:', err)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    fetchFlowDetail();
-  }, [flowId, accessToken]);
+    fetchFlowDetail()
+  }, [flowId, accessToken])
 
   return {
     flowData,
@@ -137,5 +141,5 @@ export const useFlowDetail = (flowId: string, accessToken: string) => {
     loading,
     error,
     refetch: fetchFlowDetail
-  };
-};
+  }
+}

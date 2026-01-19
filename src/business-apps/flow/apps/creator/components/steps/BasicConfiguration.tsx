@@ -1,23 +1,18 @@
-import React from 'react';
-import { Input, Label, Textarea } from '@newwork/nw-design-system';
-import { Select, Space, InputNumber } from 'antd';
-import { User, Settings, FileText, FormInput, Clock } from 'lucide-react';
-import { FlowStepType } from '../../types/flowTemplate';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { Input, Label, Textarea } from '@newwork/nw-design-system'
+import { Select, Space, InputNumber } from 'antd'
+import { User, Settings, FileText, FormInput, Clock, Code2, Bot } from 'lucide-react'
+import { FlowStepType } from '../../types/flowTemplate'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface BasicConfigurationProps {
-  step: any;
-  stepIndex: number;
-  testId: string;
-  onUpdateStep: (updates: any) => void;
+  step: any
+  stepIndex: number
+  testId: string
+  onUpdateStep: (updates: any) => void
 }
 
-export const BasicConfiguration: React.FC<BasicConfigurationProps> = ({
-  step,
-  stepIndex,
-  testId,
-  onUpdateStep
-}) => {
+export const BasicConfiguration: React.FC<BasicConfigurationProps> = ({ step, stepIndex, testId, onUpdateStep }) => {
   return (
     <div className="gba:space-y-4 gba:pt-2">
       {/* Step Type Configuration */}
@@ -25,9 +20,9 @@ export const BasicConfiguration: React.FC<BasicConfigurationProps> = ({
         <Label data-testid={`${testId}-type-label`}>
           {getTranslationFromI18nKeyAndLabel('flow.creator.stepType', 'Step Type')}:
         </Label>
-        <Select 
-          value={step.type} 
-          onChange={(value) => onUpdateStep({ type: value })}
+        <Select
+          value={step.type}
+          onChange={value => onUpdateStep({ type: value })}
           style={{ width: '100%' }}
           data-testid={`${testId}-type-select`}
         >
@@ -55,9 +50,21 @@ export const BasicConfiguration: React.FC<BasicConfigurationProps> = ({
               {getTranslationFromI18nKeyAndLabel('flow.creator.acknowledge', 'Acknowledge')}
             </Space>
           </Select.Option>
+          <Select.Option value={FlowStepType.FUNCTION}>
+            <Space>
+              <Code2 className="gba:h-4 gba:w-4" />
+              {getTranslationFromI18nKeyAndLabel('flow.creator.function', 'Function')}
+            </Space>
+          </Select.Option>
+          <Select.Option value={FlowStepType.AGENT}>
+            <Space>
+              <Bot className="gba:h-4 gba:w-4" />
+              {getTranslationFromI18nKeyAndLabel('flow.creator.agent', 'Agent')}
+            </Space>
+          </Select.Option>
         </Select>
       </div>
-      
+
       {/* Step Title */}
       <div className="gba:space-y-2" data-testid={`${testId}-title-field`}>
         <Label htmlFor={`step-${stepIndex}-title`} data-testid={`${testId}-title-label`}>
@@ -66,12 +73,12 @@ export const BasicConfiguration: React.FC<BasicConfigurationProps> = ({
         <Input
           id={`step-${stepIndex}-title`}
           value={step.title}
-          onChange={(e) => onUpdateStep({ title: e.target.value })}
+          onChange={e => onUpdateStep({ title: e.target.value })}
           className="gba:w-full"
           data-testid={`${testId}-title-input`}
         />
       </div>
-      
+
       {/* Step Message */}
       <div className="gba:space-y-2" data-testid={`${testId}-message-field`}>
         <Label htmlFor={`step-${stepIndex}-message`} data-testid={`${testId}-message-label`}>
@@ -80,7 +87,7 @@ export const BasicConfiguration: React.FC<BasicConfigurationProps> = ({
         <Textarea
           id={`step-${stepIndex}-message`}
           value={step.message || ''}
-          onChange={(e) => onUpdateStep({ message: e.target.value })}
+          onChange={e => onUpdateStep({ message: e.target.value })}
           className="gba:w-full gba:min-h-[100px]"
           data-testid={`${testId}-message-input`}
         />
@@ -97,7 +104,7 @@ export const BasicConfiguration: React.FC<BasicConfigurationProps> = ({
         <InputNumber
           id={`step-${stepIndex}-duetime`}
           value={step.dueInMinutes}
-          onChange={(value) => onUpdateStep({ dueInMinutes: value })}
+          onChange={value => onUpdateStep({ dueInMinutes: value })}
           min={1}
           max={525600} // Max 1 year in minutes
           placeholder="e.g., 60 for 1 hour, 1440 for 1 day"
@@ -106,5 +113,5 @@ export const BasicConfiguration: React.FC<BasicConfigurationProps> = ({
         />
       </div>
     </div>
-  );
-}; 
+  )
+}

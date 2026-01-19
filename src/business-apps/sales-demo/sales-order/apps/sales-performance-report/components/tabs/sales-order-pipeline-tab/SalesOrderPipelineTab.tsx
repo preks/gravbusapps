@@ -1,22 +1,6 @@
-import React from 'react';
-import {
-  Card,
-  Row,
-  Col,
-  Statistic,
-  Alert,
-  Typography,
-  Spin,
-  Progress,
-  Table
-} from 'antd';
-import {
-  FilterOutlined,
-  ClockCircleOutlined,
-  BarChartOutlined,
-  RiseOutlined,
-  WarningOutlined
-} from '@ant-design/icons';
+import React from 'react'
+import { Card, Row, Col, Statistic, Alert, Typography, Spin, Progress, Table } from 'antd'
+import { FilterOutlined, ClockCircleOutlined, BarChartOutlined, RiseOutlined, WarningOutlined } from '@ant-design/icons'
 import {
   BarChart,
   Bar,
@@ -27,29 +11,17 @@ import {
   ResponsiveContainer,
   Legend,
   LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useSalesPerformanceData } from '../../../hooks/useSalesPerformanceData';
-import { PipelineStageData } from '../../../types';
+  Line
+} from 'recharts'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useSalesPerformanceData } from '../../../hooks/useSalesPerformanceData'
 
-const { Text } = Typography;
+const { Text } = Typography
 
 export interface SalesOrderPipelineTabProps extends BusinessAppContextProps {}
 
-const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({
-  accessToken,
-  userInfo,
-  additionalData
-}) => {
-  const {
-    pipelineMetrics,
-    loading,
-    error
-  } = useSalesPerformanceData({ accessToken });
+const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({ accessToken, userInfo, additionalData }) => {
+  const { pipelineMetrics, loading, error } = useSalesPerformanceData({ accessToken })
 
   // Helper function to format currency
   const formatCurrency = (value: number) => {
@@ -57,9 +29,9 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
+      maximumFractionDigits: 0
+    }).format(value)
+  }
 
   // Generate aging orders mock data
   const agingOrdersData = [
@@ -68,15 +40,16 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({
     { ageRange: '15-30 days', count: 28, value: 79800, percentage: 22, status: 'warning' },
     { ageRange: '31-60 days', count: 15, value: 42750, percentage: 12, status: 'warning' },
     { ageRange: '60+ days', count: 8, value: 22800, percentage: 6, status: 'critical' }
-  ];
+  ]
 
   // Pipeline conversion data for visualization
-  const conversionData = pipelineMetrics?.stagesData.map(stage => ({
-    stage: stage.stage,
-    conversionRate: stage.conversionRate,
-    dropOffRate: stage.dropOffRate,
-    count: stage.count
-  })) || [];
+  const conversionData =
+    pipelineMetrics?.stagesData.map(stage => ({
+      stage: stage.stage,
+      conversionRate: stage.conversionRate,
+      dropOffRate: stage.dropOffRate,
+      count: stage.count
+    })) || []
 
   // Table columns for pipeline stages
   const pipelineColumns = [
@@ -110,9 +83,9 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({
       key: 'conversionRate',
       render: (rate: number) => (
         <div className="gba:flex gba:items-center gba:gap-2">
-          <Progress 
-            percent={rate} 
-            size="small" 
+          <Progress
+            percent={rate}
+            size="small"
             strokeColor={rate >= 90 ? '#0DBC7B' : rate >= 70 ? '#faad14' : '#D3004F'}
             showInfo={false}
             style={{ width: '60px' }}
@@ -126,12 +99,10 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({
       dataIndex: 'dropOffRate',
       key: 'dropOffRate',
       render: (rate: number) => (
-        <Text style={{ color: rate > 10 ? '#D3004F' : rate > 5 ? '#faad14' : '#0DBC7B' }}>
-          {rate}%
-        </Text>
+        <Text style={{ color: rate > 10 ? '#D3004F' : rate > 5 ? '#faad14' : '#0DBC7B' }}>{rate}%</Text>
       )
     }
-  ];
+  ]
 
   // Aging orders table columns
   const agingColumns = [
@@ -167,38 +138,31 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({
           normal: '#0DBC7B',
           warning: '#faad14',
           critical: '#D3004F'
-        };
+        }
         return (
           <div className="gba:flex gba:items-center gba:gap-1">
             {status === 'critical' && <WarningOutlined style={{ color: colors[status] }} />}
-            <Text style={{ color: colors[status] }}>
-              {status.charAt(0).toUpperCase() + status.slice(1)}
-            </Text>
+            <Text style={{ color: colors[status] }}>{status.charAt(0).toUpperCase() + status.slice(1)}</Text>
           </div>
-        );
+        )
       }
     }
-  ];
+  ]
 
   if (loading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-96" data-testid="sales-pipeline-loading">
         <Spin size="large" />
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
       <div className="gba:p-6" data-testid="sales-pipeline-error">
-        <Alert
-          message="Error Loading Pipeline Data"
-          description={error.message}
-          type="error"
-          showIcon
-        />
+        <Alert message="Error Loading Pipeline Data" description={error.message} type="error" showIcon />
       </div>
-    );
+    )
   }
 
   if (!pipelineMetrics) {
@@ -211,7 +175,7 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({
           showIcon
         />
       </div>
-    );
+    )
   }
 
   return (
@@ -225,7 +189,7 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({
               value={pipelineMetrics.totalPipelineValue}
               prefix={<FilterOutlined />}
               valueStyle={{ fontSize: '24px' }}
-              formatter={(value) => formatCurrency(Number(value))}
+              formatter={value => formatCurrency(Number(value))}
             />
             <Text type="secondary" style={{ fontSize: '12px' }}>
               Across all pipeline stages
@@ -240,7 +204,7 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({
               value={pipelineMetrics.averageDealSize}
               prefix={<RiseOutlined />}
               valueStyle={{ fontSize: '24px' }}
-              formatter={(value) => formatCurrency(Number(value))}
+              formatter={value => formatCurrency(Number(value))}
             />
             <Text type="secondary" style={{ fontSize: '12px' }}>
               Per order average value
@@ -289,9 +253,9 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({
             <ResponsiveContainer width="100%" height={400}>
               <BarChart data={pipelineMetrics.stagesData} layout="horizontal">
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tickFormatter={(value) => value.toLocaleString()} />
+                <XAxis type="number" tickFormatter={value => value.toLocaleString()} />
                 <YAxis dataKey="stage" type="category" width={100} />
-                <Tooltip 
+                <Tooltip
                   formatter={(value: number, name: string) => [
                     name === 'count' ? value.toLocaleString() : formatCurrency(value),
                     name === 'count' ? 'Orders' : 'Value'
@@ -309,18 +273,13 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({
             <ResponsiveContainer width="100%" height={400}>
               <LineChart data={conversionData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="stage" 
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                />
+                <XAxis dataKey="stage" angle={-45} textAnchor="end" height={80} />
                 <YAxis domain={[0, 100]} />
                 <Tooltip formatter={(value: number) => `${value}%`} />
-                <Line 
-                  type="monotone" 
-                  dataKey="conversionRate" 
-                  stroke="#0DBC7B" 
+                <Line
+                  type="monotone"
+                  dataKey="conversionRate"
+                  stroke="#0DBC7B"
                   strokeWidth={3}
                   name="Conversion Rate"
                 />
@@ -367,7 +326,7 @@ const SalesOrderPipelineTab: React.FC<SalesOrderPipelineTabProps> = ({
         </Col>
       </Row>
     </div>
-  );
-};
+  )
+}
 
-export default SalesOrderPipelineTab;
+export default SalesOrderPipelineTab

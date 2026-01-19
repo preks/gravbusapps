@@ -5,6 +5,7 @@ export const GET_EXPENSE_PLAN_FOR_APPROVAL = `
       id
       code
       title
+      status
       project {
         id
         name
@@ -15,10 +16,17 @@ export const GET_EXPENSE_PLAN_FOR_APPROVAL = `
       totalAmount
       reimbursableAmount
       nonReimbursableAmount
+      deductibleAmount
+      nonDeductibleAmount
       advancePaymentTotalAmount
-      advancePayment(where: {isDeleted: {_eq: false}}) {
+      advancePayment(where: {isDeleted: {_eq: false}}, orderBy: {decisionDate: ASC}) {
         amount
         code
+        status
+        decisionDate
+        transactionDate
+        transactionNumber
+        transactionConfirmed
         currency {
           translations(where: {localeCode: {_eq: $activeUserLocale}}) {
             localeCode
@@ -76,8 +84,9 @@ export const GET_EXPENSE_PLAN_FOR_APPROVAL = `
           }
         }
       }
-      expensePlanItem(where: {isDeleted: {_eq: false}}) {
+      expensePlanItem(where: {isDeleted: {_eq: false}}, orderBy: {expenseDate: ASC, code: ASC}) {
         id
+        code
         expenseDate
         reimbursable
         expenseClass {
@@ -108,12 +117,48 @@ export const GET_EXPENSE_PLAN_FOR_APPROVAL = `
           name
         }
         totalAmount
+        reimbursableAmount
+        deductibleAmount
+        nonDeductibleAmount
       }
-      expenseRequestTrip(orderBy: {tripDateTime: ASC}, where: {isDeleted: {_eq: false}}) {
+      expenseAllowance(orderBy: {allowanceOrder: ASC, allowanceDate: ASC}) {
+        allowanceOrder
+        allowanceDate
+        travelRegion {
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
+          catalog {
+            defaultLocale
+          }
+          value
+        }
+        dayRate
+        breakfast
+        lunch
+        dinner
+        overnight
+        overnightAccommodation
+        deductionLimit
+      }
+      expenseRequestTrip(orderBy: {tripOrder: ASC, tripDateTime: ASC}, where: {isDeleted: {_eq: false}}) {
+        tripOrder
         address
         expenseRequestId
         pointType
         tripDateTime
+        tripDirection
+        country {
+          value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
+          catalog {
+            defaultLocale
+          }
+        }
         travelRegion {
           translations(where: {localeCode: {_eq: $activeUserLocale}}) {
             localeCode
@@ -125,6 +170,19 @@ export const GET_EXPENSE_PLAN_FOR_APPROVAL = `
           value
         }
       }
+      expensePlanComment(where: {isDeleted: {_eq: false}}, orderBy: {commentDate: DESC}) {
+        id
+        comment
+        commentDate
+        commentType
+        authorEmployee {
+          id
+          firstName
+          lastName
+          displayName
+          pictureThumbnail
+        }
+      }
     }
   }
-`; 
+`

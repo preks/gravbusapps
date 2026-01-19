@@ -9,18 +9,21 @@ This application provides an intuitive kanban-style interface for administrators
 ## Features
 
 ### Visual Kanban Interface
+
 - **Pipeline Columns**: Each sales pipeline is displayed as a column
 - **Draggable Stage Cards**: Stages appear as cards that can be dragged within and between pipelines
 - **Real-time Visual Feedback**: Immediate visual feedback during drag operations
 - **Responsive Design**: Optimized for different screen sizes with horizontal scrolling
 
 ### Sales Pipelines Management
+
 - **Visual Pipeline Cards**: Each pipeline shown as a column with header information
 - **Pipeline Categories**: Automatic categorization with color-coded tags
 - **Inline Actions**: Add, edit, and delete pipelines directly from the kanban view
 - **Stage Count Indicators**: Visual count of stages per pipeline
 
 ### Pipeline Stages Management
+
 - **Drag-and-Drop Reordering**: Intuitive stage reordering within pipelines
 - **Stage Type Color Coding**: Visual indicators for the 5 stage types (DISCOVERY, QUALIFICATION, NEGOTIATION, CLOSED_WON, CLOSED_LOST)
 - **Position Indicators**: Visual markers for first, middle, and last stages
@@ -30,10 +33,12 @@ This application provides an intuitive kanban-style interface for administrators
 ## Technical Architecture
 
 ### Data Sources
+
 - **SalesPipeline Catalog**: Parent catalog entries for pipeline definitions
 - **SalesPipelineStage Catalog**: Child catalog entries linked to parent pipelines
 
 ### Component Structure
+
 ```
 pipeline-data/
 ├── PipelineData.tsx                    # Main component wrapper
@@ -51,10 +56,11 @@ pipeline-data/
 ### Key Types
 
 #### Stage Type Enum
+
 ```typescript
 enum StageType {
   DISCOVERY = 'DISCOVERY',
-  QUALIFICATION = 'QUALIFICATION', 
+  QUALIFICATION = 'QUALIFICATION',
   NEGOTIATION = 'NEGOTIATION',
   CLOSED_WON = 'CLOSED_WON',
   CLOSED_LOST = 'CLOSED_LOST'
@@ -62,6 +68,7 @@ enum StageType {
 ```
 
 #### Data Structures
+
 - **SalesPipeline**: Basic pipeline with id, code, value
 - **SalesPipelineStage**: Stage with parent relationship, rank, and type
 - **Enhanced Interfaces**: UI-optimized versions with computed properties
@@ -69,6 +76,7 @@ enum StageType {
 ## Usage
 
 ### Integration
+
 ```typescript
 import { PipelineData } from '@/business-apps/mdm/apps/pipeline-data';
 
@@ -77,7 +85,9 @@ import { PipelineData } from '@/business-apps/mdm/apps/pipeline-data';
 ```
 
 ### Kanban Interface
+
 The app provides a unified kanban view where:
+
 - Pipelines are displayed as vertical columns
 - Stages appear as draggable cards within their pipeline columns
 - All pipeline and stage management happens inline within the kanban board
@@ -85,12 +95,15 @@ The app provides a unified kanban view where:
 ## API Integration
 
 ### Catalog APIs
+
 - Uses `useCatalogManagerClient` for all data operations
 - Fetches from `SalesPipeline:v1` and `SalesPipelineStage:v1` catalogs
 - Supports pagination, search, and filtering
 
 ### Data Integration Hook
+
 The `usePipelineDataIntegration` hook:
+
 - Fetches pipelines and stages in parallel
 - Transforms raw catalog data into enhanced UI models
 - Provides loading states and error handling
@@ -99,6 +112,7 @@ The `usePipelineDataIntegration` hook:
 ## Features Status
 
 ### ✅ Completed
+
 - [x] TypeScript types and enums
 - [x] Catalog data hooks
 - [x] Data integration and transformation
@@ -113,6 +127,7 @@ The `usePipelineDataIntegration` hook:
 - [x] Position indicators
 
 ### 🚧 TODO (Future Enhancements)
+
 - [ ] Implement actual CRUD operations with catalog API
 - [ ] Add drag-and-drop stage reordering
 - [ ] Stage validation (ensure proper ordering)
@@ -124,23 +139,25 @@ The `usePipelineDataIntegration` hook:
 ## Data Model
 
 ### Pipeline Structure
+
 ```json
 {
   "id": "SalesPipeline:v1:STANDARD",
-  "code": "STANDARD", 
+  "code": "STANDARD",
   "value": "Standard",
   "objectValue": {}
 }
 ```
 
 ### Stage Structure
+
 ```json
 {
   "id": "SalesPipelineStage:v1:NEW_OPPORTUNITY",
   "parentEntryId": "SalesPipeline:v1:STANDARD",
   "code": "NEW_OPPORTUNITY",
   "alternativeCode": "DISCOVERY",
-  "value": "New Opportunity", 
+  "value": "New Opportunity",
   "additionalValue1": "01",
   "objectValue": {}
 }
@@ -149,6 +166,7 @@ The `usePipelineDataIntegration` hook:
 ## Development
 
 ### Running the App
+
 ```bash
 # Development mode
 npm run dev
@@ -158,7 +176,9 @@ npm run publish:screen -- /mdm/apps/pipeline-data
 ```
 
 ### Testing
+
 The app includes comprehensive `data-testid` attributes for automated testing:
+
 - `PipelineData-Tabs`
 - `PipelinesTab-AddButton`
 - `StagesTab-Table`
@@ -167,6 +187,7 @@ The app includes comprehensive `data-testid` attributes for automated testing:
 ## Dependencies
 
 ### Required
+
 - React 18+
 - Ant Design 5+
 - Tailwind CSS v4
@@ -174,6 +195,7 @@ The app includes comprehensive `data-testid` attributes for automated testing:
 - @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities (for drag-and-drop)
 
 ### Internal Dependencies
+
 - `@/common/BusinessAppContext`
 - `@/common/network/catalogs/useCatalogManagerClient`
 - `@/components/data-filter/DebouncedInput`
@@ -197,4 +219,4 @@ The app includes comprehensive `data-testid` attributes for automated testing:
 
 ---
 
-For questions or support, please refer to the NEWWORK platform documentation or contact the development team. 
+For questions or support, please refer to the NEWWORK platform documentation or contact the development team.

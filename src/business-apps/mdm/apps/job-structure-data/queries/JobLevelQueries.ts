@@ -51,7 +51,7 @@ export const GET_JOB_LEVEL_DATA = (variables: QueryVariablesJobLevel): string =>
       payGrade
     }
     compensationBandId
-    heirarchyOrder
+    hierarchyOrder
     version
   }
   JobLevelAggregate(
@@ -75,7 +75,7 @@ export type JobLevelByJobLevelGroupIdData = {
     code?: string
     description?: string
     descriptionI18n?: { [key: string]: string }
-    heirarchyOrder?: number
+    hierarchyOrder?: number
     jobLevelGroup?: { id: string; value: string }
     compensationBand?: { id: string; name: string; payGrade?: number }
     compensationBandId?: string
@@ -97,7 +97,7 @@ export interface JobLevelDataVariables {
 }
 
 export const useGetJobLevelData = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphqlClient(context.accessToken);
+  const graphqlClient = useGraphqlClient(context.accessToken)
 
   const fetchJobLevelData = async (variables: JobLevelDataVariables = {}) => {
     const query = GET_JOB_LEVEL_DATA({
@@ -106,16 +106,16 @@ export const useGetJobLevelData = (context: BusinessAppContextProps) => {
       search: variables.search,
       jobLevelId: variables.jobLevelId,
       jobLevelGroupId: variables.jobLevelGroupId
-    });
+    })
 
     try {
-      const result = await graphqlClient.request<JobLevelByJobLevelGroupIdData>(query);
-      return result;
+      const result = await graphqlClient.request<JobLevelByJobLevelGroupIdData>(query)
+      return result
     } catch (error) {
-      console.error('Error fetching job level data:', error);
-      throw error;
+      console.error('Error fetching job level data:', error)
+      throw error
     }
-  };
+  }
 
-  return { fetchJobLevelData };
-}; 
+  return { fetchJobLevelData }
+}

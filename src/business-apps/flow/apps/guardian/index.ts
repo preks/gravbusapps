@@ -1,8 +1,8 @@
-export { default } from './Guardian';
-export { default as Guardian } from './Guardian';
-export type { 
+export { default } from './Guardian'
+export { default as Guardian } from './Guardian'
+export type {
   GuardianNode,
-  GuardianEdge, 
+  GuardianEdge,
   GuardianNetworkData,
   GuardianViewMode,
   GuardianFilter,
@@ -13,4 +13,4 @@ export type {
   GuardianLayoutConfig,
   GuardianAnimationConfig,
   GuardianRealtimeEvent
-} from './types/guardianTypes';
+} from './types/guardianTypes'

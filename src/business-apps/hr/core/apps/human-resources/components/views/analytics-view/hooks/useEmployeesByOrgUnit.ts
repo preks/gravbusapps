@@ -1,20 +1,18 @@
-import { useState, useEffect } from 'react';
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
-import { getEmployeesByOrgUnitQuery } from '../queries/getEmployeesByOrgUnit';
+import { useState, useEffect } from 'react'
+import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 
 // Define types for the hook results
 export interface OrgUnitEmployeeData {
-  id: string;
-  name: string;
-  count: number;
-  percentage: number;
+  id: string
+  name: string
+  count: number
+  percentage: number
 }
 
 interface UseEmployeesByOrgUnitResult {
-  data: OrgUnitEmployeeData[];
-  loading: boolean;
-  error: Error | null;
+  data: OrgUnitEmployeeData[]
+  loading: boolean
+  error: Error | null
 }
 
 /**
@@ -23,75 +21,56 @@ interface UseEmployeesByOrgUnitResult {
  * @returns {UseEmployeesByOrgUnitResult} Object containing data, loading state and any error
  */
 export const useEmployeesByOrgUnit = (accessToken: string): UseEmployeesByOrgUnitResult => {
-  const [data, setData] = useState<OrgUnitEmployeeData[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [data, setData] = useState<OrgUnitEmployeeData[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<Error | null>(null)
 
-  const graphQLClient = useGraphqlClient(accessToken);
-  const structureId = getCurrentActiveStructureId();
+  const queryClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
 
   useEffect(() => {
     const fetchData = async () => {
-      if (!accessToken || !structureId) {
-        setLoading(false);
-        return;
+      if (!accessToken) {
+        setLoading(false)
+        return
       }
 
       try {
-        setLoading(true);
-        const response = await graphQLClient.request(getEmployeesByOrgUnitQuery, { structureId });
-        
-        // Extract employee assignments and organizational units
-        const { EmployeeOrganizationalUnit, OrganizationalUnit } = response;
-        
-        // Create a map to count employees per organizational unit
-        const orgUnitCounts = new Map<string, number>();
-        
-        // Initialize all organizational units with 0 count
-        OrganizationalUnit.forEach((unit: { id: string }) => {
-          orgUnitCounts.set(unit.id, 0);
-        });
-        
-        // Count employees per organizational unit
-        EmployeeOrganizationalUnit.forEach((assignment: { organizationalUnitId: string }) => {
-          const unitId = assignment.organizationalUnitId;
-          const currentCount = orgUnitCounts.get(unitId) || 0;
-          orgUnitCounts.set(unitId, currentCount + 1);
-        });
-        
-        // Calculate total employee count
-        const totalEmployees = Array.from(orgUnitCounts.values()).reduce((sum, count) => sum + count, 0);
-        
-        // Transform to final data structure
-        const orgUnitData: OrgUnitEmployeeData[] = OrganizationalUnit.map((unit: { id: string; name: string }) => {
-          const count = orgUnitCounts.get(unit.id) || 0;
+        setLoading(true)
+        const response = await queryClient.executeQuery('employeesByDepartment', QueryType.DATASET, {})
+
+        const rows: Array<{ category: string; value: number }> = response?.data || []
+        const totalEmployees = rows.reduce((sum, r) => sum + (Number(r.value) || 0), 0)
+
+        const orgUnitData: OrgUnitEmployeeData[] = rows.map(r => {
+          const name = r.category || 'Unknown'
+          const count = Number(r.value) || 0
           return {
-            id: unit.id,
-            name: unit.name,
+            id: name,
+            name,
             count,
             percentage: totalEmployees > 0 ? parseFloat(((count / totalEmployees) * 100).toFixed(1)) : 0
-          };
-        });
-        
+          }
+        })
+
         // Filter out organizational units with no employees (for consistency with other charts)
-        const filteredData = orgUnitData.filter(item => item.count > 0);
-        
+        const filteredData = orgUnitData.filter(item => item.count > 0)
+
         // Sort by count in descending order
-        filteredData.sort((a, b) => b.count - a.count);
-        
-        setData(filteredData);
-        setError(null);
+        filteredData.sort((a, b) => b.count - a.count)
+
+        setData(filteredData)
+        setError(null)
       } catch (err) {
-        console.error('Error fetching employee organizational unit data:', err);
-        setError(err instanceof Error ? err : new Error('Unknown error fetching employee organizational unit data'));
-        setData([]);
+        console.error('Error fetching employee organizational unit data:', err)
+        setError(err instanceof Error ? err : new Error('Unknown error fetching employee organizational unit data'))
+        setData([])
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
-    fetchData();
-  }, [accessToken, structureId, graphQLClient]);
+    fetchData()
+  }, [accessToken, queryClient])
 
-  return { data, loading, error };
-};
+  return { data, loading, error }
+}

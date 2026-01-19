@@ -3,7 +3,8 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
   query GetExpenseRequestsByManager(
     $where: ExpenseRequestBoolExp,
     $limit: Int!,
-    $offset: Int!
+    $offset: Int!,
+    $orderBy: [ExpenseRequestOrderBy!]
   ) {
     ExpenseRequestAggregate(where: $where) {
       aggregate {
@@ -13,7 +14,7 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
     ExpenseRequest(
       limit: $limit,
       offset: $offset,
-      orderBy: {requestDate: DESC},
+      orderBy: $orderBy,
       where: $where
     ) {
       id
@@ -27,26 +28,55 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
       currencyRef
       status
       createdAt
-      employeeDocument { # Corrected field for attachments
-        file # Corresponds to fileUrl
-        name # Corresponds to fileName
+      updatedAt
+      requestType {
+        value
+        translations {
+          value
+          localeCode
+        }
+      }
+      expensePlan { 
+        code
+        requestType {
+          value
+          translations {
+            value
+            localeCode
+          }
+        }
+      }
+      employeeDocument {
+        file
+        fileSize
+        id
+        description
+        mimeType
+        name
+        type
+        employee {
+          id
+        }
       }
       employee {
         id
+        code
         displayName
+        firstName
+        lastName
         fullName
         pictureThumbnail
+        additionalProperties
         employeePosition {
           organizationalUnit { # Corrected path for department
             id
             name # This is the department name
           }
         }
-        additionalProperties
       }
     }
   }
-`;
+`
 
 // New query that follows the same pattern as expense plans with proper search and status filtering
 export const GET_MAIN_VIEW_EXPENSE_REQUESTS = `
@@ -107,26 +137,47 @@ export const GET_MAIN_VIEW_EXPENSE_REQUESTS = `
       currencyRef
       status
       createdAt
+      updatedAt
+      requestType {
+        value
+        translations {
+          value
+          localeCode
+        }
+      }
+      expensePlan { 
+        code
+        requestType {
+          value
+          translations {
+            value
+            localeCode
+          }
+        }
+      }
       employeeDocument {
         file
         name
       }
       employee {
         id
+        code
         displayName
+        firstName
+        lastName
         fullName
         pictureThumbnail
+        additionalProperties
         employeePosition {
           organizationalUnit {
             id
             name
           }
         }
-        additionalProperties
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_REQUEST_BY_ID = `
   query GetExpenseRequestById($id: uuid!) {
@@ -147,32 +198,40 @@ export const GET_EXPENSE_REQUEST_BY_ID = `
       }
       employee {
         id
+        firstName
+        lastName
         fullName
         department
         additionalProperties
       }
     }
   }
-`;
+`
 
 export const GET_TEAM_MEMBERS_BY_MANAGER = `
   query GetTeamMembersByManager($managerId: uuid!) {
     Employee(
       where: {
-        manager: {
-          id: {_eq: $managerId}
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $managerId}
         },
-        isActive: {_eq: true}
+        isDeleted: {_eq: false}
       },
       orderBy: {fullName: ASC}
     ) {
       id
+      firstName
+      lastName
       fullName
-      department
-      jobTitle
+      displayName
+      employeePosition {
+        organizationalUnit {
+          name
+        }
+      }
     }
   }
-`;
+`
 
 export const APPROVE_EXPENSE_REQUEST = `
   mutation ApproveExpenseRequest($id: uuid!) {
@@ -187,7 +246,7 @@ export const APPROVE_EXPENSE_REQUEST = `
       }
     }
   }
-`;
+`
 
 export const REJECT_EXPENSE_REQUEST = `
   mutation RejectExpenseRequest($id: uuid!, $rejectionReason: String) {
@@ -206,10 +265,79 @@ export const REJECT_EXPENSE_REQUEST = `
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_REQUEST_STATISTICS = `
-  query GetExpenseRequestStatistics($employeeId: uuid!, $currencyRef: String) {
+  query GetExpenseRequestStatistics($employeeId: uuid!) {
+  pendingRequests: ExpenseRequestAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_eq: "PENDING"}
+    }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  pendingAmount: ExpenseRequestAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED"]}
+    }
+  ) {
+    aggregate {
+      sum {
+        totalAmount
+      }
+    }
+  }
+  totalRequestsSubmitted: ExpenseRequestAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_nin: ["REJECTED", "DISCARDED", "CREATED"]}
+    }
+  ) {
+    aggregate {
+      count
+    }
+  }
+  totalSubmittedAmount: ExpenseRequestAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_nin: ["REJECTED", "DISCARDED", "CREATED"]}
+    }
+  ) {
+    aggregate {
+      sum {
+        totalAmount
+      }
+    }
+  }
+}
+`
+
+export const GET_EXPENSE_REQUEST_STATISTICS_WITH_CURRENCY = `
+  query GetExpenseRequestStatisticsWithCurrency($employeeId: uuid!, $currencyRef: String!) {
   pendingRequests: ExpenseRequestAggregate(
     where: {
       employee: {
@@ -224,12 +352,9 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
   ) {
     aggregate {
       count
-      sum {
-        totalAmount
-      }
     }
   }
-  approvedRequests: ExpenseRequestAggregate(
+  pendingAmount: ExpenseRequestAggregate(
     where: {
       employee: {
         employeePosition: {
@@ -237,18 +362,33 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
         }
       },
       isDeleted: {_eq: false},
-      status: {_eq: "APPROVED"},
+      status: {_in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED"]},
+      currencyRef: {_eq: $currencyRef}
+    }
+  ) {
+    aggregate {
+      sum {
+        totalAmount
+      }
+    }
+  }
+  totalRequestsSubmitted: ExpenseRequestAggregate(
+    where: {
+      employee: {
+        employeePosition: {
+          supervisorEmployeeId: {_eq: $employeeId}
+        }
+      },
+      isDeleted: {_eq: false},
+      status: {_nin: ["REJECTED", "DISCARDED", "CREATED"]},
       currencyRef: {_eq: $currencyRef}
     }
   ) {
     aggregate {
       count
-      sum {
-        totalAmount
-      }
     }
   }
-  rejectedRequests: ExpenseRequestAggregate(
+  totalSubmittedAmount: ExpenseRequestAggregate(
     where: {
       employee: {
         employeePosition: {
@@ -256,26 +396,7 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
         }
       },
       isDeleted: {_eq: false},
-      status: {_eq: "REJECTED"},
-      currencyRef: {_eq: $currencyRef}
-    }
-  ) {
-    aggregate {
-      count
-      sum {
-        totalAmount
-      }
-    }
-  }
-  allSubmittedRequests: ExpenseRequestAggregate(
-    where: {
-      employee: {
-        employeePosition: {
-          supervisorEmployeeId: {_eq: $employeeId}
-        }
-      },
-      isDeleted: {_eq: false},
-      status: {_nin: ["CREATED", "DISCARDED", "RETURNED"]},
+      status: {_nin: ["REJECTED", "DISCARDED", "CREATED"]},
       currencyRef: {_eq: $currencyRef}
     }
   ) {
@@ -286,4 +407,4 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
     }
   }
 }
-`;
+`

@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useFlowTemplateStore } from '../../../hooks/useFlowTemplateStore';
-import { Input } from '../../../types/flowTemplate';
+import React, { useState } from 'react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useFlowTemplateStore } from '../../../hooks/useFlowTemplateStore'
+import { Input } from '../../../types/flowTemplate'
 
 interface SelectInputBlockProps {
-  taskId: string;
-  block: Input;
-  onRemove: () => void;
-  'data-testid'?: string;
+  taskId: string
+  block: Input
+  onRemove: () => void
+  'data-testid'?: string
 }
 
 /**
@@ -19,68 +19,62 @@ export const SelectInputBlock: React.FC<SelectInputBlockProps> = ({
   onRemove,
   'data-testid': testId = 'select-input-block'
 }) => {
-  const { updateInputBlock } = useFlowTemplateStore();
-  const [newOption, setNewOption] = useState({ value: '', label: '' });
+  const { updateInputBlock } = useFlowTemplateStore()
+  const [newOption, setNewOption] = useState({ value: '', label: '' })
 
   // Initialize options array if it doesn't exist
-  const options = block.options || [];
-  
+  const options = block.options || []
+
   const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateInputBlock(taskId, block.id, { label: e.target.value });
-  };
+    updateInputBlock(taskId, block.id, { label: e.target.value })
+  }
 
   const handleRequiredChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateInputBlock(taskId, block.id, { required: e.target.checked });
-  };
-  
+    updateInputBlock(taskId, block.id, { required: e.target.checked })
+  }
+
   const handleMultipleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateInputBlock(taskId, block.id, { multiple: e.target.checked });
-  };
+    updateInputBlock(taskId, block.id, { multiple: e.target.checked })
+  }
 
   const handleAddOption = () => {
     if (newOption.value && newOption.label) {
-      const updatedOptions = [...options, newOption];
-      updateInputBlock(taskId, block.id, { options: updatedOptions });
-      setNewOption({ value: '', label: '' });
+      const updatedOptions = [...options, newOption]
+      updateInputBlock(taskId, block.id, { options: updatedOptions })
+      setNewOption({ value: '', label: '' })
     }
-  };
+  }
 
   const handleRemoveOption = (indexToRemove: number) => {
-    const updatedOptions = options.filter((_, index) => index !== indexToRemove);
-    updateInputBlock(taskId, block.id, { options: updatedOptions });
-  };
+    const updatedOptions = options.filter((_, index) => index !== indexToRemove)
+    updateInputBlock(taskId, block.id, { options: updatedOptions })
+  }
 
   const getInputTypeLabel = () => {
     switch (block.type) {
       case 'dropdown':
-        return getTranslationFromI18nKeyAndLabel('flow.creator.dropdownField', 'Dropdown Field');
+        return getTranslationFromI18nKeyAndLabel('flow.creator.dropdownField', 'Dropdown Field')
       case 'radio':
-        return getTranslationFromI18nKeyAndLabel('flow.creator.radioField', 'Radio Button Field');
+        return getTranslationFromI18nKeyAndLabel('flow.creator.radioField', 'Radio Button Field')
       case 'checkbox':
-        return getTranslationFromI18nKeyAndLabel('flow.creator.checkboxField', 'Checkbox Field');
+        return getTranslationFromI18nKeyAndLabel('flow.creator.checkboxField', 'Checkbox Field')
       default:
-        return getTranslationFromI18nKeyAndLabel('flow.creator.selectField', 'Select Field');
+        return getTranslationFromI18nKeyAndLabel('flow.creator.selectField', 'Select Field')
     }
-  };
+  }
 
   return (
     <div className="gba:border gba:border-gray-200 gba:rounded gba:p-4 gba:bg-gray-50" data-testid={testId}>
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-4" data-testid={`${testId}-header`}>
         <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${testId}-title`}>
-          <span className="gba:text-blue-500 gba:font-medium">
-            {getInputTypeLabel()}
-          </span>
+          <span className="gba:text-blue-500 gba:font-medium">{getInputTypeLabel()}</span>
         </div>
-        
-        <button
-          onClick={onRemove}
-          className="gba:text-red-500"
-          data-testid={`${testId}-remove-button`}
-        >
+
+        <button onClick={onRemove} className="gba:text-red-500" data-testid={`${testId}-remove-button`}>
           {getTranslationFromI18nKeyAndLabel('flow.creator.remove', 'Remove')}
         </button>
       </div>
-      
+
       <div className="gba:grid gba:grid-cols-1 gba:gap-4" data-testid={`${testId}-form`}>
         {/* Label */}
         <div className="gba:flex gba:flex-col gba:gap-1" data-testid={`${testId}-label-field`}>
@@ -97,23 +91,29 @@ export const SelectInputBlock: React.FC<SelectInputBlockProps> = ({
             data-testid={`${testId}-label-input`}
           />
         </div>
-        
+
         {/* Options section */}
         <div className="gba:flex gba:flex-col gba:gap-2" data-testid={`${testId}-options-section`}>
           <div className="gba:text-sm gba:text-gray-600" data-testid={`${testId}-options-label`}>
             {getTranslationFromI18nKeyAndLabel('flow.creator.options', 'Options')}:
           </div>
-          
-          <div className="gba:border gba:border-gray-200 gba:rounded gba:p-2 gba:bg-white" data-testid={`${testId}-options-list`}>
+
+          <div
+            className="gba:border gba:border-gray-200 gba:rounded gba:p-2 gba:bg-white"
+            data-testid={`${testId}-options-list`}
+          >
             {options.length === 0 ? (
-              <div className="gba:text-sm gba:text-gray-500 gba:p-2 gba:text-center" data-testid={`${testId}-no-options`}>
+              <div
+                className="gba:text-sm gba:text-gray-500 gba:p-2 gba:text-center"
+                data-testid={`${testId}-no-options`}
+              >
                 {getTranslationFromI18nKeyAndLabel('flow.creator.noOptions', 'No options added yet')}
               </div>
             ) : (
               <ul className="gba:flex gba:flex-col gba:gap-2" data-testid={`${testId}-options`}>
                 {options.map((option, index) => (
-                  <li 
-                    key={index} 
+                  <li
+                    key={index}
                     className="gba:flex gba:items-center gba:justify-between gba:p-2 gba:bg-gray-50 gba:rounded"
                     data-testid={`${testId}-option-${index}`}
                   >
@@ -137,7 +137,7 @@ export const SelectInputBlock: React.FC<SelectInputBlockProps> = ({
               </ul>
             )}
           </div>
-          
+
           {/* Add new option */}
           <div className="gba:flex gba:flex-col gba:gap-2 gba:mt-2" data-testid={`${testId}-add-option-section`}>
             <div className="gba:flex gba:gap-2 gba:items-end" data-testid={`${testId}-new-option-form`}>
@@ -149,7 +149,7 @@ export const SelectInputBlock: React.FC<SelectInputBlockProps> = ({
                   id={`${block.id}-option-label`}
                   type="text"
                   value={newOption.label}
-                  onChange={(e) => setNewOption({ ...newOption, label: e.target.value })}
+                  onChange={e => setNewOption({ ...newOption, label: e.target.value })}
                   className="gba:w-full gba:border gba:border-gray-300 gba:rounded gba:px-3 gba:py-1 gba:text-sm"
                   placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.optionLabel', 'Option label')}
                   data-testid={`${testId}-new-option-label`}
@@ -163,7 +163,7 @@ export const SelectInputBlock: React.FC<SelectInputBlockProps> = ({
                   id={`${block.id}-option-value`}
                   type="text"
                   value={newOption.value}
-                  onChange={(e) => setNewOption({ ...newOption, value: e.target.value })}
+                  onChange={e => setNewOption({ ...newOption, value: e.target.value })}
                   className="gba:w-full gba:border gba:border-gray-300 gba:rounded gba:px-3 gba:py-1 gba:text-sm"
                   placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.optionValue', 'Option value')}
                   data-testid={`${testId}-new-option-value`}
@@ -180,7 +180,7 @@ export const SelectInputBlock: React.FC<SelectInputBlockProps> = ({
             </div>
           </div>
         </div>
-        
+
         {/* Configuration options */}
         <div className="gba:flex gba:flex-col gba:gap-2 gba:mt-2" data-testid={`${testId}-config-options`}>
           {/* Required checkbox */}
@@ -197,7 +197,7 @@ export const SelectInputBlock: React.FC<SelectInputBlockProps> = ({
               {getTranslationFromI18nKeyAndLabel('flow.creator.required', 'Required field')}
             </label>
           </div>
-          
+
           {/* Multiple selection checkbox (only for dropdown and checkbox) */}
           {(block.type === 'dropdown' || block.type === 'checkbox') && (
             <div className="gba:flex gba:items-center" data-testid={`${testId}-multiple-field`}>
@@ -217,5 +217,5 @@ export const SelectInputBlock: React.FC<SelectInputBlockProps> = ({
         </div>
       </div>
     </div>
-  );
-};
+  )
+}

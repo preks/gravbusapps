@@ -1,5 +1,5 @@
-import { BillOfMaterials, BomComponent, BomDetailKPIData, BomTreeNode } from '../../../types';
-import dayjs from 'dayjs';
+import { BillOfMaterials, BomComponent, BomDetailKPIData, BomTreeNode } from '../../../types'
+import dayjs from 'dayjs'
 
 // Generate demo BOM detail data
 export const generateDemoBomDetail = (bomId: string): BillOfMaterials => {
@@ -8,7 +8,8 @@ export const generateDemoBomDetail = (bomId: string): BillOfMaterials => {
       id: 'bom-001',
       businessKey: 'BOM-LAPTOP-001',
       name: 'Enterprise Laptop Assembly',
-      description: 'Complete bill of materials for enterprise-grade laptop computer with advanced security features and high-performance components',
+      description:
+        'Complete bill of materials for enterprise-grade laptop computer with advanced security features and high-performance components',
       parentProductId: 'prod-laptop-001',
       parentProduct: {
         id: 'prod-laptop-001',
@@ -70,10 +71,10 @@ export const generateDemoBomDetail = (bomId: string): BillOfMaterials => {
       updatedAt: dayjs().subtract(2, 'days').toISOString(),
       isDeleted: false
     }
-  };
+  }
 
-  return bomData[bomId] || bomData['bom-001'];
-};
+  return bomData[bomId] || bomData['bom-001']
+}
 
 // Generate demo BOM components
 export const generateDemoBomComponents = (bomId: string): BomComponent[] => {
@@ -88,8 +89,8 @@ export const generateDemoBomComponents = (bomId: string): BomComponent[] => {
           name: 'Intel Core i7-1365U Processor',
           productNumber: 'CPU-I7-1365U',
           description: '12th Gen Intel Core processor with 10 cores',
-          price: 425.00,
-          currentCost: 380.00,
+          price: 425.0,
+          currentCost: 380.0,
           isStockItem: true
         },
         positionNumber: 10,
@@ -101,8 +102,8 @@ export const generateDemoBomComponents = (bomId: string): BomComponent[] => {
         componentType: 'MATERIAL',
         isOptional: false,
         isCritical: true,
-        unitCost: 380.00,
-        totalCost: 380.00,
+        unitCost: 380.0,
+        totalCost: 380.0,
         costingMethod: 'STANDARD',
         leadTime: 14,
         supplierName: 'Intel Corporation',
@@ -120,8 +121,8 @@ export const generateDemoBomComponents = (bomId: string): BomComponent[] => {
           name: 'DDR5 SODIMM 16GB',
           productNumber: 'RAM-DDR5-16GB',
           description: '16GB DDR5-5600 SO-DIMM memory module',
-          price: 120.00,
-          currentCost: 95.00,
+          price: 120.0,
+          currentCost: 95.0,
           isStockItem: true
         },
         positionNumber: 20,
@@ -133,8 +134,8 @@ export const generateDemoBomComponents = (bomId: string): BomComponent[] => {
         componentType: 'MATERIAL',
         isOptional: false,
         isCritical: true,
-        unitCost: 95.00,
-        totalCost: 190.00,
+        unitCost: 95.0,
+        totalCost: 190.0,
         costingMethod: 'STANDARD',
         leadTime: 7,
         supplierName: 'Samsung Electronics',
@@ -152,8 +153,8 @@ export const generateDemoBomComponents = (bomId: string): BomComponent[] => {
           name: 'NVMe SSD 1TB',
           productNumber: 'SSD-NVME-1TB',
           description: '1TB NVMe PCIe 4.0 solid state drive',
-          price: 180.00,
-          currentCost: 145.00,
+          price: 180.0,
+          currentCost: 145.0,
           isStockItem: true
         },
         positionNumber: 30,
@@ -165,8 +166,8 @@ export const generateDemoBomComponents = (bomId: string): BomComponent[] => {
         componentType: 'MATERIAL',
         isOptional: false,
         isCritical: true,
-        unitCost: 145.00,
-        totalCost: 145.00,
+        unitCost: 145.0,
+        totalCost: 145.0,
         costingMethod: 'STANDARD',
         leadTime: 10,
         supplierName: 'Western Digital',
@@ -184,8 +185,8 @@ export const generateDemoBomComponents = (bomId: string): BomComponent[] => {
           name: '14" WUXGA IPS Display',
           productNumber: 'DISP-14-WUXGA',
           description: '14-inch WUXGA IPS anti-glare display',
-          price: 220.00,
-          currentCost: 175.00,
+          price: 220.0,
+          currentCost: 175.0,
           isStockItem: true
         },
         positionNumber: 40,
@@ -197,8 +198,8 @@ export const generateDemoBomComponents = (bomId: string): BomComponent[] => {
         componentType: 'MATERIAL',
         isOptional: false,
         isCritical: true,
-        unitCost: 175.00,
-        totalCost: 175.00,
+        unitCost: 175.0,
+        totalCost: 175.0,
         costingMethod: 'STANDARD',
         leadTime: 21,
         supplierName: 'LG Display',
@@ -216,8 +217,8 @@ export const generateDemoBomComponents = (bomId: string): BomComponent[] => {
           name: 'Li-ion Battery 57Wh',
           productNumber: 'BAT-LION-57WH',
           description: '57Wh 4-cell lithium-ion battery',
-          price: 85.00,
-          currentCost: 65.00,
+          price: 85.0,
+          currentCost: 65.0,
           isStockItem: true
         },
         positionNumber: 50,
@@ -229,8 +230,8 @@ export const generateDemoBomComponents = (bomId: string): BomComponent[] => {
         componentType: 'MATERIAL',
         isOptional: false,
         isCritical: true,
-        unitCost: 65.00,
-        totalCost: 65.00,
+        unitCost: 65.0,
+        totalCost: 65.0,
         costingMethod: 'STANDARD',
         leadTime: 14,
         supplierName: 'Panasonic',
@@ -248,8 +249,8 @@ export const generateDemoBomComponents = (bomId: string): BomComponent[] => {
           name: 'Backlit Keyboard US',
           productNumber: 'KB-BL-US',
           description: 'Backlit keyboard with US layout',
-          price: 45.00,
-          currentCost: 32.00,
+          price: 45.0,
+          currentCost: 32.0,
           isStockItem: true
         },
         positionNumber: 60,
@@ -261,8 +262,8 @@ export const generateDemoBomComponents = (bomId: string): BomComponent[] => {
         componentType: 'MATERIAL',
         isOptional: false,
         isCritical: false,
-        unitCost: 32.00,
-        totalCost: 32.00,
+        unitCost: 32.0,
+        totalCost: 32.0,
         costingMethod: 'STANDARD',
         leadTime: 7,
         supplierName: 'Chicony Electronics',
@@ -272,10 +273,10 @@ export const generateDemoBomComponents = (bomId: string): BomComponent[] => {
         isDeleted: false
       }
     ]
-  };
+  }
 
-  return componentSets[bomId] || componentSets['bom-001'];
-};
+  return componentSets[bomId] || componentSets['bom-001']
+}
 
 // Generate demo KPI data for BOM detail
 export const generateDemoBomDetailKPIData = (bomId: string): BomDetailKPIData => {
@@ -286,7 +287,7 @@ export const generateDemoBomDetailKPIData = (bomId: string): BomDetailKPIData =>
         trend: 6.8
       },
       totalCost: {
-        value: 987.00,
+        value: 987.0,
         trend: -3.2
       },
       complexity: {
@@ -304,7 +305,7 @@ export const generateDemoBomDetailKPIData = (bomId: string): BomDetailKPIData =>
         trend: 12.5
       },
       totalCost: {
-        value: 1456.00,
+        value: 1456.0,
         trend: -1.8
       },
       complexity: {
@@ -316,10 +317,10 @@ export const generateDemoBomDetailKPIData = (bomId: string): BomDetailKPIData =>
         trend: 15.0
       }
     }
-  };
+  }
 
-  return kpiSets[bomId] || kpiSets['bom-001'];
-};
+  return kpiSets[bomId] || kpiSets['bom-001']
+}
 
 // Generate demo tree structure for BOM visualization
 export const generateDemoBomTree = (bomId: string): BomTreeNode[] => {
@@ -335,7 +336,7 @@ export const generateDemoBomTree = (bomId: string): BomTreeNode[] => {
         componentType: 'ASSEMBLY',
         isOptional: false,
         isCritical: true,
-        totalCost: 987.00,
+        totalCost: 987.0,
         children: [
           {
             key: 'comp-001',
@@ -347,8 +348,8 @@ export const generateDemoBomTree = (bomId: string): BomTreeNode[] => {
             componentType: 'MATERIAL',
             isOptional: false,
             isCritical: true,
-            unitCost: 380.00,
-            totalCost: 380.00
+            unitCost: 380.0,
+            totalCost: 380.0
           },
           {
             key: 'comp-002',
@@ -360,8 +361,8 @@ export const generateDemoBomTree = (bomId: string): BomTreeNode[] => {
             componentType: 'MATERIAL',
             isOptional: false,
             isCritical: true,
-            unitCost: 95.00,
-            totalCost: 190.00
+            unitCost: 95.0,
+            totalCost: 190.0
           },
           {
             key: 'comp-003',
@@ -373,8 +374,8 @@ export const generateDemoBomTree = (bomId: string): BomTreeNode[] => {
             componentType: 'MATERIAL',
             isOptional: false,
             isCritical: true,
-            unitCost: 145.00,
-            totalCost: 145.00
+            unitCost: 145.0,
+            totalCost: 145.0
           },
           {
             key: 'comp-004',
@@ -386,8 +387,8 @@ export const generateDemoBomTree = (bomId: string): BomTreeNode[] => {
             componentType: 'MATERIAL',
             isOptional: false,
             isCritical: true,
-            unitCost: 175.00,
-            totalCost: 175.00
+            unitCost: 175.0,
+            totalCost: 175.0
           },
           {
             key: 'comp-005',
@@ -399,8 +400,8 @@ export const generateDemoBomTree = (bomId: string): BomTreeNode[] => {
             componentType: 'MATERIAL',
             isOptional: false,
             isCritical: true,
-            unitCost: 65.00,
-            totalCost: 65.00
+            unitCost: 65.0,
+            totalCost: 65.0
           },
           {
             key: 'comp-006',
@@ -412,13 +413,13 @@ export const generateDemoBomTree = (bomId: string): BomTreeNode[] => {
             componentType: 'MATERIAL',
             isOptional: false,
             isCritical: false,
-            unitCost: 32.00,
-            totalCost: 32.00
+            unitCost: 32.0,
+            totalCost: 32.0
           }
         ]
       }
     ]
-  };
+  }
 
-  return treeSets[bomId] || treeSets['bom-001'];
-};
+  return treeSets[bomId] || treeSets['bom-001']
+}

@@ -70,4 +70,4 @@ export const GET_CALENDAR_EXPENSE_PLANS = `
       }
     }
   }
-`;
+`

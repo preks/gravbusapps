@@ -1,96 +1,96 @@
-import { useState, useEffect, useCallback } from 'react';
-import { 
-  DetailedProduct, 
-  ProductKPIData, 
-  ProductInventoryLocation, 
-  ProductPriceHistory, 
-  ProductSalesMetrics, 
-  ProductSupplierInfo, 
-  ProductDocument, 
-  ProductStockMovement 
-} from '../types';
-import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
-import { 
-  getProductDetails, 
-  getProductKPIs, 
-  getProductInventoryLocations, 
-  getProductPriceHistory, 
-  getProductSalesMetrics, 
-  getProductSuppliers, 
-  getProductDocuments, 
-  getProductStockMovements 
-} from '../queries/productDetailQuery';
-import { 
-  generateDemoProductDetail, 
-  generateDemoProductKPIs, 
-  generateDemoInventoryLocations, 
-  generateDemoPriceHistory, 
-  generateDemoSalesMetrics, 
-  generateDemoSupplierInfo, 
-  generateDemoDocuments, 
-  generateDemoStockMovements 
-} from './demoProductDetailData';
+import { useState, useEffect, useCallback } from 'react'
+import {
+  DetailedProduct,
+  ProductKPIData,
+  ProductInventoryLocation,
+  ProductPriceHistory,
+  ProductSalesMetrics,
+  ProductSupplierInfo,
+  ProductDocument,
+  ProductStockMovement
+} from '../types'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import {
+  getProductDetails,
+  getProductKPIs,
+  getProductInventoryLocations,
+  getProductPriceHistory,
+  getProductSalesMetrics,
+  getProductSuppliers,
+  getProductDocuments,
+  getProductStockMovements
+} from '../queries/productDetailQuery'
+import {
+  generateDemoProductDetail,
+  generateDemoProductKPIs,
+  generateDemoInventoryLocations,
+  generateDemoPriceHistory,
+  generateDemoSalesMetrics,
+  generateDemoSupplierInfo,
+  generateDemoDocuments,
+  generateDemoStockMovements
+} from './demoProductDetailData'
 
 interface UseProductDetailDataProps {
-  accessToken: string;
-  productId: string;
+  accessToken: string
+  productId: string
 }
 
 interface UseProductDetailDataReturn {
   // Data
-  product: DetailedProduct | null;
-  kpiData: ProductKPIData | null;
-  inventoryLocations: ProductInventoryLocation[];
-  priceHistory: ProductPriceHistory[];
-  salesMetrics: ProductSalesMetrics | null;
-  suppliers: ProductSupplierInfo[];
-  documents: ProductDocument[];
-  stockMovements: ProductStockMovement[];
-  
+  product: DetailedProduct | null
+  kpiData: ProductKPIData | null
+  inventoryLocations: ProductInventoryLocation[]
+  priceHistory: ProductPriceHistory[]
+  salesMetrics: ProductSalesMetrics | null
+  suppliers: ProductSupplierInfo[]
+  documents: ProductDocument[]
+  stockMovements: ProductStockMovement[]
+
   // State
-  loading: boolean;
-  error: Error | null;
-  isUsingDemoData: boolean;
-  
+  loading: boolean
+  error: Error | null
+  isUsingDemoData: boolean
+
   // Actions
-  refreshData: () => void;
+  refreshData: () => void
 }
 
-export const useProductDetailData = ({ 
-  accessToken, 
-  productId 
+export const useProductDetailData = ({
+  accessToken,
+  productId
 }: UseProductDetailDataProps): UseProductDetailDataReturn => {
   // GraphQL client
-  const graphqlClient = useGraphqlClient(accessToken);
-  
+  const graphqlClient = useGraphqlClient(accessToken)
+
   // State
-  const [product, setProduct] = useState<DetailedProduct | null>(null);
-  const [kpiData, setKpiData] = useState<ProductKPIData | null>(null);
-  const [inventoryLocations, setInventoryLocations] = useState<ProductInventoryLocation[]>([]);
-  const [priceHistory, setPriceHistory] = useState<ProductPriceHistory[]>([]);
-  const [salesMetrics, setSalesMetrics] = useState<ProductSalesMetrics | null>(null);
-  const [suppliers, setSuppliers] = useState<ProductSupplierInfo[]>([]);
-  const [documents, setDocuments] = useState<ProductDocument[]>([]);
-  const [stockMovements, setStockMovements] = useState<ProductStockMovement[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [isUsingDemoData, setIsUsingDemoData] = useState(false);
+  const [product, setProduct] = useState<DetailedProduct | null>(null)
+  const [kpiData, setKpiData] = useState<ProductKPIData | null>(null)
+  const [inventoryLocations, setInventoryLocations] = useState<ProductInventoryLocation[]>([])
+  const [priceHistory, setPriceHistory] = useState<ProductPriceHistory[]>([])
+  const [salesMetrics, setSalesMetrics] = useState<ProductSalesMetrics | null>(null)
+  const [suppliers, setSuppliers] = useState<ProductSupplierInfo[]>([])
+  const [documents, setDocuments] = useState<ProductDocument[]>([])
+  const [stockMovements, setStockMovements] = useState<ProductStockMovement[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+  const [isUsingDemoData, setIsUsingDemoData] = useState(false)
 
   // Fetch product details
   const fetchProductDetails = useCallback(async () => {
-    if (!productId) return;
+    if (!productId) return
 
-    setLoading(true);
-    setError(null);
-    setIsUsingDemoData(false);
+    setLoading(true)
+    setError(null)
+    setIsUsingDemoData(false)
 
     try {
       // Fetch main product details
-      const productData = await graphqlClient.request(getProductDetails, { productId });
+      const productData = await graphqlClient.request(getProductDetails, { productId })
 
       if (productData?.nwSalesProduct?.[0]) {
-        const productInfo = productData.nwSalesProduct[0];
-        
+        const productInfo = productData.nwSalesProduct[0]
+
         // Transform the data to match our interface
         const transformedProduct: DetailedProduct = {
           id: productInfo.id,
@@ -139,9 +139,9 @@ export const useProductDetailData = ({
           recordState: productInfo.recordState,
           processInstanceId: productInfo.processInstanceId,
           additionalProperties: productInfo.additionalProperties
-        };
+        }
 
-        setProduct(transformedProduct);
+        setProduct(transformedProduct)
 
         // Fetch additional data in parallel
         await Promise.all([
@@ -152,35 +152,34 @@ export const useProductDetailData = ({
           fetchSuppliers(),
           fetchDocuments(),
           fetchStockMovements()
-        ]);
-
+        ])
       } else {
-        throw new Error('Product not found');
+        throw new Error('Product not found')
       }
     } catch (err) {
-      console.error('Error fetching product details:', err);
-      setError(err as Error);
-      setIsUsingDemoData(true);
-      
+      console.error('Error fetching product details:', err)
+      setError(err as Error)
+      setIsUsingDemoData(true)
+
       // Use demo data
-      setProduct(generateDemoProductDetail(productId));
-      setKpiData(generateDemoProductKPIs(productId));
-      setInventoryLocations(generateDemoInventoryLocations(productId));
-      setPriceHistory(generateDemoPriceHistory(productId));
-      setSalesMetrics(generateDemoSalesMetrics(productId));
-      setSuppliers(generateDemoSupplierInfo(productId));
-      setDocuments(generateDemoDocuments(productId));
-      setStockMovements(generateDemoStockMovements(productId));
+      setProduct(generateDemoProductDetail(productId))
+      setKpiData(generateDemoProductKPIs(productId))
+      setInventoryLocations(generateDemoInventoryLocations(productId))
+      setPriceHistory(generateDemoPriceHistory(productId))
+      setSalesMetrics(generateDemoSalesMetrics(productId))
+      setSuppliers(generateDemoSupplierInfo(productId))
+      setDocuments(generateDemoDocuments(productId))
+      setStockMovements(generateDemoStockMovements(productId))
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [graphqlClient, productId]);
+  }, [graphqlClient, productId])
 
   // Fetch KPI data
   const fetchKPIData = useCallback(async () => {
     try {
-      const kpiResult = await graphqlClient.request(getProductKPIs, { productId });
-      
+      const kpiResult = await graphqlClient.request(getProductKPIs, { productId })
+
       if (kpiResult) {
         // Transform KPI data
         const kpis: ProductKPIData = {
@@ -190,7 +189,7 @@ export const useProductDetailData = ({
             status: 'Normal'
           },
           monthlyRevenue: {
-            value: 45750.00, // Mock calculation from sales data
+            value: 45750.0, // Mock calculation from sales data
             trend: 12.8,
             currency: 'EUR'
           },
@@ -203,117 +202,117 @@ export const useProductDetailData = ({
             trend: 15.3,
             unit: 'units/month'
           }
-        };
-        
-        setKpiData(kpis);
+        }
+
+        setKpiData(kpis)
       }
     } catch (err) {
-      console.error('Error fetching KPI data:', err);
+      console.error('Error fetching KPI data:', err)
       // Use demo data on error
-      setKpiData(generateDemoProductKPIs(productId));
+      setKpiData(generateDemoProductKPIs(productId))
     }
-  }, [graphqlClient, productId]);
+  }, [graphqlClient, productId])
 
   // Fetch inventory locations
   const fetchInventoryLocations = useCallback(async () => {
     try {
-      await graphqlClient.request(getProductInventoryLocations, { productId });
+      await graphqlClient.request(getProductInventoryLocations, { productId })
       // For now, use demo data as the real schema doesn't have inventory locations
-      setInventoryLocations(generateDemoInventoryLocations(productId));
+      setInventoryLocations(generateDemoInventoryLocations(productId))
     } catch (err) {
-      console.error('Error fetching inventory locations:', err);
-      setInventoryLocations(generateDemoInventoryLocations(productId));
+      console.error('Error fetching inventory locations:', err)
+      setInventoryLocations(generateDemoInventoryLocations(productId))
     }
-  }, [graphqlClient, productId]);
+  }, [graphqlClient, productId])
 
   // Fetch price history
   const fetchPriceHistory = useCallback(async () => {
     try {
-      await graphqlClient.request(getProductPriceHistory, { productId });
+      await graphqlClient.request(getProductPriceHistory, { productId })
       // For now, use demo data as the real schema doesn't have price history
-      setPriceHistory(generateDemoPriceHistory(productId));
+      setPriceHistory(generateDemoPriceHistory(productId))
     } catch (err) {
-      console.error('Error fetching price history:', err);
-      setPriceHistory(generateDemoPriceHistory(productId));
+      console.error('Error fetching price history:', err)
+      setPriceHistory(generateDemoPriceHistory(productId))
     }
-  }, [graphqlClient, productId]);
+  }, [graphqlClient, productId])
 
   // Fetch sales metrics
   const fetchSalesMetrics = useCallback(async () => {
     try {
-      const salesData = await graphqlClient.request(getProductSalesMetrics, { productId });
-      
+      const salesData = await graphqlClient.request(getProductSalesMetrics, { productId })
+
       if (salesData?.nwSalesSalesOrderItem) {
         // Transform sales data to metrics
-        const items = salesData.nwSalesSalesOrderItem;
-        const totalRevenue = items.reduce((sum: number, item: any) => sum + (item.extendedAmount || 0), 0);
-        const totalQuantity = items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
-        
+        const items = salesData.nwSalesSalesOrderItem
+        const totalRevenue = items.reduce((sum: number, item: any) => sum + (item.extendedAmount || 0), 0)
+        const totalQuantity = items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0)
+
         const metrics: ProductSalesMetrics = {
           totalRevenue,
           totalQuantitySold: totalQuantity,
           averageOrderValue: totalQuantity > 0 ? totalRevenue / totalQuantity : 0,
           topCustomers: [], // Would need to aggregate by customer
           salesTrend: [] // Would need to group by time period
-        };
-        
-        setSalesMetrics(metrics);
+        }
+
+        setSalesMetrics(metrics)
       } else {
-        setSalesMetrics(generateDemoSalesMetrics(productId));
+        setSalesMetrics(generateDemoSalesMetrics(productId))
       }
     } catch (err) {
-      console.error('Error fetching sales metrics:', err);
-      setSalesMetrics(generateDemoSalesMetrics(productId));
+      console.error('Error fetching sales metrics:', err)
+      setSalesMetrics(generateDemoSalesMetrics(productId))
     }
-  }, [graphqlClient, productId]);
+  }, [graphqlClient, productId])
 
   // Fetch suppliers
   const fetchSuppliers = useCallback(async () => {
     try {
-      await graphqlClient.request(getProductSuppliers, { productId });
+      await graphqlClient.request(getProductSuppliers, { productId })
       // For now, use demo data as the real schema doesn't have detailed supplier info
-      setSuppliers(generateDemoSupplierInfo(productId));
+      setSuppliers(generateDemoSupplierInfo(productId))
     } catch (err) {
-      console.error('Error fetching suppliers:', err);
-      setSuppliers(generateDemoSupplierInfo(productId));
+      console.error('Error fetching suppliers:', err)
+      setSuppliers(generateDemoSupplierInfo(productId))
     }
-  }, [graphqlClient, productId]);
+  }, [graphqlClient, productId])
 
   // Fetch documents
   const fetchDocuments = useCallback(async () => {
     try {
-      await graphqlClient.request(getProductDocuments, { productId });
+      await graphqlClient.request(getProductDocuments, { productId })
       // For now, use demo data as the real schema doesn't have documents
-      setDocuments(generateDemoDocuments(productId));
+      setDocuments(generateDemoDocuments(productId))
     } catch (err) {
-      console.error('Error fetching documents:', err);
-      setDocuments(generateDemoDocuments(productId));
+      console.error('Error fetching documents:', err)
+      setDocuments(generateDemoDocuments(productId))
     }
-  }, [graphqlClient, productId]);
+  }, [graphqlClient, productId])
 
   // Fetch stock movements
   const fetchStockMovements = useCallback(async () => {
     try {
-      await graphqlClient.request(getProductStockMovements, { productId });
+      await graphqlClient.request(getProductStockMovements, { productId })
       // For now, use demo data as the real schema doesn't have stock movements
-      setStockMovements(generateDemoStockMovements(productId));
+      setStockMovements(generateDemoStockMovements(productId))
     } catch (err) {
-      console.error('Error fetching stock movements:', err);
-      setStockMovements(generateDemoStockMovements(productId));
+      console.error('Error fetching stock movements:', err)
+      setStockMovements(generateDemoStockMovements(productId))
     }
-  }, [graphqlClient, productId]);
+  }, [graphqlClient, productId])
 
   // Refresh data function
   const refreshData = useCallback(() => {
-    fetchProductDetails();
-  }, [fetchProductDetails]);
+    fetchProductDetails()
+  }, [fetchProductDetails])
 
   // Effect to fetch data when productId changes
   useEffect(() => {
     if (productId && accessToken) {
-      fetchProductDetails();
+      fetchProductDetails()
     }
-  }, [productId, accessToken, fetchProductDetails]);
+  }, [productId, accessToken, fetchProductDetails])
 
   return {
     product,
@@ -328,5 +327,5 @@ export const useProductDetailData = ({
     error,
     isUsingDemoData,
     refreshData
-  };
-};
+  }
+}

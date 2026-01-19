@@ -1,4 +1,4 @@
-import PersonalExpenses from './PersonalExpenses';
+import PersonalExpenses from './PersonalExpenses'
 
-export { PersonalExpenses };
-export default PersonalExpenses;
+export { PersonalExpenses }
+export default PersonalExpenses

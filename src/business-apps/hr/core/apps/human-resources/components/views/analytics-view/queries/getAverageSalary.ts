@@ -1,6 +1,6 @@
 /**
  * GraphQL query to get the average annual gross salary of all active employees
- * 
+ *
  * This query uses the EmployeeWorkingCondition.annualGrossSalary field to calculate
  * the average salary across all current employees.
  */
@@ -24,4 +24,4 @@ export const getAverageSalaryQuery = `
       }
     }
   }
-`;
+`

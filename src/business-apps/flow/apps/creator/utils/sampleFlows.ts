@@ -1,4 +1,4 @@
-import { FlowTemplate, FlowStepType, InputType, AssignmentMode } from '../types/flowTemplate';
+import { FlowTemplate, FlowStepType, InputType, AssignmentMode } from '../types/flowTemplate'
 
 /**
  * Sample flow templates for testing the simplified flow creator
@@ -8,13 +8,15 @@ import { FlowTemplate, FlowStepType, InputType, AssignmentMode } from '../types/
 export const employeeOnboardingFlow: FlowTemplate = {
   type: 'TEMPLATE',
   name: 'Employee Onboarding Process',
-  description: 'A comprehensive onboarding process for new employees covering orientation, equipment setup, and initial training.',
+  description:
+    'A comprehensive onboarding process for new employees covering orientation, equipment setup, and initial training.',
   assignmentMode: AssignmentMode.CLAIM, // Template-level assignment mode
   steps: [
     {
       id: 'step-1',
       title: 'Welcome & Orientation',
-      message: 'Welcome to the team! This step covers your initial orientation and introduction to company culture, policies, and procedures.',
+      message:
+        'Welcome to the team! This step covers your initial orientation and introduction to company culture, policies, and procedures.',
       type: FlowStepType.INFORMATION,
       links: [
         {
@@ -31,7 +33,8 @@ export const employeeOnboardingFlow: FlowTemplate = {
     {
       id: 'step-2',
       title: 'Equipment Setup',
-      message: 'Let\'s get your workspace and equipment ready. Please complete the equipment request form and schedule your IT setup appointment.',
+      message:
+        "Let's get your workspace and equipment ready. Please complete the equipment request form and schedule your IT setup appointment.",
       type: FlowStepType.TASK,
       inputs: [
         {
@@ -67,22 +70,25 @@ export const employeeOnboardingFlow: FlowTemplate = {
         }
       ],
       assignment: {
-        targets: [{
-          userIds: [],
-          organizationalUnits: ['it-department'],
-          matrixTeams: [],
-          companies: [],
-          siteLocations: [],
-          costCenters: [],
-          capabilities: []
-        }],
+        targets: [
+          {
+            users: [],
+            organizationalUnits: ['it-department'],
+            matrixTeams: [],
+            companies: [],
+            siteLocations: [],
+            costCenters: [],
+            capabilities: []
+          }
+        ],
         allowReassignment: true
       }
     },
     {
       id: 'step-3',
       title: 'Initial Training Schedule',
-      message: 'Schedule your mandatory training sessions. These sessions are required to be completed within your first two weeks.',
+      message:
+        'Schedule your mandatory training sessions. These sessions are required to be completed within your first two weeks.',
       type: FlowStepType.TASK,
       inputs: [
         {
@@ -105,15 +111,17 @@ export const employeeOnboardingFlow: FlowTemplate = {
         }
       ],
       assignment: {
-        targets: [{
-          userIds: [],
-          organizationalUnits: ['hr-department'],
-          matrixTeams: [],
-          companies: [],
-          siteLocations: [],
-          costCenters: [],
-          capabilities: []
-        }],
+        targets: [
+          {
+            users: [],
+            organizationalUnits: ['hr-department'],
+            matrixTeams: [],
+            companies: [],
+            siteLocations: [],
+            costCenters: [],
+            capabilities: []
+          }
+        ],
         allowReassignment: false
       }
     },
@@ -125,19 +133,21 @@ export const employeeOnboardingFlow: FlowTemplate = {
       inputs: []
     }
   ]
-};
+}
 
 // Sample 2: Document Approval Workflow
 export const documentApprovalFlow: FlowTemplate = {
   type: 'TEMPLATE',
   name: 'Document Review & Approval',
-  description: 'A streamlined document review and approval process with multiple approval levels for sensitive documents.',
+  description:
+    'A streamlined document review and approval process with multiple approval levels for sensitive documents.',
   assignmentMode: AssignmentMode.CLAIM,
   steps: [
     {
       id: 'step-1',
       title: 'Document Submission',
-      message: 'Submit your document for review and approval. Please provide all required information and attach the document file.',
+      message:
+        'Submit your document for review and approval. Please provide all required information and attach the document file.',
       type: FlowStepType.TASK,
       inputs: [
         {
@@ -198,15 +208,17 @@ export const documentApprovalFlow: FlowTemplate = {
         }
       ],
       assignment: {
-        targets: [{
-          userIds: [],
-          organizationalUnits: [],
-          matrixTeams: [],
-          companies: [],
-          siteLocations: [],
-          costCenters: [],
-          capabilities: ['document-reviewer']
-        }],
+        targets: [
+          {
+            users: [],
+            organizationalUnits: [],
+            matrixTeams: [],
+            companies: [],
+            siteLocations: [],
+            costCenters: [],
+            capabilities: ['document-reviewer']
+          }
+        ],
         allowReassignment: true
       }
     },
@@ -230,26 +242,29 @@ export const documentApprovalFlow: FlowTemplate = {
         }
       ],
       assignment: {
-        targets: [{
-          userIds: [],
-          organizationalUnits: ['management'],
-          matrixTeams: [],
-          companies: [],
-          siteLocations: [],
-          costCenters: [],
-          capabilities: []
-        }],
+        targets: [
+          {
+            users: [],
+            organizationalUnits: ['management'],
+            matrixTeams: [],
+            companies: [],
+            siteLocations: [],
+            costCenters: [],
+            capabilities: []
+          }
+        ],
         allowReassignment: false
       }
     }
   ]
-};
+}
 
 // Sample 3: Project Approval Process
 export const projectApprovalFlow: FlowTemplate = {
   type: 'TEMPLATE',
   name: 'Project Approval Process',
-  description: 'Multi-step project approval workflow including budget approval, resource allocation, and stakeholder sign-off.',
+  description:
+    'Multi-step project approval workflow including budget approval, resource allocation, and stakeholder sign-off.',
   assignmentMode: AssignmentMode.ASSIGN,
   steps: [
     {
@@ -334,15 +349,17 @@ export const projectApprovalFlow: FlowTemplate = {
         }
       ],
       assignment: {
-        targets: [{
-          userIds: [],
-          organizationalUnits: ['finance'],
-          matrixTeams: [],
-          companies: [],
-          siteLocations: [],
-          costCenters: [],
-          capabilities: []
-        }],
+        targets: [
+          {
+            users: [],
+            organizationalUnits: ['finance'],
+            matrixTeams: [],
+            companies: [],
+            siteLocations: [],
+            costCenters: [],
+            capabilities: []
+          }
+        ],
         allowReassignment: true
       }
     },
@@ -372,15 +389,17 @@ export const projectApprovalFlow: FlowTemplate = {
         }
       ],
       assignment: {
-        targets: [{
-          userIds: [],
-          organizationalUnits: [],
-          matrixTeams: [],
-          companies: [],
-          siteLocations: [],
-          costCenters: [],
-          capabilities: ['resource-manager']
-        }],
+        targets: [
+          {
+            users: [],
+            organizationalUnits: [],
+            matrixTeams: [],
+            companies: [],
+            siteLocations: [],
+            costCenters: [],
+            capabilities: ['resource-manager']
+          }
+        ],
         allowReassignment: true
       }
     },
@@ -398,20 +417,22 @@ export const projectApprovalFlow: FlowTemplate = {
         }
       ],
       assignment: {
-        targets: [{
-          userIds: [],
-          organizationalUnits: ['executive'],
-          matrixTeams: [],
-          companies: [],
-          siteLocations: [],
-          costCenters: [],
-          capabilities: []
-        }],
+        targets: [
+          {
+            users: [],
+            organizationalUnits: ['executive'],
+            matrixTeams: [],
+            companies: [],
+            siteLocations: [],
+            costCenters: [],
+            capabilities: []
+          }
+        ],
         allowReassignment: false
       }
     }
   ]
-};
+}
 
 // Sample 4: Self-Service IT Support Request
 export const selfServiceITSupport: FlowTemplate = {
@@ -421,7 +442,8 @@ export const selfServiceITSupport: FlowTemplate = {
   assignmentMode: AssignmentMode.CLAIM,
   initStep: {
     title: 'Submit IT Support Request',
-    message: 'Describe your IT issue or request. Please provide as much detail as possible to help our team assist you quickly.',
+    message:
+      'Describe your IT issue or request. Please provide as much detail as possible to help our team assist you quickly.',
     links: [
       {
         name: 'IT Self-Help Portal',
@@ -505,15 +527,17 @@ export const selfServiceITSupport: FlowTemplate = {
         }
       ],
       assignment: {
-        targets: [{
-          userIds: [],
-          organizationalUnits: [],
-          matrixTeams: [],
-          companies: [],
-          siteLocations: [],
-          costCenters: [],
-          capabilities: ['it-coordinator']
-        }],
+        targets: [
+          {
+            users: [],
+            organizationalUnits: [],
+            matrixTeams: [],
+            companies: [],
+            siteLocations: [],
+            costCenters: [],
+            capabilities: ['it-coordinator']
+          }
+        ],
         allowReassignment: true
       }
     },
@@ -549,15 +573,17 @@ export const selfServiceITSupport: FlowTemplate = {
         }
       ],
       assignment: {
-        targets: [{
-          userIds: [],
-          organizationalUnits: [],
-          matrixTeams: [],
-          companies: [],
-          siteLocations: [],
-          costCenters: [],
-          capabilities: ['it-technician']
-        }],
+        targets: [
+          {
+            users: [],
+            organizationalUnits: [],
+            matrixTeams: [],
+            companies: [],
+            siteLocations: [],
+            costCenters: [],
+            capabilities: ['it-technician']
+          }
+        ],
         allowReassignment: true
       }
     },
@@ -589,19 +615,21 @@ export const selfServiceITSupport: FlowTemplate = {
       ]
     }
   ]
-};
+}
 
 // Sample 5: Performance Review Process
 export const performanceReviewFlow: FlowTemplate = {
   type: 'TEMPLATE',
   name: 'Annual Performance Review',
-  description: 'Comprehensive annual performance review process including self-assessment, manager review, and goal setting.',
+  description:
+    'Comprehensive annual performance review process including self-assessment, manager review, and goal setting.',
   assignmentMode: AssignmentMode.ASSIGN,
   steps: [
     {
       id: 'step-1',
       title: 'Employee Self-Assessment',
-      message: 'Complete your self-assessment by reflecting on your achievements, challenges, and goals for the past year.',
+      message:
+        'Complete your self-assessment by reflecting on your achievements, challenges, and goals for the past year.',
       type: FlowStepType.TASK,
       inputs: [
         {
@@ -682,15 +710,17 @@ export const performanceReviewFlow: FlowTemplate = {
         }
       ],
       assignment: {
-        targets: [{
-          userIds: [],
-          organizationalUnits: [],
-          matrixTeams: [],
-          companies: [],
-          siteLocations: [],
-          costCenters: [],
-          capabilities: ['manager']
-        }],
+        targets: [
+          {
+            users: [],
+            organizationalUnits: [],
+            matrixTeams: [],
+            companies: [],
+            siteLocations: [],
+            costCenters: [],
+            capabilities: ['manager']
+          }
+        ],
         allowReassignment: false
       }
     },
@@ -714,20 +744,22 @@ export const performanceReviewFlow: FlowTemplate = {
         }
       ],
       assignment: {
-        targets: [{
-          userIds: [],
-          organizationalUnits: ['hr'],
-          matrixTeams: [],
-          companies: [],
-          siteLocations: [],
-          costCenters: [],
-          capabilities: []
-        }],
+        targets: [
+          {
+            users: [],
+            organizationalUnits: ['hr'],
+            matrixTeams: [],
+            companies: [],
+            siteLocations: [],
+            costCenters: [],
+            capabilities: []
+          }
+        ],
         allowReassignment: true
       }
     }
   ]
-};
+}
 
 // Export all sample flows
 export const sampleFlows = [
@@ -736,12 +768,12 @@ export const sampleFlows = [
   projectApprovalFlow,
   selfServiceITSupport,
   performanceReviewFlow
-];
+]
 
 // Utility function to get a sample flow by ID
 export const getSampleFlowById = (id: string): FlowTemplate | undefined => {
-  return sampleFlows.find(flow => flow.name === id);
-};
+  return sampleFlows.find(flow => flow.name === id)
+}
 
 // Utility function to get all sample flow summaries
 export const getSampleFlowSummaries = () => {
@@ -753,6 +785,5 @@ export const getSampleFlowSummaries = () => {
     hasAssignments: flow.steps.some(step => step.assignment?.targets?.length || 0 > 0),
     hasInputForms: flow.steps.some(step => step.inputs?.length || 0 > 0),
     stepTypes: Array.from(new Set(flow.steps.map(step => step.type)))
-  }));
-}; 
-
+  }))
+}

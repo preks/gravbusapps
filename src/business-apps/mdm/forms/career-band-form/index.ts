@@ -1,4 +1,4 @@
-import { CareerBandForm } from './CareerBandForm';
+import { CareerBandForm } from './CareerBandForm'
 
-export { CareerBandForm };
-export default CareerBandForm;
+export { CareerBandForm }
+export default CareerBandForm

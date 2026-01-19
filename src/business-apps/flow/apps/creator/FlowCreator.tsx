@@ -1,67 +1,169 @@
-import React, { useState, useEffect } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { FlowTemplateList } from './components/FlowTemplateList';
-import { FlowPreview } from './components/FlowPreview';
-import { FlowWizardDialog } from './components/wizard/FlowWizardDialog';
-import { AIFlowGenerator } from './components/AIFlowGenerator';
-import { useFlowTemplateStore } from './hooks/useFlowTemplateStore';
-import { useWizardStore } from './hooks/useWizardStore';
-import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient';
-import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient';
-import { Spinner, Alert, AlertDescription, Button, Tabs, TabsContent, TabsList, TabsTrigger, Card, CardContent, CardHeader, CardTitle, Badge, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
-import { Settings, FileText, Users, CheckCircle, MessageSquare, ClipboardList, RefreshCw, Building2, Briefcase, Heart, Truck, ShoppingCart, Banknote, Shield, Factory, Wrench, UserCheck, Calculator, TrendingUp, Headphones, Cpu, Globe, Calendar, Zap, Sparkles } from 'lucide-react';
-import { MockDataProvider } from '../../providers/MockDataProvider';
-import { FlowDesigner } from './components/designer/FlowDesigner';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { FlowTemplateList } from './components/FlowTemplateList'
+import { FlowPreview } from './components/FlowPreview'
+import { FlowWizardDialog } from './components/wizard/FlowWizardDialog'
+import { AIFlowGenerator } from './components/AIFlowGenerator'
+import { useFlowTemplateStore } from './hooks/useFlowTemplateStore'
+import { useWizardStore } from './hooks/useWizardStore'
+import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient'
+import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
+import {
+  Spinner,
+  Alert,
+  AlertDescription,
+  Button,
+  Card,
+  CardContent,
+  Badge,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  PageLayout
+} from '@newwork/nw-design-system'
+import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
+import {
+  Settings,
+  FileText,
+  Users,
+  CheckCircle,
+  MessageSquare,
+  ClipboardList,
+  RefreshCw,
+  Building2,
+  Briefcase,
+  Heart,
+  Truck,
+  ShoppingCart,
+  Banknote,
+  Shield,
+  Factory,
+  Wrench,
+  UserCheck,
+  Calculator,
+  TrendingUp,
+  Headphones,
+  Cpu,
+  Globe,
+  Calendar,
+  Zap,
+  Sparkles,
+  Search,
+  ChevronLeft,
+  ChevronRight
+} from 'lucide-react'
+import { MockDataProvider } from '../../providers/MockDataProvider'
+import { FlowDesigner } from './components/designer/FlowDesigner'
 
 /**
  * Flow Creator App component for defining workflow templates
  */
 interface FlowCreatorProps extends BusinessAppContextProps {
-  'data-testid'?: string;
+  'data-testid'?: string
 }
 
-export const FlowCreator: React.FC<FlowCreatorProps> = ({ 
+export const FlowCreator: React.FC<FlowCreatorProps> = ({
   accessToken,
   userInfo,
   'data-testid': testId = 'flow-creator'
 }) => {
   // API Integration
-  const flowTemplateClient = useFlowTemplateClient(accessToken);
-  
-  // State management
-  const [templates, setTemplates] = useState<FlowTemplate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [showDesigner, setShowDesigner] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<FlowTemplate | null>(null);
-  const [previewTemplate, setPreviewTemplate] = useState<FlowTemplate | null>(null);
-  
-  // AI Creation state
+  const flowTemplateClient = useFlowTemplateClient(accessToken)
 
-  const [activeTab, setActiveTab] = useState<'create' | 'manage'>('create');
-  const { resetTemplate } = useFlowTemplateStore();
+  // State management
+  const [templates, setTemplates] = useState<FlowTemplate[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Pagination and search state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [isSearching, setIsSearching] = useState(false)
+  const itemsPerPage = 20
+
+  // Use ref to always get current search term in callbacks
+  const currentSearchTermRef = useRef(searchTerm)
+  useEffect(() => {
+    currentSearchTermRef.current = searchTerm
+  }, [searchTerm])
+
+  // Helper functions for URL-based state (must be defined before useState calls that use them)
+  // Get template ID from URL query parameters
+  const getTemplateIdFromUrl = (): string | null => {
+    if (typeof window === 'undefined') return null
+    const urlParams = new URLSearchParams(window.location.search)
+    return urlParams.get('templateId')
+  }
+
+  // Update URL with template ID (for deep linking)
+  const updateUrlWithTemplateId = (templateId: string | null) => {
+    if (typeof window === 'undefined') return
+    const urlParams = new URLSearchParams(window.location.search)
+
+    if (templateId) {
+      urlParams.set('templateId', templateId)
+    } else {
+      urlParams.delete('templateId')
+    }
+
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}${window.location.hash}`
+    window.history.replaceState({}, '', newUrl)
+  }
+
+  // Initialize activeTab from URL hash on mount
+  const getInitialTab = (): 'create' | 'manage' => {
+    if (globalThis.window !== undefined) {
+      const hash = globalThis.location.hash.replace('#', '')
+      if (hash === 'create' || hash === 'manage') {
+        return hash
+      }
+      // If there's a templateId in URL, default to manage tab
+      const templateId = getTemplateIdFromUrl()
+      if (templateId) {
+        return 'manage'
+      }
+    }
+    return 'create'
+  }
+
+  // Check if designer should be initially open (from URL)
+  const getInitialShowDesigner = (): boolean => {
+    if (typeof window === 'undefined') return false
+    return !!getTemplateIdFromUrl()
+  }
+
+  // State declarations (after helper functions are defined)
+  const [isWizardOpen, setIsWizardOpen] = useState(false)
+  const [showDesigner, setShowDesigner] = useState(getInitialShowDesigner)
+  const [selectedTemplate, setSelectedTemplate] = useState<FlowTemplate | null>(null)
+  const [previewTemplate, setPreviewTemplate] = useState<FlowTemplate | null>(null)
+  const [isLoadingTemplateFromUrl, setIsLoadingTemplateFromUrl] = useState(getInitialShowDesigner)
+  const [activeTab, setActiveTab] = useState<'create' | 'manage'>(getInitialTab)
+  const { resetTemplate } = useFlowTemplateStore()
+
   // Sync with URL hash for deep links (#create, #manage)
   useEffect(() => {
     const applyHash = () => {
-      const hash = window.location.hash.replace('#', '');
+      const hash = window.location.hash.replace('#', '')
       if (hash === 'create' || hash === 'manage') {
-        setActiveTab(hash);
+        setActiveTab(hash)
       }
-    };
-    applyHash();
-    const handler = () => applyHash();
-    window.addEventListener('hashchange', handler);
-    return () => window.removeEventListener('hashchange', handler);
-  }, []);
+    }
+    const handler = () => applyHash()
+    window.addEventListener('hashchange', handler)
+    return () => window.removeEventListener('hashchange', handler)
+  }, [])
 
   useEffect(() => {
-    const current = window.location.hash.replace('#', '');
+    const current = window.location.hash.replace('#', '')
     if (current !== activeTab) {
-      window.location.hash = activeTab;
+      window.location.hash = activeTab
     }
-  }, [activeTab]);
+  }, [activeTab])
 
   // Business patterns with expanded sub-patterns
   const businessPatterns = [
@@ -252,14 +354,15 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         }
       ]
     }
-  ];
+  ]
 
   // State for expanded patterns
-  const [expandedPattern, setExpandedPattern] = useState<string | null>(null);
-  const [selectedSubPattern, setSelectedSubPattern] = useState<any>(null);
-  const [selectedIndustry, setSelectedIndustry] = useState<string>('all');
-  const [patternMode, setPatternMode] = useState<'general' | 'industry' | 'department'>('general');
-  const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
+  const [expandedPattern, setExpandedPattern] = useState<string | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_selectedSubPattern, setSelectedSubPattern] = useState<any>(null)
+  const [selectedIndustry, setSelectedIndustry] = useState<string>('all')
+  const [patternMode, setPatternMode] = useState<'general' | 'industry' | 'department'>('general')
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('all')
 
   // Core Industry categories (focus on internal processes)
   const industryCategories = [
@@ -267,63 +370,63 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
       id: 'manufacturing',
       name: 'Manufacturing',
       icon: Factory,
-      color: 'gba:bg-orange-100 gba:text-orange-600',
+      color: 'gba:bg-orange-100 gba:text-orange-600'
     },
     {
       id: 'finance',
       name: 'Financial Services',
       icon: Banknote,
-      color: 'gba:bg-green-100 gba:text-green-600',
+      color: 'gba:bg-green-100 gba:text-green-600'
     },
     {
       id: 'healthcare',
       name: 'Healthcare',
       icon: Heart,
-      color: 'gba:bg-red-100 gba:text-red-600',
+      color: 'gba:bg-red-100 gba:text-red-600'
     },
     {
       id: 'retail',
       name: 'Retail & Commerce',
       icon: ShoppingCart,
-      color: 'gba:bg-purple-100 gba:text-purple-600',
+      color: 'gba:bg-purple-100 gba:text-purple-600'
     },
     {
       id: 'technology',
       name: 'Technology & Software',
       icon: Cpu,
-      color: 'gba:bg-blue-100 gba:text-blue-600',
+      color: 'gba:bg-blue-100 gba:text-blue-600'
     },
     {
       id: 'logistics',
       name: 'Logistics & Supply Chain',
       icon: Truck,
-      color: 'gba:bg-indigo-100 gba:text-indigo-600',
+      color: 'gba:bg-indigo-100 gba:text-indigo-600'
     },
     {
       id: 'energy',
       name: 'Energy & Utilities',
       icon: Zap,
-      color: 'gba:bg-yellow-100 gba:text-yellow-600',
+      color: 'gba:bg-yellow-100 gba:text-yellow-600'
     },
     {
       id: 'construction',
       name: 'Construction & Real Estate',
       icon: Building2,
-      color: 'gba:bg-stone-100 gba:text-stone-600',
+      color: 'gba:bg-stone-100 gba:text-stone-600'
     },
     {
       id: 'consulting',
       name: 'Professional Services',
       icon: Briefcase,
-      color: 'gba:bg-slate-100 gba:text-slate-600',
+      color: 'gba:bg-slate-100 gba:text-slate-600'
     },
     {
       id: 'telecommunications',
       name: 'Telecommunications',
       icon: Globe,
-      color: 'gba:bg-cyan-100 gba:text-cyan-600',
+      color: 'gba:bg-cyan-100 gba:text-cyan-600'
     }
-  ];
+  ]
 
   // Department categories
   const departmentCategories = [
@@ -331,51 +434,51 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
       id: 'hr',
       name: 'Human Resources',
       icon: UserCheck,
-      color: 'gba:bg-emerald-100 gba:text-emerald-600',
+      color: 'gba:bg-emerald-100 gba:text-emerald-600'
     },
     {
       id: 'finance',
       name: 'Finance & Accounting',
       icon: Calculator,
-      color: 'gba:bg-green-100 gba:text-green-600',
+      color: 'gba:bg-green-100 gba:text-green-600'
     },
     {
       id: 'sales',
       name: 'Sales & Marketing',
       icon: TrendingUp,
-      color: 'gba:bg-blue-100 gba:text-blue-600',
+      color: 'gba:bg-blue-100 gba:text-blue-600'
     },
     {
       id: 'it',
       name: 'IT & Technology',
       icon: Cpu,
-      color: 'gba:bg-purple-100 gba:text-purple-600',
+      color: 'gba:bg-purple-100 gba:text-purple-600'
     },
     {
       id: 'operations',
       name: 'Operations',
       icon: Wrench,
-      color: 'gba:bg-orange-100 gba:text-orange-600',
+      color: 'gba:bg-orange-100 gba:text-orange-600'
     },
     {
       id: 'legal',
       name: 'Legal & Compliance',
       icon: Shield,
-      color: 'gba:bg-yellow-100 gba:text-yellow-600',
+      color: 'gba:bg-yellow-100 gba:text-yellow-600'
     },
     {
       id: 'procurement',
       name: 'Procurement',
       icon: ClipboardList,
-      color: 'gba:bg-indigo-100 gba:text-indigo-600',
+      color: 'gba:bg-indigo-100 gba:text-indigo-600'
     },
     {
       id: 'customer-service',
       name: 'Customer Service',
       icon: Headphones,
-      color: 'gba:bg-pink-100 gba:text-pink-600',
+      color: 'gba:bg-pink-100 gba:text-pink-600'
     }
-  ];
+  ]
 
   // Industry-specific patterns (internal processes focus)
   const industrySpecificPatterns = {
@@ -436,7 +539,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         ]
       }
     ],
-    
+
     finance: [
       {
         id: 'budget-approval',
@@ -478,7 +581,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         ]
       }
     ],
-    
+
     healthcare: [
       {
         id: 'staff-scheduling',
@@ -513,7 +616,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         ]
       }
     ],
-    
+
     retail: [
       {
         id: 'inventory-management',
@@ -555,7 +658,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         ]
       }
     ],
-    
+
     technology: [
       {
         id: 'software-deployment',
@@ -597,7 +700,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         ]
       }
     ],
-    
+
     logistics: [
       {
         id: 'fleet-management',
@@ -632,7 +735,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         ]
       }
     ],
-    
+
     energy: [
       {
         id: 'safety-compliance',
@@ -667,7 +770,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         ]
       }
     ],
-    
+
     construction: [
       {
         id: 'project-approval',
@@ -686,7 +789,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         ]
       }
     ],
-    
+
     consulting: [
       {
         id: 'project-delivery',
@@ -705,7 +808,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         ]
       }
     ],
-    
+
     telecommunications: [
       {
         id: 'network-maintenance',
@@ -724,7 +827,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         ]
       }
     ]
-  };
+  }
 
   // Department-specific patterns
   const departmentSpecificPatterns = {
@@ -799,7 +902,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         ]
       }
     ],
-    
+
     finance: [
       {
         id: 'invoice-processing',
@@ -841,7 +944,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         ]
       }
     ],
-    
+
     sales: [
       {
         id: 'lead-qualification',
@@ -890,7 +993,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         ]
       }
     ],
-    
+
     it: [
       {
         id: 'access-management',
@@ -962,7 +1065,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         ]
       }
     ],
-    
+
     operations: [
       {
         id: 'vendor-management',
@@ -1004,7 +1107,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         ]
       }
     ],
-    
+
     legal: [
       {
         id: 'contract-management',
@@ -1046,7 +1149,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         ]
       }
     ],
-    
+
     procurement: [
       {
         id: 'purchase-requisition',
@@ -1088,7 +1191,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         ]
       }
     ],
-    
+
     'customer-service': [
       {
         id: 'escalation-management',
@@ -1130,81 +1233,203 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         ]
       }
     ]
-  };
+  }
 
   // No conversion needed - using the same format everywhere!
 
-  // Load templates from API
-  const loadTemplates = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const templates = await flowTemplateClient.getTemplates();
-      console.log('FlowCreator: Loaded templates:', templates.length);
-      setTemplates(templates);
-      // Auto-select first template for preview
-      if (templates.length > 0 && !previewTemplate) {
-        console.log('FlowCreator: Auto-selecting first template:', templates[0].name);
-        setPreviewTemplate(templates[0]);
+  // Load templates from API with pagination and search
+  const loadTemplates = useCallback(
+    async (page: number = 1, search: string = '', resetPreview: boolean = true) => {
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        // Always update search term state to match the actual search being performed
+        setSearchTerm(search)
+        if (search !== '') {
+          setIsSearching(true)
+          setCurrentPage(1)
+        }
+
+        const offset = (page - 1) * itemsPerPage
+        const response = await flowTemplateClient.getTemplatesList({
+          limit: itemsPerPage,
+          offset,
+          search: search.trim() || undefined,
+          onlyLatest: true,
+          includeDrafts: true
+        })
+
+        console.log(
+          `FlowCreator: Loaded ${response.templates.length} templates (page ${page}, total: ${response.totalCount})`
+        )
+        console.log(`Pagination: Setting current page to ${page}, total count to ${response.totalCount}`)
+
+        setTemplates(response.templates)
+        setTotalCount(response.totalCount)
+        setCurrentPage(page)
+
+        // Auto-select first template for preview on first load or search
+        if (resetPreview && response.templates.length > 0) {
+          console.log('FlowCreator: Auto-selecting first template:', response.templates[0].name)
+          setPreviewTemplate(response.templates[0])
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load templates')
+        console.error('Error loading templates:', err)
+      } finally {
+        setIsLoading(false)
+        setIsSearching(false)
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load templates');
-      console.error('Error loading templates:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    [flowTemplateClient, itemsPerPage]
+  )
+
+  // Calculate pagination info first
+  const totalPages = useMemo(() => {
+    const pages = Math.ceil(totalCount / itemsPerPage)
+    console.log(`Pagination calc: totalCount=${totalCount}, itemsPerPage=${itemsPerPage}, totalPages=${pages}`)
+    return pages
+  }, [totalCount, itemsPerPage])
+  const startItem = useMemo(() => (currentPage - 1) * itemsPerPage + 1, [currentPage, itemsPerPage])
+  const endItem = useMemo(
+    () => Math.min(currentPage * itemsPerPage, totalCount),
+    [currentPage, itemsPerPage, totalCount]
+  )
+
+  // Debounced search handler
+  const handleSearch = useCallback(
+    (searchValue: string) => {
+      loadTemplates(1, searchValue, true)
+    },
+    [loadTemplates]
+  )
+
+  // Pagination handlers
+  const handlePageChange = useCallback(
+    (page: number) => {
+      const currentSearch = currentSearchTermRef.current
+      console.log(`Pagination: Requesting page ${page}, current: ${currentPage}, total pages: ${totalPages}`)
+      console.log(`Pagination: Using current searchTerm: "${currentSearch}"`)
+      if (page >= 1 && page <= totalPages) {
+        loadTemplates(page, currentSearch, false)
+      } else {
+        console.warn(`Invalid page requested: ${page} (valid range: 1-${totalPages})`)
+      }
+    },
+    [totalPages, currentPage, loadTemplates]
+  )
 
   // Load templates on component mount
   useEffect(() => {
-    console.log('FlowCreator: accessToken =', accessToken ? 'PRESENT' : 'MISSING');
+    console.log('FlowCreator: accessToken =', accessToken ? 'PRESENT' : 'MISSING')
     if (accessToken) {
-      console.log('FlowCreator: Making API call to load templates');
-      loadTemplates();
+      console.log('FlowCreator: Making API call to load templates')
+      loadTemplates(1, '', true)
     } else {
-      console.log('FlowCreator: No accessToken, skipping API call');
+      console.log('FlowCreator: No accessToken, skipping API call')
     }
-  }, [accessToken]);
+  }, [accessToken])
+
+  // Load template from URL on mount (for deep linking)
+  useEffect(() => {
+    const loadTemplateFromUrl = async () => {
+      const templateId = getTemplateIdFromUrl()
+      if (templateId && accessToken) {
+        console.log('FlowCreator: Loading template from URL:', templateId)
+        try {
+          const template = await flowTemplateClient.getTemplate(templateId)
+          setSelectedTemplate(template)
+          setShowDesigner(true)
+          setActiveTab('manage')
+        } catch (error) {
+          console.error('Failed to load template from URL:', error)
+          // Clear invalid templateId from URL
+          updateUrlWithTemplateId(null)
+          setShowDesigner(false)
+        } finally {
+          setIsLoadingTemplateFromUrl(false)
+        }
+      } else {
+        setIsLoadingTemplateFromUrl(false)
+      }
+    }
+
+    loadTemplateFromUrl()
+  }, [accessToken, flowTemplateClient])
+
+  // Handle browser back/forward navigation for templateId
+  useEffect(() => {
+    const handlePopState = () => {
+      const templateId = getTemplateIdFromUrl()
+      if (templateId) {
+        // Template ID in URL - show designer
+        flowTemplateClient
+          .getTemplate(templateId)
+          .then(template => {
+            setSelectedTemplate(template)
+            setShowDesigner(true)
+            setActiveTab('manage')
+          })
+          .catch(() => {
+            // Invalid template - clear URL and go to list
+            updateUrlWithTemplateId(null)
+            setShowDesigner(false)
+            setSelectedTemplate(null)
+          })
+      } else {
+        // No template ID - close designer
+        setShowDesigner(false)
+        setSelectedTemplate(null)
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [flowTemplateClient])
 
   // Save template (create or update) - implements template ID immutability
   const saveTemplate = async (template: FlowTemplate) => {
     try {
       if (template.id) {
         // Update existing template - ID remains immutable
-        await flowTemplateClient.updateTemplate(template.id, template);
-        console.log(`Template updated successfully. ID "${template.id}" remains unchanged.`);
+        await flowTemplateClient.updateTemplate(template.id, template)
+        console.log(`Template updated successfully. ID "${template.id}" remains unchanged.`)
       } else {
         // Create new template - ID will be derived from name
-        const createdTemplate = await flowTemplateClient.createTemplate(template);
-        console.log(`Template created successfully with ID derived from name: "${createdTemplate.name}"`);
+        const createdTemplate = await flowTemplateClient.createTemplate(template)
+        console.log(`Template created successfully with ID derived from name: "${createdTemplate.name}"`)
       }
-      
+
       // Reload templates to get updated list
-      await loadTemplates();
-      
+      await loadTemplates()
+
       // Close the designer after successful save
-      setShowDesigner(false);
-      setSelectedTemplate(null);
+      setShowDesigner(false)
+      setSelectedTemplate(null)
+      // Clear templateId from URL
+      updateUrlWithTemplateId(null)
     } catch (err) {
-      console.error('Error saving template:', err);
-      throw err;
+      console.error('Error saving template:', err)
+      throw err
     }
-  };
+  }
 
   const handleCreateNew = () => {
     // Open new FlowDesigner for creating templates
-    setSelectedTemplate(null); // Clear any existing template
-    setShowDesigner(true);
-    setActiveTab('manage'); // Stay in manage tab context
-  };
+    setSelectedTemplate(null) // Clear any existing template
+    setShowDesigner(true)
+    setActiveTab('manage') // Stay in manage tab context
+  }
 
-  const handleOpenLegacyWizard = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _handleOpenLegacyWizard = () => {
     // Legacy wizard (kept for special cases)
-    resetTemplate();
-    setSelectedTemplate(null);
-    useWizardStore.getState().initializeForCreate();
-    setIsWizardOpen(true);
-  };
+    resetTemplate()
+    setSelectedTemplate(null)
+    useWizardStore.getState().initializeForCreate()
+    setIsWizardOpen(true)
+  }
 
   // Removed handleWizardCreate and handleCustomCreate as they're no longer needed
 
@@ -1212,477 +1437,462 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
     try {
       // Try to get the template for better editing experience
       if (template.id) {
-        const fullTemplate = await flowTemplateClient.getTemplate(template.id);
-        setSelectedTemplate(fullTemplate);
+        const fullTemplate = await flowTemplateClient.getTemplate(template.id)
+        setSelectedTemplate(fullTemplate)
+        // Update URL with template ID for deep linking
+        updateUrlWithTemplateId(template.id)
       } else {
-        setSelectedTemplate(template);
+        setSelectedTemplate(template)
       }
       // Open the FlowDesigner instead of the wizard for editing
-      setShowDesigner(true);
-      setActiveTab('manage'); // Stay in manage tab context
+      setShowDesigner(true)
+      setActiveTab('manage') // Stay in manage tab context
     } catch (error) {
       // Fallback to the current template if original is not available
-      console.warn('Could not load original template, using current:', error);
-      setSelectedTemplate(template);
-      setShowDesigner(true);
-      setActiveTab('manage'); // Stay in manage tab context
+      console.warn('Could not load original template, using current:', error)
+      setSelectedTemplate(template)
+      setShowDesigner(true)
+      setActiveTab('manage') // Stay in manage tab context
+      // Still update URL if template has ID
+      if (template.id) {
+        updateUrlWithTemplateId(template.id)
+      }
     }
-  };
+  }
 
   const handleDelete = async (template: FlowTemplate) => {
     if (!template.id) {
-      throw new Error('Cannot delete template without ID');
+      throw new Error('Cannot delete template without ID')
     }
 
     try {
-      await flowTemplateClient.deleteTemplate(template.id);
+      await flowTemplateClient.deleteTemplate(template.id)
       // Reload templates to get updated list
-      await loadTemplates();
+      await loadTemplates()
     } catch (err) {
-      console.error('Error deleting template:', err);
-      throw err;
+      console.error('Error deleting template:', err)
+      throw err
     }
-  };
+  }
 
   const handleTemplateSelect = (template: FlowTemplate | null) => {
-    console.log('FlowCreator: Template selected:', template?.name || 'null');
-    setPreviewTemplate(template);
-  };
+    console.log('FlowCreator: Template selected:', template?.name || 'null')
+    setPreviewTemplate(template)
+  }
 
   // Handle AI-generated flow template
   const handleAIFlowGenerated = (template: FlowTemplate) => {
-    console.log('AI generated template received:', template);
-    
+    console.log('AI generated template received:', template)
+
     // Remove the ID from AI-generated template to ensure it's treated as a NEW template (create mode)
     // The FlowDesigner uses the presence of template.id to determine create vs update mode
     const newTemplate: FlowTemplate = {
       ...template,
       id: undefined // Force create mode by removing any existing ID
-    };
-    
+    }
+
     // Store the template for the designer to use
-    setSelectedTemplate(newTemplate);
-    
+    setSelectedTemplate(newTemplate)
+
     // Open the new FlowDesigner instead of the legacy wizard
-    setShowDesigner(true);
-  };
+    setShowDesigner(true)
+  }
 
   // Pattern expansion handler
   const handlePatternExpand = (patternId: string) => {
-    setExpandedPattern(expandedPattern === patternId ? null : patternId);
-    setSelectedSubPattern(null);
-  };
+    setExpandedPattern(expandedPattern === patternId ? null : patternId)
+    setSelectedSubPattern(null)
+  }
 
   // Sub-pattern selection handler
   const handleSubPatternSelect = (subPattern: any) => {
-    setSelectedSubPattern(subPattern);
-    console.log('Selected sub-pattern:', subPattern);
-    
+    setSelectedSubPattern(subPattern)
+    console.log('Selected sub-pattern:', subPattern)
+
     // Open wizard with pattern context and template definition
-    resetTemplate();
-    setSelectedTemplate(null);
-    useWizardStore.getState().initializeForCreate();
+    resetTemplate()
+    setSelectedTemplate(null)
+    useWizardStore.getState().initializeForCreate()
     // Pass the selected pattern template definition to wizard
     // TODO: Pass subPattern data to wizard for pre-configuration
-    setIsWizardOpen(true);
-  };
+    setIsWizardOpen(true)
+  }
 
   // Get patterns based on current mode
   const getCurrentPatterns = () => {
     if (patternMode === 'general') {
-      return businessPatterns;
+      return businessPatterns
     } else if (patternMode === 'industry') {
       // Industry mode
       if (selectedIndustry === 'all') {
         // Return all industry patterns combined
-        return Object.values(industrySpecificPatterns).flat();
+        return Object.values(industrySpecificPatterns).flat()
       } else {
         // Return patterns for selected industry
-        return industrySpecificPatterns[selectedIndustry as keyof typeof industrySpecificPatterns] || [];
+        return industrySpecificPatterns[selectedIndustry as keyof typeof industrySpecificPatterns] || []
       }
     } else {
       // Department mode
       if (selectedDepartment === 'all') {
         // Return all department patterns combined
-        return Object.values(departmentSpecificPatterns).flat();
+        return Object.values(departmentSpecificPatterns).flat()
       } else {
         // Return patterns for selected department
-        return departmentSpecificPatterns[selectedDepartment as keyof typeof departmentSpecificPatterns] || [];
+        return departmentSpecificPatterns[selectedDepartment as keyof typeof departmentSpecificPatterns] || []
       }
     }
-  };
+  }
 
   // Get available industries that have patterns
   const getAvailableIndustries = () => {
-    return industryCategories.filter(industry => 
-      industrySpecificPatterns[industry.id as keyof typeof industrySpecificPatterns]
-    );
-  };
+    return industryCategories.filter(
+      industry => industrySpecificPatterns[industry.id as keyof typeof industrySpecificPatterns]
+    )
+  }
 
   // Get available departments that have patterns
   const getAvailableDepartments = () => {
-    return departmentCategories.filter(department => 
-      departmentSpecificPatterns[department.id as keyof typeof departmentSpecificPatterns]
-    );
-  };
+    return departmentCategories.filter(
+      department => departmentSpecificPatterns[department.id as keyof typeof departmentSpecificPatterns]
+    )
+  }
 
   // Handle pattern mode change
   const handlePatternModeChange = (mode: 'general' | 'industry' | 'department') => {
-    setPatternMode(mode);
-    setExpandedPattern(null);
-    setSelectedSubPattern(null);
-    
+    setPatternMode(mode)
+    setExpandedPattern(null)
+    setSelectedSubPattern(null)
+
     if (mode === 'industry') {
       // Set default to show all industries
-      setSelectedIndustry('all');
+      setSelectedIndustry('all')
     } else if (mode === 'department') {
       // Set default to show all departments
-      setSelectedDepartment('all');
+      setSelectedDepartment('all')
     }
-  };
+  }
 
   return (
     <MockDataProvider>
-      <div 
-        className="gba:min-h-screen gba:bg-blue-50 gba:p-6"
-        data-testid={testId}
-      >
-        {/* Header */}
-        <div className="gba:mb-8" data-testid={`${testId}-header`}>
-          <div className="gba:flex gba:items-start gba:gap-4 gba:mb-6">
-            {/* Icon with Gradient Background */}
-            <div className="gba:relative">
-              {/* Glow Effect */}
-              <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:rounded-2xl gba:blur-sm gba:opacity-20"></div>
-              {/* Main Icon Container */}
-              <div className="gba:relative gba:w-14 gba:h-14 gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:rounded-2xl gba:flex gba:items-center gba:justify-center gba:shadow-lg">
-                <Settings className="gba:h-8 gba:w-8 gba:text-white" />
-              </div>
-            </div>
-            
-            {/* Title and Description */}
-            <div className="gba:flex-1">
-              <h1 className="gba:text-3xl gba:font-bold gba:text-gray-900 gba:mb-2" data-testid={`${testId}-title`}>
-                {getTranslationFromI18nKeyAndLabel('flow.creator.title', 'FLOW Creator')}
-              </h1>
-              <p className="gba:text-base gba:text-gray-600">
-                {getTranslationFromI18nKeyAndLabel('flow.creator.description', 'Design & Build Workflow Templates')}
-              </p>
-            </div>
-          </div>
-        </div>
-        
+      <div className="gba:min-h-screen gba:bg-background" data-testid={testId}>
         {/* Main Content */}
         <div className="gba:w-full gba:max-w-none">
-          {showDesigner ? (
-            <div className="gba:w-full gba:space-y-4">
-              <div className="gba:flex gba:items-center gba:justify-between">
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <Badge variant="secondary">Create</Badge>
-                  <h2 className="gba:text-xl gba:font-semibold">Visual Flow Designer</h2>
-                </div>
-                <div className="gba:flex gba:gap-2">
+          {isLoadingTemplateFromUrl ? (
+            <div
+              className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:min-h-[400px]"
+              data-testid={`${testId}-loading-from-url`}
+            >
+              <Spinner size="lg" />
+              <span className="gba:mt-4 gba:text-muted-foreground">Loading template...</span>
+            </div>
+          ) : showDesigner ? (
+            <div className="gba:w-full gba:max-w-7xl gba:mx-auto gba:px-4 gba:sm:px-6 gba:lg:px-8 gba:py-8">
+              {/* Designer Header */}
+              <div className="gba:flex gba:items-center gba:justify-between gba:mb-6 gba:pb-6 gba:border-b gba:border-border">
+                <div className="gba:flex gba:items-center gba:gap-4">
                   <Button
-                    variant="outline"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
-                      setShowDesigner(false);
-                      setSelectedTemplate(null); // Clear template when going back
+                      setShowDesigner(false)
+                      setSelectedTemplate(null)
+                      updateUrlWithTemplateId(null)
                     }}
                     data-testid={`${testId}-designer-back`}
                   >
-                    Back to Creator
+                    <ChevronLeft className="gba:h-4 gba:w-4 gba:mr-1" />
+                    Back
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleOpenLegacyWizard}
-                    data-testid={`${testId}-open-legacy-wizard`}
-                  >
-                    Open Legacy Wizard
-                  </Button>
+                  <div className="gba:h-6 gba:w-px gba:bg-border" />
+                  <div>
+                    <h2 className="gba:text-xl gba:font-semibold gba:text-foreground">
+                      {selectedTemplate?.name || 'New Flow'}
+                    </h2>
+                    <p className="gba:text-sm gba:text-muted-foreground">
+                      {selectedTemplate ? 'Editing flow' : 'Create a new flow'}
+                    </p>
+                  </div>
                 </div>
               </div>
-              <Card>
+
+              {/* Designer Content */}
+              <Card className="gba:border-border">
                 <CardContent className="gba:p-0">
-                  <FlowDesigner 
-                    accessToken={accessToken} 
-                    userInfo={userInfo} 
+                  <FlowDesigner
+                    accessToken={accessToken}
+                    userInfo={userInfo}
                     initialTemplate={selectedTemplate}
                     onSave={saveTemplate}
                     onCancel={() => {
-                      setShowDesigner(false);
-                      setSelectedTemplate(null);
+                      setShowDesigner(false)
+                      setSelectedTemplate(null)
+                      updateUrlWithTemplateId(null)
                     }}
-                    data-testid={`${testId}-designer`} 
+                    data-testid={`${testId}-designer`}
                   />
                 </CardContent>
               </Card>
             </div>
           ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
-            <TabsList className="gba:grid gba:w-full gba:grid-cols-2 gba:mb-6">
-              <TabsTrigger value="create" className="gba:flex gba:items-center gba:gap-2">
-                <Sparkles className="gba:h-4 gba:w-4" />
-                Create Flow
-              </TabsTrigger>
-              <TabsTrigger value="manage" className="gba:flex gba:items-center gba:gap-2">
-                <FileText className="gba:h-4 gba:w-4" />
-                Manage Templates
-                {templates.length > 0 && (
-                  <Badge variant="secondary" className="gba:ml-1">
-                    {templates.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
+            <PageLayout
+              headerIcon={Zap}
+              headerTitle={getTranslationFromI18nKeyAndLabel('flow.creator.title', 'Flow Creator')}
+              headerDescription="Design & automate flows"
+              headerSubViews={{
+                value: activeTab,
+                onValueChange: (value: string) => setActiveTab(value as 'create' | 'manage'),
+                items: [
+                  {
+                    value: 'create',
+                    label: 'Create',
+                    icon: <Sparkles className="gba:h-4 gba:w-4" />
+                  },
+                  {
+                    value: 'manage',
+                    label: `Templates${totalCount > 0 ? ` (${totalCount})` : ''}`,
+                    icon: <FileText className="gba:h-4 gba:w-4" />
+                  }
+                ]
+              }}
+              className="gba:min-h-screen"
+            >
+              {/* Create Tab Content */}
+              {activeTab === 'create' && (
+                <div className="gba:max-w-7xl gba:mx-auto gba:px-4 gba:sm:px-6 gba:lg:px-8 gba:pt-10 gba:pb-16">
+                  {/* Hero Section - OpenAI inspired */}
+                  <div className="gba:relative gba:mb-16 gba:pb-12" data-testid={`${testId}-hero`}>
+                    {/* Subtle gradient background */}
+                    <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-b gba:from-accent/30 gba:via-transparent gba:to-transparent gba:pointer-events-none" />
 
-            <TabsContent value="create" className="gba:mt-0">
-              <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-3 gba:gap-6">
-                {/* Left Side - Business Patterns (2/3 width) */}
-                <div className="gba:lg:col-span-2 gba:space-y-6">
-                  <Card>
-                    <CardHeader>
-                      <div className="gba:space-y-4">
-                        {/* Pattern Mode Toggle */}
-                        <div className="gba:flex gba:items-center gba:justify-between">
-                          <CardTitle>Choose a Workflow Pattern</CardTitle>
-                          
-                          {/* Mode Toggle Buttons */}
-                          <div className="gba:flex gba:items-center gba:bg-gray-100 gba:rounded-lg gba:p-1">
-                            <button
-                              onClick={() => handlePatternModeChange('general')}
-                              className={`gba:px-3 gba:py-1.5 gba:text-sm gba:font-medium gba:rounded-md gba:transition-all gba:duration-200 ${
-                                patternMode === 'general'
-                                  ? 'gba:bg-white gba:text-gray-900 gba:shadow-sm'
-                                  : 'gba:text-gray-600 gba:hover:text-gray-900'
-                              }`}
-                              data-testid={`${testId}-general-patterns-toggle`}
-                            >
-                              <Briefcase className="gba:h-4 gba:w-4 gba:mr-1.5 gba:inline-block" />
-                              General
-                            </button>
-                            <button
-                              onClick={() => handlePatternModeChange('industry')}
-                              className={`gba:px-3 gba:py-1.5 gba:text-sm gba:font-medium gba:rounded-md gba:transition-all gba:duration-200 ${
-                                patternMode === 'industry'
-                                  ? 'gba:bg-white gba:text-gray-900 gba:shadow-sm'
-                                  : 'gba:text-gray-600 gba:hover:text-gray-900'
-                              }`}
-                              data-testid={`${testId}-industry-patterns-toggle`}
-                            >
-                              <Building2 className="gba:h-4 gba:w-4 gba:mr-1.5 gba:inline-block" />
-                              Industry
-                            </button>
-                            <button
-                              onClick={() => handlePatternModeChange('department')}
-                              className={`gba:px-3 gba:py-1.5 gba:text-sm gba:font-medium gba:rounded-md gba:transition-all gba:duration-200 ${
-                                patternMode === 'department'
-                                  ? 'gba:bg-white gba:text-gray-900 gba:shadow-sm'
-                                  : 'gba:text-gray-600 gba:hover:text-gray-900'
-                              }`}
-                              data-testid={`${testId}-department-patterns-toggle`}
-                            >
-                              <UserCheck className="gba:h-4 gba:w-4 gba:mr-1.5 gba:inline-block" />
-                              Department
-                            </button>
+                    <div className="gba:relative gba:max-w-4xl gba:mx-auto gba:text-center gba:px-4">
+                      {/* Badge */}
+                      <div className="gba:inline-flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:text-sm gba:font-medium gba:mb-6">
+                        <Sparkles className="gba:h-4 gba:w-4" />
+                        AI-Powered Flow Builder
+                      </div>
+
+                      {/* Main headline */}
+                      <h1 className="gba:text-5xl gba:sm:text-6xl gba:font-semibold gba:tracking-tight gba:text-foreground gba:mb-6">
+                        Build flows that <span className="gba:text-primary">work</span>
+                      </h1>
+
+                      {/* Subtitle */}
+                      <p className="gba:text-xl gba:text-muted-foreground gba:max-w-2xl gba:mx-auto gba:mb-12 gba:leading-relaxed">
+                        Create powerful automated flows in minutes. Describe what you need, or start from proven
+                        templates.
+                      </p>
+
+                      {/* Dual CTA - AI and Manual side by side */}
+                      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6 gba:max-w-3xl gba:mx-auto">
+                        {/* AI Creation Card */}
+                        <div
+                          className="gba:group gba:relative gba:p-8 gba:rounded-2xl gba:border gba:border-border gba:bg-card gba:text-left gba:transition-all gba:duration-300 gba:hover:border-primary/50 gba:hover:shadow-lg gba:cursor-pointer"
+                          onClick={() => {
+                            const aiTextarea = document.querySelector(
+                              '[data-testid="flow-creator-ai-generator-ai-prompt"]'
+                            ) as HTMLTextAreaElement
+                            if (aiTextarea) {
+                              aiTextarea.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                              setTimeout(() => aiTextarea.focus(), 500)
+                            }
+                          }}
+                          data-testid={`${testId}-hero-ai-cta`}
+                        >
+                          {/* Gradient accent */}
+                          <div className="gba:absolute gba:inset-0 gba:rounded-2xl gba:bg-gradient-to-br gba:from-primary/5 gba:to-transparent gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity" />
+
+                          <div className="gba:relative">
+                            <div className="gba:w-12 gba:h-12 gba:rounded-xl gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:mb-4 gba:group-hover:scale-110 gba:transition-transform">
+                              <Sparkles className="gba:h-6 gba:w-6 gba:text-primary" />
+                            </div>
+                            <h3 className="gba:text-xl gba:font-semibold gba:text-card-foreground gba:mb-2">
+                              Create with AI
+                            </h3>
+                            <p className="gba:text-muted-foreground gba:text-sm gba:leading-relaxed">
+                              Describe your flow in plain language. Our AI will design it for you instantly.
+                            </p>
+                            <div className="gba:mt-4 gba:flex gba:items-center gba:text-primary gba:text-sm gba:font-medium">
+                              Get started
+                              <ChevronRight className="gba:h-4 gba:w-4 gba:ml-1 gba:group-hover:translate-x-1 gba:transition-transform" />
+                            </div>
                           </div>
                         </div>
 
-                        {/* Category Sections for Industry and Department modes */}
-                        {(patternMode === 'industry' || patternMode === 'department') && (
-                          <div className="gba:space-y-4">
-                            {/* Filter Select */}
-                            <div className="gba:flex gba:items-center gba:justify-between">
-                              <h4 className="gba:font-medium gba:text-gray-800">
-                                {patternMode === 'industry' ? 'Choose Your Industry' : 'Choose Your Department'}
-                              </h4>
-                              <Select 
-                                value={patternMode === 'industry' ? selectedIndustry : selectedDepartment} 
-                                onValueChange={patternMode === 'industry' ? setSelectedIndustry : setSelectedDepartment}
-                              >
-                                <SelectTrigger className="gba:w-48">
-                                  <SelectValue placeholder={`Filter by ${patternMode}`} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="all">
-                                    <div className="gba:flex gba:items-center gba:gap-2">
-                                      <div className="gba:p-1 gba:rounded gba:bg-gray-100 gba:text-gray-600">
-                                        <Briefcase className="gba:h-3 gba:w-3" />
-                                      </div>
-                                      Show All
-                                    </div>
-                                  </SelectItem>
-                                  {(patternMode === 'industry' ? getAvailableIndustries() : getAvailableDepartments()).map((category) => {
-                                    const IconComponent = category.icon;
-                                    return (
-                                      <SelectItem key={category.id} value={category.id}>
-                                        <div className="gba:flex gba:items-center gba:gap-2">
-                                          <div className={`gba:p-1 gba:rounded ${category.color}`}>
-                                            <IconComponent className="gba:h-3 gba:w-3" />
-                                          </div>
-                                          {category.name}
-                                        </div>
-                                      </SelectItem>
-                                    );
-                                  })}
-                                </SelectContent>
-                              </Select>
-                            </div>
+                        {/* Manual Creation Card */}
+                        <div
+                          className="gba:group gba:relative gba:p-8 gba:rounded-2xl gba:border gba:border-border gba:bg-card gba:text-left gba:transition-all gba:duration-300 gba:hover:border-primary/50 gba:hover:shadow-lg gba:cursor-pointer"
+                          onClick={() => setShowDesigner(true)}
+                          data-testid={`${testId}-hero-manual-cta`}
+                        >
+                          {/* Gradient accent */}
+                          <div className="gba:absolute gba:inset-0 gba:rounded-2xl gba:bg-gradient-to-br gba:from-secondary/50 gba:to-transparent gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity" />
 
-                            {/* Category Grid */}
-                            <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:gap-3">
-                              {(patternMode === 'industry' ? industryCategories : departmentCategories)
-                                .filter(category => {
-                                  const selectedFilter = patternMode === 'industry' ? selectedIndustry : selectedDepartment;
-                                  return selectedFilter === 'all' || selectedFilter === category.id;
-                                })
-                                .map((category) => {
-                                  const IconComponent = category.icon;
-                                  const hasPatterns = patternMode === 'industry' 
-                                    ? industrySpecificPatterns[category.id as keyof typeof industrySpecificPatterns]
-                                    : departmentSpecificPatterns[category.id as keyof typeof departmentSpecificPatterns];
-                                  const isSelected = (patternMode === 'industry' ? selectedIndustry : selectedDepartment) === category.id;
-                                  
-                                  return (
-                                    <button
-                                      key={category.id}
-                                      onClick={() => {
-                                        if (patternMode === 'industry') {
-                                          setSelectedIndustry(category.id);
-                                        } else {
-                                          setSelectedDepartment(category.id);
-                                        }
-                                      }}
-                                      className={`gba:p-4 gba:rounded-lg gba:border gba:text-left gba:transition-all gba:duration-200 ${
-                                        isSelected
-                                          ? 'gba:border-blue-500 gba:bg-blue-50 gba:shadow-md'
-                                          : hasPatterns
-                                          ? 'gba:border-gray-200 gba:bg-white gba:hover:border-gray-300 gba:hover:shadow-sm'
-                                          : 'gba:border-gray-100 gba:bg-gray-50 gba:opacity-60 gba:cursor-not-allowed'
-                                      }`}
-                                      disabled={!hasPatterns}
-                                      data-testid={`${testId}-${patternMode}-category-${category.id}`}
-                                    >
-                                      <div className="gba:flex gba:items-center gba:gap-3">
-                                        <div className={`gba:p-2 gba:rounded-md ${category.color}`}>
-                                          <IconComponent className="gba:h-5 gba:w-5" />
-                                        </div>
-                                        <div className="gba:flex-1">
-                                          <h5 className="gba:font-medium gba:text-sm gba:text-gray-900 gba:leading-tight">
-                                            {category.name}
-                                          </h5>
-                                          {hasPatterns ? (
-                                            <p className="gba:text-xs gba:text-gray-500 gba:mt-1">
-                                              {hasPatterns.length} pattern{hasPatterns.length !== 1 ? 's' : ''}
-                                            </p>
-                                          ) : (
-                                            <p className="gba:text-xs gba:text-gray-400 gba:mt-1">
-                                              Coming soon
-                                            </p>
-                                          )}
-                                        </div>
-                                        {isSelected && (
-                                          <CheckCircle className="gba:h-4 gba:w-4 gba:text-blue-600" />
-                                        )}
-                                      </div>
-                                    </button>
-                                  );
-                                })}
+                          <div className="gba:relative">
+                            <div className="gba:w-12 gba:h-12 gba:rounded-xl gba:bg-secondary gba:flex gba:items-center gba:justify-center gba:mb-4 gba:group-hover:scale-110 gba:transition-transform">
+                              <Settings className="gba:h-6 gba:w-6 gba:text-secondary-foreground" />
+                            </div>
+                            <h3 className="gba:text-xl gba:font-semibold gba:text-card-foreground gba:mb-2">
+                              Build from Scratch
+                            </h3>
+                            <p className="gba:text-muted-foreground gba:text-sm gba:leading-relaxed">
+                              Full creative control. Design every step with our visual flow builder.
+                            </p>
+                            <div className="gba:mt-4 gba:flex gba:items-center gba:text-primary gba:text-sm gba:font-medium">
+                              Open designer
+                              <ChevronRight className="gba:h-4 gba:w-4 gba:ml-1 gba:group-hover:translate-x-1 gba:transition-transform" />
                             </div>
                           </div>
-                        )}
-
-                        {/* Description */}
-                        <p className="gba:text-sm gba:text-gray-600">
-                          {patternMode === 'general' 
-                            ? 'Choose from universal business patterns that work across any industry and department'
-                            : patternMode === 'industry'
-                            ? selectedIndustry === 'all'
-                              ? 'Select an industry above to see specialized workflow patterns, or browse all industry patterns below'
-                              : `Browse specialized workflow patterns tailored for ${
-                                  industryCategories.find(i => i.id === selectedIndustry)?.name || 'your industry'
-                                }`
-                            : selectedDepartment === 'all'
-                            ? 'Select a department above to see specialized workflow patterns, or browse all department patterns below'
-                            : `Explore department-specific workflows optimized for ${
-                                departmentCategories.find(d => d.id === selectedDepartment)?.name || 'your department'
-                              }`
-                          }
-                        </p>
+                        </div>
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="gba:space-y-4">
-                        {getCurrentPatterns().length > 0 ? (
-                          getCurrentPatterns().map((pattern) => {
-                          const IconComponent = pattern.icon;
-                          const isExpanded = expandedPattern === pattern.id;
-                          
+                    </div>
+                  </div>
+
+                  {/* AI Section - Prominent */}
+                  <div className="gba:mb-16">
+                    <div className="gba:max-w-3xl gba:mx-auto">
+                      <AIFlowGenerator
+                        onFlowGenerated={handleAIFlowGenerated}
+                        accessToken={accessToken}
+                        data-testid={`${testId}-ai-generator`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Templates Section */}
+                  <div className="gba:mb-12">
+                    <div className="gba:flex gba:items-center gba:justify-between gba:mb-8">
+                      <div>
+                        <h2 className="gba:text-2xl gba:font-semibold gba:text-foreground gba:mb-2">
+                          Start from a template
+                        </h2>
+                        <p className="gba:text-muted-foreground">Proven flow patterns to get you started quickly</p>
+                      </div>
+
+                      {/* Mode Toggle - Sleeker */}
+                      <div className="gba:flex gba:items-center gba:p-1 gba:bg-muted gba:rounded-lg">
+                        <button
+                          onClick={() => handlePatternModeChange('general')}
+                          className={`gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:rounded-md gba:transition-all ${
+                            patternMode === 'general'
+                              ? 'gba:bg-background gba:text-foreground gba:shadow-sm'
+                              : 'gba:text-muted-foreground gba:hover:text-foreground'
+                          }`}
+                          data-testid={`${testId}-general-patterns-toggle`}
+                        >
+                          General
+                        </button>
+                        <button
+                          onClick={() => handlePatternModeChange('industry')}
+                          className={`gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:rounded-md gba:transition-all ${
+                            patternMode === 'industry'
+                              ? 'gba:bg-background gba:text-foreground gba:shadow-sm'
+                              : 'gba:text-muted-foreground gba:hover:text-foreground'
+                          }`}
+                          data-testid={`${testId}-industry-patterns-toggle`}
+                        >
+                          Industry
+                        </button>
+                        <button
+                          onClick={() => handlePatternModeChange('department')}
+                          className={`gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:rounded-md gba:transition-all ${
+                            patternMode === 'department'
+                              ? 'gba:bg-background gba:text-foreground gba:shadow-sm'
+                              : 'gba:text-muted-foreground gba:hover:text-foreground'
+                          }`}
+                          data-testid={`${testId}-department-patterns-toggle`}
+                        >
+                          Department
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Industry/Department Filter */}
+                    {(patternMode === 'industry' || patternMode === 'department') && (
+                      <div className="gba:mb-8">
+                        <Select
+                          value={patternMode === 'industry' ? selectedIndustry : selectedDepartment}
+                          onValueChange={patternMode === 'industry' ? setSelectedIndustry : setSelectedDepartment}
+                        >
+                          <SelectTrigger className="gba:w-64">
+                            <SelectValue placeholder={`Filter by ${patternMode}`} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">
+                              All {patternMode === 'industry' ? 'Industries' : 'Departments'}
+                            </SelectItem>
+                            {(patternMode === 'industry' ? getAvailableIndustries() : getAvailableDepartments()).map(
+                              category => (
+                                <SelectItem key={category.id} value={category.id}>
+                                  {category.name}
+                                </SelectItem>
+                              )
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {/* Pattern Grid - Clean Bento Style */}
+                    {getCurrentPatterns().length > 0 ? (
+                      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-4">
+                        {getCurrentPatterns().map(pattern => {
+                          const IconComponent = pattern.icon
+                          const isExpanded = expandedPattern === pattern.id
+
                           return (
-                            <div key={pattern.id} className="gba:border gba:border-gray-200 gba:rounded-lg">
+                            <div
+                              key={pattern.id}
+                              className={`gba:group gba:relative gba:rounded-xl gba:border gba:border-border gba:bg-card gba:transition-all gba:duration-200 ${
+                                isExpanded
+                                  ? 'gba:ring-2 gba:ring-primary gba:border-primary'
+                                  : 'gba:hover:border-primary/50 gba:hover:shadow-md'
+                              }`}
+                            >
                               {/* Pattern Header */}
                               <div
                                 onClick={() => handlePatternExpand(pattern.id)}
-                                className="gba:p-4 gba:cursor-pointer gba:transition-all gba:hover:bg-gray-50"
+                                className="gba:p-5 gba:cursor-pointer"
                                 data-testid={`${testId}-pattern-${pattern.id}`}
                               >
-                                <div className="gba:flex gba:items-center gba:gap-3">
-                                  <div className={`gba:p-2 gba:rounded-lg ${pattern.color}`}>
-                                    <IconComponent className="gba:h-5 gba:w-5" />
+                                <div className="gba:flex gba:items-start gba:gap-4">
+                                  <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:shrink-0">
+                                    <IconComponent className="gba:h-5 gba:w-5 gba:text-primary" />
                                   </div>
                                   <div className="gba:flex-1 gba:min-w-0">
-                                    <h4 className="gba:font-medium gba:text-gray-900 gba:mb-1">
-                                      {pattern.name}
-                                    </h4>
-                                    <p className="gba:text-sm gba:text-gray-600">
+                                    <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                                      <h4 className="gba:font-medium gba:text-card-foreground">{pattern.name}</h4>
+                                      <Badge variant="secondary" className="gba:text-xs gba:shrink-0">
+                                        {pattern.subPatterns.length}
+                                      </Badge>
+                                    </div>
+                                    <p className="gba:text-sm gba:text-muted-foreground gba:line-clamp-2">
                                       {pattern.description}
                                     </p>
-                                  </div>
-                                  <div className="gba:flex gba:items-center gba:gap-2">
-                                    <Badge variant="outline" className="gba:text-xs">
-                                      {pattern.subPatterns.length} templates
-                                    </Badge>
-                                    <div className={`gba:transform gba:transition-transform ${isExpanded ? 'gba:rotate-180' : ''}`}>
-                                      <svg className="gba:h-4 gba:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                      </svg>
-                                    </div>
                                   </div>
                                 </div>
                               </div>
 
-                              {/* Sub-patterns */}
+                              {/* Expanded Sub-patterns */}
                               {isExpanded && (
-                                <div className="gba:border-t gba:border-gray-200 gba:bg-gray-50 gba:p-4">
-                                  <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-3">
-                                    {pattern.subPatterns.map((subPattern) => (
+                                <div className="gba:border-t gba:border-border gba:p-4 gba:bg-muted/30">
+                                  <div className="gba:space-y-2">
+                                    {pattern.subPatterns.map(subPattern => (
                                       <div
                                         key={subPattern.id}
                                         onClick={() => handleSubPatternSelect(subPattern)}
-                                        className={`gba:p-3 gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:cursor-pointer gba:transition-all gba:hover:border-gray-300 gba:hover:shadow-sm ${
-                                          selectedSubPattern?.id === subPattern.id ? 'gba:ring-2 gba:ring-indigo-500 gba:border-indigo-200' : ''
-                                        }`}
+                                        className="gba:p-3 gba:rounded-lg gba:bg-background gba:border gba:border-border gba:cursor-pointer gba:transition-all gba:hover:border-primary/50"
                                         data-testid={`${testId}-subpattern-${subPattern.id}`}
                                       >
-                                        <h5 className="gba:font-medium gba:text-gray-900 gba:mb-1 gba:text-sm">
+                                        <h5 className="gba:font-medium gba:text-sm gba:text-card-foreground gba:mb-1">
                                           {subPattern.name}
                                         </h5>
-                                        <p className="gba:text-xs gba:text-gray-600 gba:mb-2">
+                                        <p className="gba:text-xs gba:text-muted-foreground gba:mb-2">
                                           {subPattern.description}
                                         </p>
-                                        <div className="gba:flex gba:flex-wrap gba:gap-1 gba:mb-2">
-                                          {subPattern.steps.slice(0, 3).map((step, index) => (
-                                            <Badge key={index} variant="outline" className="gba:text-xs gba:px-1 gba:py-0">
-                                              {step}
-                                            </Badge>
-                                          ))}
-                                          {subPattern.steps.length > 3 && (
-                                            <Badge variant="outline" className="gba:text-xs gba:px-1 gba:py-0">
-                                              +{subPattern.steps.length - 3}
-                                            </Badge>
-                                          )}
-                                        </div>
-                                        <div className="gba:text-xs gba:text-gray-500">
-                                          {subPattern.roles.length} roles • {subPattern.steps.length} steps
+                                        <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
+                                          <span>{subPattern.steps.length} steps</span>
+                                          <span>•</span>
+                                          <span>{subPattern.roles.length} roles</span>
                                         </div>
                                       </div>
                                     ))}
@@ -1690,178 +1900,179 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
                                 </div>
                               )}
                             </div>
-                          );
-                        })
-                        ) : (
-                          <div className="gba:text-center gba:py-12">
-                            <div className="gba:mx-auto gba:mb-4 gba:p-3 gba:bg-gray-100 gba:rounded-full gba:w-16 gba:h-16 gba:flex gba:items-center gba:justify-center">
-                              {patternMode === 'industry' ? (
-                                <Building2 className="gba:h-8 gba:w-8 gba:text-gray-400" />
-                              ) : patternMode === 'department' ? (
-                                <UserCheck className="gba:h-8 gba:w-8 gba:text-gray-400" />
-                              ) : (
-                                <Briefcase className="gba:h-8 gba:w-8 gba:text-gray-400" />
-                              )}
-                            </div>
-                            <h3 className="gba:text-lg gba:font-medium gba:text-gray-900 gba:mb-2">
-                              {patternMode === 'industry' 
-                                ? 'No industry patterns yet' 
-                                : patternMode === 'department'
-                                ? 'No department patterns yet'
-                                : 'No patterns available'
-                              }
-                            </h3>
-                            <p className="gba:text-gray-600 gba:mb-4">
-                              {patternMode === 'industry' 
-                                ? `We're working on adding specialized patterns for ${industryCategories.find(i => i.id === selectedIndustry)?.name || 'this industry'}. Try the general patterns or use AI to create a custom workflow.`
-                                : patternMode === 'department'
-                                ? `We're working on adding specialized patterns for ${departmentCategories.find(d => d.id === selectedDepartment)?.name || 'this department'}. Try the general patterns or use AI to create a custom workflow.`
-                                : 'No patterns are currently available. Use AI to create a custom workflow.'
-                              }
-                            </p>
-                            <Button
-                              onClick={() => handlePatternModeChange('general')}
-                              variant="outline"
-                              className="gba:text-sm"
-                              data-testid={`${testId}-switch-to-general`}
-                            >
-                              <Briefcase className="gba:h-4 gba:w-4 gba:mr-2" />
-                              Browse General Patterns
-                            </Button>
-                          </div>
-                        )}
+                          )
+                        })}
                       </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Right Side - Creation Options (1/3 width) */}
-                <div className="gba:lg:col-span-1 gba:space-y-6">
-                  {/* AI Creation Section */}
-                  <AIFlowGenerator
-                    onFlowGenerated={handleAIFlowGenerated}
-                    accessToken={accessToken}
-                    data-testid={`${testId}-ai-generator`}
-                  />
-                  
-                  {/* Create from Scratch Section */}
-                  <div className="gba:relative gba:overflow-hidden gba:rounded-xl gba:bg-gradient-to-br gba:from-blue-600 gba:via-blue-700 gba:to-indigo-800 gba:p-1" data-testid={`${testId}-create-scratch`}>
-                    {/* Animated background pattern */}
-                    <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-r gba:from-blue-400/20 gba:via-cyan-500/20 gba:to-indigo-600/20 gba:animate-pulse"></div>
-                    
-                    {/* Content Card */}
-                    <Card className="gba:relative gba:bg-white gba:border-0 gba:shadow-2xl">
-                      <CardHeader className="gba:text-center gba:pb-4">
-                        {/* Settings Icon with Glow Effect */}
-                        <div className="gba:mx-auto gba:mb-3 gba:relative">
-                          <div className="gba:absolute gba:inset-0 gba:bg-blue-500 gba:rounded-full gba:blur-xl gba:opacity-30 gba:animate-pulse"></div>
-                          <div className="gba:relative gba:p-3 gba:bg-gradient-to-br gba:from-blue-500 gba:to-indigo-600 gba:rounded-full">
-                            <Settings className="gba:h-8 gba:w-8 gba:text-white" />
-                          </div>
-                        </div>
-                        
-                        <CardTitle className="gba:text-xl gba:font-bold gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 gba:bg-clip-text gba:text-transparent">
-                          Create from Scratch
-                        </CardTitle>
-                        <p className="gba:text-sm gba:text-gray-600 gba:mt-2">
-                          Start with a blank canvas and build your workflow step by step
-                        </p>
-                      </CardHeader>
-                      
-                      <CardContent className="gba:space-y-6 gba:pt-0">
-                        <div className="gba:space-y-3">
-                          <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-600 gba:font-medium">
-                            <div className="gba:w-2 gba:h-2 gba:bg-gradient-to-r gba:from-green-400 gba:to-emerald-500 gba:rounded-full gba:mr-3 gba:shadow-sm"></div>
-                            Complete creative freedom
-                          </div>
-                          <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-600 gba:font-medium">
-                            <div className="gba:w-2 gba:h-2 gba:bg-gradient-to-r gba:from-blue-400 gba:to-cyan-500 gba:rounded-full gba:mr-3 gba:shadow-sm"></div>
-                            Step-by-step wizard
-                          </div>
-                          <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-600 gba:font-medium">
-                            <div className="gba:w-2 gba:h-2 gba:bg-gradient-to-r gba:from-indigo-400 gba:to-purple-500 gba:rounded-full gba:mr-3 gba:shadow-sm"></div>
-                            Custom configurations
-                          </div>
-                        </div>
-                        
-                        <Button
-                          onClick={() => setShowDesigner(true)}
-                          className="gba:w-full gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 gba:hover:from-blue-700 gba:hover:to-indigo-700 gba:text-white gba:font-semibold gba:py-3 gba:rounded-lg gba:shadow-lg gba:shadow-blue-500/25 gba:transition-all gba:duration-200 gba:hover:shadow-xl gba:hover:shadow-blue-500/40 gba:hover:scale-[1.02]"
-                          data-testid={`${testId}-create-scratch-button`}
-                        >
-                          <Settings className="gba:h-4 gba:w-4 gba:mr-2" />
-                          Start Building
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="manage" className="gba:mt-0">
-              <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-3 gba:gap-8 gba:w-full gba:min-h-[600px]">
-                {/* Left Side - Template List */}
-                <div className="gba:lg:col-span-2 gba:w-full">
-                  <div className="gba:space-y-6">
-                    {isLoading ? (
-                      <div className="gba:flex gba:justify-center gba:items-center gba:py-8" data-testid={`${testId}-loading`}>
-                        <Spinner size="lg" />
-                      </div>
-                    ) : error ? (
-                      <Alert variant="destructive" data-testid={`${testId}-error`}>
-                        <AlertDescription className="gba:mb-4">
-                          {error}
-                        </AlertDescription>
-                        <Button
-                          variant="outline"
-                          onClick={loadTemplates}
-                          data-testid={`${testId}-retry`}
-                        >
-                          Retry
-                        </Button>
-                      </Alert>
                     ) : (
-                      <FlowTemplateList 
-                        templates={templates} 
-                        onCreateNew={handleCreateNew}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                        onTemplateSelect={handleTemplateSelect}
-                        selectedTemplate={previewTemplate}
-                        data-testid={`${testId}-list`} 
-                        accessToken={accessToken}
-                      />
+                      <div className="gba:text-center gba:py-16 gba:px-4">
+                        <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
+                          {patternMode === 'industry' ? (
+                            <Building2 className="gba:h-8 gba:w-8 gba:text-muted-foreground" />
+                          ) : patternMode === 'department' ? (
+                            <UserCheck className="gba:h-8 gba:w-8 gba:text-muted-foreground" />
+                          ) : (
+                            <Briefcase className="gba:h-8 gba:w-8 gba:text-muted-foreground" />
+                          )}
+                        </div>
+                        <h3 className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">
+                          No templates available yet
+                        </h3>
+                        <p className="gba:text-muted-foreground gba:max-w-md gba:mx-auto gba:mb-6">
+                          We're working on adding more templates. Try using AI to create a custom flow, or browse
+                          general patterns.
+                        </p>
+                        <Button
+                          onClick={() => handlePatternModeChange('general')}
+                          variant="outline"
+                          data-testid={`${testId}-switch-to-general`}
+                        >
+                          Browse General Patterns
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </div>
+              )}
 
-                {/* Right Side - Preview */}
-                <div className="gba:lg:col-span-1 gba:w-full">
-                  <FlowPreview 
-                    template={previewTemplate}
-                    data-testid={`${testId}-preview`}
-                  />
+              {/* Manage Tab Content */}
+              {activeTab === 'manage' && (
+                <div className="gba:max-w-7xl gba:mx-auto gba:px-4 gba:sm:px-6 gba:lg:px-8 gba:pt-10 gba:pb-16">
+                  {/* Header */}
+                  <div className="gba:mb-8">
+                    <h2 className="gba:text-2xl gba:font-semibold gba:text-foreground gba:mb-2">Your Flows</h2>
+                    <p className="gba:text-muted-foreground">Manage and edit your flow templates</p>
+                  </div>
+
+                  <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-3 gba:gap-8 gba:w-full gba:min-h-[600px]">
+                    {/* Left Side - Template List */}
+                    <div className="gba:lg:col-span-2 gba:w-full">
+                      <div className="gba:space-y-6">
+                        {/* Search and Actions Bar */}
+                        <div className="gba:flex gba:flex-col gba:sm:flex-row gba:gap-4 gba:items-start gba:sm:items-center gba:justify-between">
+                          <div className="gba:flex-1 gba:max-w-md">
+                            <div className="gba:relative">
+                              <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:h-4 gba:w-4" />
+                              <DebouncedInput
+                                placeholder="Search templates..."
+                                value={searchTerm}
+                                onChange={handleSearch}
+                                className="gba:pl-10"
+                                debounceDelay={500}
+                                data-testid={`${testId}-search`}
+                              />
+                            </div>
+                          </div>
+                          <div className="gba:flex gba:items-center gba:gap-3">
+                            {totalCount > 0 && (
+                              <span
+                                className="gba:text-sm gba:text-muted-foreground"
+                                data-testid={`${testId}-results-count`}
+                              >
+                                {startItem}-{endItem} of {totalCount}
+                              </span>
+                            )}
+                            <Button onClick={handleCreateNew} data-testid={`${testId}-create-new-btn`}>
+                              <Sparkles className="gba:h-4 gba:w-4 gba:mr-2" />
+                              New Flow
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Loading State */}
+                        {isLoading ? (
+                          <div
+                            className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-16"
+                            data-testid={`${testId}-loading`}
+                          >
+                            <Spinner size="lg" />
+                            <span className="gba:mt-4 gba:text-muted-foreground">
+                              {isSearching ? 'Searching...' : 'Loading templates...'}
+                            </span>
+                          </div>
+                        ) : error ? (
+                          <Alert variant="destructive" data-testid={`${testId}-error`}>
+                            <AlertDescription className="gba:mb-4">{error}</AlertDescription>
+                            <Button
+                              variant="outline"
+                              onClick={() => loadTemplates(currentPage, searchTerm)}
+                              data-testid={`${testId}-retry`}
+                            >
+                              Retry
+                            </Button>
+                          </Alert>
+                        ) : (
+                          <>
+                            {/* Template List */}
+                            <FlowTemplateList
+                              templates={templates}
+                              searchTerm={searchTerm}
+                              onCreateNew={handleCreateNew}
+                              onEdit={handleEdit}
+                              onDelete={handleDelete}
+                              onTemplateSelect={handleTemplateSelect}
+                              selectedTemplate={previewTemplate}
+                              data-testid={`${testId}-list`}
+                              accessToken={accessToken}
+                            />
+
+                            {/* Pagination */}
+                            {totalPages > 1 && (
+                              <div className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:mt-8 gba:pt-6 gba:border-t gba:border-border">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handlePageChange(currentPage - 1)}
+                                  disabled={currentPage === 1}
+                                  data-testid={`${testId}-prev-page`}
+                                >
+                                  <ChevronLeft className="gba:h-4 gba:w-4" />
+                                </Button>
+
+                                <span className="gba:text-sm gba:text-muted-foreground gba:px-4">
+                                  Page {currentPage} of {totalPages}
+                                </span>
+
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handlePageChange(currentPage + 1)}
+                                  disabled={currentPage === totalPages}
+                                  data-testid={`${testId}-next-page`}
+                                >
+                                  <ChevronRight className="gba:h-4 gba:w-4" />
+                                </Button>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right Side - Preview */}
+                    <div className="gba:lg:col-span-1 gba:w-full">
+                      <FlowPreview template={previewTemplate} data-testid={`${testId}-preview`} />
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </TabsContent>
-          </Tabs>
+              )}
+            </PageLayout>
           )}
         </div>
-        
+
         {/* Wizard Dialog */}
         <FlowWizardDialog
           visible={isWizardOpen}
           onClose={() => setIsWizardOpen(false)}
           onComplete={async (template: any) => {
-            await saveTemplate(template.template);
-            setIsWizardOpen(false);
+            await saveTemplate(template.template)
+            setIsWizardOpen(false)
           }}
+          context={{ accessToken, userInfo }}
           data-testid={`${testId}-wizard-dialog`}
         />
       </div>
     </MockDataProvider>
-  );
-};
+  )
+}
 
-export default FlowCreator;
+export default FlowCreator

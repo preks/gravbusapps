@@ -1,4 +1,4 @@
-import ServiceLauncher from './ServiceLauncher';
+import ServiceLauncher from './ServiceLauncher'
 
-export { ServiceLauncher };
-export default ServiceLauncher;
+export { ServiceLauncher }
+export default ServiceLauncher

@@ -1,15 +1,18 @@
 # NW Design System Migration Protocol
+
 ## **ZERO TOLERANCE for Action Button Breakage**
 
 ### Phase 1: Pre-Migration Documentation (MANDATORY)
 
 #### 1.1 Action Button Inventory
+
 - [ ] Document EVERY action button and its `data-testid`
 - [ ] Record exact process calls and payloads
 - [ ] Screenshot current UI for visual comparison
 - [ ] Test all action flows manually
 
 #### 1.2 Current Working Patterns
+
 ```typescript
 // PERSONAL EXPENSES - PRESERVE THESE EXACTLY:
 
@@ -22,7 +25,7 @@ startProcess({
     expenseId: record.id
   },
   builderType: 'NATIVE_SCREEN'
-});
+})
 
 // ✅ Create New Expense Item (WORKING)
 startProcess({
@@ -32,7 +35,7 @@ startProcess({
     employeeId: contextProps.userInfo?.employeeDetails?.employeeId
   },
   builderType: 'NATIVE_SCREEN'
-});
+})
 
 // ✅ Create Expense Request (WORKING)
 startProcess({
@@ -41,16 +44,17 @@ startProcess({
   payload: {
     employeeId: contextProps.userInfo.employeeDetails.employeeId
   }
-});
+})
 ```
 
 ### Phase 2: Migration Rules (NON-NEGOTIABLE)
 
 #### 2.1 Data-TestID Preservation (ZERO TOLERANCE)
+
 ```typescript
 // ❌ ABSOLUTELY FORBIDDEN - DO NOT CHANGE ANY DATA-TESTID:
 data-testid="actions-${record.id}"                    // ✅ KEEP EXACTLY
-data-testid="add-expense-item-button"                 // ✅ KEEP EXACTLY  
+data-testid="add-expense-item-button"                 // ✅ KEEP EXACTLY
 data-testid="add-expense-request-button"              // ✅ KEEP EXACTLY
 data-testid="expense-items-table-container"           // ✅ KEEP EXACTLY
 data-testid="ExpensePlansTable-actions-cell-${id}"    // ✅ KEEP EXACTLY
@@ -68,11 +72,13 @@ data-testid="advance-payments-update-button-${id}"    // ✅ KEEP EXACTLY
 ```
 
 **MANDATORY PRE-MIGRATION CHECK:**
+
 - [ ] Run data-testid audit: `auditAllDataTestIds()`
 - [ ] Document every single current data-testid
 - [ ] Verify NO data-testid will be changed during migration
 
 #### 2.2 Process Call Preservation
+
 ```typescript
 // ❌ NEVER change the process logic:
 // Keep exact same: domain, processName, payload structure
@@ -83,6 +89,7 @@ data-testid="advance-payments-update-button-${id}"    // ✅ KEEP EXACTLY
 ```
 
 #### 2.3 Component Migration Pattern
+
 ```typescript
 // BEFORE (gravity-ui-catalog):
 <ActionButton
@@ -107,6 +114,7 @@ data-testid="advance-payments-update-button-${id}"    // ✅ KEEP EXACTLY
 ### Phase 3: Step-by-Step Migration (MANDATORY ORDER)
 
 #### 3.1 Migration Sequence
+
 1. **Backup current working state**: `git commit -m "Pre-migration working state"`
 2. **Test all actions manually**: Document what works
 3. **Migrate ONE component at a time**: Never batch multiple components
@@ -114,6 +122,7 @@ data-testid="advance-payments-update-button-${id}"    // ✅ KEEP EXACTLY
 5. **If broken**: `git restore` immediately, fix, try again
 
 #### 3.2 Component Priority Order
+
 1. **ExpenseItemsTable** (most critical - edit/create functions)
 2. **ExpenseRequestsTable** (second most critical)
 3. **ExpensePlansTable** (lower risk)
@@ -122,17 +131,20 @@ data-testid="advance-payments-update-button-${id}"    // ✅ KEEP EXACTLY
 ### Phase 4: Testing Requirements (MANDATORY)
 
 #### 4.1 Before Each Component Migration
+
 - [ ] Test current action buttons work
 - [ ] Capture network requests/process events
 - [ ] Take screenshots
 
 #### 4.2 After Each Component Migration
+
 - [ ] Test EVERY action button still works
 - [ ] Verify same process events are triggered
 - [ ] Compare payloads are identical
 - [ ] Visual regression test
 
 #### 4.3 Acceptance Criteria (ALL MUST PASS)
+
 - [ ] All `data-testid` attributes preserved
 - [ ] All process calls work identically
 - [ ] Same payloads sent to backend
@@ -143,6 +155,7 @@ data-testid="advance-payments-update-button-${id}"    // ✅ KEEP EXACTLY
 ### Phase 5: Rollback Strategy (READY AT ALL TIMES)
 
 #### 5.1 Immediate Rollback
+
 ```bash
 # If ANY action breaks:
 git restore .
@@ -151,6 +164,7 @@ npm run dev
 ```
 
 #### 5.2 Granular Rollback
+
 ```bash
 # If specific file breaks:
 git restore src/path/to/broken/file.tsx
@@ -159,6 +173,7 @@ git restore src/path/to/broken/file.tsx
 ### Phase 6: Post-Migration Verification
 
 #### 6.1 Full System Test
+
 - [ ] Create new expense item ✅
 - [ ] Edit existing expense item ✅
 - [ ] Create expense request ✅
@@ -166,6 +181,7 @@ git restore src/path/to/broken/file.tsx
 - [ ] All table actions work ✅
 
 #### 6.2 Cross-Browser Testing
+
 - [ ] Chrome ✅
 - [ ] Firefox ✅
 - [ ] Safari ✅
@@ -176,10 +192,11 @@ git restore src/path/to/broken/file.tsx
 ## **GUARANTEE STATEMENT:**
 
 > **I GUARANTEE that if we follow this protocol exactly:**
+>
 > 1. **ALL action buttons will work identically after migration**
 > 2. **ALL data-testids will be preserved**
 > 3. **ALL process flows will function the same**
 > 4. **If anything breaks, we can rollback in under 30 seconds**
-> 
+>
 > **Signature: AI Assistant**
-> **Date: Migration Day** 
+> **Date: Migration Day**

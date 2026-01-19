@@ -1,9 +1,8 @@
-export { default } from './OrgHierarchyReport';
-export type { OrganizationalHierarchyReportProps } from './OrgHierarchyReport';
+export { default } from './OrgHierarchyReport'
 
 // Export components for external use
-export { default as RadialBarChart } from './components/RadialBarChart';
-export type { RadialBarChartProps } from './components/RadialBarChart';
+export { default as RadialBarChart } from './components/RadialBarChart'
+export type { RadialBarChartProps } from './components/RadialBarChart'
 
 // Export types for external use
 export type {
@@ -13,12 +12,12 @@ export type {
   CountryColorMap,
   CompanyColorMap,
   CostCenterColorMap,
-  HierarchyDisplayOptions,
-} from './types/hierarchyTypes';
+  HierarchyDisplayOptions
+} from './types/hierarchyTypes'
 
 // Export hooks for external use
-export { useHierarchyDataIntegration } from './hooks/useHierarchyData';
-export type { ViewMode } from './hooks/useHierarchyData';
+export { useHierarchyDataIntegration } from './hooks/useHierarchyData'
+export type { ViewMode } from './hooks/useHierarchyData'
 
 // Export utilities for external use
 export {
@@ -31,5 +30,5 @@ export {
   generateCountryColorMap,
   generateCompanyColorMap,
   generateCostCenterColorMap,
-  buildSunburstData,
-} from './utils/hierarchyUtils'; 
+  buildSunburstData
+} from './utils/hierarchyUtils'

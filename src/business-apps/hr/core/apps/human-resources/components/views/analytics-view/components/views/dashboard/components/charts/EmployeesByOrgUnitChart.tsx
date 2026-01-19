@@ -1,62 +1,75 @@
-import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
-import { Card, Spin, Empty, Typography, theme } from 'antd';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useEmployeesByOrgUnit } from '../../../../../hooks/useEmployeesByOrgUnit';
-import { BusinessAppContextProps } from '@/business-apps/types';
+import React from 'react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts'
+import { Card, useTranslation } from '@newwork/nw-design-system'
+import { Spin, Empty, Typography } from 'antd'
+import { useEmployeesByOrgUnit } from '../../../../../hooks/useEmployeesByOrgUnit'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
-const { Title, Text } = Typography;
+const { Title, Text } = Typography
 
-interface EmployeesByOrgUnitChartProps extends BusinessAppContextProps {}
+interface EmployeesByOrgUnitChartProps {
+  accessToken: string
+}
 
 /**
  * Bar chart component for displaying employee distribution across organizational units
  */
 const EmployeesByOrgUnitChart: React.FC<EmployeesByOrgUnitChartProps> = ({ accessToken }) => {
-  const { data, loading, error } = useEmployeesByOrgUnit(accessToken);
-  const { token } = theme.useToken();
-  
+  const { data, loading, error } = useEmployeesByOrgUnit(accessToken)
+  const { t } = useTranslation(hrTranslations)
+
+  // Get chart colors that automatically update with theme changes
+  const chartColors = [
+    'var(--nw-chart-1)',
+    'var(--nw-chart-2)',
+    'var(--nw-chart-3)',
+    'var(--nw-chart-4)',
+    'var(--nw-chart-5)',
+    'var(--nw-chart-6)',
+    'var(--nw-chart-7)',
+    'var(--nw-chart-8)'
+  ]
+
   // Limit to top 10 organizational units for better visualization
   const chartData = React.useMemo(() => {
     return data.slice(0, 10).map(item => ({
       name: item.name,
       value: item.count,
       percentage: item.percentage
-    }));
-  }, [data]);
+    }))
+  }, [data])
 
   // Custom tooltip component that shows employee count and percentage
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="gba:custom-tooltip gba:bg-white gba:p-4 gba:rounded-md gba:shadow-lg gba:border gba:border-gray-200">
-          <p className="gba:font-bold gba:text-lg gba:mb-2 gba:pb-2 gba:border-b gba:border-gray-100">{label}</p>
+        <div className="gba:custom-tooltip gba:bg-card gba:p-4 gba:rounded-md gba:shadow-lg gba:border-border gba:text-card-foreground">
+          <p className="gba:font-bold gba:text-lg gba:mb-2 gba:pb-2 gba:border-b gba:border-border gba:text-foreground">
+            {label}
+          </p>
           <div className="gba:flex gba:justify-between gba:items-center gba:mb-1">
-            <span>Employees:</span>
-            <span className="gba:font-semibold gba:ml-4">{payload[0].value.toLocaleString()}</span>
+            <span className="gba:text-muted-foreground">{t('hr-analytics-employees')}:</span>
+            <span className="gba:font-semibold gba:ml-4 gba:text-foreground">{payload[0].value.toLocaleString()}</span>
           </div>
           <div className="gba:flex gba:justify-between gba:items-center">
-            <span>Percentage:</span>
-            <span className="gba:font-semibold gba:ml-4">{payload[0].payload.percentage}%</span>
+            <span className="gba:text-muted-foreground">{t('hr-analytics-percentage')}:</span>
+            <span className="gba:font-semibold gba:ml-4 gba:text-foreground">{payload[0].payload.percentage}%</span>
           </div>
         </div>
-      );
+      )
     }
-    return null;
-  };
+    return null
+  }
 
   return (
-    <Card
-      className="gba:w-full gba:mb-6 gba:shadow-sm"
-      data-testid="employees-by-org-unit-chart"
-    >
+    <Card className="gba:w-full gba:mb-6 gba:shadow-sm" data-testid="employees-by-org-unit-chart">
       {/* Header */}
-      <div className="gba:mb-4">
-        <Title level={4} className="gba:m-0 gba:text-gray-800">
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_employees_by_org_unit', 'Employees by Org Unit')}
+      <div className="gba:mb-4 gba:ml-4">
+        <Title level={4} className="gba:m-0 gba:text-foreground ">
+          {t('hr-analytics-employees-by-org-unit')}
         </Title>
-        <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">
-          {getTranslationFromI18nKeyAndLabel('hr_analytics_employees_by_org_unit_description', 'Employee distribution across organizational units showing workforce concentration and department sizes')}
+        <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
+          {t('hr-analytics-employees-by-org-unit-description')}
         </Text>
       </div>
 
@@ -67,48 +80,34 @@ const EmployeesByOrgUnitChart: React.FC<EmployeesByOrgUnitChartProps> = ({ acces
             <Spin size="large" data-testid="employees-by-org-unit-chart-loading" />
           </div>
         ) : error ? (
-          <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:text-red-500">
-            <div data-testid="employees-by-org-unit-chart-error">
-              {getTranslationFromI18nKeyAndLabel('hr_analytics_error_message', 'Error loading data')}
-            </div>
+          <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:text-destructive">
+            <div data-testid="employees-by-org-unit-chart-error">{t('hr-analytics-error-message')}</div>
           </div>
         ) : data.length === 0 ? (
           <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
-            <Empty
-              description={getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
-              data-testid="employees-by-org-unit-chart-empty"
-            />
+            <Empty description={t('hr-analytics-no-data')} data-testid="employees-by-org-unit-chart-empty" />
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%" data-testid="employees-by-org-unit-chart-rendered">
-            <BarChart
-              data={chartData}
-              margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-              barSize={40}
-            >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={token.colorBorderSecondary} />
-              <XAxis 
-                dataKey="name" 
-                angle={-45} 
-                textAnchor="end" 
-                height={70} 
-                tick={{ fontSize: 12, fill: token.colorTextSecondary }}
+            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }} barSize={40}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--nw-border)" />
+              <XAxis
+                dataKey="name"
+                angle={-45}
+                textAnchor="end"
+                height={70}
+                tick={{ fontSize: 12, fill: 'var(--nw-muted-foreground)' }}
                 tickLine={false}
-                axisLine={{ stroke: token.colorBorderSecondary }}
+                axisLine={{ stroke: 'var(--nw-border)' }}
               />
-              <YAxis 
-                tickFormatter={(value) => value.toLocaleString()}
-                tick={{ fontSize: 12, fill: token.colorTextSecondary }}
+              <YAxis
+                tickFormatter={value => value.toLocaleString()}
+                tick={{ fontSize: 12, fill: 'var(--nw-muted-foreground)' }}
                 tickLine={false}
-                axisLine={{ stroke: token.colorBorderSecondary }}
+                axisLine={{ stroke: 'var(--nw-border)' }}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Bar 
-                dataKey="value" 
-                name="Employees" 
-                fill="#06B6D4" /* Cyan color to differentiate from default blue/green */
-                radius={[4, 4, 0, 0]}
-              />
+              <Bar dataKey="value" name={t('hr-analytics-employees')} fill={chartColors[2]} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -116,15 +115,15 @@ const EmployeesByOrgUnitChart: React.FC<EmployeesByOrgUnitChartProps> = ({ acces
 
       {/* Chart footnote */}
       {!loading && !error && data.length > 0 && data.length > 10 && (
-        <div className="gba:mt-4 gba:text-center gba:text-sm gba:text-gray-500" data-testid="org-unit-chart-footnote">
-          {getTranslationFromI18nKeyAndLabel(
-            'hr_analytics_top_org_units_note', 
-            `Showing top 10 org units out of ${data.length} total`
-          )}
+        <div
+          className="gba:mt-4 gba:text-center gba:text-sm gba:text-muted-foreground"
+          data-testid="org-unit-chart-footnote"
+        >
+          {t('hr-analytics-top-org-units-note', { total: data.length })}
         </div>
       )}
     </Card>
-  );
-};
+  )
+}
 
-export default EmployeesByOrgUnitChart;
+export default EmployeesByOrgUnitChart

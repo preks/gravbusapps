@@ -1,2 +1,2 @@
-export { default } from './SalesOrderAi';
-export { default as SalesOrderAi } from './SalesOrderAi';
+export { default } from './SalesOrderAi'
+export { default as SalesOrderAi } from './SalesOrderAi'

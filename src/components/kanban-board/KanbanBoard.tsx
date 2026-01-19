@@ -1,9 +1,18 @@
-import React, { useState } from 'react';
-import { DndContext, DragOverlay, useSensors, useSensor, PointerSensor, closestCorners, DragEndEvent, DragOverEvent } from '@dnd-kit/core';
-import { Spinner } from '@newwork/nw-design-system';
-import { KanbanColumn } from './components/KanbanColumn';
-import { KanbanCard } from './components/KanbanCard';
-import { KanbanItem, KanbanBoardProps } from './types';
+import React, { useState } from 'react'
+import {
+  DndContext,
+  DragOverlay,
+  useSensors,
+  useSensor,
+  PointerSensor,
+  closestCorners,
+  DragEndEvent,
+  DragOverEvent
+} from '@dnd-kit/core'
+import { Spinner } from '@newwork/nw-design-system'
+import { KanbanColumn } from './components/KanbanColumn'
+import { KanbanCard } from './components/KanbanCard'
+import { KanbanItem, KanbanBoardProps } from './types'
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   stages,
@@ -11,7 +20,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onDragEnd,
   renderCard,
   renderStageHeader,
-  
+
   // Generic props
   className = '',
   loading = false,
@@ -19,147 +28,145 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   allowReorderWithinStage = true,
   ...props
 }) => {
-  const [activeItem, setActiveItem] = useState<KanbanItem | null>(null);
-  const [sourceStage, setSourceStage] = useState<string | null>(null);
-  const [dragOverStage, setDragOverStage] = useState<string | null>(null);
-  const [dragOverItem, setDragOverItem] = useState<string | null>(null);
-  const [insertPosition, setInsertPosition] = useState<'before' | 'after' | null>(null);
+  const [activeItem, setActiveItem] = useState<KanbanItem | null>(null)
+  const [sourceStage, setSourceStage] = useState<string | null>(null)
+  const [dragOverStage, setDragOverStage] = useState<string | null>(null)
+  const [dragOverItem, setDragOverItem] = useState<string | null>(null)
+  const [insertPosition, setInsertPosition] = useState<'before' | 'after' | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
-      },
+        distance: 8
+      }
     })
-  );
+  )
 
   const handleDragStart = (event: any) => {
-    const { active } = event;
-    const itemId = active.id;
-    
-    const draggedItem = items.find(
-      (item) => item.id === itemId
-    );
-    
-    setActiveItem(draggedItem || null);
-    setSourceStage(draggedItem?.stageId || null);
-  };
+    const { active } = event
+    const itemId = active.id
+
+    const draggedItem = items.find(item => item.id === itemId)
+
+    setActiveItem(draggedItem || null)
+    setSourceStage(draggedItem?.stageId || null)
+  }
 
   const handleDragOver = (event: DragOverEvent) => {
-    const { over, active } = event;
-    
+    const { over, active } = event
+
     if (over) {
-      const overId = over.id as string;
-      const activeId = active.id as string;
-      
+      const overId = over.id as string
+      const activeId = active.id as string
+
       // Find the active item
-      const activeItem = items.find(item => item.id === activeId);
-      
+      const activeItem = items.find(item => item.id === activeId)
+
       // Check if we're hovering over a stage (column)
-      const stage = stages.find(s => s.id === overId);
+      const stage = stages.find(s => s.id === overId)
       if (stage) {
         // Only show feedback if this is not the source stage
         if (stage.id !== sourceStage) {
-          setDragOverStage(overId);
+          setDragOverStage(overId)
         } else {
-          setDragOverStage(null);
+          setDragOverStage(null)
         }
-        setDragOverItem(null);
-        setInsertPosition(null);
+        setDragOverItem(null)
+        setInsertPosition(null)
       } else {
         // We're hovering over another item
-        const overItem = items.find(item => item.id === overId);
+        const overItem = items.find(item => item.id === overId)
         if (overItem && activeItem) {
-          const overStageId = overItem.stageId;
-          const activeStageId = activeItem.stageId;
-          
+          const overStageId = overItem.stageId
+          const activeStageId = activeItem.stageId
+
           // Only show feedback if this is not the source stage
           if (overStageId !== sourceStage) {
-            setDragOverStage(overStageId || null);
+            setDragOverStage(overStageId || null)
             // No insertion lines - we'll show "Drop here" card at first position instead
-            setDragOverItem(null);
-            setInsertPosition(null);
+            setDragOverItem(null)
+            setInsertPosition(null)
           } else {
             // In source stage - no visual feedback
-            setDragOverStage(null);
-            setDragOverItem(null);
-            setInsertPosition(null);
+            setDragOverStage(null)
+            setDragOverItem(null)
+            setInsertPosition(null)
           }
         } else {
-          setDragOverStage(null);
-          setDragOverItem(null);
-          setInsertPosition(null);
+          setDragOverStage(null)
+          setDragOverItem(null)
+          setInsertPosition(null)
         }
       }
     } else {
-      setDragOverStage(null);
-      setDragOverItem(null);
-      setInsertPosition(null);
+      setDragOverStage(null)
+      setDragOverItem(null)
+      setInsertPosition(null)
     }
-  };
+  }
 
   const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    
+    const { active, over } = event
+
     // Clear all drag over states
-    setDragOverStage(null);
-    setDragOverItem(null);
-    setInsertPosition(null);
-    setActiveItem(null);
-    setSourceStage(null);
-    
+    setDragOverStage(null)
+    setDragOverItem(null)
+    setInsertPosition(null)
+    setActiveItem(null)
+    setSourceStage(null)
+
     if (!over || active.id === over.id) {
-      return;
+      return
     }
-    
-    const activeId = active.id as string;
-    const overId = over.id as string;
-    
-    const activeItem = items.find(item => item.id === activeId);
-    if (!activeItem) return;
-    
+
+    const activeId = active.id as string
+    const overId = over.id as string
+
+    const activeItem = items.find(item => item.id === activeId)
+    if (!activeItem) return
+
     // Check if we're dropping on a stage (inter-column move to end)
-    const targetStage = stages.find(s => s.id === overId);
+    const targetStage = stages.find(s => s.id === overId)
     if (targetStage) {
       // Moving to a different stage at the end
-      const activeStageId = activeItem.stageId;
+      const activeStageId = activeItem.stageId
       if (activeStageId !== targetStage.id) {
-        onDragEnd?.(activeId, targetStage.id, items.length);
+        onDragEnd?.(activeId, targetStage.id, items.length)
       }
-      return;
+      return
     }
-    
+
     // Check if we're dropping on another item
-    const overItem = items.find(item => item.id === overId);
+    const overItem = items.find(item => item.id === overId)
     if (overItem) {
-      const activeStageId = activeItem.stageId;
-      const overStageId = overItem.stageId;
-      
+      const activeStageId = activeItem.stageId
+      const overStageId = overItem.stageId
+
       if (activeStageId === overStageId) {
         if (!allowReorderWithinStage) {
           // Reordering disabled: treat as no-op
-          return;
+          return
         }
         // Reordering within the same column - calculate new position
-        const stageItems = items.filter(item => item.stageId === activeStageId);
-        const activeIndex = stageItems.findIndex(item => item.id === activeId);
-        const overIndex = stageItems.findIndex(item => item.id === overId);
-        
+        const stageItems = items.filter(item => item.stageId === activeStageId)
+        const activeIndex = stageItems.findIndex(item => item.id === activeId)
+        const overIndex = stageItems.findIndex(item => item.id === overId)
+
         if (activeIndex !== overIndex) {
-          onDragEnd?.(activeId, activeStageId || '', overIndex);
+          onDragEnd?.(activeId, activeStageId || '', overIndex)
         }
       } else {
         // Moving to a different stage with specific positioning
-        const targetStageItems = items.filter(item => item.stageId === overStageId);
-        const insertIndex = targetStageItems.findIndex(item => item.id === overId);
-        
+        const targetStageItems = items.filter(item => item.stageId === overStageId)
+        const insertIndex = targetStageItems.findIndex(item => item.id === overId)
+
         // Insert after the target item
-        const newPosition = insertIndex + 1;
-        
-        onDragEnd?.(activeId, overStageId || '', newPosition);
+        const newPosition = insertIndex + 1
+
+        onDragEnd?.(activeId, overStageId || '', newPosition)
       }
     }
-  };
+  }
 
   if (loading) {
     return (
@@ -169,17 +176,15 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           <p className="gba:mt-4 gba:text-gray-500">Loading...</p>
         </div>
       </div>
-    );
+    )
   }
 
   if (stages.length === 0) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full gba:p-8">
-        <div className="gba:text-center gba:text-gray-500">
-          No stages available
-        </div>
+        <div className="gba:text-center gba:text-gray-500">No stages available</div>
       </div>
-    );
+    )
   }
 
   return (
@@ -192,14 +197,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         onDragEnd={handleDragEnd}
       >
         <div className="gba:flex gba:flex-1 gba:overflow-x-auto gba:overflow-y-hidden gba:scroll-smooth gba:p-4 gba:gap-4">
-          {stages.map((stage) => (
+          {stages.map(stage => (
             <KanbanColumn
               key={stage.id}
               stage={stage}
               items={items
-                .filter((item) => item.stageId === stage.id)
-                .sort((a, b) => (a.position || 0) - (b.position || 0))
-              }
+                .filter(item => item.stageId === stage.id)
+                .sort((a, b) => (a.position || 0) - (b.position || 0))}
               renderCard={renderCard}
               renderStageHeader={renderStageHeader}
               isDraggedOver={dragOverStage === stage.id}
@@ -212,13 +216,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         </div>
 
         <DragOverlay>
-          {activeItem && renderCard ? (
-            renderCard(activeItem)
-          ) : activeItem ? (
-            <KanbanCard item={activeItem} />
-          ) : null}
+          {activeItem && renderCard ? renderCard(activeItem) : activeItem ? <KanbanCard item={activeItem} /> : null}
         </DragOverlay>
       </DndContext>
     </div>
-  );
-};
+  )
+}

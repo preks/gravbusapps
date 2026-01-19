@@ -1,29 +1,30 @@
-import React from 'react';
-import { Table, Typography } from 'antd';
-import { AdvancePayment } from '../types/expenseRequestRecord.types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { Table, Typography } from 'antd'
+import { AdvancePayment } from '../types/expenseRequestRecord.types'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-const { Text } = Typography;
+const { Text } = Typography
 
 interface ExpenseRequestAdvancePaymentsSummaryProps {
-  pageData: readonly AdvancePayment[];
-  formatAmount: (amount: number) => string;
+  pageData: readonly AdvancePayment[]
+  formatAmount: (amount: number) => string
 }
 
-const ExpenseRequestAdvancePaymentsSummary: React.FC<ExpenseRequestAdvancePaymentsSummaryProps> = ({ pageData, formatAmount }) => {
-  let totalAmount = 0;
+const ExpenseRequestAdvancePaymentsSummary: React.FC<ExpenseRequestAdvancePaymentsSummaryProps> = ({
+  pageData,
+  formatAmount
+}) => {
+  let totalAmount = 0
 
   pageData.forEach(({ amount }) => {
-    totalAmount += amount;
-  });
+    totalAmount += amount
+  })
 
   return (
     <Table.Summary fixed>
       <Table.Summary.Row>
         <Table.Summary.Cell index={0}>
-          <Text strong>
-            {getTranslationFromI18nKeyAndLabel('expense.plan.advance.payments.total', 'Total')}
-          </Text>
+          <Text strong>{getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total')}</Text>
         </Table.Summary.Cell>
         <Table.Summary.Cell index={1} align="right">
           <Text strong>
@@ -33,7 +34,7 @@ const ExpenseRequestAdvancePaymentsSummary: React.FC<ExpenseRequestAdvancePaymen
         <Table.Summary.Cell index={2} colSpan={6} />
       </Table.Summary.Row>
     </Table.Summary>
-  );
-};
+  )
+}
 
-export default ExpenseRequestAdvancePaymentsSummary;
+export default ExpenseRequestAdvancePaymentsSummary

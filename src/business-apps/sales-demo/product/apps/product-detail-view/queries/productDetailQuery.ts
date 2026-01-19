@@ -50,7 +50,7 @@ export const getProductDetails = `
       additionalProperties
     }
   }
-`;
+`
 
 export const getProductInventoryLocations = `
   query GetProductInventoryLocations($productId: uuid!) {
@@ -61,7 +61,7 @@ export const getProductInventoryLocations = `
       quantityOnHand
     }
   }
-`;
+`
 
 export const getProductPriceHistory = `
   query GetProductPriceHistory($productId: uuid!, $limit: Int = 20) {
@@ -75,7 +75,7 @@ export const getProductPriceHistory = `
       currentCostBase
     }
   }
-`;
+`
 
 export const getProductSalesMetrics = `
   query GetProductSalesMetrics($productId: uuid!) {
@@ -100,7 +100,7 @@ export const getProductSalesMetrics = `
       }
     }
   }
-`;
+`
 
 export const getProductSuppliers = `
   query GetProductSuppliers($productId: uuid!) {
@@ -113,7 +113,7 @@ export const getProductSuppliers = `
       vendorPartNumber
     }
   }
-`;
+`
 
 export const getProductDocuments = `
   query GetProductDocuments($productId: uuid!) {
@@ -125,7 +125,7 @@ export const getProductDocuments = `
       description
     }
   }
-`;
+`
 
 export const getRelatedProducts = `
   query GetRelatedProducts($productId: uuid!, $limit: Int = 10) {
@@ -149,7 +149,7 @@ export const getRelatedProducts = `
       priceBase
     }
   }
-`;
+`
 
 export const getProductStockMovements = `
   query GetProductStockMovements($productId: uuid!, $limit: Int = 50) {
@@ -161,7 +161,7 @@ export const getProductStockMovements = `
       updatedAt
     }
   }
-`;
+`
 
 export const getProductKPIs = `
   query GetProductKPIs($productId: uuid!) {
@@ -185,4 +185,4 @@ export const getProductKPIs = `
       createdAt
     }
   }
-`;
+`

@@ -1,794 +1,275 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import { GET_EXPENSE_ANALYTICS_DATA } from '../queries/analytics';
-import dayjs from 'dayjs';
-import weekday from 'dayjs/plugin/weekday';
-import localeData from 'dayjs/plugin/localeData';
+// Refactored Team Spending Analytics Hook (< 300 lines)
 
-dayjs.extend(weekday);
-dayjs.extend(localeData);
+import { useState, useEffect, useMemo, useRef } from 'react'
+import dayjs from 'dayjs'
+import weekday from 'dayjs/plugin/weekday'
+import localeData from 'dayjs/plugin/localeData'
 
-// Define interfaces for analytics data
-interface EmployeePosition {
-  organizationalUnit?: {
-    id: string;
-    name: string;
-  };
-  siteLocation?: {
-    id: string;
-    name: string;
-  };
-}
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
-interface Employee {
-  id: string;
-  fullName: string;
-  employeePosition?: EmployeePosition;
-}
+// Import modularized code
+import type {
+  AnalyticsData,
+  ProcessedAnalyticsData,
+  DateRangeOption,
+  LocationFilter,
+  DepartmentFilter
+} from './teamSpendingAnalytics/types'
+import { DateRangeOption as DateRangeEnum } from './teamSpendingAnalytics/types'
+import { fetchAnalyticsData } from './teamSpendingAnalytics/dataFetch'
+import { filterAllData } from './teamSpendingAnalytics/filterUtils'
+import {
+  processExpenseItemsByCategory,
+  processTimeSeriesData,
+  processStatusData,
+  processOrgUnitData,
+  processLocationData,
+  mapToOrgUnitBreakdown,
+  mapToLocationBreakdown,
+  calculateTotalAmount,
+  extractAvailableCurrencies
+} from './teamSpendingAnalytics/utils'
 
-interface ExpensePosition {
-  expenseGroupRef: string;
-}
+dayjs.extend(weekday)
+dayjs.extend(localeData)
 
-interface ExpenseItem {
-  id: string;
-  title: string;
-  expenseDate: string;
-  createdAt: string;
-  status: string;
-  totalAmount: number;
-  currencyRef: string;
-  employee: Employee;
-  expensePosition?: ExpensePosition[];
-}
+export { DateRangeOption } from './teamSpendingAnalytics/types'
+export type { LocationFilter, DepartmentFilter } from './teamSpendingAnalytics/types'
 
-interface ExpenseRequest {
-  id: string;
-  title: string;
-  createdAt: string;
-  status: string;
-  totalAmount: number;
-  currencyRef: string;
-  employee: Employee;
-}
+export const useTeamSpendingAnalytics = (accessToken: string, managerId: string, currencyFilter?: string | null) => {
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
+  const [dateRange, setDateRange] = useState<DateRangeOption>(DateRangeEnum.LAST_30_DAYS)
+  const [locationFilters, setLocationFilters] = useState<LocationFilter[]>([])
+  const [departmentFilters, setDepartmentFilters] = useState<DepartmentFilter[]>([])
+  const [searchTerm, setSearchTerm] = useState<string>('')
+  const [departmentSearchTerm, setDepartmentSearchTerm] = useState<string>('')
+  const [rawData, setRawData] = useState<AnalyticsData | null>(null)
 
-interface ExpensePlan {
-  id: string;
-  title: string;
-  code: string;
-  createdAt: string;
-  status: string;
-  totalAmount: number;
-  currencyRef: string;
-  employee: Employee;
-}
+  const graphqlClient = useGraphQLClient(accessToken)
 
-interface AdvancePayment {
-  id: string;
-  code: string;
-  amount: number;
-  status: string;
-  transactionDate: string;
-  createdAt: string;
-  currencyRef: string;
-  expensePlan: {
-    id: string;
-    title: string;
-    employee: Employee;
-  };
-}
-
-interface AnalyticsData {
-  expenseItems: ExpenseItem[];
-  expenseRequests: ExpenseRequest[];
-  expensePlans: ExpensePlan[];
-  advancePayments: AdvancePayment[];
-}
-
-// Define interfaces for processed analytics data
-interface ChartData {
-  name: string;
-  value: number;
-}
-
-interface TimeSeriesData {
-  date: string;
-  value: number;
-}
-
-interface StatusBreakdown {
-  status: string;
-  count: number;
-}
-
-interface OrgUnitBreakdown {
-  orgUnit: string;
-  count: number;
-  amount: number;
-}
-
-interface LocationBreakdown {
-  location: string;
-  count: number;
-  amount: number;
-}
-
-interface ProcessedAnalyticsData {
-  expenseItemsByCategory: ChartData[];
-  expenseItemsByMonth: TimeSeriesData[];
-  expenseItemsByStatus: StatusBreakdown[];
-  expenseRequestsByMonth: TimeSeriesData[];
-  expenseRequestsByStatus: StatusBreakdown[];
-  expensePlansByMonth: TimeSeriesData[];
-  expensePlansByStatus: StatusBreakdown[];
-  advancePaymentsByMonth: TimeSeriesData[];
-  advancePaymentsByStatus: StatusBreakdown[];
-  expensesByOrgUnit: OrgUnitBreakdown[];
-  expensesByLocation: LocationBreakdown[];
-  totalExpenseAmount: number;
-  totalRequestAmount: number;
-  totalPlanAmount: number;
-  totalAdvanceAmount: number;
-}
-
-// Define date range options
-export enum DateRangeOption {
-  LAST_30_DAYS = 'last30Days',
-  LAST_90_DAYS = 'last90Days',
-  LAST_6_MONTHS = 'last6Months',
-  LAST_YEAR = 'lastYear',
-  YEAR_TO_DATE = 'yearToDate',
-  ALL_TIME = 'allTime',
-  CUSTOM = 'custom'
-}
-
-export interface DateRangeValues {
-  startDate: string | null;
-  endDate: string | null;
-}
-
-// Define the filter interfaces
-export interface LocationFilter {
-  id: string;
-  name: string;
-  selected: boolean;
-}
-
-export interface DepartmentFilter {
-  id: string;
-  name: string;
-  selected: boolean;
-}
-
-export const useTeamSpendingAnalytics = (
-  accessToken: string,
-  managerId: string,
-  currencyFilter?: string | null
-) => {
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState<DateRangeOption>(DateRangeOption.LAST_30_DAYS);
-  const [customDateRange, setCustomDateRange] = useState<DateRangeValues>({ startDate: null, endDate: null });
-  const [locationFilters, setLocationFilters] = useState<LocationFilter[]>([]);
-  const [departmentFilters, setDepartmentFilters] = useState<DepartmentFilter[]>([]);
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  const [departmentSearchTerm, setDepartmentSearchTerm] = useState<string>('');
-  const [rawData, setRawData] = useState<AnalyticsData | null>(null);
-  
-  const graphqlClient = useGraphqlClient(accessToken);
-  
-  // Calculate date range based on selected option
-  const dateRangeValues = useMemo(() => {
-    const now = dayjs();
-    let startDate: string | null = null;
-    let endDate = now.format('YYYY-MM-DD');
-    
-    if (dateRange === DateRangeOption.CUSTOM && customDateRange.startDate && customDateRange.endDate) {
-      return {
-        startDate: customDateRange.startDate,
-        endDate: customDateRange.endDate
-      };
-    }
-    
+  // Compute date range primitives to keep effect deps stable
+  const computedEndDate = useMemo(() => {
+    const now = dayjs()
     switch (dateRange) {
-      case DateRangeOption.LAST_30_DAYS:
-        startDate = now.subtract(30, 'day').format('YYYY-MM-DD');
-        break;
-      case DateRangeOption.LAST_90_DAYS:
-        startDate = now.subtract(90, 'day').format('YYYY-MM-DD');
-        break;
-      case DateRangeOption.LAST_6_MONTHS:
-        startDate = now.subtract(6, 'month').format('YYYY-MM-DD');
-        break;
-      case DateRangeOption.LAST_YEAR:
-        startDate = now.subtract(1, 'year').format('YYYY-MM-DD');
-        break;
-      case DateRangeOption.YEAR_TO_DATE:
-        startDate = now.startOf('year').format('YYYY-MM-DD');
-        break;
-      case DateRangeOption.ALL_TIME:
-        startDate = null; // No start date means all time
-        break;
+      case DateRangeEnum.LAST_30_DAYS:
+      case DateRangeEnum.LAST_90_DAYS:
+      case DateRangeEnum.LAST_6_MONTHS:
+      case DateRangeEnum.LAST_YEAR:
+        return now.format('YYYY-MM-DD') // end = today
+      case DateRangeEnum.CURRENT_YEAR:
+        return now.endOf('year').format('YYYY-MM-DD') // end = Dec 31st
+      case DateRangeEnum.ALL_TIME:
+        return null // no upper bound
       default:
-        startDate = now.subtract(30, 'day').format('YYYY-MM-DD');
+        return now.format('YYYY-MM-DD')
     }
-    
-    return { startDate, endDate };
-  }, [dateRange, customDateRange]);
-  
-  // Fetch analytics data
+  }, [dateRange])
+
+  const computedStartDate = useMemo(() => {
+    const now = dayjs()
+    switch (dateRange) {
+      case DateRangeEnum.LAST_30_DAYS:
+        return now.subtract(30, 'day').format('YYYY-MM-DD')
+      case DateRangeEnum.LAST_90_DAYS:
+        return now.subtract(90, 'day').format('YYYY-MM-DD')
+      case DateRangeEnum.LAST_6_MONTHS:
+        return now.subtract(6, 'month').format('YYYY-MM-DD')
+      case DateRangeEnum.LAST_YEAR:
+        return now.subtract(1, 'year').format('YYYY-MM-DD')
+      case DateRangeEnum.CURRENT_YEAR:
+        return now.startOf('year').format('YYYY-MM-DD')
+      case DateRangeEnum.ALL_TIME:
+        return null
+      default:
+        return now.subtract(30, 'day').format('YYYY-MM-DD')
+    }
+  }, [dateRange])
+
+  // Fetch data with signature-based deduplication (prevents StrictMode double-fetch)
+  const lastFetchSignatureRef = useRef<string | null>(null)
   useEffect(() => {
-    const fetchAnalyticsData = async () => {
+    const fetchData = async () => {
       // Validate required parameters
       if (!accessToken) {
-        console.error('useTeamSpendingAnalytics - Missing accessToken');
-        setError('Missing authentication token');
-        setIsLoading(false);
-        return;
+        setError('Missing authentication token')
+        setIsLoading(false)
+        return
       }
-      
-      if (!managerId || managerId === 'undefined' || managerId === 'null') {
-        console.error('useTeamSpendingAnalytics - Invalid managerId:', managerId);
-        setError('Invalid manager ID');
-        setIsLoading(false);
-        return;
+
+      if (
+        !managerId ||
+        managerId === 'undefined' ||
+        managerId === 'null' ||
+        managerId === '00000000-0000-0000-0000-000000000000'
+      ) {
+        setError('Invalid manager ID')
+        setIsLoading(false)
+        return
       }
-      
-      setIsLoading(true);
-      setError(null);
-      
+
+      setIsLoading(true)
+      setError(null)
+
       try {
-        // Ensure managerId is properly formatted for the GraphQL query
-        const validManagerId = managerId.trim();
-        
-        // Helper function to standardize currency reference format
-        const standardizeCurrencyRef = (currencyRef: string | null | undefined): string | undefined => {
-          if (!currencyRef) return undefined;
-          return currencyRef.startsWith('Currency:v1:') ? currencyRef : `Currency:v1:${currencyRef}`;
-        };
-        
-        // Format the currency reference for the database query (Currency:v1:CODE format)
-        const formattedCurrencyRef = standardizeCurrencyRef(currencyFilter);
-        
-        console.log('useTeamSpendingAnalytics - Using currency reference:', formattedCurrencyRef);
-        
+        // Currency is already standardized by the component, just pass it through
+        // If null/undefined, pass as undefined (not as a string)
+        const formattedCurrencyRef = currencyFilter || undefined
+
         const variables = {
-          managerId: validManagerId,
-          startDate: dateRangeValues.startDate,
-          endDate: dateRangeValues.endDate,
+          managerId,
+          startDateTs: computedStartDate,
+          endDateTs: computedEndDate,
           currencyRef: formattedCurrencyRef
-        };
-        
-        console.log('useTeamSpendingAnalytics - Fetching data with variables:', { 
-          ...variables, 
-          currencyRef: formattedCurrencyRef 
-        });
-        
-        const response = await graphqlClient.request(GET_EXPENSE_ANALYTICS_DATA, variables);
-        // Map the snake_case response to our camelCase interface
-        setRawData({
-          expenseItems: response.expenseItems || [],
-          expenseRequests: response.expenseRequests || [],
-          expensePlans: response.expensePlans || [],
-          advancePayments: response.advancePayments || []
-        });
-      } catch (err) {
-        console.error('Error fetching analytics data:', err);
-        setError('Failed to fetch analytics data. Please try again later.');
+        }
+
+        // Create signature to avoid duplicate fetches (e.g., StrictMode double-render)
+        const signature = JSON.stringify(variables)
+        if (lastFetchSignatureRef.current === signature) {
+          setIsLoading(false)
+          return
+        }
+        lastFetchSignatureRef.current = signature
+
+        const data = await fetchAnalyticsData(graphqlClient, variables)
+        setRawData(data)
+      } catch (err: any) {
+        setError(err?.message || 'Failed to fetch analytics data')
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
-    
-    fetchAnalyticsData();
-  }, [accessToken, managerId, dateRangeValues, graphqlClient, currencyFilter]);
-  
-  // Extract unique locations from raw data
+    }
+
+    fetchData()
+  }, [accessToken, managerId, computedStartDate, computedEndDate, currencyFilter, graphqlClient])
+
+  // Extract location and department filters from raw data
   useEffect(() => {
-    if (!rawData) return;
-    
-    // Extract unique locations from expense items
-    const uniqueLocations = new Map<string, { id: string; name: string }>();
-    
-    // Extract from expense items
-    rawData.expenseItems.forEach(item => {
-      if (item.employee?.employeePosition?.siteLocation?.id && item.employee?.employeePosition?.siteLocation?.name) {
-        const location = item.employee.employeePosition.siteLocation;
-        uniqueLocations.set(location.id, {
-          id: location.id,
-          name: location.name
-        });
+    if (!rawData) return
+
+    const uniqueLocations = new Map<string, { id: string; name: string }>()
+    const uniqueDepartments = new Map<string, { id: string; name: string }>()
+
+    const processEmployeeFilters = (employee: any) => {
+      const location = employee?.employeePosition?.siteLocation
+      if (location?.id && location?.name) {
+        uniqueLocations.set(location.id, { id: location.id, name: location.name })
       }
-    });
-    
-    // Extract from expense requests
-    rawData.expenseRequests.forEach(item => {
-      if (item.employee?.employeePosition?.siteLocation?.id && item.employee?.employeePosition?.siteLocation?.name) {
-        const location = item.employee.employeePosition.siteLocation;
-        uniqueLocations.set(location.id, {
-          id: location.id,
-          name: location.name
-        });
+
+      const orgUnit = employee?.employeePosition?.organizationalUnit
+      if (orgUnit?.id && orgUnit?.name) {
+        uniqueDepartments.set(orgUnit.id, { id: orgUnit.id, name: orgUnit.name })
       }
-    });
-    
-    // Extract from expense plans
-    rawData.expensePlans.forEach(item => {
-      if (item.employee?.employeePosition?.siteLocation?.id && item.employee?.employeePosition?.siteLocation?.name) {
-        const location = item.employee.employeePosition.siteLocation;
-        uniqueLocations.set(location.id, {
-          id: location.id,
-          name: location.name
-        });
-      }
-    });
-    
-    // Convert to array and sort by name
+    }
+
+    for (const item of rawData.expenseItems || []) {
+      processEmployeeFilters(item.employee)
+    }
+    for (const item of rawData.expenseRequests || []) {
+      processEmployeeFilters(item.employee)
+    }
+    for (const item of rawData.expensePlans || []) {
+      processEmployeeFilters(item.employee)
+    }
+    for (const item of rawData.advancePayments || []) {
+      processEmployeeFilters(item.expensePlan?.employee)
+    }
+
     const locations = Array.from(uniqueLocations.values())
       .sort((a, b) => a.name.localeCompare(b.name))
       .map(location => ({
         id: location.id,
         name: location.name,
         selected: false
-      }));
-    
-    setLocationFilters(locations);
-  }, [rawData]);
-  
-  // Extract unique departments from raw data
-  useEffect(() => {
-    if (!rawData) return;
-    
-    // Extract unique departments from expense items
-    const uniqueDepartments = new Map<string, { id: string; name: string }>();
-    
-    // Extract from expense items
-    rawData.expenseItems.forEach(item => {
-      if (item.employee?.employeePosition?.organizationalUnit?.id && item.employee?.employeePosition?.organizationalUnit?.name) {
-        const department = item.employee.employeePosition.organizationalUnit;
-        uniqueDepartments.set(department.id, {
-          id: department.id,
-          name: department.name
-        });
-      }
-    });
-    
-    // Extract from expense requests
-    rawData.expenseRequests.forEach(item => {
-      if (item.employee?.employeePosition?.organizationalUnit?.id && item.employee?.employeePosition?.organizationalUnit?.name) {
-        const department = item.employee.employeePosition.organizationalUnit;
-        uniqueDepartments.set(department.id, {
-          id: department.id,
-          name: department.name
-        });
-      }
-    });
-    
-    // Extract from expense plans
-    rawData.expensePlans.forEach(item => {
-      if (item.employee?.employeePosition?.organizationalUnit?.id && item.employee?.employeePosition?.organizationalUnit?.name) {
-        const department = item.employee.employeePosition.organizationalUnit;
-        uniqueDepartments.set(department.id, {
-          id: department.id,
-          name: department.name
-        });
-      }
-    });
-    
-    // Convert to array and sort by name
+      }))
+
+    setLocationFilters(locations)
+
     const departments = Array.from(uniqueDepartments.values())
       .sort((a, b) => a.name.localeCompare(b.name))
       .map(department => ({
         id: department.id,
         name: department.name,
         selected: false
-      }));
-    
-    setDepartmentFilters(departments);
-  }, [rawData]);
-  
-  // Function to toggle location filter selection
-  const toggleLocationFilter = (locationId: string) => {
-    setLocationFilters(prevFilters => {
-      return prevFilters.map(filter => {
-        if (filter.id === locationId) {
-          return { ...filter, selected: !filter.selected };
-        }
-        return filter;
-      });
-    });
-  };
-
-  // Function to toggle department filter selection
-  const toggleDepartmentFilter = (departmentId: string) => {
-    setDepartmentFilters(prevFilters => {
-      return prevFilters.map(filter => {
-        if (filter.id === departmentId) {
-          return { ...filter, selected: !filter.selected };
-        }
-        return filter;
-      });
-    });
-  };
-
-  // Function to handle search term changes
-  const handleSearchTermChange = (term: string) => {
-    setSearchTerm(term);
-  };
-
-  // Function to handle department search term changes
-  const handleDepartmentSearchTermChange = (term: string) => {
-    setDepartmentSearchTerm(term);
-  };
-
-  // Filter locations by search term
-  const filteredLocationFilters = useMemo(() => {
-    if (!searchTerm) return locationFilters;
-    
-    return locationFilters.filter(location => 
-      location.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [locationFilters, searchTerm]);
-  
-  // Filter departments by search term
-  const filteredDepartmentFilters = useMemo(() => {
-    if (!departmentSearchTerm) return departmentFilters;
-    
-    return departmentFilters.filter(department => 
-      department.name.toLowerCase().includes(departmentSearchTerm.toLowerCase())
-    );
-  }, [departmentFilters, departmentSearchTerm]);
-  
-  // Apply filters to raw data
-  const processedData: ProcessedAnalyticsData | null = useMemo(() => {
-    if (!rawData) return null;
-
-    // Get selected location IDs for filtering
-    const selectedLocationIds = locationFilters
-      .filter(location => location.selected)
-      .map(location => location.id);
-
-    // Get selected department IDs for filtering
-    const selectedDepartmentIds = departmentFilters
-      .filter(department => department.selected)
-      .map(department => department.id);
-
-    // Function to check if date is within selected range
-    const isDateInRange = (dateStr: string | undefined) => {
-      if (!dateStr) return false;
-      const date = dayjs(dateStr);
-
-      // Get date range based on selected option
-      let startDate: dayjs.Dayjs | null = null;
-      let endDate: dayjs.Dayjs | null = null;
-
-      const today = dayjs();
-
-      switch (dateRange) {
-        case DateRangeOption.LAST_30_DAYS:
-          startDate = today.subtract(30, 'day');
-          endDate = today;
-          break;
-        case DateRangeOption.LAST_90_DAYS:
-          startDate = today.subtract(90, 'day');
-          endDate = today;
-          break;
-        case DateRangeOption.LAST_6_MONTHS:
-          startDate = today.subtract(6, 'month');
-          endDate = today;
-          break;
-        case DateRangeOption.LAST_YEAR:
-          startDate = today.subtract(1, 'year');
-          endDate = today;
-          break;
-        case DateRangeOption.YEAR_TO_DATE:
-          startDate = dayjs().startOf('year');
-          endDate = today;
-          break;
-        case DateRangeOption.ALL_TIME:
-          return true; // No date filtering
-        case DateRangeOption.CUSTOM:
-          if (customDateRange.startDate) {
-            startDate = dayjs(customDateRange.startDate);
-          }
-          if (customDateRange.endDate) {
-            endDate = dayjs(customDateRange.endDate);
-          }
-          break;
-      }
-
-      // Check if date is within range
-      if (startDate && !date.isAfter(startDate)) {
-        return false;
-      }
-
-      if (endDate && !date.isBefore(endDate)) {
-        return false;
-      }
-
-      return true;
-    };
-
-    // Filter expense items
-    const filteredExpenseItems = rawData.expenseItems ? rawData.expenseItems.filter(item => {
-      // Check if date is within range
-      if (!isDateInRange(item.expenseDate || item.createdAt)) return false;
-
-      // Check if employee's location is selected
-      const locationId = item.employee?.employeePosition?.siteLocation?.id;
-      if (locationId && selectedLocationIds.length > 0 && !selectedLocationIds.includes(locationId)) {
-        return false;
-      }
-
-      // Check if employee's department is selected
-      const departmentId = item.employee?.employeePosition?.organizationalUnit?.id;
-      if (departmentId && selectedDepartmentIds.length > 0 && !selectedDepartmentIds.includes(departmentId)) {
-        return false;
-      }
-
-      // Check if currency matches filter
-      if (currencyFilter) {
-        const standardizedFilter = currencyFilter.startsWith('Currency:v1:') ? currencyFilter : `Currency:v1:${currencyFilter}`;
-        const standardizedItemRef = item.currencyRef?.startsWith('Currency:v1:') ? item.currencyRef : `Currency:v1:${item.currencyRef || ''}`;
-        
-        if (standardizedItemRef !== standardizedFilter) {
-          return false;
-        }
-      }
-
-      return true;
-    }) : [];
-
-    // Filter expense requests
-    const filteredExpenseRequests = rawData.expenseRequests ? rawData.expenseRequests.filter(item => {
-      // Check if date is within range
-      if (!isDateInRange(item.createdAt)) return false;
-
-      // Check if employee's location is selected
-      const locationId = item.employee?.employeePosition?.siteLocation?.id;
-      if (locationId && selectedLocationIds.length > 0 && !selectedLocationIds.includes(locationId)) {
-        return false;
-      }
-
-      // Check if employee's department is selected
-      const departmentId = item.employee?.employeePosition?.organizationalUnit?.id;
-      if (departmentId && selectedDepartmentIds.length > 0 && !selectedDepartmentIds.includes(departmentId)) {
-        return false;
-      }
-
-      // Check if currency matches filter
-      if (currencyFilter) {
-        const standardizedFilter = currencyFilter.startsWith('Currency:v1:') ? currencyFilter : `Currency:v1:${currencyFilter}`;
-        const standardizedItemRef = item.currencyRef?.startsWith('Currency:v1:') ? item.currencyRef : `Currency:v1:${item.currencyRef || ''}`;
-        
-        if (standardizedItemRef !== standardizedFilter) {
-          return false;
-        }
-      }
-
-      return true;
-    }) : [];
-
-    // Filter expense plans
-    const filteredExpensePlans = rawData.expensePlans ? rawData.expensePlans.filter(item => {
-      // Check if date is within range
-      if (!isDateInRange(item.createdAt)) return false;
-
-      // Check if employee's location is selected
-      const locationId = item.employee?.employeePosition?.siteLocation?.id;
-      if (locationId && selectedLocationIds.length > 0 && !selectedLocationIds.includes(locationId)) {
-        return false;
-      }
-
-      // Check if employee's department is selected
-      const departmentId = item.employee?.employeePosition?.organizationalUnit?.id;
-      if (departmentId && selectedDepartmentIds.length > 0 && !selectedDepartmentIds.includes(departmentId)) {
-        return false;
-      }
-
-      // Check if currency matches filter
-      if (currencyFilter) {
-        const standardizedFilter = currencyFilter.startsWith('Currency:v1:') ? currencyFilter : `Currency:v1:${currencyFilter}`;
-        const standardizedItemRef = item.currencyRef?.startsWith('Currency:v1:') ? item.currencyRef : `Currency:v1:${item.currencyRef || ''}`;
-        
-        if (standardizedItemRef !== standardizedFilter) {
-          return false;
-        }
-      }
-
-      return true;
-    }) : [];
-
-    // Filter advance payments
-    const filteredAdvancePayments = rawData.advancePayments ? rawData.advancePayments.filter(item => {
-      // Check if date is within range
-      if (!isDateInRange(item.transactionDate || item.createdAt)) return false;
-
-      // Check if employee's location is selected
-      const locationId = item.expensePlan?.employee?.employeePosition?.siteLocation?.id;
-      if (locationId && selectedLocationIds.length > 0 && !selectedLocationIds.includes(locationId)) {
-        return false;
-      }
-
-      // Check if employee's department is selected
-      const departmentId = item.expensePlan?.employee?.employeePosition?.organizationalUnit?.id;
-      if (departmentId && selectedDepartmentIds.length > 0 && !selectedDepartmentIds.includes(departmentId)) {
-        return false;
-      }
-
-      // Check if currency matches filter
-      if (currencyFilter) {
-        const standardizedFilter = currencyFilter.startsWith('Currency:v1:') ? currencyFilter : `Currency:v1:${currencyFilter}`;
-        const standardizedItemRef = item.currencyRef?.startsWith('Currency:v1:') ? item.currencyRef : `Currency:v1:${item.currencyRef || ''}`;
-        
-        if (standardizedItemRef !== standardizedFilter) {
-          return false;
-        }
-      }
-
-      return true;
-    }) : [];
-
-    // Process expense items by category
-    const categoryMap = new Map<string, number>();
-    filteredExpenseItems.forEach((item: ExpenseItem) => {
-      // Check if expensePosition exists and is an array
-      if (item.expensePosition && Array.isArray(item.expensePosition)) {
-        // Group by expense category
-        const positions = item.expensePosition;
-        if (positions.length > 0) {
-          // Group amounts by category
-          positions.forEach((position: ExpensePosition) => {
-            const category = position.expenseGroupRef || 'Uncategorized';
-            const currentAmount = categoryMap.get(category) || 0;
-            // For array positions, we need to divide the total amount proportionally
-            // Here we're simply dividing equally among positions, which may need refinement
-            const amountPerPosition = (item.totalAmount || 0) / positions.length;
-            categoryMap.set(category, currentAmount + amountPerPosition);
-          });
-        } else {
-          // If no positions, add to uncategorized
-          const currentAmount = categoryMap.get('Uncategorized') || 0;
-          categoryMap.set('Uncategorized', currentAmount + (item.totalAmount || 0));
-        }
-      } else {
-        // If no position, add to uncategorized
-        const currentAmount = categoryMap.get('Uncategorized') || 0;
-        categoryMap.set('Uncategorized', currentAmount + (item.totalAmount || 0));
-      }
-    });
-    
-    const expenseItemsByCategory: ChartData[] = Array.from(categoryMap.entries())
-      .map(([name, value]) => ({
-        name,
-        value
       }))
-      .sort((a, b) => b.value - a.value); // Sort by value descending
-    
-    // Process time series data
-    const processTimeSeriesData = (items: any[], amountField: string = 'totalAmount') => {
-      if (!Array.isArray(items)) return [];
-      
-      const monthMap = new Map<string, number>();
-      
-      items.forEach(item => {
-        if (!item || !item.createdAt) return;
-        
-        const date = dayjs(item.createdAt).format('YYYY-MM');
-        const currentAmount = monthMap.get(date) || 0;
-        monthMap.set(date, currentAmount + (item[amountField] || 0));
-      });
-      
-      // Sort by date
-      return Array.from(monthMap.entries())
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([date, value]) => ({ date, value }));
-    };
-    
-    // Process data by status
-    const processStatusData = (items: any[]) => {
-      if (!Array.isArray(items)) return [];
-      
-      const statusMap = new Map<string, number>();
-      
-      items.forEach(item => {
-        if (!item) return;
-        
-        const status = item.status || 'Unknown';
-        const currentCount = statusMap.get(status) || 0;
-        statusMap.set(status, currentCount + 1);
-      });
-      
-      return Array.from(statusMap.entries())
-        .map(([status, count]) => ({ status, count }))
-        .sort((a, b) => b.count - a.count);
-    };
-    
-    // Process by organizational unit
-    const orgUnitMap = new Map<string, { count: number; amount: number }>();
-    const processOrgUnitData = (items: any[], amountField: string = 'totalAmount') => {
-      if (!Array.isArray(items)) return;
-      
-      items.forEach(item => {
-        if (!item) return;
-        
-        const employee = item.employee || (item.expensePlan?.employee);
-        if (!employee) return;
-        
-        const orgUnit = employee.employeePosition?.organizationalUnit?.name || 'Unknown';
-        const current = orgUnitMap.get(orgUnit) || { count: 0, amount: 0 };
-        
-        orgUnitMap.set(orgUnit, {
-          count: current.count + 1,
-          amount: current.amount + (item[amountField] || 0)
-        });
-      });
-    };
-    
-    // Process by location
-    const locationMap = new Map<string, { count: number; amount: number }>();
-    const processLocationData = (items: any[], amountField: string = 'totalAmount') => {
-      if (!Array.isArray(items)) return;
-      
-      items.forEach(item => {
-        if (!item) return;
-        
-        const employee = item.employee || (item.expensePlan?.employee);
-        if (!employee) return;
-        
-        const location = employee.employeePosition?.siteLocation?.name || 'Unknown';
-        const current = locationMap.get(location) || { count: 0, amount: 0 };
-        
-        locationMap.set(location, {
-          count: current.count + 1,
-          amount: current.amount + (item[amountField] || 0)
-        });
-      });
-    };
-    
-    // Process all data types
-    processOrgUnitData(filteredExpenseItems);
-    processOrgUnitData(filteredExpenseRequests);
-    processOrgUnitData(filteredExpensePlans);
-    processOrgUnitData(filteredAdvancePayments, 'amount');
-    
-    processLocationData(filteredExpenseItems);
-    processLocationData(filteredExpenseRequests);
-    processLocationData(filteredExpensePlans);
-    processLocationData(filteredAdvancePayments, 'amount');
-    
-    // Calculate totals
-    const totalExpenseAmount = filteredExpenseItems.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
-    const totalRequestAmount = filteredExpenseRequests.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
-    const totalPlanAmount = filteredExpensePlans.reduce((sum, item) => sum + (item.totalAmount || 0), 0);
-    const totalAdvanceAmount = filteredAdvancePayments.reduce((sum, item) => sum + (item.amount || 0), 0);
-    
+
+    setDepartmentFilters(departments)
+  }, [rawData])
+
+  // Filter toggles
+  const toggleLocationFilter = (locationId: string) => {
+    setLocationFilters(prevFilters =>
+      prevFilters.map(filter => (filter.id === locationId ? { ...filter, selected: !filter.selected } : filter))
+    )
+  }
+
+  const toggleDepartmentFilter = (departmentId: string) => {
+    setDepartmentFilters(prevFilters =>
+      prevFilters.map(filter => (filter.id === departmentId ? { ...filter, selected: !filter.selected } : filter))
+    )
+  }
+
+  const handleSearchTermChange = (term: string) => setSearchTerm(term)
+  const handleDepartmentSearchTermChange = (term: string) => setDepartmentSearchTerm(term)
+
+  // Filter by search term
+  const filteredLocationFilters = useMemo(() => {
+    if (!searchTerm) return locationFilters
+    return locationFilters.filter(location => location.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  }, [locationFilters, searchTerm])
+
+  const filteredDepartmentFilters = useMemo(() => {
+    if (!departmentSearchTerm) return departmentFilters
+    return departmentFilters.filter(department =>
+      department.name.toLowerCase().includes(departmentSearchTerm.toLowerCase())
+    )
+  }, [departmentFilters, departmentSearchTerm])
+
+  // Extract available currencies
+  const availableCurrencies = useMemo(() => extractAvailableCurrencies(rawData), [rawData])
+
+  // Apply filters and process data
+  const processedData: ProcessedAnalyticsData | null = useMemo(() => {
+    if (!rawData) return null
+
+    const selectedLocationIds = locationFilters.filter(l => l.selected).map(l => l.id)
+    const selectedDepartmentIds = departmentFilters.filter(d => d.selected).map(d => d.id)
+
+    const { filteredExpenseItems, filteredExpenseRequests, filteredExpensePlans, filteredAdvancePayments } =
+      filterAllData(rawData, selectedLocationIds, selectedDepartmentIds, currencyFilter)
+
+    // Process data using utility functions
+    const orgUnitMap = new Map<string, { count: number; amount: number }>()
+    const locationMap = new Map<string, { count: number; amount: number }>()
+
+    processOrgUnitData(filteredExpenseItems, orgUnitMap)
+    processOrgUnitData(filteredExpenseRequests, orgUnitMap)
+    processOrgUnitData(filteredExpensePlans, orgUnitMap)
+    processOrgUnitData(filteredAdvancePayments, orgUnitMap, 'amount')
+
+    processLocationData(filteredExpenseItems, locationMap)
+    processLocationData(filteredExpenseRequests, locationMap)
+    processLocationData(filteredExpensePlans, locationMap)
+    processLocationData(filteredAdvancePayments, locationMap, 'amount')
+
     return {
-      expenseItemsByCategory,
-      expenseItemsByMonth: processTimeSeriesData(filteredExpenseItems),
+      expenseItemsByCategory: processExpenseItemsByCategory(filteredExpenseItems),
+      expenseItemsByMonth: processTimeSeriesData(filteredExpenseItems, 'totalAmount', 'expenseDate'),
       expenseItemsByStatus: processStatusData(filteredExpenseItems),
-      expenseRequestsByMonth: processTimeSeriesData(filteredExpenseRequests),
+      expenseRequestsByMonth: processTimeSeriesData(filteredExpenseRequests, 'totalAmount', 'createdAt'),
       expenseRequestsByStatus: processStatusData(filteredExpenseRequests),
-      expensePlansByMonth: processTimeSeriesData(filteredExpensePlans),
+      expensePlansByMonth: processTimeSeriesData(filteredExpensePlans, 'totalAmount', 'createdAt'),
       expensePlansByStatus: processStatusData(filteredExpensePlans),
-      advancePaymentsByMonth: processTimeSeriesData(filteredAdvancePayments, 'amount'),
-      advancePaymentsByStatus: processStatusData(filteredAdvancePayments),
-      expensesByOrgUnit: Array.from(orgUnitMap.entries()).map(([orgUnit, data]) => ({
-        orgUnit,
-        count: data.count,
-        amount: data.amount
-      })),
-      expensesByLocation: Array.from(locationMap.entries()).map(([location, data]) => ({
-        location,
-        count: data.count,
-        amount: data.amount
-      })),
-      totalExpenseAmount,
-      totalRequestAmount,
-      totalPlanAmount,
-      totalAdvanceAmount
-    };
-  }, [rawData]);
+      advancePaymentsByMonth: processTimeSeriesData(filteredAdvancePayments, 'amount', 'createdAt'),
+      advancePaymentsByStatus: processStatusData(filteredAdvancePayments, 'amount'),
+      expensesByOrgUnit: mapToOrgUnitBreakdown(orgUnitMap),
+      expensesByLocation: mapToLocationBreakdown(locationMap),
+      totalExpenseAmount: calculateTotalAmount(filteredExpenseItems),
+      totalRequestAmount: calculateTotalAmount(filteredExpenseRequests),
+      totalPlanAmount: calculateTotalAmount(filteredExpensePlans),
+      totalAdvanceAmount: calculateTotalAmount(filteredAdvancePayments, 'amount')
+    }
+  }, [rawData, locationFilters, departmentFilters, dateRange, currencyFilter])
 
   return {
     isLoading,
@@ -796,8 +277,6 @@ export const useTeamSpendingAnalytics = (
     data: processedData,
     dateRange,
     setDateRange,
-    customDateRange,
-    setCustomDateRange,
     locationFilters: filteredLocationFilters,
     toggleLocationFilter,
     searchTerm,
@@ -806,6 +285,7 @@ export const useTeamSpendingAnalytics = (
     toggleDepartmentFilter,
     departmentSearchTerm,
     setDepartmentSearchTerm: handleDepartmentSearchTermChange,
-    currencyFilter
-  };
-};
+    currencyFilter,
+    availableCurrencies
+  }
+}

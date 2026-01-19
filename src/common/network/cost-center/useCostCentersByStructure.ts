@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { useGraphqlClient } from '../graphql/useGraphQLClient';
+import { useMemo } from 'react'
+import { useGraphqlClient } from '../graphql/useGraphQLClient'
 
 // Query for cost centers by structure ID
 export const costCentersByStructureQuery = `
@@ -13,24 +13,24 @@ export const costCentersByStructureQuery = `
       structureId
     }
   }
-`;
+`
 
 export const useCostCentersByStructure = (accessToken: string, structureId: string) => {
-  const graphQLClient = useGraphqlClient(accessToken);
-  
-  const fetchCostCenters = useMemo(() => async () => {
-    try {
-      const data = await graphQLClient.request(
-        costCentersByStructureQuery,
-        { structureId }
-      );
-      
-      return data;
-    } catch (error) {
-      console.error('Error fetching cost centers:', error);
-      throw error;
-    }
-  }, [graphQLClient, structureId, accessToken]);
-  
-  return fetchCostCenters;
-};
+  const graphQLClient = useGraphqlClient(accessToken)
+
+  const fetchCostCenters = useMemo(
+    () => async () => {
+      try {
+        const data = await graphQLClient.request(costCentersByStructureQuery, { structureId })
+
+        return data
+      } catch (error) {
+        console.error('Error fetching cost centers:', error)
+        throw error
+      }
+    },
+    [graphQLClient, structureId, accessToken]
+  )
+
+  return fetchCostCenters
+}

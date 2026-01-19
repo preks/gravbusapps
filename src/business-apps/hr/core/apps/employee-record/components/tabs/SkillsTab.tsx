@@ -1,124 +1,98 @@
-'use client';
-
-import React, { useMemo } from 'react';
-import { Card } from '@newwork/gravity-ui-catalog';
-import { Empty, Progress } from 'antd';
-import { Employee } from '../../hooks/useEmployeeData';
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
-import { PiPencilSimple, PiStar, PiCheckCircle } from 'react-icons/pi';
-import { getLevelInfo, getSkillCategory, getTimeSince, calculateSkillStats } from './utils';
+import React, { useMemo } from 'react'
+import { Card } from '@newwork/gravity-ui-catalog'
+import { Empty, Progress } from 'antd'
+import { Employee } from '../../hooks/useEmployeeData'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
+import { PiStar, PiCheckCircle } from 'react-icons/pi'
+import { calculateSkillStats, getLevelInfo, getSkillCategory, getTimeSince } from '../../utils/utils'
 
 interface SkillsTabProps {
-  employee: Employee;
-  accessToken: string;
-  employeeId?: string; // Optional employeeId override for permissions check
-  userInfo?: UserInfoProps; // Current user info for self-view check
-  isSelfView: boolean; // Whether user is viewing their own profile
+  employee: Employee
+  accessToken: string
+  employeeId?: string // Optional employeeId override for permissions check
+  userInfo?: UserInfoProps // Current user info for self-view check
 }
 
 /**
  * Skills Tab Component
  * Displays skills for the employee with enhanced visual design
  */
-const SkillsTab: React.FC<SkillsTabProps> = ({ 
-  employee,
-  accessToken,
-  isSelfView
-}) => {
-
+const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
   // Use employee skills data directly
   const employeeSkills = useMemo(() => {
-    return employee.skills || [];
-  }, [employee.skills]);
+    return employee.skills || []
+  }, [employee.skills])
 
   // Get non-deleted skills for display
   const validSkills = useMemo(() => {
-    return employeeSkills.filter(skill => !skill.isDeleted);
-  }, [employeeSkills]);
+    return employeeSkills.filter(skill => !skill.isDeleted)
+  }, [employeeSkills])
 
   // Calculate skill statistics
   const skillStats = useMemo(() => {
-    return calculateSkillStats(employeeSkills);
-  }, [employeeSkills]);
+    return calculateSkillStats(employeeSkills)
+  }, [employeeSkills])
 
   return (
     <div className="gba:skills-tab gba:space-y-8" data-testid="skills-tab">
       <div className="gba:flex gba:justify-between gba:items-start" data-testid="skills-header">
         <div className="gba:skills-header">
-          <div
-            className="gba:font-bold gba:text-2xl"
-            data-testid="skills-title"
-          >
-            {getTranslationFromI18nKeyAndLabel(
-              "lowcoder:employee_record.skills_title",
-              "Employee Skills"
-            )}
+          <div className="gba:font-bold gba:text-2xl" data-testid="skills-title">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:employee_record.skills_title', 'Employee Skills')}
           </div>
-          <div
-            className="gba:text-gray-500 gba:text-lg"
-            data-testid="skills-description"
-          >
+          <div className="gba:text-muted-foreground gba:text-lg" data-testid="skills-description">
             {getTranslationFromI18nKeyAndLabel(
-              "lowcoder:employee_record.skills_description",
-              "View and manage employee skills and competencies"
+              'lowcoder:employee_record.skills_description',
+              'View and manage employee skills and competencies'
             )}
           </div>
         </div>
-        {isSelfView && (
-        <AppActionMenu
+        <AppAction
+          variant="update-primary"
           data-testid="employee-skills-edit-button"
-          contextsArray={[FlowContextName.updateEmployeeSkill]}
-          externalContextData={{
-            employeeId: employee?.id
-          }}
+          contexts={[{ context: FlowContextName.updateEmployeeSkill, contextData: { employeeId: employee?.id } }]}
           prefixDataTestId="employee-skills-edit"
           accessToken={accessToken}
-          autoExecuteSingleAction={true}
+          autoExecute={true}
         >
-          <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-            <PiPencilSimple className="gba:cursor-pointer" />
-            Edit Skills
-          </div>
-        </AppActionMenu>
-        )}
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:employee_profile.employee_tabs.flow_button.edit_skills',
+            'Edit Skills'
+          )}
+        </AppAction>
       </div>
 
       {validSkills.length === 0 ? (
-        <Empty 
-          description={getTranslationFromI18nKeyAndLabel(
-            "lowcoder:employee_record.no_skills",
-            "No skills found"
-          )}
-          data-testid="skills-empty" 
+        <Empty
+          description={getTranslationFromI18nKeyAndLabel('lowcoder:employee_record.no_skills', 'No skills found')}
+          data-testid="skills-empty"
         />
       ) : (
         <>
           {/* Skills Statistics */}
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:mb-8" data-testid="skills-stats">
-            <Card className="gba:border gba:border-gray-200 gba:shadow-sm gba:hover:shadow-md gba:transition-all">
+            <Card className="gba:border gba:border-border gba:shadow-sm gba:hover:shadow-md gba:transition-all">
               <div className="gba:flex gba:items-center gba:justify-between">
                 <div>
-                  <div className="gba:text-2xl gba:font-bold" style={{ color: 'var(--nw-color-purple-500)' }}>
-                    {skillStats.total}
-                  </div>
-                  <div className="gba:text-sm gba:text-gray-600">Total Skills</div>
+                  <div className="gba:text-2xl gba:font-bold gba:text-info">{skillStats.total}</div>
+                  <div className="gba:text-sm gba:text-muted-foreground">Total Skills</div>
                 </div>
-                <PiStar className="gba:h-8 gba:w-8" style={{ color: 'var(--nw-color-purple-500)' }} />
+                <PiStar className="gba:h-8 gba:w-8 gba:text-info" />
               </div>
             </Card>
-            
-            <Card className="gba:border gba:border-gray-200 gba:shadow-sm gba:hover:shadow-md gba:transition-all">
+
+            <Card className="gba:border gba:border-border gba:shadow-sm gba:hover:shadow-md gba:transition-all">
               <div className="gba:flex gba:items-center gba:justify-between">
                 <div>
-                  <div className="gba:text-lg gba:font-bold gba:text-purple-500">
-                    {skillStats.highestSkills.length > 0 ? (
-                      skillStats.highestSkills.map(skill => skill.skill.name).join(', ')
-                    ) : 'None'}
+                  <div className="gba:text-lg gba:font-bold gba:text-info">
+                    {skillStats.highestSkills.length > 0
+                      ? skillStats.highestSkills.map((skill: any) => skill.skill.name).join(', ')
+                      : 'None'}
                   </div>
-                  <div className="gba:text-sm gba:text-gray-600">Highest Skills</div>
+                  <div className="gba:text-sm gba:text-muted-foreground">Highest Skills</div>
                 </div>
                 <PiCheckCircle className="gba:h-8 gba:w-8" style={{ color: 'var(--nw-color-purple-500)' }} />
               </div>
@@ -126,106 +100,103 @@ const SkillsTab: React.FC<SkillsTabProps> = ({
           </div>
 
           {/* Skills Grid */}
-          <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6" data-testid="skills-grid">
-            {validSkills
-              .map((skillItem) => {
-                const hasLevel = skillItem.level && skillItem.level !== null && skillItem.level !== '';
-                const levelInfo = hasLevel ? getLevelInfo(Number(skillItem.level)) : getLevelInfo(0);
-                const category = getSkillCategory(skillItem.skill.additionalProperties);
-                const timeSinceCreated = getTimeSince(skillItem.skill.createdAt);
-                const timeSinceUpdated = getTimeSince(skillItem.skill.updatedAt);
-                
-                return (
-                  <Card
-                    key={skillItem.skill.id}
-                    className="gba:h-full gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:overflow-hidden"
-                    data-testid={`skill-card-${skillItem.skill.id}`}
-                    style={{
-                      background: 'var(--nw-color-white)',
-                      borderRadius: 'var(--nw-spacing-3)'
-                    }}
-                  >
-                    <div className="gba:relative">
-                      {/* Skill Level Progress Bar */}
-                      <div 
-                        className="gba:absolute gba:top-0 gba:left-0 gba:right-0 gba:h-1"
-                        style={{ backgroundColor: levelInfo.color }}
-                      />
-                      
-                      <div className="gba:p-6">
-                        {/* Header */}
-                        <div className="gba:flex gba:justify-between gba:items-start gba:mb-4">
-                          <div className="gba:flex-1">
-                            <h4 className="gba:font-bold gba:text-xl gba:mb-1" style={{ color: levelInfo.color }}>
-                              {skillItem.skill.name}
-                            </h4>
-                          </div>
-                          <div className="gba:flex gba:flex-col gba:items-end">
-                            <div 
-                              className="gba:font-bold gba:text-xl"
-                              style={{ color: levelInfo.color }}
-                            >
-                              {hasLevel ? skillItem.level : 'N/A'}
-                            </div>
-                            <div className="gba:text-xs gba:text-gray-500">Level</div>
-                          </div>
+          <div
+            className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6"
+            data-testid="skills-grid"
+          >
+            {validSkills.map(skillItem => {
+              const hasLevel = skillItem.level && skillItem.level !== null && skillItem.level !== ''
+              const levelInfo = hasLevel ? getLevelInfo(Number(skillItem.level)) : getLevelInfo(0)
+              const category = getSkillCategory(skillItem.skill.additionalProperties)
+              const timeSinceCreated = getTimeSince(skillItem.skill.createdAt || '')
+              const timeSinceUpdated = getTimeSince(skillItem.skill.updatedAt || '')
+
+              return (
+                <Card
+                  key={skillItem.skill.id}
+                  className="gba:h-full gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:overflow-hidden"
+                  data-testid={`skill-card-${skillItem.skill.id}`}
+                  style={{
+                    background: 'var(--nw-color-white)',
+                    borderRadius: 'var(--nw-spacing-3)'
+                  }}
+                >
+                  <div className="gba:relative">
+                    {/* Skill Level Progress Bar */}
+                    <div
+                      className="gba:absolute gba:top-0 gba:left-0 gba:right-0 gba:h-1"
+                      style={{ backgroundColor: levelInfo.color }}
+                    />
+
+                    <div className="gba:p-6">
+                      {/* Header */}
+                      <div className="gba:flex gba:justify-between gba:items-start gba:mb-4">
+                        <div className="gba:flex-1">
+                          <h4 className="gba:font-bold gba:text-xl gba:mb-1" style={{ color: levelInfo.color }}>
+                            {skillItem.skill.name}
+                          </h4>
                         </div>
-
-                        {/* Progress Bar - Only show if skill has a level */}
-                        {hasLevel && (
-                          <div className="gba:mb-4">
-                            <Progress 
-                              percent={(Number(skillItem.level) / 5) * 100} 
-                              showInfo={false}
-                              strokeColor={levelInfo.color}
-                              trailColor="var(--color-gray-200)"
-                              strokeWidth={8}
-                            />
+                        <div className="gba:flex gba:flex-col gba:items-end">
+                          <div className="gba:font-bold gba:text-xl" style={{ color: levelInfo.color }}>
+                            {hasLevel ? skillItem.level : 'N/A'}
                           </div>
-                        )}
-
-                        {/* Level Description */}
-                        <div className="gba:mb-4">
-                          <p className="gba:text-sm gba:text-gray-600">
-                            {levelInfo.description}
-                          </p>
-                        </div>
-
-                        {/* Additional Information */}
-                        <div className="gba:space-y-2 gba:border-t gba:border-gray-100 gba:pt-4">
-                          <div className="gba:flex gba:justify-between gba:items-center">
-                            <span className="gba:text-xs gba:text-gray-500">Category</span>
-                            <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
-                              {category}
-                            </span>
-                          </div>
-                          
-                          <div className="gba:flex gba:justify-between gba:items-center">
-                            <span className="gba:text-xs gba:text-gray-500">Added</span>
-                            <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
-                              {timeSinceCreated}
-                            </span>
-                          </div>
-                          
-                          {skillItem.skill.updatedAt && skillItem.skill.updatedAt !== skillItem.skill.createdAt && (
-                            <div className="gba:flex gba:justify-between gba:items-center">
-                              <span className="gba:text-xs gba:text-gray-500">Updated</span>
-                              <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
-                                {timeSinceUpdated}
-                              </span>
-                            </div>
-                          )}
+                          <div className="gba:text-xs gba:text-gray-500">Level</div>
                         </div>
                       </div>
+
+                      {/* Progress Bar - Only show if skill has a level */}
+                      {hasLevel && (
+                        <div className="gba:mb-4">
+                          <Progress
+                            percent={(Number(skillItem.level) / 5) * 100}
+                            showInfo={false}
+                            strokeColor={levelInfo.color}
+                            trailColor="var(--color-gray-200)"
+                            strokeWidth={8}
+                          />
+                        </div>
+                      )}
+
+                      {/* Level Description */}
+                      <div className="gba:mb-4">
+                        <p className="gba:text-sm gba:text-muted-foreground">{levelInfo.description}</p>
+                      </div>
+
+                      {/* Additional Information */}
+                      <div className="gba:space-y-2 gba:border-t gba:border-gray-100 gba:pt-4">
+                        <div className="gba:flex gba:justify-between gba:items-center">
+                          <span className="gba:text-xs gba:text-gray-500">Category</span>
+                          <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
+                            {category}
+                          </span>
+                        </div>
+
+                        <div className="gba:flex gba:justify-between gba:items-center">
+                          <span className="gba:text-xs gba:text-gray-500">Added</span>
+                          <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
+                            {timeSinceCreated}
+                          </span>
+                        </div>
+
+                        {skillItem.skill.updatedAt && skillItem.skill.updatedAt !== skillItem.skill.createdAt && (
+                          <div className="gba:flex gba:justify-between gba:items-center">
+                            <span className="gba:text-xs gba:text-gray-500">Updated</span>
+                            <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
+                              {timeSinceUpdated}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </Card>
-                );
-              })}
+                  </div>
+                </Card>
+              )
+            })}
           </div>
         </>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default SkillsTab;
+export default SkillsTab

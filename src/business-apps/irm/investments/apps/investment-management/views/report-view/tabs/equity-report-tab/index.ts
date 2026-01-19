@@ -1,0 +1,1 @@
+export { EquityReport } from './EquityReport'

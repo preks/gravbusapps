@@ -1,197 +1,231 @@
-.gba\:calendar-controls-bar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  margin-bottom: 16px;
-  padding: 0;
-  border: none;
-  gap: 24px;
-}
+@layer legacy-unlayered-override {
+  .gba\:calendar-controls-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-bottom: 16px;
+    padding: 0;
+    border: none;
+    gap: 24px;
+  }
 
-.gba\:calendar-toggle-group-label {
-  font-size: 18px;
-  font-weight: 500;
-  color: #222;
-  margin-right: 18px;
-  margin-left: 0;
-  min-width: 120px;
-}
+  .gba\:calendar-toggle-group-label {
+    font-size: 18px;
+    font-weight: 500;
+    color: #222;
+    margin-right: 18px;
+    margin-left: 0;
+    min-width: 120px;
+  }
 
-.gba\:calendar-controls-leftbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+  .gba\:calendar-controls-leftbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
 
-.gba\:calendar-controls-left {
-  font-size: 18px;
-  font-weight: 500;
-  color: #222;
-}
+  .gba\:calendar-controls-left {
+    font-size: 18px;
+    font-weight: 500;
+    color: #222;
+  }
 
-.gba\:calendar-controls-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+  .gba\:calendar-controls-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
 
-.gba\:calendar-today-btn {
-  border: 2px solid #000;
-  background: #fff;
-  border-radius: 18px;
-  padding: 2px 18px;
-  font-weight: 500;
-  font-size: 15px;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-  outline: none;
-}
+  .gba\:calendar-today-btn {
+    border: 2px solid #000;
+    background: #fff;
+    border-radius: 18px;
+    padding: 2px 18px;
+    font-weight: 500;
+    font-size: 15px;
+    cursor: pointer;
+    transition:
+      background 0.2s,
+      color 0.2s;
+    outline: none;
+  }
 
-.gba\:calendar-today-btn:hover {
-  background: #f5f5f5;
-}
+  .gba\:calendar-today-btn:hover {
+    background: #f5f5f5;
+  }
 
-.gba\:calendar-toggle-group {
-  display: flex;
-  background: #f5f5f5;
-  border-radius: 18px;
-  overflow: hidden;
-  border: 1px solid #e0e0e0;
-}
+  .gba\:calendar-toggle-group {
+    display: flex;
+    background: #f5f5f5;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid #e0e0e0;
+  }
 
-.gba\:calendar-toggle-btn {
-  border: 2px solid #000;
-  background: #fff;
-  border-radius: 18px;
-  padding: 2px 18px;
-  font-weight: 500;
-  font-size: 15px;
-  color: #222;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-  outline: none;
-}
+  .gba\:calendar-toggle-btn {
+    border: 2px solid #000;
+    background: #fff;
+    border-radius: 18px;
+    padding: 2px 18px;
+    font-weight: 500;
+    font-size: 15px;
+    color: #222;
+    cursor: pointer;
+    transition:
+      background 0.2s,
+      color 0.2s;
+    outline: none;
+  }
 
-.gba\:calendar-toggle-btn:hover {
-  background: #f5f5f5;
-}
+  .gba\:calendar-toggle-btn:hover {
+    background: #f5f5f5;
+  }
 
-.gba\:calendar-icon-thick {
-  font-size: 16px;
-}
+  .gba\:calendar-icon-thick {
+    font-size: 16px;
+  }
 
-.gba\:absence-events-list {
-  margin-top: 0;
-  padding: 0;
-}
+  .gba\:absence-events-list {
+    margin-top: 0;
+    padding: 0;
+  }
 
-.gba\:absence-event-item {
-  display: flex;
-  align-items: flex-start;
-  border-bottom: 1px solid #ececec;
-  padding: 18px 0 14px 0;
-  gap: 20px;
-}
+  .gba\:absence-event-item {
+    display: flex;
+    align-items: flex-start;
+    border-bottom: 1px solid #ececec;
+    padding: 18px 0 14px 0;
+    gap: 20px;
+  }
 
-.gba\:absence-event-date {
-  min-width: 120px;
-  font-size: 15px;
-  color: #222;
-  font-weight: 500;
-}
+  .gba\:absence-event-date {
+    min-width: 120px;
+    font-size: 15px;
+    color: #222;
+    font-weight: 500;
+  }
 
-.gba\:absence-event-time {
-  min-width: 80px;
-  color: #888;
-  font-size: 13px;
-}
+  .gba\:absence-event-time {
+    min-width: 80px;
+    color: #888;
+    font-size: 13px;
+  }
 
-.gba\:absence-event-type {
-  display: flex;
-  align-items: center;
-  font-size: 15px;
-  color: #1a7f37;
-  font-style: italic;
-  gap: 6px;
-}
+  .gba\:absence-event-type {
+    display: flex;
+    align-items: center;
+    font-size: 15px;
+    color: #1a7f37;
+    font-style: italic;
+    gap: 6px;
+  }
 
-.gba\:absence-calendar-tabs .ant-tabs-tab-active {
-  border-bottom: none !important;
-}
+  .gba\:absence-calendar-tabs .ant-tabs-tab-active {
+    border-bottom: none !important;
+  }
 
-.gba\:absence-calendar-tabs .ant-tabs-ink-bar {
-  display: none !important;
-}
+  .gba\:absence-calendar-tabs .ant-tabs-ink-bar {
+    display: none !important;
+  }
 
-.gba\:absence-event-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #1a7f37;
-  display: inline-block;
-}
+  .gba\:absence-event-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #1a7f37;
+    display: inline-block;
+  }
 
-.gba\:absence-calendar-tabs .ant-tabs-nav{
-  position: unset;
-}
+  .gba\:absence-calendar-tabs .ant-tabs-nav {
+    position: unset;
+  }
 
-.gba\:absence-calendar-tabs .ant-tabs-nav-list {
-  background: #efeff1;
-  border-radius: 40px;
-  display: flex;
-  gap: 4px;
-  border: none !important;
-}
+  .gba\:absence-calendar-tabs .ant-tabs-nav-list {
+    background: #efeff1;
+    border-radius: 40px;
+    display: flex;
+    gap: 4px;
+    border: none !important;
+  }
 
-.gba\:absence-calendar-tabs .ant-tabs-tab {
-  border-radius: 40px !important;
-  font-weight: 600;
-  font-size: 15px;
-  padding: 0 22px !important;
-  margin: 0 2px !important;
-  background: transparent;
-  border: none;
-  transition: background 0.2s, color 0.2s;
-  height: 36px;
-  display: flex;
-  align-items: center;
-}
+  .gba\:absence-calendar-tabs .ant-tabs-tab {
+    border-radius: 40px !important;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 0 22px !important;
+    margin: 0 2px !important;
+    background: transparent;
+    border: none;
+    transition:
+      background 0.2s,
+      color 0.2s;
+    height: 36px;
+    display: flex;
+    align-items: center;
+  }
 
-.gba\:absence-calendar-tabs .ant-tabs-tab-active {
-  background: #000 !important;
-  border-radius: 40px !important;
-}
+  .gba\:absence-calendar-tabs .ant-tabs-tab-active {
+    background: #000 !important;
+    border-radius: 40px !important;
+  }
 
-.gba\:absence-calendar-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
-  color: #fff !important;
-}
+  .gba\:absence-calendar-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+    color: #fff !important;
+  }
 
-.gba\:absence-calendar-tabs .ant-tabs-tab-btn {
-  color: #222;
-}
+  .gba\:absence-calendar-tabs .ant-tabs-tab-btn {
+    color: #222;
+  }
 
-.gba\:absence-calendar-tabs
-  .ant-tabs-tab:not(.ant-tabs-tab-active):hover
-  .ant-tabs-tab-btn {
-  color: #000;
-}
+  .gba\:absence-calendar-tabs .ant-tabs-tab:not(.ant-tabs-tab-active):hover .ant-tabs-tab-btn {
+    color: #000;
+  }
 
-.gba\:absence-calendar-tabs .ant-tabs-tab {
-  border: none !important;
-}
+  .gba\:absence-calendar-tabs .ant-tabs-tab {
+    border: none !important;
+  }
 
-.gba\:absence-calendar-tag {
-  display: block;
-  margin-bottom: 2px;
-  font-size: 13px;
-  padding: 2px 10px;
-  border-radius: 7px;
-  font-weight: 500;
-}
-.gba\:absence-pending {
-  opacity: 0.5;
-}
+  .gba\:absence-calendar-tag {
+    display: block;
+    margin-bottom: 2px;
+    font-size: 13px;
+    padding: 2px 10px;
+    border-radius: 7px;
+    font-weight: 500;
+  }
+  .gba\:absence-pending {
+    opacity: 0.5;
+  }
 
-.gba\:absence-calendar-root {
-  padding: 30px 25px 25px 25px;
+  .gba\:absence-calendar-root {
+    padding: 30px 25px 25px 25px;
+  }
+
+  /* Tooltip styles for absence calendar */
+  .gba\:absence-calendar-tooltip {
+    z-index: 9999 !important;
+  }
+
+  .gba\:absence-calendar-tooltip .ant-tooltip-inner {
+    background: rgba(0, 0, 0, 0.9) !important;
+    color: #fff !important;
+    border-radius: 8px;
+    padding: 12px;
+    max-width: 300px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-size: 12px;
+  }
+
+  .gba\:absence-calendar-tooltip .ant-tooltip-arrow::before {
+    background: rgba(0, 0, 0, 0.9) !important;
+  }
+
+  .gba\:absence-calendar-tag {
+    transition: all 0.2s ease;
+  }
+
+  .gba\:absence-calendar-tag:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
 }

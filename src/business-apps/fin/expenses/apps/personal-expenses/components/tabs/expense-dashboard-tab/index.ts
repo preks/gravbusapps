@@ -1,4 +1,4 @@
-import ExpenseDashboardTab from './ExpenseDashboardTab';
+import ExpenseDashboardTab from './ExpenseDashboardTab'
 
-export { ExpenseDashboardTab };
-export default ExpenseDashboardTab;
+export { ExpenseDashboardTab }
+export default ExpenseDashboardTab

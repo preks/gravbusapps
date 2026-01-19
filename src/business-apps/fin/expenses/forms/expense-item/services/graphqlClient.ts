@@ -1,8 +1,8 @@
 /**
  * GraphQL client utility for making API requests
  */
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 /**
  * Hook to use the GraphQL client with proper typing
@@ -10,8 +10,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
  * @returns GraphQL client with query method
  */
 export const useExpenseGraphQLClient = (contextProps: Pick<BusinessAppContextProps, 'accessToken'>) => {
-  const graphQLClient = useGraphqlClient(contextProps.accessToken);
-  
+  const graphQLClient = useGraphqlClient(contextProps.accessToken)
+
   return {
     /**
      * Execute a GraphQL query
@@ -20,16 +20,16 @@ export const useExpenseGraphQLClient = (contextProps: Pick<BusinessAppContextPro
      */
     query: async <T = any>({
       query,
-      variables,
+      variables
     }: {
-      query: string;
-      variables?: Record<string, any>;
+      query: string
+      variables?: Record<string, any>
     }): Promise<{ data: T }> => {
-      const result = await graphQLClient.request<T>(query, variables);
-      return { data: result };
-    },
-  };
-};
+      const result = await graphQLClient.request<T>(query, variables)
+      return { data: result }
+    }
+  }
+}
 
 /**
  * Legacy function for creating a GraphQL client
@@ -39,19 +39,13 @@ export const useExpenseGraphQLClient = (contextProps: Pick<BusinessAppContextPro
  */
 export const createGraphQLClient = (accessToken: string) => {
   return {
-    query: async ({
-      query,
-      variables,
-    }: {
-      query: string;
-      variables?: Record<string, any>;
-    }) => {
-      const { graphQLClient } = await import('@/common/network/graphql/GraphQLClient');
-      
-      graphQLClient.setAccessToken(accessToken);
-      
-     const result = await graphQLClient.request(query, variables);
-      return { data: result };
-    },
-  };
-};
+    query: async ({ query, variables }: { query: string; variables?: Record<string, any> }) => {
+      const { graphQLClient } = await import('@/common/network/graphql/GraphQLClient')
+
+      graphQLClient.setAccessToken(accessToken)
+
+      const result = await graphQLClient.request(query, variables)
+      return { data: result }
+    }
+  }
+}

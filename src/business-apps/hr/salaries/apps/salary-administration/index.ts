@@ -1,4 +1,4 @@
-import SalaryAdministration from './SalaryAdministration';
+import SalaryAdministration from './SalaryAdministration'
 
-export { SalaryAdministration };
-export default SalaryAdministration;
+export { SalaryAdministration }
+export default SalaryAdministration

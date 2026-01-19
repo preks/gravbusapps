@@ -1,2 +1,2 @@
-export { ExpenseCalendar, default } from './ExpenseCalendar';
-export type { ExpenseCalendarProps } from './ExpenseCalendar';
+export { ExpenseCalendar, default } from './ExpenseCalendar'
+export type { ExpenseCalendarProps } from './ExpenseCalendar'

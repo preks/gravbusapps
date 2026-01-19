@@ -1,32 +1,28 @@
-import React from 'react';
-import { Button, Input } from '@newwork/nw-design-system';
-import { Select } from 'antd';
-import { Link, Trash2 } from 'lucide-react';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { Button, Input } from '@newwork/nw-design-system'
+import { Select } from 'antd'
+import { Link, Trash2 } from 'lucide-react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface LinksConfigurationProps {
-  step: any;
-  testId: string;
-  onUpdateStep: (updates: any) => void;
+  step: any
+  testId: string
+  onUpdateStep: (updates: any) => void
 }
 
 interface LinksTriggerProps {
-  step: any;
-  testId: string;
-  onUpdateStep: (updates: any) => void;
+  step: any
+  testId: string
+  onUpdateStep: (updates: any) => void
 }
 
 interface LinksContentProps {
-  step: any;
-  testId: string;
-  onUpdateStep: (updates: any) => void;
+  step: any
+  testId: string
+  onUpdateStep: (updates: any) => void
 }
 
-export const LinksTrigger: React.FC<LinksTriggerProps> = ({
-  step,
-  testId,
-  onUpdateStep
-}) => {
+export const LinksTrigger: React.FC<LinksTriggerProps> = ({ step }) => {
   return (
     <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:pr-4">
       <div className="gba:flex gba:items-center gba:gap-2">
@@ -41,31 +37,27 @@ export const LinksTrigger: React.FC<LinksTriggerProps> = ({
         )}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export const LinksContent: React.FC<LinksContentProps> = ({
-  step,
-  testId,
-  onUpdateStep
-}) => {
-  const links = step.links || [];
+export const LinksContent: React.FC<LinksContentProps> = ({ step, testId, onUpdateStep }) => {
+  const links = step.links || []
 
   const handleAddLink = () => {
-    const newLinks = [...links, { name: '', url: '', type: 'url' }];
-    onUpdateStep({ links: newLinks });
-  };
+    const newLinks = [...links, { id: `link-${Date.now()}`, name: '', url: '', type: 'url' }]
+    onUpdateStep({ links: newLinks })
+  }
 
   const handleUpdateLink = (index: number, field: string, value: string) => {
-    const newLinks = [...links];
-    newLinks[index] = { ...newLinks[index], [field]: value };
-    onUpdateStep({ links: newLinks });
-  };
+    const newLinks = [...links]
+    newLinks[index] = { ...newLinks[index], [field]: value }
+    onUpdateStep({ links: newLinks })
+  }
 
   const handleRemoveLink = (index: number) => {
-    const newLinks = links.filter((_: any, i: number) => i !== index);
-    onUpdateStep({ links: newLinks });
-  };
+    const newLinks = links.filter((_: any, i: number) => i !== index)
+    onUpdateStep({ links: newLinks })
+  }
 
   return (
     <div className="gba:space-y-3 gba:pt-2">
@@ -73,63 +65,59 @@ export const LinksContent: React.FC<LinksContentProps> = ({
         <span className="gba:text-sm gba:text-gray-600">
           {links.length === 0 ? 'No links added' : `${links.length} link(s) configured`}
         </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleAddLink}
-          data-testid={`${testId}-add-link`}
-        >
+        <Button variant="outline" size="sm" onClick={handleAddLink} data-testid={`${testId}-add-link`}>
           {getTranslationFromI18nKeyAndLabel('flow.creator.addLink', 'Add Link')}
         </Button>
       </div>
-      
-      {links.length > 0 && links.map((link: any, index: number) => (
-        <div key={`link-${index}-${link.name || 'unnamed'}`} className="gba:p-3 gba:border gba:rounded gba:bg-gray-50">
-          <div className="gba:flex gba:gap-2 gba:items-center">
-            <Input
-              value={link.name || ''}
-              onChange={(e) => handleUpdateLink(index, 'name', e.target.value)}
-              placeholder="Link name"
-              className="gba:flex-1"
-              data-testid={`${testId}-link-name-${index}`}
-            />
-            <Input
-              value={link.url || ''}
-              onChange={(e) => handleUpdateLink(index, 'url', e.target.value)}
-              placeholder="URL"
-              className="gba:flex-[2]"
-              data-testid={`${testId}-link-url-${index}`}
-            />
-            <Select 
-              value={link.type || 'url'} 
-              onChange={(value) => handleUpdateLink(index, 'type', value)}
-              style={{ width: '120px' }}
-              data-testid={`${testId}-link-type-${index}`}
-            >
-              <Select.Option value="url">URL</Select.Option>
-              <Select.Option value="document">Document</Select.Option>
-              <Select.Option value="image">Image</Select.Option>
-            </Select>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleRemoveLink(index)}
-              data-testid={`${testId}-remove-link-${index}`}
-            >
-              <Trash2 className="gba:h-4 gba:w-4" />
-            </Button>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
 
-export const LinksConfiguration: React.FC<LinksConfigurationProps> = (props) => {
+      {links.length > 0 &&
+        links.map((link: any, index: number) => (
+          <div key={link.id || `link-${index}`} className="gba:p-3 gba:border gba:rounded gba:bg-gray-50">
+            <div className="gba:flex gba:gap-2 gba:items-center">
+              <Input
+                value={link.name || ''}
+                onChange={e => handleUpdateLink(index, 'name', e.target.value)}
+                placeholder="Link name"
+                className="gba:flex-1"
+                data-testid={`${testId}-link-name-${index}`}
+              />
+              <Input
+                value={link.url || ''}
+                onChange={e => handleUpdateLink(index, 'url', e.target.value)}
+                placeholder="URL"
+                className="gba:flex-[2]"
+                data-testid={`${testId}-link-url-${index}`}
+              />
+              <Select
+                value={link.type || 'url'}
+                onChange={value => handleUpdateLink(index, 'type', value)}
+                style={{ width: '120px' }}
+                data-testid={`${testId}-link-type-${index}`}
+              >
+                <Select.Option value="url">URL</Select.Option>
+                <Select.Option value="document">Document</Select.Option>
+                <Select.Option value="image">Image</Select.Option>
+              </Select>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleRemoveLink(index)}
+                data-testid={`${testId}-remove-link-${index}`}
+              >
+                <Trash2 className="gba:h-4 gba:w-4" />
+              </Button>
+            </div>
+          </div>
+        ))}
+    </div>
+  )
+}
+
+export const LinksConfiguration: React.FC<LinksConfigurationProps> = props => {
   return (
     <>
       <LinksTrigger {...props} />
       <LinksContent {...props} />
     </>
-  );
-}; 
+  )
+}

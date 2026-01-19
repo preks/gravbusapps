@@ -1,8 +1,8 @@
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { useFlowClient } from "@/common/network/flows/useFlowClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { showToast } from "../../utils/notificationUtils";
-import { formatDateWithTimezone } from "../expense-item/utils/dateUtils";
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useFlowClient } from '@/common/network/flows/useFlowClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { showToast } from '../../utils/notificationUtils'
+import { formatDateWithTimezone } from '../expense-item/utils/dateUtils'
 
 /**
  * Hook for fetching employee rule data
@@ -10,8 +10,8 @@ import { formatDateWithTimezone } from "../expense-item/utils/dateUtils";
  * @returns Function to fetch employee rule data
  */
 export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps, 'accessToken'>) => {
-  const flowClient = useFlowClient(contextProps);
-  
+  const flowClient = useFlowClient(contextProps)
+
   /**
    * Fetch employee rule data
    * @param employeeId Employee ID
@@ -20,21 +20,24 @@ export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps,
    */
   const fetchEmployeeRule = async (employeeId: string, date: string) => {
     try {
-      const formattedDate = formatDateWithTimezone(date);
-      const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`;
-      
-      return await flowClient.getResource(path);
-    } catch (error) {
+      const formattedDate = formatDateWithTimezone(date)
+      const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`
+
+      return await flowClient.getResource(path)
+    } catch {
       showToast(
-        getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
-        "error"
-      );
-      return null;
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_type_item.process_error_data_fetch',
+          'Error fetching data'
+        ),
+        'error'
+      )
+      return null
     }
-  };
-  
-  return { fetchEmployeeRule };
-};
+  }
+
+  return { fetchEmployeeRule }
+}
 
 /**
  * Function for fetching employee rule data
@@ -42,26 +45,28 @@ export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps,
 export const fetchEmployeeRule = async (employeeId: string, date: string, accessToken: string) => {
   try {
     // Import flowClient directly for non-hook usage
-    const { flowClient } = await import("@/common/network/flows/FlowClient");
-    
-    // Set access token
-    flowClient.setAccessToken(accessToken);
-    
-    // Format date as required by the API
-    const formattedDate = formatDateWithTimezone(date);
-    const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`;
-    
-    // Use the getResource method
-    return await flowClient.getResource(path);
-  } catch (error) {
-    showToast(
-      getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
-      "error"
-    );
-    return null;
-  }
-};
+    const { flowClient } = await import('@/common/network/flows/FlowClient')
 
+    // Set access token
+    flowClient.setAccessToken(accessToken)
+
+    // Format date as required by the API
+    const formattedDate = formatDateWithTimezone(date)
+    const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`
+
+    // Use the getResource method
+    return await flowClient.getResource(path)
+  } catch {
+    showToast(
+      getTranslationFromI18nKeyAndLabel(
+        'lowcoder:create_expense_type_item.process_error_data_fetch',
+        'Error fetching data'
+      ),
+      'error'
+    )
+    return null
+  }
+}
 
 export const fetchExpenseAllowanceAndDeduction = `
 query MyQuery($expenseId: uuid!, $expenseRuleId: uuid) {
@@ -100,13 +105,13 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
     createdAt
     description
     expenseRuleId
+    overnightAccommodation
     code
     processInstanceId
     additionalProperties
     project{
       id
       validTo
-      validFrom
       name
     }
     costCenterId
@@ -331,6 +336,21 @@ query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) 
     locality
     addressLine
   }
+     TravelBreakdown(where: {expenseRequestId: {_eq: $expenseId}, isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}) {
+    id
+    version
+    breakfast
+    lunch
+    dinner
+    overnight
+    expenseDate
+    travelRegionRef
+    projectId
+    expenseRuleId
+    expensePlanId
+    costCenterId
+    expenseRequestId
+  }
     }`
 
 export const fetchEmployeeExpenseItems = `query FetchEmployeeExpenseItems($employeeId: uuid!, $status: String, $activeUserLocale: String, $limit: Int, $offset: Int, $idsArray: [uuid!], $itemCurrency: String, $titleSearch: String) {
@@ -496,9 +516,7 @@ export const fetchEmployeeExpenseItemsFromPayload = `query FetchEmployeeExpenseI
 
 `
 
-
-
-export const getExpenseRulesDataQuery =`query getTravelRegionRules($expenseRuleId: uuid!,$activeUserLocale: String) {
+export const getExpenseRulesDataQuery = `query getTravelRegionRules($expenseRuleId: uuid!,$activeUserLocale: String) {
     ExpenseRuleByPk(id: $expenseRuleId) {
       useSingleCurrency
     currency {
@@ -609,7 +627,7 @@ export const getRequestsAbsences = `query MyQuery($employeeId: uuid, $requestId:
   }
 }
 `
-export const getTravelRegionsAndUser =`query getTravelRegionRules($expenseRuleId: uuid!,$employeeId: uuid!,$activeUserLocale: String!) {
+export const getTravelRegionsAndUser = `query getTravelRegionRules($expenseRuleId: uuid!,$employeeId: uuid!,$activeUserLocale: String!) {
   AllowanceRegionRuleDetail(where: {allowanceRegionRule: {expenseRuleAllowanceCode: {expenseRuleId: {_eq: $expenseRuleId}}},isDeleted: {_eq: false}}, distinctOn: travelRegionRef) {
     id
     travelRegionRef
@@ -644,7 +662,7 @@ export const getTravelRegionsAndUser =`query getTravelRegionRules($expenseRuleId
   }
 }`
 
-export const getAllowanceData =`query getAllowanceData($employeeId: uuid!, $expenseRequestId: uuid, $expenseRequestRuleId: uuid!) {
+export const getAllowanceData = `query getAllowanceData($employeeId: uuid!, $expenseRequestId: uuid, $expenseRequestRuleId: uuid!) {
       TravelBreakdown(where: {expenseRequestId: {_eq: $expenseRequestId}, isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}) {
     id
     version
@@ -666,7 +684,7 @@ export const getAllowanceData =`query getAllowanceData($employeeId: uuid!, $expe
   }
 }`
 
-export const getUserCostCenters =`query MyQuery($structureId: uuid!) {
+export const getUserCostCenters = `query MyQuery($structureId: uuid!) {
   userCostCenters: CostCenter(where: {structureId: {_eq: $structureId}, isDeleted: {_eq: false}}) {
     id
     name
@@ -675,13 +693,28 @@ export const getUserCostCenters =`query MyQuery($structureId: uuid!) {
 }
 `
 
-export const getUserProjects =`query MyQuery($structureIdArray: [uuid!]) {
+export const getUserProjects = `query MyQuery($structureIdArray: [uuid!]) {
   Project(where: {structureId: {_in: $structureIdArray},isDeleted:{_eq:false}}) {
     id
     name
     structureId
-    validFrom
     validTo
+  }
+}
+`
+
+export const getRuleAllowancePeriod = `query getExpenseRuleAllowancePeriod($expenseRuleId: uuid!) {
+  ExpenseRuleAllowancePeriod(where: {expenseRuleId: {_eq: $expenseRuleId}, isDeleted: {_eq: false},  overnightAccomodation: {_eq: true}}) {
+    id
+    version
+    activeTo
+    activeFrom
+    midnightRule
+    minHours
+    startAfter
+    returnBefore
+    expenseRuleId
+    overnightAccomodation
   }
 }
 `

@@ -1,13 +1,13 @@
-import React, { useCallback, useState, useEffect } from 'react';
-import { Input } from '@newwork/nw-design-system';
+import React, { useCallback, useState, useEffect } from 'react'
+import { Input } from '@newwork/nw-design-system'
 
 interface CompactRangeFilterProps {
-  range?: { min?: number; max?: number } | null;
-  onRangeChange: (range: { min?: number; max?: number } | null) => void;
-  className?: string;
-  placeholder?: [string, string];
-  label: string;
-  dataTestIdPrefix: string;
+  range?: { min?: number; max?: number } | null
+  onRangeChange: (range: { min?: number; max?: number } | null) => void
+  className?: string
+  placeholder?: [string, string]
+  label: string
+  dataTestIdPrefix: string
 }
 
 export const CompactRangeFilter: React.FC<CompactRangeFilterProps> = ({
@@ -15,54 +15,59 @@ export const CompactRangeFilter: React.FC<CompactRangeFilterProps> = ({
   onRangeChange,
   className = '',
   placeholder = ['Min', 'Max'],
-  label,
   dataTestIdPrefix
 }) => {
-  const [minValue, setMinValue] = useState<string>(range?.min?.toString() || '');
-  const [maxValue, setMaxValue] = useState<string>(range?.max?.toString() || '');
+  const [minValue, setMinValue] = useState<string>(range?.min?.toString() || '')
+  const [maxValue, setMaxValue] = useState<string>(range?.max?.toString() || '')
 
   // Update local state when prop changes
   useEffect(() => {
-    setMinValue(range?.min?.toString() || '');
-    setMaxValue(range?.max?.toString() || '');
-  }, [range]);
+    setMinValue(range?.min?.toString() || '')
+    setMaxValue(range?.max?.toString() || '')
+  }, [range])
 
-  const handleMinChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setMinValue(value);
-    
-    const numValue = value ? parseFloat(value) : undefined;
-    
-    // Only trigger change if we have a valid range or clearing
-    if (numValue !== undefined || maxValue) {
-      onRangeChange({
-        min: numValue,
-        max: maxValue ? parseFloat(maxValue) : undefined
-      });
-    }
-  }, [maxValue, onRangeChange]);
+  const handleMinChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value
+      setMinValue(value)
 
-  const handleMaxChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setMaxValue(value);
-    
-    const numValue = value ? parseFloat(value) : undefined;
-    
-    // Only trigger change if we have a valid range or clearing
-    if (minValue || numValue !== undefined) {
-      onRangeChange({
-        min: minValue ? parseFloat(minValue) : undefined,
-        max: numValue
-      });
-    }
-  }, [minValue, onRangeChange]);
+      const numValue = value ? parseFloat(value) : undefined
+
+      // Only trigger change if we have a valid range or clearing
+      if (numValue !== undefined || maxValue) {
+        onRangeChange({
+          min: numValue,
+          max: maxValue ? parseFloat(maxValue) : undefined
+        })
+      }
+    },
+    [maxValue, onRangeChange]
+  )
+
+  const handleMaxChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value
+      setMaxValue(value)
+
+      const numValue = value ? parseFloat(value) : undefined
+
+      // Only trigger change if we have a valid range or clearing
+      if (minValue || numValue !== undefined) {
+        onRangeChange({
+          min: minValue ? parseFloat(minValue) : undefined,
+          max: numValue
+        })
+      }
+    },
+    [minValue, onRangeChange]
+  )
 
   const handleClear = useCallback(() => {
-    setMinValue('');
-    setMaxValue('');
+    setMinValue('')
+    setMaxValue('')
     // Always trigger the change callback with null to clear the filter
-    onRangeChange(null);
-  }, [onRangeChange]);
+    onRangeChange(null)
+  }, [onRangeChange])
 
   return (
     <div className={`gba:flex gba:flex-col gba:gap-2 gba:p-2 ${className}`}>
@@ -104,7 +109,7 @@ export const CompactRangeFilter: React.FC<CompactRangeFilterProps> = ({
         </button>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default CompactRangeFilter; 
+export default CompactRangeFilter

@@ -8,5 +8,5 @@ export const convertToScreamingSnakeCase = (input: string): string => {
     .trim()
     .replace(/\s+/g, '_') // Replace spaces with underscores
     .replace(/[^a-zA-Z0-9_]/g, '') // Remove special characters except underscores
-    .toUpperCase(); // Convert to uppercase
-}; 
+    .toUpperCase() // Convert to uppercase
+}

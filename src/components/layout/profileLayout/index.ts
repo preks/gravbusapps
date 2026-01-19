@@ -1,1 +1,1 @@
-export * from './ProfileLayout';
+export * from './ProfileLayout'

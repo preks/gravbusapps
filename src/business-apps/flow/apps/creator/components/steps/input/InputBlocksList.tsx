@@ -1,17 +1,17 @@
-import React from 'react';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useFlowTemplateStore } from '../../../hooks/useFlowTemplateStore';
-import { InputBlock, InputType } from '../../../types/flowTemplate';
-import { TextInputBlock } from './TextInputBlock';
-import { SelectInputBlock } from './SelectInputBlock';
-import { DatetimeInputBlock } from './DatetimeInputBlock';
-import { FileUploadBlock } from './FileUploadBlock';
-import { SignatureBlock } from './SignatureBlock';
+import React from 'react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useFlowTemplateStore } from '../../../hooks/useFlowTemplateStore'
+import { InputBlock, InputType } from '../../../types/flowTemplate'
+import { TextInputBlock } from './TextInputBlock'
+import { SelectInputBlock } from './SelectInputBlock'
+import { DatetimeInputBlock } from './DatetimeInputBlock'
+import { FileUploadBlock } from './FileUploadBlock'
+import { SignatureBlock } from './SignatureBlock'
 
 interface InputBlocksListProps {
-  taskId: string;
-  blocks: InputBlock[];
-  'data-testid'?: string;
+  taskId: string
+  blocks: InputBlock[]
+  'data-testid'?: string
 }
 
 /**
@@ -22,11 +22,11 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
   blocks,
   'data-testid': testId = 'input-blocks-list'
 }) => {
-  const { addInputBlock, removeInputBlock } = useFlowTemplateStore();
+  const { addInputBlock, removeInputBlock } = useFlowTemplateStore()
 
   const handleAddBlock = (type: InputType) => {
-    addInputBlock(taskId, type);
-  };
+    addInputBlock(taskId, type)
+  }
 
   const renderBlock = (block: InputBlock, index: number) => {
     switch (block.type) {
@@ -41,7 +41,7 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
             onRemove={() => removeInputBlock(taskId, block.id)}
             data-testid={`${testId}-text-${index}`}
           />
-        );
+        )
       case InputType.SELECT:
       case InputType.RADIO:
       case InputType.CHECKBOX:
@@ -53,7 +53,7 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
             onRemove={() => removeInputBlock(taskId, block.id)}
             data-testid={`${testId}-select-${index}`}
           />
-        );
+        )
       case InputType.DATETIME:
         return (
           <DatetimeInputBlock
@@ -63,7 +63,7 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
             onRemove={() => removeInputBlock(taskId, block.id)}
             data-testid={`${testId}-datetime-${index}`}
           />
-        );
+        )
       case InputType.FILE:
         return (
           <FileUploadBlock
@@ -73,7 +73,7 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
             onRemove={() => removeInputBlock(taskId, block.id)}
             data-testid={`${testId}-file-${index}`}
           />
-        );
+        )
       case InputType.SIGNATURE:
         return (
           <SignatureBlock
@@ -83,11 +83,11 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
             onRemove={() => removeInputBlock(taskId, block.id)}
             data-testid={`${testId}-signature-${index}`}
           />
-        );
+        )
       default:
-        return null;
+        return null
     }
-  };
+  }
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid={testId}>
@@ -118,7 +118,7 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
             {getTranslationFromI18nKeyAndLabel('flow.creator.number', 'Number')}
           </button>
         </div>
-        
+
         <div className="gba:flex gba:gap-1">
           <span className="gba:text-sm gba:text-gray-500">
             {getTranslationFromI18nKeyAndLabel('flow.creator.selectInput', 'Select:')}
@@ -145,7 +145,7 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
             {getTranslationFromI18nKeyAndLabel('flow.creator.checkbox', 'Checkbox')}
           </button>
         </div>
-        
+
         <div className="gba:flex gba:gap-1">
           <span className="gba:text-sm gba:text-gray-500">
             {getTranslationFromI18nKeyAndLabel('flow.creator.other', 'Other:')}
@@ -173,7 +173,7 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
           </button>
         </div>
       </div>
-      
+
       {blocks.length === 0 ? (
         <div
           className="gba:p-4 gba:text-center gba:text-gray-500 gba:border gba:border-dashed gba:border-gray-300 gba:rounded"
@@ -190,5 +190,5 @@ export const InputBlocksList: React.FC<InputBlocksListProps> = ({
         </div>
       )}
     </div>
-  );
-};
+  )
+}

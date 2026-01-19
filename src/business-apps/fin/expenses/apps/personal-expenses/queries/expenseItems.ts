@@ -23,7 +23,6 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
         _or: [
           {title: {_ilike: $searchTerm}},
           {code: {_ilike: $searchTerm}},
-          {description: {_ilike: $searchTerm}},
           {status: {_ilike: $searchTerm}},
           {expenseClass: {value: {_ilike: $searchTerm}}},
           {expenseClass: {translations: {value: {_ilike: $searchTerm}}}},
@@ -56,7 +55,6 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
         _or: [
           {title: {_ilike: $searchTerm}},
           {code: {_ilike: $searchTerm}},
-          {description: {_ilike: $searchTerm}},
           {status: {_ilike: $searchTerm}},
           {expenseClass: {value: {_ilike: $searchTerm}}},
           {expenseClass: {translations: {value: {_ilike: $searchTerm}}}},
@@ -76,7 +74,6 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
       id
       code
       title
-      description
       status
       expenseDate
       totalAmount
@@ -112,7 +109,44 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
       }
     }
   }
-`;
+`
+
+// GraphQL query variant that accepts a dynamic where clause to allow optional filters (e.g., currency)
+export const GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE = `
+  query GetExpenseItemsByEmployeeWhere(
+    $limit: Int,
+    $offset: Int,
+    $orderBy: [ExpenseItemOrderBy!],
+    $where: ExpenseItemBoolExp!
+  ) {
+    ExpenseItemAggregate(where: $where) {
+      aggregate { count }
+    }
+    ExpenseItem(limit: $limit, offset: $offset, orderBy: $orderBy, where: $where) {
+      id
+      code
+      title
+      status
+      expenseDate
+      totalAmount
+      reimbursableAmount
+      nonReimbursableAmount
+      deductibleAmount
+      nonDeductibleAmount
+      currencyRef
+      currency { code value }
+      costCenter { name }
+      expenseClass {
+        value
+        translations { value localeCode }
+      }
+      additionalProperties
+      status
+      expenseItemFile { id fileUrl fileName }
+      employee { fullName additionalProperties }
+    }
+  }
+`
 
 export const GET_ITEMS_WITHOUT_RECEIPTS = `
   query GetItemsWithoutReceipts($employeeId: uuid!) {
@@ -129,10 +163,10 @@ export const GET_ITEMS_WITHOUT_RECEIPTS = `
       }
     }
   }
-`;
+`
 
 export const GET_PENDING_ITEMS = `
-  query GetPendingItems($employeeId: uuid!) {
+  query GetPendingItems($employeeId: uuid!, $currencyRef: String!) {
     allPending: ExpenseItemAggregate(
       where: {
         employeeId: {_eq: $employeeId},
@@ -150,7 +184,7 @@ export const GET_PENDING_ITEMS = `
         isDeleted: {_eq: false},
         status: {_eq: "PENDING"},
         expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}},
-        currencyRef: {_eq: "Currency:v1:EUR"}
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {
@@ -161,17 +195,17 @@ export const GET_PENDING_ITEMS = `
       }
     }
   }
-`;
+`
 
 export const GET_PENDING_ITEMS_WITH_DATE_RANGE = `
-  query GetPendingItemsWithDateRange($employeeId: uuid!, $startDate: timestamp, $endDate: timestamp) {
+  query GetPendingItemsWithDateRange($employeeId: uuid!, $startDate: timestamp, $endDate: timestamp, $currencyRef: String!) {
     pendingExcludingAllowance: ExpenseItemAggregate(
       where: {
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
         status: {_eq: "PENDING",_nin: ["DISCARDED"]},
         expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}},
-        currencyRef: {_eq: "Currency:v1:EUR"},
+        currencyRef: {_eq: $currencyRef},
         expenseDate: {
           _gte: $startDate,
           _lte: $endDate
@@ -186,7 +220,7 @@ export const GET_PENDING_ITEMS_WITH_DATE_RANGE = `
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_ITEM_BY_ID = `
   query GetExpenseItemById($id: uuid!) {
@@ -194,7 +228,6 @@ export const GET_EXPENSE_ITEM_BY_ID = `
       id
       code
       title
-      description
       expenseDate
       reimbursableAmount
       nonReimbursableAmount
@@ -228,7 +261,7 @@ export const GET_EXPENSE_ITEM_BY_ID = `
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_ITEM_STATISTICS = `
   query GetExpenseItemStatistics($employeeId: uuid!, $startDate: timestamp, $endDate: timestamp, $currencyRef: String!) {
@@ -263,4 +296,76 @@ export const GET_EXPENSE_ITEM_STATISTICS = `
       }
     }
   }
-`;
+`
+
+// Combined statistics for current and previous month in a single request
+export const GET_EXPENSE_ITEM_STATS_OVERVIEW = `
+  query GetExpenseItemStatsOverview(
+    $employeeId: uuid!,
+    $currencyRef: String!,
+    $currentStart: timestamp!,
+    $currentEnd: timestamp!,
+    $previousStart: timestamp!,
+    $previousEnd: timestamp!
+  ) {
+    currentMonthTotals: ExpenseItemAggregate(
+      where: {
+        employeeId: { _eq: $employeeId },
+        isDeleted: { _eq: false },
+        expenseClass: { _not: { code: { _eq: "ALLOWANCE" } } },
+        status: { _in: ["PAID", "CLOSED"] },
+        currencyRef: { _eq: $currencyRef },
+        expenseDate: { _gte: $currentStart, _lte: $currentEnd }
+      }
+    ) { aggregate { sum { totalAmount } } }
+
+    previousMonthTotals: ExpenseItemAggregate(
+      where: {
+        employeeId: { _eq: $employeeId },
+        isDeleted: { _eq: false },
+        expenseClass: { _not: { code: { _eq: "ALLOWANCE" } } },
+        status: { _in: ["PAID", "CLOSED"] },
+        currencyRef: { _eq: $currencyRef },
+        expenseDate: { _gte: $previousStart, _lte: $previousEnd }
+      }
+    ) { aggregate { sum { totalAmount } } }
+
+    currentMonthPending: ExpenseItemAggregate(
+      where: {
+        employeeId: { _eq: $employeeId },
+        isDeleted: { _eq: false },
+        expenseClass: { _not: { code: { _eq: "ALLOWANCE" } } },
+        status: { _eq: "PENDING", _nin: ["DISCARDED"] },
+        currencyRef: { _eq: $currencyRef },
+        expenseDate: { _gte: $currentStart, _lte: $currentEnd }
+      }
+    ) { aggregate { sum { reimbursableAmount } count } }
+
+    previousMonthPending: ExpenseItemAggregate(
+      where: {
+        employeeId: { _eq: $employeeId },
+        isDeleted: { _eq: false },
+        expenseClass: { _not: { code: { _eq: "ALLOWANCE" } } },
+        status: { _eq: "PENDING", _nin: ["DISCARDED"] },
+        currencyRef: { _eq: $currencyRef },
+        expenseDate: { _gte: $previousStart, _lte: $previousEnd }
+      }
+    ) { aggregate { sum { reimbursableAmount } count } }
+  }
+`
+
+export const GET_USED_CURRENCIES_BY_EMPLOYEE = `
+  query GetUsedCurrenciesByEmployee($employeeId: uuid!, $limit: Int = 1000) {
+    ExpenseItem(
+      where: {
+        employeeId: {_eq: $employeeId},
+        isDeleted: {_eq: false},
+        expenseClass: {_not: {code: {_eq: "ALLOWANCE"}}}
+      },
+      limit: $limit
+    ) {
+      currencyRef
+      currency { code }
+    }
+  }
+`

@@ -1,12 +1,12 @@
-import React from 'react';
-import { Row, Col } from 'antd';
+import React from 'react'
+import { Row, Col } from 'antd'
 
 interface ExpenseItemRowProps {
-  id: string;
-  leftPrimary: React.ReactNode;
-  leftSecondary?: React.ReactNode;
-  rightPrimary?: React.ReactNode;
-  rightSecondary: React.ReactNode;
+  id: string
+  leftPrimary: React.ReactNode
+  leftSecondary?: React.ReactNode
+  rightPrimary?: React.ReactNode
+  rightSecondary: React.ReactNode
 }
 
 /**
@@ -17,12 +17,12 @@ interface ExpenseItemRowProps {
  * @param rightPrimary - Primary content for the right column (top)
  * @param rightSecondary - Secondary content for the right column (bottom)
  */
-const ExpenseItemRow: React.FC<ExpenseItemRowProps> = ({ 
-  id, 
-  leftPrimary, 
-  leftSecondary, 
-  rightPrimary, 
-  rightSecondary 
+const ExpenseItemRow: React.FC<ExpenseItemRowProps> = ({
+  id,
+  leftPrimary,
+  leftSecondary,
+  rightPrimary,
+  rightSecondary
 }) => {
   return (
     <div className="gba:expense-item-row gba:p-4" data-testid={`expense-item-row-${id}`}>
@@ -32,19 +32,13 @@ const ExpenseItemRow: React.FC<ExpenseItemRowProps> = ({
             <span className="gba:font-bold" data-testid={`expense-item-left-primary-${id}`}>
               {leftPrimary}
             </span>
-            {leftSecondary && (
-              <span data-testid={`expense-item-left-secondary-${id}`}>
-                {leftSecondary}
-              </span>
-            )}
+            {leftSecondary && <span data-testid={`expense-item-left-secondary-${id}`}>{leftSecondary}</span>}
           </div>
         </Col>
         <Col xs={24} md={12} className="gba:text-right">
           <div className="gba:flex gba:flex-col gba:items-end">
             {rightPrimary ? (
-              <span data-testid={`expense-item-right-primary-${id}`}>
-                {rightPrimary}
-              </span>
+              <span data-testid={`expense-item-right-primary-${id}`}>{rightPrimary}</span>
             ) : (
               <span className="gba:invisible">placeholder</span>
             )}
@@ -55,7 +49,7 @@ const ExpenseItemRow: React.FC<ExpenseItemRowProps> = ({
         </Col>
       </Row>
     </div>
-  );
-};
+  )
+}
 
-export default ExpenseItemRow;
+export default ExpenseItemRow

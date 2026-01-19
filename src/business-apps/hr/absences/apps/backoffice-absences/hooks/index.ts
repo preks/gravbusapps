@@ -1,5 +1,7 @@
 /**
- * Hooks exports for Backoffice Absences
+ * Hooks for Backoffice Absences
+ * Centralized exports for all custom hooks used in the backoffice absences app
  */
- 
-export { useDashboardData } from './useDashboardData'; 
+
+export { useAbsenceData, type UseAbsenceDataProps, type UseAbsenceDataReturn } from './useAbsenceData'
+export { useAbsenceFilters, type UseAbsenceFiltersProps, type UseAbsenceFiltersReturn } from './useAbsenceFilters'

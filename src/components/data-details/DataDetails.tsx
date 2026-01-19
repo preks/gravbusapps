@@ -1,6 +1,6 @@
-import React, { ReactNode } from 'react';
-import { Button } from '@newwork/nw-design-system';
-import { PiX } from 'react-icons/pi';
+import React, { ReactNode } from 'react'
+import { Button } from '@newwork/nw-design-system'
+import { PiX } from 'react-icons/pi'
 //import { useTranslation } from 'react-i18next';
 
 /**
@@ -10,39 +10,39 @@ export interface DataDetailsProps {
   /**
    * Title to display in the header
    */
-  title: string;
+  title: string
 
   /**
    * Optional icon to display before the title
    */
-  icon?: ReactNode;
+  icon?: ReactNode
 
   /**
    * Content to display in the scrollable area
    */
-  children: ReactNode;
+  children: ReactNode
 
   /**
    * Optional footer with action buttons
    */
-  footer?: ReactNode;
+  footer?: ReactNode
 
   /**
    * Callback when the close button is clicked
    */
-  onClose: () => void;
+  onClose: () => void
 
   /**
    * Additional class name for the component
    */
-  className?: string;
+  className?: string
 }
 
 /**
  * A generic details component with a header, scrollable content area, and optional footer.
- * 
+ *
  * @example
- * <DataDetails 
+ * <DataDetails
  *   title="Employee Details"
  *   icon={<EmployeeIcon />}
  *   onClose={handleClose}
@@ -56,26 +56,28 @@ export interface DataDetailsProps {
  *   <div>Content goes here</div>
  * </DataDetails>
  */
-export const DataDetails: React.FC<DataDetailsProps> = ({
-  title,
-  icon,
-  children,
-  footer,
-  onClose,
-  className = '',
-}) => {
+export const DataDetails: React.FC<DataDetailsProps> = ({ title, icon, children, footer, onClose, className = '' }) => {
   //const { t } = useTranslation();
 
   return (
-    <div 
+    <div
       className={`gba:flex gba:flex-col gba:h-full gba:bg-white ${className}`.trim()}
       data-testid="data-details-container"
     >
       {/* Header with title and close button */}
-      <div className="gba:flex gba:justify-between gba:items-center gba:p-4 gba:border-b gba:border-gray-200" data-testid="data-details-header">
+      <div
+        className="gba:flex gba:justify-between gba:items-center gba:p-4 gba:border-b gba:border-gray-200"
+        data-testid="data-details-header"
+      >
         <div className="gba:flex gba:items-center gba:gap-2" data-testid="data-details-title-section">
-          {icon && <div className="gba:shrink-0" data-testid="data-details-icon">{icon}</div>}
-          <h2 className="gba:text-lg gba:font-bold" data-testid="data-details-title">{title}</h2>
+          {icon && (
+            <div className="gba:shrink-0" data-testid="data-details-icon">
+              {icon}
+            </div>
+          )}
+          <h2 className="gba:text-lg gba:font-bold" data-testid="data-details-title">
+            {title}
+          </h2>
         </div>
         <Button
           variant="ghost"
@@ -101,5 +103,5 @@ export const DataDetails: React.FC<DataDetailsProps> = ({
         </div>
       )}
     </div>
-  );
-};
+  )
+}

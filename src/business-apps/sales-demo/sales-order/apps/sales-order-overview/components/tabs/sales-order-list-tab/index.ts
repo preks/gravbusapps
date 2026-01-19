@@ -1,2 +1,2 @@
-export { default } from './SalesOrderListTab';
-export { default as SalesOrderListTab } from './SalesOrderListTab';
+export { default } from './SalesOrderListTab'
+export { default as SalesOrderListTab } from './SalesOrderListTab'

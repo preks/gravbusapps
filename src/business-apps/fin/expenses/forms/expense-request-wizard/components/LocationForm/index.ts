@@ -1,4 +1,4 @@
-import LocationForm from './LocationForm';
+import LocationForm from './LocationForm'
 
-export { LocationForm };
-export default LocationForm;
+export { LocationForm }
+export default LocationForm

@@ -1,233 +1,220 @@
-import { useState, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { GET_EXPENSE_PLANS_BY_EMPLOYEE } from '../queries/expensePlans';
-import { env } from '@/common/env/EnvUtils';
+import { useState, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { GET_EXPENSE_PLANS_BY_EMPLOYEE } from '../queries/expensePlans'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 // Translation interface for catalog entries
 export interface Translation {
-  value: string;
-  localeCode: string;
+  value: string
+  localeCode: string
 }
 
 // Catalog entry interface for dropdown values
 export interface CatalogEntry {
-  value: string;
-  code?: string;
-  translations: Translation[];
+  value: string
+  code?: string
+  translations: Translation[]
   catalog?: {
-    defaultLocale: string;
-  };
+    defaultLocale: string
+  }
 }
 
 // Type for expense plan data
 export interface ExpensePlan {
-  id: string;
-  code: string;
-  reimbursableAmount: number;
-  startDate: string | null;
-  endDate: string | null;
-  planDate: string | null;
-  decisionDate: string | null;
-  status: string;
-  title: string;
-  totalAmount: number;
-  requestTypeRef: any;
-  createdAt: string;
-  employeeDocumentId: string | null;
-  advancePaymentPaidAmount: number;
-  advancePaymentInTransitAmount: number;
-  employeeDocument: any | null;
-  currency: CatalogEntry | null;
-  currencyRef: any;
-  description: string;
-  requestType: CatalogEntry | null;
-  expensePlanItem: any[];
-  advancePayment: any[] | null;
-  expenseRequestTrip: any[] | null;
+  id: string
+  code: string
+  reimbursableAmount: number
+  startDate: string | null
+  endDate: string | null
+  planDate: string | null
+  decisionDate: string | null
+  status: string
+  title: string
+  totalAmount: number
+  requestTypeRef: any
+  createdAt: string
+  employeeDocumentId: string | null
+  advancePaymentPaidAmount: number
+  advancePaymentInTransitAmount: number
+  employeeDocument: any | null
+  currency: CatalogEntry | null
+  currencyRef: any
+  description: string
+  requestType: CatalogEntry | null
+  expensePlanItem: any[]
+  advancePayment: any[] | null
+  expenseRequestTrip: any[] | null
   // expenseRequest: any[] | null;
   employee: {
-    id: string;
-    code: string;
-    firstName: string;
-    lastName: string;
-    employeePosition: any;
-  };
+    id: string
+    code: string
+    firstName: string
+    lastName: string
+    employeePosition: any
+  }
   expenseRequest: Array<{
-    id: string;
-    code: string;
-    title: string;
-    description: string;
-    startDate: string | null;
-    endDate: string | null;
-    requestDate: string | null;
-    decisionDate: string | null;
-    totalAmount: number;
-    currencyRef: string;
-    status: string;
-    reimbursableAmount: number;
-    nonReimbursableAmount: number;
-    additionalProperties: any;
+    id: string
+    code: string
+    title: string
+    description: string
+    startDate: string | null
+    endDate: string | null
+    requestDate: string | null
+    decisionDate: string | null
+    totalAmount: number
+    currencyRef: string
+    status: string
+    reimbursableAmount: number
+    nonReimbursableAmount: number
+    additionalProperties: any
     currency: {
-      value: string;
+      value: string
       translations: Array<{
-        localeCode: string;
-        value: string;
-      }>;
+        localeCode: string
+        value: string
+      }>
       catalog: {
-        defaultLocale: string;
-      };
-    };
+        defaultLocale: string
+      }
+    }
     requestType: {
-      value: string;
+      value: string
       translations: Array<{
-        localeCode: string;
-        value: string;
-      }>;
+        localeCode: string
+        value: string
+      }>
       catalog: {
-        defaultLocale: string;
-      };
-    };
+        defaultLocale: string
+      }
+    }
     costCenter: {
-      name: string;
-    };
+      name: string
+    }
     project: {
-      name: string;
-    };
+      name: string
+    }
     employee: {
-      fullName: string;
+      fullName: string
       employeePosition: {
         supervisor: {
-          fullName: string;
-        };
-      };
-    };
-  }>;
+          fullName: string
+        }
+      }
+    }
+  }>
 }
 
-export type ExpensePlanFilter = Record<string, any>;
+export type ExpensePlanFilter = Record<string, any>
 
 // Type for the hook return value
 export interface ExpensePlansDataView {
-  items: ExpensePlan[];
-  isLoading: boolean;
-  error: string | null;
-  totalCount: number;
-  fetchItems: (filters: ExpensePlanFilter, page?: number, pageSize?: number, sortField?: string | null, sortOrder?: 'ascend' | 'descend' | null) => Promise<void>;
+  items: ExpensePlan[]
+  isLoading: boolean
+  error: string | null
+  totalCount: number
+  fetchItems: (
+    filters: ExpensePlanFilter,
+    page?: number,
+    pageSize?: number,
+    sortField?: string | null,
+    sortOrder?: 'ascend' | 'descend' | null
+  ) => Promise<void>
 }
 
 export const useGetExpensePlans = (context?: BusinessAppContextProps): ExpensePlansDataView => {
-  const accessToken = context?.accessToken;
-  const employeeId = context?.userInfo?.employeeDetails?.employeeId;
-  const [items, setItems] = useState<ExpensePlan[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [totalCount, setTotalCount] = useState<number>(0);
+  const accessToken = context?.accessToken
+  const employeeId = context?.userInfo?.employeeDetails?.employeeId
+  const [items, setItems] = useState<ExpensePlan[]>([])
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [error, setError] = useState<Error | null>(null)
+  const [totalCount, setTotalCount] = useState<number>(0)
+  const graphqlClient = useGraphQLClient(accessToken || '')
 
   // Function to fetch items with search, pagination, and server-side sorting
-  const fetchItems = useCallback(async (
-    filters: ExpensePlanFilter = {}, 
-    page: number = 1, 
-    pageSize: number = 20,
-    sortField?: string | null,
-    sortOrder?: 'ascend' | 'descend' | null
-  ) => {
-    if (!employeeId) {
-      setError(new Error('Employee ID not found. Cannot fetch expense plans.'));
-      setItems([]);
-      setTotalCount(0);
-      setIsLoading(false);
-      return;
-    }
-
-    if (!accessToken) {
-      setError(new Error('Access token not found. Cannot fetch expense plans.'));
-      setItems([]);
-      setTotalCount(0);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const offset = (page - 1) * pageSize;
-      
-      // Build variables object
-      const variables: Record<string, any> = {
-        employeeId,
-        filters,
-        limit: pageSize,
-        offset: offset,
-      };
-
-      // Add orderBy for server-side sorting
-      if (sortField && sortOrder) {
-        // Map UI sort field to GraphQL field names - only include fields that exist in the schema
-        const fieldMap: Record<string, string> = {
-          code: 'code',
-          title: 'title',
-          planDate: 'planDate',
-          startDate: 'startDate',
-          endDate: 'endDate',
-          status: 'status',
-          reimbursableAmount: 'reimbursableAmount',
-          advancePaymentPaidAmount: 'advancePaymentPaidAmount',
-          totalAmount: 'totalAmount',
-          createdAt: 'createdAt',
-          updatedAt: 'updatedAt',
-          description: 'description',
-          currencyRef: 'currencyRef',
-          requestTypeRef: 'requestTypeRef'
-        };
-        const gqlField = fieldMap[sortField] || sortField;
-        // Use proper null handling for better sorting, especially for numeric fields that can be null
-        const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST';
-        variables.orderBy = [{ [gqlField]: direction }];
-      } else {
-        // Default sorting by creation date descending
-        variables.orderBy = [{ createdAt: 'DESC_NULLS_LAST' }];
-      }
-      
-      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          query: GET_EXPENSE_PLANS_BY_EMPLOYEE,
-          variables: variables,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+  const fetchItems = useCallback(
+    async (
+      filters: ExpensePlanFilter = {},
+      page: number = 1,
+      pageSize: number = 20,
+      sortField?: string | null,
+      sortOrder?: 'ascend' | 'descend' | null
+    ) => {
+      if (!employeeId) {
+        setError(new Error('Employee ID not found. Cannot fetch expense plans.'))
+        setItems([])
+        setTotalCount(0)
+        setIsLoading(false)
+        return
       }
 
-      const result = await response.json();
-
-      if (result.errors && result.errors.length > 0) {
-        throw new Error(result.errors.map((e: any) => e.message).join(', '));
+      if (!accessToken) {
+        setError(new Error('Access token not found. Cannot fetch expense plans.'))
+        setItems([])
+        setTotalCount(0)
+        setIsLoading(false)
+        return
       }
-      
-      // Get total count from aggregate query
-      const count = result.data?.ExpensePlanAggregate?.aggregate?.count ?? 0;
-      setTotalCount(count);
-      
-      // Get the items
-      const fetchedItems = result.data?.ExpensePlan ?? [];
-      setItems(fetchedItems);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error(String(err)));
-      setItems([]); // Clear items on error
-      setTotalCount(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [employeeId, accessToken]);
 
- // We only want to run this once when the component mounts and has the required IDs.
+      setIsLoading(true)
+      setError(null)
 
-  return { items, isLoading, error: error?.message ?? null, totalCount, fetchItems };
-};
+      try {
+        const offset = (page - 1) * pageSize
+
+        // Build variables object
+        const variables: Record<string, any> = {
+          employeeId,
+          filters,
+          limit: pageSize,
+          offset: offset
+        }
+
+        // Add orderBy for server-side sorting
+        if (sortField && sortOrder) {
+          // Map UI sort field to GraphQL field names - only include fields that exist in the schema
+          const fieldMap: Record<string, string> = {
+            code: 'code',
+            title: 'title',
+            planDate: 'planDate',
+            startDate: 'startDate',
+            endDate: 'endDate',
+            status: 'status',
+            reimbursableAmount: 'reimbursableAmount',
+            advancePaymentPaidAmount: 'advancePaymentPaidAmount',
+            totalAmount: 'totalAmount',
+            createdAt: 'createdAt',
+            updatedAt: 'updatedAt',
+            description: 'description',
+            currencyRef: 'currencyRef',
+            requestTypeRef: 'requestTypeRef'
+          }
+          const gqlField = fieldMap[sortField] || sortField
+          // Use proper null handling for better sorting, especially for numeric fields that can be null
+          const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
+          variables.orderBy = [{ [gqlField]: direction }]
+        } else {
+          // Default sorting by creation date descending
+          variables.orderBy = [{ createdAt: 'DESC_NULLS_LAST' }]
+        }
+
+        const result = await graphqlClient.request<any>(GET_EXPENSE_PLANS_BY_EMPLOYEE, variables)
+        const count = result?.ExpensePlanAggregate?.aggregate?.count ?? 0
+        setTotalCount(count)
+
+        const fetchedItems = result?.ExpensePlan ?? []
+        setItems(fetchedItems)
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error(String(err)))
+        setItems([]) // Clear items on error
+        setTotalCount(0)
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [employeeId, accessToken, graphqlClient]
+  )
+
+  // We only want to run this once when the component mounts and has the required IDs.
+
+  return { items, isLoading, error: error?.message ?? null, totalCount, fetchItems }
+}

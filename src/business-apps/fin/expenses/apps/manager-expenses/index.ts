@@ -1,4 +1,4 @@
-import ManagerExpenses from './ManagerExpenses';
+import ManagerExpenses from './ManagerExpenses'
 
-export { ManagerExpenses };
-export default ManagerExpenses;
+export { ManagerExpenses }
+export default ManagerExpenses

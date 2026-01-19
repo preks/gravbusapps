@@ -1,2 +1,2 @@
-export { default, CurrencyFilter } from './CurrencyFilter';
-export type { CurrencyFilterProps } from './CurrencyFilter';
+export { default, CurrencyFilter } from './CurrencyFilter'
+export type { CurrencyFilterProps } from './CurrencyFilter'

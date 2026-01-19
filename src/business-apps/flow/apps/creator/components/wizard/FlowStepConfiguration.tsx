@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Button, Alert, Card } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { FlowStep, FlowStepType, AssignmentMode } from '@/common/network/flows/FlowTemplateClient';
-import { FlowStepEditor } from './FlowStepEditor';
+import React, { useState, useEffect } from 'react'
+import { Button, Alert, Card } from 'antd'
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { FlowStep, FlowStepType, AssignmentMode } from '@/common/network/flows/FlowTemplateClient'
+import { FlowStepEditor } from './FlowStepEditor'
 
 interface FlowStepConfigurationProps {
-  steps: FlowStep[];
-  onStepsChange: (steps: FlowStep[]) => void;
-  assignmentMode: AssignmentMode;
-  'data-testid'?: string;
+  steps: FlowStep[]
+  onStepsChange: (steps: FlowStep[]) => void
+  assignmentMode: AssignmentMode
+  'data-testid'?: string
 }
 
 const createEmptyStep = (): FlowStep => ({
@@ -18,8 +18,9 @@ const createEmptyStep = (): FlowStep => ({
   message: '',
   links: [],
   inputs: [],
-  type: FlowStepType.TASK
-});
+  type: FlowStepType.TASK,
+  kind: 'USER'
+})
 
 export const FlowStepConfiguration: React.FC<FlowStepConfigurationProps> = ({
   steps,
@@ -27,115 +28,123 @@ export const FlowStepConfiguration: React.FC<FlowStepConfigurationProps> = ({
   assignmentMode,
   'data-testid': testId = 'simplified-step-configuration'
 }) => {
-  const [localSteps, setLocalSteps] = useState<FlowStep[]>(steps);
-  const [newlyCreatedSteps, setNewlyCreatedSteps] = useState<Set<number>>(new Set());
+  const [localSteps, setLocalSteps] = useState<FlowStep[]>(steps)
+  const [newlyCreatedSteps, setNewlyCreatedSteps] = useState<Set<number>>(new Set())
 
   // Auto-save when steps change
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      onStepsChange(localSteps);
-    }, 500); // Debounce auto-save
+      onStepsChange(localSteps)
+    }, 500) // Debounce auto-save
 
-    return () => clearTimeout(timeoutId);
-  }, [localSteps, onStepsChange]);
+    return () => clearTimeout(timeoutId)
+  }, [localSteps, onStepsChange])
 
   const addStep = () => {
-    const newStep = createEmptyStep();
-    newStep.title = `${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${localSteps.length + 1}`;
-    const newStepIndex = localSteps.length;
-    setLocalSteps([...localSteps, newStep]);
-    
+    const newStep = createEmptyStep()
+    newStep.title = `${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${localSteps.length + 1}`
+    const newStepIndex = localSteps.length
+    setLocalSteps([...localSteps, newStep])
+
     // Mark this step as newly created
-    setNewlyCreatedSteps(prev => new Set([...prev, newStepIndex]));
-    
+    setNewlyCreatedSteps(prev => new Set([...prev, newStepIndex]))
+
     // Remove the "new" flag after a delay to allow the step to be rendered as expanded
     setTimeout(() => {
       setNewlyCreatedSteps(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(newStepIndex);
-        return newSet;
-      });
-    }, 1000);
-  };
+        const newSet = new Set(prev)
+        newSet.delete(newStepIndex)
+        return newSet
+      })
+    }, 1000)
+  }
 
   const removeStep = (stepIndex: number) => {
     if (localSteps.length > 1) {
-      setLocalSteps(localSteps.filter((_, index) => index !== stepIndex));
+      setLocalSteps(localSteps.filter((_, index) => index !== stepIndex))
       // Update newly created steps indices
       setNewlyCreatedSteps(prev => {
-        const newSet = new Set<number>();
+        const newSet = new Set<number>()
         prev.forEach(index => {
           if (index < stepIndex) {
-            newSet.add(index);
+            newSet.add(index)
           } else if (index > stepIndex) {
-            newSet.add(index - 1);
+            newSet.add(index - 1)
           }
-        });
-        return newSet;
-      });
+        })
+        return newSet
+      })
     }
-  };
+  }
 
   const updateStep = (stepIndex: number, updatedStep: FlowStep) => {
-    const updatedSteps = [...localSteps];
-    updatedSteps[stepIndex] = updatedStep;
-    setLocalSteps(updatedSteps);
-  };
+    const updatedSteps = [...localSteps]
+    updatedSteps[stepIndex] = updatedStep
+    setLocalSteps(updatedSteps)
+  }
 
   const moveStep = (fromIndex: number, toIndex: number) => {
-    if (toIndex < 0 || toIndex >= localSteps.length) return;
-    
-    const updatedSteps = [...localSteps];
-    const [movedStep] = updatedSteps.splice(fromIndex, 1);
-    updatedSteps.splice(toIndex, 0, movedStep);
-    setLocalSteps(updatedSteps);
-    
+    if (toIndex < 0 || toIndex >= localSteps.length) return
+
+    const updatedSteps = [...localSteps]
+    const [movedStep] = updatedSteps.splice(fromIndex, 1)
+    updatedSteps.splice(toIndex, 0, movedStep)
+    setLocalSteps(updatedSteps)
+
     // Update newly created steps indices
     setNewlyCreatedSteps(prev => {
-      const newSet = new Set<number>();
+      const newSet = new Set<number>()
       prev.forEach(index => {
         if (index === fromIndex) {
-          newSet.add(toIndex);
+          newSet.add(toIndex)
         } else if (index === toIndex) {
-          newSet.add(fromIndex);
+          newSet.add(fromIndex)
         } else {
-          newSet.add(index);
+          newSet.add(index)
         }
-      });
-      return newSet;
-    });
-  };
+      })
+      return newSet
+    })
+  }
 
   // Validation
   const validateSteps = () => {
-    const errors: string[] = [];
-    
+    const errors: string[] = []
+
     localSteps.forEach((step, index) => {
       if (!step.title.trim()) {
-        errors.push(`${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${index + 1}: ${getTranslationFromI18nKeyAndLabel('flow.creator.titleRequired', 'Title is required')}`);
+        errors.push(
+          `${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${index + 1}: ${getTranslationFromI18nKeyAndLabel('flow.creator.titleRequired', 'Title is required')}`
+        )
       }
-      
+
       step.inputs?.forEach((input, inputIndex) => {
         if (!input.label.trim()) {
-          errors.push(`${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${index + 1}, ${getTranslationFromI18nKeyAndLabel('flow.creator.input', 'Input')} ${inputIndex + 1}: ${getTranslationFromI18nKeyAndLabel('flow.creator.labelRequired', 'Label is required')}`);
+          errors.push(
+            `${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${index + 1}, ${getTranslationFromI18nKeyAndLabel('flow.creator.input', 'Input')} ${inputIndex + 1}: ${getTranslationFromI18nKeyAndLabel('flow.creator.labelRequired', 'Label is required')}`
+          )
         }
-      });
-      
+      })
+
       step.links?.forEach((link, linkIndex) => {
         if (!link.name.trim()) {
-          errors.push(`${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${index + 1}, ${getTranslationFromI18nKeyAndLabel('flow.creator.link', 'Link')} ${linkIndex + 1}: ${getTranslationFromI18nKeyAndLabel('flow.creator.nameRequired', 'Name is required')}`);
+          errors.push(
+            `${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${index + 1}, ${getTranslationFromI18nKeyAndLabel('flow.creator.link', 'Link')} ${linkIndex + 1}: ${getTranslationFromI18nKeyAndLabel('flow.creator.nameRequired', 'Name is required')}`
+          )
         }
         if (!link.url.trim()) {
-          errors.push(`${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${index + 1}, ${getTranslationFromI18nKeyAndLabel('flow.creator.link', 'Link')} ${linkIndex + 1}: ${getTranslationFromI18nKeyAndLabel('flow.creator.urlRequired', 'URL is required')}`);
+          errors.push(
+            `${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${index + 1}, ${getTranslationFromI18nKeyAndLabel('flow.creator.link', 'Link')} ${linkIndex + 1}: ${getTranslationFromI18nKeyAndLabel('flow.creator.urlRequired', 'URL is required')}`
+          )
         }
-      });
-    });
-    
-    return errors;
-  };
+      })
+    })
 
-  const validationErrors = validateSteps();
-  const isValid = validationErrors.length === 0;
+    return errors
+  }
+
+  const validationErrors = validateSteps()
+  const isValid = validationErrors.length === 0
 
   return (
     <div className="gba:space-y-4" data-testid={testId}>
@@ -146,15 +155,13 @@ export const FlowStepConfiguration: React.FC<FlowStepConfigurationProps> = ({
             {getTranslationFromI18nKeyAndLabel('flow.creator.configureSteps', 'Configure Steps')}
           </h3>
           <p className="gba:text-sm gba:text-gray-600">
-            {getTranslationFromI18nKeyAndLabel('flow.creator.stepConfigurationDescription', 'Define the steps in your workflow. Each step can have a message, links, input fields, and assignment configuration.')}
+            {getTranslationFromI18nKeyAndLabel(
+              'flow.creator.stepConfigurationDescription',
+              'Define the steps in your workflow. Each step can have a message, links, input fields, and assignment configuration.'
+            )}
           </p>
         </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={addStep}
-          data-testid={`${testId}-add-step`}
-        >
+        <Button type="primary" icon={<PlusOutlined />} onClick={addStep} data-testid={`${testId}-add-step`}>
           {getTranslationFromI18nKeyAndLabel('flow.creator.addStep', 'Add Step')}
         </Button>
       </div>
@@ -167,7 +174,9 @@ export const FlowStepConfiguration: React.FC<FlowStepConfigurationProps> = ({
           description={
             <ul className="gba:list-disc gba:list-inside gba:space-y-1">
               {validationErrors.map((error, index) => (
-                <li key={index} className="gba:text-sm">{error}</li>
+                <li key={index} className="gba:text-sm">
+                  {error}
+                </li>
               ))}
             </ul>
           }
@@ -187,7 +196,7 @@ export const FlowStepConfiguration: React.FC<FlowStepConfigurationProps> = ({
               assignmentMode={assignmentMode}
               data-testid={`${testId}-step-editor`}
             />
-            
+
             {/* Step Actions */}
             <div className="gba:absolute gba:top-2 gba:right-2 gba:flex gba:gap-1">
               {index > 0 && (
@@ -241,12 +250,7 @@ export const FlowStepConfiguration: React.FC<FlowStepConfigurationProps> = ({
                 {getTranslationFromI18nKeyAndLabel('flow.creator.addFirstStep', 'Add your first step to get started')}
               </p>
             </div>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={addStep}
-              data-testid={`${testId}-add-first-step`}
-            >
+            <Button type="primary" icon={<PlusOutlined />} onClick={addStep} data-testid={`${testId}-add-first-step`}>
               {getTranslationFromI18nKeyAndLabel('flow.creator.addFirstStep', 'Add First Step')}
             </Button>
           </div>
@@ -261,9 +265,11 @@ export const FlowStepConfiguration: React.FC<FlowStepConfigurationProps> = ({
               {getTranslationFromI18nKeyAndLabel('flow.creator.stepsSummary', 'Steps Summary')}
             </p>
             <p className="gba:text-xs gba:text-gray-600">
-              {localSteps.length} {getTranslationFromI18nKeyAndLabel('flow.creator.steps', 'steps')} • 
-              {localSteps.filter(s => s.inputs && s.inputs.length > 0).length} {getTranslationFromI18nKeyAndLabel('flow.creator.withInput', 'with input')} • 
-              {localSteps.filter(s => s.assignment && s.assignment.target).length} {getTranslationFromI18nKeyAndLabel('flow.creator.withAssignment', 'with predefined assignment')}
+              {localSteps.length} {getTranslationFromI18nKeyAndLabel('flow.creator.steps', 'steps')} •
+              {localSteps.filter(s => s.inputs && s.inputs.length > 0).length}{' '}
+              {getTranslationFromI18nKeyAndLabel('flow.creator.withInput', 'with input')} •
+              {localSteps.filter(s => s.assignment && s.assignment.target).length}{' '}
+              {getTranslationFromI18nKeyAndLabel('flow.creator.withAssignment', 'with predefined assignment')}
             </p>
           </div>
           <div className="gba:flex gba:items-center gba:gap-2">
@@ -280,5 +286,5 @@ export const FlowStepConfiguration: React.FC<FlowStepConfigurationProps> = ({
         </div>
       </Card>
     </div>
-  );
-}; 
+  )
+}

@@ -1,4 +1,4 @@
-import { ExpenseItemContext, ExpenseItemProvider, useExpenseItem } from './ExpenseItemContext';
+import { ExpenseItemContext, ExpenseItemProvider, useExpenseItem } from './ExpenseItemContext'
 
-export { ExpenseItemContext, ExpenseItemProvider, useExpenseItem };
-export default ExpenseItemProvider;
+export { ExpenseItemContext, ExpenseItemProvider, useExpenseItem }
+export default ExpenseItemProvider

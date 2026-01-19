@@ -1,34 +1,53 @@
-import React from 'react';
-import { Card, CardHeader, CardTitle, Badge, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
-import { PipelineStatistics, PipelineStatisticsMetrics } from './widgets/PipelineStatistics';
-import { OpportunityFunnel, OpportunityFunnelData } from './widgets/OpportunityFunnel';
-import { ConversionPerformance, WinRateMetrics } from './widgets/ConversionPerformance';
-import { ActivityVolume, ActivityVolumeMetrics } from './widgets/ActivityVolume';
-import { PerformanceLeaderboard, SalesRepPerformance } from './widgets/PerformanceLeaderboard';
+import React from 'react'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  Badge,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
+import { PipelineStatistics, PipelineStatisticsMetrics } from './widgets/PipelineStatistics'
+import { OpportunityFunnel, OpportunityFunnelData } from './widgets/OpportunityFunnel'
+import { ConversionPerformance, WinRateMetrics } from './widgets/ConversionPerformance'
+import { ActivityVolume, ActivityVolumeMetrics } from './widgets/ActivityVolume'
+import { PerformanceLeaderboard, SalesRepPerformance } from './widgets/PerformanceLeaderboard'
+import { CurrencyFilter } from '@/business-apps/irm/investments/apps/investment-management/views/analytics-view/shared/components/CurrencyFilter'
 
 export interface PipelineTabLayoutProps {
-  moduleColor?: string;
-  headerLeft?: React.ReactNode;                 // Optional header content (e.g., icon/title) if needed
+  moduleColor?: string
+  headerLeft?: React.ReactNode // Optional header content (e.g., icon/title) if needed
 
   // Pipeline selector ownership here
-  pipelines?: Array<{ id: string; name: string }>;
-  selectedPipelineId?: string;
-  onPipelineChange?: (pipelineId: string) => void;
-  pipelineHeaderBadges?: { label: string; variant?: 'default' | 'secondary' | 'outline' }[];
-  pipelineTitle?: string;
-  pipelineDescription?: string;
-  
+  pipelines?: Array<{ id: string; name: string }>
+  selectedPipelineId?: string
+  onPipelineChange?: (pipelineId: string) => void
+  pipelineHeaderBadges?: { label: string; variant?: 'default' | 'secondary' | 'outline' }[]
+  pipelineTitle?: string
+  pipelineDescription?: string
+
+  // Currency filter props
+  availableCurrencies?: string[]
+  selectedCurrency?: string
+  onCurrencyChange?: (currency: string) => void
+
+  // Loading state
+  isLoading?: boolean
+
   // Data props for widgets
-  pipelineId: string;
-  metrics: PipelineStatisticsMetrics;
-  funnelData: OpportunityFunnelData[];
-  winRateMetrics: WinRateMetrics;
-  activityVolume: ActivityVolumeMetrics;
-  leaderboard: SalesRepPerformance[];
+  pipelineId: string
+  metrics: PipelineStatisticsMetrics
+  funnelData: OpportunityFunnelData[]
+  winRateMetrics: WinRateMetrics
+  activityVolume: ActivityVolumeMetrics
+  leaderboard: SalesRepPerformance[]
 }
 
 export const PipelineTabLayout: React.FC<PipelineTabLayoutProps> = ({
-  moduleColor = "default",
+  moduleColor: _moduleColor = 'default',
   headerLeft,
   pipelines,
   selectedPipelineId,
@@ -36,15 +55,20 @@ export const PipelineTabLayout: React.FC<PipelineTabLayoutProps> = ({
   pipelineHeaderBadges,
   pipelineTitle,
   pipelineDescription,
+  availableCurrencies,
+  selectedCurrency,
+  onCurrencyChange,
+  isLoading = false,
   pipelineId,
   metrics,
   funnelData,
   winRateMetrics,
   activityVolume,
-  leaderboard,
+  leaderboard
 }) => {
-  // Remove unused variable warning
-  const _ = moduleColor;
+  // _moduleColor is available for future use in styling
+  void _moduleColor
+
   return (
     <div className="gba:space-y-6">
       {/* Pipeline Header */}
@@ -55,13 +79,9 @@ export const PipelineTabLayout: React.FC<PipelineTabLayoutProps> = ({
               {headerLeft}
               <div className="gba:flex gba:items-center gba:gap-3">
                 <div>
-                  <CardTitle className="gba:text-gray-900">
-                    {pipelineTitle}
-                  </CardTitle>
+                  <CardTitle className="gba:text-gray-900">{pipelineTitle}</CardTitle>
                   {pipelineDescription && (
-                    <p className="gba:text-gray-600 gba:text-sm gba:mt-1">
-                      {pipelineDescription}
-                    </p>
+                    <p className="gba:text-gray-600 gba:text-sm gba:mt-1">{pipelineDescription}</p>
                   )}
                 </div>
                 {pipelines && pipelines.length > 1 && onPipelineChange && (
@@ -70,12 +90,10 @@ export const PipelineTabLayout: React.FC<PipelineTabLayoutProps> = ({
                       <SelectValue placeholder="Select pipeline" />
                     </SelectTrigger>
                     <SelectContent>
-                      {pipelines.map((p) => (
+                      {pipelines.map(p => (
                         <SelectItem key={p.id} value={p.id}>
                           <div className="gba:flex gba:items-center gba:gap-2">
-                            <div 
-                              className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-blue-500"
-                            />
+                            <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-blue-500" />
                             <span>{p.name}</span>
                           </div>
                         </SelectItem>
@@ -85,38 +103,58 @@ export const PipelineTabLayout: React.FC<PipelineTabLayoutProps> = ({
                 )}
               </div>
             </div>
-            {pipelineHeaderBadges && pipelineHeaderBadges.length > 0 && (
-              <div className="gba:flex gba:flex-wrap gba:gap-3 gba:items-center">
-                {pipelineHeaderBadges.map((b, idx) => (
+            <div className="gba:flex gba:flex-wrap gba:gap-3 gba:items-center">
+              {/* Currency Filter */}
+              {availableCurrencies && availableCurrencies.length > 1 && onCurrencyChange && selectedCurrency && (
+                <CurrencyFilter
+                  value={selectedCurrency}
+                  onChange={onCurrencyChange}
+                  currencies={availableCurrencies}
+                  dataTestId="pipeline-currency-filter"
+                />
+              )}
+              {/* Badges */}
+              {pipelineHeaderBadges &&
+                pipelineHeaderBadges.length > 0 &&
+                pipelineHeaderBadges.map((b, idx) => (
                   <Badge key={idx} variant={b.variant || 'secondary'} className="gba:px-3 gba:py-1">
                     {b.label}
                   </Badge>
                 ))}
-              </div>
-            )}
+            </div>
           </div>
         </CardHeader>
       </Card>
 
       {/* KPI Overview Grid */}
-      <PipelineStatistics pipelineId={pipelineId} metrics={metrics} />
+      <PipelineStatistics pipelineId={pipelineId} metrics={metrics} currency={selectedCurrency} isLoading={isLoading} />
 
       {/* Main Components Grid */}
       <div className="gba:grid gba:grid-cols-1 gba:xl:grid-cols-2 gba:gap-6">
         {/* Left Column */}
         <div className="gba:space-y-6">
-          <OpportunityFunnel funnelData={funnelData} pipelineId={pipelineId} />
-          <ConversionPerformance winRateMetrics={winRateMetrics} pipelineId={pipelineId} />
+          <OpportunityFunnel
+            funnelData={funnelData}
+            pipelineId={pipelineId}
+            currency={selectedCurrency}
+            isLoading={isLoading}
+          />
+          <ConversionPerformance winRateMetrics={winRateMetrics} pipelineId={pipelineId} isLoading={isLoading} />
         </div>
 
         {/* Right Column */}
         <div className="gba:space-y-6">
-          <ActivityVolume activityVolume={activityVolume} pipelineId={pipelineId} />
-          <PerformanceLeaderboard leaderboard={leaderboard} pipelineId={pipelineId} />
+          <ActivityVolume activityVolume={activityVolume} pipelineId={pipelineId} isLoading={isLoading} />
+          <PerformanceLeaderboard
+            leaderboard={leaderboard}
+            pipelineId={pipelineId}
+            currency={selectedCurrency}
+            isLoading={isLoading}
+          />
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default PipelineTabLayout;
+export default PipelineTabLayout

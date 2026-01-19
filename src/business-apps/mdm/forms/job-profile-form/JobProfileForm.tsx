@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import FormWrapperModal from "@/business-apps/mdm/apps/generic-components/form-wrapper/FormWrapperModal";
+import React, { useMemo, useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { FormWrapperModal } from '@/components/form-wrapper'
 import {
   Input,
   FormField,
@@ -10,32 +10,28 @@ import {
   FormMessage,
   Textarea,
   Combobox,
-} from "@newwork/nw-design-system";
-import {
-  JobFunction,
-  JobProfile,
-  JobLevelGroup,
-  JobLevel,
-} from "@/business-apps/mdm/apps/job-structure-data/types";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { env } from "@/common/env/EnvUtils";
+  Switch
+} from '@newwork/nw-design-system'
+import { JobFunction, JobProfile, JobLevelGroup, JobLevel } from '@/business-apps/mdm/apps/job-structure-data/types'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { env } from '@/common/env/EnvUtils'
 
-import { useRestClient } from "@/common/network/rest/useRestClient";
+import { useRestClient } from '@/common/network/rest/useRestClient'
 
-const DATA_TEST_ID_PREFIX = "JobProfileForm";
+const DATA_TEST_ID_PREFIX = 'JobProfileForm'
 
 export interface JobProfileFormProps extends BusinessAppContextProps {
-  jobProfile?: JobProfile;
-  prefixDataTestId?: string;
-  childAddButton: React.ReactNode;
-  jobFunctions: JobFunction[];
-  jobLevelGroups: JobLevelGroup[];
-  contractTypes: Array<{ id: string; value: string }>;
-  employmentTypes: Array<{ id: string; value: string }>;
-  refetch: () => void;
-  isDrawerActive?: boolean;
-  defaultJobLevels?: JobLevel[];
-  jobLevelGroupRef?: string;
+  jobProfile?: JobProfile
+  prefixDataTestId?: string
+  childAddButton: React.ReactNode
+  jobFunctions: JobFunction[]
+  jobLevelGroups: JobLevelGroup[]
+  contractTypes: Array<{ id: string; value: string }>
+  employmentTypes: Array<{ id: string; value: string }>
+  refetch: () => void
+  isDrawerActive?: boolean
+  defaultJobLevels?: JobLevel[]
+  jobLevelGroupRef?: string
 }
 
 const JobProfileForm: React.FC<JobProfileFormProps> = ({
@@ -48,81 +44,69 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
   employmentTypes,
   accessToken,
   refetch,
-  isDrawerActive = false,
+  isDrawerActive = false
 }) => {
-  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
-  const restClient = useRestClient(
-    env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT")
-  );
-  const [loading, setLoading] = useState(false);
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
+  const [loading, setLoading] = useState(false)
   const [selectedJobFunction, setSelectedJobFunction] = useState<{
-    id: string;
-    name: string;
-  } | null>(jobProfile?.jobFunction ?? null);
+    id: string
+    name: string
+  } | null>(jobProfile?.jobFunction ?? null)
   const [selectedJobLevel, setSelectedJobLevel] = useState<{
-    id: string;
-    name: string;
-  } | null>(jobProfile?.jobLevel ?? null);
+    id: string
+    name: string
+  } | null>(jobProfile?.jobLevel ?? null)
 
   const jobLevels = useMemo(() => {
-    const targetJobFunction = jobFunctions.find(
-      (jobFunction) => jobFunction.id === selectedJobFunction?.id
-    );
+    const targetJobFunction = jobFunctions.find(jobFunction => jobFunction.id === selectedJobFunction?.id)
 
     if (!targetJobFunction) {
-      return [];
+      return []
     }
 
     const targetJobLevelGroup = jobLevelGroups.find(
-      (jobLevelGroup) =>
-        jobLevelGroup.id === targetJobFunction?.jobLevelGroupRef
-    );
+      jobLevelGroup => jobLevelGroup.id === targetJobFunction?.jobLevelGroupRef
+    )
 
-    const jobLevels = (targetJobLevelGroup?.jobLevels ?? []).map(
-      (jobLevel) => ({
-        id: jobLevel.id,
-        name: jobLevel.name,
-      })
-    );
+    const jobLevels = (targetJobLevelGroup?.jobLevels ?? []).map(jobLevel => ({
+      id: jobLevel.id,
+      name: jobLevel.name
+    }))
 
-    return jobLevels;
-  }, [jobLevelGroups, selectedJobFunction, jobProfile, jobFunctions]);
+    return jobLevels
+  }, [jobLevelGroups, selectedJobFunction, jobProfile, jobFunctions])
 
   const handleSubmit = async (values: any) => {
     try {
-      setLoading(true);
+      setLoading(true)
 
       const payload = {
-        changeMode: "INSERT",
+        changeMode: 'INSERT',
         jobProfile: {
           code: values.code,
           name: values.name,
           description: values.description,
-          contractTypeRef:
-            values.contractTypeRef?.length > 0 ? values.contractTypeRef : null,
-          employmentTypeRef:
-            values.employmentTypeRef?.length > 0
-              ? values.employmentTypeRef
-              : null,
+          contractTypeRef: values.contractTypeRef?.length > 0 ? values.contractTypeRef : null,
+          employmentTypeRef: values.employmentTypeRef?.length > 0 ? values.employmentTypeRef : null,
           jobFunction: values.jobFunctionId,
           jobLevel: values.jobLevelId?.length > 0 ? values.jobLevelId : null,
-          ...(jobProfile
-            ? { version: jobProfile.version, id: jobProfile.id }
-            : {}),
-        },
-      };
+          recordState: values.active,
+          ...(jobProfile ? { version: jobProfile.version, id: jobProfile.id } : {})
+        }
+      }
 
-      await restClient.post("/employee/saveJobProfile", payload, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      await restClient.post('/employee/saveJobProfile', payload, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      })
 
-      refetch();
+      refetch()
     } catch (error) {
-      console.error("Error saving Job Function:", error);
+      console.error('Error saving Job Function:', error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const defaultValues = useMemo(
     () =>
@@ -136,20 +120,21 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
             jobLevelId: jobProfile.jobLevelId,
             contractTypeRef: jobProfile.contractTypeRef,
             employmentTypeRef: jobProfile.employmentTypeRef,
+            active: jobProfile.recordState ? 'active' : 'inactive'
           }
         : {},
     [jobProfile]
-  );
+  )
 
   return (
     <FormWrapperModal
       childAddButton={childAddButton}
-      title={jobProfile ? "Edit Job Profile" : "Create Job Profile"}
+      title={jobProfile ? 'Edit Job Profile' : 'Create Job Profile'}
       description="Configure job profile details and requirements"
       onSubmit={handleSubmit}
       onCancel={() => {
-        setSelectedJobLevel(jobProfile?.jobLevel ?? null);
-        setSelectedJobFunction(jobProfile?.jobFunction ?? null);
+        setSelectedJobLevel(jobProfile?.jobLevel ?? null)
+        setSelectedJobFunction(jobProfile?.jobFunction ?? null)
       }}
       defaultValues={defaultValues}
       isEditing={!!jobProfile}
@@ -159,7 +144,7 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
     >
       <FormField
         name="name"
-        rules={{ required: "Please enter job profile name" }}
+        rules={{ required: 'Please enter job profile name' }}
         render={({ field }) => (
           <FormItem>
             <FormLabel>Profile Name</FormLabel>
@@ -177,16 +162,12 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
 
       <FormField
         name="code"
-        rules={{ required: "Please enter code" }}
+        rules={{ required: 'Please enter code' }}
         render={({ field }) => (
           <FormItem>
             <FormLabel>Code</FormLabel>
             <FormControl>
-              <Input
-                placeholder="e.g., SSE, PM"
-                {...field}
-                data-testid={`${dataTestId}-code-input`}
-              />
+              <Input placeholder="e.g., SSE, PM" {...field} data-testid={`${dataTestId}-code-input`} />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -213,31 +194,29 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
 
       <FormField
         name="jobFunctionId"
-        rules={{ required: "Please select a job function" }}
+        rules={{ required: 'Please select a job function' }}
         render={({ field }) => (
           <FormItem>
             <FormLabel>Job Function</FormLabel>
             <FormControl>
               <Combobox
-                key={`job-function-combobox-${field.value || "empty"}`}
-                options={jobFunctions.map((func) => ({
+                key={`job-function-combobox-${field.value || 'empty'}`}
+                options={jobFunctions.map(func => ({
                   value: func.id,
-                  label: func.name,
+                  label: func.name
                 }))}
-                value={field.value || ""}
-                onValueChange={(value) => {
-                  field.onChange(value);
+                value={field.value || ''}
+                onValueChange={value => {
+                  field.onChange(value)
 
-                  const targetJobFunction = jobFunctions.find(
-                    (jobFunction) => jobFunction.id === value
-                  );
+                  const targetJobFunction = jobFunctions.find(jobFunction => jobFunction.id === value)
 
                   if (targetJobFunction) {
-                    setSelectedJobFunction(targetJobFunction);
-                    setSelectedJobLevel(null);
+                    setSelectedJobFunction(targetJobFunction)
+                    setSelectedJobLevel(null)
                   } else {
-                    setSelectedJobFunction(null);
-                    setSelectedJobLevel(null);
+                    setSelectedJobFunction(null)
+                    setSelectedJobLevel(null)
                   }
                 }}
                 placeholder="Select job function"
@@ -259,23 +238,21 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
             <FormLabel>Job Level</FormLabel>
             <FormControl>
               <Combobox
-                key={`job-level-combobox-${field.value || "empty"}`}
-                options={jobLevels.map((level) => ({
+                key={`job-level-combobox-${field.value || 'empty'}`}
+                options={jobLevels.map(level => ({
                   value: level.id,
-                  label: level.name,
+                  label: level.name
                 }))}
-                value={selectedJobLevel?.id || ""}
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  const targetLevel = jobLevels.find(
-                    (jobLevel) => jobLevel.id === value
-                  );
+                value={selectedJobLevel?.id || ''}
+                onValueChange={value => {
+                  field.onChange(value)
+                  const targetLevel = jobLevels.find(jobLevel => jobLevel.id === value)
 
                   if (targetLevel) {
                     setSelectedJobLevel({
                       id: targetLevel.id,
-                      name: targetLevel.name,
-                    });
+                      name: targetLevel.name
+                    })
                   }
                 }}
                 placeholder="Select job level (optional)"
@@ -297,12 +274,12 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
             <FormLabel>Contract Type</FormLabel>
             <FormControl>
               <Combobox
-                key={`contract-type-combobox-${field.value || "empty"}`}
-                options={contractTypes.map((type) => ({
+                key={`contract-type-combobox-${field.value || 'empty'}`}
+                options={contractTypes.map(type => ({
                   value: type.id,
-                  label: type.value,
+                  label: type.value
                 }))}
-                value={field.value || ""}
+                value={field.value || ''}
                 onValueChange={field.onChange}
                 placeholder="Select contract type (optional)"
                 searchPlaceholder="Search contract types..."
@@ -323,12 +300,12 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
             <FormLabel>Employment Type</FormLabel>
             <FormControl>
               <Combobox
-                key={`employment-type-combobox-${field.value || "empty"}`}
-                options={employmentTypes.map((type) => ({
+                key={`employment-type-combobox-${field.value || 'empty'}`}
+                options={employmentTypes.map(type => ({
                   value: type.id,
-                  label: type.value,
+                  label: type.value
                 }))}
-                value={field.value || ""}
+                value={field.value || ''}
                 onValueChange={field.onChange}
                 placeholder="Select employment type (optional)"
                 searchPlaceholder="Search employment types..."
@@ -341,8 +318,25 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
           </FormItem>
         )}
       />
-    </FormWrapperModal>
-  );
-};
 
-export default JobProfileForm;
+      <FormField
+        name="active"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Active</FormLabel>
+            <FormControl>
+              <Switch
+                checked={field.value === 'active'}
+                onCheckedChange={checked => field.onChange(checked ? 'active' : 'inactive')}
+                data-testid={`${dataTestId}-active-switch`}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </FormWrapperModal>
+  )
+}
+
+export default JobProfileForm

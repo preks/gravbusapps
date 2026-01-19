@@ -1,8 +1,8 @@
-import React from 'react';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface HeaderProps {
-  'data-testid'?: string;
+  'data-testid'?: string
 }
 
 const Header: React.FC<HeaderProps> = ({ 'data-testid': dataTestId = 'request-advance-payment-header' }) => {
@@ -14,9 +14,9 @@ const Header: React.FC<HeaderProps> = ({ 'data-testid': dataTestId = 'request-ad
           'Request Advance Payment'
         )}
       </h1>
-      <div className="gba:border-b gba:border-text-[#E0E0E0]"></div>
+      <div className="gba:border-b gba:border-border"></div>
     </div>
-  );
-};
+  )
+}
 
-export default Header;
+export default Header

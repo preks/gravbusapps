@@ -1,36 +1,41 @@
-import { useState, useMemo, useCallback } from 'react';
-import type { DataFilterGroup, DataFilter } from '@/components/data-filter';
-import { ExpenseStatus, getExpensePlanStatusDisplay } from '../utils';
-import { useDebounce } from '@/common/hooks/useDebounce';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useCurrencyStore } from '../store/useCurrencyStore';
-import { useExpensePlanCurrencies } from './useExpensePlanCurrencies';
+import { useState, useMemo, useCallback, useEffect } from 'react'
+import type { DataFilterGroup, DataFilter } from '@/components/data-filter'
+import { ExpenseStatus, getExpensePlanStatusDisplay } from '../utils'
+
+import { useDebounce } from '@/common/hooks/useDebounce'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useExpensePlanCurrencies } from './useExpensePlanCurrencies'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface UseExpensePlanFiltersProps {
-  accessToken?: string;
-  managerId?: string;
+  accessToken?: string
+  managerId?: string
+  userInfo?: any // Add userInfo for context
 }
 
 export interface UseExpensePlanFiltersReturn {
-  searchTerm: string; 
-  setSearchTerm: (term: string) => void; 
-  debouncedSearchTerm: string; 
-  statusFilter: ExpenseStatus[]; 
-  setStatusFilter: (status: ExpenseStatus[]) => void; 
-  currencyFilter: string;
-  setCurrencyFilter: (currency: string) => void;
-  filterGroups: DataFilterGroup[]; 
-  handleDataFilterChange: (filterId: string, selected: boolean) => void; 
-  filterLabelMap: Record<string, string>; 
-  getFilters: () => Record<string, any>;
-  currenciesLoading: boolean;
+  searchTerm: string
+  setSearchTerm: (term: string) => void
+  debouncedSearchTerm: string
+  statusFilter: ExpenseStatus[]
+  setStatusFilter: (status: ExpenseStatus[]) => void
+  primaryCurrency: string
+  setCurrencyFilter: (currency: string) => void
+  mostUsedCurrency: string | null
+  availableCurrencies: string[]
+  currenciesLoading: boolean
+  currenciesInitialized: boolean
+  filterGroups: DataFilterGroup[]
+  handleDataFilterChange: (filterId: string, selected: boolean) => void
+  filterLabelMap: Record<string, string>
+  resetCurrencySelection: () => void
+  getFilters: () => Record<string, any>
 }
 
 // Move outside component to prevent re-creation on every render
 // Include all statuses from the ExpenseStatus enum to match backend values
 const availableFilterStatuses: ExpenseStatus[] = [
   ExpenseStatus.PREPARED,
-  ExpenseStatus.CREATED,
   ExpenseStatus.ASSIGNED,
   ExpenseStatus.PENDING,
   ExpenseStatus.APPROVED,
@@ -41,198 +46,177 @@ const availableFilterStatuses: ExpenseStatus[] = [
   ExpenseStatus.PAID,
   ExpenseStatus.CLOSED,
   ExpenseStatus.DISCARDED,
-  ExpenseStatus.TRANSFERRED,
-];
+  ExpenseStatus.TRANSFERRED
+]
 
 export const useExpensePlanFilters = ({
   accessToken,
-  managerId
+  managerId,
+  userInfo
 }: UseExpensePlanFiltersProps = {}): UseExpensePlanFiltersReturn => {
-  const [searchTerm, setSearchTerm] = useState<string>('');
-  // Default to PENDING (Approval Required) status filter as per requirements
-  const [statusFilter, setStatusFilter] = useState<ExpenseStatus[]>([ExpenseStatus.PENDING]);
-  
-  // Use the currency store for global currency state management with enhanced properties
-  const { 
-    primaryCurrency, 
-    setPrimaryCurrency,
-    setUserSelected,
-    mostUsedCurrency,
-    isInitialized: storeInitialized
-  } = useCurrencyStore();
-  
-  // Fetch dynamic currency data if accessToken and managerId are provided
-  const { 
-    availableCurrencies: dynamicCurrencies, 
-    isLoading: currenciesLoading,
-    isInitialized: currenciesInitialized
-  } = useExpensePlanCurrencies({
-    accessToken: accessToken || '',
-    managerId: managerId || ''
-  });
+  const [searchTerm, setSearchTerm] = useState<string>('')
+  // No default status filter - show all expense plans by default
+  const [statusFilter, setStatusFilter] = useState<ExpenseStatus[]>([])
 
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  // LOCAL currency state for expense plans tab - independent from dashboard
+  const [localPrimaryCurrency, setLocalPrimaryCurrency] = useState<string>('EUR')
+  const [localMostUsedCurrency, setLocalMostUsedCurrency] = useState<string | null>(null)
+  const [userHasManuallySelectedCurrency, setUserHasManuallySelectedCurrency] = useState<boolean>(false)
+  const [filtersInitialized, setFiltersInitialized] = useState(false)
+
+  // Create context object for the currency hook
+  const contextProps: BusinessAppContextProps = {
+    accessToken: accessToken || '',
+    userInfo: userInfo || null
+  }
+
+  // Fetch dynamic currency data if accessToken and managerId are provided
+  const {
+    mostUsedCurrency: detectedCurrency,
+    availableCurrencies: fetchedCurrencies,
+    isLoading: currenciesLoading,
+    error: currenciesError
+  } = useExpensePlanCurrencies(contextProps, managerId || '')
+
+  const debouncedSearchTerm = useDebounce(searchTerm, 300)
+
+  // Update local currency when most used currency is detected
+  useEffect(() => {
+    if (detectedCurrency && !currenciesLoading) {
+      setLocalMostUsedCurrency(detectedCurrency)
+
+      // Only set as primary if user hasn't manually selected a currency yet
+      if (!userHasManuallySelectedCurrency) {
+        setLocalPrimaryCurrency(detectedCurrency)
+      }
+    }
+  }, [detectedCurrency, currenciesLoading, localPrimaryCurrency, userHasManuallySelectedCurrency])
+
+  // Mark filters as initialized once currency data is ready
+  useEffect(() => {
+    if (!filtersInitialized && !currenciesLoading) {
+      setFiltersInitialized(true)
+    }
+  }, [filtersInitialized, currenciesLoading])
+
+  // Available currencies from fetched data
+  const availableCurrencies = useMemo(() => {
+    return fetchedCurrencies && fetchedCurrencies.length > 0 ? fetchedCurrencies : []
+  }, [fetchedCurrencies])
 
   const handleDataFilterChange = useCallback((filterId: string, isSelected: boolean) => {
     // Check if this is a currency filter (starts with 'currency:')
     if (filterId.startsWith('currency:')) {
-      const currencyCode = filterId.replace('currency:', '');
+      const currencyCode = filterId.replaceAll('currency:', '')
       if (isSelected) {
-        setPrimaryCurrency(currencyCode);
-        setUserSelected(true); // Mark this as a user selection
-        console.log(`Expense plan currency filter changed by user to: ${currencyCode}`);
+        setLocalPrimaryCurrency(currencyCode) // Use local state instead of global store
+        setUserHasManuallySelectedCurrency(true) // Mark that user has made a manual selection
       }
       // We don't handle deselection for currency as it's a single-select
-      return;
+      return
     }
-    
+
     // Handle status filters
     setStatusFilter(prevFilter => {
       if (isSelected) {
         // Add the status if it's not already in the array
         if (!prevFilter.includes(filterId as ExpenseStatus)) {
-          return [...prevFilter, filterId as ExpenseStatus];
+          return [...prevFilter, filterId as ExpenseStatus]
         }
-        return prevFilter;
+        return prevFilter
       } else {
         // Remove the status from the array
-        return prevFilter.filter(status => status !== filterId);
+        return prevFilter.filter(status => status !== filterId)
       }
-    });
-  }, [setPrimaryCurrency, setUserSelected]);
+    })
+  }, [])
 
   // Memoize filterLabelMap with stable dependencies
   const filterLabelMap: Record<string, string> = useMemo(() => {
-    const map: Record<string, string> = {};
-    availableFilterStatuses.forEach((status) => {
-      // Map status to display names that match the UI requirements
-      switch (status) {
-        case ExpenseStatus.PREPARED:
-          map[status] = 'Prepared';
-          break;
-        case ExpenseStatus.CREATED:
-          map[status] = 'Draft (Created)';
-          break;
-        case ExpenseStatus.ASSIGNED:
-          map[status] = 'Assigned';
-          break;
-        case ExpenseStatus.PENDING:
-          map[status] = 'In Approval (Pending)';
-          break;
-        case ExpenseStatus.APPROVED:
-          map[status] = 'Approved';
-          break;
-        case ExpenseStatus.RETURNED:
-          map[status] = 'In Revision (Returned)';
-          break;
-        case ExpenseStatus.REJECTED:
-          map[status] = 'Revision Required (Rejected)';
-          break;
-        case ExpenseStatus.VERIFIED:
-          map[status] = 'In Transit (Verified)';
-          break;
-        case ExpenseStatus.BOOKED:
-          map[status] = 'In Transit (Booked)';
-          break;
-        case ExpenseStatus.PAID:
-          map[status] = 'Paid';
-          break;
-        case ExpenseStatus.CLOSED:
-          map[status] = 'Closed';
-          break;
-        case ExpenseStatus.DISCARDED:
-          map[status] = 'Discarded';
-          break;
-        case ExpenseStatus.TRANSFERRED:
-          map[status] = 'In Transit (Transferred)';
-          break;
-        default:
-          map[status] = getExpensePlanStatusDisplay(status).label;
-      }
-    });
-    return map;
-  }, []); // Empty dependency array since availableFilterStatuses is now stable
+    const map: Record<string, string> = {}
+    for (const status of availableFilterStatuses) {
+      // Use the getExpensePlanStatusDisplay function for consistent translated labels
+      const display = getExpensePlanStatusDisplay(status)
+      map[status] = display.label
+    }
+    return map
+  }, [])
 
+  // Create filter groups for the DataFilter component
   const filterGroups = useMemo<DataFilterGroup[]>(() => {
-    // Status filter items
-    const statusItems: DataFilter[] = availableFilterStatuses.map(
-      (status) => ({
-        id: status,
-        label: filterLabelMap[status],
-        selected: statusFilter.includes(status),
-        group: 'statusGroup',
-      })
-    );
+    // Status filters
+    const statusItems: DataFilter[] = availableFilterStatuses.map(status => ({
+      id: status,
+      label: filterLabelMap[status],
+      selected: statusFilter.includes(status),
+      group: 'statusGroup'
+    }))
 
-    // Use combined currency options from all sources
-    // This ensures the filter shows the correct currencies from the beginning
-    const availableCurrencies = Array.from(new Set([
-      ...dynamicCurrencies,
-      ...(mostUsedCurrency ? [mostUsedCurrency] : []),
-      'EUR', 'USD' // Always include these fallback currencies
-    ])).sort();
-    
-    // Log the currency options for debugging
-    console.log('Expense plan currency filter options:', {
-      dynamicCurrencies,
-      mostUsedCurrency,
-      primaryCurrency,
-      combined: availableCurrencies,
-      isInitialized: currenciesInitialized || storeInitialized
-    });
-      
-    const currencyItems: DataFilter[] = availableCurrencies.map(
-      (currency) => ({
-        id: `currency:${currency}`,
-        label: currency,
-        selected: primaryCurrency === currency,
-        group: 'currencyGroup',
-      })
-    );
+    // Currency filters - use local currency state
+    const currencyItems: DataFilter[] = availableCurrencies.map(currency => ({
+      id: `currency:${currency}`,
+      label: currency,
+      selected: currency === localPrimaryCurrency, // Use local state
+      group: 'currencyGroup'
+    }))
 
     return [
       {
         id: 'statusGroup',
-        title: getTranslationFromI18nKeyAndLabel('expense_plan_status_filter_title', 'Status'),
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
         filters: statusItems,
+        selectionMode: 'multiple'
       },
       {
         id: 'currencyGroup',
-        title: getTranslationFromI18nKeyAndLabel('expense_plan_currency_filter_title', 'Currency'),
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_calculation_rule.expense_table.currency',
+          'Currency'
+        ),
         filters: currencyItems,
-      },
-    ];
-  }, [filterLabelMap, statusFilter, primaryCurrency, dynamicCurrencies, mostUsedCurrency, currenciesInitialized, storeInitialized]);
+        selectionMode: 'single'
+      }
+    ]
+  }, [availableFilterStatuses, filterLabelMap, statusFilter, availableCurrencies, localPrimaryCurrency])
 
-  // Helper function to get filters for backend queries
-  const getFilters = useCallback(() => {
-    const filters: Record<string, any> = {};
-    
-    // Add status filters if any are selected
-    if (statusFilter.length > 0) {
-      filters.status = statusFilter;
-    }
-    
-    // Add currency filter if selected
-    if (primaryCurrency) {
-      filters.currency = `Currency:v1:${primaryCurrency}`;
-    }
-    
-    return filters;
-  }, [statusFilter, primaryCurrency]);
+  // Function to reset manual currency selection (useful for clearing filters)
+  const resetCurrencySelection = useCallback(() => {
+    setUserHasManuallySelectedCurrency(false)
+    setLocalPrimaryCurrency('EUR') // Reset to default
+  }, [])
 
+  // Return the local currency state instead of global store values
   return {
     searchTerm,
     setSearchTerm,
     debouncedSearchTerm,
     statusFilter,
     setStatusFilter,
-    currencyFilter: primaryCurrency,
-    setCurrencyFilter: setPrimaryCurrency,
+    primaryCurrency: localPrimaryCurrency, // Return local currency
+    mostUsedCurrency: localMostUsedCurrency, // Return local most used currency
+    availableCurrencies: availableCurrencies,
+    currenciesLoading,
+    currenciesInitialized: !currenciesError, // Assuming error means not initialized
     filterGroups,
     handleDataFilterChange,
+    // Add missing properties to fix linter errors
+    setCurrencyFilter: setLocalPrimaryCurrency, // Alias for backward compatibility
     filterLabelMap,
-    getFilters,
-    currenciesLoading,
-  };
-};
+    resetCurrencySelection, // Add the reset function
+    getFilters: useCallback(() => {
+      const filters: Record<string, any> = {}
+
+      // Add status filters if any are selected
+      if (statusFilter.length > 0) {
+        filters.status = statusFilter
+      }
+
+      // Add currency filter if selected
+      if (localPrimaryCurrency) {
+        filters.currency = `Currency:v1:${localPrimaryCurrency}`
+      }
+
+      return filters
+    }, [statusFilter, localPrimaryCurrency])
+  }
+}

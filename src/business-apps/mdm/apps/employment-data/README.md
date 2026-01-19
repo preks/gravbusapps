@@ -5,12 +5,14 @@ This module provides management capabilities for employment-related master data 
 ## Features
 
 ### Employment Types Management
+
 - View, create, edit, and delete employment types
 - Search and filter employment types
 - Manage employment type properties (code, value, alternative code, additional values)
 - Support for translations and localization
 
-### Contract Types Management  
+### Contract Types Management
+
 - View, create, edit, and delete contract types
 - Search and filter contract types
 - Manage contract type properties (code, value, alternative code, additional values)
@@ -19,11 +21,13 @@ This module provides management capabilities for employment-related master data 
 ## Components
 
 ### Main Components
+
 - `EmploymentData` - Main container component with tab navigation
 - `EmploymentTypesTab` - Management interface for employment types
 - `ContractTypesTab` - Management interface for contract types
 
 ### Key Features
+
 - **Tab Navigation**: Switch between Employment Types and Contract Types
 - **Search Functionality**: Real-time search across all data fields
 - **CRUD Operations**: Create, read, update, delete operations for both data types
@@ -43,7 +47,7 @@ interface EmploymentType | ContractType {
   value: string;                   // Display name/value
   alternativeCode?: string;        // Alternative reference code
   additionalValue1?: string;       // Custom field 1
-  additionalValue2?: string;       // Custom field 2  
+  additionalValue2?: string;       // Custom field 2
   additionalValue3?: string;       // Custom field 3
   translations: Array<{           // Localization support
     localeCode: string;
@@ -55,12 +59,14 @@ interface EmploymentType | ContractType {
 ## Integration
 
 ### Catalog System Integration
+
 - Uses `useCatalogManagerClient` for API communication
 - Connects to catalog identifiers: `EmploymentType` and `ContractType`
 - Version: `v1`
 - Supports search, filtering, and pagination
 
 ### HR Settings Integration
+
 - Accessible from HR Settings under "Employee Management"
 - Navigation path: `/hr/master-data/employment-data`
 - Hash-based tab navigation for direct linking
@@ -71,7 +77,7 @@ interface EmploymentType | ContractType {
 import { EmploymentData } from '@/business-apps/mdm/apps/employment-data';
 
 // Basic usage
-<EmploymentData 
+<EmploymentData
   accessToken={accessToken}
   prefixDataTestId="HrMasterData"
 />
@@ -80,6 +86,7 @@ import { EmploymentData } from '@/business-apps/mdm/apps/employment-data';
 ## Testing
 
 Components include comprehensive data-testid attributes for automated testing:
+
 - `EmploymentData-Tabs` - Main tab navigation
 - `EmploymentTypesTab-*` - Employment types specific elements
 - `ContractTypesTab-*` - Contract types specific elements
@@ -97,4 +104,4 @@ Components include comprehensive data-testid attributes for automated testing:
 - Audit trail for changes
 - Approval workflows for modifications
 - Custom field definitions
-- Integration with employee records 
+- Integration with employee records

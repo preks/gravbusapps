@@ -1,147 +1,155 @@
-import React from 'react';
-import { Table, Card, Badge } from 'antd';
-import Pill from '@/components/pill';
-import type { ColumnsType } from 'antd/es/table';
-import { AdvancePayment } from '../types/expensePlanRecord.types';
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
-import ExpensePlanAdvancePaymentsSummary from './ExpensePlanAdvancePaymentsSummary';
-import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
+import React from 'react'
+import { Table } from 'antd'
+import { Card, Badge } from '@newwork/nw-design-system'
+import Pill from '@/components/pill'
+import type { ColumnsType } from 'antd/es/table'
+import { AdvancePayment } from '../types/expensePlanRecord.types'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { formatCurrencyDisplay } from '../utils/currency'
+import ExpensePlanAdvancePaymentsSummary from './ExpensePlanAdvancePaymentsSummary'
+import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 
 interface ExpensePlanAdvancePaymentsProps {
-  advancePayments: AdvancePayment[];
+  advancePayments: AdvancePayment[]
 }
 
 // Format and display advance payment data
 
 const ExpensePlanAdvancePayments: React.FC<ExpensePlanAdvancePaymentsProps> = ({ advancePayments }) => {
-  const activeUserLocale = getCurrentActiveUserLocale();
-  
-  // Format date helper function
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return '-';
-    return dayjs(dateString).format('YYYY-MM-DD');
-  };
+  // Localized date display
+  const formatDateDisplay = (dateString: string | null) => {
+    if (!dateString) return '-'
+    return formatDate(dateString, 'date.short') as string
+  }
 
   // Format amount helper function
-  const formatAmount = (amount: number) => {
-    return new Intl.NumberFormat(activeUserLocale, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(amount);
-  };
+  const formatAmount = (amount: number, currencyCode?: string) => formatCurrencyDisplay(amount, currencyCode)
 
-  // Get status color
-  const getStatusColor = (status: string): string => {
+  // Map statuses to design system Badge variants
+  const getStatusVariant = (status: string): 'success' | 'destructive' | 'warning' | 'default' => {
     switch (status) {
       case 'PAID':
-        return 'success';
-      case 'REJECTED':
-        return 'error';
-      case 'PREPARED':
-        return 'processing';
       case 'APPROVED':
-        return 'success';
+        return 'success'
+      case 'REJECTED':
+        return 'destructive'
       case 'PENDING':
-        return 'warning';
+        return 'warning'
       default:
-        return 'default';
+        return 'default'
     }
-  };
+  }
 
   const columns: ColumnsType<AdvancePayment> = [
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.advance.code', 'Code'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule.expense_table.code', 'Code'),
       dataIndex: 'code',
       key: 'code',
-      render: (code: string | null) => code ?? '-',
+      render: (code: string | null) => code ?? '-'
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.advance.amount', 'Amount'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
       dataIndex: 'amount',
       key: 'amount',
       align: 'right',
-      render: (amount: number, record) => (
-        <span>
-          {formatAmount(amount)} {record.currency?.code ?? ''}
-        </span>
-      ),
-      sorter: (a, b) => a.amount - b.amount,
+      render: (amount: number, record) => formatAmount(amount, record.currency?.code),
+      sorter: (a, b) => a.amount - b.amount
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.advance.status', 'Status'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
-        <Badge 
-          status={getStatusColor(status) as any} 
-          text={getTranslationFromI18nKeyAndLabel(`expense.advance.status.${status.toLowerCase()}`, status)} 
-        />
+        <Badge variant={getStatusVariant(status)}>
+          {getTranslationFromI18nKeyAndLabel(`lowcoder:expense_statuses.${status.toLowerCase()}`, status)}
+        </Badge>
       ),
       filters: [
-        { text: 'Prepared', value: 'PREPARED' },
-        { text: 'Approved', value: 'APPROVED' },
-        { text: 'Paid', value: 'PAID' },
-        { text: 'Rejected', value: 'REJECTED' },
-        { text: 'Pending', value: 'PENDING' },
+        {
+          text: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
+          value: 'PREPARED'
+        },
+        {
+          text: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
+          value: 'APPROVED'
+        },
+        { text: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'), value: 'PAID' },
+        {
+          text: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
+          value: 'REJECTED'
+        },
+        { text: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending'), value: 'PENDING' }
       ],
-      onFilter: (value, record) => record.status === value,
+      onFilter: (value, record) => record.status === value
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.advance.paymentMethod', 'Payment Method'),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:create_expense_request.add_request_trip_details.payment_method',
+        'Payment Method'
+      ),
       dataIndex: 'paymentMethod',
       key: 'paymentMethod',
-      render: (method: string) => (
-        <Pill 
-          type="waiting" 
-          label={getTranslationFromI18nKeyAndLabel(`expense.advance.paymentMethod.${method.toLowerCase() ?? 'other'}`, method)}
-          data-testid="payment-method-pill"
-        />
-      ),
+      render: (method: string) => {
+        const lowered = (method || '').toLowerCase()
+        const key = lowered.includes('direct')
+          ? 'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit'
+          : lowered.includes('cash')
+            ? 'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment'
+            : ''
+        const label = key ? getTranslationFromI18nKeyAndLabel(key, method) : method
+        return <Pill type="waiting" label={label} data-testid="payment-method-pill" />
+      }
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.advance.decisionDate', 'Decision Date'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.decision_date', 'Decision Date'),
       dataIndex: 'decisionDate',
       key: 'decisionDate',
-      render: (date: string | null) => formatDate(date),
+      render: (date: string | null) => formatDateDisplay(date)
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.advance.transactionDate', 'Transaction Date'),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:confirm_transfer_advance_payment.transaction_date_label',
+        'Transaction Date'
+      ),
       dataIndex: 'transactionDate',
       key: 'transactionDate',
-      render: (date: string | null) => formatDate(date),
+      render: (date: string | null) => formatDateDisplay(date)
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.advance.transactionNumber', 'Transaction Number'),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:confirm_transfer_advance_payment.transaction_id_label',
+        'Transaction Number'
+      ),
       dataIndex: 'transactionNumber',
       key: 'transactionNumber',
-      render: (number: string | null) => number ?? '-',
+      render: (number: string | null) => number ?? '-'
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('expense.advance.transactionConfirmed', 'Confirmed'),
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.confirmed', 'Confirmed'),
       dataIndex: 'transactionConfirmed',
       key: 'transactionConfirmed',
       align: 'center',
-      render: (confirmed: boolean) => (
-        confirmed ? 
-          <CheckCircleOutlined className="gba:text-green-500" /> : 
+      render: (confirmed: boolean) =>
+        confirmed ? (
+          <CheckCircleOutlined className="gba:text-green-500" />
+        ) : (
           <CloseCircleOutlined className="gba:text-red-500" />
-      ),
-    },
-  ];
+        )
+    }
+  ]
 
   return (
-    <Card className="gba:mb-6" data-testid="expense-plan-advance-payments-card">
+    <Card className="gba:m-6 gba:border-none" data-testid="expense-plan-advance-payments-card">
       <Table
         columns={columns}
         dataSource={advancePayments.map((item, index) => ({ ...item, key: index }))}
         pagination={false}
         size="middle"
         scroll={{ x: 'max-content' }}
-        summary={(pageData) => <ExpensePlanAdvancePaymentsSummary pageData={pageData} formatAmount={formatAmount} />}
+        summary={pageData => <ExpensePlanAdvancePaymentsSummary pageData={pageData} formatAmount={formatAmount} />}
       />
     </Card>
-  );
-};
+  )
+}
 
-export default ExpensePlanAdvancePayments;
+export default ExpensePlanAdvancePayments

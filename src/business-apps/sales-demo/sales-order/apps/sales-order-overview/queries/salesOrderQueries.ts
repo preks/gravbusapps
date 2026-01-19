@@ -36,7 +36,7 @@ export const getSalesOrders = `
       }
     }
   }
-`;
+`
 
 export const getSalesOrderKPIs = `
   query GetSalesOrderKPIs {
@@ -82,7 +82,7 @@ export const getSalesOrderKPIs = `
       }
     }
   }
-`;
+`
 
 export const getCustomers = `
   query GetCustomers($searchTerm: String, $limit: Int!) {
@@ -101,7 +101,7 @@ export const getCustomers = `
       }
     }
   }
-`;
+`
 
 export const getSalespersons = `
   query GetSalespersons($searchTerm: String, $limit: Int!) {
@@ -124,4 +124,4 @@ export const getSalespersons = `
       }
     }
   }
-`;
+`

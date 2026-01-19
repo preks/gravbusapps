@@ -1,25 +1,28 @@
-import { useState, useEffect, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { env } from '@/common/env/EnvUtils';
-import { CostCenterData, CostCenter } from '../types';
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
+import { CostCenterData, CostCenter, CostCenterNode } from '../types'
 
-const ORGCHART_BASE_URL = env('NEXT_PUBLIC_REST_ENDPOINT_ORGCHART')!;
+const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 export const useCostCenters = (context: BusinessAppContextProps) => {
-  const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [costCenters, setCostCenters] = useState<CostCenter[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [costCenterNodes, setCostCenterNodes] = useState<CostCenterNode[]>([])
+  const [costCenterDetails, setCostCenterDetails] = useState<Map<string, unknown>>(new Map())
+  const structureId = useRef<string>(context.additionalData?.structureId || 'active')
 
-  const restClient = useRestClient(ORGCHART_BASE_URL);
+  const restClient = useRestClient(ORGCHART_BASE_URL)
 
   // Transform API cost center data to UI-friendly CostCenter interface
   const transformCostCenter = (costCenterData: CostCenterData): CostCenter => {
     // Determine status based on having employees or organizational units
-    const status: 'Active' | 'Inactive' = 
-      costCenterData.employees.length > 0 || costCenterData.organizationalUnits.length > 0 ? 'Active' : 'Inactive';
+    const status: 'Active' | 'Inactive' =
+      costCenterData.employees.length > 0 || costCenterData.organizationalUnits.length > 0 ? 'Active' : 'Inactive'
 
-    const hasLocation = Boolean(costCenterData.siteLocationId && costCenterData.siteLocationName);
+    const hasLocation = Boolean(costCenterData.siteLocationId && costCenterData.siteLocationName)
 
     return {
       id: costCenterData.id,
@@ -36,157 +39,274 @@ export const useCostCenters = (context: BusinessAppContextProps) => {
       additionalProperties: costCenterData.additionalProperties,
       status,
       hasLocation
-    };
-  };
+    }
+  }
+
+  const transformCostCenterNode = (costCenterNode: Record<string, unknown>): CostCenterNode => ({
+    costCenterData: (costCenterNode.data as Record<string, unknown>).costCenterData as CostCenterData,
+    id: costCenterNode.id as string,
+    type: costCenterNode.type as string,
+    ...(costCenterNode.parentNode ? { parentNodeId: costCenterNode.parentNode as string } : {})
+  })
 
   // Fetch cost centers from orgchart API
   const fetchCostCenters = useCallback(async (): Promise<CostCenter[]> => {
     try {
       // Get structureId from additionalData or use default
-      const structureId = context.additionalData?.structureId || '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf';
-      
+
       if (!structureId) {
-        throw new Error('Structure ID is required to fetch cost centers');
+        throw new Error('Structure ID is required to fetch cost centers')
       }
-
-      const response = await restClient.get<CostCenterData[]>(
-        '/cost-centers',
-        {
-          params: { structureId },
-          headers: {
-            Authorization: `Bearer ${context.accessToken}`
-          }
+      const getStructureResponse = await restClient.get(`/structures/${structureId.current}`, {
+        params: {
+          nodeType: 'cost_center'
+        },
+        headers: {
+          Authorization: `Bearer ${context.accessToken}`
         }
-      );
+      })
+      structureId.current = getStructureResponse.structure.structureId
 
-      return response.map(transformCostCenter);
+      setCostCenterNodes(getStructureResponse.nodes.map(transformCostCenterNode))
+
+      const response = await restClient.get<CostCenterData[]>('/cost-centers', {
+        params: { structureId: structureId.current },
+        headers: {
+          Authorization: `Bearer ${context.accessToken}`
+        }
+      })
+
+      return response.map(transformCostCenter)
     } catch (error) {
-      console.error('Error fetching cost centers:', error);
-      throw new Error('Failed to fetch cost centers from orgchart API');
+      console.error('Error fetching cost centers:', error)
+      throw new Error('Failed to fetch cost centers from orgchart API')
     }
-  }, [context.accessToken, context.additionalData?.structureId, restClient]);
+  }, [context.accessToken, restClient])
 
   // Load initial data
   const loadData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
-      const costCentersData = await fetchCostCenters();
-      setCostCenters(costCentersData);
+      const costCentersData = await fetchCostCenters()
+      setCostCenters(costCentersData)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      setError(errorMessage);
-      console.error('Error loading cost centers:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      setError(errorMessage)
+      console.error('Error loading cost centers:', err)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [fetchCostCenters]);
+  }, [fetchCostCenters])
 
   // Filter cost centers by various criteria
-  const filterCostCenters = useCallback((
-    searchTerm: string = '',
-    status?: 'Active' | 'Inactive' | 'ALL',
-    hasLocation?: 'With Location' | 'Without Location' | 'ALL'
-  ): CostCenter[] => {
-    return costCenters.filter(costCenter => {
-      // Search filter
-      const matchesSearch = !searchTerm || 
-        costCenter.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        costCenter.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        costCenter.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (costCenter.siteLocationName && costCenter.siteLocationName.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filterCostCenters = useCallback(
+    (
+      searchTerm: string = '',
+      status?: 'Active' | 'Inactive' | 'ALL',
+      hasLocation?: 'With Location' | 'Without Location' | 'ALL'
+    ): CostCenter[] => {
+      return costCenters.filter(costCenter => {
+        // Search filter
+        const matchesSearch =
+          !searchTerm ||
+          costCenter.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          costCenter.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          costCenter.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (costCenter.siteLocationName && costCenter.siteLocationName.toLowerCase().includes(searchTerm.toLowerCase()))
 
-      // Status filter
-      const matchesStatus = !status || status === 'ALL' || costCenter.status === status;
+        // Status filter
+        const matchesStatus = !status || status === 'ALL' || costCenter.status === status
 
-      // Location filter
-      const matchesLocation = !hasLocation || hasLocation === 'ALL' || 
-        (hasLocation === 'With Location' && costCenter.hasLocation) ||
-        (hasLocation === 'Without Location' && !costCenter.hasLocation);
+        // Location filter
+        const matchesLocation =
+          !hasLocation ||
+          hasLocation === 'ALL' ||
+          (hasLocation === 'With Location' && costCenter.hasLocation) ||
+          (hasLocation === 'Without Location' && !costCenter.hasLocation)
 
-      return matchesSearch && matchesStatus && matchesLocation;
-    });
-  }, [costCenters]);
+        return matchesSearch && matchesStatus && matchesLocation
+      })
+    },
+    [costCenters]
+  )
 
   // Get active cost centers
   const getActiveCostCenters = useCallback((): CostCenter[] => {
-    return costCenters.filter(costCenter => costCenter.status === 'Active');
-  }, [costCenters]);
+    return costCenters.filter(costCenter => costCenter.status === 'Active')
+  }, [costCenters])
 
   // Get inactive cost centers
   const getInactiveCostCenters = useCallback((): CostCenter[] => {
-    return costCenters.filter(costCenter => costCenter.status === 'Inactive');
-  }, [costCenters]);
+    return costCenters.filter(costCenter => costCenter.status === 'Inactive')
+  }, [costCenters])
 
   // Get cost centers with locations
   const getCostCentersWithLocation = useCallback((): CostCenter[] => {
-    return costCenters.filter(costCenter => costCenter.hasLocation);
-  }, [costCenters]);
+    return costCenters.filter(costCenter => costCenter.hasLocation)
+  }, [costCenters])
 
   // Get cost centers without locations
   const getCostCentersWithoutLocation = useCallback((): CostCenter[] => {
-    return costCenters.filter(costCenter => !costCenter.hasLocation);
-  }, [costCenters]);
+    return costCenters.filter(costCenter => !costCenter.hasLocation)
+  }, [costCenters])
 
   // Search cost centers by name, code, or description
-  const searchCostCenters = useCallback((query: string): CostCenter[] => {
-    const searchTerm = query.toLowerCase();
-    return costCenters.filter(costCenter =>
-      costCenter.name.toLowerCase().includes(searchTerm) ||
-      costCenter.code.toLowerCase().includes(searchTerm) ||
-      costCenter.description.toLowerCase().includes(searchTerm) ||
-      (costCenter.siteLocationName && costCenter.siteLocationName.toLowerCase().includes(searchTerm))
-    );
-  }, [costCenters]);
+  const searchCostCenters = useCallback(
+    (query: string): CostCenter[] => {
+      const searchTerm = query.toLowerCase()
+      return costCenters.filter(
+        costCenter =>
+          costCenter.name.toLowerCase().includes(searchTerm) ||
+          costCenter.code.toLowerCase().includes(searchTerm) ||
+          costCenter.description.toLowerCase().includes(searchTerm) ||
+          (costCenter.siteLocationName && costCenter.siteLocationName.toLowerCase().includes(searchTerm))
+      )
+    },
+    [costCenters]
+  )
 
   // Get cost center by ID
-  const getCostCenterById = useCallback((id: string): CostCenter | undefined => {
-    return costCenters.find(costCenter => costCenter.id === id);
-  }, [costCenters]);
+  const getCostCenterById = useCallback(
+    (id: string): CostCenter | undefined => {
+      return costCenters.find(costCenter => costCenter.id === id)
+    },
+    [costCenters]
+  )
 
   // Get cost centers by site location
-  const getCostCentersBySiteLocation = useCallback((siteLocationId: string): CostCenter[] => {
-    return costCenters.filter(costCenter => costCenter.siteLocationId === siteLocationId);
-  }, [costCenters]);
+  const getCostCentersBySiteLocation = useCallback(
+    (siteLocationId: string): CostCenter[] => {
+      return costCenters.filter(costCenter => costCenter.siteLocationId === siteLocationId)
+    },
+    [costCenters]
+  )
 
   // Get cost centers with employees
   const getCostCentersWithEmployees = useCallback((): CostCenter[] => {
-    return costCenters.filter(costCenter => costCenter.employeeCount > 0);
-  }, [costCenters]);
+    return costCenters.filter(costCenter => costCenter.employeeCount > 0)
+  }, [costCenters])
 
   // Get cost centers with organizational units
   const getCostCentersWithOrgUnits = useCallback((): CostCenter[] => {
-    return costCenters.filter(costCenter => costCenter.organizationalUnitCount > 0);
-  }, [costCenters]);
+    return costCenters.filter(costCenter => costCenter.organizationalUnitCount > 0)
+  }, [costCenters])
 
   // Get total employee count across all cost centers
   const getTotalEmployeeCount = useCallback((): number => {
-    return costCenters.reduce((total, costCenter) => total + costCenter.employeeCount, 0);
-  }, [costCenters]);
+    return costCenters.reduce((total, costCenter) => total + costCenter.employeeCount, 0)
+  }, [costCenters])
+
+  // Get employees for a specific cost center
+  const getEmployees = useCallback(
+    async (costCenterId: string): Promise<unknown> => {
+      try {
+        // Check if we already have this data cached
+        const cacheKey = `${costCenterId}-employees`
+        if (costCenterDetails.has(cacheKey)) {
+          return costCenterDetails.get(cacheKey)
+        }
+
+        const response = await restClient.get(`/employees/cost-centers/${costCenterId}`, {
+          headers: {
+            Authorization: `Bearer ${context.accessToken}`
+          }
+        })
+
+        // Cache the response
+        setCostCenterDetails(prev => new Map(prev.set(cacheKey, response)))
+
+        return response
+      } catch (error) {
+        console.error(`Error fetching employees for cost center ${costCenterId}:`, error)
+        throw new Error('Failed to fetch employees')
+      }
+    },
+    [context.accessToken, restClient, costCenterDetails]
+  )
+
+  // Get organizational units for a specific cost center
+  const getOrgUnits = useCallback(
+    async (costCenterId: string): Promise<unknown> => {
+      try {
+        // Check if we already have this data cached
+        const cacheKey = `${costCenterId}-orgUnits`
+        if (costCenterDetails.has(cacheKey)) {
+          return costCenterDetails.get(cacheKey)
+        }
+
+        const response = await restClient.get('/organizational-units', {
+          params: {
+            costCenterId,
+            structureId: structureId.current,
+            costCenterAssign: false
+          },
+          headers: {
+            Authorization: `Bearer ${context.accessToken}`
+          }
+        })
+
+        // Cache the response
+        setCostCenterDetails(prev => new Map(prev.set(cacheKey, response)))
+
+        return response
+      } catch (error) {
+        console.error(`Error fetching organizational units for cost center ${costCenterId}:`, error)
+        throw new Error('Failed to fetch organizational units')
+      }
+    },
+    [context.accessToken, restClient, costCenterDetails, structureId]
+  )
+
+  // Clear cached data for a specific cost center
+  const clearCostCenterCache = useCallback((costCenterId: string) => {
+    setCostCenterDetails(prev => {
+      const newMap = new Map(prev)
+      // Remove all entries that start with the costCenterId
+      for (const key of newMap.keys()) {
+        if (key.startsWith(`${costCenterId}-`)) {
+          newMap.delete(key)
+        }
+      }
+      return newMap
+    })
+  }, [])
+
+  // Clear all cached data
+  const clearAllCache = useCallback(() => {
+    setCostCenterDetails(new Map())
+  }, [])
 
   const refetch = useCallback(() => {
-    return loadData();
-  }, [loadData]);
+    return loadData()
+  }, [loadData])
 
   // Load data on mount and when access token changes
   useEffect(() => {
     if (context.accessToken) {
-      loadData();
+      loadData()
     }
-  }, [context.accessToken, loadData]);
+  }, [context.accessToken, loadData])
 
   return {
     // Data
     costCenters,
-    
+    structureId: structureId.current,
+    costCenterNodes,
+    costCenterDetails,
+
     // State
     isLoading,
     error,
-    
+
     // Actions
     refetch,
-    
+    getEmployees,
+    getOrgUnits,
+    clearCostCenterCache,
+    clearAllCache,
+
     // Filter functions
     filterCostCenters,
     searchCostCenters,
@@ -198,7 +318,7 @@ export const useCostCenters = (context: BusinessAppContextProps) => {
     getCostCentersBySiteLocation,
     getCostCentersWithEmployees,
     getCostCentersWithOrgUnits,
-    
+
     // Statistics
     totalCostCenters: costCenters.length,
     activeCostCenters: getActiveCostCenters().length,
@@ -207,6 +327,6 @@ export const useCostCenters = (context: BusinessAppContextProps) => {
     costCentersWithoutLocation: getCostCentersWithoutLocation().length,
     totalEmployeeCount: getTotalEmployeeCount(),
     costCentersWithEmployees: getCostCentersWithEmployees().length,
-    costCentersWithOrgUnits: getCostCentersWithOrgUnits().length,
-  };
-}; 
+    costCentersWithOrgUnits: getCostCentersWithOrgUnits().length
+  }
+}

@@ -1,1 +1,1 @@
-export { default, PersonalAbsences } from './PersonalAbsences';
+export { default, PersonalAbsences } from './PersonalAbsences'

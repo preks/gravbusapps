@@ -1,1 +1,5 @@
-export {getCurrencyFromTravelRegion, determineCurrency, getCurrencyWithFallback} from "../../expense-request-wizard/utils/currencyUtils"
+export {
+  getCurrencyFromTravelRegion,
+  determineCurrency,
+  getCurrencyWithFallback
+} from '../../expense-request-wizard/utils/currencyUtils'

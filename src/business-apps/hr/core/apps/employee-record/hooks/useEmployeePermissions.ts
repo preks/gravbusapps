@@ -1,16 +1,21 @@
-import usePermissionCheck, { ResourcePermissionMap } from '../../../../../../common/hooks/usePermissionCheck';
+import usePermissionCheck, { ResourcePermissionMap } from '../../../../../../common/hooks/usePermissionCheck'
 
 // Tab key constants for the employee record app
 export const TAB_KEYS = {
   summary: 'summary',
   details: 'details',
+  timeTracking: 'timeTracking',
   employment: 'employment',
   documents: 'documents',
   performance: 'performance',
   feedback: 'feedback',
   absences: 'absences',
-  skills: 'skills'
-};
+  skills: 'skills',
+  compensation: 'compensation',
+  serviceRequests: 'serviceRequests',
+  changeLog: 'changeLog',
+  hrNotes: 'hrNotes'
+}
 
 // Section key constants for the employee record app
 export const SECTION_KEYS = {
@@ -28,6 +33,11 @@ export const SECTION_KEYS = {
     workingHours: 'workingHours',
     jobHistory: 'jobHistory'
   },
+  compensation: {
+    bonuses: 'bonuses',
+    benefits: 'benefits',
+    payslips: 'payslips'
+  },
   documents: {
     personalDocuments: 'personalDocuments',
     salaryDocuments: 'salaryDocuments',
@@ -38,14 +48,14 @@ export const SECTION_KEYS = {
     certificates: 'certificates',
     hobbies: 'hobbies'
   }
-};
+}
 
 // Map tabs to their required SpiceDB resources and permissions
 const employeeTabPermissionMap: Record<string, ResourcePermissionMap> = {
   [TAB_KEYS.summary]: {
     domain: 'employee',
     resource: 'employee',
-    permission: 'read',
+    permission: 'read'
   },
   [TAB_KEYS.details]: {
     domain: 'employee',
@@ -111,6 +121,28 @@ const employeeTabPermissionMap: Record<string, ResourcePermissionMap> = {
       }
     }
   },
+  [TAB_KEYS.compensation]: {
+    domain: 'employee',
+    resource: 'working_conditions', // ✅ Using existing working_conditions resource since it contains salary data
+    permission: 'read',
+    sections: {
+      bonuses: {
+        domain: 'employee',
+        resource: 'employee_bonus',
+        permission: 'read'
+      },
+      benefits: {
+        domain: 'employee',
+        resource: 'employee_benefit',
+        permission: 'read'
+      },
+      payslips: {
+        domain: 'employee',
+        resource: 'employee_payslip',
+        permission: 'read'
+      }
+    }
+  },
   [TAB_KEYS.documents]: {
     domain: 'employee',
     resource: 'employee_document_general',
@@ -136,17 +168,22 @@ const employeeTabPermissionMap: Record<string, ResourcePermissionMap> = {
   [TAB_KEYS.performance]: {
     domain: 'employee',
     resource: 'employee_document_development',
-    permission: 'read',
+    permission: 'read'
   },
   [TAB_KEYS.feedback]: {
     domain: 'employee',
     resource: 'employee_document_development',
-    permission: 'read',
+    permission: 'read'
+  },
+  [TAB_KEYS.timeTracking]: {
+    domain: 'employee',
+    resource: 'employee_time',
+    permission: 'read'
   },
   [TAB_KEYS.absences]: {
     domain: 'employee',
     resource: 'employee_absence',
-    permission: 'read',
+    permission: 'read'
   },
   [TAB_KEYS.skills]: {
     domain: 'employee',
@@ -170,7 +207,22 @@ const employeeTabPermissionMap: Record<string, ResourcePermissionMap> = {
       }
     }
   },
-};
+  [TAB_KEYS.serviceRequests]: {
+    domain: 'employee',
+    resource: 'employee',
+    permission: 'read'
+  },
+  [TAB_KEYS.changeLog]: {
+    domain: 'employee',
+    resource: 'employee',
+    permission: 'read'
+  },
+  [TAB_KEYS.hrNotes]: {
+    domain: 'employee',
+    resource: 'employee',
+    permission: 'read'
+  }
+}
 
 /**
  * Hook for checking permissions for the employee record app tabs and sections
@@ -178,13 +230,11 @@ const employeeTabPermissionMap: Record<string, ResourcePermissionMap> = {
  * @param accessToken - Access token for API calls
  */
 export const useEmployeePermissions = (employeeId: string, accessToken: string) => {
-  const { 
-    loading, 
-    error, 
-    permissions,
-    isResourceAccessible,
-    isSectionAccessible
-  } = usePermissionCheck(employeeId, employeeTabPermissionMap, accessToken);
+  const { loading, error, permissions, isResourceAccessible, isSectionAccessible } = usePermissionCheck(
+    employeeId,
+    employeeTabPermissionMap,
+    accessToken
+  )
 
   return {
     loading,
@@ -194,11 +244,11 @@ export const useEmployeePermissions = (employeeId: string, accessToken: string) 
     isSectionVisible: (tabKey: string, sectionKey: string) => {
       // Make sure the section exists in the permission mapping
       if (!employeeTabPermissionMap[tabKey]?.sections?.[sectionKey]) {
-        return false;
+        return false
       }
-      return isSectionAccessible(tabKey as keyof typeof employeeTabPermissionMap, sectionKey);
+      return isSectionAccessible(tabKey as keyof typeof employeeTabPermissionMap, sectionKey)
     }
-  };
-};
+  }
+}
 
-export default useEmployeePermissions;
+export default useEmployeePermissions

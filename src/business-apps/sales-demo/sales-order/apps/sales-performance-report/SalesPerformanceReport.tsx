@@ -1,46 +1,46 @@
-import React, { useEffect, useState, ReactNode } from 'react';
-import { Alert } from 'antd';
-import { Tabs } from '@newwork/gravity-ui-catalog';
-import { PiChartLineUp, PiGauge, PiFunnel, PiTruck } from 'react-icons/pi';
-import { PageLayout } from '@/components/layout/pageLayout/PageLayout';
-import dayjs from 'dayjs';
-import weekday from 'dayjs/plugin/weekday';
-import localeData from 'dayjs/plugin/localeData';
+import React, { useEffect, useState, ReactNode } from 'react'
+import { Alert } from 'antd'
+import { Tabs } from '@newwork/gravity-ui-catalog'
+import { PiChartLineUp, PiGauge, PiFunnel, PiTruck } from 'react-icons/pi'
+import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
+import dayjs from 'dayjs'
+import weekday from 'dayjs/plugin/weekday'
+import localeData from 'dayjs/plugin/localeData'
 
-import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext';
+import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 
 // Import tab components
-import SalesPerformanceOverviewTab from './components/tabs/sales-performance-overview-tab';
-import SalesOrderPipelineTab from './components/tabs/sales-order-pipeline-tab';
-import FulfillmentDeliveryTab from './components/tabs/fulfillment-delivery-tab';
+import SalesPerformanceOverviewTab from './components/tabs/sales-performance-overview-tab'
+import SalesOrderPipelineTab from './components/tabs/sales-order-pipeline-tab'
+import FulfillmentDeliveryTab from './components/tabs/fulfillment-delivery-tab'
 
 // Extend dayjs with plugins
-dayjs.extend(weekday);
-dayjs.extend(localeData);
+dayjs.extend(weekday)
+dayjs.extend(localeData)
 
 export interface SalesPerformanceReportProps extends BusinessAppContextProps {}
 
-const SalesPerformanceReport: React.FC<SalesPerformanceReportProps> = (props) => {
-  const [activeTab, setActiveTab] = useState<string>('overview');
-  const [contentHeader, setContentHeader] = useState<ReactNode>(null);
+const SalesPerformanceReport: React.FC<SalesPerformanceReportProps> = props => {
+  const [activeTab, setActiveTab] = useState<string>('overview')
+  const [contentHeader, setContentHeader] = useState<ReactNode>(null)
 
   // URL query parameter handling for tab navigation
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tabFromUrl = urlParams.get('tab');
+    const urlParams = new URLSearchParams(window.location.search)
+    const tabFromUrl = urlParams.get('tab')
     if (tabFromUrl && ['overview', 'pipeline', 'fulfillment'].includes(tabFromUrl)) {
-      setActiveTab(tabFromUrl);
+      setActiveTab(tabFromUrl)
     }
-  }, []);
+  }, [])
 
   const handleTabChange = (tabKey: string) => {
-    setActiveTab(tabKey);
-    
+    setActiveTab(tabKey)
+
     // Update URL query parameter
-    const url = new URL(window.location.href);
-    url.searchParams.set('tab', tabKey);
-    window.history.replaceState({}, '', url.toString());
-  };
+    const url = new URL(window.location.href)
+    url.searchParams.set('tab', tabKey)
+    window.history.replaceState({}, '', url.toString())
+  }
 
   const tabItems = [
     {
@@ -52,7 +52,7 @@ const SalesPerformanceReport: React.FC<SalesPerformanceReportProps> = (props) =>
         </div>
       ),
       children: <SalesPerformanceOverviewTab {...props} />,
-      renderContentHeader: () => null,
+      renderContentHeader: () => null
     },
     {
       key: 'pipeline',
@@ -63,7 +63,7 @@ const SalesPerformanceReport: React.FC<SalesPerformanceReportProps> = (props) =>
         </div>
       ),
       children: <SalesOrderPipelineTab {...props} />,
-      renderContentHeader: () => null,
+      renderContentHeader: () => null
     },
     {
       key: 'fulfillment',
@@ -74,21 +74,21 @@ const SalesPerformanceReport: React.FC<SalesPerformanceReportProps> = (props) =>
         </div>
       ),
       children: <FulfillmentDeliveryTab {...props} />,
-      renderContentHeader: () => null,
-    },
-  ];
+      renderContentHeader: () => null
+    }
+  ]
 
   // Get active tab content and header
-  const activeTabItem = tabItems.find(item => item.key === activeTab);
-  const activeTabContent = activeTabItem?.children || null;
-  const activeTabContentHeader = activeTabItem?.renderContentHeader() || contentHeader;
+  const activeTabItem = tabItems.find(item => item.key === activeTab)
+  const activeTabContent = activeTabItem?.children || null
+  const activeTabContentHeader = activeTabItem?.renderContentHeader() || contentHeader
 
   // Error boundary for tab content
   const renderTabContent = () => {
     try {
-      return activeTabContent;
+      return activeTabContent
     } catch (error) {
-      console.error('Error rendering tab content:', error);
+      console.error('Error rendering tab content:', error)
       return (
         <div className="gba:p-6" data-testid="sales-performance-report-error">
           <Alert
@@ -98,28 +98,28 @@ const SalesPerformanceReport: React.FC<SalesPerformanceReportProps> = (props) =>
             showIcon
           />
         </div>
-      );
+      )
     }
-  };
+  }
 
   return (
     <PageLayout
-      headerIcon={<PiChartLineUp color="#376399"/>}
+      headerIcon={<PiChartLineUp color="#376399" />}
       headerLabel="Sales Performance Report"
       pageController={
-          <Tabs
-            activeKey={activeTab}
-            onChange={handleTabChange}
-            items={tabItems.map(item => ({ key: item.key, label: item.label }))}
-            className="w-full"
-            data-testid="sales-performance-report-tabs"
-          />
+        <Tabs
+          activeKey={activeTab}
+          onChange={handleTabChange}
+          items={tabItems.map(item => ({ key: item.key, label: item.label }))}
+          className="w-full"
+          data-testid="sales-performance-report-tabs"
+        />
       }
       contentHeader={activeTabContentHeader}
       contentContainer={renderTabContent()}
       data-testid="sales-performance-report-page"
     />
-  );
-};
+  )
+}
 
-export default SalesPerformanceReport;
+export default SalesPerformanceReport

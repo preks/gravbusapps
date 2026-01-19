@@ -1,7 +1,7 @@
-'use client';
+'use client'
 
-import React from 'react';
-import { cn } from '../../../common/utils/cn';
+import React from 'react'
+import { cn } from '../../../common/utils/cn'
 
 /**
  * ProfileLayout provides a consistent layout for profile screens with configurable header placement.
@@ -20,12 +20,12 @@ import { cn } from '../../../common/utils/cn';
  * @param dataTestId - Optional data test id for testing
  */
 export interface ProfileLayoutProps {
-  headerContent: React.ReactNode;
-  contentHeader?: React.ReactNode;
-  contentContainer: React.ReactNode;
-  headerPlacement?: 'top' | 'left';
-  className?: string;
-  'data-testid'?: string;
+  headerContent: React.ReactNode
+  contentHeader?: React.ReactNode
+  contentContainer: React.ReactNode
+  headerPlacement?: 'top' | 'left'
+  className?: string
+  'data-testid'?: string
 }
 
 export const ProfileLayout: React.FC<Readonly<ProfileLayoutProps>> = ({
@@ -34,9 +34,9 @@ export const ProfileLayout: React.FC<Readonly<ProfileLayoutProps>> = ({
   contentContainer,
   headerPlacement = 'top',
   className = '',
-  'data-testid': dataTestId = 'profile-layout',
+  'data-testid': dataTestId = 'profile-layout'
 }) => {
-  const isTopHeader = headerPlacement === 'top';
+  const isTopHeader = headerPlacement === 'top'
 
   return (
     <div
@@ -48,34 +48,35 @@ export const ProfileLayout: React.FC<Readonly<ProfileLayoutProps>> = ({
     >
       {/* Header section - either top or left */}
       <header
-        className={cn("gba:bg-white gba:border-gray-200 gba:overflow-visible", isTopHeader
+        className={cn(
+          'gba:bg-white gba:border-gray-200',
+          isTopHeader ? 'gba:overflow-visible' : 'gba:overflow-auto',
+          isTopHeader
             ? 'gba:w-full gba:border-b gba:flex gba:flex-col' // Removed fixed height to accommodate varying content heights
-            : 'gba:w-64 gba:h-full gba:p-4 gba:border-r gba:flex gba:flex-col'
+            : 'gba:w-64 gba:h-full gba:p-4 gba:border-r gba:flex gba:flex-col gba:min-h-0'
         )}
         data-testid={`${dataTestId}-header`}
       >
-        <div data-testid={`${dataTestId}-header-content`}>
-          {headerContent}
-        </div>
+        <div data-testid={`${dataTestId}-header-content`}>{headerContent}</div>
       </header>
 
       {/* Content section - always a column layout */}
-      <div 
+      <div
         className={`gba:flex gba:flex-col gba:flex-1 gba:min-h-0 ${isTopHeader ? '' : 'gba:w-full'}`}
         data-testid={`${dataTestId}-content-section`}
       >
         {/* Content header - always above content container */}
         {contentHeader && (
-          <div 
+          <div
             className="gba:py-3 gba:px-4 gba:border-b gba:border-gray-200 gba:bg-white"
             data-testid={`${dataTestId}-content-header`}
           >
             {contentHeader}
           </div>
         )}
-        
+
         {/* Main content container */}
-        <div 
+        <div
           className="gba:bg-white gba:flex-1 gba:min-h-0 gba:p-4 gba:overflow-auto"
           data-testid={`${dataTestId}-content-container`}
         >
@@ -83,7 +84,7 @@ export const ProfileLayout: React.FC<Readonly<ProfileLayoutProps>> = ({
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default ProfileLayout;
+export default ProfileLayout

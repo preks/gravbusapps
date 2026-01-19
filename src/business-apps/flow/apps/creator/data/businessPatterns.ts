@@ -11,8 +11,8 @@ import {
   DecisionMakingPattern,
   SurveyPattern,
   RequestResponsePattern
-} from '../types/businessPatterns';
-import { FlowStepType, InputType, AssignmentMode } from '../types/flowTemplate';
+} from '../types/businessPatterns'
+import { FlowStepType, InputType, AssignmentMode } from '../types/flowTemplate'
 
 // 🔐 APPROVAL WORKFLOWS
 export const APPROVAL_PATTERNS: BusinessPattern[] = [
@@ -146,12 +146,12 @@ export const APPROVAL_PATTERNS: BusinessPattern[] = [
         rule: 'custom',
         message: 'All steps must have assignments in approval chain',
         customValidator: (value, template) => {
-          return template.steps.every((step: any) => step.assignment && step.assignment.targets.length > 0);
+          return template.steps.every((step: any) => step.assignment && step.assignment.targets.length > 0)
         }
       }
     ]
   }
-];
+]
 
 // 📢 INFORMATION DISTRIBUTION
 export const INFORMATION_PATTERNS: BusinessPattern[] = [
@@ -200,7 +200,7 @@ export const INFORMATION_PATTERNS: BusinessPattern[] = [
         rule: 'custom',
         message: 'Information steps should not have input blocks',
         customValidator: (value, template) => {
-          return template.steps[0].inputs.length === 0;
+          return template.steps[0].inputs.length === 0
         }
       }
     ]
@@ -210,7 +210,7 @@ export const INFORMATION_PATTERNS: BusinessPattern[] = [
     category: BusinessPatternCategory.INFORMATION,
     subPattern: InformationPattern.ACKNOWLEDGMENT_REQUIRED,
     title: 'Acknowledgment Required',
-    description: 'People must confirm they\'ve read it',
+    description: "People must confirm they've read it",
     icon: 'CheckSquare',
     color: '#10B981',
     useCases: [
@@ -260,7 +260,7 @@ export const INFORMATION_PATTERNS: BusinessPattern[] = [
       }
     ]
   }
-];
+]
 
 // 🎯 TASK COORDINATION
 export const TASK_COORDINATION_PATTERNS: BusinessPattern[] = [
@@ -323,12 +323,12 @@ export const TASK_COORDINATION_PATTERNS: BusinessPattern[] = [
         rule: 'custom',
         message: 'All task steps must have assignments',
         customValidator: (value, template) => {
-          return template.steps.every((step: any) => step.assignment && step.assignment.targets.length > 0);
+          return template.steps.every((step: any) => step.assignment && step.assignment.targets.length > 0)
         }
       }
     ]
   }
-];
+]
 
 // 🤔 DECISION MAKING
 export const DECISION_MAKING_PATTERNS: BusinessPattern[] = [
@@ -403,7 +403,7 @@ export const DECISION_MAKING_PATTERNS: BusinessPattern[] = [
       }
     ]
   }
-];
+]
 
 // 📊 SURVEYS
 export const SURVEY_PATTERNS: BusinessPattern[] = [
@@ -494,7 +494,7 @@ export const SURVEY_PATTERNS: BusinessPattern[] = [
       }
     ]
   }
-];
+]
 
 // 🔄 REQUEST & RESPONSE
 export const REQUEST_RESPONSE_PATTERNS: BusinessPattern[] = [
@@ -506,12 +506,7 @@ export const REQUEST_RESPONSE_PATTERNS: BusinessPattern[] = [
     description: 'Make a request and get a response',
     icon: 'MessageCircle',
     color: '#06B6D4',
-    useCases: [
-      'Information requests',
-      'Support ticket handling',
-      'Service requests',
-      'Question and answer workflows'
-    ],
+    useCases: ['Information requests', 'Support ticket handling', 'Service requests', 'Question and answer workflows'],
     configuration: {
       requiresApproval: false,
       requiresAssignment: true,
@@ -575,7 +570,7 @@ export const REQUEST_RESPONSE_PATTERNS: BusinessPattern[] = [
       }
     ]
   }
-];
+]
 
 // Combine all patterns
 export const ALL_BUSINESS_PATTERNS: BusinessPattern[] = [
@@ -585,7 +580,7 @@ export const ALL_BUSINESS_PATTERNS: BusinessPattern[] = [
   ...DECISION_MAKING_PATTERNS,
   ...SURVEY_PATTERNS,
   ...REQUEST_RESPONSE_PATTERNS
-];
+]
 
 // Pattern validation rules
 export const PATTERN_VALIDATION_RULES = {
@@ -595,9 +590,9 @@ export const PATTERN_VALIDATION_RULES = {
       rule: 'custom' as const,
       message: 'Single approver should have comment input',
       customValidator: (value: any, template: any) => {
-        return template.steps[0].inputs.some((block: any) => 
-          block.type === InputType.TEXTAREA && block.label.toLowerCase().includes('comment')
-        );
+        return template.steps[0].inputs.some(
+          (block: any) => block.type === InputType.TEXTAREA && block.label.toLowerCase().includes('comment')
+        )
       }
     }
   ],
@@ -607,19 +602,17 @@ export const PATTERN_VALIDATION_RULES = {
       rule: 'custom' as const,
       message: 'Approval chain steps should have sequential assignments',
       customValidator: (value: any, template: any) => {
-        return template.steps.every((step: any, index: number) => 
-          step.assignment && step.assignment.targets.length > 0
-        );
+        return template.steps.every((step: any, index: number) => step.assignment && step.assignment.targets.length > 0)
       }
     }
   ],
-  'announcement': [
+  announcement: [
     {
       field: 'steps[0].inputs',
       rule: 'custom' as const,
       message: 'Announcement should not have input blocks',
       customValidator: (value: any, template: any) => {
-        return template.steps[0].inputs.length === 0;
+        return template.steps[0].inputs.length === 0
       }
     }
   ],
@@ -629,9 +622,7 @@ export const PATTERN_VALIDATION_RULES = {
       rule: 'custom' as const,
       message: 'Acknowledgment should have checkbox input',
       customValidator: (value: any, template: any) => {
-        return template.steps[0].inputs.some((block: any) => 
-          block.type === InputType.CHECKBOX
-        );
+        return template.steps[0].inputs.some((block: any) => block.type === InputType.CHECKBOX)
       }
     }
   ],
@@ -641,19 +632,19 @@ export const PATTERN_VALIDATION_RULES = {
       rule: 'custom' as const,
       message: 'Task assignment should have result input',
       customValidator: (value: any, template: any) => {
-        return template.steps[0].inputs.some((block: any) => 
-          block.type === InputType.TEXTAREA && block.label.toLowerCase().includes('result')
-        );
+        return template.steps[0].inputs.some(
+          (block: any) => block.type === InputType.TEXTAREA && block.label.toLowerCase().includes('result')
+        )
       }
     }
   ],
-  'consultation': [
+  consultation: [
     {
       field: 'steps',
       rule: 'custom' as const,
       message: 'Consultation should have multiple steps',
       customValidator: (value: any, template: any) => {
-        return template.steps.length >= 2;
+        return template.steps.length >= 2
       }
     }
   ],
@@ -663,9 +654,9 @@ export const PATTERN_VALIDATION_RULES = {
       rule: 'custom' as const,
       message: 'Employee survey should have satisfaction input',
       customValidator: (value: any, template: any) => {
-        return template.steps[0].inputs.some((block: any) => 
-          block.type === InputType.SELECT && block.label.toLowerCase().includes('satisfaction')
-        );
+        return template.steps[0].inputs.some(
+          (block: any) => block.type === InputType.SELECT && block.label.toLowerCase().includes('satisfaction')
+        )
       }
     }
   ],
@@ -675,8 +666,8 @@ export const PATTERN_VALIDATION_RULES = {
       rule: 'custom' as const,
       message: 'Request-response should have request and response steps',
       customValidator: (value: any, template: any) => {
-        return template.steps.length >= 2;
+        return template.steps.length >= 2
       }
     }
   ]
-}; 
+}

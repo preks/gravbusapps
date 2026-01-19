@@ -1,14 +1,6 @@
-import React from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle, 
-  Button,
-  Badge,
-  Alert
-} from '@newwork/nw-design-system';
-import { 
+import React from 'react'
+import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Alert } from '@newwork/nw-design-system'
+import {
   Settings,
   Activity,
   Download,
@@ -22,42 +14,42 @@ import {
   UserMinus,
   Check,
   MessageSquare
-} from 'lucide-react';
+} from 'lucide-react'
 
 // Real history data interfaces (from inbox implementation)
 interface HistoryEvent {
-  type: 'step' | 'assignment' | 'comment' | 'flow' | 'status';
-  timestamp: string;
-  stepIndex: number;
-  stepTitle: string;
-  eventTitle: string;
-  description: string;
-  action?: string;
-  userId?: string;
-  userName?: string;
-  comment?: string;
-  metadata?: any;
+  type: 'step' | 'assignment' | 'comment' | 'flow' | 'status'
+  timestamp: string
+  stepIndex: number
+  stepTitle: string
+  eventTitle: string
+  description: string
+  action?: string
+  userId?: string
+  userName?: string
+  comment?: string
+  metadata?: any
 }
 
 interface HistorySummary {
-  totalSteps: number;
-  completedSteps: number;
-  totalAssignmentEvents: number;
-  totalComments: number;
-  participants: string[];
+  totalSteps: number
+  completedSteps: number
+  totalAssignmentEvents: number
+  totalComments: number
+  participants: string[]
 }
 
 interface AuditTabProps {
-  flowId: string;
-  historyEvents: HistoryEvent[];
-  historySummary: HistorySummary | null;
-  historyLoading: boolean;
-  historyError: string | null;
-  activeFilters: Set<string>;
-  filteredEvents: HistoryEvent[];
-  toggleFilter: (filterType: string) => void;
-  clearAllFilters: () => void;
-  loadHistoryData: () => void;
+  flowId: string
+  historyEvents: HistoryEvent[]
+  historySummary: HistorySummary | null
+  historyLoading: boolean
+  historyError: string | null
+  activeFilters: Set<string>
+  filteredEvents: HistoryEvent[]
+  toggleFilter: (filterType: string) => void
+  clearAllFilters: () => void
+  loadHistoryData: () => void
 }
 
 export const AuditTab: React.FC<AuditTabProps> = ({
@@ -78,99 +70,117 @@ export const AuditTab: React.FC<AuditTabProps> = ({
       case 'flow':
         // Handle flow events
         if (event.action === 'FLOW_START') {
-          return <Play className="gba:h-4 gba:w-4" />;
+          return <Play className="gba:h-4 gba:w-4" />
         } else if (event.action === 'FLOW_COMPLETED') {
-          return <CheckCircle className="gba:h-4 gba:w-4" />;
+          return <CheckCircle className="gba:h-4 gba:w-4" />
         } else if (event.action === 'FLOW_TERMINATED') {
-          return <X className="gba:h-4 gba:w-4" />;
+          return <X className="gba:h-4 gba:w-4" />
         } else {
-          return <Play className="gba:h-4 gba:w-4" />;
+          return <Play className="gba:h-4 gba:w-4" />
         }
       case 'step':
-        return <CheckCircle className="gba:h-4 gba:w-4" />;
+        return <CheckCircle className="gba:h-4 gba:w-4" />
       case 'status':
-        return <RefreshCw className="gba:h-4 gba:w-4" />;
+        return <RefreshCw className="gba:h-4 gba:w-4" />
       case 'assignment':
         switch (event.action) {
-          case 'CLAIM': return <UserPlus className="gba:h-4 gba:w-4" />;
-          case 'UNCLAIM': return <UserMinus className="gba:h-4 gba:w-4" />;
-          case 'REASSIGN': return <RefreshCw className="gba:h-4 gba:w-4" />;
-          case 'COMPLETE': return <Check className="gba:h-4 gba:w-4" />;
-          case 'REJECT': return <X className="gba:h-4 gba:w-4" />;
-          default: return <Play className="gba:h-4 gba:w-4" />;
+          case 'CLAIM':
+            return <UserPlus className="gba:h-4 gba:w-4" />
+          case 'UNCLAIM':
+            return <UserMinus className="gba:h-4 gba:w-4" />
+          case 'REASSIGN':
+            return <RefreshCw className="gba:h-4 gba:w-4" />
+          case 'COMPLETE':
+            return <Check className="gba:h-4 gba:w-4" />
+          case 'REJECT':
+            return <X className="gba:h-4 gba:w-4" />
+          default:
+            return <Play className="gba:h-4 gba:w-4" />
         }
       case 'comment':
-        return <MessageSquare className="gba:h-4 gba:w-4" />;
+        return <MessageSquare className="gba:h-4 gba:w-4" />
       default:
-        return <Clock className="gba:h-4 gba:w-4" />;
+        return <Clock className="gba:h-4 gba:w-4" />
     }
-  };
+  }
 
   const getEventColor = (event: HistoryEvent) => {
     switch (event.type) {
       case 'flow':
         // Handle flow events
         if (event.action === 'FLOW_START') {
-          return '#3b82f6'; // blue for start
+          return '#3b82f6' // blue for start
         } else if (event.action === 'FLOW_COMPLETED') {
-          return '#10b981'; // green for success
+          return '#10b981' // green for success
         } else if (event.action === 'FLOW_TERMINATED') {
-          return '#ef4444'; // red for termination
+          return '#ef4444' // red for termination
         } else {
-          return '#3b82f6'; // blue default
+          return '#3b82f6' // blue default
         }
       case 'step':
-        return '#10b981'; // green for regular steps
+        return '#10b981' // green for regular steps
       case 'status':
-        return '#8b5cf6'; // purple for status changes
+        return '#8b5cf6' // purple for status changes
       case 'assignment':
         switch (event.action) {
-          case 'CLAIM': return '#3b82f6'; // blue
-          case 'UNCLAIM': return '#f59e0b'; // orange
-          case 'REASSIGN': return '#8b5cf6'; // purple
-          case 'COMPLETE': return '#10b981'; // green
-          case 'REJECT': return '#ef4444'; // red
-          default: return '#3b82f6'; // blue
+          case 'CLAIM':
+            return '#3b82f6' // blue
+          case 'UNCLAIM':
+            return '#f59e0b' // orange
+          case 'REASSIGN':
+            return '#8b5cf6' // purple
+          case 'COMPLETE':
+            return '#10b981' // green
+          case 'REJECT':
+            return '#ef4444' // red
+          default:
+            return '#3b82f6' // blue
         }
       case 'comment':
-        return '#06b6d4'; // cyan
+        return '#06b6d4' // cyan
       default:
-        return '#6b7280'; // gray
+        return '#6b7280' // gray
     }
-  };
+  }
 
   const getEventBgColor = (event: HistoryEvent) => {
     switch (event.type) {
       case 'flow':
         // Handle flow events
         if (event.action === 'FLOW_START') {
-          return 'gba:bg-blue-50';
+          return 'gba:bg-blue-50'
         } else if (event.action === 'FLOW_COMPLETED') {
-          return 'gba:bg-green-50';
+          return 'gba:bg-green-50'
         } else if (event.action === 'FLOW_TERMINATED') {
-          return 'gba:bg-red-50';
+          return 'gba:bg-red-50'
         } else {
-          return 'gba:bg-blue-50';
+          return 'gba:bg-blue-50'
         }
       case 'step':
-        return 'gba:bg-green-50';
+        return 'gba:bg-green-50'
       case 'status':
-        return 'gba:bg-purple-50';
+        return 'gba:bg-purple-50'
       case 'assignment':
         switch (event.action) {
-          case 'CLAIM': return 'gba:bg-blue-50';
-          case 'UNCLAIM': return 'gba:bg-orange-50';
-          case 'REASSIGN': return 'gba:bg-purple-50';
-          case 'COMPLETE': return 'gba:bg-green-50';
-          case 'REJECT': return 'gba:bg-red-50';
-          default: return 'gba:bg-blue-50';
+          case 'CLAIM':
+            return 'gba:bg-blue-50'
+          case 'UNCLAIM':
+            return 'gba:bg-orange-50'
+          case 'REASSIGN':
+            return 'gba:bg-purple-50'
+          case 'COMPLETE':
+            return 'gba:bg-green-50'
+          case 'REJECT':
+            return 'gba:bg-red-50'
+          default:
+            return 'gba:bg-blue-50'
         }
       case 'comment':
-        return 'gba:bg-cyan-50';
+        return 'gba:bg-cyan-50'
       default:
-        return 'gba:bg-gray-50';
+        return 'gba:bg-gray-50'
     }
-  };
+  }
 
   return (
     <div className="gba:mt-0 gba:space-y-6">
@@ -188,22 +198,18 @@ export const AuditTab: React.FC<AuditTabProps> = ({
             <div className="gba:grid gba:grid-cols-4 gba:gap-4">
               <Card className="gba:bg-blue-50">
                 <CardContent className="gba:p-4 gba:text-center">
-                  <div className="gba:text-2xl gba:font-bold gba:text-blue-600">
-                    {historyEvents.length}
-                  </div>
+                  <div className="gba:text-2xl gba:font-bold gba:text-blue-600">{historyEvents.length}</div>
                   <div className="gba:text-sm gba:text-gray-600">Total Events</div>
                 </CardContent>
               </Card>
-              
+
               <Card className="gba:bg-green-50">
                 <CardContent className="gba:p-4 gba:text-center">
-                  <div className="gba:text-2xl gba:font-bold gba:text-green-600">
-                    {historySummary.completedSteps}
-                  </div>
+                  <div className="gba:text-2xl gba:font-bold gba:text-green-600">{historySummary.completedSteps}</div>
                   <div className="gba:text-sm gba:text-gray-600">Step Actions</div>
                 </CardContent>
               </Card>
-              
+
               <Card className="gba:bg-purple-50">
                 <CardContent className="gba:p-4 gba:text-center">
                   <div className="gba:text-2xl gba:font-bold gba:text-purple-600">
@@ -212,12 +218,10 @@ export const AuditTab: React.FC<AuditTabProps> = ({
                   <div className="gba:text-sm gba:text-gray-600">Assignments</div>
                 </CardContent>
               </Card>
-              
+
               <Card className="gba:bg-amber-50">
                 <CardContent className="gba:p-4 gba:text-center">
-                  <div className="gba:text-2xl gba:font-bold gba:text-amber-600">
-                    {historySummary.totalComments}
-                  </div>
+                  <div className="gba:text-2xl gba:font-bold gba:text-amber-600">{historySummary.totalComments}</div>
                   <div className="gba:text-sm gba:text-gray-600">Comments</div>
                 </CardContent>
               </Card>
@@ -242,36 +246,38 @@ export const AuditTab: React.FC<AuditTabProps> = ({
                 // Export real history events
                 const csvContent = [
                   ['Timestamp', 'Type', 'Action', 'Step', 'User', 'Description'].join(','),
-                  ...historyEvents.map(event => [
-                    new Date(event.timestamp).toISOString(),
-                    event.type,
-                    event.action || '',
-                    `"${event.stepTitle}"`,
-                    event.userName || event.userId || '',
-                    `"${event.description}"`
-                  ].join(','))
-                ].join('\n');
-                
-                const blob = new Blob([csvContent], { type: 'text/csv' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `flow-${flowId}-audit-trail.csv`;
-                a.click();
-                URL.revokeObjectURL(url);
+                  ...historyEvents.map(event =>
+                    [
+                      new Date(event.timestamp).toISOString(),
+                      event.type,
+                      event.action || '',
+                      `"${event.stepTitle}"`,
+                      event.userName || event.userId || '',
+                      `"${event.description}"`
+                    ].join(',')
+                  )
+                ].join('\n')
+
+                const blob = new Blob([csvContent], { type: 'text/csv' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `flow-${flowId}-audit-trail.csv`
+                a.click()
+                URL.revokeObjectURL(url)
               }}
             >
               <Download className="gba:h-4 gba:w-4" />
               Export Audit Trail
             </Button>
           </div>
-          
+
           {/* Filter Controls moved into audit trail card */}
           {historySummary && (
             <div className="gba:mt-4 gba:p-4 gba:bg-gray-50 gba:rounded-lg gba:border">
               <div className="gba:flex gba:items-center gba:gap-3 gba:flex-wrap">
                 <span className="gba:text-sm gba:font-medium gba:text-gray-600">Filter by:</span>
-                
+
                 <Button
                   variant={activeFilters.has('steps') ? 'default' : 'outline'}
                   size="sm"
@@ -280,7 +286,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({
                 >
                   {historySummary.totalSteps} Steps
                 </Button>
-                
+
                 <Button
                   variant={activeFilters.has('assignmentEvents') ? 'default' : 'outline'}
                   size="sm"
@@ -293,7 +299,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({
                 >
                   {historySummary.totalAssignmentEvents} Assignments
                 </Button>
-                
+
                 <Button
                   variant={activeFilters.has('statusChanges') ? 'default' : 'outline'}
                   size="sm"
@@ -306,7 +312,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({
                 >
                   Status Changes
                 </Button>
-                
+
                 <Button
                   variant={activeFilters.has('comments') ? 'default' : 'outline'}
                   size="sm"
@@ -334,12 +340,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({
                 </Button>
 
                 {activeFilters.size > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearAllFilters}
-                    className="gba:text-xs gba:text-gray-600"
-                  >
+                  <Button variant="ghost" size="sm" onClick={clearAllFilters} className="gba:text-xs gba:text-gray-600">
                     Clear All ({filteredEvents.length}/{historyEvents.length})
                   </Button>
                 )}
@@ -361,12 +362,7 @@ export const AuditTab: React.FC<AuditTabProps> = ({
               <div>
                 <h4 className="gba:font-semibold">Error Loading Audit Trail</h4>
                 <p className="gba:text-sm gba:mt-1">{historyError}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={loadHistoryData}
-                  className="gba:mt-2"
-                >
+                <Button variant="outline" size="sm" onClick={loadHistoryData} className="gba:mt-2">
                   Retry
                 </Button>
               </div>
@@ -379,15 +375,15 @@ export const AuditTab: React.FC<AuditTabProps> = ({
           ) : (
             <div className="gba:space-y-4">
               {filteredEvents.map((event, index) => (
-                <div 
-                  key={`${event.type}-${event.stepIndex}-${index}`} 
+                <div
+                  key={`${event.type}-${event.stepIndex}-${index}`}
                   className={`gba:flex gba:items-start gba:gap-4 gba:p-4 gba:border gba:rounded-lg ${getEventBgColor(event)}`}
                 >
-                  <div 
+                  <div
                     className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-white gba:shadow-sm"
-                    style={{ 
+                    style={{
                       backgroundColor: getEventColor(event) + '20',
-                      color: getEventColor(event) 
+                      color: getEventColor(event)
                     }}
                   >
                     {getEventIcon(event)}
@@ -395,8 +391,8 @@ export const AuditTab: React.FC<AuditTabProps> = ({
                   <div className="gba:flex-1">
                     <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
                       <span className="gba:font-medium gba:text-sm">{event.eventTitle}</span>
-                      <Badge 
-                        variant="outline" 
+                      <Badge
+                        variant="outline"
                         className="gba:text-xs gba:border-0"
                         style={{
                           backgroundColor: getEventColor(event) + '20',
@@ -411,14 +407,12 @@ export const AuditTab: React.FC<AuditTabProps> = ({
                         </Badge>
                       )}
                     </div>
-                    <div className="gba:text-sm gba:text-gray-600 gba:mb-2">
-                      {event.description}
-                    </div>
+                    <div className="gba:text-sm gba:text-gray-600 gba:mb-2">{event.description}</div>
                     <div className="gba:text-xs gba:text-gray-500">
                       {new Date(event.timestamp).toLocaleString()} • {event.stepTitle}
                       {event.userName && ` • ${event.userName}`}
                     </div>
-                    
+
                     {/* Show comment if this is a comment event */}
                     {event.type === 'comment' && event.comment && (
                       <div className="gba:mt-3 gba:p-3 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-md">
@@ -436,5 +430,5 @@ export const AuditTab: React.FC<AuditTabProps> = ({
         </CardContent>
       </Card>
     </div>
-  );
-};
+  )
+}

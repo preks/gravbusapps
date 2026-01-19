@@ -39,4 +39,4 @@ export const GET_HEALTH_INSURANCE_DISTRIBUTION = `
       }
     }
   }
-`;
+`

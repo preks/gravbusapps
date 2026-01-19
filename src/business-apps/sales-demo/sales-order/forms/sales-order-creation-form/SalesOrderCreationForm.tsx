@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
 import {
   Modal,
   Steps,
@@ -21,7 +21,7 @@ import {
   DatePicker,
   InputNumber,
   Divider
-} from 'antd';
+} from 'antd'
 import {
   FileTextOutlined,
   RobotOutlined,
@@ -29,19 +29,15 @@ import {
   ArrowLeftOutlined,
   ArrowRightOutlined,
   CheckOutlined,
-  SearchOutlined,
-  UploadOutlined,
   InboxOutlined,
-  UserOutlined,
-  CalendarOutlined,
   PlusOutlined,
   DeleteOutlined
-} from '@ant-design/icons';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
-import dayjs from 'dayjs';
+} from '@ant-design/icons'
+import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
+import dayjs from 'dayjs'
 
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useSalesOrderCreation } from './hooks/useSalesOrderCreation';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useSalesOrderCreation } from './hooks/useSalesOrderCreation'
 import {
   CreationMethod,
   SalesOrderFormData,
@@ -51,12 +47,12 @@ import {
   AIGenerationRequest,
   AIGenerationResponse,
   CreationFormProps
-} from './types';
+} from './types'
 
-const { Title, Text } = Typography;
-const { Step } = Steps;
-const { Option } = Select;
-const { Dragger } = Upload;
+const { Title, Text } = Typography
+const { Step } = Steps
+const { Option } = Select
+const { Dragger } = Upload
 
 interface SalesOrderCreationFormProps extends BusinessAppContextProps, CreationFormProps {}
 
@@ -68,8 +64,8 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
   initialData
 }) => {
   // State management
-  const [currentStep, setCurrentStep] = useState(0);
-  const [creationMethod, setCreationMethod] = useState<CreationMethod | null>(null);
+  const [currentStep, setCurrentStep] = useState(0)
+  const [creationMethod, setCreationMethod] = useState<CreationMethod | null>(null)
   const [formData, setFormData] = useState<SalesOrderFormData>({
     customerId: '',
     orderDate: new Date().toISOString().split('T')[0],
@@ -82,36 +78,36 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
     taxAmount: 0,
     totalAmount: 0,
     currency: 'USD'
-  });
-  
+  })
+
   // Quote-related state
-  const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
-  
+  const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null)
+
   // AI-related state
-  const [aiRequest, setAiRequest] = useState<AIGenerationRequest>({});
-  const [aiResult, setAiResult] = useState<AIGenerationResponse | null>(null);
+  const [aiRequest, setAiRequest] = useState<AIGenerationRequest>({})
+  const [aiResult, setAiResult] = useState<AIGenerationResponse | null>(null)
 
   // Form instances for all steps (moved to top level to fix hooks error)
-  const [aiForm] = Form.useForm();
-  const [orderDetailsForm] = Form.useForm();
-  const [lineItemsForm] = Form.useForm();
-  
+  const [aiForm] = Form.useForm()
+  const [orderDetailsForm] = Form.useForm()
+  const [lineItemsForm] = Form.useForm()
+
   // Manual creation state
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [manualSubStep, setManualSubStep] = useState(0);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [manualSubStep, setManualSubStep] = useState(0)
 
   // Search states for different steps
-  const [quoteSearchTerm, setQuoteSearchTerm] = useState('');
-  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
-  const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [quoteSearchTerm, setQuoteSearchTerm] = useState('')
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('')
+  const [productSearchTerm, setProductSearchTerm] = useState('')
 
   // Line items management state
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
 
   // Discount state for line item form
-  const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('percentage');
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('percentage')
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
 
   // Hooks
   const {
@@ -132,28 +128,28 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
     createOrder,
     convertQuote,
     clearError
-  } = useSalesOrderCreation({ accessToken });
+  } = useSalesOrderCreation({ accessToken })
 
   // Initialize form data with initial data if provided
   useEffect(() => {
     if (initialData) {
-      setFormData(prev => ({ ...prev, ...initialData }));
+      setFormData(prev => ({ ...prev, ...initialData }))
     }
-  }, [initialData]);
+  }, [initialData])
 
   // Reset form when modal opens/closes
   useEffect(() => {
     if (open) {
-      setCurrentStep(0);
-      setCreationMethod(null);
-      setSelectedQuote(null);
-      setAiRequest({});
-      setAiResult(null);
-      setSelectedCustomer(null);
-      setManualSubStep(0);
-      clearError();
+      setCurrentStep(0)
+      setCreationMethod(null)
+      setSelectedQuote(null)
+      setAiRequest({})
+      setAiResult(null)
+      setSelectedCustomer(null)
+      setManualSubStep(0)
+      clearError()
     }
-  }, [open, clearError]);
+  }, [open, clearError])
 
   // Step configuration
   const getSteps = () => {
@@ -162,7 +158,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
         title: 'Creation Method',
         description: 'Choose how to create the sales order'
       }
-    ];
+    ]
 
     if (creationMethod === 'quote') {
       return [
@@ -175,7 +171,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           title: 'Review & Create',
           description: 'Review and create the sales order'
         }
-      ];
+      ]
     }
 
     if (creationMethod === 'ai') {
@@ -189,7 +185,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           title: 'Review & Create',
           description: 'Review and create the sales order'
         }
-      ];
+      ]
     }
 
     if (creationMethod === 'manual') {
@@ -211,73 +207,73 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           title: 'Review & Create',
           description: 'Review and create the sales order'
         }
-      ];
+      ]
     }
 
-    return baseSteps;
-  };
+    return baseSteps
+  }
 
-  const steps = getSteps();
+  const steps = getSteps()
 
   // Navigation handlers
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
+      setCurrentStep(currentStep + 1)
     }
-  };
+  }
 
   const handlePrevious = () => {
     if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
+      setCurrentStep(currentStep - 1)
     }
-  };
+  }
 
   const handleCancel = () => {
-    onClose();
-  };
+    onClose()
+  }
 
   // Form data update handler
   const updateFormData = (updates: Partial<SalesOrderFormData>) => {
-    setFormData(prev => ({ ...prev, ...updates }));
-  };
+    setFormData(prev => ({ ...prev, ...updates }))
+  }
 
   // Auto-advance to step 1 when creation method is selected
   useEffect(() => {
     if (creationMethod && currentStep === 0) {
-      setCurrentStep(1);
+      setCurrentStep(1)
     }
-  }, [creationMethod, currentStep]);
+  }, [creationMethod, currentStep])
 
   // Search effects
   useEffect(() => {
     if (creationMethod === 'quote' && currentStep === 1) {
-      searchQuotes(quoteSearchTerm);
+      searchQuotes(quoteSearchTerm)
     }
-  }, [quoteSearchTerm, creationMethod, currentStep, searchQuotes]);
+  }, [quoteSearchTerm, creationMethod, currentStep, searchQuotes])
 
   useEffect(() => {
     if (creationMethod === 'manual' && currentStep === 1) {
       // Only search if there are at least 2 characters or empty string (to show all)
       if (customerSearchTerm.length >= 2 || customerSearchTerm.length === 0) {
-        searchCustomers(customerSearchTerm);
+        searchCustomers(customerSearchTerm)
       }
     }
-  }, [customerSearchTerm, creationMethod, currentStep, searchCustomers]);
+  }, [customerSearchTerm, creationMethod, currentStep, searchCustomers])
 
   useEffect(() => {
     if (creationMethod === 'manual' && currentStep === 3 && productSearchTerm) {
-      searchProducts(productSearchTerm);
+      searchProducts(productSearchTerm)
     }
-  }, [productSearchTerm, creationMethod, currentStep, searchProducts]);
+  }, [productSearchTerm, creationMethod, currentStep, searchProducts])
 
   // Creation method selection
   const handleMethodSelect = (method: CreationMethod) => {
-    setCreationMethod(method);
-  };
+    setCreationMethod(method)
+  }
 
   // Quote selection handler
   const handleQuoteSelect = (quote: Quote) => {
-    setSelectedQuote(quote);
+    setSelectedQuote(quote)
     updateFormData({
       customerId: quote.customer.id,
       quotationNumber: quote.quoteNumber,
@@ -294,57 +290,62 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
       subtotal: quote.totalAmount,
       totalAmount: quote.totalAmount,
       currency: quote.currency
-    });
-  };
+    })
+  }
 
   // AI generation handler
   const handleAIGenerate = async () => {
-    const result = await generateWithAI(aiRequest);
-    setAiResult(result);
-    
+    const result = await generateWithAI(aiRequest)
+    setAiResult(result)
+
     if (result.success && result.orderData) {
-      updateFormData(result.orderData);
+      updateFormData(result.orderData)
     }
-  };
+  }
 
   // Customer selection handler
   const handleCustomerSelect = (customer: Customer) => {
-    setSelectedCustomer(customer);
+    setSelectedCustomer(customer)
     updateFormData({
       customerId: customer.id,
       customer
-    });
-  };
+    })
+  }
 
   // Calculate line item totals with discounts
-  const calculateLineItemTotals = (quantity: number, unitPrice: number, discountType: 'fixed' | 'percentage', discountValue: number = 0) => {
-    const grossAmount = quantity * unitPrice;
-    let discountAmount = 0;
+  const calculateLineItemTotals = (
+    quantity: number,
+    unitPrice: number,
+    discountType: 'fixed' | 'percentage',
+    discountValue: number = 0
+  ) => {
+    const grossAmount = quantity * unitPrice
+    let discountAmount = 0
 
     if (discountType === 'fixed') {
-      discountAmount = Math.min(discountValue, grossAmount); // Can't discount more than gross amount
+      discountAmount = Math.min(discountValue, grossAmount) // Can't discount more than gross amount
     } else if (discountType === 'percentage') {
-      discountAmount = (grossAmount * discountValue) / 100;
+      discountAmount = (grossAmount * discountValue) / 100
     }
 
-    const totalAmount = grossAmount - discountAmount;
+    const totalAmount = grossAmount - discountAmount
 
     return {
       grossAmount,
       discountAmount,
       totalAmount
-    };
-  };
+    }
+  }
 
   // Calculate order totals
   const calculateOrderTotals = (items: any[]) => {
-    const grossAmount = items.reduce((sum, item) => sum + (item.grossAmount || 0), 0);
-    const totalDiscount = items.reduce((sum, item) => sum + (item.discountAmount || 0), 0);
-    const totalCost = items.reduce((sum, item) => sum + ((item.unitCost || 0) * item.quantity), 0);
-    const subtotal = grossAmount - totalDiscount;
-    const taxAmount = subtotal * 0.2; // 20% tax
-    const totalAmount = subtotal + taxAmount;
-    const totalDiscountPercentage = grossAmount > 0 ? (totalDiscount / grossAmount) * 100 : 0;
+    const grossAmount = items.reduce((sum, item) => sum + (item.grossAmount || 0), 0)
+    const totalDiscount = items.reduce((sum, item) => sum + (item.discountAmount || 0), 0)
+    const totalCost = items.reduce((sum, item) => sum + (item.unitCost || 0) * item.quantity, 0)
+    const subtotal = grossAmount - totalDiscount
+    const taxAmount = subtotal * 0.2 // 20% tax
+    const totalAmount = subtotal + taxAmount
+    const totalDiscountPercentage = grossAmount > 0 ? (totalDiscount / grossAmount) * 100 : 0
 
     return {
       grossAmount,
@@ -354,28 +355,28 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
       subtotal,
       taxAmount,
       totalAmount
-    };
-  };
+    }
+  }
 
   // Final submission handler
   const handleSubmit = async () => {
     try {
-      let orderId: string | null = null;
+      let orderId: string | null = null
 
       if (creationMethod === 'quote' && selectedQuote) {
-        orderId = await convertQuote(selectedQuote, formData);
+        orderId = await convertQuote(selectedQuote, formData)
       } else {
-        orderId = await createOrder(formData);
+        orderId = await createOrder(formData)
       }
 
       if (orderId) {
-        onSuccess?.(orderId);
-        onClose();
+        onSuccess?.(orderId)
+        onClose()
       }
     } catch (err) {
-      console.error('Error creating sales order:', err);
+      console.error('Error creating sales order:', err)
     }
-  };
+  }
 
   // Render creation method selection step
   const renderMethodSelection = () => (
@@ -386,7 +387,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
       <Text className="gba:block gba:text-center gba:mb-8 gba:text-gray-600">
         Select how you would like to create your sales order
       </Text>
-      
+
       <Row gutter={[24, 24]}>
         <Col xs={24} md={8}>
           <Card
@@ -397,14 +398,16 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           >
             <div className="gba:p-4">
               <FileTextOutlined className="gba:text-4xl gba:text-blue-500 gba:mb-4" />
-              <Title level={4} className="gba:mb-2">From Existing Quote</Title>
+              <Title level={4} className="gba:mb-2">
+                From Existing Quote
+              </Title>
               <Text className="gba:text-gray-600">
                 Convert an existing quote into a sales order with all details preserved
               </Text>
             </div>
           </Card>
         </Col>
-        
+
         <Col xs={24} md={8}>
           <Card
             hoverable
@@ -418,14 +421,16 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
                 <span className="gba:text-4xl gba:mr-2">✨</span>
                 <RobotOutlined className="gba:text-4xl gba:text-blue-500" />
               </div>
-              <Title level={4} className="gba:mb-2">Generate with AI</Title>
+              <Title level={4} className="gba:mb-2">
+                Generate with AI
+              </Title>
               <Text className="gba:text-gray-600">
                 Create a sales order using AI from text description or PDF upload
               </Text>
             </div>
           </Card>
         </Col>
-        
+
         <Col xs={24} md={8}>
           <Card
             hoverable
@@ -435,7 +440,9 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           >
             <div className="gba:p-4">
               <EditOutlined className="gba:text-4xl gba:text-green-500 gba:mb-4" />
-              <Title level={4} className="gba:mb-2">Manual Creation</Title>
+              <Title level={4} className="gba:mb-2">
+                Manual Creation
+              </Title>
               <Text className="gba:text-gray-600">
                 Build your sales order step-by-step with full control over all details
               </Text>
@@ -444,11 +451,10 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
         </Col>
       </Row>
     </div>
-  );
+  )
 
   // Render quote selection step
   const renderQuoteSelection = () => {
-
     const quoteColumns = [
       {
         title: 'Quote ID',
@@ -480,8 +486,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
         dataIndex: 'totalAmount',
         key: 'totalAmount',
         width: 130,
-        render: (amount: number, record: Quote) =>
-          `${amount?.toLocaleString()} ${record.currency}`
+        render: (amount: number, record: Quote) => `${amount?.toLocaleString()} ${record.currency}`
       },
       {
         title: 'Status',
@@ -490,23 +495,21 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
         width: 100,
         render: (status: string) => {
           const colorMap = {
-            'Draft': 'default',
-            'Pending': 'processing',
-            'Approved': 'success',
-            'Expired': 'error'
-          };
-          return (
-            <Tag color={colorMap[status as keyof typeof colorMap] || 'default'}>
-              {status}
-            </Tag>
-          );
+            Draft: 'default',
+            Pending: 'processing',
+            Approved: 'success',
+            Expired: 'error'
+          }
+          return <Tag color={colorMap[status as keyof typeof colorMap] || 'default'}>{status}</Tag>
         }
       }
-    ];
+    ]
 
     return (
       <div className="gba:p-6" data-testid="quote-selection-step">
-        <Title level={3} className="gba:mb-4">Select Quote to Convert</Title>
+        <Title level={3} className="gba:mb-4">
+          Select Quote to Convert
+        </Title>
 
         <div className="gba:mb-4">
           <DebouncedInput
@@ -524,7 +527,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           rowKey="id"
           loading={quotesLoading}
           pagination={{ pageSize: 10 }}
-          onRow={(record) => ({
+          onRow={record => ({
             onClick: () => handleQuoteSelect(record),
             className: selectedQuote?.id === record.id ? 'gba:bg-blue-50' : '',
             style: { cursor: 'pointer' }
@@ -535,21 +538,17 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
         {selectedQuote && (
           <Card className="gba:mt-4" title="Selected Quote Preview" data-testid="quote-preview">
             <Descriptions column={2} size="small" className="gba:mb-4">
-              <Descriptions.Item label="Quote Number">
-                {selectedQuote.quoteNumber}
-              </Descriptions.Item>
-              <Descriptions.Item label="Quote Name">
-                {selectedQuote.quoteName}
-              </Descriptions.Item>
-              <Descriptions.Item label="Customer">
-                {selectedQuote.customer.name}
-              </Descriptions.Item>
+              <Descriptions.Item label="Quote Number">{selectedQuote.quoteNumber}</Descriptions.Item>
+              <Descriptions.Item label="Quote Name">{selectedQuote.quoteName}</Descriptions.Item>
+              <Descriptions.Item label="Customer">{selectedQuote.customer.name}</Descriptions.Item>
               <Descriptions.Item label="Total Amount">
                 {selectedQuote.totalAmount.toLocaleString()} {selectedQuote.currency}
               </Descriptions.Item>
             </Descriptions>
 
-            <Title level={5} className="gba:mb-3">Line Items ({selectedQuote.items.length})</Title>
+            <Title level={5} className="gba:mb-3">
+              Line Items ({selectedQuote.items.length})
+            </Title>
             <Table
               columns={[
                 {
@@ -595,27 +594,26 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           </Card>
         )}
       </div>
-    );
-  };
+    )
+  }
 
   // Render AI generation step
   const renderAIGeneration = () => {
     const handleFileUpload = (info: any) => {
-      const { status, originFileObj } = info.file;
+      const { status, originFileObj } = info.file
       if (status === 'done' || status === 'uploading') {
-        setAiRequest(prev => ({ ...prev, fileUpload: originFileObj }));
+        setAiRequest(prev => ({ ...prev, fileUpload: originFileObj }))
       }
-    };
+    }
 
     return (
       <div className="gba:p-6" data-testid="ai-generation-step">
-        <div
-          className="gba:p-4 gba:mb-6 gba:rounded-lg"
-          style={{ backgroundColor: 'rgba(145,202,255,0.1)' }}
-        >
+        <div className="gba:p-4 gba:mb-6 gba:rounded-lg" style={{ backgroundColor: 'rgba(145,202,255,0.1)' }}>
           <div className="gba:flex gba:items-center gba:mb-4">
             <span className="gba:text-2xl gba:mr-2">✨</span>
-            <Title level={3} className="gba:m-0">Generate Sales Order with AI</Title>
+            <Title level={3} className="gba:m-0">
+              Generate Sales Order with AI
+            </Title>
           </div>
           <Text className="gba:text-gray-600">
             Provide a text description or upload a PDF document, and our AI will generate a sales order for you.
@@ -628,7 +626,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
               rows={4}
               placeholder="Describe the sales order you want to create. Include customer details, products, quantities, and any special requirements..."
               value={aiRequest.textInput}
-              onChange={(e) => setAiRequest(prev => ({ ...prev, textInput: e.target.value }))}
+              onChange={e => setAiRequest(prev => ({ ...prev, textInput: e.target.value }))}
               data-testid="ai-text-input"
             />
           </Form.Item>
@@ -646,9 +644,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
                 <InboxOutlined />
               </p>
               <p className="ant-upload-text">Click or drag PDF file to this area to upload</p>
-              <p className="ant-upload-hint">
-                Upload a PDF document containing order information for AI analysis
-              </p>
+              <p className="ant-upload-hint">Upload a PDF document containing order information for AI analysis</p>
             </Dragger>
           </Form.Item>
 
@@ -657,7 +653,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
               rows={2}
               placeholder="Any specific instructions for the AI (optional)..."
               value={aiRequest.instructions}
-              onChange={(e) => setAiRequest(prev => ({ ...prev, instructions: e.target.value }))}
+              onChange={e => setAiRequest(prev => ({ ...prev, instructions: e.target.value }))}
               data-testid="ai-instructions-input"
             />
           </Form.Item>
@@ -699,21 +695,16 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
                 <Text>Review the generated order details in the next step.</Text>
               </div>
             ) : (
-              <Alert
-                message="AI Generation Failed"
-                description={aiResult.error}
-                type="error"
-              />
+              <Alert message="AI Generation Failed" description={aiResult.error} type="error" />
             )}
           </Card>
         )}
       </div>
-    );
-  };
+    )
+  }
 
   // Render customer selection step
   const renderCustomerSelection = () => {
-
     const customerColumns = [
       {
         title: 'Account Name',
@@ -723,18 +714,18 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           <div>
             <Text strong>{text}</Text>
             {record.ownerEmployee && (
-              <div className="gba:text-sm gba:text-gray-500">
-                Account Manager: {record.ownerEmployee.displayName}
-              </div>
+              <div className="gba:text-sm gba:text-gray-500">Account Manager: {record.ownerEmployee.displayName}</div>
             )}
           </div>
         )
       }
-    ];
+    ]
 
     return (
       <div className="gba:p-6" data-testid="customer-selection-step">
-        <Title level={3} className="gba:mb-4">Select Customer</Title>
+        <Title level={3} className="gba:mb-4">
+          Select Customer
+        </Title>
 
         <div className="gba:mb-4">
           <DebouncedInput
@@ -752,7 +743,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           rowKey="id"
           loading={customersLoading}
           pagination={{ pageSize: 10 }}
-          onRow={(record) => ({
+          onRow={record => ({
             onClick: () => handleCustomerSelect(record),
             className: selectedCustomer?.id === record.id ? 'gba:bg-blue-50' : '',
             style: { cursor: 'pointer' }
@@ -763,9 +754,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
         {selectedCustomer && (
           <Card className="gba:mt-4" title="Selected Account" data-testid="customer-preview">
             <Descriptions column={2} size="small">
-              <Descriptions.Item label="Account Name">
-                {selectedCustomer.name}
-              </Descriptions.Item>
+              <Descriptions.Item label="Account Name">{selectedCustomer.name}</Descriptions.Item>
               <Descriptions.Item label="Account Manager">
                 {selectedCustomer.ownerEmployee?.displayName || 'N/A'}
               </Descriptions.Item>
@@ -773,14 +762,16 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           </Card>
         )}
       </div>
-    );
-  };
+    )
+  }
 
   // Render order details step
   const renderOrderDetails = () => {
     return (
       <div className="gba:p-6" data-testid="order-details-step">
-        <Title level={3} className="gba:mb-4">Order Details</Title>
+        <Title level={3} className="gba:mb-4">
+          Order Details
+        </Title>
 
         <Form
           form={orderDetailsForm}
@@ -801,7 +792,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
               currency: allValues.currency,
               notes: allValues.notes,
               internalNotes: allValues.internalNotes
-            });
+            })
           }}
         >
           <Row gutter={[16, 16]}>
@@ -811,10 +802,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
                 name="orderDate"
                 rules={[{ required: true, message: 'Please select order date' }]}
               >
-                <DatePicker
-                  className="gba:w-full"
-                  data-testid="order-date-picker"
-                />
+                <DatePicker className="gba:w-full" data-testid="order-date-picker" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
@@ -831,28 +819,18 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           <Row gutter={[16, 16]}>
             <Col xs={24} md={12}>
               <Form.Item label="Requested Shipping Date" name="requestedShippingDate">
-                <DatePicker
-                  className="gba:w-full"
-                  data-testid="shipping-date-picker"
-                />
+                <DatePicker className="gba:w-full" data-testid="shipping-date-picker" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
               <Form.Item label="Requested Receipt Date" name="requestedReceiptDate">
-                <DatePicker
-                  className="gba:w-full"
-                  data-testid="receipt-date-picker"
-                />
+                <DatePicker className="gba:w-full" data-testid="receipt-date-picker" />
               </Form.Item>
             </Col>
           </Row>
 
           <Form.Item label="Notes" name="notes">
-            <Input.TextArea
-              rows={3}
-              placeholder="Customer-visible notes..."
-              data-testid="notes-input"
-            />
+            <Input.TextArea rows={3} placeholder="Customer-visible notes..." data-testid="notes-input" />
           </Form.Item>
 
           <Form.Item label="Internal Notes" name="internalNotes">
@@ -864,23 +842,23 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           </Form.Item>
         </Form>
       </div>
-    );
-  };
+    )
+  }
 
   // Render line items step
   const renderLineItems = () => {
     const addItem = () => {
-      setShowAddForm(true);
-      setEditingIndex(null);
-      lineItemsForm.resetFields();
-    };
+      setShowAddForm(true)
+      setEditingIndex(null)
+      lineItemsForm.resetFields()
+    }
 
     const editItem = (index: number) => {
-      const item = formData.items[index];
-      setEditingIndex(index);
-      setShowAddForm(true);
-      setSelectedProduct(item.product || null);
-      setDiscountType(item.discountType || 'percentage');
+      const item = formData.items[index]
+      setEditingIndex(index)
+      setShowAddForm(true)
+      setSelectedProduct(item.product || null)
+      setDiscountType(item.discountType || 'percentage')
       lineItemsForm.setFieldsValue({
         productId: item.productId,
         description: item.description,
@@ -889,19 +867,14 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
         unitCost: item.unitCost,
         discountType: item.discountType || 'percentage',
         discountValue: item.discountValue || 0
-      });
-    };
+      })
+    }
 
     const saveItem = () => {
       lineItemsForm.validateFields().then(values => {
-        const product = products.find(p => p.id === values.productId);
-        const discountValue = values.discountValue || 0;
-        const lineCalculations = calculateLineItemTotals(
-          values.quantity,
-          values.unitPrice,
-          discountType,
-          discountValue
-        );
+        const product = products.find(p => p.id === values.productId)
+        const discountValue = values.discountValue || 0
+        const lineCalculations = calculateLineItemTotals(values.quantity, values.unitPrice, discountType, discountValue)
 
         const newItem = {
           ...values,
@@ -913,39 +886,39 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           grossAmount: lineCalculations.grossAmount,
           totalAmount: lineCalculations.totalAmount,
           lineNumber: editingIndex !== null ? formData.items[editingIndex].lineNumber : formData.items.length + 1
-        };
-
-        let newItems = [...formData.items];
-        if (editingIndex !== null) {
-          newItems[editingIndex] = newItem;
-        } else {
-          newItems.push(newItem);
         }
 
-        const orderTotals = calculateOrderTotals(newItems);
+        const newItems = [...formData.items]
+        if (editingIndex !== null) {
+          newItems[editingIndex] = newItem
+        } else {
+          newItems.push(newItem)
+        }
+
+        const orderTotals = calculateOrderTotals(newItems)
 
         updateFormData({
           items: newItems,
           ...orderTotals
-        });
+        })
 
-        setShowAddForm(false);
-        setEditingIndex(null);
-        setSelectedProduct(null);
-        setDiscountType('percentage');
-        lineItemsForm.resetFields();
-      });
-    };
+        setShowAddForm(false)
+        setEditingIndex(null)
+        setSelectedProduct(null)
+        setDiscountType('percentage')
+        lineItemsForm.resetFields()
+      })
+    }
 
     const removeItem = (index: number) => {
-      const newItems = formData.items.filter((_, i) => i !== index);
-      const orderTotals = calculateOrderTotals(newItems);
+      const newItems = formData.items.filter((_, i) => i !== index)
+      const orderTotals = calculateOrderTotals(newItems)
 
       updateFormData({
         items: newItems,
         ...orderTotals
-      });
-    };
+      })
+    }
 
     const itemColumns = [
       {
@@ -995,10 +968,10 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
         key: 'discount',
         width: 120,
         render: (record: any) => {
-          if (!record.discountValue || record.discountValue === 0) return '-';
+          if (!record.discountValue || record.discountValue === 0) return '-'
           return record.discountType === 'percentage'
             ? `${record.discountValue}%`
-            : `$${record.discountValue.toFixed(2)}`;
+            : `$${record.discountValue.toFixed(2)}`
         }
       },
       {
@@ -1017,35 +990,27 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
             <Button size="small" onClick={() => editItem(index)} data-testid={`edit-item-${index}`}>
               Edit
             </Button>
-            <Button
-              size="small"
-              danger
-              onClick={() => removeItem(index)}
-              data-testid={`remove-item-${index}`}
-            >
+            <Button size="small" danger onClick={() => removeItem(index)} data-testid={`remove-item-${index}`}>
               <DeleteOutlined />
             </Button>
           </Space>
         )
       }
-    ];
+    ]
 
     return (
       <div className="gba:p-6" data-testid="line-items-step">
         <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
-          <Title level={3} className="gba:m-0">Line Items</Title>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={addItem}
-            data-testid="add-item-button"
-          >
+          <Title level={3} className="gba:m-0">
+            Line Items
+          </Title>
+          <Button type="primary" icon={<PlusOutlined />} onClick={addItem} data-testid="add-item-button">
             Add Item
           </Button>
         </div>
 
         {showAddForm && (
-          <Card className="gba:mb-4" title={editingIndex !== null ? "Edit Item" : "Add New Item"}>
+          <Card className="gba:mb-4" title={editingIndex !== null ? 'Edit Item' : 'Add New Item'}>
             <Form form={lineItemsForm} layout="vertical">
               <Row gutter={[16, 16]}>
                 <Col xs={24} md={12}>
@@ -1055,14 +1020,14 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
                       placeholder="Search and select product"
                       onSearch={setProductSearchTerm}
                       loading={productsLoading}
-                      onChange={(productId) => {
-                        const product = products.find(p => p.id === productId);
-                        setSelectedProduct(product || null);
+                      onChange={productId => {
+                        const product = products.find(p => p.id === productId)
+                        setSelectedProduct(product || null)
                         if (product) {
                           lineItemsForm.setFieldsValue({
                             unitPrice: product.price || product.unitPrice || 0,
                             description: product.description || product.name
-                          });
+                          })
                         }
                       }}
                       data-testid="product-select"
@@ -1074,13 +1039,17 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
                               {product.name} - {product.productNumber || product.code || 'N/A'}
                             </div>
                             <div className="gba:text-sm gba:text-gray-500">
-                              Price: ${(product.price || product.unitPrice || 0).toFixed(2)} |
-                              Cost: ${(product.currentCost || 0).toFixed(2)}
+                              Price: ${(product.price || product.unitPrice || 0).toFixed(2)} | Cost: $
+                              {(product.currentCost || 0).toFixed(2)}
                             </div>
                             {product.supplierName ? (
-                              <Tag size="small" color="blue">{product.supplierName}</Tag>
+                              <Tag size="small" color="blue">
+                                {product.supplierName}
+                              </Tag>
                             ) : (
-                              <Tag size="small" color="green">Own Product</Tag>
+                              <Tag size="small" color="green">
+                                Own Product
+                              </Tag>
                             )}
                           </div>
                         </Option>
@@ -1105,11 +1074,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
                     name="quantity"
                     rules={[{ required: true, message: 'Please enter quantity' }]}
                   >
-                    <InputNumber
-                      min={1}
-                      className="gba:w-full"
-                      data-testid="quantity-input"
-                    />
+                    <InputNumber min={1} className="gba:w-full" data-testid="quantity-input" />
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={6}>
@@ -1118,13 +1083,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
                     name="unitPrice"
                     rules={[{ required: true, message: 'Please enter unit price' }]}
                   >
-                    <InputNumber
-                      min={0}
-                      step={0.01}
-                      className="gba:w-full"
-                      data-testid="unit-price-input"
-                      prefix="$"
-                    />
+                    <InputNumber min={0} step={0.01} className="gba:w-full" data-testid="unit-price-input" prefix="$" />
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={6}>
@@ -1158,7 +1117,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
                   <Form.Item label="Discount Type" name="discountType">
                     <Radio.Group
                       value={discountType}
-                      onChange={(e) => setDiscountType(e.target.value)}
+                      onChange={e => setDiscountType(e.target.value)}
                       data-testid="discount-type-radio"
                     >
                       <Radio value="percentage">Percentage</Radio>
@@ -1219,9 +1178,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
                   <Text strong className="gba:text-red-600">
                     -${(formData.totalDiscount || 0).toFixed(2)}
                     {formData.totalDiscountPercentage && formData.totalDiscountPercentage > 0 && (
-                      <span className="gba:text-xs gba:ml-1">
-                        ({formData.totalDiscountPercentage.toFixed(1)}%)
-                      </span>
+                      <span className="gba:text-xs gba:ml-1">({formData.totalDiscountPercentage.toFixed(1)}%)</span>
                     )}
                   </Text>
                 </div>
@@ -1229,7 +1186,9 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
               <Col xs={24} md={6}>
                 <div className="gba:text-center">
                   <Text className="gba:block gba:text-sm gba:text-gray-500">Total Cost</Text>
-                  <Text strong className="gba:text-orange-600">${(formData.totalCost || 0).toFixed(2)}</Text>
+                  <Text strong className="gba:text-orange-600">
+                    ${(formData.totalCost || 0).toFixed(2)}
+                  </Text>
                 </div>
               </Col>
               <Col xs={24} md={6}>
@@ -1250,14 +1209,16 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           </Card>
         )}
       </div>
-    );
-  };
+    )
+  }
 
   // Render review step
   const renderReview = () => {
     return (
       <div className="gba:p-6" data-testid="review-step">
-        <Title level={3} className="gba:mb-4">Review Sales Order</Title>
+        <Title level={3} className="gba:mb-4">
+          Review Sales Order
+        </Title>
 
         <Row gutter={[24, 24]}>
           <Col xs={24} md={12}>
@@ -1279,9 +1240,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
                     {dayjs(formData.requestedReceiptDate).format('MMM D, YYYY')}
                   </Descriptions.Item>
                 )}
-                <Descriptions.Item label="Currency">
-                  {formData.currency}
-                </Descriptions.Item>
+                <Descriptions.Item label="Currency">{formData.currency}</Descriptions.Item>
               </Descriptions>
             </Card>
           </Col>
@@ -1289,9 +1248,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           <Col xs={24} md={12}>
             <Card title="Order Summary" className="gba:h-full">
               <Descriptions column={1} size="small">
-                <Descriptions.Item label="Items Count">
-                  {formData.items.length} items
-                </Descriptions.Item>
+                <Descriptions.Item label="Items Count">{formData.items.length} items</Descriptions.Item>
                 <Descriptions.Item label="Subtotal">
                   {formData.subtotal.toLocaleString()} {formData.currency}
                 </Descriptions.Item>
@@ -1352,47 +1309,47 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           </Card>
         )}
       </div>
-    );
-  };
+    )
+  }
 
   // Render step content based on current step and method
   const renderStepContent = () => {
     // Step 0: Always show method selection
     if (currentStep === 0) {
-      return renderMethodSelection();
+      return renderMethodSelection()
     }
 
     // Handle different creation methods
     if (creationMethod === 'quote') {
       if (currentStep === 1) {
-        return renderQuoteSelection();
+        return renderQuoteSelection()
       }
       if (currentStep === 2) {
-        return renderReview();
+        return renderReview()
       }
     }
 
     if (creationMethod === 'ai') {
       if (currentStep === 1) {
-        return renderAIGeneration();
+        return renderAIGeneration()
       }
       if (currentStep === 2) {
-        return renderReview();
+        return renderReview()
       }
     }
 
     if (creationMethod === 'manual') {
       if (currentStep === 1) {
-        return renderCustomerSelection();
+        return renderCustomerSelection()
       }
       if (currentStep === 2) {
-        return renderOrderDetails();
+        return renderOrderDetails()
       }
       if (currentStep === 3) {
-        return renderLineItems();
+        return renderLineItems()
       }
       if (currentStep === 4) {
-        return renderReview();
+        return renderReview()
       }
     }
 
@@ -1402,8 +1359,8 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
         <Spin size="large" />
         <Text className="gba:block gba:mt-4">Loading step content...</Text>
       </div>
-    );
-  };
+    )
+  }
 
   return (
     <Modal
@@ -1419,12 +1376,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
       <div className="gba:mb-6">
         <Steps current={currentStep} size="small">
           {steps.map((step, index) => (
-            <Step
-              key={index}
-              title={step.title}
-              description={step.description}
-              data-testid={`step-${index}`}
-            />
+            <Step key={index} title={step.title} description={step.description} data-testid={`step-${index}`} />
           ))}
         </Steps>
       </div>
@@ -1441,9 +1393,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
         />
       )}
 
-      <div className="gba:min-h-96">
-        {renderStepContent()}
-      </div>
+      <div className="gba:min-h-96">{renderStepContent()}</div>
 
       <div className="gba:flex gba:justify-between gba:items-center gba:mt-6 gba:pt-4 gba:border-t">
         <Button
@@ -1459,18 +1409,14 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           <Button onClick={handleCancel} data-testid="cancel-button">
             Cancel
           </Button>
-          
+
           {currentStep === steps.length - 1 ? (
             <Button
               type="primary"
               onClick={handleSubmit}
               loading={creatingOrder}
               icon={<CheckOutlined />}
-              disabled={
-                formData.items.length === 0 ||
-                !formData.customerId ||
-                !formData.orderDate
-              }
+              disabled={formData.items.length === 0 || !formData.customerId || !formData.orderDate}
               data-testid="submit-button"
             >
               Create Sales Order
@@ -1495,7 +1441,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
         </Space>
       </div>
     </Modal>
-  );
-};
+  )
+}
 
-export default SalesOrderCreationForm;
+export default SalesOrderCreationForm

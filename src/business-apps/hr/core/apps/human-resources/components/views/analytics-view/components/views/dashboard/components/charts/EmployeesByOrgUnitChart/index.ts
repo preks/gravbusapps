@@ -1,4 +1,4 @@
-import EmployeesByOrgUnitChart from '../EmployeesByOrgUnitChart';
+import EmployeesByOrgUnitChart from '../EmployeesByOrgUnitChart'
 
-export { EmployeesByOrgUnitChart };
-export default EmployeesByOrgUnitChart;
+export { EmployeesByOrgUnitChart }
+export default EmployeesByOrgUnitChart

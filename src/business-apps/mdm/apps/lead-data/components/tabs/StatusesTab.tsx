@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
+import React, { useState, useEffect } from 'react'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
   TableRow,
   Button,
   Dialog,
@@ -24,80 +24,76 @@ import {
   Alert,
   AlertDescription,
   Spinner
-} from '@newwork/nw-design-system';
-import { Plus, Edit, Trash2, CircleDot } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
-import { useForm } from 'react-hook-form';
+} from '@newwork/nw-design-system'
+import { Plus, Edit, Trash2, CircleDot } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
+import { useForm } from 'react-hook-form'
 
 export interface StatusesTabProps extends BusinessAppContextProps {
-  sourceApp: 'CRM' | 'IRM';
-  prefixDataTestId?: string;
+  sourceApp: 'CRM' | 'IRM'
+  prefixDataTestId?: string
 }
 
 interface Status {
-  id: string;
-  code: string;
-  value: string;
-  alternativeCode?: string;
-  additionalValue1?: string;
-  additionalValue2?: string;
-  additionalValue3?: string;
+  id: string
+  code: string
+  value: string
+  alternativeCode?: string
+  additionalValue1?: string
+  additionalValue2?: string
+  additionalValue3?: string
 }
 
 interface StatusFormData {
-  code: string;
-  value: string;
-  alternativeCode?: string;
-  additionalValue1?: string;
+  code: string
+  value: string
+  alternativeCode?: string
+  additionalValue1?: string
 }
 
-const DATA_TEST_ID = 'StatusesTab';
+const DATA_TEST_ID = 'StatusesTab'
 
 const getStatusColor = (code: string) => {
-  const lowerCode = code.toLowerCase();
+  const lowerCode = code.toLowerCase()
   if (lowerCode.includes('new') || lowerCode.includes('open') || lowerCode.includes('fresh')) {
-    return 'running';
+    return 'running'
   }
   if (lowerCode.includes('qualified') || lowerCode.includes('contacted') || lowerCode.includes('working')) {
-    return 'secondary';
+    return 'secondary'
   }
   if (lowerCode.includes('converted') || lowerCode.includes('won') || lowerCode.includes('closed')) {
-    return 'success';
+    return 'success'
   }
   if (lowerCode.includes('lost') || lowerCode.includes('dead') || lowerCode.includes('rejected')) {
-    return 'destructive';
+    return 'destructive'
   }
-  return 'outline';
-};
+  return 'outline'
+}
 
-export const StatusesTab: React.FC<StatusesTabProps> = ({
-  accessToken,
-  sourceApp,
-  prefixDataTestId
-}) => {
-  const { t } = useTranslation();
-  const [statuses, setStatuses] = useState<Status[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingStatus, setEditingStatus] = useState<Status | null>(null);
+export const StatusesTab: React.FC<StatusesTabProps> = ({ accessToken, sourceApp, prefixDataTestId }) => {
+  const { t } = useTranslation()
+  const [statuses, setStatuses] = useState<Status[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingStatus, setEditingStatus] = useState<Status | null>(null)
 
-  const form = useForm<StatusFormData>();
-  const catalogClient = useCatalogManagerClient(accessToken);
-  
+  const form = useForm<StatusFormData>()
+  const catalogClient = useCatalogManagerClient(accessToken)
+
   // Determine catalog name based on source app
-  const catalogName = sourceApp === 'CRM' ? 'SalesLeadStatus' : 'InvestmentLeadStatus';
+  const catalogName = sourceApp === 'CRM' ? 'SalesLeadStatus' : 'InvestmentLeadStatus'
 
   // Load statuses
   const loadStatuses = async () => {
     try {
-      setLoading(true);
-      setError(null);
-      
+      setLoading(true)
+      setError(null)
+
       const response = await catalogClient.getCatalogEntriesList(
         {
           catalogIdentifier: catalogName,
@@ -110,100 +106,97 @@ export const StatusesTab: React.FC<StatusesTabProps> = ({
           includeChildCatalogEntries: false,
           ...(searchTerm && { searchCriteria: searchTerm })
         }
-      );
+      )
 
-      const entries = response.data?.map((entry: any) => ({
-        id: entry.id,
-        code: entry.code,
-        value: entry.value,
-        alternativeCode: entry.alternativeCode,
-        additionalValue1: entry.additionalValue1,
-        additionalValue2: entry.additionalValue2,
-        additionalValue3: entry.additionalValue3,
-      })) || [];
+      const entries =
+        response.data?.map((entry: any) => ({
+          id: entry.id,
+          code: entry.code,
+          value: entry.value,
+          alternativeCode: entry.alternativeCode,
+          additionalValue1: entry.additionalValue1,
+          additionalValue2: entry.additionalValue2,
+          additionalValue3: entry.additionalValue3
+        })) || []
 
-      setStatuses(entries);
+      setStatuses(entries)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load statuses';
-      setError(errorMessage);
-      console.error('Error loading statuses:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load statuses'
+      setError(errorMessage)
+      console.error('Error loading statuses:', err)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
     if (accessToken) {
-      loadStatuses();
+      loadStatuses()
     }
-  }, [accessToken, searchTerm, catalogName]);
+  }, [accessToken, searchTerm, catalogName])
 
   const handleAdd = () => {
-    setEditingStatus(null);
-    form.reset();
-    setIsModalOpen(true);
-  };
+    setEditingStatus(null)
+    form.reset()
+    setIsModalOpen(true)
+  }
 
   const handleEdit = (status: Status) => {
-    setEditingStatus(status);
+    setEditingStatus(status)
     form.reset({
       code: status.code,
       value: status.value,
       alternativeCode: status.alternativeCode || '',
       additionalValue1: status.additionalValue1 || ''
-    });
-    setIsModalOpen(true);
-  };
+    })
+    setIsModalOpen(true)
+  }
 
   const handleDelete = async (id: string) => {
     try {
       // TODO: Implement actual delete operation with catalog API
-      console.log('Delete status:', id);
-      loadStatuses();
+      console.log('Delete status:', id)
+      loadStatuses()
     } catch (err) {
-      console.error('Failed to delete status:', err);
+      console.error('Failed to delete status:', err)
     }
-  };
+  }
 
   const handleSubmit = async (data: StatusFormData) => {
     try {
       if (editingStatus) {
         // TODO: Implement actual update operation with catalog API
-        console.log('Update status:', data);
+        console.log('Update status:', data)
       } else {
         // TODO: Implement actual create operation with catalog API
-        console.log('Create status:', data);
+        console.log('Create status:', data)
       }
-      
-      setIsModalOpen(false);
-      loadStatuses();
-    } catch (err) {
-      console.error('Failed to save status:', err);
-    }
-  };
 
-  const filteredStatuses = statuses.filter(item =>
-    item.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.value.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.alternativeCode && item.alternativeCode.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+      setIsModalOpen(false)
+      loadStatuses()
+    } catch (err) {
+      console.error('Failed to save status:', err)
+    }
+  }
+
+  const filteredStatuses = statuses.filter(
+    item =>
+      item.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.value.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.alternativeCode && item.alternativeCode.toLowerCase().includes(searchTerm.toLowerCase()))
+  )
 
   if (error) {
     return (
       <Alert className="gba:border-red-200 gba:bg-red-50">
         <AlertDescription>
           {t('mdm.statuses.error', 'Error Loading Statuses')}: {error}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={loadStatuses}
-            className="gba:ml-2"
-          >
+          <Button variant="outline" size="sm" onClick={loadStatuses} className="gba:ml-2">
             {t('common.retry', 'Retry')}
           </Button>
         </AlertDescription>
       </Alert>
-    );
+    )
   }
 
   return (
@@ -213,16 +206,14 @@ export const StatusesTab: React.FC<StatusesTabProps> = ({
         <div>
           <h3 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-2">
             <CircleDot className="gba:h-5 gba:w-5" />
-            {t('mdm.lead_statuses', 'Lead Statuses')} 
-            <Badge variant={sourceApp === 'CRM' ? 'default' : 'secondary'}>
-              {sourceApp}
-            </Badge>
+            {t('mdm.lead_statuses', 'Lead Statuses')}
+            <Badge variant={sourceApp === 'CRM' ? 'default' : 'secondary'}>{sourceApp}</Badge>
           </h3>
           <p className="gba:text-sm gba:text-gray-600">
             {t('mdm.lead_statuses.description', 'Manage status values for lead lifecycle')}
           </p>
         </div>
-        
+
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
             <Button onClick={handleAdd} data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-Add-Button`}>
@@ -236,13 +227,12 @@ export const StatusesTab: React.FC<StatusesTabProps> = ({
                 {editingStatus ? t('mdm.status.edit', 'Edit Status') : t('mdm.status.add', 'Add Status')}
               </DialogTitle>
               <DialogDescription>
-                {editingStatus 
+                {editingStatus
                   ? t('mdm.status.edit.description', 'Update the status details below.')
-                  : t('mdm.status.add.description', 'Add a new status to the catalog.')
-                }
+                  : t('mdm.status.add.description', 'Add a new status to the catalog.')}
               </DialogDescription>
             </DialogHeader>
-            
+
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="gba:space-y-4">
                 <FormField
@@ -282,7 +272,10 @@ export const StatusesTab: React.FC<StatusesTabProps> = ({
                     <FormItem>
                       <FormLabel>{t('mdm.alternative_code', 'Alternative Code')}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder={t('mdm.alternative_code.placeholder', 'Enter alternative code')} />
+                        <Input
+                          {...field}
+                          placeholder={t('mdm.alternative_code.placeholder', 'Enter alternative code')}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -296,7 +289,10 @@ export const StatusesTab: React.FC<StatusesTabProps> = ({
                     <FormItem>
                       <FormLabel>{t('mdm.additional_value_1', 'Additional Value 1')}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder={t('mdm.additional_value_1.placeholder', 'Enter additional value 1')} />
+                        <Input
+                          {...field}
+                          placeholder={t('mdm.additional_value_1.placeholder', 'Enter additional value 1')}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -307,9 +303,7 @@ export const StatusesTab: React.FC<StatusesTabProps> = ({
                   <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
                     {t('common.cancel', 'Cancel')}
                   </Button>
-                  <Button type="submit">
-                    {t('common.save', 'Save')}
-                  </Button>
+                  <Button type="submit">{t('common.save', 'Save')}</Button>
                 </div>
               </form>
             </Form>
@@ -351,7 +345,7 @@ export const StatusesTab: React.FC<StatusesTabProps> = ({
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredStatuses.map((item) => (
+                filteredStatuses.map(item => (
                   <TableRow key={item.id}>
                     <TableCell>
                       <Badge variant={getStatusColor(item.code) as any}>{item.code}</Badge>
@@ -392,5 +386,5 @@ export const StatusesTab: React.FC<StatusesTabProps> = ({
         )}
       </div>
     </div>
-  );
-}; 
+  )
+}

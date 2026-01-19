@@ -1,4 +1,4 @@
-import ProductDetailView from './ProductDetailView';
+import ProductDetailView from './ProductDetailView'
 
-export { ProductDetailView };
-export default ProductDetailView;
+export { ProductDetailView }
+export default ProductDetailView

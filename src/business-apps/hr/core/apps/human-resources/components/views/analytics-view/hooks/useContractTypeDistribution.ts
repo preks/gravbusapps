@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react';
-import { useEmployeeCount } from './useEmployeeCount';
-import { useGetContractTypes } from './useGetContractTypes';
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import { GET_CONTRACT_TYPE_DISTRIBUTION } from '../queries/getContractTypeDistribution';
+import { useState, useEffect, useRef } from 'react'
+import { useEmployeeCount } from './useEmployeeCount'
+import { QueryType, Services, useQueryExecutionClient } from '@/common/network/dataset'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 export interface ContractTypeDistribution {
-  id: string;
-  name: string;
-  count: number;
-  percentage: number;
+  id: string
+  name: string
+  count: number
+  percentage: number
 }
 
 /**
@@ -17,99 +18,86 @@ export interface ContractTypeDistribution {
  * @returns Contract type distribution data with counts and percentages
  */
 export function useContractTypeDistribution(accessToken: string) {
-  const [distribution, setDistribution] = useState<ContractTypeDistribution[]>([]);
-  const [error, setError] = useState<Error | null>(null);
-  const [contractTypeDataLoading, setContractTypeDataLoading] = useState<boolean>(false);
-  const [contractTypeDataError, setContractTypeDataError] = useState<Error | null>(null);
-  
-  // GraphQL client for fetching data
-  const graphqlClient = useGraphqlClient(accessToken);
-  
-  // Get all contract types (catalog entries)
-  const { types: contractTypes, loading: typesLoading, error: typesError } = 
-    useGetContractTypes(accessToken, '', 0, 100); // Use limit of 100 to fetch all contract types
-  
+  const [distribution, setDistribution] = useState<ContractTypeDistribution[]>([])
+  const [error, setError] = useState<Error | null>(null)
+  const [contractTypeDataLoading, setContractTypeDataLoading] = useState<boolean>(false)
+  const [contractTypeDataError, setContractTypeDataError] = useState<Error | null>(null)
+
+  // Dataset client for fetching data
+  const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
+  const { t } = useTranslation(hrTranslations)
+
   // Get total employee count for percentage calculation
-  const { count: totalEmployees, loading: countLoading, error: countError } = useEmployeeCount(accessToken);
-  
-  // Fetch contract type distribution data using GraphQL
+  const { count: totalEmployees, loading: countLoading, error: countError } = useEmployeeCount(accessToken)
+  const lastFetchKeyRef = useRef<string>('')
+
+  // Module-level in-flight cache for dataset requests
+  const staticCache =
+    (useContractTypeDistribution as any).__cache ||
+    ((useContractTypeDistribution as any).__cache = new Map<string, Promise<any>>())
+
+  // Fetch contract type distribution data using Dataset
   useEffect(() => {
-    if (typesLoading || countLoading || !contractTypes.length || !graphqlClient) return;
-    
-    setContractTypeDataLoading(true);
-    
-    if (!graphqlClient) {
-      setContractTypeDataError(new Error('GraphQL client not available'));
-      setContractTypeDataLoading(false);
-      return;
+    if (countLoading || !datasetClient) return
+
+    const localeCode = getCurrentActiveUserLocale()
+    const fetchKey = `dataset|employeeContractTypeData|${accessToken}|${localeCode}`
+    if (lastFetchKeyRef.current === fetchKey) {
+      return
     }
-    
-    graphqlClient.request(
-      GET_CONTRACT_TYPE_DISTRIBUTION
-    )
-    .then((result: any) => {
-      setContractTypeDataLoading(false);
-      
-      // Get working conditions from result data
-      const employeeWorkingConditions = result?.EmployeeWorkingCondition || [];
-      
-      // Count employees by contract type
-      const contractTypeCounts = new Map<string, number>();
-      
-      // Initialize counts for all contract types to zero
-      contractTypes.forEach(type => {
-        contractTypeCounts.set(type.id, 0);
-      });
-      
-      // Count employees for each contract type
-      employeeWorkingConditions.forEach((condition: any) => {
-        const contractTypeId = condition.contractType?.id;
-        if (contractTypeId) {
-          const currentCount = contractTypeCounts.get(contractTypeId) || 0;
-          contractTypeCounts.set(contractTypeId, currentCount + 1);
-        }
-      });
-      
-      // Create distribution data with counts and percentages
-      const distributionData: ContractTypeDistribution[] = [];
-      
-      contractTypes.forEach(type => {
-        const count = contractTypeCounts.get(type.id) || 0;
-        // Calculate percentage safely (avoid division by zero)
-        const percentage = totalEmployees > 0 ? (count / totalEmployees) * 100 : 0;
-        
-        distributionData.push({
-          id: type.id,
-          name: type.name,
+    lastFetchKeyRef.current = fetchKey
+
+    setContractTypeDataLoading(true)
+
+    let p = staticCache.get(fetchKey)
+    if (!p) {
+      p = datasetClient.executeQuery('employeeContractTypeData', QueryType.DATASET, { localeCode })
+      staticCache.set(fetchKey, p)
+    }
+
+    p.then((result: any) => {
+      setContractTypeDataLoading(false)
+
+      const rows = Array.isArray(result?.data) ? result.data : []
+
+      // Create distribution data with counts and percentages from dataset rows
+      const items: ContractTypeDistribution[] = rows.map((r: any) => {
+        const rawName = String(r.category || 'Unknown')
+        const name =
+          rawName.trim().toLowerCase() === 'not specified'.toLowerCase() ? t('hr-analytics-not-specified') : rawName
+        const count = Number(r.value || 0)
+        const percentage = totalEmployees > 0 ? (count / totalEmployees) * 100 : 0
+        return {
+          id: String(r.category || 'unknown'),
+          name,
           count,
           percentage
-        });
-      });
-      
+        }
+      })
+
       // Sort by count in descending order
-      const sortedDistribution = distributionData.sort((a, b) => b.count - a.count);
-      
-      setDistribution(sortedDistribution);
+      const sortedDistribution = items.sort((a, b) => b.count - a.count)
+
+      setDistribution(sortedDistribution)
+    }).catch((err: any) => {
+      console.error('[useContractTypeDistribution] Error fetching contract type distribution (dataset):', err)
+      setContractTypeDataLoading(false)
+      setContractTypeDataError(err)
     })
-    .catch((err: any) => {
-      console.error('[useContractTypeDistribution] Error fetching contract type distribution:', err);
-      setContractTypeDataLoading(false);
-      setContractTypeDataError(err);
-    });
-  }, [graphqlClient, contractTypes, totalEmployees, typesLoading]);
-  
+  }, [accessToken, totalEmployees, countLoading, t])
+
   // Combine all possible errors
   useEffect(() => {
-    const finalError = typesError || countError || contractTypeDataError;
-    setError(finalError);
-  }, [typesError, countError, contractTypeDataError]);
-  
+    const finalError = countError || contractTypeDataError
+    setError(finalError)
+  }, [countError, contractTypeDataError])
+
   // Determine overall loading state
-  const isLoading = typesLoading || countLoading || contractTypeDataLoading;
-  
-  return { 
-    distribution, 
-    loading: isLoading, 
-    error 
-  };
+  const isLoading = countLoading || contractTypeDataLoading
+
+  return {
+    distribution,
+    loading: isLoading,
+    error
+  }
 }

@@ -1,5 +1,5 @@
 export const getExpenseRequestRecordQuery = `
-  query MyQuery($expenseRequestId: uuid!) {
+  query MyQuery($expenseRequestId: uuid!, $activeUserLocale: String!) {
     expenseRequest: ExpenseRequestByPk(id: $expenseRequestId) {
       code
       title
@@ -60,15 +60,32 @@ export const getExpenseRequestRecordQuery = `
         comment
         commentDate
         commentType
+        authorEmployee {
+          fullName
+          firstName
+          lastName
+          pictureThumbnail  
+        }
       }
       expenseRequestItem:expenseItem(orderBy: {expenseDate: ASC, code: ASC}) {
         code
         title
         expenseGroup {
           value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) { localeCode value }
         }
         expenseClass {
           value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) { localeCode value }
+        }
+        currency {
+          code
+        }
+        expensePosition {
+          expenseGroup {
+            value
+            translations(where: {localeCode: {_eq: $activeUserLocale}}) { localeCode value }
+          }
         }
         expenseDate
         totalAmount
@@ -99,11 +116,19 @@ export const getExpenseRequestRecordQuery = `
         pointType
         country {
           value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+           localeCode 
+           value 
+           }
         }
         travelRegion {
           value
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) { 
+            localeCode 
+            value 
+          }
         }
       }
     }
   }
-`;
+`

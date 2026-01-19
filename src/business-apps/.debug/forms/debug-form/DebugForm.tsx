@@ -1,20 +1,19 @@
-import React from 'react';
-import { Card, Typography, Divider } from 'antd';
+import React from 'react'
+import { Card, Typography, Divider } from 'antd'
 
-const { Title, Text } = Typography;
+const { Title, Text } = Typography
 
 interface DebugFormProps {
-  componentName?: string;
-  [key: string]: any; // Allows any other props
+  componentName?: string
+  [key: string]: any // Allows any other props
 }
 
-export const DebugForm: React.FC<DebugFormProps> = (props) => {
-  const { componentName, ...restProps } = props;
-  
+export const DebugForm: React.FC<DebugFormProps> = props => {
+  const { componentName } = props
+
   // Get build info if available
-  const buildInfo = typeof globalThis !== 'undefined' && globalThis.__APP_BUILD_INFO__ 
-    ? globalThis.__APP_BUILD_INFO__ 
-    : null;
+  const buildInfo =
+    typeof globalThis !== 'undefined' && globalThis.__APP_BUILD_INFO__ ? globalThis.__APP_BUILD_INFO__ : null
 
   return (
     <Card
@@ -40,17 +39,19 @@ export const DebugForm: React.FC<DebugFormProps> = (props) => {
       }}
     >
       <h2>Props:</h2>
-      <pre style={{ 
-        backgroundColor: '#f5f5f5', 
-        padding: '12px', 
-        borderRadius: '4px',
-        flex: 1,
-        overflow: 'auto',
-        margin: 0
-      }}>
+      <pre
+        style={{
+          backgroundColor: 'var(--nw-color-muted)',
+          padding: '12px',
+          borderRadius: '4px',
+          flex: 1,
+          overflow: 'auto',
+          margin: 0
+        }}
+      >
         {JSON.stringify(props, null, 2)}
       </pre>
-      
+
       {buildInfo && (
         <>
           <Divider />
@@ -62,7 +63,7 @@ export const DebugForm: React.FC<DebugFormProps> = (props) => {
         </>
       )}
     </Card>
-  );
-};
+  )
+}
 
-export default DebugForm;
+export default DebugForm

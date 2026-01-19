@@ -1,53 +1,32 @@
-import React from "react";
-import { Avatar, AvatarImage, AvatarFallback } from "@newwork/nw-design-system";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import React from 'react'
+import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 
 interface SupervisorInfoSectionProps {
   supervisor: {
-    firstName?: string;
-    lastName?: string;
-    pictureThumbnail?: string;
+    firstName?: string
+    lastName?: string
+    pictureThumbnail?: string
     employeePosition: {
       jobPosition: {
-        name?: string;
-      };
+        name?: string
+      }
       organizationalUnit: {
-        name?: string;
-      };
-    };
-  };
+        name?: string
+      }
+    }
+  }
 }
 
-const SupervisorInfoSection: React.FC<SupervisorInfoSectionProps> = ({
-  supervisor,
-}) => {
+const SupervisorInfoSection: React.FC<SupervisorInfoSectionProps> = ({ supervisor }) => {
   return (
-    <div
-      className="gba:mb-6 gba:p-3"
-      data-testid="confirm-transfer-adv-payment-supervisor-section"
-    >
-      <h3
-        className="gba:text-lg gba:font-semibold gba:mb-3 gba:text-foreground"
-        data-testid="confirm-transfer-adv-payment-supervisor-title"
-      >
-        {getTranslationFromI18nKeyAndLabel(
-          "lowcoder:confirm_transfer_advance_payment.approved_by",
-          "Approved By"
-        )}
-      </h3>
-
+    <div data-testid="confirm-transfer-adv-payment-v2-supervisor-section">
       <div
         className="gba:flex gba:items-center gba:gap-3"
-        data-testid="confirm-transfer-adv-payment-supervisor-details"
+        data-testid="confirm-transfer-adv-payment-v2-supervisor-details"
       >
-        <Avatar
-          className="gba:w-10 gba:h-10"
-          data-testid="confirm-transfer-adv-payment-supervisor-avatar"
-        >
+        <Avatar className="gba:w-10 gba:h-10" data-testid="confirm-transfer-adv-payment-v2-supervisor-avatar">
           {supervisor.pictureThumbnail ? (
-            <AvatarImage
-              src={`data:image/jpeg;base64,${supervisor.pictureThumbnail}`}
-            />
+            <AvatarImage src={`data:image/jpeg;base64,${supervisor.pictureThumbnail}`} />
           ) : (
             <AvatarFallback>
               {supervisor.firstName?.[0]}
@@ -58,26 +37,26 @@ const SupervisorInfoSection: React.FC<SupervisorInfoSectionProps> = ({
         <div>
           <div
             className="gba:text-sm gba:font-semibold gba:text-foreground"
-            data-testid="confirm-transfer-adv-payment-supervisor-name"
+            data-testid="confirm-transfer-adv-payment-v2-supervisor-name"
           >
             {supervisor.firstName} {supervisor.lastName}
           </div>
           <div
             className="gba:text-xs gba:font-normal gba:text-muted-foreground"
-            data-testid="confirm-transfer-adv-payment-supervisor-role"
+            data-testid="confirm-transfer-adv-payment-v2-supervisor-role"
           >
             {supervisor.employeePosition?.jobPosition?.name}
           </div>
           <div
             className="gba:text-xs gba:font-normal gba:text-muted-foreground"
-            data-testid="confirm-transfer-adv-payment-supervisor-unit"
+            data-testid="confirm-transfer-adv-payment-v2-supervisor-unit"
           >
             {supervisor.employeePosition?.organizationalUnit?.name}
           </div>
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default SupervisorInfoSection;
+export default SupervisorInfoSection

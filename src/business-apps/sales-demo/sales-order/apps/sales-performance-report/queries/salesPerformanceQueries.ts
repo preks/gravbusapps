@@ -43,7 +43,7 @@ export const getSalesPerformanceKPIs = `
       }
     }
   }
-`;
+`
 
 export const getSalesPerformanceData = `
   query GetSalesPerformanceData(
@@ -91,7 +91,7 @@ export const getSalesPerformanceData = `
       }
     }
   }
-`;
+`
 
 export const getSalesPipelineData = `
   query GetSalesPipelineData(
@@ -162,7 +162,7 @@ export const getSalesPipelineData = `
       }
     }
   }
-`;
+`
 
 export const getFulfillmentData = `
   query GetFulfillmentData(
@@ -214,7 +214,7 @@ export const getFulfillmentData = `
       }
     }
   }
-`;
+`
 
 export const getProductCategoryPerformance = `
   query GetProductCategoryPerformance(
@@ -247,7 +247,7 @@ export const getProductCategoryPerformance = `
       }
     }
   }
-`;
+`
 
 export const getRegionalSalesData = `
   query GetRegionalSalesData(
@@ -276,7 +276,7 @@ export const getRegionalSalesData = `
       }
     }
   }
-`;
+`
 
 export const getSalespersonPerformance = `
   query GetSalespersonPerformance(
@@ -301,4 +301,4 @@ export const getSalespersonPerformance = `
       }
     }
   }
-`;
+`

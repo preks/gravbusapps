@@ -1,3 +1,3 @@
-import ExpenseRequestsTab from './ExpenseRequestsTab';
+import ExpenseRequestsTab from './ExpenseRequestsTab'
 
-export default ExpenseRequestsTab;
+export default ExpenseRequestsTab

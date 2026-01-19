@@ -1,241 +1,204 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { useTranslation } from "react-i18next";
+import React, { useState, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Button, Input, Card, Spinner, Icon, DataTable, CardContent, Badge, toast } from '@newwork/nw-design-system'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { useUserLocale } from '@/common/locale/useUserLocale'
+import CardTabHeaderComponent from '../../../generic-components/card'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
+import EmploymentTypeForm from '@/business-apps/mdm/forms/employment-type-form/EmploymentTypeForm'
+import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
 import {
-  Button,
-  Input,
-  Card,
-  Spinner,
-  Icon,
-  DataTable,
-  CardContent,
-  Badge,
-} from "@newwork/nw-design-system";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
-import { useUserLocale } from "@/common/locale/useUserLocale";
-import CardTabHeaderComponent from "../../../generic-components/card";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { DeleteButton } from "../../../generic-components/delete-button/DeleteButton";
-import EmploymentTypeForm from "@/business-apps/mdm/forms/employment-type-form/EmploymentTypeForm";
-import SheetWrapperComponent from "../../../generic-components/sheet-wrapper/SheetWrapperComponent";
-import {
-  ArrowsDownUpIcon,
   EyeIcon,
   IdentificationCardIcon,
   InfoIcon,
   PencilSimpleLineIcon,
   PlusIcon,
-  TagIcon,
-} from "@phosphor-icons/react";
-import { ColumnDef } from "@tanstack/react-table";
-import { useGetEmploymentTypesData } from "../../queries/EmploymentTypesQueries";
-import { toast } from "sonner";
+  TagIcon
+} from '@phosphor-icons/react'
+import { ColumnDef, SortingState } from '@tanstack/react-table'
+import { useGetEmploymentTypesData } from '../../queries/EmploymentTypesQueries'
+import {
+  EMPLOYMENT_TYPE_CATALOG,
+  EMPLOYMENT_TYPE_VERSION
+} from '@/business-apps/hr/core/forms/job-position/hooks/useEmploymentTypes'
 
 export interface EmploymentType {
-  id: string;
-  code: string;
-  value: string;
-  alternativeCode?: string;
-  additionalValue1?: string;
-  additionalValue2?: string;
-  additionalValue3?: string;
+  id: string
+  code: string
+  value: string
+  alternativeCode?: string
+  additionalValue1?: string
+  additionalValue2?: string
+  additionalValue3?: string
   translations: Array<{
-    localeCode: string;
-    value: string;
-  }>;
+    localeCode: string
+    value: string
+  }>
 }
 
 export interface EmploymentTypesTabProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
+  prefixDataTestId?: string
 }
 
-const DATA_TEST_ID_PREFIX = "EmploymentTypesTab";
+const DATA_TEST_ID_PREFIX = 'EmploymentTypesTab'
 
-const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
-  accessToken,
-  prefixDataTestId,
-}) => {
-  const { t } = useTranslation();
-  const userLocale = useUserLocale() ?? "en-US";
-  const catalogClient = useCatalogManagerClient(accessToken);
-  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
+const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, prefixDataTestId }) => {
+  const { t } = useTranslation()
+  const userLocale = useUserLocale() ?? 'en-US'
+  const catalogClient = useCatalogManagerClient(accessToken)
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
 
-  const { fetchEmploymentTypes } = useGetEmploymentTypesData(
-    catalogClient,
-    userLocale
-  );
+  const { fetchEmploymentTypes } = useGetEmploymentTypesData(catalogClient, userLocale)
 
-  const [employmentTypes, setEmploymentTypes] = useState<EmploymentType[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedType, setSelectedType] = useState<EmploymentType | null>(null);
-  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+  const [employmentTypes, setEmploymentTypes] = useState<EmploymentType[]>([])
+  const [loading, setLoading] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedType, setSelectedType] = useState<EmploymentType | null>(null)
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false)
+  const [sorting, setSorting] = useState<SortingState>([])
 
   const loadEmploymentTypes = async () => {
     try {
-      setLoading(true);
+      setLoading(true)
 
-      const types = (await fetchEmploymentTypes()) ?? [];
-      setEmploymentTypes(types);
-    } catch (error) {
-      toast.error("Failed to load employment types");
+      const types = (await fetchEmploymentTypes()) ?? []
+      const sortedTypes = [...types].sort((a, b) => a.value.localeCompare(b.value))
+
+      setEmploymentTypes(sortedTypes)
+    } catch {
+      toast.error('Failed to load employment types')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
+
+  const usedCodes = useMemo(() => {
+    return employmentTypes.map(employmentType => employmentType.code)
+  }, [employmentTypes])
 
   useEffect(() => {
     if (selectedType) {
-      const newEmploymentType = employmentTypes.find(
-        (employmentType) => employmentType.id === selectedType.id
-      );
+      const newEmploymentType = employmentTypes.find(employmentType => employmentType.id === selectedType.id)
 
       if (newEmploymentType) {
-        setSelectedType(newEmploymentType);
+        setSelectedType(newEmploymentType)
       }
     }
-  }, [employmentTypes]);
+  }, [employmentTypes])
 
   useEffect(() => {
-    loadEmploymentTypes();
-  }, [searchTerm, userLocale]);
+    loadEmploymentTypes()
+  }, [userLocale])
+
+  const filteredEmploymentTypes = useMemo(() => {
+    return employmentTypes.filter(
+      employmentType =>
+        employmentType.value.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        employmentType.code.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [employmentTypes, searchTerm])
 
   const drawerItems = useMemo(() => {
-    if (!selectedType) return [];
+    if (!selectedType) return []
     const items = [
       {
         icon: <InfoIcon />,
-        title: "Basic Information",
+        title: 'Basic Information',
         items: [
           {
-            label: "Name",
-            value: selectedType.value,
+            label: 'Name',
+            value: selectedType.value
           },
           {
-            label: "Code",
-            value: selectedType.code || "-",
+            label: 'Code',
+            value: selectedType.code || '-'
           },
 
           {
-            label: "ID",
-            value: selectedType.id,
-          },
-        ],
-      },
-      {
-        icon: <InfoIcon />,
-        title: "Additional Values",
-        items: [
-          {
-            label: "Additional Value 1",
-            value: selectedType.additionalValue1 ?? "-",
-          },
-          {
-            label: "Additional Value 2",
-            value: selectedType.additionalValue2 || "-",
-          },
+            label: 'Description',
+            value: selectedType.additionalValue1 ?? '-'
+          }
+        ]
+      }
+    ]
 
-          {
-            label: "Additional Value 3",
-            value: selectedType.additionalValue3,
-          },
-        ],
-      },
-    ];
-
-    selectedType.alternativeCode &&
-      items[0].items.push({
-        label: "Alternative Code",
-        value: selectedType.alternativeCode,
-      });
-
-    return items;
-  }, [selectedType]);
+    return items
+  }, [selectedType])
 
   const handleDelete = async (record: EmploymentType) => {
-    await catalogClient.deleteCatalogEntry(record.id);
-
-    setEmploymentTypes((prev) =>
-      prev.filter((employmentType) => employmentType.id !== record.id)
-    );
-  };
+    await catalogClient.deleteCatalogEntry(EMPLOYMENT_TYPE_CATALOG, EMPLOYMENT_TYPE_VERSION, record.id)
+    setEmploymentTypes(prev => prev.filter(employmentType => employmentType.id !== record.id))
+  }
 
   const handleViewDetails = (record: EmploymentType) => {
-    setSelectedType(record);
-    setIsDrawerVisible(true);
-  };
+    const employmentType = employmentTypes.find(employmentType => employmentType.id === record.id)
+    if (!employmentType) return
+
+    setSelectedType(employmentType)
+    setIsDrawerVisible(true)
+  }
+
+  const dataTable = useMemo(
+    () =>
+      filteredEmploymentTypes.map(employmentType => ({
+        id: employmentType.id,
+        code: employmentType.code,
+        value: employmentType.value,
+        description: employmentType.additionalValue1
+      })),
+    [filteredEmploymentTypes]
+  )
 
   const renderEmploymentTypesTable = () => {
-    const columns: ColumnDef<EmploymentType>[] = [
+    const columns: ColumnDef<EmploymentType & { description: string }>[] = [
       {
-        accessorKey: "code",
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Code
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
+        accessorKey: 'code',
+        header: 'Code',
         enableSorting: true,
         cell: ({ getValue }) => {
-          const code = getValue();
+          const code = getValue()
           return (
-            <div className="gba:flex gba:items-center">
-              <Badge variant="info">{(code as string) ?? "N/A"}</Badge>
+            <div className="gba:flex gba:items-center gba:w-[100px]">
+              <Badge variant="info">{(code as string) ?? 'N/A'}</Badge>
             </div>
-          );
-        },
+          )
+        }
       },
       {
-        accessorKey: "value",
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Name
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
+        accessorKey: 'value',
+        header: 'Name',
         enableSorting: true,
         cell: ({ getValue }) => {
-          const name = getValue();
+          const name = getValue()
           return (
-            <div className="gba:flex gba:items-center">
-              <div className="gba:font-semibold">{name as string}</div>
+            <div className="gba:flex gba:items-center gba:w-[200px] gba:md:w-[350px] gba:lg:w-[500px] gba:xl:w-[650px] gba:2xl:w-[800px]">
+              <div className="gba:w-full gba:truncate gba:font-semibold" title={name as string}>
+                {name as string}
+              </div>
             </div>
-          );
-        },
+          )
+        }
       },
       {
-        accessorKey: "alternativeCode",
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="gba:h-auto gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Alternative Code
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
+        accessorKey: 'description',
+        header: 'Description',
         enableSorting: true,
         cell: ({ getValue }) => {
-          const alternativeCode = getValue();
+          const description = getValue()
           return (
-            <div className="gba:flex gba:items-center">
-              {(alternativeCode as string) ?? "-"}
+            <div className="gba:flex gba:items-center gba:w-[120px] gba:md:w-[200px] gba:lg:w-[280px] gba:xl:w-[340px] gba:2xl:w-[400px]">
+              <div className="gba:w-full gba:truncate" title={description as string}>
+                {(description as string) ?? '-'}
+              </div>
             </div>
-          );
-        },
+          )
+        }
       },
       {
-        id: "actions",
-        header: () => <div className="gba:flex gba:w-[20px]">Actions</div>,
+        id: 'actions',
+        header: () => <div className="gba:flex gba:w-[115px]">Actions</div>,
         enableSorting: false,
         enableHiding: true,
         cell: ({ row }) => (
@@ -253,8 +216,8 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={e => {
+                    e.stopPropagation()
                   }}
                   data-testid={`${dataTestId}-edit-button`}
                 >
@@ -265,6 +228,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
               accessToken={accessToken}
               prefixDataTestId={prefixDataTestId}
               employmentType={row.original}
+              usedCodes={usedCodes}
             />
             <DeleteButton
               onDelete={() => handleDelete(row.original)}
@@ -272,31 +236,21 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
               itemTitle="Employment Type"
             />
           </div>
-        ),
-      },
-    ];
-
-    const dataTable = employmentTypes.map((employmentType) => ({
-      id: employmentType.id,
-      code: employmentType.code,
-      value: employmentType.value,
-      alternativeCode: employmentType.alternativeCode,
-    }));
+        )
+      }
+    ]
 
     return (
       <DataTable
-        defaultDataSetId="employment-types"
-        dataSets={[
-          {
-            id: "employment-types",
-            label: "Employment Types",
-            data: dataTable,
-            columns: columns,
-          },
-        ]}
+        data={dataTable}
+        columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
+        sorting={sorting}
+        onSortingChange={setSorting}
+        enableSorting
+        enablePagination
       />
-    );
-  };
+    )
+  }
 
   return (
     <Card>
@@ -306,8 +260,8 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
             <EmploymentTypeForm
               childAddButton={
                 <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={e => {
+                    e.stopPropagation()
                   }}
                   data-testid={`${dataTestId}-add-button`}
                 >
@@ -317,11 +271,10 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
               refetch={loadEmploymentTypes}
               accessToken={accessToken}
               prefixDataTestId={prefixDataTestId}
+              usedCodes={usedCodes}
             />
           }
-          cardTitle={`${t("hr.employment_types", "Employment Types")} (${
-            employmentTypes.length
-          })`}
+          cardTitle={`${t('hr.employment_types', 'Employment Types')} (${employmentTypes.length})`}
           cardDescription="Manage employment types to classify different types of employment relationships."
         />
       )}
@@ -331,36 +284,29 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
           <Input
             placeholder="Search employment types..."
             value={searchTerm}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setSearchTerm(e.target.value)
-            }
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
             className="gba:pl-10 gba:!w-80"
             data-testid={`${dataTestId}-search-input`}
           />
         </div>
 
         {loading && employmentTypes.length === 0 ? (
-          <div
-            data-testid={`${dataTestId}-loading`}
-            className="gba:flex gba:justify-center gba:items-center gba:h-64"
-          >
+          <div data-testid={`${dataTestId}-loading`} className="gba:flex gba:justify-center gba:items-center gba:h-64">
             <Spinner />
           </div>
         ) : (
-          <div className="gba:overflow-hidden">
-            {renderEmploymentTypesTable()}
-          </div>
+          <div className="gba:overflow-hidden">{renderEmploymentTypesTable()}</div>
         )}
 
         {selectedType && (
           <SheetWrapperComponent
             prefixDataTestId={dataTestId}
             isDrawerVisible={isDrawerVisible}
-            onOpenChange={(openStatus) => {
+            onOpenChange={openStatus => {
               if (!openStatus) {
-                setSelectedType(null);
+                setSelectedType(null)
               }
-              setIsDrawerVisible(openStatus);
+              setIsDrawerVisible(openStatus)
             }}
             title="Employment Type Details"
             titleIcon={IdentificationCardIcon}
@@ -368,16 +314,15 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
             extraContent={
               <div className="gba:text-xs gba:text-gray-500 gba:flex gba:items-center gba:justify-center gba:gap-2">
                 <Icon icon={TagIcon} className="gba:!w-4 gba:!h-4" />
-                This employment type can be used to classify employees and job
-                profiles.
+                This employment type can be used to classify employees and job profiles.
               </div>
             }
             footerButtons={[
               <EmploymentTypeForm
                 childAddButton={
                   <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={e => {
+                      e.stopPropagation()
                     }}
                     data-testid={`${dataTestId}-edit-button`}
                   >
@@ -387,15 +332,17 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({
                 refetch={loadEmploymentTypes}
                 accessToken={accessToken}
                 prefixDataTestId={prefixDataTestId}
-                employmentType={selectedType}
+                employmentType={selectedType as EmploymentType & { description: string }}
                 isDrawerActive={true}
-              />,
+                usedCodes={usedCodes}
+                key={selectedType?.id}
+              />
             ]}
           />
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export { EmploymentTypesTab };
+export { EmploymentTypesTab }

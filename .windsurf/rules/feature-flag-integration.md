@@ -11,6 +11,7 @@ When working with Feature or Feature Flag APIs in business apps:
 - Use the imported `Feature` to check if a certain feature is available
 
 ## Usage Conventions
+
 - Each feature is an object which holds the available sub features
 - Each sub feature has a key which must be used for the `useFeature()` hook as parameter
 - The result of the `useFeature()` hook must be checked against the `Values` property of the used sub feature to detect if a certain feature is available
@@ -18,9 +19,11 @@ When working with Feature or Feature Flag APIs in business apps:
 - If a feature must be used, check the existing features first before proposing to generate a new one
 
 ### Example:
+
 @src/business-apps/hr/core/apps/employee-record/components/ProfileHeader.tsx
 
 ## Component File Structure
+
 ```typescript
 import { useFeature } from "@/common/hooks/useFeature";
 import { Feature } from "@/common/types/constants/FeatureHub";

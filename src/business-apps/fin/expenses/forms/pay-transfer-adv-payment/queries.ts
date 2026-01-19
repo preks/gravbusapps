@@ -1,13 +1,28 @@
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { AdvancePaymentData } from "./types";
+import React from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { AdvancePaymentData } from './types'
 
-export const GET_ADVANCE_PAYMENT_FOR_APPROVAL = `
-  query GetAdvancePaymentForApproval($paymentId: uuid!) {
+export const GET_ADVANCE_PAYMENT_FOR_TRANSFER = `
+  query GetAdvancePaymentForTransfer($paymentId: uuid!) {
     AdvancePaymentByPk(id: $paymentId) {
+      id
       expensePlanId
+      code
+      amount
+      description
       status
-      version
+      decisionDate
+      transactionDate
+      transactionNumber
+      transactionConfirmed
+      transactionConfirmedByEmployee {
+        id
+        firstName
+        lastName
+      }
+      paymentMethod
       expensePlan {
+        id
         planDate
         decisionDate
         employeeDocument {
@@ -17,7 +32,6 @@ export const GET_ADVANCE_PAYMENT_FOR_APPROVAL = `
         }
         employee {
           id
-          userId
           firstName
           lastName
           pictureThumbnail
@@ -26,7 +40,6 @@ export const GET_ADVANCE_PAYMENT_FOR_APPROVAL = `
               pictureThumbnail
               firstName
               lastName
-              userId
               employeePosition {
                 jobPosition {
                   name
@@ -45,66 +58,61 @@ export const GET_ADVANCE_PAYMENT_FOR_APPROVAL = `
           }
         }
         code
+        title
+        description
         requestType {
           code
           value
         }
         currency {
-          value
           code
         }
         totalAmount
-        title
       }
-      amount
       currency {
-        value
-        id
         code
       }
-      paymentMethod
       costCenter {
         code
         name
       }
+      advancePaymentComment {
+        id
+        commentDate
+        comment
+        commentType
+        authorEmployee {
+          id
+          firstName
+          lastName
+        }
+        advancePayment {
+          id
+        }
+      }
     }
   }
-`;
+`
 
-export const useGetAdvancePaymentForApproval = (accessToken: string) => {
-  const graphqlClient = useGraphQLClient(accessToken);
+export const useGetAdvancePaymentForTransfer = (accessToken: string) => {
+  const graphqlClient = useGraphQLClient(accessToken)
 
-  const fetchAdvancePaymentData = async (paymentId: string) => {
-    const query = GET_ADVANCE_PAYMENT_FOR_APPROVAL;
-    try {
-      const result = await graphqlClient.request<{
-        AdvancePaymentByPk: AdvancePaymentData;
-      }>(query, { paymentId });
-      return result.AdvancePaymentByPk;
-    } catch (error: any) {
-      // Handle rate limiting specifically
-      if (error?.response?.status === 429 || error?.message?.includes("429")) {
-        throw new Error(
-          "429: API rate limit exceeded. Please wait a moment and try again."
-        );
+  const fetchAdvancePaymentData = React.useCallback(
+    async (paymentId: string): Promise<AdvancePaymentData | null> => {
+      try {
+        const result = await graphqlClient.request<{
+          AdvancePaymentByPk: AdvancePaymentData
+        }>(GET_ADVANCE_PAYMENT_FOR_TRANSFER, {
+          paymentId
+        })
+        return result.AdvancePaymentByPk
+      } catch (error) {
+        console.error('Error fetching advance payment data:', error)
+        throw error
       }
+    },
+    [graphqlClient]
+  )
 
-      // Handle other GraphQL errors
-      if (error?.response?.errors) {
-        const errorMessage = error.response.errors
-          .map((e: any) => e.message)
-          .join(", ");
-        throw new Error(`GraphQL Error: ${errorMessage}`);
-      }
-
-      // Handle network errors
-      if (error?.message) {
-        throw new Error(error.message);
-      }
-
-      throw new Error("Unknown error occurred while fetching payment data");
-    }
-  };
-
-  return { fetchAdvancePaymentData };
-};
+  return { fetchAdvancePaymentData }
+}

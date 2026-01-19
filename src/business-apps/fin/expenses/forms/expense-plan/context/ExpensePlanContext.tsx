@@ -1,170 +1,150 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useMemo,
-} from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react'
 
-import { useTranslation } from "react-i18next";
-import { showToast } from "../../../utils/notificationUtils";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { showToast } from '../../../utils/notificationUtils'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   getCurrentActiveUserLocale,
   getCurrentActiveStructureId,
-} from "@/common/utils/windowUtils";
-import { wrapGraphQLClient } from "../../expense-request/services/graphqlClient";
-import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
+  getTranslationFromI18nKeyAndLabel
+} from '@/common/utils/windowUtils'
+import { wrapGraphQLClient } from '../../expense-request/services/graphqlClient'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   fetchExpenseCatalogueDataQuery,
-  getStructureCostCenterQuery,
-} from "../../expense-request/ExpenseRequestQueries";
-import { FormStepType, FORM_STEPS } from '../constants/constants';
+  getStructureCostCenterQuery
+} from '../../expense-request/ExpenseRequestQueries'
+import { FormStepType, FORM_STEPS } from '../constants/constants'
 
 /**
  * ExpensePlanContext interface
  */
 interface ExpensePlanContextProps {
-  step: FormStepType;
-  loading: boolean;
-  costCenters: Array<{ id: string; name: string }>;
-  projects: Array<{ id: string; name: string }>;
-  selectedCostCenter: string;
-  expenseCatalogueData: any;
-  accessToken?: string;
-  userInfo?: any;
-  setStep: React.Dispatch<React.SetStateAction<FormStepType>>;
-  setSelectedCostCenter: (costCenterId: string) => void;
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>;
+  step: FormStepType
+  loading: boolean
+  costCenters: Array<{ id: string; name: string }>
+  projects: Array<{ id: string; name: string }>
+  selectedCostCenter: string
+  expenseCatalogueData: any
+  accessToken?: string
+  userInfo?: any
+  setStep: React.Dispatch<React.SetStateAction<FormStepType>>
+  setSelectedCostCenter: (costCenterId: string) => void
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>
 }
 
-const ExpensePlanContext = createContext<
-  ExpensePlanContextProps | undefined
->(undefined);
+const ExpensePlanContext = createContext<ExpensePlanContextProps | undefined>(undefined)
 
 /**
  * ExpensePlanProvider component
  * @param props - Business app context props
  * @returns Provider component
  */
-export const ExpensePlanProvider: React.FC<
-  BusinessAppContextProps & { children: React.ReactNode }
-> = ({ accessToken, userInfo, children }) => {
-  const { t } = useTranslation();
-  const baseGraphQLClient = useGraphqlClient(accessToken);
-  const graphQLClient = useMemo(
-    () => wrapGraphQLClient(baseGraphQLClient),
-    [baseGraphQLClient]
-  );
+export const ExpensePlanProvider: React.FC<BusinessAppContextProps & { children: React.ReactNode }> = ({
+  accessToken,
+  userInfo,
+  children
+}) => {
+  const baseGraphQLClient = useGraphqlClient(accessToken)
+  const graphQLClient = useMemo(() => wrapGraphQLClient(baseGraphQLClient), [baseGraphQLClient])
 
-  const [step, setStep] = useState<FormStepType>(FORM_STEPS.START);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [costCenters, setCostCenters] = useState<
-    Array<{ id: string; name: string }>
-  >([]);
-  const [projects, setProjects] = useState<Array<{ id: string; name: string }>>(
-    []
-  );
-  const [selectedCostCenter, setSelectedCostCenter] = useState<string>("");
-  const [expenseCatalogueData, setExpenseCatalogueData] = useState<any>(null);
+  const [step, setStep] = useState<FormStepType>(FORM_STEPS.START)
+  const [loading, setLoading] = useState<boolean>(false)
+  const [costCenters, setCostCenters] = useState<Array<{ id: string; name: string }>>([])
+  const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedCostCenter, setSelectedCostCenter] = useState<string>('')
+  const [expenseCatalogueData, setExpenseCatalogueData] = useState<any>(null)
 
   useEffect(() => {
     if (accessToken) {
-      fetchData();
+      fetchData()
     }
-  }, [accessToken, userInfo]);
+  }, [accessToken, userInfo])
 
   const fetchData = async () => {
-    setLoading(true);
+    setLoading(true)
     try {
-      const employeeId = userInfo?.employeeDetails.employeeId;
+      const employeeId = userInfo?.employeeDetails.employeeId
       if (!employeeId) {
         showToast(
-          t(
-            "lowcoder:create_expense_request.employee_id_not_found",
-            "Employee ID not found"
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_request.employee_id_not_found',
+            'Employee ID not found'
           ),
-          "error"
-        );
-        setLoading(false);
-        return;
+          'error'
+        )
+        setLoading(false)
+        return
       }
 
       const fetchExpenseCatalogueData = await graphQLClient.query({
         query: fetchExpenseCatalogueDataQuery,
         variables: {
           employeeId,
-          activeUserLocale: getCurrentActiveUserLocale(),
-        },
-      });
-      
+          activeUserLocale: getCurrentActiveUserLocale()
+        }
+      })
+
       setExpenseCatalogueData(fetchExpenseCatalogueData.data)
       if (
         fetchExpenseCatalogueData.data.EmployeePosition &&
         fetchExpenseCatalogueData.data.EmployeePosition[0] &&
         fetchExpenseCatalogueData.data.EmployeePosition[0].costCenterId
       ) {
-        setSelectedCostCenter(
-          fetchExpenseCatalogueData.data.EmployeePosition[0].costCenterId
-        );
+        setSelectedCostCenter(fetchExpenseCatalogueData.data.EmployeePosition[0].costCenterId)
       }
 
-      const employeePosition =
-        fetchExpenseCatalogueData?.data?.EmployeePosition || [];
-      const structureId =
-        employeePosition[0]?.structureId || getCurrentActiveStructureId();
+      const employeePosition = fetchExpenseCatalogueData?.data?.EmployeePosition || []
+      const structureId = employeePosition[0]?.structureId || getCurrentActiveStructureId()
       if (!structureId) {
         showToast(
-          t(
-            "lowcoder:create_expense_request.structure_not_found",
-            "Employee structure not found"
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_request.structure_not_found',
+            'Employee structure not found'
           ),
-          "error"
-        );
-        setLoading(false);
-        return;
+          'error'
+        )
+        setLoading(false)
+        return
       }
 
       const getStructureCostCenter = await graphQLClient.query({
         query: getStructureCostCenterQuery,
         variables: {
-          structureId,
-        },
-      });
+          structureId
+        }
+      })
 
-      const userCostCenters =
-        getStructureCostCenter?.data?.userCostCenters || [];
-      const userProjects = getStructureCostCenter?.data?.Project || [];
+      const userCostCenters = getStructureCostCenter?.data?.userCostCenters || []
+      const userProjects = getStructureCostCenter?.data?.Project || []
 
       setCostCenters(
         userCostCenters.map((costCenterElement: any) => ({
           id: costCenterElement.id,
-          name: costCenterElement.name,
+          name: costCenterElement.name
         }))
-      );
+      )
       setProjects(
         userProjects.map((projectElement: any) => ({
           id: projectElement.id,
-          name: projectElement.name,
+          name: projectElement.name
         }))
-      );
+      )
 
-      if (
-        selectedCostCenter === "" &&
-        userCostCenters.length > 0 &&
-        userCostCenters[0].id
-      ) {
-        setSelectedCostCenter(userCostCenters[0].id);
+      if (selectedCostCenter === '' && userCostCenters.length > 0 && userCostCenters[0].id) {
+        setSelectedCostCenter(userCostCenters[0].id)
       }
-    } catch (error) {
+    } catch {
       showToast(
-        t("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
-        "error"
-      );
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_type_item.process_error_data_fetch',
+          'Error fetching data'
+        ),
+        'error'
+      )
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const contextValue = useMemo(
     () => ({
@@ -178,28 +158,22 @@ export const ExpensePlanProvider: React.FC<
       userInfo,
       setStep,
       setSelectedCostCenter,
-      setLoading,
+      setLoading
     }),
     [step, loading, costCenters, projects, selectedCostCenter, expenseCatalogueData, accessToken, userInfo]
-  );
+  )
 
-  return (
-    <ExpensePlanContext.Provider value={contextValue}>
-      {children}
-    </ExpensePlanContext.Provider>
-  );
-};
+  return <ExpensePlanContext.Provider value={contextValue}>{children}</ExpensePlanContext.Provider>
+}
 
 /**
  * Hook to use the expense plan context
  * @returns Expense plan context
  */
 export const useExpensePlanContext = () => {
-  const context = useContext(ExpensePlanContext);
+  const context = useContext(ExpensePlanContext)
   if (context === undefined) {
-    throw new Error(
-      "useExpensePlanContext must be used within an ExpensePlanProvider"
-    );
+    throw new Error('useExpensePlanContext must be used within an ExpensePlanProvider')
   }
-  return context;
-}; 
+  return context
+}

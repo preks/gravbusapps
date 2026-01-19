@@ -80,13 +80,13 @@
   left: 0;
   top: 0;
 }
-.gba\:statsCardUsed, .gba\:statsCardTotal {
+.gba\:statsCardUsed,
+.gba\:statsCardTotal {
   font-size: 0.97rem;
   color: #757575;
   font-weight: 400;
   margin-top: 2px;
 }
-
 
 .gba\:statsCardHeader {
   display: flex;
@@ -196,7 +196,10 @@
   background: #111;
 }
 
-.gba\:progressBlue, .gba\:progressGreen, .gba\:progressRed, .gba\:progressYellow {
+.gba\:progressBlue,
+.gba\:progressGreen,
+.gba\:progressRed,
+.gba\:progressYellow {
   background: #111;
 }
 

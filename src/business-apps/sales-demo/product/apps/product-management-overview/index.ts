@@ -1,4 +1,4 @@
-import ProductManagementOverview from './ProductManagementOverview';
+import ProductManagementOverview from './ProductManagementOverview'
 
-export { ProductManagementOverview };
-export default ProductManagementOverview;
+export { ProductManagementOverview }
+export default ProductManagementOverview

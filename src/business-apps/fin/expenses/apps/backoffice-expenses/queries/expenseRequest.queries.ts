@@ -21,6 +21,7 @@ export const GET_EXPENSE_REQUESTS = `
       status
       title
       totalAmount
+      totalRemainingAmount
       startDate
       endDate
       employeeId
@@ -77,7 +78,7 @@ export const GET_EXPENSE_REQUESTS = `
       aggregate { count }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_REQUEST_BY_ID = `
   query GetExpenseRequestById($id: uuid!) {
@@ -105,7 +106,7 @@ export const GET_EXPENSE_REQUEST_BY_ID = `
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_REQUEST_STATISTICS = `
   query GetExpenseRequestStatistics($employeeId: uuid!) {
@@ -181,7 +182,7 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
     }
   }
 }
-`;
+`
 
 // GraphQL mutation for approving an expense request
 export const APPROVE_EXPENSE_MUTATION = `
@@ -191,7 +192,7 @@ export const APPROVE_EXPENSE_MUTATION = `
       status
     }
   }
-`;
+`
 
 // GraphQL mutation for rejecting an expense request
 export const REJECT_EXPENSE_MUTATION = `
@@ -201,7 +202,7 @@ export const REJECT_EXPENSE_MUTATION = `
       status
     }
   }
-`;
+`
 
 // GraphQL mutation for processing payment for an expense request
 export const PROCESS_PAYMENT_MUTATION = `
@@ -211,4 +212,4 @@ export const PROCESS_PAYMENT_MUTATION = `
       status
     }
   }
-`;
+`

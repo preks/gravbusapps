@@ -1,6 +1,2 @@
-export { default as ContactSegment } from './ContactSegment';
-export * from './schema';
-export * from './types';
-
-
-
+export { default as ContactSegment } from './ContactSegment'
+export type { ContactSegmentOption } from './ContactSegment'

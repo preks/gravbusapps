@@ -1,12 +1,11 @@
 export interface JSONObject {
-    [x: string]: JSONValue | undefined;
-  }
-  
-  export type JSONValue = string | number | boolean | JSONObject | JSONArray | null;
-  
-  export type I18nObjects = {
-    defaultData: JSONObject[];
-  };
-  
-  export type JSONArray = Array<JSONValue>;
-  
+  [x: string]: JSONValue | undefined
+}
+
+export type JSONValue = string | number | boolean | JSONObject | JSONArray | null
+
+export type I18nObjects = {
+  defaultData: JSONObject[]
+}
+
+export type JSONArray = Array<JSONValue>

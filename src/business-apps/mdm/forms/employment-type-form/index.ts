@@ -1,4 +1,4 @@
-import EmploymentTypeForm from "./EmploymentTypeForm";
+import EmploymentTypeForm from './EmploymentTypeForm'
 
-export { EmploymentTypeForm };
-export default EmploymentTypeForm;
+export { EmploymentTypeForm }
+export default EmploymentTypeForm

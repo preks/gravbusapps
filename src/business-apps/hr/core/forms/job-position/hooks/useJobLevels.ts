@@ -1,35 +1,24 @@
-import { useState, useEffect, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import { SelectOption } from '../types';
+import { useState, useEffect, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { SelectOption } from '../types'
 
 export interface JobLevelData {
-  id: string;
-  name: string;
-  code?: string;
+  id: string
+  name: string
+  code?: string
   jobLevelGroup?: {
-    id: string;
-  } | null;
+    id: string
+  } | null
 }
 
 export interface QueryVariablesJobLevel {
-  jobLevelId?: string;
-  jobLevelGroupId?: string;
-  offset?: number;
-  limit?: number;
-  search?: string;
+  jobLevelId?: string
+  jobLevelGroupId?: string
+  offset?: number
+  limit?: number
+  search?: string
 }
-
-const createSearchCondition = (search?: string, jobLevelId?: string): string => {
-  if (jobLevelId) return '';
-  if (!search) return '';
-  return `
-    , _or: [
-      { name: { _ilike: "%${search}%" } },
-      { code: { _ilike: "%${search}%" } }
-    ]
-  `;
-};
 
 const GET_JOB_LEVELS_QUERY = `
   query GetJobLevels($search: String, $limit: Int, $offset: Int, $jobLevelId: uuid, $jobLevelGroupId: String) {
@@ -62,109 +51,120 @@ const GET_JOB_LEVELS_QUERY = `
       }
     }
   }
-`;
+`
 
 export type JobLevelQueryData = {
-  JobLevel: JobLevelData[];
+  JobLevel: JobLevelData[]
   JobLevelAggregate: {
     aggregate: {
-      count: number;
-    };
-  };
-};
+      count: number
+    }
+  }
+}
 
 export const useJobLevels = (context: BusinessAppContextProps) => {
-  const [jobLevels, setJobLevels] = useState<SelectOption[]>([]);
-  const [allJobLevels, setAllJobLevels] = useState<JobLevelData[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [jobLevels, setJobLevels] = useState<SelectOption[]>([])
+  const [allJobLevels, setAllJobLevels] = useState<JobLevelData[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
 
-  const graphqlClient = useGraphqlClient(context.accessToken);
+  const graphqlClient = useGraphqlClient(context.accessToken)
 
-  const fetchJobLevels = useCallback(async (params: {
-    limit?: number;
-    offset?: number;
-    search?: string;
-    jobLevelGroupId?: string;
-    reset?: boolean;
-  } = {}) => {
-    const { limit = 20, offset = 0, search = '', jobLevelGroupId, reset = false } = params;
-    
-    if (reset) {
-      setJobLevels([]);
-      setAllJobLevels([]);
-    }
-    
-    setLoading(true);
-    setError(null);
+  const fetchJobLevels = useCallback(
+    async (
+      params: {
+        limit?: number
+        offset?: number
+        search?: string
+        jobLevelGroupId?: string
+        reset?: boolean
+      } = {}
+    ) => {
+      const { limit = 20, offset = 0, search = '', jobLevelGroupId, reset = false } = params
 
-    try {
-      const variables = {
-        search: search ? `%${search}%` : undefined,
-        limit,
-        offset,
-        jobLevelId: undefined,
-        jobLevelGroupId: jobLevelGroupId || undefined
-      };
-
-      const result = await graphqlClient.request<JobLevelQueryData>(GET_JOB_LEVELS_QUERY, variables);
-      
-      const levelsData = result?.JobLevel || [];
-      const selectOptions: SelectOption[] = levelsData.map((level: JobLevelData) => ({
-        id: level.id,
-        name: level.name,
-        label: level.name,
-        value: level.id
-      }));
-
-      if (reset || offset === 0) {
-        setJobLevels(selectOptions);
-        setAllJobLevels(levelsData);
-      } else {
-        setJobLevels(prev => [...prev, ...selectOptions]);
-        setAllJobLevels(prev => [...prev, ...levelsData]);
+      if (reset) {
+        setJobLevels([])
+        setAllJobLevels([])
       }
 
-      setHasMore(levelsData.length === limit);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch job levels';
-      setError(errorMessage);
-      console.error('Error fetching job levels:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [context.accessToken, graphqlClient]);
+      setLoading(true)
+      setError(null)
 
-  const searchJobLevels = useCallback((search: string) => {
-    setSearchTerm(search);
-    fetchJobLevels({ search, reset: true });
-  }, [fetchJobLevels]);
+      try {
+        const variables = {
+          search: search ? `%${search}%` : undefined,
+          limit,
+          offset,
+          jobLevelId: undefined,
+          jobLevelGroupId: jobLevelGroupId || undefined
+        }
+
+        const result = await graphqlClient.request<JobLevelQueryData>(GET_JOB_LEVELS_QUERY, variables)
+
+        const levelsData = result?.JobLevel || []
+        const selectOptions: SelectOption[] = levelsData.map((level: JobLevelData) => ({
+          id: level.id,
+          name: level.name,
+          label: level.name,
+          value: level.id
+        }))
+
+        if (reset || offset === 0) {
+          setJobLevels(selectOptions)
+          setAllJobLevels(levelsData)
+        } else {
+          setJobLevels(prev => [...prev, ...selectOptions])
+          setAllJobLevels(prev => [...prev, ...levelsData])
+        }
+
+        setHasMore(levelsData.length === limit)
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch job levels'
+        setError(errorMessage)
+        console.error('Error fetching job levels:', err)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [context.accessToken, graphqlClient]
+  )
+
+  const searchJobLevels = useCallback(
+    (search: string) => {
+      setSearchTerm(search)
+      fetchJobLevels({ search, reset: true })
+    },
+    [fetchJobLevels]
+  )
 
   const loadMoreJobLevels = useCallback(() => {
     if (!loading && hasMore) {
-      fetchJobLevels({ 
-        search: searchTerm, 
-        offset: jobLevels.length 
-      });
+      fetchJobLevels({
+        search: searchTerm,
+        offset: jobLevels.length
+      })
     }
-  }, [fetchJobLevels, loading, hasMore, searchTerm, jobLevels.length]);
+  }, [fetchJobLevels, loading, hasMore, searchTerm, jobLevels.length])
 
-  const fetchJobLevelsByGroup = useCallback((jobLevelGroupId: string) => {
-    if (jobLevelGroupId) {
-    fetchJobLevels({ jobLevelGroupId, reset: true });
-    } else {
-      fetchJobLevels({ reset: true });
-    }
-  }, [fetchJobLevels]);
+  const fetchJobLevelsByGroup = useCallback(
+    (jobLevelGroupId: string) => {
+      if (jobLevelGroupId) {
+        fetchJobLevels({ jobLevelGroupId, reset: true })
+      } else {
+        fetchJobLevels({ reset: true })
+      }
+    },
+    [fetchJobLevels]
+  )
 
   // Load initial data
   useEffect(() => {
     if (context.accessToken) {
-      fetchJobLevels({ reset: true });
+      fetchJobLevels({ reset: true })
     }
-  }, [context.accessToken, fetchJobLevels]);
+  }, [context.accessToken, fetchJobLevels])
 
   return {
     jobLevels,
@@ -176,5 +176,5 @@ export const useJobLevels = (context: BusinessAppContextProps) => {
     loadMoreJobLevels,
     fetchJobLevelsByGroup,
     refetch: () => fetchJobLevels({ reset: true })
-  };
-}; 
+  }
+}

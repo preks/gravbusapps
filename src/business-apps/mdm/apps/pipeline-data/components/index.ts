@@ -1,2 +1,2 @@
-export { PipelineOverview } from './PipelineOverview';
-export { PipelineStagesModal } from './PipelineStagesModal'; 
+export { PipelineOverview } from './PipelineOverview'
+export { PipelineStagesModal } from './PipelineStagesModal'

@@ -27,7 +27,9 @@ export const GET_PENDING_APPROVALS = `
       createdAt
       employee {
         id
-        fullName
+        fullName  
+        firstName
+        lastName
       }
     }
     PendingApprovalsAggregate: ExpenseRequestAggregate(
@@ -46,7 +48,7 @@ export const GET_PENDING_APPROVALS = `
       }
     }
   }
-`;
+`
 
 export const APPROVE_EXPENSE_REQUEST = `
   mutation ApproveExpenseRequest($requestId: uuid!, $comments: String) {
@@ -61,7 +63,7 @@ export const APPROVE_EXPENSE_REQUEST = `
       status
     }
   }
-`;
+`
 
 export const REJECT_EXPENSE_REQUEST = `
   mutation RejectExpenseRequest($requestId: uuid!, $comments: String) {
@@ -76,4 +78,4 @@ export const REJECT_EXPENSE_REQUEST = `
       status
     }
   }
-`;
+`

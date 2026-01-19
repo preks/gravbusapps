@@ -1,36 +1,36 @@
-import React, { useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { startProcess } from '@/common/utils/start-process';
-import ExpenseRequestStatistics from './ExpenseRequestStatistics';
-import ExpenseRequestsTable from './ExpenseRequestsTable';
-import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests';
-import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters';
-import { message } from 'antd';
-import dayjs from 'dayjs';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { ExpenseRequestStatus } from '../../../hooks/useExpenseRequestFilters';
+import React, { useState, useEffect, ReactNode, useMemo, useCallback, useRef } from 'react'
+import { useDebounce } from '@/common/hooks/useDebounce'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { startProcess } from '@/common/utils/start-process'
+import ExpenseRequestStatistics from './ExpenseRequestStatistics'
+import ExpenseRequestsTable from './ExpenseRequestsTable'
+import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests'
+import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters'
+import { useExpenseRequestCurrencies } from '../../../hooks/useExpenseRequestCurrencies'
+import { getSelectedCurrencyRef } from '../../../utils/currencyUtils'
+import { message } from 'antd'
+import { getRequestCardStrategies, preserveCurrencyAndReset } from './cardStrategies'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface ExpenseRequestsTabProps extends BusinessAppContextProps {
-  onContentHeaderChange?: (header: ReactNode) => void;
+  onContentHeaderChange?: (header: ReactNode) => void
 }
 
-const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
-  // Extract only the necessary props to prevent unnecessary re-renders
-  const contextProps = useMemo(() => ({
-    accessToken: props.accessToken,
-    userInfo: props.userInfo
-  }), [props.accessToken, props.userInfo]);
+const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
+  const contextProps = useMemo(
+    () => ({
+      accessToken: props.accessToken,
+      userInfo: props.userInfo
+    }),
+    [props.accessToken, props.userInfo]
+  )
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [activeWidget, setActiveWidget] = useState<string | null>(null);
-
-  // Server-side sorting state
-  const [sortField, setSortField] = useState<string>('requestDate');
-  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend');
-
-  // Table refresh trigger state
-  const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0);
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [activeWidget, setActiveWidget] = useState<string | null>(null)
+  const [sortField, setSortField] = useState<string>('requestDate')
+  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend')
+  const [tableRefreshTrigger, setTableRefreshTrigger] = useState<number>(0)
 
   const {
     filterGroups,
@@ -44,136 +44,124 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
     setStartDateRange,
     setEndDateRange,
     setRequestDateRange,
+    setEffectiveDateRange,
     filterLabelMap,
     addFilter,
     removeFilter
-  } = useExpenseRequestFilters();
-  
-  const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseRequests(contextProps);
+  } = useExpenseRequestFilters()
 
-  // Helper function to get current month date range
-  const getCurrentMonthRange = useCallback(() => {
-    const today = dayjs();
-    const currentMonthStart = today.startOf('month').toDate();
-    const currentMonthEnd = today.endOf('month').toDate();
-    return [currentMonthStart, currentMonthEnd] as [Date, Date];
-  }, []);
+  const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseRequests(contextProps)
+  const selectedCurrencyRef = useMemo(
+    () => getSelectedCurrencyRef(selectedFilters, 'Currency:v1:EUR'),
+    [selectedFilters]
+  )
+  const explicitSelectedCurrencyRef = useMemo(() => {
+    const token = selectedFilters.find(f => f.startsWith('currency:'))
+    return token ? token.substring('currency:'.length) : undefined
+  }, [selectedFilters])
+  const { currencyStats, initialized: currenciesInitialized } = useExpenseRequestCurrencies(
+    contextProps,
+    selectedFilters,
+    setFilters
+  )
 
-  // Handle widget clicks with immediate visual feedback
-  const handleWidgetClick = useCallback((widgetKey: string) => {
-    const isDeactivating = activeWidget === widgetKey;
-    const newActiveWidget = isDeactivating ? null : widgetKey;
-    setActiveWidget(newActiveWidget);
-    
-    // If deactivating (clicking the same widget again), clear all filters
-    if (isDeactivating) {
-      clearFilters();
-      return;
-    }
-    
-    // Clear existing filters when switching to a different widget
-    clearFilters();
-    
-    // Apply widget-specific filter logic
-    switch (newActiveWidget) {
-      case 'total-requests':
-        const currentMonthRange = getCurrentMonthRange();
-        setRequestDateRange(currentMonthRange);
-        handleFilterChange('PAID', true);
-        handleFilterChange('CLOSED', true);
-        handleFilterChange('TRANSFERRED', true);
-        break;
-      case 'total-amount':
-        const today = dayjs();
-        const currentMonthStart = today.startOf('month').toDate();
-        const currentMonthEnd = today.endOf('month').toDate();
-        setRequestDateRange([currentMonthStart, currentMonthEnd]);
-        handleFilterChange('PAID', true);
-        handleFilterChange('CLOSED', true);
-        handleFilterChange('TRANSFERRED', true);
-        break;
-      case 'pending-approval':
-        // Clear any existing date range filters
-        setRequestDateRange(null);
-        setStartDateRange(null);
-        setEndDateRange(null);
-        // Set status filter to only show PENDING requests
-        const allStatusesForPending = ['PREPARED', 'CREATED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'PAID', 'CLOSED', 'TRANSFERRED'];
-        allStatusesForPending.forEach(status => {
-          handleFilterChange(status, false);
-        });
-        handleFilterChange('PENDING', true);
-        break;
-      case 'reimbursable':
-        // Clear any existing date range filters
-        setRequestDateRange(null);
-        setStartDateRange(null);
-        setEndDateRange(null);
-        // Set status filters to exclude PAID, CLOSED, TRANSFERRED
-        const allStatusesForReimbursable = ['PREPARED', 'CREATED', 'ASSIGNED', 'PENDING', 'APPROVED', 'REJECTED', 'VERIFIED', 'BOOKED', 'PAID', 'CLOSED', 'TRANSFERRED'];
-        allStatusesForReimbursable.forEach(status => {
-          if (['PAID', 'CLOSED', 'TRANSFERRED'].includes(status)) {
-            handleFilterChange(status, false);
-          } else {
-            handleFilterChange(status, true);
-          }
-        });
-        break;
-      case null:
-        // Widget deactivated - filters already cleared above
-        break;
-    }
-  }, [activeWidget, clearFilters, handleFilterChange, setRequestDateRange, getCurrentMonthRange, setStartDateRange, setEndDateRange]);
+  const prevSelectedFiltersRef = useRef<string | null>(null)
 
-  // Memoize the filters to prevent unnecessary API calls
+  const handleWidgetClick = useCallback(
+    (widgetKey: string) => {
+      const strategies = getRequestCardStrategies({
+        setRequestDateRange,
+        setStartDateRange,
+        setEndDateRange,
+        setEffectiveDateRange,
+        handleFilterChange
+      })
+
+      const isDeactivating = activeWidget === widgetKey
+      if (isDeactivating) {
+        strategies[widgetKey]?.remove()
+        setActiveWidget(null)
+        return
+      }
+
+      preserveCurrencyAndReset(selectedFilters, clearFilters, addFilter)
+      strategies[widgetKey]?.apply()
+      setActiveWidget(widgetKey)
+    },
+    [
+      activeWidget,
+      clearFilters,
+      handleFilterChange,
+      setRequestDateRange,
+      setStartDateRange,
+      setEndDateRange,
+      selectedFilters,
+      addFilter
+    ]
+  )
+
   const memoizedFilters = useMemo(() => {
-    return getFilters();
-  }, [getFilters]);
-
-  // Only fetch when filters, page, pageSize, or sorting changes
-  useEffect(() => {
-    if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
-      fetchItems(
-        memoizedFilters,
-        currentPage,
-        pageSize,
-        sortField,
-        sortOrder
-      );
+    const base = getFilters()
+    if (explicitSelectedCurrencyRef) {
+      const selectedCode = (explicitSelectedCurrencyRef.split(':').pop() || '').toUpperCase()
+      base._and = base._and || []
+      base._and.push({
+        _or: [
+          { currencyRef: { _eq: explicitSelectedCurrencyRef } },
+          ...(selectedCode ? [{ currency: { code: { _eq: selectedCode } } }] : [])
+        ]
+      } as any)
     }
-  }, [fetchItems, currentPage, pageSize, memoizedFilters, sortField, sortOrder, contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId]);
+    return base
+  }, [getFilters, explicitSelectedCurrencyRef])
 
-  // Process completion event listener to refresh data
+  const debouncedFilters = useDebounce(memoizedFilters, 200)
+
+  useEffect(() => {
+    if (!currenciesInitialized) return
+
+    if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
+      fetchItems(debouncedFilters, currentPage, pageSize, sortField, sortOrder)
+    }
+  }, [
+    fetchItems,
+    currentPage,
+    pageSize,
+    debouncedFilters, // Use debounced filters instead of memoizedFilters
+    sortField,
+    sortOrder,
+    contextProps.accessToken,
+    contextProps.userInfo?.employeeDetails?.employeeId,
+    currenciesInitialized
+  ])
+
+  useEffect(() => {
+    const currentFiltersKey = JSON.stringify(selectedFilters)
+    const previousFiltersKey = prevSelectedFiltersRef.current
+
+    if (previousFiltersKey !== null && previousFiltersKey !== currentFiltersKey) {
+      setCurrentPage(1)
+    }
+
+    prevSelectedFiltersRef.current = currentFiltersKey
+  }, [selectedFilters])
+
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
         if (event.detail?.resolution === 'success') {
-          // Refresh expense requests data after successful process completion
-          if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
-            fetchItems(
-              memoizedFilters,
-              currentPage,
-              pageSize,
-              sortField,
-              sortOrder
-            );
+          if (currenciesInitialized && contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
+            fetchItems(debouncedFilters, currentPage, pageSize, sortField, sortOrder, { force: true })
           }
-          
-          // Trigger table refresh by updating a state that forces re-render
-          setTableRefreshTrigger(prev => prev + 1);
-          
-          return;
+
+          setTableRefreshTrigger(prev => prev + 1)
+
+          return
         }
       } catch (err) {
-        console.error('Error handling process completion:', err);
+        console.error('Error handling process completion:', err)
       }
-    };
-
-    const handleAllEvents = (event: any) => {
-      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        handleProcessCompletion(event);
-      }
-    };
+    }
 
     const eventNames = [
       'com.newwork.process.taskCompletion',
@@ -186,65 +174,65 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
       'processCompleted',
       'task-completion',
       'process-completion'
-    ];
+    ]
 
     eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener);
-    });
-
-    const originalDispatchEvent = window.dispatchEvent;
-    window.dispatchEvent = function(event: Event) {
-      if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        handleAllEvents(event);
-      }
-      return originalDispatchEvent.call(this, event);
-    };
+      window.addEventListener(eventName, handleProcessCompletion as EventListener)
+    })
 
     return () => {
       eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
-      });
-      
-      window.dispatchEvent = originalDispatchEvent;
-    };
-  }, [fetchItems, currentPage, pageSize, memoizedFilters, sortField, sortOrder, contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId]);
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
+      })
+    }
+  }, [
+    fetchItems,
+    currentPage,
+    pageSize,
+    debouncedFilters, // Use debounced filters instead of memoizedFilters
+    sortField,
+    sortOrder,
+    contextProps.accessToken,
+    contextProps.userInfo?.employeeDetails?.employeeId,
+    currenciesInitialized
+  ])
 
-  // Memoize content header to prevent unnecessary re-renders
   const contentHeader = useMemo(() => {
     return (
-      <ExpenseRequestStatistics 
-        {...contextProps} 
+      <ExpenseRequestStatistics
+        {...contextProps}
+        currencyCode={selectedCurrencyRef?.split(':').pop() || 'EUR'}
+        {...({ selectedCurrencyRef } as any)}
+        {...({ currencyInitialized: currenciesInitialized } as any)}
         onWidgetClick={handleWidgetClick}
         activeWidgetKey={activeWidget || undefined}
       />
-    );
-  }, [contextProps, handleWidgetClick, activeWidget]);
+    )
+  }, [contextProps, handleWidgetClick, activeWidget, selectedCurrencyRef])
 
-  // Memoize the label map to prevent unnecessary re-rendering
-  
-  // Update the content header only when it changes
-  const onContentHeaderChange = props.onContentHeaderChange;
+  const onContentHeaderChange = props.onContentHeaderChange
   useEffect(() => {
-    // Only update content header when the callback exists
     if (onContentHeaderChange) {
-      // Use a small timeout to ensure proper React rendering cycle
       const timerId = setTimeout(() => {
-        onContentHeaderChange(contentHeader);
-      }, 0);
-      return () => clearTimeout(timerId);
+        onContentHeaderChange(contentHeader)
+      }, 0)
+      return () => clearTimeout(timerId)
     }
-  }, [onContentHeaderChange, contentHeader]);
+  }, [onContentHeaderChange, contentHeader])
 
-  // Handle adding a new expense request
   const handleAddExpenseRequest = useCallback(() => {
-    const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
+    const employeeId = contextProps.userInfo?.employeeDetails?.employeeId
     if (!employeeId) {
-      console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
-      message.warning(getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.user_information_not_loaded','User information not loaded yet. Please wait a moment and try again.'));
-      return;
+      console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.')
+      message.warning(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:personal_expenses.user_information_not_loaded',
+          'User information not loaded yet. Please wait a moment and try again.'
+        )
+      )
+      return
     }
-    
-    console.log('Starting add expense request process for employeeId:', employeeId);
+
     startProcess({
       domain: 'employee-expense',
       processName: 'changeExpenseRequest',
@@ -252,43 +240,46 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
         employeeId: employeeId
       },
       builderType: 'NATIVE_SCREEN'
-    });
-  }, [contextProps.userInfo?.employeeDetails?.employeeId]);
+    })
+  }, [contextProps.userInfo?.employeeDetails?.employeeId])
 
-  const handleTableChange = useCallback((pagination: any, filters: any, sorter: any) => {
-    setCurrentPage(pagination.current);
-    setPageSize(pagination.pageSize);
-    
-    // Handle sorting changes
+  const handleTableChange = useCallback((pagination: any, _filters: any, sorter: any) => {
+    setCurrentPage(pagination.current)
+    setPageSize(pagination.pageSize)
+
     if (sorter && sorter.field) {
-      setSortField(sorter.field);
-      setSortOrder(sorter.order);
+      setSortField(sorter.field)
+      setSortOrder(sorter.order)
     } else {
-      // Reset to default sorting
-      setSortField('requestDate');
-      setSortOrder('descend');
+      setSortField('requestDate')
+      setSortOrder('descend')
     }
-  }, []);
+  }, [])
 
-  // Function for DataController setFilter requirement
-  const handleSetFilter = useCallback((filters: string[]) => {
-    // This is called by DataController's "Clear all filters" button or individual filter removal
-    if (filters.length === 0) {
-      // Clear all filters
-      clearFilters();
-      setActiveWidget(null);
-    } else {
-      // Handle individual filter removal - find which filters were removed and remove them
-      const removedFilters = selectedFilters.filter(f => !filters.includes(f));
-      removedFilters.forEach(filterId => removeFilter(filterId));
-    }
-    setCurrentPage(1);
-  }, [clearFilters, selectedFilters, removeFilter]);
+  const handleSetFilter = useCallback(
+    (filters: string[]) => {
+      if (filters.length === 0) {
+        clearFilters()
+        setActiveWidget(null)
+      } else {
+        const removedFilters = selectedFilters.filter(f => !filters.includes(f))
+        removedFilters.forEach(filterId => removeFilter(filterId))
+      }
+      setCurrentPage(1)
+    },
+    [clearFilters, selectedFilters, removeFilter]
+  )
 
-  // Adapter function for DataFilter component
-  const handleFilterChangeCallback = useCallback((filterId: string, selected: boolean) => {
-    selected ? addFilter(filterId) : removeFilter(filterId);
-  }, [addFilter, removeFilter]);
+  const handleFilterChangeCallback = useCallback(
+    (filterId: string, selected: boolean) => {
+      if (selected) {
+        addFilter(filterId)
+      } else {
+        removeFilter(filterId)
+      }
+    },
+    [addFilter, removeFilter]
+  )
 
   return (
     <ExpenseRequestsTable
@@ -305,15 +296,23 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = (props) => {
       selectedFilters={selectedFilters}
       setFilters={handleSetFilter}
       filterGroups={filterGroups}
-      handleFilterChange={handleFilterChangeCallback}
+      handleFilterChange={(filterId: string, selected: boolean) => {
+        if (filterId.startsWith('currency:')) {
+          const nonCurrency = selectedFilters.filter(f => !f.startsWith('currency:'))
+          setFilters(selected ? [...nonCurrency, filterId] : nonCurrency)
+        } else {
+          handleFilterChangeCallback(filterId, selected)
+        }
+      }}
       clearFilters={clearFilters}
       filterLabelMap={{ ...filterLabelMap }}
       onAddExpenseRequest={handleAddExpenseRequest}
       tableRefreshTrigger={tableRefreshTrigger}
       addFilter={addFilter}
       removeFilter={removeFilter}
+      {...({ currencyStats } as any)}
     />
-  );
-};
+  )
+}
 
-export default ExpenseRequestsTab;
+export default ExpenseRequestsTab

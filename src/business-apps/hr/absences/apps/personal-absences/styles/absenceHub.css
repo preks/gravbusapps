@@ -17,7 +17,6 @@
   width: 100%;
 }
 
-
 .gba\:tabsContainer {
   margin-bottom: 1.5rem;
   background: #f7f7fa !important;
@@ -60,7 +59,9 @@
   height: 38px !important;
   display: flex !important;
   align-items: center !important;
-  transition: background 0.18s, color 0.18s !important;
+  transition:
+    background 0.18s,
+    color 0.18s !important;
   outline: none !important;
 }
 .gba\:tabs .ant-tabs-tab-active {
@@ -88,7 +89,7 @@
 .gba\:tabs :global(.ant-tabs-tab-active):hover {
   background: #fff;
   color: #111827;
-  box-shadow: 0 1px 4px 0 rgba(16,30,54,0.06);
+  box-shadow: 0 1px 4px 0 rgba(16, 30, 54, 0.06);
 }
 .gba\:tabs :global(.ant-tabs-tab-active) .gba\:tabIcon {
   color: #111827;
@@ -114,14 +115,12 @@
   position: relative;
 }
 
-
 .gba\:tabIcon {
   font-size: 1.05rem;
   color: inherit;
   transition: color 0.2s;
   vertical-align: middle;
 }
-
 
 .gba\:filters {
   display: flex;
@@ -133,7 +132,6 @@
   align-items: flex-start;
   width: fit-content;
 }
-
 
 .gba\:filterButton {
   border: none !important;
@@ -152,7 +150,8 @@
   outline: none !important;
   margin: 0 !important;
 }
-.gba\:filterButton.ant-btn-primary, .gba\:filterButton[aria-selected='true'] {
+.gba\:filterButton.ant-btn-primary,
+.gba\:filterButton[aria-selected='true'] {
   background: #18181a !important;
   color: #fff !important;
   border: none !important;
@@ -161,7 +160,6 @@
   outline: none !important;
   box-shadow: none !important;
 }
-
 
 .gba\:content {
   display: flex;
@@ -209,7 +207,6 @@
   flex-direction: column;
   gap: 10px;
 }
-
 
 .gba\:cardContent {
   padding: 1.1rem 1.1rem 1rem 1.1rem;
@@ -285,7 +282,7 @@
 .gba\:tabs :global(.ant-tabs-tab-active):hover {
   background: #fff;
   color: #111827;
-  box-shadow: 0 1px 4px 0 rgba(16,30,54,0.06);
+  box-shadow: 0 1px 4px 0 rgba(16, 30, 54, 0.06);
 }
 .gba\:tabs :global(.ant-tabs-tab-active) .gba\:tabIcon {
   color: #111827;
@@ -310,7 +307,6 @@
   transition: color 0.2s;
   position: relative;
 }
-
 
 .gba\:tabIcon {
   font-size: 1.05rem;

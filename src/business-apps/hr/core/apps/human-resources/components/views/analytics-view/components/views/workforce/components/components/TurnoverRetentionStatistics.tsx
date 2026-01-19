@@ -1,11 +1,13 @@
-import React from 'react';
-import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
-import type { TurnoverRetentionStatistics } from '../../../../../hooks/useTurnoverRetentionData';
+import React from 'react'
+import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
+import { UsersIcon, CalendarIcon, EnvelopeIcon } from '@phosphor-icons/react'
+import type { TurnoverRetentionStatistics } from '../../../../../hooks/useTurnoverRetentionData'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 interface TurnoverRetentionStatisticsProps {
-  statistics: TurnoverRetentionStatistics;
-  isLoading: boolean;
-  dataTestId: string;
+  statistics: TurnoverRetentionStatistics
+  isLoading: boolean
+  dataTestId: string
 }
 
 const TurnoverRetentionStatistics: React.FC<TurnoverRetentionStatisticsProps> = ({
@@ -13,60 +15,65 @@ const TurnoverRetentionStatistics: React.FC<TurnoverRetentionStatisticsProps> = 
   isLoading,
   dataTestId
 }) => {
+  const { t } = useTranslation(hrTranslations)
   const kpiCards: KpiCardData[] = [
     {
-      id: 'voluntary-turnover',
-      title: 'Voluntary Turnover Rate',
-      value: statistics.currentTurnoverRate ? `${statistics.currentTurnoverRate.toFixed(1)}%` : 'N/A',
-      icon: 'calendar',
-      iconColor: statistics.currentTurnoverRate > 10 ? '#ff4d4f' : statistics.currentTurnoverRate > 5 ? '#fa8c16' : '#52c41a',
-      footer: 'Current month rate'
+      id: 'turnover-rate',
+      title: t('hr-analytics-turnover-rate'),
+      value: statistics.currentTurnoverRate
+        ? `${statistics.currentTurnoverRate.toFixed(1)}%`
+        : t('hr-analytics-not-available'),
+      icon: <Icon icon={CalendarIcon} size="sm" decorative />,
+      iconColor: statistics.turnoverChange < 0 ? 'var(--nw-success)' : 'var(--nw-warning)',
+      trend: {
+        value: `${statistics.turnoverChange > 0 ? '+' : ''}${statistics.turnoverChange.toFixed(1)}%`,
+        positive: statistics.turnoverChange > 0 ? true : false,
+        description: t('hr-analytics-vs-last-month')
+      },
+      footer: t('hr-analytics-current-month-rate')
     },
     {
       id: 'average-tenure',
-      title: 'Average Tenure',
-      value: statistics.averageTenure || 'N/A',
-      icon: 'users',
-      iconColor: '#722ed1',
-      footer: 'Company-wide average'
+      title: t('hr-analytics-average-tenure'),
+      value: statistics.averageTenure || t('hr-analytics-not-available'),
+      icon: <Icon icon={UsersIcon} size="sm" decorative />,
+      footer: t('hr-analytics-company-wide-average')
     },
     {
       id: 'at-risk-departments',
-      title: 'At-Risk Departments',
+      title: t('hr-analytics-at-risk-departments'),
       value: statistics.atRiskDepartments,
-      icon: 'mail',
-      iconColor: statistics.atRiskDepartments > 3 ? '#ff4d4f' : statistics.atRiskDepartments > 0 ? '#fa8c16' : '#52c41a',
-      footer: `Below ${statistics.retentionTarget}% retention target`
+      icon: <Icon icon={EnvelopeIcon} size="sm" decorative />,
+      footer: t('hr-analytics-below-retention-target', { target: statistics.retentionTarget })
     },
     {
       id: 'retention-target',
-      title: 'Target Retention',
+      title: t('hr-analytics-target-retention'),
       value: `${statistics.retentionTarget}%`,
-      icon: 'users',
-      iconColor: '#1890ff',
-      footer: 'Company target retention rate'
+      icon: <Icon icon={UsersIcon} size="sm" decorative />,
+      footer: t('hr-analytics-company-target-retention-rate')
     }
-  ];
+  ]
 
   if (isLoading) {
     // Create loading placeholder cards
     const loadingCards: KpiCardData[] = kpiCards.map(card => ({
       ...card,
-      value: 'Loading...'
-    }));
-    
+      value: t('hr-data-filter-loading')
+    }))
+
     return (
       <div data-testid={`${dataTestId}-statistics`}>
         <SectionKpiCards cards={loadingCards} />
       </div>
-    );
+    )
   }
 
   return (
     <div data-testid={`${dataTestId}-statistics`}>
       <SectionKpiCards cards={kpiCards} />
     </div>
-  );
-};
+  )
+}
 
-export default TurnoverRetentionStatistics; 
+export default TurnoverRetentionStatistics

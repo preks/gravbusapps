@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react';
-import { useEmployeeCount } from './useEmployeeCount';
-import { useGetEmploymentTypes } from './useGetEmploymentTypes';
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import { GET_EMPLOYMENT_TYPE_DISTRIBUTION } from '../queries/getEmploymentTypeDistribution';
+import { useState, useEffect, useRef } from 'react'
+import { useEmployeeCount } from './useEmployeeCount'
+import { QueryType, Services, useQueryExecutionClient } from '@/common/network/dataset'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 export interface EmploymentTypeDistribution {
-  id: string;
-  name: string;
-  count: number;
-  percentage: number;
+  id: string
+  name: string
+  count: number
+  percentage: number
 }
 
 /**
@@ -16,112 +17,100 @@ export interface EmploymentTypeDistribution {
  * @param accessToken User access token
  */
 export function useEmploymentTypeDistribution(accessToken: string) {
-  const [distribution, setDistribution] = useState<EmploymentTypeDistribution[]>([]);
+  const [distribution, setDistribution] = useState<EmploymentTypeDistribution[]>([])
   // We don't need a separate initialLoading state as we combine all loading states
-  const [error, setError] = useState<Error | null>(null);
-  const [employmentTypeDataLoading, setEmploymentTypeDataLoading] = useState<boolean>(false);
-  const [employmentTypeDataError, setEmploymentTypeDataError] = useState<Error | null>(null);
-  
-  // GraphQL client for fetching data
-  const graphqlClient = useGraphqlClient(accessToken);
-  
-  // Get all employment types (catalog entries)
-  const { types: employmentTypes, loading: typesLoading, error: typesError } = 
-    useGetEmploymentTypes(accessToken, '', 0); // The hook now fetches 100 items by default
-  
+  const [error, setError] = useState<Error | null>(null)
+  const [employmentTypeDataLoading, setEmploymentTypeDataLoading] = useState<boolean>(false)
+  const [employmentTypeDataError, setEmploymentTypeDataError] = useState<Error | null>(null)
+
+  // Dataset client for fetching data
+  const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
+  const { t } = useTranslation(hrTranslations)
+
   // Get total employee count
-  const { count: totalEmployees, loading: countLoading, error: countError } = 
-    useEmployeeCount(accessToken);
-    
-  // Fetch employment type distribution data from GraphQL
+  const { count: totalEmployees, loading: countLoading, error: countError } = useEmployeeCount(accessToken)
+  const lastFetchKeyRef = useRef<string>('')
+
+  // Module-level in-flight cache for dataset requests
+  const staticCache =
+    (useEmploymentTypeDistribution as any).__cache ||
+    ((useEmploymentTypeDistribution as any).__cache = new Map<string, Promise<any>>())
+
+  // Fetch employment type distribution data from Dataset
   useEffect(() => {
-    if (typesLoading || countLoading || !employmentTypes.length || !graphqlClient) return;
-    
-    setEmploymentTypeDataLoading(true);
-    
-    if (!graphqlClient) {
-      setEmploymentTypeDataError(new Error('GraphQL client not available'));
-      setEmploymentTypeDataLoading(false);
-      return;
+    if (countLoading || !datasetClient) return
+
+    const localeCode = getCurrentActiveUserLocale()
+    const fetchKey = `${accessToken}|${localeCode}|${totalEmployees}`
+    if (lastFetchKeyRef.current === fetchKey) {
+      return
     }
-    
-    graphqlClient.request(
-      GET_EMPLOYMENT_TYPE_DISTRIBUTION
-    )
-    .then((response: any) => {
-      const employeeWorkingConditions = response?.EmployeeWorkingCondition || [];
-      
-      // Count employees by employment type
-      const typeCountMap = new Map<string, { id: string; name: string; count: number }>();
-      
-      // Initialize counters for all employment types
-      employmentTypes.forEach(type => {
-        typeCountMap.set(type.id, { id: type.id, name: type.name, count: 0 });
-      });
-      
-      // Count employees by employment type
-      employeeWorkingConditions.forEach((condition: any) => {
-        if (condition.employmentType && condition.employmentType.id) {
-          const typeId = condition.employmentType.id;
-          const existingType = typeCountMap.get(typeId);
-          
-          if (existingType) {
-            existingType.count += 1;
-          } else {
-            // This handles cases where we have data from GraphQL but not in our catalog list
-            const typeName = condition.employmentType.value || 'Unknown';
-            typeCountMap.set(typeId, {
-              id: typeId,
-              name: typeName,
-              count: 1
-            });
-          }
+    lastFetchKeyRef.current = fetchKey
+
+    setEmploymentTypeDataLoading(true)
+
+    let p = staticCache.get(fetchKey)
+    if (!p) {
+      p = datasetClient.executeQuery('employmentTypeData', QueryType.DATASET, { localeCode })
+      staticCache.set(fetchKey, p)
+    }
+
+    p.then((response: any) => {
+      const rows = Array.isArray(response?.data) ? response.data : []
+
+      // Build distribution directly from dataset (category, value)
+      // category is already localized by the dataset (COALESCE(localized, canonical, 'Not Specified'))
+      const items: EmploymentTypeDistribution[] = rows.map((r: any) => {
+        const rawName = String(r.category || 'Unknown')
+        const localizedName =
+          rawName.trim().toLowerCase() === 'not specified'.toLowerCase() ? t('hr-analytics-not-specified') : rawName
+        return {
+          id: String(r.category || 'unknown'),
+          name: localizedName,
+          count: Number(r.value || 0),
+          percentage: 0
         }
-      });
-      
-      // Convert map to array and calculate percentages
-      const totalCount = Math.max(totalEmployees, 1); // Prevent division by zero
-      const distributionData: EmploymentTypeDistribution[] = Array.from(typeCountMap.values())
+      })
+
+      // Calculate percentages against total active employees
+      const totalCount = Math.max(totalEmployees, 1)
+      const distributionData: EmploymentTypeDistribution[] = items
         .map(item => ({
           ...item,
           percentage: Math.round((item.count / totalCount) * 100)
         }))
-        .sort((a, b) => b.count - a.count); // Sort by count descending
-      
-      setDistribution(distributionData);
-      setEmploymentTypeDataLoading(false);
-      setEmploymentTypeDataError(null);
-    })
-    .catch((err: Error) => {
-      console.error('[useEmploymentTypeDistribution] Error fetching employment type distribution:', err);
-      setEmploymentTypeDataError(err);
-      setEmploymentTypeDataLoading(false);
+        .sort((a, b) => b.count - a.count)
+
+      setDistribution(distributionData)
+      setEmploymentTypeDataLoading(false)
+      setEmploymentTypeDataError(null)
+    }).catch((err: Error) => {
+      console.error('[useEmploymentTypeDistribution] Error fetching employment type distribution (dataset):', err)
+      setEmploymentTypeDataError(err)
+      setEmploymentTypeDataLoading(false)
       // Fall back to empty distribution data
-      setDistribution([]);
-    });
-    
-  }, [employmentTypes, typesLoading, countLoading, totalEmployees, graphqlClient]);
-  
+      setDistribution([])
+    })
+  }, [accessToken, countLoading, totalEmployees, t])
+
   // Combine errors if any occur
   useEffect(() => {
-    if (typesError) {
-      setError(typesError);
-    } else if (countError) {
-      setError(countError);
+    if (countError) {
+      setError(countError)
     } else if (employmentTypeDataError) {
-      setError(employmentTypeDataError);
+      setError(employmentTypeDataError)
     } else {
-      setError(null);
+      setError(null)
     }
-  }, [typesError, countError, employmentTypeDataError]);
-  
+  }, [countError, employmentTypeDataError])
+
   // Determine overall loading state
-  const isLoading = typesLoading || countLoading || employmentTypeDataLoading;
-  
-  return { 
-    distribution, 
-    loading: isLoading, 
-    error, 
-    totalCount: totalEmployees 
-  };
+  const isLoading = countLoading || employmentTypeDataLoading
+
+  return {
+    distribution,
+    loading: isLoading,
+    error,
+    totalCount: totalEmployees
+  }
 }

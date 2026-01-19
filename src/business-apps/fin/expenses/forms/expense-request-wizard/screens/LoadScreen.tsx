@@ -1,17 +1,17 @@
-import React from 'react';
-import { BusinessAppContextProps } from '@/business-apps/types';
-import { ICONS } from '../../../utils/icons';
+import React from 'react'
+import { BusinessAppContextProps } from '@/business-apps/types'
+import { ICONS } from '../../../utils/icons'
 
 /**
  * LoadScreen component props
  */
 interface LoadScreenProps extends BusinessAppContextProps {
-  additionalData?: { 
+  additionalData?: {
     mdi_modulePayload?: {
-      tripData?: any;
-    };
-    [key: string]: any;
-  };
+      tripData?: any
+    }
+    [key: string]: any
+  }
 }
 
 /**
@@ -22,18 +22,18 @@ interface LoadScreenProps extends BusinessAppContextProps {
  */
 const LoadScreen: React.FC<LoadScreenProps> = () => {
   return (
-    <div 
-      className="gba:flex gba:items-center gba:justify-center gba:h-[100%] gba:w-[100%]" 
+    <div
+      className="gba:flex gba:items-center gba:justify-center gba:h-[100%] gba:w-[100%]"
       data-testid="expense-request-wizard-load-screen"
     >
-      <img 
-        src={ICONS.SPINNER_ICON} 
-        alt="Loading" 
-        className="gba:w-10 gba:h-10" 
-        data-testid="expense-request-wizard-spinner-icon" 
+      <img
+        src={ICONS.SPINNER_ICON}
+        alt="Loading"
+        className="gba:w-10 gba:h-10"
+        data-testid="expense-request-wizard-spinner-icon"
       />
     </div>
-  );
-};
+  )
+}
 
-export default LoadScreen;
+export default LoadScreen

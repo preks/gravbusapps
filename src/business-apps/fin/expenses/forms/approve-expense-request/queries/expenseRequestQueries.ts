@@ -46,6 +46,8 @@ export const GET_EXPENSE_REQUEST_FOR_APPROVAL = `
       expensePlan {
         totalAmount
         advancePaymentTotalAmount
+        startDate
+        endDate
         advancePayment(where: {isDeleted: {_eq: false}}) {
           status
           amount
@@ -124,10 +126,13 @@ export const GET_EXPENSE_REQUEST_FOR_APPROVAL = `
         }
       }
       expenseRequestTrip(orderBy: {tripDateTime: ASC}, where: {isDeleted: {_eq: false}}) {
+        id
         address
         expenseRequestId
         pointType
         tripDateTime
+        tripOrder
+        tripDirection
         travelRegion {
           translations(where: {localeCode: {_eq: $activeUserLocale}}) {
             localeCode
@@ -138,14 +143,55 @@ export const GET_EXPENSE_REQUEST_FOR_APPROVAL = `
           }
           value
         }
+        country {
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
+          catalog {
+            defaultLocale
+          }
+          value
+        }
       }
-      expenseAllowance(where: {isDeleted: {_eq: false}}) {
-        dayRate
+      expenseAllowance(orderBy: {allowanceDate: ASC}, where: {isDeleted: {_eq: false}}) {
+        id
+        allowanceOrder
         allowanceDate
+        travelRegion {
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
+          catalog {
+            defaultLocale
+          }
+          value
+        }
+        dayRate
+        breakfast
+        lunch
+        dinner
+        overnight
+        overnightAccommodation
+        deductionLimit
         currency {
           code
         }
       }
+      expenseRequestComment(where: {isDeleted: {_eq: false}}, orderBy: {commentDate: DESC}) {
+        id
+        comment
+        commentDate
+        commentType
+        authorEmployee {
+          id
+          firstName
+          lastName
+          displayName
+          pictureThumbnail
+        }
+      }
     }
   }
-`; 
+`

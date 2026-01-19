@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { Modal, Select, Steps, Button, Typography, Space, message } from 'antd';
-import { CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import { useStatusChange } from '../hooks/useStatusChange';
+import React, { useState } from 'react'
+import { Modal, Select, Steps, Button, Typography, Space, message } from 'antd'
+import { CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons'
+import { useStatusChange } from '../hooks/useStatusChange'
 
-const { Title, Text } = Typography;
-const { Option } = Select;
+const { Title, Text } = Typography
+const { Option } = Select
 
 // Sales Order Status definitions with logical order and descriptions
 const SALES_ORDER_STATUSES = [
@@ -74,7 +74,7 @@ const SALES_ORDER_STATUSES = [
     description: 'Order was returned (after shipping or invoicing)',
     icon: <ExclamationCircleOutlined />
   }
-];
+]
 
 // Line Item Status definitions with logical order and descriptions
 const LINE_ITEM_STATUSES = [
@@ -144,17 +144,17 @@ const LINE_ITEM_STATUSES = [
     description: 'Manually paused — e.g., pricing issue or approval needed',
     icon: <ExclamationCircleOutlined />
   }
-];
+]
 
 interface StatusChangeModalProps {
-  visible: boolean;
-  type: 'order' | 'lineItem';
-  currentStatus: string;
-  orderId: string;
-  lineItemId?: string; // Required when type is 'lineItem'
-  accessToken: string;
-  onCancel: () => void;
-  onSuccess: () => void;
+  visible: boolean
+  type: 'order' | 'lineItem'
+  currentStatus: string
+  orderId: string
+  lineItemId?: string // Required when type is 'lineItem'
+  accessToken: string
+  onCancel: () => void
+  onSuccess: () => void
 }
 
 const StatusChangeModal: React.FC<StatusChangeModalProps> = ({
@@ -170,39 +170,39 @@ const StatusChangeModal: React.FC<StatusChangeModalProps> = ({
   // Update selected status when modal opens with new current status
   React.useEffect(() => {
     if (visible) {
-      setSelectedStatus(currentStatus);
+      setSelectedStatus(currentStatus)
     }
-  }, [visible, currentStatus]);
+  }, [visible, currentStatus])
 
-  const [selectedStatus, setSelectedStatus] = useState<string>(currentStatus);
+  const [selectedStatus, setSelectedStatus] = useState<string>(currentStatus)
 
   // Get the appropriate status definitions based on type
-  const statusDefinitions = type === 'lineItem' ? LINE_ITEM_STATUSES : SALES_ORDER_STATUSES;
+  const statusDefinitions = type === 'lineItem' ? LINE_ITEM_STATUSES : SALES_ORDER_STATUSES
   const { updateStatus, loading } = useStatusChange({
     accessToken,
     type,
     orderId,
     lineItemId,
     onSuccess: () => {
-      message.success(`${type === 'lineItem' ? 'Line item' : 'Order'} status updated successfully`);
-      onSuccess();
-      onCancel();
+      message.success(`${type === 'lineItem' ? 'Line item' : 'Order'} status updated successfully`)
+      onSuccess()
+      onCancel()
     }
-  });
+  })
 
   const handleConfirm = async () => {
     if (selectedStatus === currentStatus) {
-      message.info('No changes made');
-      onCancel();
-      return;
+      message.info('No changes made')
+      onCancel()
+      return
     }
 
     try {
-      await updateStatus(selectedStatus);
+      await updateStatus(selectedStatus)
     } catch (error) {
-      message.error('Failed to update status');
+      message.error('Failed to update status')
     }
-  };
+  }
 
   // Define the logical order of statuses for progression
   const getLogicalStatusOrder = (statusType: 'order' | 'lineItem') => {
@@ -216,7 +216,7 @@ const StatusChangeModal: React.FC<StatusChangeModalProps> = ({
         'PARTIALLY_INVOICED',
         'INVOICED',
         'DELIVERED'
-      ];
+      ]
     }
 
     // Order statuses
@@ -229,82 +229,82 @@ const StatusChangeModal: React.FC<StatusChangeModalProps> = ({
       'SHIPPED',
       'INVOICED',
       'CLOSED'
-    ];
-  };
+    ]
+  }
 
   // Normalize status for comparison (handle different formats)
   const normalizeStatus = (status: string, statusType: 'order' | 'lineItem'): string => {
-    if (!status) return '';
+    if (!status) return ''
 
-    const normalized = status.toUpperCase().trim();
+    const normalized = status.toUpperCase().trim()
 
     if (statusType === 'lineItem') {
       // Handle line item status mappings
       const lineItemMappings: { [key: string]: string } = {
-        'NEW': 'NEW',
-        'PLANNED': 'PLANNED',
-        'BACKORDERED': 'BACKORDERED',
-        'PARTIALLY_SHIPPED': 'PARTIALLY_SHIPPED',
-        'PARTIAL': 'PARTIALLY_SHIPPED',
-        'SHIPPED': 'SHIPPED',
-        'PARTIALLY_INVOICED': 'PARTIALLY_INVOICED',
-        'INVOICED': 'INVOICED',
-        'DELIVERED': 'DELIVERED',
-        'CANCELLED': 'CANCELLED',
-        'RETURNED': 'RETURNED',
-        'ON_HOLD': 'ON_HOLD'
-      };
-      return lineItemMappings[normalized] || normalized;
+        NEW: 'NEW',
+        PLANNED: 'PLANNED',
+        BACKORDERED: 'BACKORDERED',
+        PARTIALLY_SHIPPED: 'PARTIALLY_SHIPPED',
+        PARTIAL: 'PARTIALLY_SHIPPED',
+        SHIPPED: 'SHIPPED',
+        PARTIALLY_INVOICED: 'PARTIALLY_INVOICED',
+        INVOICED: 'INVOICED',
+        DELIVERED: 'DELIVERED',
+        CANCELLED: 'CANCELLED',
+        RETURNED: 'RETURNED',
+        ON_HOLD: 'ON_HOLD'
+      }
+      return lineItemMappings[normalized] || normalized
     }
 
     // Handle order status mappings
     const orderMappings: { [key: string]: string } = {
-      'CONFIRMED': 'CONFIRMED',
-      'RELEASED': 'CONFIRMED', // Map RELEASED to CONFIRMED for timeline purposes
-      'DRAFT': 'DRAFT',
-      'OPEN': 'OPEN',
-      'PARTIALLY_SHIPPED': 'PARTIALLY_SHIPPED',
-      'PARTIAL': 'PARTIALLY_SHIPPED',
-      'SHIPPED': 'SHIPPED',
-      'INVOICED': 'INVOICED',
-      'CLOSED': 'CLOSED',
-      'CANCELLED': 'CANCELLED',
-      'ON_HOLD': 'ON_HOLD',
-      'REJECTED': 'REJECTED',
-      'RETURNED': 'RETURNED'
-    };
+      CONFIRMED: 'CONFIRMED',
+      RELEASED: 'CONFIRMED', // Map RELEASED to CONFIRMED for timeline purposes
+      DRAFT: 'DRAFT',
+      OPEN: 'OPEN',
+      PARTIALLY_SHIPPED: 'PARTIALLY_SHIPPED',
+      PARTIAL: 'PARTIALLY_SHIPPED',
+      SHIPPED: 'SHIPPED',
+      INVOICED: 'INVOICED',
+      CLOSED: 'CLOSED',
+      CANCELLED: 'CANCELLED',
+      ON_HOLD: 'ON_HOLD',
+      REJECTED: 'REJECTED',
+      RETURNED: 'RETURNED'
+    }
 
-    return orderMappings[normalized] || normalized;
-  };
+    return orderMappings[normalized] || normalized
+  }
 
   const getLogicalStepStatus = (status: string, currentStatus: string): 'finish' | 'process' | 'wait' => {
-    const logicalOrder = getLogicalStatusOrder(type);
-    const normalizedCurrentStatus = normalizeStatus(currentStatus, type);
-    const normalizedStepStatus = normalizeStatus(status, type);
+    const logicalOrder = getLogicalStatusOrder(type)
+    const normalizedCurrentStatus = normalizeStatus(currentStatus, type)
+    const normalizedStepStatus = normalizeStatus(status, type)
 
-    const currentLogicalIndex = logicalOrder.indexOf(normalizedCurrentStatus);
-    const stepLogicalIndex = logicalOrder.indexOf(normalizedStepStatus);
+    const currentLogicalIndex = logicalOrder.indexOf(normalizedCurrentStatus)
+    const stepLogicalIndex = logicalOrder.indexOf(normalizedStepStatus)
 
     // For statuses not in the main flow (CANCELLED, ON_HOLD, REJECTED, RETURNED)
     if (stepLogicalIndex === -1) {
-      return normalizedStepStatus === normalizedCurrentStatus ? 'process' : 'wait';
+      return normalizedStepStatus === normalizedCurrentStatus ? 'process' : 'wait'
     }
 
     // For statuses in the main flow
     if (currentLogicalIndex === -1) {
-      return normalizedStepStatus === normalizedCurrentStatus ? 'process' : 'wait';
+      return normalizedStepStatus === normalizedCurrentStatus ? 'process' : 'wait'
     }
 
     if (stepLogicalIndex < currentLogicalIndex) {
-      return 'finish';
+      return 'finish'
     } else if (stepLogicalIndex === currentLogicalIndex) {
-      return 'process';
+      return 'process'
     } else {
-      return 'wait';
+      return 'wait'
     }
-  };
+  }
 
-  const modalTitle = type === 'lineItem' ? 'Change Line Item Status' : 'Change Order Status';
+  const modalTitle = type === 'lineItem' ? 'Change Line Item Status' : 'Change Order Status'
 
   return (
     <Modal
@@ -331,7 +331,9 @@ const StatusChangeModal: React.FC<StatusChangeModalProps> = ({
       <div className="gba:space-y-6">
         {/* Status Dropdown */}
         <div data-testid="status-dropdown-section">
-          <Title level={4} className="gba:mb-3">Select New Status</Title>
+          <Title level={4} className="gba:mb-3">
+            Select New Status
+          </Title>
           <Select
             value={selectedStatus}
             onChange={setSelectedStatus}
@@ -352,16 +354,18 @@ const StatusChangeModal: React.FC<StatusChangeModalProps> = ({
 
         {/* Status Timeline */}
         <div data-testid="status-timeline-section">
-          <Title level={4} className="gba:mb-3">Status Timeline</Title>
+          <Title level={4} className="gba:mb-3">
+            Status Timeline
+          </Title>
           <Steps
             direction="vertical"
             size="small"
             current={-1} // Don't use current prop, rely on individual step status
             data-testid="status-timeline"
           >
-            {statusDefinitions.map((status) => {
-              const stepStatus = getLogicalStepStatus(status.key, currentStatus);
-              const isCurrentStatus = status.key.toUpperCase() === currentStatus.toUpperCase();
+            {statusDefinitions.map(status => {
+              const stepStatus = getLogicalStepStatus(status.key, currentStatus)
+              const isCurrentStatus = status.key.toUpperCase() === currentStatus.toUpperCase()
 
               return (
                 <Steps.Step
@@ -370,27 +374,22 @@ const StatusChangeModal: React.FC<StatusChangeModalProps> = ({
                   title={
                     <Space>
                       {status.icon}
-                      <Text strong={isCurrentStatus}>
-                        {status.label}
-                      </Text>
+                      <Text strong={isCurrentStatus}>{status.label}</Text>
                     </Space>
                   }
                   description={
-                    <Text
-                      type={isCurrentStatus ? 'default' : 'secondary'}
-                      className="gba:text-sm"
-                    >
+                    <Text type={isCurrentStatus ? 'default' : 'secondary'} className="gba:text-sm">
                       {status.description}
                     </Text>
                   }
                 />
-              );
+              )
             })}
           </Steps>
         </div>
       </div>
     </Modal>
-  );
-};
+  )
+}
 
-export default StatusChangeModal;
+export default StatusChangeModal

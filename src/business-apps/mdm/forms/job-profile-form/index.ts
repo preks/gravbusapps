@@ -1,4 +1,4 @@
-import JobProfileForm from './JobProfileForm';
+import JobProfileForm from './JobProfileForm'
 
-export { JobProfileForm };
-export default JobProfileForm;
+export { JobProfileForm }
+export default JobProfileForm

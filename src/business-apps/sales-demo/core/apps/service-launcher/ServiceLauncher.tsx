@@ -1,36 +1,21 @@
-import React, { useMemo } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { 
-  LauncherLayout, 
-  type LauncherSectionConfig, 
-  type NavigationCardData, 
+import React, { useMemo } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  LauncherLayout,
+  type LauncherSectionConfig,
   type KpiData,
   type QuickActionData,
-  Spinner,
-  Alert,
-  AlertTitle,
-  AlertDescription,
-  Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle
-} from '@newwork/nw-design-system';
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import * as RemixIcons from '@remixicon/react';
+} from '@newwork/nw-design-system'
 // Import PhosphorIcons for LauncherLayout
-import { 
-  Gear,
-  Wrench,
-  Headphones,
-  GearSix,
-  Toolbox,
-  Phone
-} from '@phosphor-icons/react';
-import { MODULE_COLORS } from '@/common/constants/ui';
+import { Gear, Wrench, Headphones, GearSix, Toolbox, Phone } from '@phosphor-icons/react'
+import { MODULE_COLORS } from '@/common/constants/ui'
 interface ServiceLauncherProps extends BusinessAppContextProps {}
-const moduleColor = MODULE_COLORS.SER;
-const ServiceLauncher: React.FC<ServiceLauncherProps> = (context) => {
+const moduleColor = MODULE_COLORS.SER
+const ServiceLauncher: React.FC<ServiceLauncherProps> = context => {
   // Placeholder KPI data
   const headerKpis = useMemo((): KpiData[] => {
     return [
@@ -52,23 +37,25 @@ const ServiceLauncher: React.FC<ServiceLauncherProps> = (context) => {
         value: 'Coming Soon',
         color: 'warning'
       }
-    ];
-  }, []);
+    ]
+  }, [])
 
   // Placeholder sections
   const sections = useMemo((): LauncherSectionConfig[] => {
-    return [{
-      id: 'service-modules',
-      title: 'Service Management Hub',
-      description: 'Comprehensive service tools for customer support, maintenance, and service operations',
-      cards: []
-    }];
-  }, []);
+    return [
+      {
+        id: 'service-modules',
+        title: 'Service Management Hub',
+        description: 'Comprehensive service tools for customer support, maintenance, and service operations',
+        cards: []
+      }
+    ]
+  }, [])
 
   // Placeholder quick actions
   const launcherQuickActions = useMemo((): QuickActionData[] => {
-    return [];
-  }, []);
+    return []
+  }, [])
 
   // Work in progress content overlay
   const WorkInProgressOverlay = () => (
@@ -82,8 +69,7 @@ const ServiceLauncher: React.FC<ServiceLauncherProps> = (context) => {
         </CardHeader>
         <CardContent className="text-center space-y-4">
           <p className="text-muted-foreground">
-            The Service Management Hub is currently under development. 
-            We're building comprehensive service tools for:
+            The Service Management Hub is currently under development. We're building comprehensive service tools for:
           </p>
           <ul className="text-sm text-muted-foreground space-y-2 text-left">
             <li className="flex items-center gap-2">
@@ -106,7 +92,7 @@ const ServiceLauncher: React.FC<ServiceLauncherProps> = (context) => {
         </CardContent>
       </Card>
     </div>
-  );
+  )
 
   return (
     <div className="relative min-h-screen">
@@ -123,7 +109,7 @@ const ServiceLauncher: React.FC<ServiceLauncherProps> = (context) => {
       />
       <WorkInProgressOverlay />
     </div>
-  );
-};
+  )
+}
 
-export default ServiceLauncher;
+export default ServiceLauncher

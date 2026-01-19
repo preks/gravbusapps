@@ -3,5 +3,5 @@
  * Provides convenient exports for the DataList component
  */
 
-export { DataList } from './DataList';
-export type { DataListProps } from './DataList';
+export { DataList } from './DataList'
+export type { DataListProps } from './DataList'

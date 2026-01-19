@@ -22,7 +22,7 @@ export const getSalaryByEmployeeId = `
       updatedAt
     }
   }
-`;
+`
 
 export const getCompensationComponentsBySalaryId = `
   query getCompensationComponentsBySalaryId($salaryId: ID!, $limit: Int, $offset: Int) {
@@ -47,7 +47,7 @@ export const getCompensationComponentsBySalaryId = `
       updatedAt
     }
   }
-`;
+`
 
 export const getSalaryHistory = `
   query getSalaryHistory($employeeId: ID!, $limit: Int, $offset: Int) {
@@ -68,7 +68,7 @@ export const getSalaryHistory = `
       createdAt
     }
   }
-`;
+`
 
 export const getSalaryStatistics = `
   query getSalaryStatistics($structureId: ID!) {
@@ -81,7 +81,7 @@ export const getSalaryStatistics = `
       lastUpdated
     }
   }
-`;
+`
 
 export const updateSalary = `
   mutation updateSalary($id: ID!, $input: SalaryUpdateInput!) {
@@ -96,7 +96,7 @@ export const updateSalary = `
       updatedAt
     }
   }
-`;
+`
 
 export const createCompensationComponent = `
   mutation createCompensationComponent($input: CompensationComponentInput!) {
@@ -116,7 +116,7 @@ export const createCompensationComponent = `
       createdAt
     }
   }
-`;
+`
 
 export const updateCompensationComponent = `
   mutation updateCompensationComponent($id: ID!, $input: CompensationComponentUpdateInput!) {
@@ -134,4 +134,4 @@ export const updateCompensationComponent = `
       updatedAt
     }
   }
-`;
+`

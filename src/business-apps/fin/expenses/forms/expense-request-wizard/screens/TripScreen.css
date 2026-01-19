@@ -1,20 +1,17 @@
-
-
 .gba\:locationContainerWrapper.gba\:withDivider {
   border-bottom: 1px solid #e8e8e8;
   padding: 16px 0px;
 }
 
-
 /* Vertical line styling */
 .gba\:verticalLine {
   position: relative;
   padding-left: 32px;
-  padding-bottom:10px;
+  padding-bottom: 10px;
 }
 
 .gba\:verticalLine::before {
-  content: "";
+  content: '';
   position: absolute;
   left: 12px;
   top: 0;
@@ -23,30 +20,27 @@
   background-color: #000000;
 }
 
-
-
 /* Add destination button styles */
 .gba\:addDestinationContainer {
   display: flex;
   padding: 0px 0px 0px 48px;
-
 }
 
 .gba\:addDestinationContainer.gba\:withDivider {
   border-bottom: 1px solid #e8e8e8;
   padding: 16px 0px;
-  
 }
 
-.gba\:addDestinationContainer >button {
+.gba\:addDestinationContainer > button {
   padding: 0px 10px !important;
   margin-left: -10px;
   border-radius: 20px !important;
 }
 
-
-.gba\:skipAdvancePaymentContainer{
+.gba\:skipAdvancePaymentContainer {
   font-weight: 500;
   padding: 16px 0px;
-  label {flex-direction: row-reverse;}
+  label {
+    flex-direction: row-reverse;
+  }
 }

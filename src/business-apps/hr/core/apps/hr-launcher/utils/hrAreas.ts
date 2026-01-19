@@ -1,5 +1,5 @@
-import { HrArea, HrQuickAction } from '../types';
-import { 
+import { HrArea, HrQuickAction } from '../types'
+import {
   Users,
   UserCheck,
   Briefcase,
@@ -8,8 +8,9 @@ import {
   Gear,
   UserPlus,
   FileText,
-  FolderOpen
-} from '@phosphor-icons/react';
+  FolderOpen,
+  Desktop
+} from '@phosphor-icons/react'
 
 export const hrAreas: HrArea[] = [
   {
@@ -41,16 +42,16 @@ export const hrAreas: HrArea[] = [
     icon: ChartBar,
     category: 'analytics',
     kpiType: 'analytics',
-         links: [
-       {
-         label: 'Structural Analysis',
-         action: '/platform/hr/human-resources?view=analytics'
-       },
-       {
-         label: 'Absence Analytics',
-         action: '/platform/hr/human-resources?view=analytics'
-       }
-     ]
+    links: [
+      {
+        label: 'Structural Analysis',
+        action: '/platform/hr/human-resources?view=analytics'
+      },
+      {
+        label: 'Absence Analytics',
+        action: '/platform/hr/human-resources?view=analytics'
+      }
+    ]
   },
   {
     id: 'hr-settings',
@@ -121,8 +122,22 @@ export const hrAreas: HrArea[] = [
         action: '/platform/mdm/job-structure-data'
       }
     ]
+  },
+  {
+    id: 'asset-management',
+    title: 'Asset Management',
+    description: 'Manage IT equipment inventory, track allocations, and monitor asset lifecycle',
+    icon: Desktop,
+    category: 'management',
+    kpiType: 'assets',
+    links: [
+      {
+        label: 'Asset Management',
+        action: '/platform/hr/assets'
+      }
+    ]
   }
-];
+]
 
 export const hrQuickActions: HrQuickAction[] = [
   {
@@ -149,7 +164,7 @@ export const hrQuickActions: HrQuickAction[] = [
     icon: FolderOpen,
     action: 'add-project'
   }
-];
+]
 
 export const categoryLabels: Record<string, string> = {
   core: 'Core HR Functions',
@@ -157,8 +172,8 @@ export const categoryLabels: Record<string, string> = {
   analytics: 'Analytics & Reports',
   settings: 'Configuration & Settings',
   'time-off': 'Time Off & Absences'
-};
+}
 
 export const getHrAreasByCategory = (category: string): HrArea[] => {
-  return hrAreas.filter(area => area.category === category);
-}; 
+  return hrAreas.filter(area => area.category === category)
+}

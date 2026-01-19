@@ -1,4 +1,4 @@
-import { FlowArea, FlowQuickAction } from '../types';
+import { FlowArea, FlowQuickAction } from '../types'
 import {
   RiPlayLine as Play,
   RiFolderOpenLine as FolderOpen,
@@ -13,7 +13,7 @@ import {
   RiFlowChart as Workflow,
   RiFileTextLine as FileText,
   RiCheckboxCircleLine as CheckCircle
-} from '@remixicon/react';
+} from '@remixicon/react'
 
 export const flowAreas: FlowArea[] = [
   {
@@ -51,7 +51,7 @@ export const flowAreas: FlowArea[] = [
     icon: ChartLine,
     category: 'analytics'
   }
-];
+]
 
 // Manager-specific cards (used as templates for dynamic generation)
 export const managerFlowAreas: FlowArea[] = [
@@ -107,7 +107,7 @@ export const managerFlowAreas: FlowArea[] = [
     buttonLabel: 'View Team Analytics',
     buttonAction: 'navigate-team-analytics'
   }
-];
+]
 
 // Admin-specific cards
 export const adminFlowAreas: FlowArea[] = [
@@ -137,7 +137,7 @@ export const adminFlowAreas: FlowArea[] = [
     buttonLabel: 'View System Analytics',
     buttonAction: 'navigate-system-analytics'
   }
-];
+]
 
 export const quickActions: FlowQuickAction[] = [
   {
@@ -164,15 +164,15 @@ export const quickActions: FlowQuickAction[] = [
     icon: ChartLine,
     action: 'view-analytics'
   }
-];
+]
 
 export const categoryLabels: Record<string, string> = {
   core: 'Core Flow Management',
-  management: 'Team & Process Management', 
+  management: 'Team & Process Management',
   analytics: 'Analytics & Insights',
   admin: 'System Administration'
-};
+}
 
 export const getFlowAreasByCategory = (category: string): FlowArea[] => {
-  return flowAreas.filter(area => area.category === category);
-};
+  return flowAreas.filter(area => area.category === category)
+}

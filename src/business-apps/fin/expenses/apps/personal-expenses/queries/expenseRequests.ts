@@ -65,7 +65,22 @@ export const GET_EXPENSE_REQUESTS_BY_EMPLOYEE = `
       }
     }
   }
-`;
+`
+
+export const GET_USED_REQUEST_CURRENCIES_BY_EMPLOYEE = `
+  query GetUsedRequestCurrenciesByEmployee($employeeId: uuid!, $limit: Int = 2000) {
+    ExpenseRequest(
+      where: {
+        employeeId: { _eq: $employeeId }
+        isDeleted: { _eq: false }
+      }
+      limit: $limit
+    ) {
+      currencyRef
+      currency { code }
+    }
+  }
+`
 
 export const GET_EXPENSE_REQUEST_BY_ID = `
   query GetExpenseRequestById($id: uuid!) {
@@ -116,17 +131,28 @@ export const GET_EXPENSE_REQUEST_BY_ID = `
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_REQUEST_STATISTICS = `
-  query GetExpenseRequestStatistics($employeeId: uuid!, $startDate: timestamp!, $endDate: timestamp!) {
+  query GetExpenseRequestStatistics($employeeId: uuid!, $startDate: timestamp!, $endDate: timestamp!, $currencyRef: String!) {
     ExpenseRequestAggregate(
       where: {
-        employeeId: {_eq: $employeeId},
-        isDeleted: {_eq: false},
-        requestDate: {_gte: $startDate, _lt: $endDate}
-        status: {_in: ["PAID", "CLOSED", "TRANSFERRED"]},
-        currencyRef: {_eq: "Currency:v1:EUR"}
+        _and: [
+          { employeeId: {_eq: $employeeId} },
+          { isDeleted: {_eq: false} },
+          { status: {_in: ["PAID", "CLOSED", "TRANSFERRED"]} },
+          { currencyRef: {_eq: $currencyRef} },
+          { _or: [
+              { _and: [
+                  { expenseItem: { expenseDate: { _gte: $startDate, _lt: $endDate } } },
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
+                ] },
+              { _and: [
+                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:TRIP"} },
+                  { startDate: { _gte: $startDate, _lt: $endDate } }
+                ] }
+            ] }
+        ]
       }
     ) {
       aggregate {
@@ -141,6 +167,7 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
         status: {_eq: "PENDING"},
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {
@@ -152,7 +179,7 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
         employeeId: {_eq: $employeeId},
         isDeleted: {_eq: false},
         status: {_nin: ["PAID", "CLOSED", "TRANSFERRED"]},
-        currencyRef: {_eq: "Currency:v1:EUR"}
+        currencyRef: {_eq: $currencyRef}
       }
     ) {
       aggregate {
@@ -162,4 +189,86 @@ export const GET_EXPENSE_REQUEST_STATISTICS = `
       }
     }
   }
-`;
+`
+
+export const GET_EXPENSE_REQUEST_STATISTICS_CONSOLIDATED = `
+  query GetExpenseRequestStatisticsConsolidated(
+    $employeeId: uuid!,
+    $currentStart: timestamp!,
+    $currentEnd: timestamp!,
+    $previousStart: timestamp!,
+    $previousEnd: timestamp!,
+    $currencyRef: String!
+  ) {
+    Current: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { employeeId: { _eq: $employeeId } },
+          { isDeleted: { _eq: false } },
+          { status: { _in: ["PAID", "CLOSED", "TRANSFERRED"] } },
+          { currencyRef: { _eq: $currencyRef } },
+          { _or: [
+              { _and: [
+                  { expenseItem: { expenseDate: { _gte: $currentStart, _lt: $currentEnd } } },
+                  { requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } }
+                ] },
+              { _and: [
+                  { requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" } },
+                  { startDate: { _gte: $currentStart, _lt: $currentEnd } }
+                ] }
+            ] }
+        ]
+      }
+    ) {
+      aggregate {
+        count
+        sum { totalAmount }
+      }
+    }
+    Previous: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { employeeId: { _eq: $employeeId } },
+          { isDeleted: { _eq: false } },
+          { status: { _in: ["PAID", "CLOSED", "TRANSFERRED"] } },
+          { currencyRef: { _eq: $currencyRef } },
+          { _or: [
+              { _and: [
+                  { expenseItem: { expenseDate: { _gte: $previousStart, _lt: $previousEnd } } },
+                  { requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } }
+                ] },
+              { _and: [
+                  { requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" } },
+                  { startDate: { _gte: $previousStart, _lt: $previousEnd } }
+                ] }
+            ] }
+        ]
+      }
+    ) {
+      aggregate {
+        count
+        sum { totalAmount }
+      }
+    }
+    PendingApproval: ExpenseRequestAggregate(
+      where: {
+        employeeId: { _eq: $employeeId },
+        isDeleted: { _eq: false },
+        status: { _eq: "PENDING" },
+        currencyRef: { _eq: $currencyRef }
+      }
+    ) {
+      aggregate { count }
+    }
+    ReimbursableAmount: ExpenseRequestAggregate(
+      where: {
+        employeeId: { _eq: $employeeId },
+        isDeleted: { _eq: false },
+        status: { _nin: ["PAID", "CLOSED", "TRANSFERRED"] },
+        currencyRef: { _eq: $currencyRef }
+      }
+    ) {
+      aggregate { sum { reimbursableAmount } }
+    }
+  }
+`

@@ -1,214 +1,175 @@
-import React from 'react';
-import { 
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  Badge,
-  Separator,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle
-} from '@newwork/nw-design-system';
-import { getExpensePlanStatusDisplay, formatCurrencyDisplay } from '../../../utils';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { PiCalendarDuotone, PiClock, PiPath, PiArrowRight } from 'react-icons/pi';
-import dayjs from 'dayjs';
-import { getTranslationFromI18nKeyAndLabel, getDateFormat } from '@/common/utils/windowUtils';
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { formatNumberFunction } from '@/common/utils/windowUtils';
+import React, { useMemo } from 'react'
+import { Separator, Button, Badge } from '@newwork/nw-design-system'
+import { getExpensePlanStatusDisplay, formatCurrencyDisplay } from '../../../utils'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { PiArrowRight } from 'react-icons/pi'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { generateExpensePlanActions } from '../../../utils/expensePlanActions'
+import { useExpensePlanFileService } from '../../../utils/expensePlanFileService'
+import TravelOrderAttachmentPreview from '../../../../../common/components/TravelOrderAttachmentPreview'
+import { ExpenseDetailsPanelContent } from '../../../../../common/components/details-panel/ExpenseDetailsPanelContent'
 
 export interface ExpensePlanDetailsProps extends BusinessAppContextProps {
-  selectedItem: any;
-  onClose: () => void;
+  selectedItem: any
+  onClose: () => void
+  planTypeLabel?: string
 }
 
 const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
   selectedItem,
-  onClose
+  onClose,
+  planTypeLabel,
+  ...contextProps
 }) => {
-  if (!selectedItem) return null;
-  
-  // Get trip type
-  const getTripType = () => {
-    if (selectedItem.requestType?.value) {
-      return selectedItem.requestType.value;
+  // Call hooks unconditionally before any early returns
+  const { printExpensePlan } = useExpensePlanFileService(contextProps)
+
+  // Memoize headerRight before early return to ensure hooks are always called in same order
+  const headerRight = useMemo(() => {
+    if (!selectedItem) return null
+    const statusConfig = getExpensePlanStatusDisplay(selectedItem.status)
+    return (
+      <Badge variant={(statusConfig as any).badgeVariant || 'outline'} data-testid="expense-plan-status-badge">
+        {statusConfig.label}
+      </Badge>
+    )
+  }, [selectedItem?.status])
+
+  if (!selectedItem) return null
+
+  const formatTypeLabel = (value?: string) => {
+    if (!value) return 'N/A'
+    const trimmed = String(value).trim()
+    if (!trimmed) return 'N/A'
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase()
+  }
+
+  // Translate known plan/request type values; fallback to formatted text
+  const translatePlanTypeValue = (raw?: string) => {
+    if (!raw) return 'N/A'
+    const code = raw.includes(':') ? raw.split(':').pop()?.toUpperCase() : raw.toUpperCase()
+    switch (code) {
+      case 'TRIP':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.trip', 'Trip')
+      case 'EXPENSE':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense', 'Expense')
+      default:
+        return formatTypeLabel(raw)
     }
-    const additionalProps = selectedItem.additionalProperties as Record<string, unknown> | null;
-    const tripType = additionalProps?.tripType ?? additionalProps?.travelType;
-    return tripType ?? 'Business Travel';
-  };
+  }
+
+  const getPlanType = () => {
+    if (selectedItem.requestType?.value) return selectedItem.requestType.value
+    if (selectedItem.type?.value) return selectedItem.type.value
+    if (selectedItem.requestType) return String(selectedItem.requestType)
+    if (selectedItem.type) return String(selectedItem.type)
+    return 'N/A'
+  }
+
+  const availableActions = generateExpensePlanActions(
+    selectedItem,
+    {
+      employeeId: contextProps.userInfo?.employeeDetails?.employeeId || '',
+      accessToken: contextProps.accessToken || '',
+      onClose: onClose
+    },
+    { includeDetails: false }
+  )
 
   return (
-    <div className="gba:p-6 gba:space-y-6" data-testid="expense-plan-details-content">
-      {/* Header Section */}
-      <div className="gba:flex gba:justify-between gba:items-start gba:mb-6">
-        <div className="gba:flex-1">
-          <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-1" data-testid="expense-plan-title">
-            {selectedItem.title}
-          </h2>
-          <p className="gba:text-sm gba:text-gray-500" data-testid="expense-plan-code">
-            {selectedItem.code}
-          </p>
-        </div>
-        <Badge 
-          variant={
-            getExpensePlanStatusDisplay(selectedItem.status).type === 'completed' ? 'success' : 
-            getExpensePlanStatusDisplay(selectedItem.status).type === 'error' ? 'destructive' : 
-            getExpensePlanStatusDisplay(selectedItem.status).type === 'task' ? 'warning' : 
-            getExpensePlanStatusDisplay(selectedItem.status).type === 'waiting' ? 'secondary' : 'default'
-          }
-          className="gba:text-sm"
-          data-testid="expense-plan-status-badge"
-        >
-          {getExpensePlanStatusDisplay(selectedItem.status).label}
-        </Badge>
-      </div>
-      
-      {/* Date Information */}
-      <Card>
-        <CardContent className="gba:p-4 gba:space-y-3">
-          {selectedItem.startDate && selectedItem.endDate && (
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <PiCalendarDuotone className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.duration', 'Duration')}: {' '}
-                {dayjs(selectedItem.startDate).format(getDateFormat('date.short'))} {' → '} 
-                {dayjs(selectedItem.endDate).format(getDateFormat('date.short'))}
-              </span>
-            </div>
-          )}
-          
-          {selectedItem.planDate && (
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <PiClock className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.plan_date', 'Plan Date')}: {' '}
-                {dayjs(selectedItem.planDate).format(getDateFormat('date.short'))}
-              </span>
-            </div>
-          )}
-          
-          {selectedItem.decisionDate && (
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <PiPath className="gba:text-gray-500" />
-              <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.decision_date', 'Decision Date')}: {' '}
-                {dayjs(selectedItem.decisionDate).format(getDateFormat('date.short'))}
-              </span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      
-      {/* Description */}
-      {selectedItem.description && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="gba:text-base">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.description','Description')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="gba:text-sm gba:text-gray-700" data-testid="expense-plan-description">
-              {selectedItem.description}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-      
-      {/* Details Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="gba:text-base">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_details','Plan Details')}</CardTitle>
-        </CardHeader>
-        <CardContent className="gba:space-y-4">
-          <div className="gba:grid gba:grid-cols-1 gba:gap-4">
-            {selectedItem.employee && (
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.requester', 'Requester')}
-                </span>
-                <span className="gba:text-sm gba:text-gray-900">{selectedItem.employee.fullName}</span>
-              </div>
-            )}
-            
-            {selectedItem.employee?.employeePosition?.supervisor && (
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.manager_title', 'Manager')}
-                </span>
-                <span className="gba:text-sm gba:text-gray-900">{selectedItem.employee.employeePosition.supervisor.fullName}</span>
-              </div>
-            )}
-            
-            {selectedItem.costCenter && (
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_request_container.current_cost_center_label', 'Cost Center')}
-                </span>
-                <span className="gba:text-sm gba:text-gray-900">{selectedItem.costCenter.name}</span>
-              </div>
-            )}
-            
-            {selectedItem.project && (
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:add_allowance_info_request.select_project', 'Project')}
-                </span>
-                <span className="gba:text-sm gba:text-gray-900">{selectedItem.project.name}</span>
-              </div>
-            )}
-            
-            <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.trip_type', 'Trip Type')}
-              </span>
-              <span className="gba:text-sm gba:text-gray-900">{getTripType()}</span>
-            </div>
-            
-            <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.total_amount', 'Total Amount')}
-              </span>
-              <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
-                {formatCurrencyDisplay(selectedItem.totalAmount, selectedItem.currency?.code)}
-              </span>
-            </div>
-            
-            {selectedItem.advancePaymentPaidAmount > 0 && (
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.advance_payment', 'Advance Payment')}
-                </span>
-                <span className="gba:text-sm gba:font-semibold gba:text-gray-900">
-                  {formatCurrencyDisplay(selectedItem.advancePaymentPaidAmount, selectedItem.currency?.code)}
-                </span>
-              </div>
-            )}
+    <ExpenseDetailsPanelContent
+      dataTestIdPrefix="expense-plan-details"
+      showHeader={false}
+      record={{
+        title: selectedItem.title,
+        code: selectedItem.code,
+        employee: undefined,
+        employeeCode: undefined,
+        sapNumber: undefined,
+        startDate: selectedItem.startDate ? formatDate(selectedItem.startDate, 'date.short') : 'N/A',
+        endDate: selectedItem.endDate ? formatDate(selectedItem.endDate, 'date.short') : 'N/A',
+        creationDate: selectedItem.createdAt ? formatDate(selectedItem.createdAt, 'date.short') : 'N/A',
+        totalRemainingAmount: selectedItem.totalRemainingAmount,
+        totalAmount: typeof selectedItem.totalAmount === 'number' ? selectedItem.totalAmount : 0,
+        currency: selectedItem.currency?.code || selectedItem.currencyRef || 'EUR'
+      }}
+      formatAmount={(amount, currencyCode) => formatCurrencyDisplay(amount, currencyCode)}
+      afterHeaderContent={
+        availableActions.length > 0 ? (
+          <div className="gba:flex gba:justify-end">
+            <AppActionButton
+              data-testid="expense-plan-details-action-button"
+              size="icon"
+              staticFlowData={availableActions}
+              prefixDataTestId="expense-plan-details-action"
+              accessToken={contextProps.accessToken}
+              emptyStateBehavior="disable"
+              deferMainContextRequestsUntilClick={true}
+            />
           </div>
-        </CardContent>
-      </Card>
-      
-      <Separator />
-      
-      {/* Action Button */}
-      <div className="gba:flex gba:justify-end">
-        <Button 
-          variant="default"
-          onClick={() => {
-            // Navigate to the expense plan record page
-            const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', { expensePlanId: selectedItem.id });
-            navigateTo(url);
-          }}
-          data-testid="view-expense-plan-details-button"
-        >
-          <PiArrowRight className="gba:mr-2" />
-          {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.plan_details.view_full_details', 'View Full Details')}
-        </Button>
-      </div>
-    </div>
-  );
-};
+        ) : undefined
+      }
+      additionalFields={[
+        {
+          label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plan_type', 'Plan Type'),
+          value: translatePlanTypeValue(planTypeLabel ?? getPlanType())
+        },
+        // Only show Request Type if there's a linked expense request
+        ...(selectedItem.expenseRequest &&
+        Array.isArray(selectedItem.expenseRequest) &&
+        selectedItem.expenseRequest.length > 0
+          ? [
+              {
+                label: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_calculation_rule.affected_expense_modal.request_type',
+                  'Request Type'
+                ),
+                value: translatePlanTypeValue(
+                  selectedItem.expenseRequest[0]?.requestType?.value ||
+                    (selectedItem.expenseRequest[0]?.requestType
+                      ? String(selectedItem.expenseRequest[0].requestType)
+                      : 'N/A')
+                )
+              }
+            ]
+          : [])
+      ]}
+      headerRight={headerRight}
+      extraContent={
+        <TravelOrderAttachmentPreview
+          record={selectedItem}
+          fetchPdf={printExpensePlan as any}
+          dataTestIdPrefix="expense-plan-details"
+        />
+      }
+      footer={
+        <>
+          <Separator />
+          <div className="gba:flex gba:justify-end gba:mt-4">
+            <Button
+              variant="default"
+              onClick={() => {
+                const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', {
+                  expensePlanId: selectedItem.id,
+                  referrer: '/platform/fin/expenses/personal-expenses?tab=expense-plans'
+                })
+                navigateTo(url)
+              }}
+              data-testid="view-expense-plan-details-button"
+            >
+              <PiArrowRight className="gba:mr-2" />
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:team_expenses_page.plan_details.view_full_details',
+                'View Full Details'
+              )}
+            </Button>
+          </div>
+        </>
+      }
+    />
+  )
+}
 
-export default ExpensePlanDetails;
+export default ExpensePlanDetails

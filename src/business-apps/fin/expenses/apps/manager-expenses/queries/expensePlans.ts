@@ -47,6 +47,24 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
       id
       code
       title
+      requestType {
+        value
+        translations {
+          value
+          localeCode
+        }
+      }
+      expenseRequest { 
+        id 
+        code
+        requestType {
+          value
+          translations {
+            value
+            localeCode
+          }
+        }
+      }
       startDate
       endDate
       status
@@ -58,11 +76,20 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
       updatedAt
       decisionDate
       planDate
+      employeeDocument {
+        id
+        file
+        fileSize
+        name
+        mimeType
+      }
       employee {
         id
+        code
         displayName
         fullName
         pictureThumbnail
+        additionalProperties
         employeePosition {
           organizationalUnit {
             id
@@ -72,7 +99,7 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_PLAN_STATISTICS = `
   query GetExpensePlanStatistics($managerId: uuid!) {
@@ -113,7 +140,7 @@ export const GET_EXPENSE_PLAN_STATISTICS = `
     }
   }
 }
-`;
+`
 
 export const APPROVE_EXPENSE_PLAN = `
   mutation ApproveExpensePlan($planId: uuid!, $approverEmployeeId: uuid!, $comments: String) {
@@ -133,7 +160,7 @@ export const APPROVE_EXPENSE_PLAN = `
       }
     }
   }
-`;
+`
 
 export const REJECT_EXPENSE_PLAN = `
   mutation RejectExpensePlan($planId: uuid!, $rejectorEmployeeId: uuid!, $reason: String!) {
@@ -153,4 +180,4 @@ export const REJECT_EXPENSE_PLAN = `
       }
     }
   }
-`;
+`

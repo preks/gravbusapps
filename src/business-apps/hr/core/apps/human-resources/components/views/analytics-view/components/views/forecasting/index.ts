@@ -1,2 +1,2 @@
-export { Forecasting } from './Forecasting';
-export { default } from './Forecasting'; 
+export { Forecasting } from './Forecasting'
+export { default } from './Forecasting'

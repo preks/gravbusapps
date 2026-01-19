@@ -1,0 +1,91 @@
+# CRM and IRM Publishing Commands
+# Execute in PowerShell: Copy the commands below and run them
+
+## CRM Module Publishing Commands
+
+# CRM Apps
+npm run publish:screen -- "crm/core/apps/customer-launcher" --no-interaction ; npm run publish:screen -- "crm/core/apps/customer-relations" --no-interaction ; npm run publish:screen -- "crm/core/apps/customer-settings" --no-interaction ; npm run publish:screen -- "crm/performance/apps/sales-team-performance" --no-interaction ; npm run publish:screen -- "crm/core/forms/account-form" --no-interaction ; npm run publish:screen -- "crm/core/forms/campaign-form" --no-interaction ; npm run publish:screen -- "crm/core/forms/contact-form" --no-interaction ; npm run publish:screen -- "crm/core/forms/convert-lead-form" --no-interaction ; npm run publish:screen -- "crm/core/forms/lead-form" --no-interaction ; npm run publish:screen -- "crm/core/forms/mark-as-lost-form" --no-interaction ; npm run publish:screen -- "crm/core/forms/notes-form" --no-interaction ; npm run publish:screen -- "crm/core/forms/opportunity-form" --no-interaction ; npm run publish:screen -- "crm/core/forms/sales-activity-form" --no-interaction ; npm run publish:screen -- "crm/core/forms/sales-task-form" --no-interaction ; npm run publish:screen -- "crm/core/popups/document-creation-popup" --no-interaction ; npm run publish:screen -- "crm/core/popups/note-delete-popup" --no-interaction ; npm run publish:screen -- "crm/core/popups/stage-condition-popup" --no-interaction ; npm run publish:screen -- "crm/core/popups/stage-transition-popup" --no-interaction ; npm run publish:screen -- "crm/core/records/account-record" --no-interaction ; npm run publish:screen -- "crm/core/records/campaign-record" --no-interaction ; npm run publish:screen -- "crm/core/records/contact-record" --no-interaction ; npm run publish:screen -- "crm/core/records/lead-record" --no-interaction ; npm run publish:screen -- "crm/core/records/opportunity-record" --no-interaction ; npm run publish:screen -- "irm/core/apps/investment-launcher" --no-interaction ; npm run publish:screen -- "irm/core/apps/investment-relations" --no-interaction ; npm run publish:screen -- "irm/core/apps/investment-settings" --no-interaction ; npm run publish:screen -- "irm/investments/apps/investment-management" --no-interaction ; npm run publish:screen -- "irm/investments/apps/investment-report-portal" --no-interaction ; npm run publish:screen -- "irm/core/forms/account-form" --no-interaction ; npm run publish:screen -- "irm/core/forms/activity-form" --no-interaction ; npm run publish:screen -- "irm/core/forms/contact-form" --no-interaction ; npm run publish:screen -- "irm/core/forms/document-upload-form" --no-interaction ; npm run publish:screen -- "irm/core/forms/lead-convert-form" --no-interaction ; npm run publish:screen -- "irm/core/forms/lead-form" --no-interaction ; npm run publish:screen -- "irm/core/forms/note-form" --no-interaction ; npm run publish:screen -- "irm/core/forms/opportunity-form" --no-interaction ; npm run publish:screen -- "irm/core/forms/task-form" --no-interaction ; npm run publish:screen -- "irm/investments/forms/equity-investment-round-form" --no-interaction ; npm run publish:screen -- "irm/investments/forms/investment-form" --no-interaction ; npm run publish:screen -- "irm/investments/forms/investment-report-approve-form" --no-interaction ; npm run publish:screen -- "irm/investments/forms/investment-report-form" --no-interaction ; npm run publish:screen -- "irm/investments/forms/investment-report-upload-form" --no-interaction ; npm run publish:screen -- "irm/core/popups/activity-delete-popup" --no-interaction ; npm run publish:screen -- "irm/core/popups/document-delete-popup" --no-interaction ; npm run publish:screen -- "irm/core/popups/document-popup" --no-interaction ; npm run publish:screen -- "irm/core/popups/document-update-popup" --no-interaction ; npm run publish:screen -- "irm/core/popups/note-delete-popup" --no-interaction ; npm run publish:screen -- "irm/core/popups/stage-condition-popup" --no-interaction ; npm run publish:screen -- "irm/core/popups/stage-transition-popup" --no-interaction ; npm run publish:screen -- "irm/core/popups/status-update-popup" --no-interaction ; npm run publish:screen -- "irm/core/popups/task-delete-popup" --no-interaction ; npm run publish:screen -- "irm/investments/popups/equity-investment-round-delete-popup" --no-interaction ; npm run publish:screen -- "irm/investments/popups/investment-delete-popup" --no-interaction ; npm run publish:screen -- "irm/investments/popups/investment-popup" --no-interaction ; npm run publish:screen -- "irm/core/records/account-record" --no-interaction ; npm run publish:screen -- "irm/core/records/contact-record" --no-interaction ; npm run publish:screen -- "irm/core/records/lead-record" --no-interaction ; npm run publish:screen -- "irm/core/records/opportunity-record" --no-interaction ; npm run publish:screen -- "irm/investments/records/investment-record" --no-interaction
+
+## Component Breakdown
+
+### CRM Components (23 total)
+
+#### Apps (4)
+- crm/core/apps/customer-launcher
+- crm/core/apps/customer-relations
+- crm/core/apps/customer-settings
+- crm/performance/apps/sales-team-performance
+
+#### Forms (10)
+- crm/core/forms/account-form
+- crm/core/forms/campaign-form
+- crm/core/forms/contact-form
+- crm/core/forms/convert-lead-form
+- crm/core/forms/lead-form
+- crm/core/forms/mark-as-lost-form
+- crm/core/forms/notes-form
+- crm/core/forms/opportunity-form
+- crm/core/forms/sales-activity-form
+- crm/core/forms/sales-task-form
+
+#### Popups (4)
+- crm/core/popups/document-popup
+- crm/core/popups/note-delete-popup
+- crm/core/popups/stage-condition-popup
+- crm/core/popups/stage-transition-popup
+
+#### Records (5)
+- crm/core/records/account-record
+- crm/core/records/campaign-record
+- crm/core/records/contact-record
+- crm/core/records/lead-record
+- crm/core/records/opportunity-record
+
+### IRM Components (33 total)
+
+#### Apps (5)
+- irm/core/apps/investment-launcher
+- irm/core/apps/investment-relations
+- irm/core/apps/investment-settings
+- irm/investments/apps/investment-management
+- irm/investments/apps/investment-report-portal
+
+#### Forms (14)
+- irm/core/forms/account-form
+- irm/core/forms/activity-form
+- irm/core/forms/contact-form
+- irm/core/forms/document-upload-form
+- irm/core/forms/lead-convert-form
+- irm/core/forms/lead-form
+- irm/core/forms/note-form
+- irm/core/forms/opportunity-form
+- irm/core/forms/task-form
+- irm/investments/forms/equity-investment-round-form
+- irm/investments/forms/investment-form
+- irm/investments/forms/investment-report-approve-form
+- irm/investments/forms/investment-report-form
+- irm/investments/forms/investment-report-upload-form
+
+#### Popups (11)
+- irm/core/popups/activity-delete-popup
+- irm/core/popups/document-delete-popup
+- irm/core/popups/document-popup (handles both create and update)
+- irm/core/popups/note-delete-popup
+- irm/core/popups/stage-condition-popup
+- irm/core/popups/stage-transition-popup
+- irm/core/popups/status-update-popup
+- irm/core/popups/task-delete-popup
+- irm/investments/popups/equity-investment-round-delete-popup
+- irm/investments/popups/investment-delete-popup
+- irm/investments/popups/investment-popup
+
+#### Records (5)
+- irm/core/records/account-record
+- irm/core/records/contact-record
+- irm/core/records/lead-record
+- irm/core/records/opportunity-record
+- irm/investments/records/investment-record
+
+### Total: 55 components (24 CRM + 31 IRM)
+### Note: document-popup now handles both create and update modes (following ActivityForm/NoteForm pattern)
+

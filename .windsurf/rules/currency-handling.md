@@ -2,6 +2,7 @@
 description: Always use when currencies are required
 alwaysApply: false
 ---
+
 # Currency Handling Pattern
 
 When working with financial data and currency formatting:
@@ -10,26 +11,29 @@ When working with financial data and currency formatting:
 **Solution**: Extract actual currency code for `Intl.NumberFormat`
 
 ## Currency Code Extraction
+
 ```typescript
 const extractCurrencyCode = (currencyId: string): string => {
-  return currencyId.split(':').pop() || 'EUR';
-};
+  return currencyId.split(':').pop() || 'EUR'
+}
 ```
 
 ## Currency Formatting
+
 ```typescript
 const formatCurrency = (amount: number, currencyId: string): string => {
-  const currency = extractCurrencyCode(currencyId);
+  const currency = extractCurrencyCode(currencyId)
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
-  }).format(amount);
-};
+  }).format(amount)
+}
 ```
 
 ## Table Column Usage
+
 ```typescript
 {
   title: 'Amount',
@@ -44,7 +48,3 @@ const formatCurrency = (amount: number, currencyId: string): string => {
 ```
 
 @src/business-apps/mdm/apps/compensation-data/components/tabs/PayGradesTab.tsx
-
-
-
-

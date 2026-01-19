@@ -12,7 +12,7 @@ export const GET_EXPENSE_PLANS_BY_USER = `
       name
     }
   }
-`;
+`
 
 // GraphQL query for fetching specific expense plan details (called only when plan is selected)
 export const GET_EXPENSE_PLAN_DETAILS = `
@@ -42,4 +42,4 @@ export const GET_EXPENSE_PLAN_DETAILS = `
       currencyRef
     }
   }
-`;
+`

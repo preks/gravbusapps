@@ -1,22 +1,30 @@
-import React, { useState } from 'react';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient';
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Table, TableBody, TableCell, TableHead, TableHeader, TableRow, Badge, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@newwork/nw-design-system';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { AlertTriangle, Plus } from 'lucide-react';
-import { message } from 'antd';
-import { EditOutlined, PlusOutlined } from '@ant-design/icons';
+import React, { useEffect, useState } from 'react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
+import {
+  Card,
+  CardContent,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Badge
+} from '@newwork/nw-design-system'
+import { FileText, Layers } from 'lucide-react'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
 interface FlowTemplateListProps {
-  templates: FlowTemplate[];
-  onCreateNew: () => void;
-  onEdit: (template: FlowTemplate) => void;
-  onDelete: (template: FlowTemplate) => Promise<void>;
-  onTemplateSelect?: (template: FlowTemplate | null) => void;
-  selectedTemplate?: FlowTemplate | null;
-  accessToken: string;
-  'data-testid'?: string;
+  templates: FlowTemplate[]
+  onCreateNew: () => void
+  onEdit: (template: FlowTemplate) => void
+  onDelete?: (template: FlowTemplate) => Promise<void>
+  onTemplateSelect?: (template: FlowTemplate | null) => void
+  selectedTemplate?: FlowTemplate | null
+  accessToken?: string
+  searchTerm?: string
+  'data-testid'?: string
 }
 
 /**
@@ -24,201 +32,205 @@ interface FlowTemplateListProps {
  */
 export const FlowTemplateList: React.FC<FlowTemplateListProps> = ({
   templates,
-  onCreateNew,
   onEdit,
-  onDelete,
   onTemplateSelect,
   selectedTemplate,
-  accessToken,
+  searchTerm = '',
+  accessToken = '',
   'data-testid': testId = 'flow-template-list'
 }) => {
-  const [deletingTemplate, setDeletingTemplate] = useState<FlowTemplate | null>(null);
+  const catalogClient = useCatalogManagerClient(accessToken)
+  const [catalogMap, setCatalogMap] = useState<Record<string, string>>({})
 
-  const handleDeleteClick = (template: FlowTemplate) => {
-    setDeletingTemplate(template);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!deletingTemplate) return;
-
-    try {
-      await onDelete(deletingTemplate);
-      message.success(getTranslationFromI18nKeyAndLabel('flow.creator.deleteSuccess', 'Definition deleted successfully'));
-      setDeletingTemplate(null);
-    } catch (error) {
-      console.error('Failed to delete template:', error);
-      message.error(getTranslationFromI18nKeyAndLabel('flow.creator.deleteError', 'Failed to delete definition'));
+  // Parse catalog reference to extract identifier, version, and code
+  const parseCatalogReference = (
+    catalogRef: string
+  ): { catalogIdentifier: string; version: string; code: string } | null => {
+    const parts = catalogRef.split(':')
+    if (parts.length !== 3) return null
+    return {
+      catalogIdentifier: parts[0],
+      version: parts[1],
+      code: parts[2]
     }
-  };
+  }
 
-  const handleCancelDelete = () => {
-    setDeletingTemplate(null);
-  };
+  // Load all catalog entries based on templates (apps and service categories)
+  useEffect(() => {
+    const loadCatalogs = async () => {
+      if (!accessToken || templates.length === 0) return
+
+      // Collect unique catalog references from all templates
+      const catalogRefsSet = new Set<string>()
+      for (const template of templates) {
+        // Add app catalog references
+        if (template.tags?.app) {
+          const parsed = parseCatalogReference(template.tags.app)
+          if (parsed) {
+            catalogRefsSet.add(`${parsed.catalogIdentifier}:${parsed.version}`)
+          }
+        }
+        // Add service category catalog references
+        const serviceCategory = template.tags?.serviceCategory
+        if (serviceCategory) {
+          const categoryValue = Array.isArray(serviceCategory) ? serviceCategory[0] : serviceCategory
+          const parsed = parseCatalogReference(categoryValue)
+          if (parsed) {
+            catalogRefsSet.add(`${parsed.catalogIdentifier}:${parsed.version}`)
+          }
+        }
+      }
+
+      // Load catalog entries for each unique catalog reference
+      const allCatalogMap: Record<string, string> = {}
+
+      for (const catalogRef of catalogRefsSet) {
+        try {
+          const [catalogIdentifier, version] = catalogRef.split(':')
+          const response = await catalogClient.getCatalogEntriesList(
+            { catalogIdentifier, version },
+            {
+              limit: 100,
+              includeChildCatalogEntries: true,
+              returnTotalRecords: true
+            }
+          )
+
+          // Map each entry using the full catalog reference format
+          for (const entry of response.data || []) {
+            const catalogValue = `${catalogIdentifier}:${version}:${entry.code}`
+            allCatalogMap[catalogValue] = entry.value || entry.code || entry.id
+          }
+        } catch (err) {
+          console.error(`Error loading catalog ${catalogRef}:`, err)
+        }
+      }
+
+      setCatalogMap(allCatalogMap)
+    }
+
+    loadCatalogs()
+  }, [accessToken, templates, catalogClient])
+
+  // Resolve catalog entry name from catalog value
+  const resolveCatalogName = (catalogValue: string): string => {
+    return catalogMap[catalogValue] || catalogValue
+  }
+
+  if (templates.length === 0) {
+    return (
+      <div className="gba:text-center gba:py-16" data-testid={`${testId}-empty`}>
+        <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
+          <FileText className="gba:h-8 gba:w-8 gba:text-muted-foreground" />
+        </div>
+        {searchTerm ? (
+          <div className="gba:space-y-2">
+            <h3 className="gba:font-medium gba:text-foreground">No results found</h3>
+            <p className="gba:text-sm gba:text-muted-foreground">
+              No templates match "{searchTerm}". Try a different search term.
+            </p>
+          </div>
+        ) : (
+          <div className="gba:space-y-2">
+            <h3 className="gba:font-medium gba:text-foreground">No flows yet</h3>
+            <p className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('flow.creator.noTemplates', 'Create your first flow to get started.')}
+            </p>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
-    <>
-      <Card className="gba:w-full" data-testid={testId}>
-        <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between" data-testid={`${testId}-header`}>
-          <div data-testid={`${testId}-header-title`}>
-            <CardTitle>
-              {getTranslationFromI18nKeyAndLabel('flow.creator.templatesList', 'Flow Definitions')}
-            </CardTitle>
-            <CardDescription>
-              {getTranslationFromI18nKeyAndLabel('flow.creator.templatesDescription', 'Create and manage flow definitions')}
-            </CardDescription>
-          </div>
-          
-          <Button 
-            onClick={onCreateNew} 
-            className="gba:bg-gradient-to-r gba:from-purple-600 gba:to-indigo-600 gba:hover:from-purple-700 gba:hover:to-indigo-700 gba:text-white gba:font-semibold gba:py-2 gba:px-4 gba:rounded-lg gba:shadow-lg gba:shadow-purple-500/25 gba:transition-all gba:duration-200 gba:hover:shadow-xl gba:hover:shadow-purple-500/40 gba:hover:scale-[1.02]"
-            data-testid={`${testId}-create-button`}
-          >
-            <Plus className="gba:h-5 gba:w-5 gba:mr-2" />
-            {getTranslationFromI18nKeyAndLabel('flow.creator.createNew', 'Create New')}
-          </Button>
-        </CardHeader>
+    <Card className="gba:border-border gba:overflow-hidden" data-testid={testId}>
+      <CardContent className="gba:p-0" data-testid={`${testId}-content`}>
+        <Table className="gba:table-fixed gba:w-full" data-testid={`${testId}-table`}>
+          <TableHeader>
+            <TableRow className="gba:border-border gba:hover:bg-transparent">
+              <TableHead
+                className="gba:text-muted-foreground gba:font-medium gba:w-[55%]"
+                data-testid={`${testId}-header-name`}
+              >
+                {getTranslationFromI18nKeyAndLabel('flow.creator.templateName', 'Name')}
+              </TableHead>
+              <TableHead
+                className="gba:text-muted-foreground gba:font-medium gba:w-[35%]"
+                data-testid={`${testId}-header-service-category`}
+              >
+                {getTranslationFromI18nKeyAndLabel('flow.creator.serviceCategory', 'Category')}
+              </TableHead>
+              <TableHead
+                className="gba:text-muted-foreground gba:font-medium gba:w-[10%] gba:text-center"
+                data-testid={`${testId}-header-steps`}
+              >
+                {getTranslationFromI18nKeyAndLabel('flow.creator.templateSteps', 'Steps')}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
 
-        <CardContent data-testid={`${testId}-content`}>
-          {templates.length === 0 ? (
-            <div className="gba:text-center gba:py-8 gba:text-gray-500" data-testid={`${testId}-empty`}>
-              {getTranslationFromI18nKeyAndLabel('flow.creator.noTemplates', 'No flow definitions found. Create your first definition!')}
-            </div>
-          ) : (
-            <Table data-testid={`${testId}-table`}>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="gba:w-[60px]" data-testid={`${testId}-header-actions`}>
-                    ACTIONS
-                  </TableHead>
-                  <TableHead data-testid={`${testId}-header-name`}>
-                    {getTranslationFromI18nKeyAndLabel('flow.creator.templateName', 'Name')}
-                  </TableHead>
-                  <TableHead data-testid={`${testId}-header-description`}>
-                    {getTranslationFromI18nKeyAndLabel('flow.creator.templateDescription', 'Description')}
-                  </TableHead>
-                  <TableHead data-testid={`${testId}-header-steps`}>
-                    {getTranslationFromI18nKeyAndLabel('flow.creator.templateSteps', 'Steps')}
-                  </TableHead>
-                  <TableHead data-testid={`${testId}-header-edit-actions`}>
-                    {getTranslationFromI18nKeyAndLabel('flow.creator.templateActions', 'Actions')}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {templates.map((template, index) => {
-                  const isSelected = selectedTemplate?.id === template.id;
-                  return (
-                    <TableRow 
-                      key={template.id || index} 
-                      data-testid={`${testId}-row-${index}`}
-                      className={isSelected ? 'gba:bg-blue-50 gba:border-l-4 gba:border-l-blue-500' : 'hover:gba:bg-gray-50 gba:cursor-pointer'}
-                      onClick={() => onTemplateSelect?.(template)}
+          <TableBody>
+            {templates.map((template, index) => {
+              const isSelected = selectedTemplate?.id === template.id
+              return (
+                <TableRow
+                  key={template.id || index}
+                  data-testid={`${testId}-row-${index}`}
+                  className={`gba:border-border gba:cursor-pointer gba:transition-colors ${
+                    isSelected ? 'gba:bg-primary/5' : 'gba:hover:bg-muted/50'
+                  }`}
+                  onClick={() => onEdit(template)}
+                >
+                  <TableCell data-testid={`${testId}-title-${index}`} className="gba:overflow-hidden">
+                    <div className="gba:space-y-1 gba:min-w-0">
+                      <div className="gba:font-medium gba:text-card-foreground gba:truncate">
+                        {template.name || 'Untitled Flow'}
+                      </div>
+                      {template.description && (
+                        <div className="gba:text-sm gba:text-muted-foreground gba:truncate">{template.description}</div>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell data-testid={`${testId}-service-category-${index}`} className="gba:overflow-hidden">
+                    <div className="gba:flex gba:flex-wrap gba:gap-1.5 gba:min-w-0">
+                      {template.tags?.serviceCategory && (
+                        <Badge variant="secondary" className="gba:truncate gba:max-w-full">
+                          {resolveCatalogName(
+                            Array.isArray(template.tags.serviceCategory)
+                              ? template.tags.serviceCategory[0]
+                              : template.tags.serviceCategory
+                          )}
+                        </Badge>
+                      )}
+                      {template.tags?.app && (
+                        <Badge variant="outline" className="gba:text-muted-foreground gba:truncate gba:max-w-full">
+                          {resolveCatalogName(template.tags.app)}
+                        </Badge>
+                      )}
+                      {!template.tags?.serviceCategory && !template.tags?.app && (
+                        <span className="gba:text-muted-foreground gba:text-sm">—</span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell data-testid={`${testId}-steps-${index}`} className="gba:text-center">
+                    <Badge
+                      variant="outline"
+                      className="gba:cursor-pointer"
+                      onClick={e => {
+                        e.stopPropagation()
+                        onTemplateSelect?.(template)
+                      }}
                     >
-                      <TableCell className="gba:py-4 gba:px-6" data-testid={`${testId}-app-actions-${index}`}>
-                        <div className="gba:flex gba:justify-start gba:gap-2">
-                          <AppActionButton
-                            data-testid={`flow-template-update-button-${template.id || index}`}
-                            variant="secondary"
-                            contextsArray={[FlowContextName.flowEntity]}
-                            externalContextData={{ entityId: template.id || `template-${index}` }}
-                            prefixDataTestId="flow-template-update"
-                            accessToken={accessToken}
-                            emptyStateBehavior="disable"
-                            deferMainContextRequestsUntilClick
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell className="gba:font-medium" data-testid={`${testId}-title-${index}`}>
-                        {template.name || 'Untitled Definition'}
-                      </TableCell>
-                      <TableCell data-testid={`${testId}-description-${index}`}>
-                        {template.description || 'No description'}
-                      </TableCell>
-                      <TableCell data-testid={`${testId}-steps-${index}`}>
-                        <Badge variant="outline">{template.steps?.length || 0} steps</Badge>
-                      </TableCell>
-                      <TableCell data-testid={`${testId}-actions-${index}`}>
-                        <div className="gba:flex gba:justify-start gba:gap-2">
-                          <Button 
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onEdit(template);
-                            }}
-                            data-testid={`${testId}-edit-${index}`}
-                          >
-                            <EditOutlined />
-                            {getTranslationFromI18nKeyAndLabel('flow.creator.edit', 'Edit')}
-                          </Button>
-                          {/* Temporarily disabled - Delete button */}
-                          {/*
-                          <Button 
-                            variant="destructive"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteClick(template);
-                            }}
-                            data-testid={`${testId}-delete-${index}`}
-                          >
-                            <DeleteOutlined />
-                            {getTranslationFromI18nKeyAndLabel('flow.creator.delete', 'Delete')}
-                          </Button>
-                          */}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={!!deletingTemplate} onOpenChange={(open) => !open && handleCancelDelete()}>
-        <DialogContent data-testid={`${testId}-delete-modal`}>
-          <DialogHeader>
-            <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-              <AlertTriangle className="gba:h-5 gba:w-5" style={{ color: 'var(--color-warning-500)' }} />
-              {getTranslationFromI18nKeyAndLabel('flow.creator.confirmDelete', 'Confirm Delete')}
-            </DialogTitle>
-            <DialogDescription>
-              <div className="gba:space-y-2">
-                <p>
-                  {getTranslationFromI18nKeyAndLabel('flow.creator.deleteMessage', 'Are you sure you want to delete this flow definition?')}
-                </p>
-                <p className="gba:font-medium">
-                  "{deletingTemplate?.name || 'Untitled Definition'}"
-                </p>
-                <p className="gba:text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                  {getTranslationFromI18nKeyAndLabel('flow.creator.deleteWarning', 'This action cannot be undone.')}
-                </p>
-              </div>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={handleCancelDelete}
-              data-testid={`${testId}-cancel-delete`}
-            >
-              {getTranslationFromI18nKeyAndLabel('flow.creator.cancel', 'Cancel')}
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleConfirmDelete}
-              data-testid={`${testId}-confirm-delete`}
-            >
-              {getTranslationFromI18nKeyAndLabel('flow.creator.deleteConfirm', 'Delete')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-};
+                      <Layers className="gba:h-3 gba:w-3 gba:mr-1" />
+                      {template.steps?.length || 0}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  )
+}

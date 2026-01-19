@@ -1,2 +1,2 @@
-export { EmployeeDirectory } from './EmployeeDirectory';
-export { default } from './EmployeeDirectory';
+export { EmployeeDirectory } from './EmployeeDirectory'
+export { default } from './EmployeeDirectory'

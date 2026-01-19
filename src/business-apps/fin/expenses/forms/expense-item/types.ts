@@ -1,69 +1,71 @@
 // Types for the ExpenseItem component
 
 export interface ExpenseItemProps {
-  title?: string;
-  additionalData?: any;
-  onClose?: (shouldRefetch?: boolean) => void;
+  title?: string
+  additionalData?: any
+  onClose?: (shouldRefetch?: boolean) => void
 }
 
 export interface ExpensePosition {
-  id: string;
-  expenseGroup: string;
-  expenseType: string;
-  amount: number;
-  costCenter: string;
-  customField?: string;
-  isReimbursable?: boolean;
+  id: string
+  expenseGroup: string
+  expenseType: string
+  amount: number
+  costCenter: string
+  customField?: string
+  isReimbursable?: boolean
+  persistedId?: string
+  persistedVersion?: string | number
 }
 
 export interface ExpenseItemData {
-  id?: string;
-  title: string;
-  date: string;
-  positions: ExpensePosition[];
-  totalAmount: number;
-  currency: string;
-  attachmentUrl?: string;
-  fileName?: string;
-  expenseRequestId?: string | null;
+  id?: string
+  title: string
+  date: string
+  positions: ExpensePosition[]
+  totalAmount: number
+  currency: string
+  attachmentUrl?: string
+  fileName?: string
+  expenseRequestId?: string | null
 }
 
 export interface ExpenseGroup {
-  id: string;
-  value: string;
+  id: string
+  value: string
   translations?: Array<{
-    localeCode: string;
-    value: string;
-  }>;
+    localeCode: string
+    value: string
+  }>
   catalog?: {
-    defaultLocale: string;
-  };
-  code?: string;
+    defaultLocale: string
+  }
+  code?: string
 }
 
 export interface ExpenseType {
-  id: string;
-  name: string;
-  classId: string;
-  code?: string;
+  id: string
+  name: string
+  classId: string
+  code?: string
 }
 
 export interface CustomField {
-  id: string;
-  infoValue: string;
-  mandatory: boolean;
-  source: string;
-  expenseRuleGeneralExpenseId: string;
-  expenseGroupRef?: string;
+  id: string
+  infoValue: string
+  mandatory: boolean
+  source: string
+  expenseRuleGeneralExpenseId: string
+  expenseGroupRef?: string
 }
 
 export interface CostCenter {
-  id: string;
-  name: string;
+  id: string
+  name: string
 }
 
 export interface Currency {
-  id: string;
-  code: string;
-  name: string;
+  id: string
+  code: string
+  name: string
 }

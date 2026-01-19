@@ -1,69 +1,98 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Progress, Badge, Avatar } from '@newwork/nw-design-system';
-import { Trophy, Crown, Star, User } from 'lucide-react';
-import EmptyState from '@/components/empty-state/EmptyState';
+import React from 'react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Progress,
+  Badge,
+  Avatar,
+  EmptyState,
+  Spinner
+} from '@newwork/nw-design-system'
+import { Trophy, Crown, Star, User } from 'lucide-react'
+import { formatCurrency, formatPercentage } from '@/common/utils/numberFormatter'
 
 export interface SalesRepPerformance {
-  employeeId: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  dealsWon: number;
-  dealsLost: number;
-  totalValue: number;
-  winRate: number;
-  activitiesCount: number;
+  employeeId: string
+  firstName: string
+  lastName: string
+  displayName: string
+  dealsWon: number
+  dealsLost: number
+  totalDeals?: number
+  totalValue: number
+  winRate: number
+  activitiesCount: number
 }
 
-const formatCurrency = (amount: number, currencyCode: string = 'EUR'): string => {
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currencyCode,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount);
-  } catch (error) {
-    return `${currencyCode} ${amount.toLocaleString()}`;
-  }
-};
-
-const formatPercentage = (value: number, decimals: number = 1): string => {
-  return `${value.toFixed(decimals)}%`;
-};
-
 export interface PerformanceLeaderboardProps {
-  leaderboard: SalesRepPerformance[];
-  pipelineId: string;
+  leaderboard: SalesRepPerformance[]
+  pipelineId: string
+  currency?: string
+  isLoading?: boolean
 }
 
 export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({
   leaderboard,
-  pipelineId
+  pipelineId,
+  currency = 'EUR',
+  isLoading = false
 }) => {
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <div className="gba:p-2 gba:bg-green-100 gba:rounded-lg">
+              <Trophy className="gba:h-5 gba:w-5 gba:text-green-600" />
+            </div>
+            <CardTitle>Performance Leaderboard</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="gba:flex gba:items-center gba:justify-center gba:h-40">
+            <div className="gba:text-center">
+              <Spinner size="sm" />
+              <div className="gba:mt-2 gba:text-sm gba:text-gray-600">Loading leaderboard...</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   const getRankIcon = (index: number) => {
     switch (index) {
-      case 0: return <Crown className="gba:h-4 gba:w-4 gba:text-yellow-500" />;
-      case 1: return <Trophy className="gba:h-4 gba:w-4 gba:text-gray-400" />;
-      case 2: return <Star className="gba:h-4 gba:w-4 gba:text-amber-600" />;
-      default: return <span className="gba:text-xs gba:font-bold gba:text-gray-500">#{index + 1}</span>;
+      case 0:
+        return <Crown className="gba:h-4 gba:w-4 gba:text-yellow-500" />
+      case 1:
+        return <Trophy className="gba:h-4 gba:w-4 gba:text-gray-400" />
+      case 2:
+        return <Star className="gba:h-4 gba:w-4 gba:text-amber-600" />
+      default:
+        return <span className="gba:text-xs gba:font-bold gba:text-gray-500">#{index + 1}</span>
     }
-  };
+  }
 
   const getRankColor = (index: number) => {
     switch (index) {
-      case 0: return 'gba:bg-yellow-500';
-      case 1: return 'gba:bg-gray-400';
-      case 2: return 'gba:bg-amber-600';
-      default: return 'gba:bg-gray-300';
+      case 0:
+        return 'gba:bg-yellow-500'
+      case 1:
+        return 'gba:bg-gray-400'
+      case 2:
+        return 'gba:bg-amber-600'
+      default:
+        return 'gba:bg-gray-300'
     }
-  };
+  }
 
   const getPerformanceColor = (winRate: number) => {
-    if (winRate >= 70) return 'gba:text-green-600';
-    if (winRate >= 50) return 'gba:text-orange-600';
-    return 'gba:text-red-600';
-  };
+    if (winRate >= 70) return 'gba:text-green-600'
+    if (winRate >= 50) return 'gba:text-orange-600'
+    return 'gba:text-red-600'
+  }
 
   if (!leaderboard || leaderboard.length === 0) {
     return (
@@ -76,17 +105,19 @@ export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({
         </CardHeader>
         <CardContent>
           <EmptyState
+            type="no-data"
             title="No Sales Data"
             description="No sales performance data available"
+            data-testid="performance-leaderboard-empty-state"
           />
         </CardContent>
       </Card>
-    );
+    )
   }
 
-  // Take top 5 performers
-  const topPerformers = leaderboard.slice(0, 5);
-  const maxValue = Math.max(...topPerformers.map(rep => rep.totalValue));
+  // Take top 3 performers
+  const topPerformers = leaderboard.slice(0, 3)
+  const maxValue = Math.max(...topPerformers.map(rep => rep.totalValue))
 
   return (
     <Card data-testid={`sales-leaderboard-${pipelineId}`}>
@@ -102,8 +133,8 @@ export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({
       <CardContent>
         <div className="gba:space-y-4">
           {topPerformers.map((rep, index) => {
-            const progressPercent = maxValue > 0 ? (rep.totalValue / maxValue) * 100 : 0;
-            
+            const progressPercent = maxValue > 0 ? (rep.totalValue / maxValue) * 100 : 0
+
             return (
               <div
                 key={rep.employeeId}
@@ -122,17 +153,15 @@ export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({
                       </div>
                     </div>
                     <div>
-                      <div className="gba:font-medium gba:text-sm">
-                        {rep.displayName}
-                      </div>
+                      <div className="gba:font-medium gba:text-sm">{rep.displayName}</div>
                       <div className="gba:text-xs gba:text-gray-500">
-                        {rep.dealsWon + rep.dealsLost} deals • {rep.activitiesCount} activities
+                        {rep.totalDeals ?? rep.dealsWon + rep.dealsLost} deals • {rep.activitiesCount} activities
                       </div>
                     </div>
                   </div>
                   <div className="gba:text-right">
                     <div className="gba:text-sm gba:font-bold gba:text-blue-600">
-                      {formatCurrency(rep.totalValue)}
+                      {formatCurrency(rep.totalValue, currency)}
                     </div>
                     <div className={`gba:text-xs ${getPerformanceColor(rep.winRate)}`}>
                       {formatPercentage(rep.winRate)} win rate
@@ -142,10 +171,7 @@ export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({
 
                 {/* Performance Progress Bar */}
                 <div className="gba:mb-2">
-                  <Progress 
-                    value={progressPercent} 
-                    className={`gba:h-2 ${getRankColor(index)}`}
-                  />
+                  <Progress value={progressPercent} className={`gba:h-2 ${getRankColor(index)}`} />
                 </div>
 
                 {/* Performance Details */}
@@ -154,11 +180,11 @@ export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({
                     Won: {rep.dealsWon} | Lost: {rep.dealsLost}
                   </span>
                   <span>
-                    Avg Deal: {formatCurrency(rep.dealsWon > 0 ? rep.totalValue / rep.dealsWon : 0)}
+                    Avg Deal: {formatCurrency(rep.dealsWon > 0 ? rep.totalValue / rep.dealsWon : 0, currency)}
                   </span>
                 </div>
               </div>
-            );
+            )
           })}
         </div>
 
@@ -170,7 +196,10 @@ export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({
           <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:text-center">
             <div>
               <div className="gba:font-bold gba:text-blue-600 gba:text-sm">
-                {formatCurrency(topPerformers.reduce((sum, rep) => sum + rep.totalValue, 0))}
+                {formatCurrency(
+                  topPerformers.reduce((sum, rep) => sum + rep.totalValue, 0),
+                  currency
+                )}
               </div>
               <span className="gba:text-gray-600 gba:text-xs">Total Value</span>
             </div>
@@ -183,8 +212,8 @@ export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({
             <div>
               <div className="gba:font-bold gba:text-orange-600 gba:text-sm">
                 {formatPercentage(
-                  topPerformers.length > 0 
-                    ? topPerformers.reduce((sum, rep) => sum + rep.winRate, 0) / topPerformers.length 
+                  topPerformers.length > 0
+                    ? topPerformers.reduce((sum, rep) => sum + rep.winRate, 0) / topPerformers.length
                     : 0
                 )}
               </div>
@@ -198,25 +227,26 @@ export const PerformanceLeaderboard: React.FC<PerformanceLeaderboardProps> = ({
           <div className="gba:mt-3 gba:flex gba:gap-2 gba:flex-wrap">
             {topPerformers[0] && (
               <Badge variant="default" className="gba:text-xs">
-                🏆 Top Performer: {topPerformers[0].displayName}
+                Top Performer: {topPerformers[0].displayName}
               </Badge>
             )}
             {topPerformers.find(rep => rep.winRate === Math.max(...topPerformers.map(r => r.winRate))) && (
               <Badge variant="secondary" className="gba:text-xs">
-                🎯 Best Win Rate: {formatPercentage(Math.max(...topPerformers.map(r => r.winRate)))}
+                Best Win Rate: {formatPercentage(Math.max(...topPerformers.map(r => r.winRate)))}
               </Badge>
             )}
-            {topPerformers.find(rep => rep.activitiesCount === Math.max(...topPerformers.map(r => r.activitiesCount))) && (
+            {topPerformers.find(
+              rep => rep.activitiesCount === Math.max(...topPerformers.map(r => r.activitiesCount))
+            ) && (
               <Badge variant="outline" className="gba:text-xs">
-                ⚡ Most Active: {Math.max(...topPerformers.map(r => r.activitiesCount))} activities
+                Most Active: {Math.max(...topPerformers.map(r => r.activitiesCount))} activities
               </Badge>
             )}
           </div>
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default PerformanceLeaderboard;
-
+export default PerformanceLeaderboard

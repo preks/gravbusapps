@@ -78,7 +78,7 @@ export const getSalesOrderDetails = `
       }
     }
   }
-`;
+`
 
 export const getSalesOrderItems = `
   query GetSalesOrderItems($orderId: uuid!) {
@@ -123,7 +123,7 @@ export const getSalesOrderItems = `
       updatedAt
     }
   }
-`;
+`
 
 export const getSalesOrderWithItems = `
   query GetSalesOrderWithItems($orderId: uuid!) {
@@ -200,4 +200,4 @@ export const getSalesOrderWithItems = `
       }
     }
   }
-`;
+`

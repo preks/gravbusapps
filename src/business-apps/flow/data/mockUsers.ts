@@ -1,6 +1,6 @@
 /**
  * Mock Users Data
- * 
+ *
  * Centralized user data for Flow UI components.
  * Simplified structure with 6 users across 4 departments to demonstrate
  * assignment resolution functionality with clear department-based naming.
@@ -9,11 +9,11 @@
  */
 
 export interface User {
-  id: string;
-  name: string;
-  email: string;
-  department: string;
-  role: string;
+  id: string
+  name: string
+  email: string
+  department: string
+  role: string
 }
 
 /**
@@ -63,32 +63,32 @@ export const mockUsers: User[] = [
     department: 'Engineering',
     role: 'Engineering Director'
   }
-];
+]
 
 /**
  * Get user by ID
  */
 export const getUserById = (userId: string): User | undefined => {
-  return mockUsers.find(user => user.id === userId);
-};
+  return mockUsers.find(user => user.id === userId)
+}
 
 /**
  * Get users by department
  */
 export const getUsersByDepartment = (department: string): User[] => {
-  return mockUsers.filter(user => user.department === department);
-};
+  return mockUsers.filter(user => user.department === department)
+}
 
 /**
  * Get all departments
  */
 export const getAllDepartments = (): string[] => {
-  return [...new Set(mockUsers.map(user => user.department))];
-};
+  return [...new Set(mockUsers.map(user => user.department))]
+}
 
 /**
  * Get all roles
  */
 export const getAllRoles = (): string[] => {
-  return [...new Set(mockUsers.map(user => user.role))];
-}; 
+  return [...new Set(mockUsers.map(user => user.role))]
+}

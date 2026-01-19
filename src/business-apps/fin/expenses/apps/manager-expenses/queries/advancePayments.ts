@@ -52,9 +52,25 @@ export const GET_ADVANCE_PAYMENTS_BY_MANAGER = `
       status
       totalAmount
       currencyRef
+      requestType {
+        value
+        translations {
+          value
+          localeCode
+        }
+      }
       employee {
         id
+        code
         fullName
+        displayName
+        additionalProperties
+        employeePosition {
+          organizationalUnit {
+            id
+            name
+          }
+        }
       }
       advancePayment(where: {isDeleted: {_eq: false}}) {
         id
@@ -63,10 +79,98 @@ export const GET_ADVANCE_PAYMENTS_BY_MANAGER = `
         status
         transactionDate
         currencyRef
+        createdAt
+        paymentMethod
+        costCenter {
+          id
+          name
+          code
+        }
       }
     }
   }
-`;
+`
+
+// Payments-centric report query with server-side pagination and search
+export const GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER = `
+  query GetAdvancePaymentsReportByManager(
+    $managerId: uuid!,
+    $limit: Int!,
+    $offset: Int!,
+    $searchTerm: String
+  ) {
+    AdvancePaymentAggregate(
+      where: {
+        isDeleted: { _eq: false },
+        expensePlan: {
+          employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } }
+        },
+        _or: [
+          { code: { _ilike: $searchTerm } },
+          { description: { _ilike: $searchTerm } },
+          { expensePlan: { code: { _ilike: $searchTerm } } },
+          { expensePlan: { title: { _ilike: $searchTerm } } },
+          { expensePlan: { employee: { fullName: { _ilike: $searchTerm } } } }
+        ]
+      }
+    ) {
+      aggregate { count }
+    }
+    AdvancePayment(
+      limit: $limit,
+      offset: $offset,
+      orderBy: { createdAt: DESC },
+      where: {
+        isDeleted: { _eq: false },
+        expensePlan: {
+          employee: { employeePosition: { supervisorEmployeeId: { _eq: $managerId } } }
+        },
+        _or: [
+          { code: { _ilike: $searchTerm } },
+          { description: { _ilike: $searchTerm } },
+          { expensePlan: { code: { _ilike: $searchTerm } } },
+          { expensePlan: { title: { _ilike: $searchTerm } } },
+          { expensePlan: { employee: { fullName: { _ilike: $searchTerm } } } }
+        ]
+      }
+    ) {
+      id
+      code
+      amount
+      status
+      createdAt
+      paymentMethod
+      currencyRef
+      costCenter { id name code }
+      expensePlan {
+        code
+        title
+        requestType {
+          value
+          translations {
+            value
+            localeCode
+          }
+        }
+        employee { 
+          id
+          code
+          fullName 
+          firstName 
+          lastName
+          displayName
+          additionalProperties
+          employeePosition {
+            organizationalUnit {
+              id
+              name
+            }
+          }
+        }
+      }
+    }
+  }
+`
 
 export const GET_ADVANCE_PAYMENT_STATISTICS = `
   query GetAdvancePaymentStatistics($employeeId: uuid!) {
@@ -88,4 +192,4 @@ export const GET_ADVANCE_PAYMENT_STATISTICS = `
       }
     }
   }
-`;
+`

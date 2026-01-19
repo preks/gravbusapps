@@ -1,24 +1,26 @@
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@newwork/nw-design-system";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import React from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface YearComparisonSectionProps {
-  data: any;
+  data: any
 }
 
 export const YearComparisonSection: React.FC<YearComparisonSectionProps> = ({ data }) => {
-  // Use real data from the hook
-  const chartData = data?.yearOverYearData || [];
-  
-  // Get current year and previous year for dynamic labels
-  const currentYear = new Date().getFullYear();
-  const previousYear = currentYear - 1;
+  const chartData = data?.yearOverYearData || []
+
+  const currentYear = new Date().getFullYear()
+  const previousYear = currentYear - 1
 
   return (
     <Card className="gba:shadow-sm" data-testid="year-comparison-section">
       <CardHeader>
         <CardTitle className="gba:text-lg gba:font-semibold">
-          Year-over-Year Comparison
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:absence_management_hub_manager.dashboard.yoy_title',
+            'Year-over-Year Comparison'
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -29,12 +31,12 @@ export const YearComparisonSection: React.FC<YearComparisonSectionProps> = ({ da
               <XAxis dataKey="month" />
               <YAxis />
               <Tooltip />
-              <Bar dataKey={previousYear.toString()} fill="#8884d8" />
-              <Bar dataKey={currentYear.toString()} fill="#82ca9d" />
+              <Bar dataKey={previousYear.toString()} fill="var(--nw-chart-4)" />
+              <Bar dataKey={currentYear.toString()} fill="var(--nw-chart-3)" />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </CardContent>
     </Card>
-  );
-}; 
+  )
+}

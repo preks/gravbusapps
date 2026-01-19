@@ -1,57 +1,57 @@
-import { formatNumberFunction, getTranslationFromI18nKeyAndLabel, formatDate, getDateFormat } from '@/common/utils/windowUtils';
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { 
-  Table, 
-  TableHeader, 
-  TableBody, 
-  TableHead, 
-  TableRow, 
-  TableCell, 
-  Card, 
-  CardContent, 
-  Spinner, 
-  Button, 
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { useDebounce } from '@/common/hooks/useDebounce'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+  Card,
+  CardContent,
+  Button,
   Alert,
   Checkbox,
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle
-} from '@newwork/nw-design-system';
-import Pill from '@/components/pill';
-import { PiFileText, PiImage, PiArrowUp, PiArrowDown } from 'react-icons/pi';
-import dayjs from 'dayjs';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { useGetExpenseItems, ExpenseFilter } from '../../../hooks/useGetExpenseItems';
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
-import { DataFilterGroup } from '@/components/data-filter/DataFilter';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getExpenseItemStatusDisplay } from '../../../utils';
-import ExpenseItemDetails from './ExpenseItemDetails';
-import { startProcess } from '@/common/utils/start-process';
-import { notification } from 'antd';
-import { formatCurrencyDisplay } from '../../../utils';
+  Badge
+} from '@newwork/nw-design-system'
+import { TablePagination } from '../../../../../components'
+import { PiFileText, PiImage, PiArrowUp, PiArrowDown } from 'react-icons/pi'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { useGetExpenseItems, ExpenseFilter } from '../../../hooks/useGetExpenseItems'
+import { useExpenseCurrencies } from '../../../hooks/useExpenseCurrencies'
+import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
+import { DataFilterGroup } from '@/components/data-filter/DataFilter'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getExpenseItemStatusDisplay } from '../../../utils'
+import ExpenseItemDetails from './ExpenseItemDetails'
+import { startProcess } from '@/common/utils/start-process'
+import { notification } from 'antd'
+import { formatCurrencyDisplay } from '../../../utils'
+import { generateExpenseItemActions } from '../../../utils/expenseItemActions'
+import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 
-
-const DATA_TEST_ID_PREFIX = 'ExpenseItemsTable';
-
+const DATA_TEST_ID_PREFIX = 'ExpenseItemsTable'
 
 export interface ExpenseItemsTableProps extends BusinessAppContextProps {
-  onAddExpenseItem: () => void;
-  selectedFilters: string[];
-  addFilter: (filterId: string) => void;
-  removeFilter: (filterId: string) => void;
-  clearFilters: () => void;
-  filterGroups: DataFilterGroup[];
-  filterLabelMap: Record<string, string>;
-  getFilters: (filtersToApply?: string[]) => ExpenseFilter;
-  setFilters: (filters: string[]) => void;
-  availableStatuses: string[];
-  amountRange?: { min?: number; max?: number } | null;
-  tableRefreshTrigger?: number;
+  onAddExpenseItem: () => void
+  selectedFilters: string[]
+  addFilter: (filterId: string) => void
+  removeFilter: (filterId: string) => void
+  clearFilters: () => void
+  filterGroups: DataFilterGroup[]
+  filterLabelMap: Record<string, string>
+  getFilters: (filtersToApply?: string[]) => ExpenseFilter
+  setFilters: (filters: string[]) => void
+  availableStatuses: string[]
+  amountRange?: { min?: number; max?: number } | null
+  tableRefreshTrigger?: number
+  activeWidgetKey?: string
 }
 
-const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) => {
+const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => {
   const {
     onAddExpenseItem,
     selectedFilters,
@@ -62,651 +62,771 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo((props) =
     filterLabelMap,
     getFilters,
     setFilters,
-    availableStatuses,
     ...contextProps
-  } = props;
+  } = props
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 200) // 200ms debounce for responsive feel
 
   // Get all selected filters (including date range and amount range) - use props instead of hook
-  const allSelectedFilters = selectedFilters;
+  const allSelectedFilters = selectedFilters
+  const debouncedSelectedFilters = useDebounce(allSelectedFilters, 200) // 200ms debounce
 
   // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
-    return search || allSelectedFilters.length > 0;
-  }, [search, allSelectedFilters]);
+    return debouncedSearch || allSelectedFilters.length > 0
+  }, [debouncedSearch, allSelectedFilters])
 
   // Server-side sorting state - properly managed for server-side sorting
-  const [sortField, setSortField] = useState<string>('expenseDate');
-  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend');
+  const [sortField, setSortField] = useState<string>('expenseDate')
+  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend')
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  // Preserve the page index before user starts searching, so we can restore it after clearing search
+  const savedPageBeforeSearchRef = useRef<number | null>(null)
 
-  const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps);
+  const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps, { autoFetch: false })
+
+  const { currencyStats, selectedCurrencyRef, initialized } = useExpenseCurrencies(
+    contextProps,
+    allSelectedFilters,
+    setFilters
+  )
+
+  const currencyLabelMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    currencyStats.forEach(cs => {
+      map[`currency:${cs.ref}`] = cs.code
+    })
+    return map
+  }, [currencyStats])
+
+  const combinedFilterLabelMap = useMemo(
+    () => ({
+      ...filterLabelMap,
+      ...currencyLabelMap
+    }),
+    [filterLabelMap, currencyLabelMap]
+  )
+
+  // currency fetching now handled by useExpenseCurrencies
+
+  const buildApiFilters = useCallback(() => {
+    const apiFilters = { ...getFilters(debouncedSelectedFilters) } as ExpenseFilter
+
+    // Only apply currency filter if explicitly selected by user
+    // Check if currency is in selected filters first, then use selectedCurrencyRef
+    const hasCurrencyFilter = allSelectedFilters.some(f => f.startsWith('currency:'))
+    if (hasCurrencyFilter && selectedCurrencyRef) {
+      apiFilters.currencyRef = selectedCurrencyRef
+    }
+
+    // Apply widget-driven filters directly to API request
+    if (props.activeWidgetKey === 'total-expenses') {
+      const start = new Date()
+      start.setDate(1)
+      const end = new Date(start.getFullYear(), start.getMonth() + 1, 0)
+      apiFilters.expenseDateStart = start.toISOString().split('T')[0]
+      apiFilters.expenseDateEnd = end.toISOString().split('T')[0]
+      apiFilters.status = ['PAID', 'CLOSED']
+    } else if (props.activeWidgetKey === 'pending-reimbursement') {
+      const start = new Date()
+      start.setDate(1)
+      const end = new Date(start.getFullYear(), start.getMonth() + 1, 0)
+      apiFilters.expenseDateStart = start.toISOString().split('T')[0]
+      apiFilters.expenseDateEnd = end.toISOString().split('T')[0]
+      apiFilters.status = ['PENDING']
+    }
+
+    return apiFilters
+  }, [getFilters, debouncedSelectedFilters, selectedCurrencyRef, props.activeWidgetKey, allSelectedFilters])
 
   useEffect(() => {
-    const apiFilters = getFilters(allSelectedFilters);
-    fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder);
-  }, [fetchItems, currentPage, pageSize, search, allSelectedFilters, getFilters, sortField, sortOrder]);
+    if (!initialized) return
+    const searchTerm = debouncedSearch?.trim() || '%'
+    const apiFilters = buildApiFilters()
+    fetchItems(searchTerm, currentPage, pageSize, apiFilters, sortField, sortOrder)
+  }, [fetchItems, currentPage, pageSize, debouncedSearch, sortField, sortOrder, initialized, buildApiFilters])
 
   // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
   useEffect(() => {
     if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
-      const apiFilters = getFilters(allSelectedFilters);
-      fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder);
+      const searchTerm = debouncedSearch?.trim() || '%'
+      const apiFilters = buildApiFilters()
+      // Force refresh to bypass cache and get fresh data after process completion
+      fetchItems(searchTerm, currentPage, pageSize, apiFilters, sortField, sortOrder, { force: true })
       // Clear selection when table is refreshed (process finished)
-      setSelectedRowKeys([]);
+      setSelectedRowKeys([])
     }
-  }, [props.tableRefreshTrigger, fetchItems, search, currentPage, pageSize, allSelectedFilters, getFilters, sortField, sortOrder]);
+  }, [
+    props.tableRefreshTrigger,
+    fetchItems,
+    debouncedSearch,
+    currentPage,
+    pageSize,
+    sortField,
+    sortOrder,
+    buildApiFilters
+  ])
 
-  const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null)
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
 
-  const handleSearchChange = useCallback((value: string) => {
-    setSearch(value);
-    setCurrentPage(1);
-  }, [setSearch]);
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      const trimmedNext = (value || '').trim()
+      const trimmedPrev = (search || '').trim()
+      setSearch(value)
 
-  const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
-    if (selected) {
-      addFilter(filterId);
-    } else {
-      removeFilter(filterId);
-    }
-    setCurrentPage(1);
-  }, [addFilter, removeFilter]);
+      // Detect transitions to manage page restoration
+      if (trimmedPrev === '' && trimmedNext !== '') {
+        // Starting a new search → save current page and jump to page 1
+        savedPageBeforeSearchRef.current = currentPage
+        setCurrentPage(1)
+        return
+      }
+
+      if (trimmedPrev !== '' && trimmedNext === '') {
+        // Clearing search → restore saved page if available
+        setCurrentPage(savedPageBeforeSearchRef.current || 1)
+        savedPageBeforeSearchRef.current = null
+        return
+      }
+
+      // While typing within search mode, keep user on page 1 for fresh results
+      if (trimmedNext !== '') {
+        setCurrentPage(1)
+      }
+    },
+    [search, currentPage]
+  )
+
+  const handleFilterChange = useCallback(
+    (filterId: string, selected: boolean) => {
+      if (filterId.startsWith('currency:')) {
+        if (selected) {
+          // Allow only a single currency at a time
+          const nonCurrency = allSelectedFilters.filter(f => !f.startsWith('currency:'))
+          setFilters([...nonCurrency, filterId])
+        } else {
+          removeFilter(filterId)
+        }
+      } else {
+        if (selected) {
+          addFilter(filterId)
+        } else {
+          removeFilter(filterId)
+        }
+      }
+      setCurrentPage(1)
+    },
+    [addFilter, removeFilter, setFilters, allSelectedFilters]
+  )
 
   const handleAddExpenseItem = useCallback(() => {
-    onAddExpenseItem();
-  }, [onAddExpenseItem]);
+    onAddExpenseItem()
+  }, [onAddExpenseItem])
 
   const handleSelectItem = useCallback((item: any) => {
-    setSelectedItem(item);
-    setIsSheetOpen(true);
-  }, []);
+    setSelectedItem(item)
+    setIsSheetOpen(true)
+  }, [])
 
-  const handleRowSelectionChange = useCallback((itemId: string, checked: boolean) => {
-    setSelectedRowKeys(prev => {
+  const handleRowSelectionChange = useCallback(
+    (itemId: string, checked: boolean) => {
+      setSelectedRowKeys(prev => {
+        if (checked) {
+          return [...prev, itemId]
+        } else {
+          return prev.filter(key => key !== itemId)
+        }
+      })
+    },
+    [selectedRowKeys]
+  )
+
+  const handleSelectAll = useCallback(
+    (checked: boolean) => {
       if (checked) {
-        return [...prev, itemId];
+        setSelectedRowKeys(items?.map(item => item.id) || [])
       } else {
-        return prev.filter(key => key !== itemId);
+        setSelectedRowKeys([])
       }
-    });
-  }, []);
-
-  const handleSelectAll = useCallback((checked: boolean) => {
-    if (checked) {
-      setSelectedRowKeys(items?.map(item => item.id) || []);
-    } else {
-      setSelectedRowKeys([]);
-    }
-  }, [items]);
+    },
+    [selectedRowKeys, items]
+  )
 
   const handleCloseDetails = useCallback(() => {
-    setSelectedItem(null);
-    setSelectedRowKeys([]);
-    setIsSheetOpen(false);
-  }, []);
-
+    setSelectedItem(null)
+    // setSelectedRowKeys([]);
+    setIsSheetOpen(false)
+  }, [])
   // Handlers for the top buttons
   const handleCreateExpenseRequest = useCallback(() => {
-    if (!selectedRowKeys.length) return;
-    const selectedItems = items?.filter((item: any) => selectedRowKeys.includes(item.id)) || [];
-    
-    // Check if all items are in 'CREATED' status (draft)
-    const allDraft = selectedItems.every((item: any) => item.status === 'CREATED');
-    if (!allDraft) {
+    if (!selectedRowKeys.length) return
+    const selectedItems = items?.filter((item: any) => selectedRowKeys.includes(item.id)) || []
+
+    // Check if all items are in 'CREATED' status (normalize possible shapes)
+    const allCreated = selectedItems.every((item: any) => {
+      const rawStatus = (item?.status ?? '').toString().toUpperCase()
+      return rawStatus === 'CREATED'
+    })
+    if (!allCreated) {
       const errorMessage = getTranslationFromI18nKeyAndLabel(
-        'gba.expenseItems.createRequestDraftOnly',
+        'lowcoder:personal_expenses.error_message_item',
         'An Expense Request can be started only with items in status DRAFT.'
-      );
+      )
       notification.error({
         message: getTranslationFromI18nKeyAndLabel(
-          'gba.expenseItems.createRequestError',
+          'lowcoder:personal_expenses.error_message_create_request',
           'Cannot Create Expense Request'
         ),
         description: errorMessage,
         placement: 'bottomRight',
         duration: 5,
         className: 'gba:error-toast'
-      });
-      return;
+      })
+      return
     }
-    
+
     // Check if all items have the same currency
-    const currencies = selectedItems.map((item: any) => item.currency?.code || item.currencyId);
-    const uniqueCurrencies = [...new Set(currencies)];
+    const currencies = selectedItems.map((item: any) => item.currency?.code || item.currencyId)
+    const uniqueCurrencies = [...new Set(currencies)]
     if (uniqueCurrencies.length > 1) {
       const errorMessage = getTranslationFromI18nKeyAndLabel(
-        'gba.expenseItems.createRequestCurrencyMismatch',
-        'All selected items must have the same currency to create an expense request.'
-      );
+        'lowcoder:expense_item_list.multiple_currencies_error_text',
+        'The selected expense items must have the same currency to proceed.'
+      )
       notification.error({
         message: getTranslationFromI18nKeyAndLabel(
-          'gba.expenseItems.createRequestError',
+          'lowcoder:personal_expenses.error_message_create_request',
           'Cannot Create Expense Request'
         ),
         description: errorMessage,
         placement: 'bottomRight',
         duration: 5,
         className: 'gba:error-toast'
-      });
-      return;
+      })
+      return
     }
-    
+
     const expenseItems = selectedItems.map((element: any) => ({
       itemId: element.id,
       currencyId: element.currencyRef
-    }));
+    }))
     const payload = {
       employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
       expenseItems
-    };
+    }
     // Log payload for create button
     startProcess({
       domain: 'employee-expense',
       processName: 'changeExpenseRequest',
       payload,
       builderType: 'NATIVE_SCREEN'
-    });
-  }, [selectedRowKeys, items, contextProps.userInfo]);
+    })
+  }, [selectedRowKeys, items, contextProps.userInfo])
 
-  const handleDeleteSelection = useCallback((ids?: string[]) => {
-    const targetIds = ids || selectedRowKeys;
-    if (!targetIds.length) return;
-    const selectedItems = items?.filter((item: any) => targetIds.includes(item.id)) || [];
-    const allAllowed = selectedItems.every((item: any) => item.status === 'CREATED' || item.status === 'ASSIGNED');
-    if (!allAllowed) {
-      const errorMessage = getTranslationFromI18nKeyAndLabel(
-        'gba.expenseItems.deleteSelectionStatusError',
-        'You can only discard items with status "Created" or "Assigned".'
-      );
-      notification.error({
-        message: getTranslationFromI18nKeyAndLabel(
-          'gba.expenseItems.deleteSelectionError',
-          'Cannot Delete Selection'
-        ),
-        description: errorMessage,
-        placement: 'bottomRight',
-        duration: 5,
-        className: 'gba:error-toast'
-      });
-      return;
-    }
-    const payload = {
-      employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
-      expenseItemsIds: targetIds
-    };
-    
-    startProcess({
-      domain: 'employee-expense',
-      processName: 'discardExpenseItems',
-      payload,
-    });
-  }, [selectedRowKeys, items, contextProps.userInfo]);
+  const handleDeleteSelection = useCallback(
+    (ids?: string[]) => {
+      const targetIds = ids || selectedRowKeys
+      if (!targetIds.length) return
+      const selectedItems = items?.filter((item: any) => targetIds.includes(item.id)) || []
+      const allAllowed = selectedItems.every((item: any) => item.status === 'CREATED' || item.status === 'ASSIGNED')
+      if (!allAllowed) {
+        const errorMessage = getTranslationFromI18nKeyAndLabel(
+          'lowcoder:personal_expenses.error_message_delete_selectiondiscard_error',
+          'You can only discard items with status "Created" or "Assigned".'
+        )
+        notification.error({
+          message: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:personal_expenses.delete_selection_error',
+            'Cannot Delete Selection'
+          ),
+          description: errorMessage,
+          placement: 'bottomRight',
+          duration: 5,
+          className: 'gba:error-toast'
+        })
+        return
+      }
+      const payload = {
+        employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
+        expenseItemsIds: targetIds
+      }
+
+      startProcess({
+        domain: 'employee-expense',
+        processName: 'discardExpenseItems',
+        payload
+      })
+    },
+    [selectedRowKeys, items, contextProps.userInfo]
+  )
 
   // Enhanced server-side sorting handler
-  const handleSort = useCallback((field: string) => {
-    if (sortField === field) {
-      // Cycle through: ascend -> descend -> clear
-      if (sortOrder === 'ascend') {
-        setSortOrder('descend');
-      } else if (sortOrder === 'descend') {
-        setSortField('');
-        setSortOrder(undefined);
+  const handleSort = useCallback(
+    (field: string) => {
+      if (sortField === field) {
+        // Cycle through: ascend -> descend -> clear
+        if (sortOrder === 'ascend') {
+          setSortOrder('descend')
+        } else if (sortOrder === 'descend') {
+          setSortField('')
+          setSortOrder(undefined)
+        } else {
+          setSortOrder('ascend')
+        }
       } else {
-        setSortOrder('ascend');
+        setSortField(field)
+        setSortOrder('ascend')
       }
-    } else {
-      setSortField(field);
-      setSortOrder('ascend');
-    }
-    setCurrentPage(1);
-  }, [sortField, sortOrder]);
+      setCurrentPage(1)
+    },
+    [sortField, sortOrder]
+  )
 
   // Helper function to render sort icon
-  const renderSortIcon = useCallback((field: string) => {
-    if (sortField !== field) return null;
-    if (sortOrder === 'ascend') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
-    if (sortOrder === 'descend') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
-    return null;
-  }, [sortField, sortOrder]);
+  const renderSortIcon = useCallback(
+    (field: string) => {
+      if (sortField !== field) return null
+      if (sortOrder === 'ascend') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+      if (sortOrder === 'descend') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+      return null
+    },
+    [sortField, sortOrder]
+  )
 
   // Handle pagination
-  const handlePaginationChange = useCallback((page: number, newPageSize?: number) => {
-    const targetPageSize = newPageSize || pageSize;
-    setCurrentPage(page);
-    setPageSize(targetPageSize);
-  }, [pageSize]);
+  const handlePaginationChange = useCallback(
+    (page: number, newPageSize?: number) => {
+      const targetPageSize = newPageSize || pageSize
+      setCurrentPage(page)
+      setPageSize(targetPageSize)
+    },
+    [pageSize]
+  )
+
+  // Adapter for TablePagination component
+  const handleTablePaginationChange = useCallback(
+    (pagination: { current: number; pageSize: number }) => {
+      handlePaginationChange(pagination.current, pagination.pageSize)
+    },
+    [handlePaginationChange]
+  )
 
   // Show error state
   if (error) {
     return (
-      <div 
+      <div
         className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
         data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
       >
         <Alert variant="destructive" className="gba:mb-4">
           <div className="gba:text-lg gba:font-medium gba:mb-2">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.error_loading_expense_items','Error Loading Expense Items')}
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:personal_expenses.error_loading_expense_items',
+              'Error Loading Expense Items'
+            )}
           </div>
-          <div className="gba:text-gray-600">
-            {error}
-          </div>
+          <div className="gba:text-gray-600">{error}</div>
         </Alert>
         <Button
           variant="default"
           onClick={() => {
-            const apiFilters = getFilters(allSelectedFilters);
-            fetchItems(search, currentPage, pageSize, apiFilters, sortField, sortOrder);
+            const searchTerm = debouncedSearch?.trim() || '%'
+            const apiFilters = buildApiFilters()
+            fetchItems(searchTerm, currentPage, pageSize, apiFilters, sortField, sortOrder)
           }}
           data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
         >
-          {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.retry','Retry')}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.retry', 'Retry')}
         </Button>
       </div>
-    );
+    )
   }
 
   return (
     <>
       <DataContainer
-      dataControllerProps={{
-        listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_items','Expense Items'),
-        listAmount: totalCount ? `${totalCount}` : undefined,
-        search: search,
-        setSearch: handleSearchChange,
-        placeholder: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search','Search') + '...',
-        filter: allSelectedFilters,
-        setFilter: (filters: string[]) => {
-          // This is called by DataController's "Clear all filters" button or individual filter removal
-          if (filters.length === 0) {
-            // Clear all filters including amount range
-            clearFilters();
-            // Also clear the search state when clearing all filters
-            setSearch('');
-          } else {
-            // Handle individual filter removal - find which filters were removed and remove them
-            const removedFilters = allSelectedFilters.filter(f => !filters.includes(f));
-            removedFilters.forEach(filterId => removeFilter(filterId));
-          }
-        },
-        filterLabelMap: filterLabelMap,
-        addButton: {
-          onClick: handleAddExpenseItem,
-          label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_allowance_setup_list.calculation_allowance_setup_modal.btn_add','Add'),
-          'data-testid': 'add-expense-item-button',
-        },
-        actions: [
-          ...(selectedRowKeys.length > 0
-            ? [
-                <Button
-                  key="create-expense-request"
-                  variant="default"
-                  data-testid="create-expense-request-btn"
-                  onClick={handleCreateExpenseRequest}
-                  className="gba:inline-flex gba:items-center gba:gap-2"
-                >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.create_expense_request','Create Expense Request')} ({selectedRowKeys.length})
-                </Button>,
-                <Button
-                  key="delete-selection"
-                  variant="destructive"
-                  data-testid="delete-selection-btn"
-                  onClick={() => handleDeleteSelection()}
-                  className="gba:inline-flex gba:items-center gba:gap-2"
-                >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.delete_selection','Delete Selection')} ({selectedRowKeys.length})
-                </Button>
-              ]
-            : []),
-        ],
-      }}
-      dataFilterProps={{
-        filterGroups: filterGroups,
-        onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void,
-      }}
-      contentBackground="white"
-      dataBody={
-        <div className="gba:pr-6">
-          <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
-            <CardContent className="gba:p-0">
-              {isLoading && (
-                <div className="gba:flex gba:justify-center gba:p-4">
-                  <Spinner />
-                </div>
-              )}
-              
-              <div className="gba:overflow-x-auto">
-                <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
-                  <TableHeader>
-                    <TableRow className="gba:border-b gba:bg-gray-50">
-                      <TableHead
-                        className="gba:w-[40px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
-                        data-testid={`${DATA_TEST_ID_PREFIX}-selection-header`}
-                      >
-                        <Checkbox
-                          checked={selectedRowKeys.length === items?.length && items?.length > 0}
-                          onCheckedChange={handleSelectAll}
-                          data-testid={`${DATA_TEST_ID_PREFIX}-select-all-checkbox`}
-                        />
-                      </TableHead>
-                      <TableHead
-                        className="gba:w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
-                        data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
-                      >
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.actions','Actions')}
-                      </TableHead>
-                      <TableHead
-                        className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                        onClick={() => handleSort('title')}
-                        data-testid={`${DATA_TEST_ID_PREFIX}-title-header`}
-                      >
-                        <div className="gba:flex gba:items-center">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.expense_request_container.current_title_label','Title')}
-                          {renderSortIcon('title')}
-                        </div>
-                      </TableHead>
-                      <TableHead
-                        className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                        onClick={() => handleSort('expenseDate')}
-                        data-testid={`${DATA_TEST_ID_PREFIX}-expense-date-header`}
-                      >
-                        <div className="gba:flex gba:items-center">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.date','Expense Date')}
-                          {renderSortIcon('expenseDate')}
-                        </div>
-                      </TableHead>
-                      <TableHead
-                        className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                        onClick={() => handleSort('status')}
-                        data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
-                      >
-                        <div className="gba:flex gba:items-center">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status','Status')}
-                          {renderSortIcon('status')}
-                        </div>
-                      </TableHead>
-                      <TableHead
-                        className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
-                        data-testid={`${DATA_TEST_ID_PREFIX}-attachment-header`}
-                      >
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.attachment','Attachment')}
-                      </TableHead>
-                      <TableHead
-                        className="gba:w-[18%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                        onClick={() => handleSort('reimbursableAmount')}
-                        data-testid={`${DATA_TEST_ID_PREFIX}-amount-header`}
-                      >
-                        <div className="gba:flex gba:items-center">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.reimbursable','Reimbursable Amount')}
-                          {renderSortIcon('reimbursableAmount')}
-                        </div>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                                         {!isLoading && (!items || items.length === 0) ? (
-                       <TableRow>
-                         <TableCell colSpan={7} className="gba:py-8 gba:text-center">
-                           <div className="gba:text-gray-500">
-                             {hasActiveFilters 
-                               ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found','No data available')
-                               : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_expense_items_found','No expense items found. Create your first expense item to get started.')
-                             }
-                           </div>
-                         </TableCell>
-                       </TableRow>
-                     ) : (
-                      items?.map((record) => (
-                        <TableRow
-                          key={record.id}
-                          className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer ${selectedItem?.id === record.id ? 'gba:bg-blue-50' : ''}`}
-                          onClick={() => handleSelectItem(record)}
-                          data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
+        dataControllerProps={{
+          listTitle: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:employee_list.flows_button.expense_items',
+            'Expense Items'
+          ),
+          listAmount: totalCount ? `${totalCount}` : undefined,
+          search: search,
+          setSearch: handleSearchChange,
+          placeholder:
+            getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
+            '...',
+          filter: allSelectedFilters,
+          setFilter: (filters: string[]) => {
+            // This is called by DataController's "Clear all filters" button or individual filter removal
+            if (filters.length === 0) {
+              // Clear all filters including amount range
+              clearFilters()
+              // Also clear the search state when clearing all filters
+              handleSearchChange('')
+            } else {
+              // Handle individual filter removal - find which filters were removed and remove them
+              const removedFilters = allSelectedFilters.filter(f => !filters.includes(f))
+              removedFilters.forEach(filterId => removeFilter(filterId))
+            }
+          },
+          filterLabelMap: combinedFilterLabelMap,
+          addButton: {
+            onClick: handleAddExpenseItem,
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_calculation_rule_details.calculation_allowance_setup_list.calculation_allowance_setup_modal.btn_add',
+              'Add'
+            ),
+            'data-testid': 'add-expense-item-button'
+          },
+          actions: [
+            ...(selectedRowKeys.length > 0
+              ? [
+                  <Button
+                    key={`create-expense-request-${selectedRowKeys.join('|')}`}
+                    variant="default"
+                    data-testid="create-expense-request-btn"
+                    onClick={() => handleCreateExpenseRequest()}
+                    className="gba:inline-flex gba:items-center gba:gap-2"
+                  >
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:employee_list.flows_button.create_expense_request',
+                      'Create Expense Request'
+                    )}{' '}
+                    ({selectedRowKeys.length})
+                  </Button>,
+                  <Button
+                    key={`delete-selection-${selectedRowKeys.join('|')}`}
+                    variant="destructive"
+                    data-testid="delete-selection-btn"
+                    onClick={() => handleDeleteSelection()}
+                    className="gba:inline-flex gba:items-center gba:gap-2"
+                  >
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_item_list.delete_selection',
+                      'Delete Selection'
+                    )}{' '}
+                    ({selectedRowKeys.length})
+                  </Button>
+                ]
+              : [])
+          ]
+        }}
+        dataFilterProps={{
+          filterGroups: useMemo(() => {
+            const currencyGroup: DataFilterGroup | null =
+              currencyStats.length > 0
+                ? {
+                    id: 'currency',
+                    title: getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+                      'Currency'
+                    ),
+                    filters: currencyStats.map(cs => ({
+                      id: `currency:${cs.ref}`,
+                      label: cs.code,
+                      selected: allSelectedFilters.includes(`currency:${cs.ref}`)
+                    }))
+                  }
+                : null
+            return currencyGroup ? [currencyGroup, ...filterGroups] : filterGroups
+          }, [currencyStats, filterGroups, allSelectedFilters]),
+          onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void
+        }}
+        contentBackground="white"
+        dataBody={
+          <div className="">
+            <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
+              <CardContent className="gba:p-0">
+                <div className="gba:overflow-x-auto">
+                  <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
+                    <TableHeader>
+                      <TableRow className="gba:border-b gba:bg-gray-50">
+                        <TableHead
+                          className="gba:w-[40px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
+                          data-testid={`${DATA_TEST_ID_PREFIX}-selection-header`}
                         >
-                          <TableCell
-                            className="gba:py-4 gba:px-3"
-                            data-testid={`${DATA_TEST_ID_PREFIX}-selection-cell-${record.id}`}
-                          >
-                            <Checkbox
-                              checked={selectedRowKeys.includes(record.id)}
-                              onCheckedChange={(checked) => handleRowSelectionChange(record.id, checked as boolean)}
-                              onClick={(e) => e.stopPropagation()}
-                              data-testid={`${DATA_TEST_ID_PREFIX}-selection-checkbox-${record.id}`}
-                            />
-                          </TableCell>
-                          <TableCell
-                            className="gba:py-4 gba:px-3"
-                            data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
-                          >
-                            <div 
-                              className="gba:flex gba:justify-start gba:gap-2"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <AppActionButton
-                                data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-item-button-${record.id}`}
-                                size="icon"
-                                staticFlowData={[
-                                ...(record.status === 'CREATED' || record.status === 'ASSIGNED') ? [
-                                {
-                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions','Actions'),
-                                  key: 'update-expense-item',
-                                  label: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_item.change_expense_item_container.update_title_module','Update Expense Item'),
-                                  onClick: () => {
-                                    startProcess({
-                                      domain: 'employee-expense',
-                                      processName: 'changeExpenseItem',
-                                      payload: {
-                                            employeeId: contextProps.userInfo?.employeeDetails?.employeeId,
-                                            expenseId: record.id
-                                     },
-                                      builderType: 'NATIVE_SCREEN'
-                                    });
-                                  }
-                                }]: [],
-                                ...(record.status === 'CREATED' || record.status === 'ASSIGNED') ? [
-                                {
-                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions','Actions'),
-                                  key: 'delete-expense-item',
-                                  label: getTranslationFromI18nKeyAndLabel('lowcoder:discard_expense_items.discard_expense_items','Delete Expense Item'),
-                                  onClick: () => {
-                                    startProcess({
-                                      domain: 'employee-expense',
-                                      processName: 'discardExpenseItems',
-                                      payload: {
-                                        employeeId:  contextProps.userInfo?.employeeDetails?.employeeId,
-                                        expenseItemsIds: [record.id]
-                                      }
-                                    });
-                                  }
-                                }]: [],
-                                {
-                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations'),
-                                  key: 'view-expense-item-details',
-                                  label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_request_card.view_item_details','View Item Details'),
-                                  onClick: (e?: React.MouseEvent) => {
-                                    e?.stopPropagation();
-                                    handleSelectItem(record);
-                                  },
-                                },
-                              ]}
-                              prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-item`}
-                              accessToken={contextProps.accessToken}
-                              emptyStateBehavior="disable"
-                              deferMainContextRequestsUntilClick={true}
-                            />
-                            </div>
-                          </TableCell>
-                          <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-title-cell-${record.id}`}>
-                            <div className="gba:font-medium gba:text-sm" data-testid="expense-title-cell">
-                              {record.title}
-                            </div>
-                          </TableCell>
-                          <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-expense-date-cell-${record.id}`}>
-                            {record.expenseDate ? (
-                              <div className="gba:text-sm" data-testid="expense-expense-date-cell">
-                                {(() => {
-                                  try {
-                                    return dayjs(record.expenseDate).format(getDateFormat('dayjs.date.long'));
-                                  } catch (error) {
-                                    return 'N/A';
-                                  }
-                                })()}
-                              </div>
-                            ) : (
-                              <span className="gba:text-sm gba:text-gray-500" data-testid="expense-expense-date-cell">
-                                N/A
-                              </span>
+                          <Checkbox
+                            checked={selectedRowKeys.length === items?.length && items?.length > 0}
+                            onCheckedChange={handleSelectAll}
+                            data-testid={`${DATA_TEST_ID_PREFIX}-select-all-checkbox`}
+                          />
+                        </TableHead>
+                        <TableHead
+                          className="gba:w-[50px] gba:min-w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3"
+                          data-testid={`${DATA_TEST_ID_PREFIX}-actions-header`}
+                        >
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:expense_plan_list.expense_plan_flows.actions',
+                            'Actions'
+                          )}
+                        </TableHead>
+                        <TableHead
+                          className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
+                          onClick={() => handleSort('title')}
+                          data-testid={`${DATA_TEST_ID_PREFIX}-title-header`}
+                        >
+                          <div className="gba:flex gba:items-center">
+                            {getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:create_expense_request.expense_request_container.current_title_label',
+                              'Title'
                             )}
-                          </TableCell>
-                          <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
-                            {(() => {
-                              const statusConfig = getExpenseItemStatusDisplay(record.status);
-                              return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="expense-status-cell" />;
-                            })()}
-                          </TableCell>
-                          <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-attachment-cell-${record.id}`}>
-                            <div className="gba:flex gba:items-center gba:justify-center">
-                              {record.expenseItemFile && record.expenseItemFile.length > 0 ? (
-                                <PiFileText size={24} className="gba:text-blue-500" />
-                              ) : (
-                                <PiImage size={24} className="gba:text-gray-300" />
-                              )}
+                            {renderSortIcon('title')}
+                          </div>
+                        </TableHead>
+                        <TableHead
+                          className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
+                          onClick={() => handleSort('expenseDate')}
+                          data-testid={`${DATA_TEST_ID_PREFIX}-expense-date-header`}
+                        >
+                          <div className="gba:flex gba:items-center">
+                            {getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:expense_item_list.expense_table.date',
+                              'Expense Date'
+                            )}
+                            {renderSortIcon('expenseDate')}
+                          </div>
+                        </TableHead>
+                        <TableHead
+                          className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
+                          onClick={() => handleSort('status')}
+                          data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
+                        >
+                          <div className="gba:flex gba:items-center">
+                            {getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:expense_request_list.expense_plan_table.status',
+                              'Status'
+                            )}
+                            {renderSortIcon('status')}
+                          </div>
+                        </TableHead>
+                        <TableHead
+                          className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
+                          data-testid={`${DATA_TEST_ID_PREFIX}-attachment-header`}
+                        >
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:expense_item_list.expense_table.attachment',
+                            'Attachment'
+                          )}
+                        </TableHead>
+                        <TableHead
+                          className="gba:w-[18%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
+                          onClick={() => handleSort('reimbursableAmount')}
+                          data-testid={`${DATA_TEST_ID_PREFIX}-amount-header`}
+                        >
+                          <div className="gba:flex gba:items-center">
+                            {getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:approve_expense_request.reimbursable',
+                              'Reimbursable Amount'
+                            )}
+                            {renderSortIcon('reimbursableAmount')}
+                          </div>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {!isLoading && (!items || items.length === 0) ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="gba:py-8 gba:text-center">
+                            <div className="gba:text-gray-500">
+                              {hasActiveFilters
+                                ? getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
+                                    'No data available'
+                                  )
+                                : getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:personal_expenses.no_expense_items_found',
+                                    'No expense items found. Create your first expense item to get started.'
+                                  )}
                             </div>
-                          </TableCell>
-                          <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-amount-cell-${record.id}`}>
-                            <span data-testid="expense-amount-cell">
-                              {formatCurrencyDisplay(record.reimbursableAmount ?? '0', record.currency?.code)}
-                            </span>
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Pagination - Only show if there are multiple pages */}
-              {totalCount > pageSize ? (
-                <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
-                  <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
-                    {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of','of')} ${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_items_count','expense items')}`}
-                  </div>
-                  <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-                    <div className="gba:flex gba:items-center gba:space-x-2">
-                      <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page','Rows per page')}</p>
-                      <select
-                        value={pageSize}
-                        onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
-                        className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                        data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
-                      >
-                        <option value={10}>10</option>
-                        <option value={20}>20</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                      </select>
-                    </div>
-                    <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium" data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}>
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page','Page')} {currentPage} {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of','of')} {Math.ceil(totalCount / pageSize)}
-                    </div>
-                    <div className="gba:flex gba:items-center gba:space-x-2">
-                      <Button
-                        variant="outline"
-                        className="gba:h-8 gba:w-8 gba:p-0"
-                        onClick={() => handlePaginationChange(1)}
-                        disabled={currentPage === 1}
-                        data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
-                      >
-                        <span className="gba:sr-only">Go to first page</span>
-                        ⟨⟨
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="gba:h-8 gba:w-8 gba:p-0"
-                        onClick={() => handlePaginationChange(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
-                      >
-                        <span className="gba:sr-only">Go to previous page</span>
-                        ⟨
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="gba:h-8 gba:w-8 gba:p-0"
-                        onClick={() => handlePaginationChange(currentPage + 1)}
-                        disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                        data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
-                      >
-                        <span className="gba:sr-only">Go to next page</span>
-                        ⟩
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="gba:h-8 gba:w-8 gba:p-0"
-                        onClick={() => handlePaginationChange(Math.ceil(totalCount / pageSize))}
-                        disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                        data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
-                      >
-                        <span className="gba:sr-only">Go to last page</span>
-                        ⟩⟩
-                      </Button>
-                    </div>
-                  </div>
+                      ) : (
+                        items?.map(record => (
+                          <TableRow
+                            key={record.id}
+                            className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer ${selectedItem?.id === record.id ? 'gba:bg-blue-50' : ''}`}
+                            onClick={() => handleSelectItem(record)}
+                            data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
+                          >
+                            <TableCell
+                              className="gba:py-4 gba:px-3"
+                              data-testid={`${DATA_TEST_ID_PREFIX}-selection-cell-${record.id}`}
+                            >
+                              <Checkbox
+                                checked={selectedRowKeys.includes(record.id)}
+                                onCheckedChange={checked => handleRowSelectionChange(record.id, checked as boolean)}
+                                onClick={e => e.stopPropagation()}
+                                data-testid={`${DATA_TEST_ID_PREFIX}-selection-checkbox-${record.id}`}
+                              />
+                            </TableCell>
+                            <TableCell
+                              className="gba:py-4 gba:px-3"
+                              data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
+                            >
+                              <div className="gba:flex gba:justify-start gba:gap-2" onClick={e => e.stopPropagation()}>
+                                <AppActionButton
+                                  data-testid={`${DATA_TEST_ID_PREFIX}-update-expense-item-button-${record.id}`}
+                                  size="icon"
+                                  staticFlowData={generateExpenseItemActions(
+                                    record,
+                                    {
+                                      employeeId: contextProps.userInfo?.employeeDetails?.employeeId || '',
+                                      accessToken: contextProps.accessToken || ''
+                                    },
+                                    {
+                                      includeDetails: true,
+                                      includeAssignToRequest: true
+                                    }
+                                  ).map(action => {
+                                    // Override the details action onClick to use the table's handleSelectItem
+                                    if (action.key === 'view-expense-item-details') {
+                                      return {
+                                        ...action,
+                                        onClick: (e?: React.MouseEvent) => {
+                                          e?.stopPropagation()
+                                          handleSelectItem(record)
+                                        }
+                                      }
+                                    }
+                                    return action
+                                  })}
+                                  prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-expense-item`}
+                                  accessToken={contextProps.accessToken}
+                                  emptyStateBehavior="enable"
+                                  deferMainContextRequestsUntilClick={true}
+                                />
+                              </div>
+                            </TableCell>
+                            <TableCell
+                              className="gba:py-4 gba:px-6"
+                              data-testid={`${DATA_TEST_ID_PREFIX}-title-cell-${record.id}`}
+                            >
+                              <div className="gba:font-medium gba:text-sm" data-testid="expense-title-cell">
+                                {record.title}
+                              </div>
+                            </TableCell>
+                            <TableCell
+                              className="gba:py-4 gba:px-6"
+                              data-testid={`${DATA_TEST_ID_PREFIX}-expense-date-cell-${record.id}`}
+                            >
+                              {record.expenseDate ? (
+                                <div className="gba:text-sm" data-testid="expense-expense-date-cell">
+                                  {(() => {
+                                    try {
+                                      return formatDate(record.expenseDate, 'date.long') || 'N/A'
+                                    } catch {
+                                      return 'N/A'
+                                    }
+                                  })()}
+                                </div>
+                              ) : (
+                                <span className="gba:text-sm gba:text-gray-500" data-testid="expense-expense-date-cell">
+                                  N/A
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell
+                              className="gba:py-4 gba:px-6"
+                              data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}
+                            >
+                              {(() => {
+                                const statusConf = getExpenseItemStatusDisplay(record.status)
+                                return (
+                                  <Badge
+                                    variant={statusConf.badgeVariant || 'outline'}
+                                    data-testid="expense-status-cell"
+                                  >
+                                    {statusConf.label}
+                                  </Badge>
+                                )
+                              })()}
+                            </TableCell>
+                            <TableCell
+                              className="gba:py-4 gba:px-6"
+                              data-testid={`${DATA_TEST_ID_PREFIX}-attachment-cell-${record.id}`}
+                            >
+                              <div className="gba:flex gba:items-center gba:justify-center">
+                                {record.expenseItemFile && record.expenseItemFile.length > 0 ? (
+                                  <PiFileText size={24} className="gba:text-blue-500" />
+                                ) : (
+                                  <PiImage size={24} className="gba:text-gray-300" />
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell
+                              className="gba:py-4 gba:px-6 gba:text-right"
+                              data-testid={`${DATA_TEST_ID_PREFIX}-amount-cell-${record.id}`}
+                            >
+                              <span data-testid="expense-amount-cell">
+                                {formatCurrencyDisplay(record.reimbursableAmount ?? '0', record.currency?.code)}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
-              ) : (
-                <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}>
-                  <div className="gba:text-sm gba:text-muted-foreground">
-                    {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_items','Expense Items')}`}
-                  </div>
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <p className="gba:text-sm gba:font-medium">Rows per page</p>
-                    <select
-                      value={pageSize}
-                      onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
-                      className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                      data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select-single`}
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      }
-    />
 
-    {/* Sheet for details */}
-    <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-      <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
-        <SheetHeader>
-          <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-            {selectedItem?.title || 'Expense Item Details'}
-          </SheetTitle>
-        </SheetHeader>
-        <div className="gba:mt-6 gba:px-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-          {selectedItem && (
-            <ExpenseItemDetails
-              selectedItem={selectedItem}
-              onClose={handleCloseDetails}
-              accessToken={props.accessToken}
-              userInfo={props.userInfo}
-            />
-          )}
-        </div>
-      </SheetContent>
-    </Sheet>
-  </>
-  );
-});
+                {/* Pagination */}
+                <TablePagination
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  totalItems={totalCount}
+                  onPageChange={handleTablePaginationChange}
+                  entityNamePlural={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:personal_expenses.expense_items_count',
+                    'Expense Items'
+                  )}
+                  dataTestIdPrefix={DATA_TEST_ID_PREFIX}
+                  showBorder={false}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        }
+        addLeftPaddingWhenNoFilter={true}
+      />
 
-export default ExpenseItemsTable;
+      {/* Sheet for details */}
+      <Sheet
+        open={isSheetOpen}
+        onOpenChange={setIsSheetOpen}
+        title={
+          selectedItem?.title ||
+          getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_item_details', 'Expense Item Details')
+        }
+      >
+        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
+          <ExpenseDetailsShell
+            title={
+              selectedItem?.title ||
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_expenses.expense_item_details',
+                'Expense Item Details'
+              )
+            }
+          >
+            {selectedItem ? (
+              <ExpenseItemDetails
+                selectedItem={selectedItem}
+                onClose={handleCloseDetails}
+                accessToken={props.accessToken}
+                userInfo={props.userInfo}
+              />
+            ) : null}
+          </ExpenseDetailsShell>
+        </SheetContent>
+      </Sheet>
+    </>
+  )
+})
+
+export default ExpenseItemsTable
