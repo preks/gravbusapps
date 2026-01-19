@@ -436,42 +436,6 @@ async function main() {
       )
     }
   } else {
-    // For regular screens, use standard resource URL flow
-    // Handle resource URL addition based on flags and first-time publish
-    let shouldAddResourceUrl = false
-
-    if ((resourceMode || isFirstTimePublish) && !noInteraction) {
-      if (isFirstTimePublish) {
-        console.log('🆕 First time publishing this screen - resource URL prompt enabled')
-      }
-
-      // Ask user if they want to add resource URL
-      const addResourceUrlAnswer = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'shouldAdd',
-          message:
-            'You can add this screen as a resource URL of the format "/apps/hr/employee-directory". Would you like to add it?',
-          default: true
-        }
-      ])
-      shouldAddResourceUrl = addResourceUrlAnswer.shouldAdd
-    } else {
-      console.log(
-        noInteraction
-          ? '⏩ Skipping resource URL addition (no-interaction mode)'
-          : '⏩ Skipping resource URL addition (direct publish mode)'
-      )
-    }
-
-    if (shouldAddResourceUrl) {
-      try {
-        await addAppResourceUrl(azureDestinationPath)
-      } catch (error) {
-        console.error('Failed to add resource URL:', error.message)
-      }
-    }
-
     // Handle custom URL addition on first-time publish or if resource flag is provided
     let shouldAddCustomUrl = false
 
