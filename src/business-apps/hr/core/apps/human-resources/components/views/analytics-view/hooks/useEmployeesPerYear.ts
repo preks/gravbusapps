@@ -55,7 +55,7 @@ export const useEmployeesPerYear = (accessToken: string) => {
         .map(r => ({
           year: (() => {
             const dateStr = r.date_category ?? r.dateCategory
-            return dateStr ? dayjs(dateStr).year() : NaN
+            return dateStr ? dayjs(dateStr).year() : Number.NaN
           })(),
           count: Number(r.value ?? 0)
         }))

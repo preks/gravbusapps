@@ -81,7 +81,7 @@ export function useProbationRateByOrgUnit(accessToken: string) {
       })
 
       // Sort by probation rate in descending order
-      const sortedData = mapped.sort((a, b) => b.probationRate - a.probationRate)
+      const sortedData = [...mapped].sort((a, b) => b.probationRate - a.probationRate)
 
       setData(sortedData)
       setLoading(false)

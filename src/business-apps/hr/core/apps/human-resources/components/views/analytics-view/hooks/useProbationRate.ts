@@ -27,29 +27,34 @@ export const useProbationRate = (accessToken: string) => {
    * Fetch probation rate data from GraphQL API
    */
   const fetchProbationRate = useCallback(async () => {
+    const runIfMounted = (fn: () => void) => {
+      if (isMounted.current) fn()
+    }
+
     if (!accessToken) {
-      if (isMounted.current) {
+      runIfMounted(() => {
         setError(new Error('[useProbationRate] No access token provided'))
         setLoading(false)
-      }
+      })
       return
     }
 
     try {
-      if (isMounted.current) {
+      runIfMounted(() => {
         setLoading(true)
         setError(null)
-      }
+      })
 
       // Fetch counts from dataset query 'probationRateData'
       const resp = await datasetClient.executeQuery('probationRateData', QueryType.DATASET, {})
       const rows: DatasetRow[] = Array.isArray(resp?.data) ? (resp!.data as DatasetRow[]) : []
       const totalRow = rows.find(r => (r.category || '').toString().toLowerCase() === 'total active employees')
       const probRow = rows.find(r => (r.category || '').toString().toLowerCase() === 'employees in probation')
-      const total = Number(totalRow?.value ?? NaN)
-      const inProbation = Number(probRow?.value ?? NaN)
-      if (isNaN(total)) throw new Error('[useProbationRate] Total employee count is not a valid number')
-      if (isNaN(inProbation)) throw new Error('[useProbationRate] In-probation employee count is not a valid number')
+      const total = Number(totalRow?.value ?? Number.NaN)
+      const inProbation = Number(probRow?.value ?? Number.NaN)
+      if (Number.isNaN(total)) throw new Error('[useProbationRate] Total employee count is not a valid number')
+      if (Number.isNaN(inProbation))
+        throw new Error('[useProbationRate] In-probation employee count is not a valid number')
 
       // Calculate probation rate (percentage of employees currently in probation)
       const calculatedProbationRate = total > 0 ? (inProbation / total) * 100 : 0
@@ -58,22 +63,21 @@ export const useProbationRate = (accessToken: string) => {
       const roundedProbationRate = Math.round(calculatedProbationRate * 10) / 10
 
       // Update state if component is still mounted
-      if (isMounted.current) {
+      runIfMounted(() => {
         setTotalEmployees(total)
         setEmployeesInProbation(inProbation)
         setProbationRate(roundedProbationRate)
         setError(null)
-      }
+      })
     } catch (err) {
       console.error('[useProbationRate] Error fetching probation rate:', err)
-
-      if (isMounted.current) {
+      runIfMounted(() => {
         setError(err instanceof Error ? err : new Error('[useProbationRate] Failed to fetch probation rate'))
-      }
+      })
     } finally {
-      if (isMounted.current) {
+      runIfMounted(() => {
         setLoading(false)
-      }
+      })
     }
   }, [accessToken, datasetClient])
 

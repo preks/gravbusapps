@@ -47,7 +47,50 @@ export type EmployeeFilters = {
 
 const EMPLOYEES_PER_PAGE = 20
 
-// (no helpers needed for dataset mapping)
+// Helpers
+function parseMatrixTeams(matrixTeamsValue: unknown): string[] {
+  if (Array.isArray(matrixTeamsValue)) {
+    return (matrixTeamsValue as unknown[]).filter((v: unknown) => typeof v === 'string') as string[]
+  }
+  if (typeof matrixTeamsValue === 'string') {
+    try {
+      const parsed = JSON.parse(matrixTeamsValue)
+      return Array.isArray(parsed)
+        ? ((parsed as unknown[]).filter((v: unknown) => typeof v === 'string') as string[])
+        : []
+    } catch {
+      return matrixTeamsValue ? [matrixTeamsValue] : []
+    }
+  }
+  return []
+}
+
+function extractTotalFromRows(rows: any[]): number | null {
+  const label = rows?.[0]?.value_label
+  if (typeof label !== 'string') return null
+  const parts = label.split('|')
+  const totalParsed = parts.length === 2 ? Number(parts[1]) : Number.NaN
+  return Number.isFinite(totalParsed) ? totalParsed : null
+}
+
+function mapRowToEmployee(row: any): Employee {
+  const matrixTeams = parseMatrixTeams(row?.matrix_teams)
+  return {
+    id: row?.employee_id,
+    userId: row?.user_id,
+    supervisorEmployeeId: row?.supervisor_employee_id,
+    firstName: row?.first_name ?? '',
+    lastName: row?.last_name ?? '',
+    jobTitle: row?.job_title ?? '',
+    organizationalUnit: row?.organizational_unit ?? '',
+    organizationalUnitId: row?.organizational_unit_id,
+    workEmail: row?.work_email ?? '',
+    employmentType: row?.employment_type ?? '',
+    contractType: undefined,
+    matrixTeams,
+    profilePicture: row?.profile_picture ?? ''
+  }
+}
 
 // Dataset query name to replace GraphQL in Employees tab
 const DATASET_QUERY_NAME = 'hrActiveEmployees'
@@ -153,50 +196,16 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
     datasetClient
       .executeDatasetQuery(DATASET_QUERY_NAME, params)
       .then(res => {
-        if (!res || !Array.isArray((res as any).data)) {
+        if (!res || !Array.isArray(res.data)) {
           setError(new Error('No response from dataset query'))
           setLoading(false)
           return
         }
-        const rows = (res as any).data as any[]
-        // Extract total count from value_label formatted as "index|total"
-        if (rows.length > 0 && typeof (rows[0] as any).value_label === 'string') {
-          const parts = ((rows[0] as any).value_label as string).split('|')
-          const totalParsed = parts.length === 2 ? Number(parts[1]) : NaN
-          if (Number.isFinite(totalParsed)) {
-            setTotal(totalParsed)
-          }
-        }
-        const newEmployees = rows.map((row: any) => {
-          const matrixTeamsValue = row.matrix_teams
-          let matrixTeams: string[] = []
-          if (Array.isArray(matrixTeamsValue)) {
-            matrixTeams = matrixTeamsValue.filter((v: any) => typeof v === 'string')
-          } else if (typeof matrixTeamsValue === 'string') {
-            try {
-              const parsed = JSON.parse(matrixTeamsValue)
-              matrixTeams = Array.isArray(parsed) ? parsed.filter((v: any) => typeof v === 'string') : []
-            } catch {
-              matrixTeams = matrixTeamsValue ? [matrixTeamsValue] : []
-            }
-          }
+        const rows = Array.isArray(res.data) ? res.data : []
+        const totalParsed = extractTotalFromRows(rows)
+        if (totalParsed != null) setTotal(totalParsed)
 
-          return {
-            id: row.employee_id,
-            userId: row.user_id,
-            supervisorEmployeeId: row.supervisor_employee_id,
-            firstName: row.first_name ?? '',
-            lastName: row.last_name ?? '',
-            jobTitle: row.job_title ?? '',
-            organizationalUnit: row.organizational_unit ?? '',
-            organizationalUnitId: row.organizational_unit_id,
-            workEmail: row.work_email ?? '',
-            employmentType: row.employment_type ?? '',
-            contractType: undefined,
-            matrixTeams,
-            profilePicture: row.profile_picture ?? ''
-          }
-        })
+        const newEmployees = rows.map(mapRowToEmployee)
         if (shouldClearData || employees.length === 0) {
           setEmployees(newEmployees)
           setShouldClearData(false)
@@ -270,54 +279,16 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
       datasetClient
         .executeDatasetQuery(DATASET_QUERY_NAME, pageParams)
         .then(res => {
-          if (!res || !Array.isArray((res as any).data)) {
+          if (!res || !Array.isArray(res.data)) {
             setError(new Error('No response from dataset query'))
             setLoading(false)
             return
           }
-          const rows = (res as any).data as any[]
-          // Extract total count from value_label formatted as "index|total"
-          if (rows.length > 0 && typeof (rows[0] as any).value_label === 'string') {
-            const parts = ((rows[0] as any).value_label as string).split('|')
-            const totalParsed = parts.length === 2 ? Number(parts[1]) : NaN
-            if (Number.isFinite(totalParsed)) {
-              setTotal(totalParsed)
-            } else {
-              setTotal(0)
-            }
-          } else {
-            setTotal(0)
-          }
-          const newEmployees = rows.map((row: any) => {
-            const matrixTeamsValue = row.matrix_teams
-            let matrixTeams: string[] = []
-            if (Array.isArray(matrixTeamsValue)) {
-              matrixTeams = matrixTeamsValue.filter((v: any) => typeof v === 'string')
-            } else if (typeof matrixTeamsValue === 'string') {
-              try {
-                const parsed = JSON.parse(matrixTeamsValue)
-                matrixTeams = Array.isArray(parsed) ? parsed.filter((v: any) => typeof v === 'string') : []
-              } catch {
-                matrixTeams = matrixTeamsValue ? [matrixTeamsValue] : []
-              }
-            }
+          const rows = Array.isArray(res.data) ? res.data : []
+          const totalParsed = extractTotalFromRows(rows)
+          setTotal(totalParsed ?? 0)
 
-            return {
-              id: row.employee_id,
-              userId: row.user_id,
-              supervisorEmployeeId: row.supervisor_employee_id,
-              firstName: row.first_name ?? '',
-              lastName: row.last_name ?? '',
-              jobTitle: row.job_title ?? '',
-              organizationalUnit: row.organizational_unit ?? '',
-              organizationalUnitId: row.organizational_unit_id,
-              workEmail: row.work_email ?? '',
-              employmentType: row.employment_type ?? '',
-              contractType: undefined,
-              matrixTeams,
-              profilePicture: row.profile_picture ?? ''
-            }
-          })
+          const newEmployees = rows.map(mapRowToEmployee)
 
           setEmployees(newEmployees)
           setOffset(pageOffset)

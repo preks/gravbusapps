@@ -44,11 +44,12 @@ export const useHiresPerYear = (accessToken: string) => {
       const endDate = dayjs().endOf('year').format('YYYY-MM-DD')
       const resp = await datasetClient.executeQuery('hiresPerYear', QueryType.TIMESERIES, { startDate, endDate })
 
-      const rows: TimeseriesRow[] = Array.isArray(resp?.data) ? (resp!.data as TimeseriesRow[]) : []
+      const raw = resp?.data ?? []
+      const rows: TimeseriesRow[] = Array.isArray(raw) ? (raw as TimeseriesRow[]) : []
       const series: YearlyHireData[] = rows
         .map(r => {
           const d = r.dateCategory ?? r.date_category
-          const year = d ? dayjs(d).year() : NaN
+          const year = d ? dayjs(d).year() : Number.NaN
           return { year, count: Number(r.value ?? 0) }
         })
         .filter(p => Number.isFinite(p.year))
