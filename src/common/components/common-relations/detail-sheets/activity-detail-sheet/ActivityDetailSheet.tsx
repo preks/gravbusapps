@@ -181,6 +181,31 @@ const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
               <Badge variant={getActivityTypeBadgeVariant(activityType) as any}>{activityType}</Badge>
             </FieldRow>
 
+            {/* Reference */}
+            <FieldRow icon={LinkIcon} label="Reference" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-reference`}>
+              {hasReference ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent"
+                      onClick={handleReferenceClick}
+                      data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-reference-link`}
+                    >
+                      <Badge variant={getReferenceTypeBadgeVariant(referenceType.toLowerCase()) as any}>
+                        {referenceType}
+                      </Badge>
+                      <span className="gba:text-sm gba:font-medium">{referenceName}</span>
+                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>View {referenceType.toLowerCase()} record</TooltipContent>
+                </Tooltip>
+              ) : (
+                <Badge variant="outline">General</Badge>
+              )}
+            </FieldRow>
+
             {/* Owner Employee (also shown as Created By since they're the same) */}
             {activity.ownerEmployee && (
               <FieldRow icon={UserIcon} label="Created By" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-owner`}>
@@ -188,7 +213,7 @@ const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent gba:text-left"
+                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent"
                       onClick={handleOwnerClick}
                       data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-owner-link`}
                     >
@@ -218,31 +243,6 @@ const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
                 </Tooltip>
               </FieldRow>
             )}
-
-            {/* Reference */}
-            <FieldRow icon={LinkIcon} label="Reference" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-reference`}>
-              {hasReference ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent gba:text-left"
-                      onClick={handleReferenceClick}
-                      data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-reference-link`}
-                    >
-                      <Badge variant={getReferenceTypeBadgeVariant(referenceType.toLowerCase()) as any}>
-                        {referenceType}
-                      </Badge>
-                      <span className="gba:text-sm gba:font-medium">{referenceName}</span>
-                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>View {referenceType.toLowerCase()} record</TooltipContent>
-                </Tooltip>
-              ) : (
-                <Badge variant="outline">General</Badge>
-              )}
-            </FieldRow>
 
             {/* Created Date */}
             <FieldRow icon={CalendarIcon} label="Created" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-created`}>
@@ -297,31 +297,25 @@ const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
                 {activity.documents.map(doc => {
                   const FileIcon = getFileIcon(doc.mimeType)
                   return (
-                    <Tooltip key={doc.id}>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          onClick={() => handleDocumentClick(doc)}
-                          className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors gba:border-0 gba:text-left gba:group"
-                          data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-document-${doc.id}`}
-                        >
-                          <div className="gba:flex gba:items-center gba:justify-center gba:size-8 gba:bg-background gba:rounded gba:shrink-0">
-                            <FileIcon size={16} />
-                          </div>
-                          <div className="gba:flex-1 gba:min-w-0">
-                            <div className="gba:text-sm gba:font-medium gba:truncate">{doc.name}</div>
-                            {doc.mimeType && (
-                              <div className="gba:text-xs gba:text-muted-foreground">{doc.mimeType}</div>
-                            )}
-                          </div>
-                          <ArrowSquareOutIcon
-                            size={16}
-                            className="gba:text-muted-foreground gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:shrink-0"
-                          />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>Click to open document</TooltipContent>
-                    </Tooltip>
+                    <button
+                      key={doc.id}
+                      type="button"
+                      onClick={() => handleDocumentClick(doc)}
+                      className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors gba:border-0 gba:text-left gba:group"
+                      data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-document-${doc.id}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:justify-center gba:size-8 gba:bg-background gba:rounded gba:shrink-0">
+                        <FileIcon size={16} />
+                      </div>
+                      <div className="gba:flex-1 gba:min-w-0">
+                        <div className="gba:text-sm gba:font-medium gba:truncate">{doc.name}</div>
+                        {doc.mimeType && <div className="gba:text-xs gba:text-muted-foreground">{doc.mimeType}</div>}
+                      </div>
+                      <ArrowSquareOutIcon
+                        size={16}
+                        className="gba:text-muted-foreground gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:shrink-0"
+                      />
+                    </button>
                   )
                 })}
               </div>

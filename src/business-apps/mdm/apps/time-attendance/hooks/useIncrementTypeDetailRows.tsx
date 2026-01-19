@@ -11,11 +11,14 @@ import {
   INCREMENT_APPLIED_DAYS_OPTIONS,
   TIME_ISSUE_TYPE_OPTIONS,
   INCREMENT_CALCULATION_TYPE_OPTIONS,
-  INCLUDE_EXCLUDE_OPTIONS,
   incrementTypeDetailRowSchema,
   IncrementTypeDetailRowFormData,
-  getDefaultIncrementTypeDetailValues
+  getDefaultIncrementTypeDetailValues,
+  getRequiredFieldsForIncrementType,
+  isFixedValueEnabled
 } from '../constants/increment-type-constants'
+import { RequiredIndicator } from '../components/RequiredIndicator'
+import { FieldErrorTooltip } from '../components/FieldErrorTooltip'
 import { calculateSumTime } from '../utils/calculateSumTime'
 import { convertMinutesToHHMM } from '../utils/convertMinutesToHHMM'
 
@@ -62,6 +65,8 @@ export const useIncrementTypeDetailRows = ({
   const [editingRows, setEditingRows] = useState<Record<string, IncrementTypeDetailRowFormData>>({})
   // Track which rows are currently saving
   const [savingRows, setSavingRows] = useState<Set<string>>(new Set())
+  // Track which rows have attempted to save (to show errors)
+  const [attemptedSave, setAttemptedSave] = useState<Set<string>>(new Set())
 
   // State for delete dialog
   const [selectedDetailForDelete, setSelectedDetailForDelete] = useState<TransformedIncrementTypeVersionDetail | null>(
@@ -86,11 +91,6 @@ export const useIncrementTypeDetailRows = ({
     []
   )
 
-  const findIncludeExcludeOption = useCallback(
-    (code: string) => INCLUDE_EXCLUDE_OPTIONS.find(option => option.code === code),
-    []
-  )
-
   const findTimeType = useCallback((timeTypeId: string) => timeTypes.find(t => t.id === timeTypeId), [timeTypes])
 
   // Check if a row is being edited
@@ -108,6 +108,27 @@ export const useIncrementTypeDetailRows = ({
       const values = editingRows[rowId]
       if (!values) return false
       return incrementTypeDetailRowSchema.safeParse(values).success
+    },
+    [editingRows]
+  )
+
+  // Get validation errors for a row
+  const getRowErrors = useCallback(
+    (rowId: string): Record<string, string> => {
+      const values = editingRows[rowId]
+      if (!values) return {}
+
+      const result = incrementTypeDetailRowSchema.safeParse(values)
+      if (result.success) return {}
+
+      const errors: Record<string, string> = {}
+      for (const issue of result.error.issues) {
+        const path = issue.path[0] as string
+        if (path && !errors[path]) {
+          errors[path] = issue.message
+        }
+      }
+      return errors
     },
     [editingRows]
   )
@@ -207,6 +228,11 @@ export const useIncrementTypeDetailRows = ({
           }
         }
 
+        // Reset fixedValue when calculation type changes to non-enabled value
+        if (field === 'incrementCalculationType' && !isFixedValueEnabled(value as string)) {
+          newValues.fixedValue = null
+        }
+
         return {
           ...prev,
           [rowId]: newValues
@@ -222,6 +248,12 @@ export const useIncrementTypeDetailRows = ({
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [rowId]: _, ...rest } = prev
       return rest
+    })
+    // Clear attempted save state
+    setAttemptedSave(prev => {
+      const next = new Set(prev)
+      next.delete(rowId)
+      return next
     })
   }, [])
 
@@ -245,7 +277,10 @@ export const useIncrementTypeDetailRows = ({
       const values = editingRows[rowId]
       if (!values) return
 
-      // Validate
+      // Mark that save was attempted (to show errors)
+      setAttemptedSave(prev => new Set(prev).add(rowId))
+
+      // Validate - if invalid, return early (errors will now be shown)
       const result = incrementTypeDetailRowSchema.safeParse(values)
       if (!result.success) return
 
@@ -418,10 +453,16 @@ export const useIncrementTypeDetailRows = ({
       const rowId = detail.id
       const isEditing = isRowEditing(rowId)
       const isSaving = isRowSaving(rowId)
-      const isValid = isRowValid(rowId)
-      const isDirty = isRowDirty(rowId, detail)
       const values = editingRows[rowId]
       const alternativeOptions = getAlternativeOptions(detail.id)
+
+      // Get required fields based on current values
+      const currentCalcType = isEditing ? values?.incrementCalculationType : detail.incrementCalculationType
+      const currentCheckStartBefore = isEditing ? values?.checkStartBefore : detail.checkStartBefore
+      const requiredFields = getRequiredFieldsForIncrementType(currentCalcType, currentCheckStartBefore)
+
+      // Get validation errors for the row (only show after save attempt)
+      const errors = isEditing && attemptedSave.has(rowId) ? getRowErrors(rowId) : {}
 
       return (
         <TableRow key={rowId} data-testid={formatDataTestId(dataTestId, `row-${rowId}`)}>
@@ -431,14 +472,20 @@ export const useIncrementTypeDetailRows = ({
           {/* Time Issue Type */}
           <TableCell>
             {isEditing ? (
-              <Combobox
-                options={TIME_ISSUE_TYPE_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
-                value={values?.timeIssueType || ''}
-                onValueChange={value => handleFieldChange(rowId, 'timeIssueType', value)}
-                placeholder="Select"
-                className="gba:w-[150px] gba:overflow-hidden gba:[&_span]:truncate"
-                disabled={isSaving}
-              />
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Combobox
+                    options={TIME_ISSUE_TYPE_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
+                    value={values?.timeIssueType || ''}
+                    onValueChange={value => handleFieldChange(rowId, 'timeIssueType', value)}
+                    placeholder="Select"
+                    className="gba:w-[150px] gba:overflow-hidden gba:[&_span]:truncate"
+                    disabled={isSaving}
+                  />
+                  {requiredFields.timeIssueType && <RequiredIndicator />}
+                </div>
+                <FieldErrorTooltip error={errors.timeIssueType} />
+              </div>
             ) : (
               <Badge variant="outline">
                 {findTimeIssueTypeOption(detail.timeIssueType)?.displayValue || detail.timeIssueType}
@@ -464,14 +511,20 @@ export const useIncrementTypeDetailRows = ({
           {/* Day From */}
           <TableCell>
             {isEditing ? (
-              <Combobox
-                options={INCREMENT_APPLIED_DAYS_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
-                value={values?.fromAppliedDay || ''}
-                onValueChange={value => handleFieldChange(rowId, 'fromAppliedDay', value)}
-                placeholder="Select"
-                className="gba:w-full"
-                disabled={isSaving}
-              />
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Combobox
+                    options={INCREMENT_APPLIED_DAYS_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
+                    value={values?.fromAppliedDay || ''}
+                    onValueChange={value => handleFieldChange(rowId, 'fromAppliedDay', value)}
+                    placeholder="Select"
+                    className="gba:w-full"
+                    disabled={isSaving}
+                  />
+                  {requiredFields.fromAppliedDay && <RequiredIndicator />}
+                </div>
+                <FieldErrorTooltip error={errors.fromAppliedDay} />
+              </div>
             ) : (
               <span>{findAppliedDayOption(detail.fromAppliedDay)?.displayValue || detail.fromAppliedDay}</span>
             )}
@@ -480,13 +533,19 @@ export const useIncrementTypeDetailRows = ({
           {/* Start Time */}
           <TableCell>
             {isEditing ? (
-              <Input
-                type="time"
-                value={values?.startTime || ''}
-                onChange={e => handleFieldChange(rowId, 'startTime', e.target.value)}
-                className="gba:w-[100px]"
-                disabled={isSaving}
-              />
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Input
+                    type="time"
+                    value={values?.startTime || ''}
+                    onChange={e => handleFieldChange(rowId, 'startTime', e.target.value)}
+                    className="gba:w-[100px]"
+                    disabled={isSaving}
+                  />
+                  {requiredFields.startTime && <RequiredIndicator />}
+                </div>
+                <FieldErrorTooltip error={errors.startTime} />
+              </div>
             ) : (
               <span>{detail.startTime}</span>
             )}
@@ -495,14 +554,20 @@ export const useIncrementTypeDetailRows = ({
           {/* Day To */}
           <TableCell>
             {isEditing ? (
-              <Combobox
-                options={INCREMENT_APPLIED_DAYS_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
-                value={values?.toAppliedDate || ''}
-                onValueChange={value => handleFieldChange(rowId, 'toAppliedDate', value)}
-                placeholder="Select"
-                className="gba:w-full"
-                disabled={isSaving}
-              />
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Combobox
+                    options={INCREMENT_APPLIED_DAYS_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
+                    value={values?.toAppliedDate || ''}
+                    onValueChange={value => handleFieldChange(rowId, 'toAppliedDate', value)}
+                    placeholder="Select"
+                    className="gba:w-full"
+                    disabled={isSaving}
+                  />
+                  {requiredFields.toAppliedDate && <RequiredIndicator />}
+                </div>
+                <FieldErrorTooltip error={errors.toAppliedDate} />
+              </div>
             ) : (
               <span>{findAppliedDayOption(detail.toAppliedDate)?.displayValue || detail.toAppliedDate}</span>
             )}
@@ -511,13 +576,19 @@ export const useIncrementTypeDetailRows = ({
           {/* End Time */}
           <TableCell>
             {isEditing ? (
-              <Input
-                type="time"
-                value={values?.endTime || ''}
-                onChange={e => handleFieldChange(rowId, 'endTime', e.target.value)}
-                className="gba:w-[100px]"
-                disabled={isSaving}
-              />
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Input
+                    type="time"
+                    value={values?.endTime || ''}
+                    onChange={e => handleFieldChange(rowId, 'endTime', e.target.value)}
+                    className="gba:w-[100px]"
+                    disabled={isSaving}
+                  />
+                  {requiredFields.endTime && <RequiredIndicator />}
+                </div>
+                <FieldErrorTooltip error={errors.endTime} />
+              </div>
             ) : (
               <span>{detail.endTime}</span>
             )}
@@ -531,14 +602,20 @@ export const useIncrementTypeDetailRows = ({
           {/* Time Type */}
           <TableCell>
             {isEditing ? (
-              <Combobox
-                options={timeTypes.map(t => ({ value: t.id, label: `${t.code} - ${t.name}` }))}
-                value={values?.timeTypeId || ''}
-                onValueChange={value => handleFieldChange(rowId, 'timeTypeId', value)}
-                placeholder="Select"
-                className="gba:w-[170px] gba:overflow-hidden gba:[&_span]:truncate"
-                disabled={isSaving}
-              />
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Combobox
+                    options={timeTypes.map(t => ({ value: t.id, label: `${t.code} - ${t.name}` }))}
+                    value={values?.timeTypeId || ''}
+                    onValueChange={value => handleFieldChange(rowId, 'timeTypeId', value)}
+                    placeholder="Select"
+                    className="gba:w-[170px] gba:overflow-hidden gba:[&_span]:truncate"
+                    disabled={isSaving}
+                  />
+                  {requiredFields.timeTypeId && <RequiredIndicator />}
+                </div>
+                <FieldErrorTooltip error={errors.timeTypeId} />
+              </div>
             ) : (
               <span>
                 {findTimeType(detail.timeTypeId)
@@ -551,14 +628,20 @@ export const useIncrementTypeDetailRows = ({
           {/* Calculation Type */}
           <TableCell>
             {isEditing ? (
-              <Combobox
-                options={INCREMENT_CALCULATION_TYPE_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
-                value={values?.incrementCalculationType || ''}
-                onValueChange={value => handleFieldChange(rowId, 'incrementCalculationType', value)}
-                placeholder="Select"
-                className="gba:w-full"
-                disabled={isSaving}
-              />
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Combobox
+                    options={INCREMENT_CALCULATION_TYPE_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
+                    value={values?.incrementCalculationType || ''}
+                    onValueChange={value => handleFieldChange(rowId, 'incrementCalculationType', value)}
+                    placeholder="Select"
+                    className="gba:w-full"
+                    disabled={isSaving}
+                  />
+                  {requiredFields.incrementCalculationType && <RequiredIndicator />}
+                </div>
+                <FieldErrorTooltip error={errors.incrementCalculationType} />
+              </div>
             ) : (
               <Badge variant="outline">
                 {findCalculationTypeOption(detail.incrementCalculationType)?.displayValue ||
@@ -570,18 +653,20 @@ export const useIncrementTypeDetailRows = ({
           {/* Fixed Value */}
           <TableCell>
             {isEditing ? (
-              values?.incrementCalculationType === 'CALCULATED_INC_CALC_TYPE' ? (
-                <span>-</span>
-              ) : (
-                <Input
-                  type="text"
-                  placeholder="HH:mm"
-                  value={values?.fixedValue || ''}
-                  onChange={e => handleFieldChange(rowId, 'fixedValue', e.target.value || null)}
-                  className="gba:w-[80px]"
-                  disabled={isSaving}
-                />
-              )
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Input
+                    type="text"
+                    placeholder="HH:mm"
+                    value={values?.fixedValue || ''}
+                    onChange={e => handleFieldChange(rowId, 'fixedValue', e.target.value || null)}
+                    className="gba:w-[80px]"
+                    disabled={isSaving || !isFixedValueEnabled(values?.incrementCalculationType)}
+                  />
+                  {requiredFields.fixedValue && <RequiredIndicator />}
+                </div>
+                <FieldErrorTooltip error={errors.fixedValue} />
+              </div>
             ) : detail.fixedValue === null ? (
               '-'
             ) : (
@@ -607,37 +692,21 @@ export const useIncrementTypeDetailRows = ({
           {/* Start Before Time */}
           <TableCell>
             {isEditing ? (
-              values?.checkStartBefore ? (
-                <Input
-                  type="time"
-                  value={values?.startBeforeTime || ''}
-                  onChange={e => handleFieldChange(rowId, 'startBeforeTime', e.target.value || null)}
-                  className="gba:w-[100px]"
-                  disabled={isSaving}
-                />
-              ) : (
-                <span>-</span>
-              )
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Input
+                    type="time"
+                    value={values?.startBeforeTime || ''}
+                    onChange={e => handleFieldChange(rowId, 'startBeforeTime', e.target.value || null)}
+                    className="gba:w-[100px]"
+                    disabled={isSaving || !values?.checkStartBefore}
+                  />
+                  {requiredFields.startBeforeTime && <RequiredIndicator />}
+                </div>
+                <FieldErrorTooltip error={errors.startBeforeTime} />
+              </div>
             ) : (
               <span>{detail.startBeforeTime || '-'}</span>
-            )}
-          </TableCell>
-
-          {/* Include/Exclude Option */}
-          <TableCell>
-            {isEditing ? (
-              <Combobox
-                options={INCLUDE_EXCLUDE_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
-                value={values?.includeExcludeOption || ''}
-                onValueChange={value => handleFieldChange(rowId, 'includeExcludeOption', value)}
-                placeholder="Select"
-                className="gba:w-full"
-                disabled={isSaving}
-              />
-            ) : (
-              <Badge variant="outline">
-                {findIncludeExcludeOption(detail.includeExcludeOption)?.displayValue || detail.includeExcludeOption}
-              </Badge>
             )}
           </TableCell>
 
@@ -668,12 +737,12 @@ export const useIncrementTypeDetailRows = ({
             )}
           </TableCell>
 
-          {/* Actions */}
+          {/* Actions - isValid/isDirty forced to true so Save is always clickable, validation happens on click */}
           <RowActionsCell
             isEditing={isEditing}
             isSaving={isSaving}
-            isValid={isValid}
-            isDirty={isDirty}
+            isValid={true}
+            isDirty={true}
             onSave={() => handleSaveRow(rowId, detail)}
             onCancel={() => handleCancelRowEdit(rowId)}
             onEdit={() => handleStartEdit(detail)}
@@ -692,10 +761,11 @@ export const useIncrementTypeDetailRows = ({
       isRowSaving,
       isRowValid,
       isRowDirty,
+      getRowErrors,
+      attemptedSave,
       findTimeIssueTypeOption,
       findAppliedDayOption,
       findCalculationTypeOption,
-      findIncludeExcludeOption,
       findTimeType,
       getAlternativeOptions,
       handleFieldChange,
@@ -713,9 +783,14 @@ export const useIncrementTypeDetailRows = ({
 
     const rowId = NEW_ROW_KEY
     const isSaving = isRowSaving(rowId)
-    const isValid = isRowValid(rowId)
     const values = editingRows[rowId]
     const alternativeOptions = getAlternativeOptions()
+
+    // Get required fields based on current values
+    const requiredFields = getRequiredFieldsForIncrementType(values?.incrementCalculationType, values?.checkStartBefore)
+
+    // Get validation errors for the new row (only show after save attempt)
+    const errors = attemptedSave.has(rowId) ? getRowErrors(rowId) : {}
 
     return (
       <TableRow key="new-row" data-testid={formatDataTestId(dataTestId, 'new-row')}>
@@ -724,14 +799,20 @@ export const useIncrementTypeDetailRows = ({
 
         {/* Time Issue Type */}
         <TableCell>
-          <Combobox
-            options={TIME_ISSUE_TYPE_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
-            value={values?.timeIssueType || ''}
-            onValueChange={value => handleFieldChange(rowId, 'timeIssueType', value)}
-            placeholder="Select"
-            className="gba:w-[150px] gba:overflow-hidden gba:[&_span]:truncate"
-            disabled={isSaving}
-          />
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Combobox
+                options={TIME_ISSUE_TYPE_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
+                value={values?.timeIssueType || ''}
+                onValueChange={value => handleFieldChange(rowId, 'timeIssueType', value)}
+                placeholder="Select"
+                className="gba:w-[150px] gba:overflow-hidden gba:[&_span]:truncate"
+                disabled={isSaving}
+              />
+              {requiredFields.timeIssueType && <RequiredIndicator />}
+            </div>
+            <FieldErrorTooltip error={errors.timeIssueType} />
+          </div>
         </TableCell>
 
         {/* Include Breaks */}
@@ -745,48 +826,72 @@ export const useIncrementTypeDetailRows = ({
 
         {/* Day From */}
         <TableCell>
-          <Combobox
-            options={INCREMENT_APPLIED_DAYS_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
-            value={values?.fromAppliedDay || ''}
-            onValueChange={value => handleFieldChange(rowId, 'fromAppliedDay', value)}
-            placeholder="Select"
-            className="gba:w-full"
-            disabled={isSaving}
-          />
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Combobox
+                options={INCREMENT_APPLIED_DAYS_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
+                value={values?.fromAppliedDay || ''}
+                onValueChange={value => handleFieldChange(rowId, 'fromAppliedDay', value)}
+                placeholder="Select"
+                className="gba:w-full"
+                disabled={isSaving}
+              />
+              {requiredFields.fromAppliedDay && <RequiredIndicator />}
+            </div>
+            <FieldErrorTooltip error={errors.fromAppliedDay} />
+          </div>
         </TableCell>
 
         {/* Start Time */}
         <TableCell>
-          <Input
-            type="time"
-            value={values?.startTime || ''}
-            onChange={e => handleFieldChange(rowId, 'startTime', e.target.value)}
-            className="gba:w-[100px]"
-            disabled={isSaving}
-          />
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Input
+                type="time"
+                value={values?.startTime || ''}
+                onChange={e => handleFieldChange(rowId, 'startTime', e.target.value)}
+                className="gba:w-[100px]"
+                disabled={isSaving}
+              />
+              {requiredFields.startTime && <RequiredIndicator />}
+            </div>
+            <FieldErrorTooltip error={errors.startTime} />
+          </div>
         </TableCell>
 
         {/* Day To */}
         <TableCell>
-          <Combobox
-            options={INCREMENT_APPLIED_DAYS_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
-            value={values?.toAppliedDate || ''}
-            onValueChange={value => handleFieldChange(rowId, 'toAppliedDate', value)}
-            placeholder="Select"
-            className="gba:w-full"
-            disabled={isSaving}
-          />
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Combobox
+                options={INCREMENT_APPLIED_DAYS_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
+                value={values?.toAppliedDate || ''}
+                onValueChange={value => handleFieldChange(rowId, 'toAppliedDate', value)}
+                placeholder="Select"
+                className="gba:w-full"
+                disabled={isSaving}
+              />
+              {requiredFields.toAppliedDate && <RequiredIndicator />}
+            </div>
+            <FieldErrorTooltip error={errors.toAppliedDate} />
+          </div>
         </TableCell>
 
         {/* End Time */}
         <TableCell>
-          <Input
-            type="time"
-            value={values?.endTime || ''}
-            onChange={e => handleFieldChange(rowId, 'endTime', e.target.value)}
-            className="gba:w-[100px]"
-            disabled={isSaving}
-          />
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Input
+                type="time"
+                value={values?.endTime || ''}
+                onChange={e => handleFieldChange(rowId, 'endTime', e.target.value)}
+                className="gba:w-[100px]"
+                disabled={isSaving}
+              />
+              {requiredFields.endTime && <RequiredIndicator />}
+            </div>
+            <FieldErrorTooltip error={errors.endTime} />
+          </div>
         </TableCell>
 
         {/* Sum Time */}
@@ -796,42 +901,56 @@ export const useIncrementTypeDetailRows = ({
 
         {/* Time Type */}
         <TableCell>
-          <Combobox
-            options={timeTypes.map(t => ({ value: t.id, label: `${t.code} - ${t.name}` }))}
-            value={values?.timeTypeId || ''}
-            onValueChange={value => handleFieldChange(rowId, 'timeTypeId', value)}
-            placeholder="Select"
-            className="gba:w-[170px] gba:overflow-hidden gba:[&_span]:truncate"
-            disabled={isSaving}
-          />
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Combobox
+                options={timeTypes.map(t => ({ value: t.id, label: `${t.code} - ${t.name}` }))}
+                value={values?.timeTypeId || ''}
+                onValueChange={value => handleFieldChange(rowId, 'timeTypeId', value)}
+                placeholder="Select"
+                className="gba:w-[170px] gba:overflow-hidden gba:[&_span]:truncate"
+                disabled={isSaving}
+              />
+              {requiredFields.timeTypeId && <RequiredIndicator />}
+            </div>
+            <FieldErrorTooltip error={errors.timeTypeId} />
+          </div>
         </TableCell>
 
         {/* Calculation Type */}
         <TableCell>
-          <Combobox
-            options={INCREMENT_CALCULATION_TYPE_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
-            value={values?.incrementCalculationType || ''}
-            onValueChange={value => handleFieldChange(rowId, 'incrementCalculationType', value)}
-            placeholder="Select"
-            className="gba:w-full"
-            disabled={isSaving}
-          />
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Combobox
+                options={INCREMENT_CALCULATION_TYPE_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
+                value={values?.incrementCalculationType || ''}
+                onValueChange={value => handleFieldChange(rowId, 'incrementCalculationType', value)}
+                placeholder="Select"
+                className="gba:w-full"
+                disabled={isSaving}
+              />
+              {requiredFields.incrementCalculationType && <RequiredIndicator />}
+            </div>
+            <FieldErrorTooltip error={errors.incrementCalculationType} />
+          </div>
         </TableCell>
 
         {/* Fixed Value */}
         <TableCell>
-          {values?.incrementCalculationType === 'CALCULATED_INC_CALC_TYPE' ? (
-            <span>-</span>
-          ) : (
-            <Input
-              type="text"
-              placeholder="HH:mm"
-              value={values?.fixedValue || ''}
-              onChange={e => handleFieldChange(rowId, 'fixedValue', e.target.value || null)}
-              className="gba:w-[80px]"
-              disabled={isSaving}
-            />
-          )}
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Input
+                type="text"
+                placeholder="HH:mm"
+                value={values?.fixedValue || ''}
+                onChange={e => handleFieldChange(rowId, 'fixedValue', e.target.value || null)}
+                className="gba:w-[80px]"
+                disabled={isSaving || !isFixedValueEnabled(values?.incrementCalculationType)}
+              />
+              {requiredFields.fixedValue && <RequiredIndicator />}
+            </div>
+            <FieldErrorTooltip error={errors.fixedValue} />
+          </div>
         </TableCell>
 
         {/* Check Start Before */}
@@ -845,29 +964,19 @@ export const useIncrementTypeDetailRows = ({
 
         {/* Start Before Time */}
         <TableCell>
-          {values?.checkStartBefore ? (
-            <Input
-              type="time"
-              value={values?.startBeforeTime || ''}
-              onChange={e => handleFieldChange(rowId, 'startBeforeTime', e.target.value || null)}
-              className="gba:w-[100px]"
-              disabled={isSaving}
-            />
-          ) : (
-            <span>-</span>
-          )}
-        </TableCell>
-
-        {/* Include/Exclude Option */}
-        <TableCell>
-          <Combobox
-            options={INCLUDE_EXCLUDE_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
-            value={values?.includeExcludeOption || ''}
-            onValueChange={value => handleFieldChange(rowId, 'includeExcludeOption', value)}
-            placeholder="Select"
-            className="gba:w-full"
-            disabled={isSaving}
-          />
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Input
+                type="time"
+                value={values?.startBeforeTime || ''}
+                onChange={e => handleFieldChange(rowId, 'startBeforeTime', e.target.value || null)}
+                className="gba:w-[100px]"
+                disabled={isSaving || !values?.checkStartBefore}
+              />
+              {requiredFields.startBeforeTime && <RequiredIndicator />}
+            </div>
+            <FieldErrorTooltip error={errors.startBeforeTime} />
+          </div>
         </TableCell>
 
         {/* Alternative To */}
@@ -889,11 +998,11 @@ export const useIncrementTypeDetailRows = ({
           )}
         </TableCell>
 
-        {/* Actions */}
+        {/* Actions - isValid forced to true so Save is always clickable, validation happens on click */}
         <RowActionsCell
           isEditing={true}
           isSaving={isSaving}
-          isValid={isValid}
+          isValid={true}
           isNewRow={true}
           onSave={() => handleSaveRow(rowId)}
           onCancel={() => handleCancelRowEdit(rowId)}
@@ -911,6 +1020,8 @@ export const useIncrementTypeDetailRows = ({
     timeTypes,
     isRowSaving,
     isRowValid,
+    getRowErrors,
+    attemptedSave,
     getAlternativeOptions,
     handleFieldChange,
     handleSaveRow,

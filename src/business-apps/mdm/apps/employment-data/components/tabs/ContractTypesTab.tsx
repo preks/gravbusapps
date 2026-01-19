@@ -1,15 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button, Card, CardContent, Input, Spinner, DataTable, Icon, Badge, toast } from '@newwork/nw-design-system'
-import {
-  EyeIcon,
-  ArrowsDownUpIcon,
-  PlusIcon,
-  PencilSimpleLineIcon,
-  FileCodeIcon,
-  TagIcon,
-  InfoIcon
-} from '@phosphor-icons/react'
+import { EyeIcon, PlusIcon, PencilSimpleLineIcon, FileCodeIcon, TagIcon, InfoIcon } from '@phosphor-icons/react'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
@@ -167,21 +159,12 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
     const columns: ColumnDef<ContractTypeTable>[] = [
       {
         accessorKey: 'code',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Code
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
+        header: 'Code',
         enableSorting: true,
         cell: ({ getValue }) => {
           const code = getValue()
           return (
-            <div className="gba:flex gba:items-center">
+            <div className="gba:flex gba:items-center gba:w-[80px]">
               <Badge variant="info">{(code as string) ?? 'N/A'}</Badge>
             </div>
           )
@@ -189,44 +172,26 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
       },
       {
         accessorKey: 'value',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Name
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
+        header: 'Name',
         enableSorting: true,
         cell: ({ getValue }) => {
           const name = getValue()
           return (
-            <div className="gba:flex gba:items-center">
-              <div className="gba:font-semibold">{name as string}</div>
+            <div className="gba:flex gba:items-center gba:w-[150px] gba:md:w-[250px] gba:lg:w-[350px] gba:xl:w-[450px] gba:2xl:w-[500px]">
+              <div className="gba:w-full gba:truncate gba:font-semibold">{name as string}</div>
             </div>
           )
         }
       },
       {
         accessorKey: 'description',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Description
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
+        header: 'Description',
         enableSorting: true,
         cell: ({ getValue }) => {
           const description = getValue()
           return (
-            <div className="gba:flex gba:items-center">
-              <div className="gba:max-w-[300px] gba:truncate" title={description as string}>
+            <div className="gba:flex gba:items-center gba:w-[100px] gba:md:w-[150px] gba:lg:w-[200px] gba:xl:w-[260px] gba:2xl:w-[300px]">
+              <div className="gba:w-full gba:truncate" title={description as string}>
                 {(description as string) ?? '-'}
               </div>
             </div>
@@ -235,16 +200,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
       },
       {
         accessorKey: 'probationPeriod',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Probation Period
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
+        header: 'Probation Period',
         enableSorting: true,
         cell: ({ getValue }) => {
           const probationPeriod = getValue() as string | undefined

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { PersonalWorkspaceConfig } from './types'
@@ -7,6 +7,7 @@ import { OverviewView } from './components/overview'
 import { MyActivitiesView } from './components/activities'
 import { MyTasksView } from './components/tasks'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 export interface PersonalWorkspaceProps extends BusinessAppContextProps {
   config: PersonalWorkspaceConfig
@@ -76,6 +77,18 @@ export const PersonalWorkspace: React.FC<PersonalWorkspaceProps> = ({ config, ac
   const kpisResult = config.hooks.useKpis({ accessToken, userInfo }, employeeId)
   const activitiesResult = config.hooks.useActivities({ accessToken, userInfo }, employeeId)
   const tasksResult = config.hooks.useTasks({ accessToken, userInfo }, employeeId)
+
+  // Extract refetch functions to prevent unnecessary re-renders
+  const { refetch: refetchActivities } = activitiesResult
+  const { refetch: refetchTasks } = tasksResult
+
+  // Process Completion Handler - refresh Overview tab data when processes complete
+  const handleProcessComplete = useCallback(() => {
+    refetchActivities?.()
+    refetchTasks?.()
+  }, [refetchActivities, refetchTasks])
+
+  useProcessCompletion({ onSuccess: handleProcessComplete })
 
   return (
     <div data-testid="personal-workspace-container" className="gba:space-y-6">

@@ -133,12 +133,6 @@ const EveryAIMessageRendererComponent: React.FC<EveryAIMessageRendererProps> = (
     try {
       const parsed = JSON.parse(text)
       if (parsed.action === 'form_submission') {
-        console.log('📤 [EveryAIMessageRenderer] Form submission detected:', {
-          flow_name: parsed.flow_name,
-          module_name: parsed.module_name,
-          uuid: parsed.uuid
-        })
-
         // This is a form submission - send it to the backend
         await onSendMessage(text, {
           isFormSubmission: true,

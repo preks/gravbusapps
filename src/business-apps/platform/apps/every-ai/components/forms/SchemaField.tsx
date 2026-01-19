@@ -115,7 +115,25 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
     switch (fieldType) {
       case 'string': {
         const rawEnumOptions = schema.enum ?? null
-        const rawOneOfOptions = schema.oneOf ?? null
+        let rawOneOfOptions = schema.oneOf ?? null
+
+        // Optional dependent dropdown: for documentType, filter type options by selected documentGroup.
+        // Backend should provide a mapping on the field schema:
+        // schema['x-typeOptionsByGroup'] = { [groupValue]: [typeValue1, typeValue2, ...] }
+        if (name === 'documentType' && rawOneOfOptions) {
+          const selectedGroup = (formData as any)?.documentGroup ?? (formData as any)?.document_group ?? undefined
+          const typeOptionsByGroup = (schema as any)['x-typeOptionsByGroup'] as Record<string, string[]> | undefined
+
+          if (typeOptionsByGroup && selectedGroup && Array.isArray(rawOneOfOptions)) {
+            const allowed = new Set(typeOptionsByGroup[selectedGroup] || [])
+            if (allowed.size > 0) {
+              rawOneOfOptions = (rawOneOfOptions as any[]).filter(option => {
+                const rawValue = (option as any)?.const ?? (option as any)?.value ?? option
+                return allowed.has(rawValue)
+              })
+            }
+          }
+        }
 
         if (rawEnumOptions || rawOneOfOptions) {
           type SelectOption = { id: string; label: string; rawValue: unknown }

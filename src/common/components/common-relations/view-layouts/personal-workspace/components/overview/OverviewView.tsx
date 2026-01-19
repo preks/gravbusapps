@@ -46,7 +46,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
       {/* Main Content Grid - Two Columns */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-6">
-        {/* Recent Activities Widget */}
+        {/* Recent Activities Widget - Workspace-enhanced activity display */}
         <RecentActivitiesWidget
           activities={activitiesResult.activities.slice(0, 5)} // Show top 5
           loading={activitiesResult.loading}

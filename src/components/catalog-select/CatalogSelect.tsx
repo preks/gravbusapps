@@ -43,6 +43,11 @@ export interface CatalogSelectConfig {
   code?: ListFilter<string>
   /** Filter by catalog entry type */
   type?: ListFilter<string>
+  /** Custom sort order (defaults to displayOrder ASC_NULLS_LAST, value ASC) */
+  orderBy?: Array<{
+    field: string
+    direction: 'ASC' | 'DESC' | 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST' | 'ASC_NULLS_FIRST' | 'DESC_NULLS_FIRST'
+  }>
 }
 
 export interface CatalogSelectProps {
@@ -190,7 +195,8 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
         filterField: parsedFilterField,
         // Include business logic filtering config
         codeFilter: config?.code,
-        typeFilter: config?.type
+        typeFilter: config?.type,
+        orderBy: config?.orderBy
       })
       registeredFieldNameRef.current = fieldName
     }
@@ -204,7 +210,8 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     requireSourceForEnable,
     parsedFilterField,
     config?.code,
-    config?.type
+    config?.type,
+    config?.orderBy
     // NOTE: context NOT in deps to avoid infinite loops
   ])
 
@@ -545,7 +552,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     // Extract key and businessAppContext from props before spreading
     // key must be passed directly to JSX, not through spread
     // businessAppContext should not be passed to DOM elements
-    const restProps = props ? { ...props } : {}
+    const restProps: any = props ? { ...props } : {}
     delete restProps.key
     delete restProps.businessAppContext
 

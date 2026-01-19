@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useCallback } from 'react'
 import {
   Card,
   CardHeader,
@@ -13,6 +13,7 @@ import type { GenericActivity, PersonalWorkspaceConfig } from '../../types'
 import dayjs from 'dayjs'
 import { PhoneIcon, EnvelopeIcon, CalendarBlankIcon, UserIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { getFileIcon, buildFileUrl } from '@/common/utils/fileUtils'
 
 export interface RecentActivitiesWidgetProps {
   activities: GenericActivity[]
@@ -20,28 +21,24 @@ export interface RecentActivitiesWidgetProps {
   config: PersonalWorkspaceConfig
 }
 
-// Icon components extracted outside to prevent re-creation on each render
-const CallIcon = (props: any) => <PhoneIcon weight="bold" {...props} />
-const EmailIcon = (props: any) => <EnvelopeIcon weight="bold" {...props} />
-const MeetingIcon = (props: any) => <CalendarBlankIcon weight="bold" {...props} />
-const DefaultActivityIcon = (props: any) => <UserIcon weight="bold" {...props} />
-
+// Icon components for activity types
 const getActivityIcon = (activityType: string) => {
   switch (activityType?.toLowerCase()) {
     case 'call':
-      return CallIcon
+      return (props: any) => <PhoneIcon weight="bold" {...props} />
     case 'email':
-      return EmailIcon
+      return (props: any) => <EnvelopeIcon weight="bold" {...props} />
     case 'meeting':
-      return MeetingIcon
+      return (props: any) => <CalendarBlankIcon weight="bold" {...props} />
     default:
-      return DefaultActivityIcon
+      return (props: any) => <UserIcon weight="bold" {...props} />
   }
 }
 
 /**
  * Generic Recent Activities Widget
- * Displays recent activities using timeline layout with reference badges and fixed height scrolling
+ * Extends ActivitySection functionality with workspace-specific entity badges
+ * Reuses document rendering pattern from ActivitySection
  */
 export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({ activities, loading, config }) => {
   const getOwnerName = (ownerEmployee: any) => {
@@ -51,9 +48,49 @@ export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({ 
     return ownerEmployee.displayName || 'Unknown'
   }
 
-  const handleEmployeeClick = (employeeId: string) => {
+  const handleEmployeeClick = useCallback((employeeId: string) => {
     navigateTo(buildPlatformUrl('/platform/hr/core/employees/employee-record', { employeeId }))
-  }
+  }, [])
+
+  const handleDocumentClick = useCallback((document: any, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!document.fileInfo) return
+
+    try {
+      const fileUrl = buildFileUrl(document.fileInfo)
+      window.open(fileUrl, '_blank')
+    } catch {
+      // Silent fail - fileInfo structure invalid
+    }
+  }, [])
+
+  // Helper function to render activity documents - reduces nesting depth
+  const renderActivityDocuments = useCallback(
+    (activityId: string, documents: any[]) => {
+      if (!documents || documents.length === 0) return null
+
+      return (
+        <div className="gba:flex gba:flex-wrap gba:gap-2">
+          {documents.map((doc: any) => {
+            const FileIcon = getFileIcon(doc.mimeType)
+            return (
+              <button
+                key={doc.id}
+                onClick={e => handleDocumentClick(doc, e)}
+                className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:text-xs gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors"
+                data-testid={`activity-document-${activityId}-${doc.id}`}
+                title={doc.name}
+              >
+                <FileIcon size={14} weight="bold" />
+                <span className="gba:truncate gba:max-w-[150px]">{doc.name}</span>
+              </button>
+            )
+          })}
+        </div>
+      )
+    },
+    [handleDocumentClick]
+  )
 
   const timelineItems = useMemo(() => {
     return activities.map(activity => {
@@ -83,11 +120,17 @@ export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({ 
             <ActivityBadge activity={activity} config={config} data-testid={`activity-badge-${activity.id}`} />
           </div>
         ),
-        description: activity.description ? <span>{activity.description}</span> : undefined,
+        description: (
+          <div className="gba:flex gba:flex-col gba:gap-2">
+            {activity.description && <span>{activity.description}</span>}
+            {/* Document rendering - reused pattern from ActivitySection */}
+            {renderActivityDocuments(activity.id, activity.documents)}
+          </div>
+        ),
         icon: getActivityIcon(activityTypeLabel)
       } as any
     })
-  }, [activities, config])
+  }, [activities, config, handleEmployeeClick, renderActivityDocuments])
 
   // Render content based on loading/data state
   const renderContent = () => {

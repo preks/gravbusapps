@@ -277,7 +277,7 @@ export const CompactTwoWeekCalendar: React.FC<CompactTwoWeekCalendarProps> = ({
         <TaskDetailSheet
           task={selectedTask as any}
           open={!!selectedTask}
-          onOpenChange={open => {
+          onOpenChange={(open: boolean) => {
             if (!open) setSelectedTask(null)
           }}
           buildReferenceUrl={config.myTasksConfig?.buildReferenceUrl}
@@ -329,19 +329,14 @@ const DayCell: React.FC<DayCellProps> = ({
   activityCreateContext
 }) => {
   const [isHovered, setIsHovered] = useState(false)
-  const maxActivities = 3
-  const hasMore = day.items.length > maxActivities
-  const displayedActivities = day.items.slice(0, maxActivities)
 
   return (
     <div
-      className={`gba:border gba:rounded gba:p-1.5 gba:h-[130px] gba:relative gba:flex gba:flex-col ${
+      className={`gba:border gba:rounded gba:p-1.5 gba:h-[140px] gba:relative gba:flex gba:flex-col ${
         day.isToday ? 'gba:ring-2 gba:ring-primary gba:bg-primary/5' : 'gba:bg-background'
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onFocus={() => setIsHovered(true)}
-      onBlur={() => setIsHovered(false)}
       data-testid={`day-cell-${day.date.format('YYYY-MM-DD')}`}
     >
       {/* Hover Action Icons - Top Right Corner */}
@@ -429,35 +424,24 @@ const DayCell: React.FC<DayCellProps> = ({
         </span>
       </div>
 
-      {/* Activities list */}
-      <div className="gba:flex-1 gba:flex gba:flex-col gba:overflow-hidden">
-        <div className="gba:space-y-1 gba:flex-1">
-          {displayedActivities.map(activity => {
-            const activityType = activity.activityType?.value || 'Task'
-            const isTask = activity.isTask
-            return (
-              <button
-                type="button"
-                key={activity.id}
-                onClick={() => onItemClick(activity)}
-                className={`gba:w-full gba:px-1.5 gba:py-1 gba:rounded gba:text-[11px] gba:text-left gba:border-0 gba:flex gba:items-center gba:gap-1 gba:cursor-pointer hover:gba:opacity-80 ${getActivityColorClass(activityType)}`}
-                data-testid={`${isTask ? 'task' : 'activity'}-${activity.id}`}
-              >
-                {getActivityTypeIcon(activityType, 11)}
-                <span className="gba:truncate gba:flex-1 gba:text-gray-700">{activity.title}</span>
-              </button>
-            )
-          })}
-        </div>
-        {hasMore && (
-          <button
-            type="button"
-            className="gba:text-xs gba:text-center gba:text-primary gba:font-medium gba:mt-1 gba:shrink-0 gba:w-full gba:bg-transparent gba:border-0 gba:cursor-pointer hover:gba:underline gba:p-0"
-            data-testid={`show-more-${day.date.format('YYYY-MM-DD')}`}
-          >
-            +{day.items.length - maxActivities} more
-          </button>
-        )}
+      {/* Activities list - scrollable */}
+      <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-1">
+        {day.items.map(activity => {
+          const activityType = activity.activityType?.value || 'Task'
+          const isTask = activity.isTask
+          return (
+            <button
+              type="button"
+              key={activity.id}
+              onClick={() => onItemClick(activity)}
+              className={`gba:w-full gba:px-1.5 gba:py-1 gba:rounded gba:text-[11px] gba:text-left gba:border-0 gba:flex gba:items-center gba:gap-1 gba:cursor-pointer hover:gba:opacity-80 ${getActivityColorClass(activityType)}`}
+              data-testid={`${isTask ? 'task' : 'activity'}-${activity.id}`}
+            >
+              {getActivityTypeIcon(activityType, 11)}
+              <span className="gba:truncate gba:flex-1 gba:text-gray-700">{activity.title}</span>
+            </button>
+          )
+        })}
       </div>
     </div>
   )

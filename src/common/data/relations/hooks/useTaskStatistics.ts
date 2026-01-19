@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
@@ -166,7 +166,7 @@ export const useTaskStatistics = (context: BusinessAppContextProps, query: strin
       }))
       isFirstLoadRef.current = false
     }
-  }, [context.accessToken, context.userInfo?.employeeDetails?.employeeId, context.userInfo?.id, graphqlClient, query])
+  }, [context.accessToken, context.userInfo?.employeeDetails?.employeeId, context.userInfo?.id, query])
 
   useEffect(() => {
     if (context.accessToken) {
@@ -174,11 +174,14 @@ export const useTaskStatistics = (context: BusinessAppContextProps, query: strin
     }
   }, [context.accessToken, loadStatistics])
 
-  return {
-    myTasksStatistics: state.myTasksStatistics,
-    teamTasksStatistics: state.teamTasksStatistics,
-    isLoading: state.isLoading,
-    error: state.error,
-    refetch: loadStatistics
-  }
+  return useMemo(
+    () => ({
+      myTasksStatistics: state.myTasksStatistics,
+      teamTasksStatistics: state.teamTasksStatistics,
+      isLoading: state.isLoading,
+      error: state.error,
+      refetch: loadStatistics
+    }),
+    [state.myTasksStatistics, state.teamTasksStatistics, state.isLoading, state.error, loadStatistics]
+  )
 }

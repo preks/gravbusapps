@@ -28,10 +28,9 @@ export const useCompensationPermissions = ({
   hasEmployeeRecordAllHrBackoffice
 }: UseCompensationPermissionsParams): CompensationPermissions => {
   return useMemo(() => {
-    // Base permission: Manager with employee-growth OR HR admin without employee-growth
+    // Base permission: Manager with employee-growth OR HR admin (regardless of other permissions)
     const hasManagerEmployeeGrowthPermission = isManager && hasEmployeeGrowthPermission
-    const hasHrBackofficeWithoutGrowth = hasEmployeeRecordAllHrBackoffice && !hasEmployeeGrowthPermission
-    const hasBasePermission = hasManagerEmployeeGrowthPermission || hasHrBackofficeWithoutGrowth
+    const hasBasePermission = hasManagerEmployeeGrowthPermission || hasEmployeeRecordAllHrBackoffice
 
     return {
       // Tab visibility: Includes self-view + authorized users

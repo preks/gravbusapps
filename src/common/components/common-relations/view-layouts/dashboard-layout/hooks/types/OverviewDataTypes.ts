@@ -78,6 +78,20 @@ export interface OverviewData {
     isOverdue: boolean
   }>
   activeTasksTotal: number
+  // Optional: Opportunity status data (used instead of revenueBySource for IRM)
+  opportunityStatuses?: Array<{
+    status: string
+    statusRef: string | null
+    count: number
+    totalAmount: number
+  }>
+  totalOpportunityCount?: number
+  openOpportunitiesComparison?: {
+    beforeCurrentQuarter: number
+    currentQuarter: number
+  }
+  // Flag to indicate which middle card to render
+  useOpportunityStatus?: boolean
 }
 
 export interface UseOverviewDataReturn {
