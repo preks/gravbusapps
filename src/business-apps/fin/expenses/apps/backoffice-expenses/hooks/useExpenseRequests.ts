@@ -109,6 +109,17 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
     from?: string
     to?: string
   }>({})
+  // New date range filters - matching manager/personal pattern
+  const [effectiveDateRangeFilter, setEffectiveDateRangeFilter] = useState<{
+    from?: string
+    to?: string
+  } | null>(null)
+  const [requestDateRangeFilter, setRequestDateRangeFilter] = useState<{
+    from?: string
+    to?: string
+  } | null>(null)
+  // Request type filter (EXPENSES, TRIP)
+  const [requestTypeFilter, setRequestTypeFilter] = useState<string[]>([])
 
   const transformExpenseRequest = (item: any): ExpenseData => {
     return {
@@ -122,7 +133,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       creationDate: formatDateLocalized(item.createdAt),
       startDate: formatDateLocalized(item.startDate),
       endDate: formatDateLocalized(item.endDate),
-      requestDate: formatDateLocalized(item.requestDate),
+      requestDate: formatDateLocalized(item.createdAt),
       reporter: `${item.employee?.firstName ?? ''} ${item.employee?.lastName ?? ''}`.trim() || '-',
       type: item.requestType?.value ?? '-',
       amount: item.totalAmount ? `${item.totalAmount} ${item.currency?.code ?? ''}`.trim() : '-',
@@ -238,6 +249,51 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
     ]
   }
 
+  // Helper: Build effective date filter condition (matching manager/personal pattern)
+  const buildEffectiveDateFilterCondition = useCallback(
+    (effectiveDateRange: { from?: string; to?: string } | null): any | null => {
+      if (!effectiveDateRange?.from && !effectiveDateRange?.to) return null
+
+      const tripAnd: any[] = []
+      const expenseAnd: any[] = []
+
+      if (effectiveDateRange.from) {
+        tripAnd.push({ startDate: { _gte: effectiveDateRange.from } })
+        expenseAnd.push({ expenseItem: { expenseDate: { _gte: effectiveDateRange.from } } })
+      }
+      if (effectiveDateRange.to) {
+        tripAnd.push({ startDate: { _lte: effectiveDateRange.to } })
+        expenseAnd.push({ expenseItem: { expenseDate: { _lte: effectiveDateRange.to } } })
+      }
+
+      if (tripAnd.length === 0 && expenseAnd.length === 0) return null
+
+      return {
+        _or: [
+          { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd] },
+          { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd] }
+        ]
+      }
+    },
+    []
+  )
+
+  // Helper: Build request type filter condition
+  const buildRequestTypeFilterCondition = useCallback((requestTypeFilter: string[]): any | null => {
+    if (!requestTypeFilter || requestTypeFilter.length === 0) return null
+
+    const requestTypeTokens = requestTypeFilter.filter(f => f.startsWith('ExpenseRequestType:'))
+    if (requestTypeTokens.length === 0) return null
+
+    const allowedTypes = requestTypeTokens
+      .map(t => t.replace('ExpenseRequestType:v1:', ''))
+      .filter(t => t === 'EXPENSES' || t === 'TRIP')
+    if (allowedTypes.length === 0) return null
+
+    const typeOr = allowedTypes.map(t => ({ requestTypeRef: { _eq: `ExpenseRequestType:v1:${t}` } }))
+    return { _or: typeOr }
+  }, [])
+
   // Helper: Build complete where conditions from all filters (reduces cognitive complexity)
   // Refactored to use options object to avoid too many parameters
   const buildWhereConditions = useCallback(
@@ -251,6 +307,9 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       searchTerm: string
       departmentFilter: string
       currencyRefFilter: string
+      effectiveDateRangeFilter: { from?: string; to?: string } | null
+      requestDateRangeFilter: { from?: string; to?: string } | null
+      requestTypeFilter: string[]
     }): any => {
       const {
         statusFilter,
@@ -261,7 +320,10 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
         endDateRangeFilter,
         searchTerm,
         departmentFilter,
-        currencyRefFilter
+        currencyRefFilter,
+        effectiveDateRangeFilter,
+        requestDateRangeFilter,
+        requestTypeFilter
       } = options
 
       // Build conditions array using extracted helper functions
@@ -287,9 +349,29 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
         conditions.push({ currencyRef: { _eq: currencyRefFilter } })
       }
 
+      // Add effective date filter if provided
+      const effectiveDateFilter = buildEffectiveDateFilterCondition(effectiveDateRangeFilter)
+      if (effectiveDateFilter) {
+        conditions.push(effectiveDateFilter)
+      }
+
+      // Add request date range filter if provided
+      if (requestDateRangeFilter?.from || requestDateRangeFilter?.to) {
+        const requestDateCond: any = {}
+        if (requestDateRangeFilter.from) requestDateCond._gte = requestDateRangeFilter.from
+        if (requestDateRangeFilter.to) requestDateCond._lte = requestDateRangeFilter.to
+        conditions.push({ requestDate: requestDateCond })
+      }
+
+      // Add request type filter if provided
+      const requestTypeFilterCond = buildRequestTypeFilterCondition(requestTypeFilter)
+      if (requestTypeFilterCond) {
+        conditions.push(requestTypeFilterCond)
+      }
+
       return conditions.length === 1 ? conditions[0] : { _and: conditions }
     },
-    []
+    [buildEffectiveDateFilterCondition, buildRequestTypeFilterCondition]
   )
 
   const fetchData = async (force: boolean = false) => {
@@ -312,6 +394,9 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
       currencyRefFilter,
       startDateRange: startDateRangeFilter,
       endDateRange: endDateRangeFilter,
+      effectiveDateRange: effectiveDateRangeFilter,
+      requestDateRange: requestDateRangeFilter,
+      requestTypeFilter,
       sorter
     })
 
@@ -342,7 +427,10 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
         endDateRangeFilter,
         searchTerm,
         departmentFilter,
-        currencyRefFilter
+        currencyRefFilter,
+        effectiveDateRangeFilter,
+        requestDateRangeFilter,
+        requestTypeFilter
       })
 
       const limit = Math.min(pageSize, 1000)
@@ -398,6 +486,11 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
     startDateRangeFilter.to,
     endDateRangeFilter.from,
     endDateRangeFilter.to,
+    effectiveDateRangeFilter?.from,
+    effectiveDateRangeFilter?.to,
+    requestDateRangeFilter?.from,
+    requestDateRangeFilter?.to,
+    JSON.stringify(requestTypeFilter),
     JSON.stringify(sorter),
     isActive
   ])
@@ -623,6 +716,10 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
     setOrderBy,
     amountMinFilter,
     amountMaxFilter,
-    processExpensePayment
+    processExpensePayment,
+    // New filter setters
+    setEffectiveDateRangeFilter,
+    setRequestDateRangeFilter,
+    setRequestTypeFilter
   }
 }
