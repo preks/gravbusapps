@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import type { DataFilterGroup, DataFilter } from '@/components/data-filter'
 import { ExpenseStatus, getExpensePlanStatusDisplay } from '../utils'
 
@@ -6,17 +6,15 @@ import { useDebounce } from '@/common/hooks/useDebounce'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useExpensePlanCurrencies } from './useExpensePlanCurrencies'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { DatePicker, Tooltip } from 'antd'
-import { InfoCircleOutlined } from '@ant-design/icons'
-import dayjs, { Dayjs } from 'dayjs'
+import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
+import { createDateRangeFilterComponent } from './dateRangeFilterComponent'
+import { availableFilterStatuses } from './availableFilterStatuses'
 
 // Extend dayjs with required plugins
 dayjs.extend(weekday)
 dayjs.extend(localeData)
-
-const { RangePicker } = DatePicker
 
 export interface UseExpensePlanFiltersProps {
   accessToken?: string
@@ -54,22 +52,6 @@ export interface UseExpensePlanFiltersReturn {
   getAllSelectedFilters: string[]
   removeFilter: (filterId: string) => void
 }
-
-// Move outside component to prevent re-creation on every render
-// Include all statuses from the ExpenseStatus enum to match backend values
-const availableFilterStatuses: ExpenseStatus[] = [
-  ExpenseStatus.PREPARED,
-  ExpenseStatus.ASSIGNED,
-  ExpenseStatus.PENDING,
-  ExpenseStatus.APPROVED,
-  ExpenseStatus.REJECTED,
-  ExpenseStatus.VERIFIED,
-  ExpenseStatus.BOOKED,
-  ExpenseStatus.PAID,
-  ExpenseStatus.CLOSED,
-  ExpenseStatus.DISCARDED,
-  ExpenseStatus.TRANSFERRED
-]
 
 export const useExpensePlanFilters = ({
   accessToken,
@@ -325,86 +307,25 @@ export const useExpensePlanFilters = ({
     [removeDateRangeFilter]
   )
 
-  // Helper function to create date range filter components - reduces duplication
-  const createDateRangeFilterComponent = useCallback(
-    (
-      dateRange: [Date | null, Date | null] | null,
-      setter: (range: [Date | null, Date | null] | null) => void,
-      showTooltip = false
-    ) => {
-      const dayjsRange: [Dayjs | null, Dayjs | null] = [
-        dateRange?.[0] ? dayjs(dateRange[0]) : null,
-        dateRange?.[1] ? dayjs(dateRange[1]) : null
-      ]
-
-      const handleDateRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
-        if (dates) {
-          setter([dates[0]?.toDate() || null, dates[1]?.toDate() || null])
-        } else {
-          setter(null)
-        }
-      }
-
-      const picker = React.createElement(RangePicker, {
-        value: dayjsRange,
-        onChange: handleDateRangeChange,
-        placeholder: [
-          getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
-          getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
-        ],
-        format: 'YYYY-MM-DD',
-        allowClear: true,
-        allowEmpty: [true, true],
-        className: 'gba:w-full'
-      })
-
-      if (showTooltip) {
-        return React.createElement(
-          'div',
-          {},
-          picker,
-          React.createElement(
-            'div',
-            { className: 'gba:mt-2 gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1' },
-            React.createElement(
-              Tooltip,
-              {
-                title: getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:personal_expenses.effective_date_info',
-                  'For type TRIP, the start date is used. For type EXPENSE, the item expense date is used.'
-                ),
-                placement: 'right'
-              },
-              React.createElement(InfoCircleOutlined)
-            )
-          )
-        )
-      }
-
-      return picker
-    },
-    []
-  )
-
   // Date range filter components
   const EffectiveDateRangeFilterComponent = useMemo(
-    () => createDateRangeFilterComponent(effectiveDateRange, setEffectiveDateRange, true),
-    [effectiveDateRange, createDateRangeFilterComponent]
+    () => createDateRangeFilterComponent(effectiveDateRange, setEffectiveDateRange, { showTooltip: true }),
+    [effectiveDateRange]
   )
 
   const StartDateRangeFilterComponent = useMemo(
     () => createDateRangeFilterComponent(startDateRange, setStartDateRange),
-    [startDateRange, createDateRangeFilterComponent]
+    [startDateRange]
   )
 
   const EndDateRangeFilterComponent = useMemo(
     () => createDateRangeFilterComponent(endDateRange, setEndDateRange),
-    [endDateRange, createDateRangeFilterComponent]
+    [endDateRange]
   )
 
   const PlanDateRangeFilterComponent = useMemo(
     () => createDateRangeFilterComponent(planDateRange, setPlanDateRange),
-    [planDateRange, createDateRangeFilterComponent]
+    [planDateRange]
   )
 
   // Create filter groups for the DataFilter component
