@@ -30,6 +30,9 @@ export const INCLUDE_EXCLUDE_OPTIONS = [
   { code: 'EXCLUDE_OPTION', displayValue: 'Exclude' }
 ]
 
+// Duration format regex: allows 1-3 digits for hours (0-999), colon, exactly 2 digits for minutes (00-59)
+export const DURATION_FORMAT_REGEX = /^\d{1,3}:[0-5]\d$/
+
 // Validation schema for a single row
 export const incrementTypeDetailRowSchema = z
   .object({
@@ -51,18 +54,30 @@ export const incrementTypeDetailRowSchema = z
   })
   .superRefine((data, ctx) => {
     // Validate fixedValue when calculation type requires it
-    if (
-      (data.incrementCalculationType === 'MIN_INC_CALC_TYPE' ||
-        data.incrementCalculationType === 'MAX_INC_CALC_TYPE' ||
-        data.incrementCalculationType === 'FIXED_INC_CALC_TYPE') &&
-      (!data.fixedValue || data.fixedValue === '')
-    ) {
+    const requiresFixedValue =
+      data.incrementCalculationType === 'MIN_INC_CALC_TYPE' ||
+      data.incrementCalculationType === 'MAX_INC_CALC_TYPE' ||
+      data.incrementCalculationType === 'FIXED_INC_CALC_TYPE'
+
+    if (requiresFixedValue && (!data.fixedValue || data.fixedValue === '')) {
       ctx.addIssue({
         code: 'custom',
         path: ['fixedValue'],
         message: getTranslationFromI18nKeyAndLabel(
           'master-data:hr.time_attendance.increment_type_versions.fields.fixed_value_required',
           'Fixed Value is required for Min, Max, or Fixed calculation types'
+        )
+      })
+    }
+
+    // Validate fixedValue format when provided (duration format: HH:mm, allows > 24h)
+    if (data.fixedValue && data.fixedValue !== '' && !DURATION_FORMAT_REGEX.test(data.fixedValue)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['fixedValue'],
+        message: getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.time_attendance.increment_type_versions.fields.fixed_value_invalid_format',
+          'Invalid format. Use HH:mm (e.g., 08:30, 48:00)'
         )
       })
     }
@@ -146,3 +161,46 @@ export const getDefaultIncrementTypeDetailValues = (): IncrementTypeDetailRowFor
   checkStartBefore: false,
   startBeforeTime: null
 })
+
+// Helper to determine if fixedValue field should be enabled
+export const isFixedValueEnabled = (incrementCalculationType: string | null | undefined): boolean => {
+  return (
+    incrementCalculationType === 'MIN_INC_CALC_TYPE' ||
+    incrementCalculationType === 'MAX_INC_CALC_TYPE' ||
+    incrementCalculationType === 'FIXED_INC_CALC_TYPE'
+  )
+}
+
+// Helper to determine which fields are required based on current values
+export const getRequiredFieldsForIncrementType = (
+  incrementCalculationType: string | null | undefined,
+  checkStartBefore: boolean | null | undefined
+): {
+  timeIssueType: boolean
+  fromAppliedDay: boolean
+  startTime: boolean
+  toAppliedDate: boolean
+  endTime: boolean
+  timeTypeId: boolean
+  incrementCalculationType: boolean
+  fixedValue: boolean
+  startBeforeTime: boolean
+} => {
+  // fixedValue is required when calculation type is MIN, MAX, or FIXED
+  const isFixedValueRequired =
+    incrementCalculationType === 'MIN_INC_CALC_TYPE' ||
+    incrementCalculationType === 'MAX_INC_CALC_TYPE' ||
+    incrementCalculationType === 'FIXED_INC_CALC_TYPE'
+
+  return {
+    timeIssueType: true,
+    fromAppliedDay: true,
+    startTime: true,
+    toAppliedDate: true,
+    endTime: true,
+    timeTypeId: true,
+    incrementCalculationType: true,
+    fixedValue: isFixedValueRequired,
+    startBeforeTime: checkStartBefore === true
+  }
+}
