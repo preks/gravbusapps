@@ -13,12 +13,9 @@ export interface DayCellEventsProps {
   onClick: (item: CalendarExpenseItem) => void
 }
 
-const DayCellEvents: React.FC<DayCellEventsProps> = ({ value, items, planItems, requestItems, active, onClick }) => {
-  const allAvailable = [
-    ...(active.expense ? items : []),
-    ...(active.plan ? planItems : []),
-    ...(active.request ? requestItems : [])
-  ]
+const DayCellEvents: React.FC<DayCellEventsProps> = ({ value, planItems, requestItems, active, onClick }) => {
+  // Items removed - only show plans and requests
+  const allAvailable = [...(active.plan ? planItems : []), ...(active.request ? requestItems : [])]
 
   const itemsForDate = allAvailable.filter(item => {
     if (item.endDate && (item.type === 'plan' || item.type === 'request')) {
