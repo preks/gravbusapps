@@ -73,6 +73,7 @@ interface ExpenseItemContextProps {
   employeeRuleId: string | null | object
   expenseRuleError: string | null
   receiptCurrencyError: string | null
+  hasLinkedExpenseRequest: boolean
   additionalData?: any
 
   calculateTotal: () => number
@@ -146,6 +147,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
   const [itemValues, setItemValues] = useState<{ id: string; version: string | number } | null>(null)
   const [receiptCurrencyError, setReceiptCurrencyError] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState<boolean>(false)
+  const [hasLinkedExpenseRequest, setHasLinkedExpenseRequest] = useState<boolean>(false)
 
   const graphqlClient = useMemo(() => createGraphQLClient(accessToken), [accessToken])
   const { dispatchProcessContinueEventIfEnabled, getIsProcessEventDispatched } = useProcessEventState(additionalData)
@@ -462,6 +464,11 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       t,
       setInitialItemValues
     )
+
+    // Check if the expense item is linked to any expense request
+    const linkedRequest = editData?.ExpenseItemByPk?.expenseRequest
+    setHasLinkedExpenseRequest(!!linkedRequest?.id)
+
     try {
       const itemCurrencyId = editData?.ExpenseItemByPk?.currency?.id || form.getFieldValue('currency')
       if (itemCurrencyId) {
@@ -1111,6 +1118,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       employeeRuleId,
       expenseRuleError,
       receiptCurrencyError,
+      hasLinkedExpenseRequest,
       additionalData,
       calculateTotal: calculateTotalWrapper,
       handleFileUpload: handleFileUploadWrapper,
@@ -1147,6 +1155,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       employeeRuleId,
       expenseRuleError,
       receiptCurrencyError,
+      hasLinkedExpenseRequest,
       additionalData,
       calculateTotalWrapper,
       handleFileUploadWrapper,

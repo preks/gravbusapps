@@ -236,7 +236,7 @@ const StructuredResponseRenderer: React.FC<{ data: any; expertColor?: string; ac
   )
 }
 
-export const ExpertResponseRenderer: React.FC<ExpertResponseRendererProps> = ({
+const ExpertResponseRendererComponent: React.FC<ExpertResponseRendererProps> = ({
   content,
   expertColor,
   citations,
@@ -351,3 +351,18 @@ export const ExpertResponseRenderer: React.FC<ExpertResponseRendererProps> = ({
     </div>
   )
 }
+
+// OPTIMIZATION: Memoize to prevent unnecessary re-renders
+export const ExpertResponseRenderer = React.memo(ExpertResponseRendererComponent, (prevProps, nextProps) => {
+  // Only re-render if content or citations change
+  // Parse is already memoized inside the component
+  if (prevProps.content !== nextProps.content) return false
+  if (prevProps.expertColor !== nextProps.expertColor) return false
+  if (prevProps.confidence !== nextProps.confidence) return false
+  if (prevProps.accessToken !== nextProps.accessToken) return false
+
+  // Check citations array reference (should be stable)
+  if (prevProps.citations !== nextProps.citations) return false
+
+  return true
+})

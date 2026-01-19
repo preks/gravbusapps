@@ -29,7 +29,23 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
       status
       createdAt
       updatedAt
-      expensePlan { code }
+      requestType {
+        value
+        translations {
+          value
+          localeCode
+        }
+      }
+      expensePlan { 
+        code
+        requestType {
+          value
+          translations {
+            value
+            localeCode
+          }
+        }
+      }
       employeeDocument {
         file
         fileSize
@@ -44,18 +60,19 @@ export const GET_EXPENSE_REQUESTS_BY_MANAGER = `
       }
       employee {
         id
+        code
         displayName
         firstName
         lastName
         fullName
         pictureThumbnail
+        additionalProperties
         employeePosition {
           organizationalUnit { # Corrected path for department
             id
             name # This is the department name
           }
         }
-        additionalProperties
       }
     }
   }
@@ -121,25 +138,42 @@ export const GET_MAIN_VIEW_EXPENSE_REQUESTS = `
       status
       createdAt
       updatedAt
-      expensePlan { code }
+      requestType {
+        value
+        translations {
+          value
+          localeCode
+        }
+      }
+      expensePlan { 
+        code
+        requestType {
+          value
+          translations {
+            value
+            localeCode
+          }
+        }
+      }
       employeeDocument {
         file
         name
       }
       employee {
         id
+        code
         displayName
         firstName
         lastName
         fullName
         pictureThumbnail
+        additionalProperties
         employeePosition {
           organizationalUnit {
             id
             name
           }
         }
-        additionalProperties
       }
     }
   }

@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Button, PageHeader, Alert, AlertDescription } from '@newwork/nw-design-system'
 import { TaskTemplateTable, TaskTemplateForm } from './components'
 import { TaskTemplateSettingsProps, BaseTaskTemplate, TaskTemplateFormData } from './types'
-import { Plus, ArrowLeft, Calendar } from 'lucide-react'
+import { Plus, Calendar } from 'lucide-react'
 
 export const TaskTemplateSettings: React.FC<TaskTemplateSettingsProps> = ({
   templates,
@@ -67,22 +67,13 @@ export const TaskTemplateSettings: React.FC<TaskTemplateSettingsProps> = ({
 
   return (
     <div data-testid={`${prefixDataTestId}-container`}>
-      {/* Back Button */}
-      {onBack && (
-        <div className="gba:mb-4">
-          <Button variant="ghost" onClick={onBack} data-testid={`${prefixDataTestId}-back-button`}>
-            <ArrowLeft className="gba:w-4 gba:h-4 gba:mr-2" />
-            Back
-          </Button>
-        </div>
-      )}
-
       {/* Page Header */}
       <PageHeader
         title={headerTitle}
-        description={headerDescription}
-        icon={<Calendar />}
+        subtitle={headerDescription}
+        avatar={<Calendar />}
         data-testid={`${prefixDataTestId}-header`}
+        onBack={onBack}
       />
 
       {/* Error State */}

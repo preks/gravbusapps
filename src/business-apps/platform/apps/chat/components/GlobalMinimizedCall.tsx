@@ -7,11 +7,11 @@
 
 import React, { useEffect, useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Avatar, AvatarImage, AvatarFallback, useTranslation } from '@newwork/nw-design-system'
+import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Maximize2, Users } from 'lucide-react'
 import { globalCallManager, type GlobalCallState } from '../services/globalCallManager'
 import type { GroupCallParticipant } from '../services/groupWebrtcClient'
-import translations from '../_i18n'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 // Format duration as MM:SS or HH:MM:SS
 const formatDuration = (seconds: number): string => {
@@ -57,7 +57,7 @@ const MinimizedCallUI: React.FC<MinimizedCallUIProps> = ({
   onExpand,
   onEndCall
 }) => {
-  const { t } = useTranslation(translations)
+  const t = useChatTranslation()
   const pipVideoRef = useRef<HTMLVideoElement>(null)
   const pipAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
 

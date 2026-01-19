@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef, useEffect } from 'react'
-import { FileClient } from '@/common/network/files/FileClient'
+import { useCallback, useRef, useEffect } from 'react'
+import { useFileClient } from '@/common/network/files/useFileClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ExpenseData } from '../types/expenseRequest.types'
 
@@ -18,13 +18,7 @@ export const useExpenseRequestFileService = (props: BusinessAppContextProps) => 
     }
   }, [])
 
-  const fileClient = useMemo(() => {
-    const client = new FileClient()
-    if (props.accessToken) {
-      client.setAccessToken(props.accessToken)
-    }
-    return client
-  }, [props.accessToken])
+  const fileClient = useFileClient(props)
 
   const printExpenseRequest = useCallback(
     async (record: ExpenseData): Promise<PrintExpenseRequestResult> => {
@@ -71,7 +65,7 @@ export const useExpenseRequestFileService = (props: BusinessAppContextProps) => 
           success: true,
           pdfUrl: objectUrl
         }
-      } catch {
+      } catch (error) {
         return {
           success: false,
           error: error instanceof Error ? error.message : 'Unknown error occurred'

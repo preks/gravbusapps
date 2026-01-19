@@ -60,10 +60,11 @@ const getConversationName = (
 }
 
 // Presence status indicator component - only shows for online, not offline
-const PresenceIndicator: React.FC<{ status: 'online' | 'offline'; className?: string }> = ({
-  status,
-  className = ''
-}) => {
+const PresenceIndicator: React.FC<{
+  status: 'online' | 'offline'
+  className?: string
+  t?: (key: string) => string
+}> = ({ status, className = '', t }) => {
   // Don't show indicator for offline status
   if (status === 'offline') return null
 
@@ -72,15 +73,15 @@ const PresenceIndicator: React.FC<{ status: 'online' | 'offline'; className?: st
     offline: 'gba:bg-muted-foreground'
   }
 
-  const statusTitles = {
-    online: 'Online',
-    offline: 'Offline'
+  const getStatusTitle = (status: 'online' | 'offline'): string => {
+    if (!t) return status === 'online' ? 'Online' : 'Offline'
+    return status === 'online' ? t('chat-statusOnline') : t('chat-statusOffline')
   }
 
   return (
     <span
       className={`gba:absolute gba:bottom-0 gba:right-0 gba:w-3 gba:h-3 gba:rounded-full gba:border-2 gba:border-background ${statusColors[status]} ${className}`}
-      title={statusTitles[status]}
+      title={getStatusTitle(status)}
     />
   )
 }
@@ -207,7 +208,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
             // Direct chat without avatar
             <IconAvatar className={avatarSize} label={name} icon={UserIcon} />
           )}
-          {showPresence && <PresenceIndicator status={presenceStatus} />}
+          {showPresence && <PresenceIndicator status={presenceStatus} t={t} />}
         </div>
 
         <div className="gba:flex-1 gba:min-w-0 gba:flex gba:flex-col gba:gap-0.5">

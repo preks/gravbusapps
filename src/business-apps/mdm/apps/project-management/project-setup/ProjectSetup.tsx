@@ -20,7 +20,6 @@ import {
   MagnifyingGlassIcon
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useDebounce } from '@/common/hooks/useDebounce'
 import { useProjects, useCreateTeam, useTeamAssignments } from '../hooks'
 import { Project, ProjectManager, ProjectStatusBE, ProjectStatusUI } from '../types'
 import {
@@ -32,7 +31,7 @@ import {
   Badge,
   Card,
   CardContent,
-  SheetPrimitive,
+  Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
@@ -240,13 +239,10 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
 
   const showNavigationItems = false
 
-  // Debounce search input
-  const debouncedSearchTerm = useDebounce(searchInput, 300)
-
   // Trigger BE search when debounced search term changes
   useEffect(() => {
-    handleSearch(debouncedSearchTerm)
-  }, [debouncedSearchTerm, handleSearch])
+    handleSearch(searchInput)
+  }, [searchInput, handleSearch])
 
   useEffect(() => {
     if (selectedProject) {
@@ -312,6 +308,14 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
           targetProject.status === ProjectStatusUI.Canceled || targetProject.status === ProjectStatusUI.Completed,
         onClick: (targetProject: Project) => {
           setSelectedProject(targetProject)
+          // Set default status based on planned end date (validTo)
+          const currentDate = new Date()
+          const plannedEndDate = targetProject.validTo ? new Date(targetProject.validTo) : null
+          if (plannedEndDate && currentDate > plannedEndDate) {
+            setCloseProjectStatus(ProjectStatusBE.COMPLETED)
+          } else {
+            setCloseProjectStatus(ProjectStatusBE.CANCELLED)
+          }
           setIsCloseProjectOpen(true)
         }
       },
@@ -829,7 +833,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
 
       <CardContent className="gba:overflow-auto">
         {/* Filters */}
-        <div className="gba:mb-6 gba:relative gba:max-w-sm">
+        <div className="gba:mb-6 gba:pt-4 gba:relative gba:max-w-sm">
           <DebouncedInput
             key="search-input"
             value={searchInput}
@@ -966,7 +970,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
         )}
 
         {selectedProject && (
-          <SheetPrimitive
+          <Sheet
             open={drawerVisible}
             onOpenChange={openStatus => {
               if (!openStatus) {
@@ -1102,7 +1106,7 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
                 </div>
               </SheetFooter>
             </SheetContent>
-          </SheetPrimitive>
+          </Sheet>
         )}
       </CardContent>
       <Toaster />

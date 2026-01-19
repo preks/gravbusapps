@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { PageHeader, Button, Spinner } from '@newwork/nw-design-system'
-import { ArrowLeft } from 'lucide-react'
+import { PageHeader, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { CategoryTable } from './components/CategoryTable'
 import {
@@ -90,30 +89,25 @@ const CategoryDataPage: React.FC<CategoryDataPageProps> = ({ prefixDataTestId, o
   }
 
   return (
-    <div data-testid={prefixDataTestId} className="gba:p-6">
+    <div data-testid={prefixDataTestId}>
       <PageHeader
         title="Content Categories"
-        description="Manage content categories for organizing articles and entries"
+        subtitle="Manage content categories for organizing articles and entries"
         className="gba:mb-6"
-      >
-        {onBack && (
-          <Button variant="ghost" onClick={onBack} data-testid={`${prefixDataTestId}-back-button`}>
-            <ArrowLeft className="gba:w-4 gba:h-4 gba:mr-2" />
-            Back
-          </Button>
-        )}
-      </PageHeader>
-
-      <CategoryTable
-        categories={categories}
-        isLoading={isLoading}
-        error={error}
-        onCreate={handleCreate}
-        onUpdate={handleUpdate}
-        onDelete={handleDelete}
-        onRetry={loadCategories}
-        prefixDataTestId={`${prefixDataTestId}-table`}
+        onBack={onBack}
       />
+      <div className="gba:p-6">
+        <CategoryTable
+          categories={categories}
+          isLoading={isLoading}
+          error={error}
+          onCreate={handleCreate}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
+          onRetry={loadCategories}
+          prefixDataTestId={`${prefixDataTestId}-table`}
+        />
+      </div>
     </div>
   )
 }

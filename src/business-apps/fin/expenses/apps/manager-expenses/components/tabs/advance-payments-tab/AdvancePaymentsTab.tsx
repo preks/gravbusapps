@@ -125,6 +125,11 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
       currencyRef: p.currencyRef,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
+      paymentMethod: p.paymentMethod,
+      decisionDate: p.decisionDate,
+      transactionDate: p.transactionDate,
+      costCenter: p.costCenter,
+      project: p.project,
       expensePlan: p.expensePlan
     }))
   }, [overview.data?.advancePayments])
