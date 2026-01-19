@@ -7,6 +7,8 @@ import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { FieldTypeOption, TransformedDayTypeVersionDetail } from '../types/day-type-version-details'
 import { APPLIED_DAYS_OPTIONS, dayTypeDetailRowSchema, DayTypeDetailRowFormData } from '../constants/day-type-constants'
+import { FieldErrorTooltip } from '../components/FieldErrorTooltip'
+import { RequiredIndicator } from '../components'
 
 // Special key for new row
 const NEW_ROW_KEY = '__new__'
@@ -51,6 +53,8 @@ export const useDayTypeDetailRows = ({
   const [editingRows, setEditingRows] = useState<Record<string, DayTypeDetailRowFormData>>({})
   // Track which rows are currently saving
   const [savingRows, setSavingRows] = useState<Set<string>>(new Set())
+  // Track which rows have attempted to save (to show errors)
+  const [attemptedSave, setAttemptedSave] = useState<Set<string>>(new Set())
 
   // State for delete dialog
   const [selectedDetailForDelete, setSelectedDetailForDelete] = useState<TransformedDayTypeVersionDetail | null>(null)
@@ -83,6 +87,27 @@ export const useDayTypeDetailRows = ({
       const values = editingRows[rowId]
       if (!values) return false
       return dayTypeDetailRowSchema.safeParse(values).success
+    },
+    [editingRows]
+  )
+
+  // Get validation errors for a row
+  const getRowErrors = useCallback(
+    (rowId: string): Record<string, string> => {
+      const values = editingRows[rowId]
+      if (!values) return {}
+
+      const result = dayTypeDetailRowSchema.safeParse(values)
+      if (result.success) return {}
+
+      const errors: Record<string, string> = {}
+      for (const issue of result.error.issues) {
+        const path = issue.path[0] as string
+        if (path && !errors[path]) {
+          errors[path] = issue.message
+        }
+      }
+      return errors
     },
     [editingRows]
   )
@@ -154,6 +179,12 @@ export const useDayTypeDetailRows = ({
       const { [rowId]: _, ...rest } = prev
       return rest
     })
+    // Clear attempted save state
+    setAttemptedSave(prev => {
+      const next = new Set(prev)
+      next.delete(rowId)
+      return next
+    })
   }, [])
 
   // Save a row (create or update)
@@ -162,7 +193,10 @@ export const useDayTypeDetailRows = ({
       const values = editingRows[rowId]
       if (!values) return
 
-      // Validate
+      // Mark that save was attempted (to show errors)
+      setAttemptedSave(prev => new Set(prev).add(rowId))
+
+      // Validate - if invalid, return early (errors will now be shown)
       const result = dayTypeDetailRowSchema.safeParse(values)
       if (!result.success) return
 
@@ -248,26 +282,33 @@ export const useDayTypeDetailRows = ({
       const rowId = detail.id
       const isEditing = isRowEditing(rowId)
       const isSaving = isRowSaving(rowId)
-      const isValid = isRowValid(rowId)
-      const isDirty = isRowDirty(rowId, detail)
       const values = editingRows[rowId]
+
+      // Get validation errors for the row (only show after save attempt)
+      const errors = isEditing && attemptedSave.has(rowId) ? getRowErrors(rowId) : {}
 
       return (
         <TableRow key={rowId} data-testid={formatDataTestId(dataTestId, `row-${rowId}`)}>
           {/* Field Type */}
           <TableCell>
             {isEditing ? (
-              <Combobox
-                options={fieldTypeOptions.map(ft => ({ value: ft.code, label: ft.displayValue }))}
-                value={values?.fieldType || ''}
-                onValueChange={value => handleFieldChange(rowId, 'fieldType', value)}
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'master-data:hr.time_attendance.day_type_versions.actions.select_field_type',
-                  'Select field type'
-                )}
-                className="gba:w-full"
-                disabled={isSaving}
-              />
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Combobox
+                    options={fieldTypeOptions.map(ft => ({ value: ft.code, label: ft.displayValue }))}
+                    value={values?.fieldType || ''}
+                    onValueChange={value => handleFieldChange(rowId, 'fieldType', value)}
+                    placeholder={getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.time_attendance.day_type_versions.actions.select_field_type',
+                      'Select field type'
+                    )}
+                    className="gba:w-full"
+                    disabled={isSaving}
+                  />
+                  <RequiredIndicator />
+                </div>
+                <FieldErrorTooltip error={errors.fieldType} />
+              </div>
             ) : (
               <span>{findFieldTypeOption(detail.fieldType)?.displayValue || detail.fieldType}</span>
             )}
@@ -276,17 +317,20 @@ export const useDayTypeDetailRows = ({
           {/* Applied Day */}
           <TableCell>
             {isEditing ? (
-              <Combobox
-                options={APPLIED_DAYS_OPTIONS.map(ad => ({ value: ad.code, label: ad.displayValue }))}
-                value={values?.appliedDay || ''}
-                onValueChange={value => handleFieldChange(rowId, 'appliedDay', value)}
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'master-data:hr.time_attendance.day_type_versions.actions.select_applied_day',
-                  'Select applied day'
-                )}
-                className="gba:w-full"
-                disabled={isSaving}
-              />
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <Combobox
+                  options={APPLIED_DAYS_OPTIONS.map(ad => ({ value: ad.code, label: ad.displayValue }))}
+                  value={values?.appliedDay || ''}
+                  onValueChange={value => handleFieldChange(rowId, 'appliedDay', value)}
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.day_type_versions.actions.select_applied_day',
+                    'Select applied day'
+                  )}
+                  className="gba:w-full"
+                  disabled={isSaving}
+                />
+                <FieldErrorTooltip error={errors.appliedDay} />
+              </div>
             ) : (
               <span>{findAppliedDayOption(detail.appliedDay)?.displayValue || detail.appliedDay}</span>
             )}
@@ -295,25 +339,28 @@ export const useDayTypeDetailRows = ({
           {/* Time Value */}
           <TableCell>
             {isEditing ? (
-              <Input
-                type="time"
-                value={values?.timeValue || ''}
-                onChange={e => handleFieldChange(rowId, 'timeValue', e.target.value)}
-                className="gba:w-[120px]"
-                disabled={isSaving}
-                data-testid={formatDataTestId(dataTestId, `time-value-input-${rowId}`)}
-              />
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <Input
+                  type="time"
+                  value={values?.timeValue || ''}
+                  onChange={e => handleFieldChange(rowId, 'timeValue', e.target.value)}
+                  className="gba:w-[120px]"
+                  disabled={isSaving}
+                  data-testid={formatDataTestId(dataTestId, `time-value-input-${rowId}`)}
+                />
+                <FieldErrorTooltip error={errors.timeValue} />
+              </div>
             ) : (
               <span>{detail.timeValue}</span>
             )}
           </TableCell>
 
-          {/* Actions */}
+          {/* Actions - isValid/isDirty forced to true so Save is always clickable, validation happens on click */}
           <RowActionsCell
             isEditing={isEditing}
             isSaving={isSaving}
-            isValid={isValid}
-            isDirty={isDirty}
+            isValid={true}
+            isDirty={true}
             onSave={() => handleSaveRow(rowId, detail)}
             onCancel={() => handleCancelRowEdit(rowId)}
             onEdit={() => handleStartEdit(detail)}
@@ -330,6 +377,8 @@ export const useDayTypeDetailRows = ({
       isRowSaving,
       isRowValid,
       isRowDirty,
+      getRowErrors,
+      attemptedSave,
       fieldTypeOptions,
       findFieldTypeOption,
       findAppliedDayOption,
@@ -348,58 +397,78 @@ export const useDayTypeDetailRows = ({
 
     const rowId = NEW_ROW_KEY
     const isSaving = isRowSaving(rowId)
-    const isValid = isRowValid(rowId)
     const values = editingRows[rowId]
+
+    // Get validation errors for the new row (only show after save attempt)
+    const errors = attemptedSave.has(rowId) ? getRowErrors(rowId) : {}
 
     return (
       <TableRow key="new-row" data-testid={formatDataTestId(dataTestId, 'new-row')}>
         {/* Field Type */}
         <TableCell>
-          <Combobox
-            options={fieldTypeOptions.map(ft => ({ value: ft.code, label: ft.displayValue }))}
-            value={values?.fieldType || ''}
-            onValueChange={value => handleFieldChange(rowId, 'fieldType', value)}
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'master-data:hr.time_attendance.day_type_versions.actions.select_field_type',
-              'Select field type'
-            )}
-            className="gba:w-full"
-            disabled={isSaving}
-          />
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Combobox
+                options={fieldTypeOptions.map(ft => ({ value: ft.code, label: ft.displayValue }))}
+                value={values?.fieldType || ''}
+                onValueChange={value => handleFieldChange(rowId, 'fieldType', value)}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.day_type_versions.actions.select_field_type',
+                  'Select field type'
+                )}
+                className="gba:w-full"
+                disabled={isSaving}
+              />
+              <RequiredIndicator />
+            </div>
+            <FieldErrorTooltip error={errors.fieldType} />
+          </div>
         </TableCell>
 
         {/* Applied Day */}
         <TableCell>
-          <Combobox
-            options={APPLIED_DAYS_OPTIONS.map(ad => ({ value: ad.code, label: ad.displayValue }))}
-            value={values?.appliedDay || ''}
-            onValueChange={value => handleFieldChange(rowId, 'appliedDay', value)}
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'master-data:hr.time_attendance.day_type_versions.actions.select_applied_day',
-              'Select applied day'
-            )}
-            className="gba:w-full"
-            disabled={isSaving}
-          />
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Combobox
+                options={APPLIED_DAYS_OPTIONS.map(ad => ({ value: ad.code, label: ad.displayValue }))}
+                value={values?.appliedDay || ''}
+                onValueChange={value => handleFieldChange(rowId, 'appliedDay', value)}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.day_type_versions.actions.select_applied_day',
+                  'Select applied day'
+                )}
+                className="gba:w-full"
+                disabled={isSaving}
+              />
+              <RequiredIndicator />
+            </div>
+            <FieldErrorTooltip error={errors.appliedDay} />
+          </div>
         </TableCell>
 
         {/* Time Value */}
         <TableCell>
-          <Input
-            type="time"
-            value={values?.timeValue || ''}
-            onChange={e => handleFieldChange(rowId, 'timeValue', e.target.value)}
-            className="gba:w-[120px]"
-            disabled={isSaving}
-            data-testid={formatDataTestId(dataTestId, 'time-value-input-new')}
-          />
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Input
+                type="time"
+                value={values?.timeValue || ''}
+                onChange={e => handleFieldChange(rowId, 'timeValue', e.target.value)}
+                className="gba:w-[120px]"
+                disabled={isSaving}
+                data-testid={formatDataTestId(dataTestId, 'time-value-input-new')}
+              />
+              <RequiredIndicator />
+            </div>
+            <FieldErrorTooltip error={errors.timeValue} />
+          </div>
         </TableCell>
 
-        {/* Actions */}
+        {/* Actions - isValid forced to true so Save is always clickable, validation happens on click */}
         <RowActionsCell
           isEditing={true}
           isSaving={isSaving}
-          isValid={isValid}
+          isValid={true}
           isNewRow={true}
           onSave={() => handleSaveRow(rowId)}
           onCancel={() => handleCancelRowEdit(rowId)}
@@ -415,6 +484,8 @@ export const useDayTypeDetailRows = ({
     editingRows,
     isRowSaving,
     isRowValid,
+    getRowErrors,
+    attemptedSave,
     fieldTypeOptions,
     handleFieldChange,
     handleSaveRow,

@@ -69,7 +69,7 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
         <TableHead className="gba:w-[5%]">
           {getTranslationFromI18nKeyAndLabel(
             'master-data:hr.time_attendance.increment_type_versions.fields.display_order',
-            '#'
+            'Priority'
           )}
         </TableHead>
         <TableHead className="gba:w-[10%]">
@@ -120,7 +120,7 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
         <TableHead className="gba:w-[8%]">
           {getTranslationFromI18nKeyAndLabel(
             'master-data:hr.time_attendance.increment_type_versions.fields.calculation',
-            'Calc'
+            'Calculation'
           )}
         </TableHead>
         <TableHead className="gba:w-[5%]">
@@ -132,19 +132,13 @@ export const IncrementTypeDetails: React.FC<IncrementTypeDetailsProps> = ({
         <TableHead className="gba:w-[4%]">
           {getTranslationFromI18nKeyAndLabel(
             'master-data:hr.time_attendance.increment_type_versions.fields.check_start_before',
-            'Before'
+            'Start Before'
           )}
         </TableHead>
         <TableHead className="gba:w-[6%]">
           {getTranslationFromI18nKeyAndLabel(
             'master-data:hr.time_attendance.increment_type_versions.fields.start_before_time',
             'Before Time'
-          )}
-        </TableHead>
-        <TableHead className="gba:w-[6%]">
-          {getTranslationFromI18nKeyAndLabel(
-            'master-data:hr.time_attendance.increment_type_versions.fields.include_exclude_option',
-            'Inc/Exc'
           )}
         </TableHead>
         <TableHead className="gba:w-[6%]">
