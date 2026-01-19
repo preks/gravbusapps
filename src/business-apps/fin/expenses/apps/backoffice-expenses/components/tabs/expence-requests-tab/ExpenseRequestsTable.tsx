@@ -1719,10 +1719,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           filter: selectedFilters,
           setFilter: (newFilters: string[]): void => {
             // Constants for filter type identification
-            const DATE_RANGE_FILTERS = ['effectiveDateRange', 'requestDateRange', 'startDate', 'endDate']
+            const DATE_RANGE_FILTERS = new Set(['effectiveDateRange', 'requestDateRange', 'startDate', 'endDate'])
             const isCurrencyFilter = (f: string) => f.startsWith('currency:')
             const isRequestTypeFilter = (f: string) => f.startsWith('ExpenseRequestType:')
-            const isDateRangeFilter = (f: string) => DATE_RANGE_FILTERS.includes(f)
+            const isDateRangeFilter = (f: string) => DATE_RANGE_FILTERS.has(f)
             const isStatusFilter = (f: string) =>
               !isCurrencyFilter(f) &&
               !isRequestTypeFilter(f) &&

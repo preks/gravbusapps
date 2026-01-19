@@ -1,11 +1,10 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
-import React from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import dayjs, { Dayjs } from 'dayjs'
 import { DatePicker, Tooltip } from 'antd'
 import { InfoCircleOutlined } from '@ant-design/icons'
+import type { DataFilterGroup, DataFilter } from '@/components/data-filter'
 
 const { RangePicker } = DatePicker
-import type { DataFilterGroup, DataFilter } from '@/components/data-filter'
 import { ExpenseStatus, getExpenseRequestStatusDisplay } from '../utils'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -214,10 +213,10 @@ export const useExpenseRequestFilters = ({
       ]
 
       const handleDateRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
-        if (!dates) {
-          setter(null)
-        } else {
+        if (dates) {
           setter([dates[0]?.toDate() || null, dates[1]?.toDate() || null])
+        } else {
+          setter(null)
         }
       }
 

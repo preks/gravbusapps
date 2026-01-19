@@ -5,6 +5,8 @@ import { ExpenseData, ExpenseRequestQueryData } from '../types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDateLocalized } from '../utils/dateUtils'
 
+type GqlBoolExp = Record<string, unknown>
+
 export const useExpenseRequests = (context: BusinessAppContextProps, isActive: boolean = true) => {
   const { accessToken } = context
   const client = useGraphqlClient(accessToken)
@@ -251,11 +253,11 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
 
   // Helper: Build effective date filter condition (matching manager/personal pattern)
   const buildEffectiveDateFilterCondition = useCallback(
-    (effectiveDateRange: { from?: string; to?: string } | null): any | null => {
+    (effectiveDateRange: { from?: string; to?: string } | null): GqlBoolExp | null => {
       if (!effectiveDateRange?.from && !effectiveDateRange?.to) return null
 
-      const tripAnd: any[] = []
-      const expenseAnd: any[] = []
+      const tripAnd: GqlBoolExp[] = []
+      const expenseAnd: GqlBoolExp[] = []
 
       if (effectiveDateRange.from) {
         tripAnd.push({ startDate: { _gte: effectiveDateRange.from } })
@@ -279,7 +281,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
   )
 
   // Helper: Build request type filter condition
-  const buildRequestTypeFilterCondition = useCallback((requestTypeFilter: string[]): any | null => {
+  const buildRequestTypeFilterCondition = useCallback((requestTypeFilter: string[]): GqlBoolExp | null => {
     if (!requestTypeFilter || requestTypeFilter.length === 0) return null
 
     const requestTypeTokens = requestTypeFilter.filter(f => f.startsWith('ExpenseRequestType:'))

@@ -321,12 +321,13 @@ export const useMainViewAdvancePayments = ({
       // Explicitly preserve all expensePlan fields including employee with pictureThumbnail
       filteredPayments = filteredPayments.map(payment => {
         const { expensePlan, ...restPayment } = payment
+        const stripCurrencyPrefix = (ref?: string) => (ref ? ref.split('Currency:v1:').join('') : 'EUR')
         return {
           ...restPayment,
-          currency: payment.currencyRef ? payment.currencyRef.replace(/Currency:v1:/g, '') : 'EUR',
+          currency: stripCurrencyPrefix(payment.currencyRef),
           expensePlan: {
             ...expensePlan,
-            currency: expensePlan.currencyRef ? expensePlan.currencyRef.replace(/Currency:v1:/g, '') : 'EUR'
+            currency: stripCurrencyPrefix(expensePlan.currencyRef)
             // Employee object is preserved via spread operator above
           }
         }

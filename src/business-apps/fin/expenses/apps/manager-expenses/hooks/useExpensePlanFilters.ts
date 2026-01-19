@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import type { DataFilterGroup, DataFilter } from '@/components/data-filter'
 import { ExpenseStatus, getExpensePlanStatusDisplay } from '../utils'
 
@@ -6,7 +6,6 @@ import { useDebounce } from '@/common/hooks/useDebounce'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useExpensePlanCurrencies } from './useExpensePlanCurrencies'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import React from 'react'
 import { DatePicker, Tooltip } from 'antd'
 import { InfoCircleOutlined } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
@@ -137,7 +136,7 @@ export const useExpensePlanFilters = ({
   // Helper functions to reduce cognitive complexity
   const handleCurrencyFilterChange = useCallback((filterId: string, isSelected: boolean) => {
     if (!isSelected) return // Currency is single-select, no deselection
-    const currencyCode = filterId.replace(/^currency:/g, '')
+    const currencyCode = filterId.split('currency:').join('')
     setLocalPrimaryCurrency(currencyCode)
     setUserHasManuallySelectedCurrency(true)
   }, [])
@@ -339,10 +338,10 @@ export const useExpensePlanFilters = ({
       ]
 
       const handleDateRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
-        if (!dates) {
-          setter(null)
-        } else {
+        if (dates) {
           setter([dates[0]?.toDate() || null, dates[1]?.toDate() || null])
+        } else {
+          setter(null)
         }
       }
 

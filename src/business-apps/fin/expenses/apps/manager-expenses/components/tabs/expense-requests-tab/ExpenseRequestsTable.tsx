@@ -602,10 +602,15 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           filter: buildDeduplicatedFilters(selectedFilters, primaryCurrency),
           setFilter: (newFilters: string[]): void => {
             // Constants for filter type identification
-            const DATE_RANGE_FILTERS = ['effectiveDateRange', 'requestDateRange', 'startDateRange', 'endDateRange']
+            const DATE_RANGE_FILTERS = new Set([
+              'effectiveDateRange',
+              'requestDateRange',
+              'startDateRange',
+              'endDateRange'
+            ])
             const isCurrencyFilter = (f: string) => f.startsWith('currency:')
             const isRequestTypeFilter = (f: string) => f.startsWith('ExpenseRequestType:')
-            const isDateRangeFilter = (f: string) => DATE_RANGE_FILTERS.includes(f)
+            const isDateRangeFilter = (f: string) => DATE_RANGE_FILTERS.has(f)
             const isStatusFilter = (f: string) =>
               !isCurrencyFilter(f) && !isRequestTypeFilter(f) && !isDateRangeFilter(f)
 
@@ -672,10 +677,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       <Sheet
         open={!!selectedRequest}
         onOpenChange={open => !open && setSelectedRequest(null)}
-        title={
-          selectedRequest?.title ||
-          getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.title', 'Expense Request Details')
-        }
         data-testid="expense-request-details-sheet"
       >
         <SheetContent side="right" className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">

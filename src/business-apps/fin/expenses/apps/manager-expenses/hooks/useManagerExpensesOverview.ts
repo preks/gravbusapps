@@ -99,28 +99,30 @@ const DEFAULT_PAY_ORDER: any[] = [{ createdAt: 'DESC' }]
 
 type DateRangeInput = { from?: string | null; to?: string | null } | null | undefined
 
+type GqlBoolExp = Record<string, unknown>
+
 function buildSearchPattern(searchTerm?: string | null): string {
   const trimmedSearch = (searchTerm ?? '').toString().trim()
   return trimmedSearch.length > 0 ? `%${trimmedSearch}%` : '%%'
 }
 
-function buildDateRangeCondition(from?: string | null, to?: string | null): any | null {
+function buildDateRangeCondition(from?: string | null, to?: string | null): GqlBoolExp | null {
   if (!from && !to) return null
-  const condition: any = {}
+  const condition: Record<string, string> = {}
   if (from) condition._gte = from
   if (to) condition._lte = to
-  return Object.keys(condition).length > 0 ? condition : null
+  return Object.keys(condition).length > 0 ? (condition as unknown as GqlBoolExp) : null
 }
 
-function wrapFieldCondition(field: string, condition: any | null): any | null {
-  return condition ? { [field]: condition } : null
+function wrapFieldCondition(field: string, condition: GqlBoolExp | null): GqlBoolExp | null {
+  return condition ? ({ [field]: condition } as unknown as GqlBoolExp) : null
 }
 
-function buildPlanEffectiveDateFilter(range: DateRangeInput): any | null {
+function buildPlanEffectiveDateFilter(range: DateRangeInput): GqlBoolExp | null {
   if (!range?.from && !range?.to) return null
 
-  const tripAnd: any[] = []
-  const expenseAnd: any[] = []
+  const tripAnd: GqlBoolExp[] = []
+  const expenseAnd: GqlBoolExp[] = []
 
   if (range.from) {
     tripAnd.push({ startDate: { _gte: range.from } })
@@ -138,14 +140,14 @@ function buildPlanEffectiveDateFilter(range: DateRangeInput): any | null {
       { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd] },
       { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd] }
     ]
-  }
+  } as unknown as GqlBoolExp
 }
 
-function buildRequestEffectiveDateFilter(range: DateRangeInput): any | null {
+function buildRequestEffectiveDateFilter(range: DateRangeInput): GqlBoolExp | null {
   if (!range?.from && !range?.to) return null
 
-  const tripAnd: any[] = []
-  const expenseAnd: any[] = []
+  const tripAnd: GqlBoolExp[] = []
+  const expenseAnd: GqlBoolExp[] = []
 
   if (range.from) {
     tripAnd.push({ startDate: { _gte: range.from } })
@@ -163,10 +165,10 @@ function buildRequestEffectiveDateFilter(range: DateRangeInput): any | null {
       { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd] },
       { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd] }
     ]
-  }
+  } as unknown as GqlBoolExp
 }
 
-function buildPlanTypeFilter(typeFilters?: string[]): any | null {
+function buildPlanTypeFilter(typeFilters?: string[]): GqlBoolExp | null {
   if (!typeFilters || typeFilters.length === 0) return null
 
   const planTypeTokens = typeFilters.filter(f => f.startsWith('planType:'))
@@ -176,10 +178,10 @@ function buildPlanTypeFilter(typeFilters?: string[]): any | null {
   if (allowedTypes.length === 0) return null
 
   const typeOr = allowedTypes.map(t => ({ requestTypeRef: { _eq: `ExpenseRequestType:v1:${t}` } }))
-  return { _or: typeOr }
+  return { _or: typeOr } as unknown as GqlBoolExp
 }
 
-function buildRequestTypeFilter(typeFilters?: string[]): any | null {
+function buildRequestTypeFilter(typeFilters?: string[]): GqlBoolExp | null {
   if (!typeFilters || typeFilters.length === 0) return null
 
   const requestTypeTokens = typeFilters.filter(f => f.startsWith('ExpenseRequestType:'))
@@ -191,18 +193,18 @@ function buildRequestTypeFilter(typeFilters?: string[]): any | null {
   if (allowedTypes.length === 0) return null
 
   const typeOr = allowedTypes.map(t => ({ requestTypeRef: { _eq: `ExpenseRequestType:v1:${t}` } }))
-  return { _or: typeOr }
+  return { _or: typeOr } as unknown as GqlBoolExp
 }
 
-function buildStatusWhere(statuses?: string[]): any {
+function buildStatusWhere(statuses?: string[]): GqlBoolExp {
   if (Array.isArray(statuses) && statuses.length > 0) {
-    return { status: { _in: statuses } }
+    return { status: { _in: statuses } } as unknown as GqlBoolExp
   }
   // Exclude CREATED status by default when no specific filter is provided
-  return { status: { _neq: 'CREATED' } }
+  return { status: { _neq: 'CREATED' } } as unknown as GqlBoolExp
 }
 
-function buildPlanDateWhereClause(params: UseManagerExpensesOverviewParams): any {
+function buildPlanDateWhereClause(params: UseManagerExpensesOverviewParams): GqlBoolExp {
   const conditions = [
     buildPlanEffectiveDateFilter(params.plansEffectiveDateRange),
     wrapFieldCondition(
@@ -220,10 +222,10 @@ function buildPlanDateWhereClause(params: UseManagerExpensesOverviewParams): any
     buildPlanTypeFilter(params.plansTypeFilter)
   ].filter(Boolean)
 
-  return conditions.length > 0 ? { _and: conditions } : {}
+  return (conditions.length > 0 ? { _and: conditions } : {}) as unknown as GqlBoolExp
 }
 
-function buildRequestDateWhereClause(params: UseManagerExpensesOverviewParams): any {
+function buildRequestDateWhereClause(params: UseManagerExpensesOverviewParams): GqlBoolExp {
   const conditions = [
     buildRequestEffectiveDateFilter(params.requestsEffectiveDateRange),
     wrapFieldCondition(
@@ -241,10 +243,10 @@ function buildRequestDateWhereClause(params: UseManagerExpensesOverviewParams): 
     buildRequestTypeFilter(params.requestsTypeFilter)
   ].filter(Boolean)
 
-  return conditions.length > 0 ? { _and: conditions } : {}
+  return (conditions.length > 0 ? { _and: conditions } : {}) as unknown as GqlBoolExp
 }
 
-function buildOverviewVariables(params: UseManagerExpensesOverviewParams): any {
+function buildOverviewVariables(params: UseManagerExpensesOverviewParams): Record<string, unknown> {
   const currencyRef = params.currencyRef || null
   const searchTerm = buildSearchPattern(params.searchTerm)
 
