@@ -235,13 +235,15 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
         control={form.control}
         name="employeeId"
         render={({ field }) => (
-          <FormItem>
+          <FormItem className="gba:w-[calc(50%-0.5rem)] gba:min-w-0">
             <Label htmlFor="employeeId" data-testid="employee-label">
               {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.employee', 'Employee')} *
             </Label>
             <Select onValueChange={field.onChange} value={field.value} disabled={employeesLoading}>
-              <SelectTrigger id="employeeId" data-testid="employee-select">
+              <style>{`#employeeId [data-job-title] { display: none !important; }`}</style>
+              <SelectTrigger id="employeeId" data-testid="employee-select" className="gba:w-full gba:min-w-0">
                 <SelectValue
+                  className="gba:truncate"
                   placeholder={
                     employeesLoading
                       ? getTranslationFromI18nKeyAndLabel(
@@ -279,12 +281,17 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                   </div>
                 ) : (
                   filteredEmployees.map(employee => (
-                    <SelectItem key={employee.id} value={employee.id} data-testid={`employee-option-${employee.id}`}>
+                    <SelectItem
+                      key={employee.id}
+                      value={employee.id}
+                      data-testid={`employee-option-${employee.id}`}
+                      textValue={employee.name}
+                    >
                       <div className="gba:flex gba:flex-col">
                         <span className="gba:font-medium">{employee.name}</span>
-                        {(employee.jobTitle || employee.department) && (
-                          <span className="gba:text-xs gba:text-muted-foreground">
-                            {[employee.jobTitle, employee.department].filter(Boolean).join(' • ')}
+                        {employee.jobTitle && (
+                          <span data-job-title className="gba:text-xs gba:text-muted-foreground">
+                            {employee.jobTitle}
                           </span>
                         )}
                       </div>
@@ -298,58 +305,15 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
         )}
       />
 
-      <FormField
-        control={form.control}
-        name="startDate"
-        render={({ field }) => (
-          <FormItem>
-            <Label htmlFor="startDate" data-testid="start-date-label">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocation_start_date', 'Allocation Start Date')} *
-            </Label>
-            <DateInput
-              type="date"
-              value={field.value || ''}
-              onChange={(v: string | [string | null, string | null] | null) => {
-                const dateValue = typeof v === 'string' ? v : ''
-                field.onChange(dateValue)
-                setAllocationError(null)
-                form.clearErrors('startDate')
-                form.clearErrors('expectedEndDate')
-
-                if (dateValue) {
-                  const expectedEndDate = form.getValues('expectedEndDate')
-                  checkAllocationOverlap(dateValue, expectedEndDate).then(error => {
-                    if (error) {
-                      setAllocationError(error)
-                      form.setError('startDate', { type: 'manual', message: error })
-                    } else {
-                      form.clearErrors('startDate')
-                      form.clearErrors('expectedEndDate')
-                    }
-                  })
-                }
-              }}
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
-                'Please Select'
-              )}
-              className="gba:w-full"
-              data-testid="start-date-input"
-            />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control}
-        name="expectedEndDate"
-        render={({ field }) => {
-          const startDate = form.watch('startDate')
-
-          return (
-            <FormItem>
-              <Label htmlFor="expectedEndDate" data-testid="expected-end-date-label">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expected_return_date', 'Expected Return Date')}
+      <div className="gba:flex gba:gap-4">
+        <FormField
+          control={form.control}
+          name="startDate"
+          render={({ field }) => (
+            <FormItem className="gba:flex-1">
+              <Label htmlFor="startDate" data-testid="start-date-label">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocation_start_date', 'Allocation Start Date')}{' '}
+                *
               </Label>
               <DateInput
                 type="date"
@@ -361,11 +325,12 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                   form.clearErrors('startDate')
                   form.clearErrors('expectedEndDate')
 
-                  if (dateValue && startDate) {
-                    checkAllocationOverlap(startDate, dateValue).then(error => {
+                  if (dateValue) {
+                    const expectedEndDate = form.getValues('expectedEndDate')
+                    checkAllocationOverlap(dateValue, expectedEndDate).then(error => {
                       if (error) {
                         setAllocationError(error)
-                        form.setError('expectedEndDate', { type: 'manual', message: error })
+                        form.setError('startDate', { type: 'manual', message: error })
                       } else {
                         form.clearErrors('startDate')
                         form.clearErrors('expectedEndDate')
@@ -378,17 +343,62 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                   'Please Select'
                 )}
                 className="gba:w-full"
-                data-testid="expected-end-date-input"
+                data-testid="start-date-input"
               />
-              {allocationError && (
-                <p className="gba:text-sm gba:font-medium gba:text-destructive" data-testid="allocation-overlap-error">
-                  {allocationError}
-                </p>
-              )}
             </FormItem>
-          )
-        }}
-      />
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="expectedEndDate"
+          render={({ field }) => {
+            const startDate = form.watch('startDate')
+
+            return (
+              <FormItem className="gba:flex-1">
+                <Label htmlFor="expectedEndDate" data-testid="expected-end-date-label">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expected_return_date', 'Expected Return Date')}
+                </Label>
+                <DateInput
+                  type="date"
+                  value={field.value || ''}
+                  onChange={(v: string | [string | null, string | null] | null) => {
+                    const dateValue = typeof v === 'string' ? v : ''
+                    field.onChange(dateValue)
+                    setAllocationError(null)
+                    form.clearErrors('startDate')
+                    form.clearErrors('expectedEndDate')
+
+                    if (dateValue && startDate) {
+                      checkAllocationOverlap(startDate, dateValue).then(error => {
+                        if (error) {
+                          setAllocationError(error)
+                          form.setError('expectedEndDate', { type: 'manual', message: error })
+                        } else {
+                          form.clearErrors('startDate')
+                          form.clearErrors('expectedEndDate')
+                        }
+                      })
+                    }
+                  }}
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
+                    'Please Select'
+                  )}
+                  className="gba:w-full"
+                  data-testid="expected-end-date-input"
+                />
+              </FormItem>
+            )
+          }}
+        />
+      </div>
+      {allocationError && (
+        <p className="gba:text-sm gba:font-medium gba:text-destructive" data-testid="allocation-overlap-error">
+          {allocationError}
+        </p>
+      )}
 
       <FormField
         control={form.control}

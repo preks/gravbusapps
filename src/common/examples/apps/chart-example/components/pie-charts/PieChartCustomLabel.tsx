@@ -50,7 +50,6 @@ const PieChartCustomLabel: React.FC<PieChartCustomLabelProps> = ({ moduleColor }
       <text
         x={x}
         y={y}
-        fill="white"
         textAnchor={x > cx ? 'start' : 'end'}
         dominantBaseline="central"
         className="gba:fill-background gba:text-xs gba:font-medium"

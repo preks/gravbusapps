@@ -1169,39 +1169,39 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   // Initialize GraphQL client
   const graphqlClient = useGraphqlClient(accessToken)
 
-  // Helper function to transform expense request data (copied from useExpenseRequests hook)
+  // Helper function to transform expense request data (aligned with useExpenseRequests hook)
   const transformExpenseRequest = useCallback((item: any): ExpenseData => {
     return {
       id: item.id,
       expenseId: String(item.id ?? '-'),
-      code: item.code || '-',
-      sapNumber: item.sapNumber || '-',
-      employee: item.employee?.displayName || item.employee?.fullName || '-',
-      employeeCode: item.employee?.code || '-',
-      title: item.title || '-',
-      department: item.employee?.employeePosition?.organizationalUnit?.name || '-',
+      code: item.code ?? '-',
+      sapNumber: item.employee?.additionalProperties?.SAPNumber ?? '-',
+      employee: `${item.employee?.firstName ?? ''} ${item.employee?.lastName ?? ''}`.trim() || '-',
+      employeeCode: item.employee?.code ?? '-',
+      title: item.title ?? '-',
+      department: item.employee?.employeePosition?.costCenter?.name ?? '-',
       startDate: formatDateLocalized(item.startDate),
       endDate: formatDateLocalized(item.endDate),
-      requestDate: formatDateLocalized(item.createdAt),
-      reporter: item.employee?.displayName || item.employee?.fullName || '-',
-      type: item.requestType?.value || '-',
-      amount: String(item.totalAmount || 0),
-      advance: item.advancePaymentPaidAmount || 0,
-      payableAmount: String(item.payableAmount || 0),
-      paymentMethod: item.paymentMethod || '-',
-      employeeId: item.employee?.id || '-',
-      version: String(item.version || ''),
-      currencyRef: item.currencyRef || '',
-      typeRef: item.typeRef || '',
-      requestTypeRef: item.requestTypeRef || '',
-      totalRemainingAmount: item.totalRemainingAmount || 0,
-      userId: item.userId || '-',
-      expenseRuleId: item.expenseRuleId || '-',
-      totalAmount: item.totalAmount || 0,
-      currency: { code: item.currency?.code || item.currencyRef?.split(':').pop() || 'EUR' },
-      status: item.status || 'UNKNOWN',
+      requestDate: formatDateLocalized(item.requestDate),
+      reporter: `${item.employee?.firstName ?? ''} ${item.employee?.lastName ?? ''}`.trim() || '-',
+      type: item.requestType?.value ?? '-',
+      amount: String(item.totalAmount ?? 0),
+      advance: item.advancePaymentPaidAmount ?? 0,
+      payableAmount: String(item.payableAmount ?? 0),
+      paymentMethod: item.paymentMethod ?? '-',
+      employeeId: item.employee?.id ?? '-',
+      version: String(item.version ?? ''),
+      currencyRef: item.currencyRef ?? '',
+      typeRef: item.typeRef ?? '',
+      requestTypeRef: item.requestTypeRef ?? '',
+      totalRemainingAmount: item.totalRemainingAmount ?? 0,
+      userId: item.userId ?? '-',
+      expenseRuleId: item.expenseRuleId ?? '-',
+      totalAmount: item.totalAmount ?? 0,
+      currency: { code: item.currency?.code ?? '' },
+      status: item.status ?? 'UNKNOWN',
       creationDate: formatDateLocalized(item.createdAt),
-      employeeDocumentId: item.employeeDocumentId || '-',
+      employeeDocumentId: item.employeeDocumentId ?? '-',
       documentData: item.documentData
     }
   }, [])
@@ -1503,26 +1503,42 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     }
   }, [graphqlClient, totalItems, buildQueryConditions, transformExpenseRequest])
 
+  // Export columns - using SAME translation keys as UI table headers
   const getExportColumns = () => [
     {
-      key: 'code',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.request_number', 'Request Number')
+      key: 'employee',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')
     },
-    { key: 'employee', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.employee', 'Employee') },
     {
       key: 'employeeCode',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.employee_code', 'Employee Code')
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_table.employee_code', 'Employee Code')
     },
-    { key: 'title', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title', 'Title') },
     {
-      key: 'department',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.department', 'Department')
+      key: 'sapNumber',
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_config_calculation_rule_list.expense_table.sap_number',
+        'SAP Number'
+      )
+    },
+    {
+      key: 'code',
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_request_list.expense_request_filter.request_number_input',
+        'Request Number'
+      )
+    },
+    {
+      key: 'title',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.title', 'Title')
     },
     {
       key: 'startDate',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.start_date', 'Start Date')
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.start_date', 'Start Date')
     },
-    { key: 'endDate', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.end_date', 'End Date') },
+    {
+      key: 'endDate',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.end_date', 'End Date')
+    },
     {
       key: 'requestDate',
       title: getTranslationFromI18nKeyAndLabel(
@@ -1531,14 +1547,31 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       )
     },
     {
-      key: 'totalAmount',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.total_amount', 'Total Amount')
+      key: 'status',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')
     },
-    { key: 'currency', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.currency', 'Currency') },
-    { key: 'status', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.status', 'Status') },
     {
-      key: 'creationDate',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.creation_date', 'Creation Date')
+      key: 'totalRemainingAmount',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.remaining', 'Remaining Amount')
+    },
+    {
+      key: 'totalAmount',
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_request_list.expense_plan_table.total_amount',
+        'Total Amount'
+      )
+    },
+    { key: 'currency', title: getTranslationFromI18nKeyAndLabel('lowcoder:cards.currency_label', 'Currency') },
+    {
+      key: 'department',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:cards.department_label', 'Department')
+    },
+    {
+      key: 'requestDate',
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:confirm_transfer_advance_payment.request_date_label',
+        'Request Date'
+      )
     }
   ]
 
@@ -1546,19 +1579,23 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     code: expense.code || '-',
     employee: expense.employee || '-',
     employeeCode: expense.employeeCode || '-',
+    sapNumber: expense.sapNumber || '-',
     title: expense.title || '-',
     department: expense.department || '-',
     startDate: expense.startDate,
     endDate: expense.endDate,
     requestDate: expense.requestDate,
+    totalRemainingAmount: expense.totalRemainingAmount
+      ? formatNumberFunction(String(expense.totalRemainingAmount))
+      : '0',
     totalAmount: expense.totalAmount ? formatNumberFunction(String(expense.totalAmount)) : '0',
     currency: expense.currency?.code || '-',
     status: getExpenseRequestStatusDisplay(expense.status as ExpenseStatus).label,
     creationDate: expense.creationDate
   })
 
-  const handleExportCsv = useCallback(
-    async (e?: React.MouseEvent) => {
+  const handleExport = useCallback(
+    async (format: 'csv' | 'excel', e?: React.MouseEvent) => {
       e?.preventDefault()
       e?.stopPropagation()
 
@@ -1575,8 +1612,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
       setIsExporting(true)
 
+      const formatLabel = format === 'csv' ? 'CSV' : 'Excel'
+
       try {
-        // Fetch ALL expense requests (all pages)
         const allExpenses = await fetchAllExpenseRequestsForExport()
 
         if (!allExpenses || allExpenses.length === 0) {
@@ -1588,68 +1626,22 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
         const formattedData = allExpenses.map(formatExpenseForExport)
         const columns = getExportColumns()
-        const filename = buildFilename('expense-requests', 'csv')
-        downloadCsv(formattedData, columns, filename)
+        const filename = buildFilename('expense-requests', format === 'csv' ? 'csv' : 'xlsx')
 
-        toast.success('Export Successful', {
-          description: `Exported ${formattedData.length} expense requests to CSV`
-        })
-      } catch (err) {
-        console.error('[EXPORT CSV] Error during export:', err)
-        toast.error('Export Failed', {
-          description:
-            'Failed to export CSV: ' +
-            (err instanceof Error ? err.message : typeof err === 'string' ? err : String(err))
-        })
-      } finally {
-        setIsExporting(false)
-      }
-    },
-    [isExporting, totalItems, fetchAllExpenseRequestsForExport, formatExpenseForExport, getExportColumns]
-  )
-
-  const handleExportExcel = useCallback(
-    async (e?: React.MouseEvent) => {
-      e?.preventDefault()
-      e?.stopPropagation()
-
-      if (isExporting) {
-        return
-      }
-
-      if (totalItems === 0) {
-        toast.error('No Data Available', {
-          description: 'No expense data available to export'
-        })
-        return
-      }
-
-      setIsExporting(true)
-
-      try {
-        // Fetch ALL expense requests (all pages)
-        const allExpenses = await fetchAllExpenseRequestsForExport()
-
-        if (!allExpenses || allExpenses.length === 0) {
-          toast.error('No Data Available', {
-            description: 'No expense data available to export'
-          })
-          return
+        if (format === 'csv') {
+          downloadCsv(formattedData, columns, filename)
+        } else {
+          await downloadExcel(formattedData, columns, filename)
         }
 
-        const formattedData = allExpenses.map(formatExpenseForExport)
-        const columns = getExportColumns()
-        const filename = buildFilename('expense-requests', 'xls')
-        downloadExcel(formattedData, columns, filename)
-
         toast.success('Export Successful', {
-          description: `Exported ${formattedData.length} expense requests to Excel`
+          description: `Exported ${formattedData.length} expense requests to ${formatLabel}`
         })
       } catch (err) {
-        console.error('[EXPORT EXCEL] Error during export:', err)
+        console.error(`[EXPORT ${formatLabel}] Error during export:`, err)
         toast.error('Export Failed', {
           description:
-            'Failed to export Excel: ' +
+            `Failed to export ${formatLabel}: ` +
             (err instanceof Error ? err.message : typeof err === 'string' ? err : String(err))
         })
       } finally {
@@ -1658,6 +1650,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     },
     [isExporting, totalItems, fetchAllExpenseRequestsForExport, formatExpenseForExport, getExportColumns]
   )
+
+  const handleExportCsv = useCallback((e?: React.MouseEvent) => handleExport('csv', e), [handleExport])
+
+  const handleExportExcel = useCallback((e?: React.MouseEvent) => handleExport('excel', e), [handleExport])
 
   // Keep DataContainer mounted at all times to avoid closing the filter sidebar during loading/errors
 

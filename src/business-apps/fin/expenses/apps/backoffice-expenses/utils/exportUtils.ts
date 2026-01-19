@@ -2,6 +2,7 @@
  * Utility functions for exporting data to CSV and Excel formats
  */
 
+import ExcelJS from 'exceljs'
 import { sanitizeFilename } from '@/common/utils/textUtils'
 
 /**
@@ -114,50 +115,69 @@ export const downloadCsv = (data: any[], columns: Array<{ key: string; title: st
 }
 
 /**
- * Downloads data as Excel-compatible HTML file
+ * Downloads data as a proper Excel (.xlsx) file using ExcelJS
  *
- * NOTE: This generates a simple HTML table file with Excel-specific MIME type.
- * Excel will open it directly without warnings when using .xls extension.
- * Limitations:
- * - No formulas, pivot tables, or advanced Excel features
- * - Larger file size compared to binary Excel formats
- * - Basic styling only
- *
- * For true Excel files with advanced features, consider using a library like 'xlsx'.
+ * This generates a true Office Open XML (OOXML) format file that:
+ * - Opens without warnings on Windows and Mac
+ * - Supports proper Unicode/UTF-8 characters
+ * - Has styled headers (bold, background color)
+ * - Auto-sizes columns based on content
  */
-export const downloadExcel = (data: any[], columns: Array<{ key: string; title: string }>, filename: string) => {
-  // Use simple HTML table with BOM for Excel compatibility
-  const headerCells = columns.map(c => {
-    const escapedTitle = htmlEscape(c.title)
-    return `<th>${escapedTitle}</th>`
-  })
-  const header = `<tr>${headerCells.join('')}</tr>`
+export const downloadExcel = async (
+  data: any[],
+  columns: Array<{ key: string; title: string }>,
+  filename: string
+): Promise<void> => {
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = 'NEWWORK Expense Management'
+  workbook.created = new Date()
 
-  const bodyRows = data.map(row => {
-    const cells = columns.map(c => {
-      const cellValue = formatCellValue(row[c.key])
-      const escapedValue = htmlEscape(cellValue)
-      return `<td>${escapedValue}</td>`
+  const worksheet = workbook.addWorksheet('Expense Requests')
+
+  // Configure columns with headers and auto-width estimation
+  worksheet.columns = columns.map(col => ({
+    header: col.title,
+    key: col.key,
+    width: Math.max(col.title.length + 2, 15) // Minimum width of 15 or header length + padding
+  }))
+
+  // Style the header row
+  const headerRow = worksheet.getRow(1)
+  headerRow.font = { bold: true }
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFE0E0E0' } // Light gray background
+  }
+  headerRow.alignment = { vertical: 'middle', horizontal: 'left' }
+
+  // Add data rows
+  data.forEach(row => {
+    const rowData: Record<string, string> = {}
+    columns.forEach(col => {
+      rowData[col.key] = formatCellValue(row[col.key])
     })
-    return `<tr>${cells.join('')}</tr>`
+    worksheet.addRow(rowData)
   })
-  const rows = bodyRows.join('\n')
 
-  // Add UTF-8 BOM and meta tag for proper character encoding
-  const html = `\uFEFF<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Sheet1</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
-</head>
-<body>
-<table border="1">
-<thead>${header}</thead>
-<tbody>${rows}</tbody>
-</table>
-</body>
-</html>`
+  // Auto-fit column widths based on content (with max limit)
+  worksheet.columns.forEach(column => {
+    if (!column.eachCell) return
+    let maxLength = column.header ? String(column.header).length : 10
+    column.eachCell({ includeEmpty: false }, cell => {
+      const cellLength = cell.value ? String(cell.value).length : 0
+      maxLength = Math.max(maxLength, cellLength)
+    })
+    column.width = Math.min(maxLength + 2, 50) // Cap at 50 characters
+  })
 
-  const blob = new Blob([html], { type: 'application/vnd.ms-excel' })
+  // Generate the Excel file as a buffer
+  const buffer = await workbook.xlsx.writeBuffer()
+
+  // Create blob with correct MIME type for .xlsx
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  })
 
   triggerDownload(blob, filename)
 }
