@@ -9,7 +9,7 @@ export interface DayCellEventsProps {
   items: CalendarExpenseItem[]
   planItems: CalendarExpenseItem[]
   requestItems: CalendarExpenseItem[]
-  active: { expense: boolean; plan: boolean; request: boolean }
+  active: { plan: boolean; request: boolean }
   onClick: (item: CalendarExpenseItem) => void
 }
 

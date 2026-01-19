@@ -197,7 +197,6 @@ export const useGetExpenseRequests = ({
       'TRANSFERRED',
       'PAID',
       'CLOSED',
-      'RETURNED',
       'REJECTED'
     ])
 

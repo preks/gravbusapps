@@ -584,6 +584,23 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     getPaymentMethodLabel
   ])
 
+  // Helper function to format status display name with brackets (matching personal expenses pattern)
+  const getStatusDisplayName = useCallback((status: string): string => {
+    const statusConfig = getAdvancePaymentStatusDisplay(status)
+    // Only show backend status in parentheses if the label is different from the status
+    if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
+      return statusConfig.label
+    } else {
+      // Format backend status with only first letter uppercase and translate it
+      const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
+      const translatedStatus = getTranslationFromI18nKeyAndLabel(
+        `lowcoder:expense_statuses.${status.toLowerCase()}`,
+        formattedStatus
+      )
+      return `${statusConfig.label} (${translatedStatus})`
+    }
+  }, [])
+
   // Filter groups for DataContainer
   const filterGroups: DataFilterGroup[] = [
     {
@@ -592,7 +609,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       type: 'checkbox',
       filters: availableStatuses.map(status => ({
         id: status,
-        label: getAdvancePaymentStatusDisplay(status).label,
+        label: getStatusDisplayName(status),
         selected: statusFilter.includes(status)
       }))
     },
@@ -719,7 +736,19 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   const filterLabelMap: Record<string, string> = {
     ...statusFilter.reduce(
       (acc, status) => {
-        acc[status] = getAdvancePaymentStatusDisplay(status).label
+        const statusConfig = getAdvancePaymentStatusDisplay(status)
+        // Only show backend status in parentheses if the label is different from the status
+        if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
+          acc[status] = statusConfig.label
+        } else {
+          // Format backend status with only first letter uppercase and translate it
+          const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
+          const translatedStatus = getTranslationFromI18nKeyAndLabel(
+            `lowcoder:expense_statuses.${status.toLowerCase()}`,
+            formattedStatus
+          )
+          acc[status] = `${statusConfig.label} (${translatedStatus})`
+        }
         return acc
       },
       {} as Record<string, string>

@@ -58,7 +58,6 @@ const availableFilterStatuses: ExpenseStatus[] = [
   ExpenseStatus.ASSIGNED,
   ExpenseStatus.PENDING,
   ExpenseStatus.APPROVED,
-  ExpenseStatus.RETURNED,
   ExpenseStatus.REJECTED,
   ExpenseStatus.VERIFIED,
   ExpenseStatus.BOOKED,
@@ -331,12 +330,28 @@ export const useExpenseRequestFilters = ({
     [formatDateRangeLabel]
   )
 
+  // Helper function to format status display name with brackets (matching personal expenses pattern)
+  const getStatusDisplayName = useCallback((status: string): string => {
+    const statusConfig = getExpenseRequestStatusDisplay(status)
+    // Only show backend status in parentheses if the label is different from the status
+    if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
+      return statusConfig.label
+    } else {
+      // Format backend status with only first letter uppercase and translate it
+      const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
+      const translatedStatus = getTranslationFromI18nKeyAndLabel(
+        `lowcoder:expense_statuses.${status.toLowerCase()}`,
+        formattedStatus
+      )
+      return `${statusConfig.label} (${translatedStatus})`
+    }
+  }, [])
+
   // Build filter label map with date ranges and request type
   const filterLabelMapWithDates = useMemo(() => {
     const map: Record<string, string> = {}
     for (const status of availableFilterStatuses) {
-      const display = getExpenseRequestStatusDisplay(status)
-      map[status] = display.label
+      map[status] = getStatusDisplayName(status)
     }
     // Add request type labels
     map['ExpenseRequestType:v1:EXPENSES'] = getTranslationFromI18nKeyAndLabel(
@@ -361,7 +376,15 @@ export const useExpenseRequestFilters = ({
     addDateRangeLabel(map, startDateRange, 'startDateRange', 'lowcoder:personal_expenses.start_date', 'Start Date')
     addDateRangeLabel(map, endDateRange, 'endDateRange', 'lowcoder:personal_expenses.end_date', 'End Date')
     return map
-  }, [availableFilterStatuses, effectiveDateRange, requestDateRange, startDateRange, endDateRange, addDateRangeLabel])
+  }, [
+    availableFilterStatuses,
+    effectiveDateRange,
+    requestDateRange,
+    startDateRange,
+    endDateRange,
+    addDateRangeLabel,
+    getStatusDisplayName
+  ])
 
   const filterGroups = useMemo<DataFilterGroup[]>(() => {
     // Status filters

@@ -16,28 +16,14 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  Badge
 } from '@newwork/nw-design-system'
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 import { ExpensePlan, SortField } from '../../../hooks/useMainViewExpensePlans'
 import { getExpensePlanStatusDisplay, ExpenseStatus } from '../../../utils'
-
-// Status → token classes (design-system)
-const PLAN_STATUS_CLASSES: Record<string, string> = {
-  success: 'gba:bg-success gba:text-success-foreground',
-  warning: 'gba:bg-warning gba:text-warning-foreground',
-  info: 'gba:bg-info gba:text-info-foreground',
-  destructive: 'gba:bg-destructive gba:text-destructive-foreground',
-  offline: 'gba:bg-offline gba:text-offline-foreground',
-  draft: 'gba:bg-muted gba:text-muted-foreground',
-  completed: 'gba:bg-success gba:text-success-foreground',
-  waiting: 'gba:bg-info gba:text-info-foreground',
-  task: 'gba:bg-warning gba:text-warning-foreground',
-  error: 'gba:bg-destructive gba:text-destructive-foreground',
-  preparing: 'gba:bg-muted gba:text-muted-foreground'
-}
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -498,14 +484,12 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
                         </span>
                       </TableCell>
                       <TableCell className="gba:pr-6 gba:w-[20%]">
-                        <span
-                          className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
-                            PLAN_STATUS_CLASSES[String(display.type).toLowerCase()] || PLAN_STATUS_CLASSES.draft
-                          }`}
+                        <Badge
+                          variant={(display as any).badgeVariant || 'outline'}
                           data-testid={`status-pill-${String(display.type).toLowerCase()}`}
                         >
                           {display.label}
-                        </span>
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   )

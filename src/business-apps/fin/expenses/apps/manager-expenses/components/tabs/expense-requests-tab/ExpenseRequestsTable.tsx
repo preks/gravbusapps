@@ -18,7 +18,8 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  Badge
 } from '@newwork/nw-design-system'
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 
@@ -30,7 +31,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildDeduplicatedFilters } from '../../../utils/filterUtils'
 import { ExpenseRequest, SortField } from '../../../hooks/useGetExpenseRequests'
 import { getExpenseRequestStatusDisplay } from '../../../utils'
-import { pillTypeClassMap } from '../../../components/StatusLegend'
 import ExpenseRequestDetails from './ExpenseRequestDetails'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -38,8 +38,6 @@ import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { useExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { TablePagination } from '../../../../../components'
-
-// Use shared pill classes from StatusLegend to avoid duplication
 
 interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   expenseRequests: ExpenseRequest[]
@@ -476,7 +474,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                 </TableRow>
               ) : (
                 requests.map(record => {
-                  const { type, label } = getExpenseRequestStatusDisplay(record.status)
+                  const statusConfig = getExpenseRequestStatusDisplay(record.status)
                   return (
                     <TableRow
                       key={record.id}
@@ -562,15 +560,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                           : formatCurrencyDisplay(0, record.currency || 'EUR')}
                       </TableCell>
                       <TableCell className="gba:pr-6 gba:w-[20%]">
-                        <span
-                          className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
-                            pillTypeClassMap[String(type).toLowerCase() as keyof typeof pillTypeClassMap] ||
-                            pillTypeClassMap.draft
-                          }`}
+                        <Badge
+                          variant={(statusConfig as any).badgeVariant || 'outline'}
                           data-testid={`status-pill-${record.status?.toLowerCase()}`}
                         >
-                          {label}
-                        </span>
+                          {statusConfig.label}
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   )

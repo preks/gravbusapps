@@ -399,18 +399,35 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     return count
   }, [selectedRecords])
 
+  // Helper function to format status display name with brackets (matching personal expenses pattern)
+  const getStatusDisplayName = useCallback((status: string): string => {
+    const statusConfig = getExpenseRequestStatusDisplay(status)
+    // Only show backend status in parentheses if the label is different from the status
+    if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
+      return statusConfig.label
+    } else {
+      // Format backend status with only first letter uppercase and translate it
+      const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
+      const translatedStatus = getTranslationFromI18nKeyAndLabel(
+        `lowcoder:expense_statuses.${status.toLowerCase()}`,
+        formattedStatus
+      )
+      return `${statusConfig.label} (${translatedStatus})`
+    }
+  }, [])
+
   // Helper: Build unique status filters (reduces cognitive complexity)
   const buildStatusFilters = useCallback(() => {
     const byLabel = new Map<string, { id: string; label: string; selected: boolean }>()
     for (const status of availableStatuses) {
-      const label = getExpenseRequestStatusDisplay(status).label.trim()
+      const label = getStatusDisplayName(status).trim()
       const key = label.toLowerCase()
       if (!byLabel.has(key)) {
         byLabel.set(key, { id: status, label, selected: statusFilter.includes(status) })
       }
     }
     return Array.from(byLabel.values())
-  }, [availableStatuses, statusFilter])
+  }, [availableStatuses, statusFilter, getStatusDisplayName])
 
   // Helper: Handle start date range change (reduces cognitive complexity)
   const handleStartDateChange = useCallback(
@@ -1782,7 +1799,19 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           filterLabelMap: {
             ...statusFilter.reduce(
               (acc, status) => {
-                acc[status] = getExpenseRequestStatusDisplay(status).label
+                const statusConfig = getExpenseRequestStatusDisplay(status)
+                // Only show backend status in parentheses if the label is different from the status
+                if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
+                  acc[status] = statusConfig.label
+                } else {
+                  // Format backend status with only first letter uppercase and translate it
+                  const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
+                  const translatedStatus = getTranslationFromI18nKeyAndLabel(
+                    `lowcoder:expense_statuses.${status.toLowerCase()}`,
+                    formattedStatus
+                  )
+                  acc[status] = `${statusConfig.label} (${translatedStatus})`
+                }
                 return acc
               },
               {} as Record<string, string>

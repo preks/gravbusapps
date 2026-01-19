@@ -63,7 +63,6 @@ const availableFilterStatuses: ExpenseStatus[] = [
   ExpenseStatus.ASSIGNED,
   ExpenseStatus.PENDING,
   ExpenseStatus.APPROVED,
-  ExpenseStatus.RETURNED,
   ExpenseStatus.REJECTED,
   ExpenseStatus.VERIFIED,
   ExpenseStatus.BOOKED,
@@ -234,14 +233,30 @@ export const useExpensePlanFilters = ({
     [addDateRangeLabel, planDateRange, startDateRange, endDateRange, effectiveDateRange]
   )
 
+  // Helper function to format status display name with brackets (matching personal expenses pattern)
+  const getStatusDisplayName = useCallback((status: string): string => {
+    const statusConfig = getExpensePlanStatusDisplay(status)
+    // Only show backend status in parentheses if the label is different from the status
+    if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
+      return statusConfig.label
+    } else {
+      // Format backend status with only first letter uppercase and translate it
+      const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
+      const translatedStatus = getTranslationFromI18nKeyAndLabel(
+        `lowcoder:expense_statuses.${status.toLowerCase()}`,
+        formattedStatus
+      )
+      return `${statusConfig.label} (${translatedStatus})`
+    }
+  }, [])
+
   // Memoize filterLabelMap with stable dependencies
   const filterLabelMap = useMemo<Record<string, string>>(() => {
     const map: Record<string, string> = {}
 
-    // Add status filter labels
+    // Add status filter labels with brackets
     for (const status of availableFilterStatuses) {
-      const display = getExpensePlanStatusDisplay(status)
-      map[status] = display.label
+      map[status] = getStatusDisplayName(status)
     }
 
     // Add plan type filter labels
@@ -252,7 +267,7 @@ export const useExpensePlanFilters = ({
     buildDateRangeLabels(map)
 
     return map
-  }, [buildDateRangeLabels])
+  }, [buildDateRangeLabels, getStatusDisplayName])
 
   // Helper to check if date range is active
   const isDateRangeActive = useCallback((range: [Date | null, Date | null] | null): boolean => {
