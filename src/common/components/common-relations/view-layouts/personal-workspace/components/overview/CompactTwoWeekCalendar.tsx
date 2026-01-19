@@ -32,6 +32,8 @@ export interface CompactTwoWeekCalendarProps extends Pick<BusinessAppContextProp
   activitiesError: Error | null
   tasksError: Error | null
   config: PersonalWorkspaceConfig
+  refetchActivities?: (dateRange?: { occurredAtFrom?: string; occurredAtTo?: string }) => void | Promise<void>
+  refetchTasks?: (dateRange?: { dueDateFrom?: string; dueDateTo?: string }) => void | Promise<void>
 }
 
 interface CalendarActivity {
@@ -59,14 +61,57 @@ export const CompactTwoWeekCalendar: React.FC<CompactTwoWeekCalendarProps> = ({
   tasksError,
   config,
   accessToken,
-  userInfo
+  userInfo,
+  refetchActivities,
+  refetchTasks
 }) => {
   const [weekOffset, setWeekOffset] = useState(0) // 0 = current week, 1 = next week, -1 = prev week
   const [selectedTask, setSelectedTask] = useState<GenericTask | null>(null)
   const [selectedActivity, setSelectedActivity] = useState<GenericActivity | null>(null)
+  const [isInitialMount, setIsInitialMount] = useState(true)
 
   // Calculate date range for 2 weeks (weekdays only)
-  const startOfTwoWeeks = dayjs().add(weekOffset, 'week').startOf('week')
+  const startOfTwoWeeks = useMemo(() => dayjs().add(weekOffset, 'week').startOf('week'), [weekOffset])
+
+  // Mark as no longer initial mount after first render
+  React.useEffect(() => {
+    setIsInitialMount(false)
+  }, [])
+
+  // Store refetch functions in refs to prevent infinite loops
+  const refetchActivitiesRef = React.useRef(refetchActivities)
+  const refetchTasksRef = React.useRef(refetchTasks)
+
+  React.useEffect(() => {
+    refetchActivitiesRef.current = refetchActivities
+    refetchTasksRef.current = refetchTasks
+  }, [refetchActivities, refetchTasks])
+
+  React.useEffect(() => {
+    if (isInitialMount) {
+      return
+    }
+
+    // Calculate date range based on current weekOffset
+    const currentStartOfTwoWeeks = dayjs().add(weekOffset, 'week').startOf('week')
+    const rangeStart = currentStartOfTwoWeeks.subtract(1, 'day').startOf('day').toISOString()
+    const rangeEnd = currentStartOfTwoWeeks.add(2, 'week').endOf('day').toISOString()
+
+    // Call both refetch functions (combined adapter has duplicate prevention)
+    if (refetchActivitiesRef.current) {
+      void refetchActivitiesRef.current({
+        occurredAtFrom: rangeStart,
+        occurredAtTo: rangeEnd
+      })
+    }
+
+    if (refetchTasksRef.current) {
+      void refetchTasksRef.current({
+        dueDateFrom: rangeStart,
+        dueDateTo: rangeEnd
+      })
+    }
+  }, [weekOffset])
 
   // Calculate display range (Monday to Friday)
   const displayStartDate = startOfTwoWeeks.day(1) // Monday of first week

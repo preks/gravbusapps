@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Button, DataDisplay, type FilterConfiguration } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
@@ -9,21 +9,15 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { Task, TaskReference } from '@/common/data/relations/types/taskTypes'
 import { TaskDetailSheet } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import { TaskListLayout } from '@/common/components/common-relations/view-layouts/task-layout/components/TaskListLayout'
-import { TaskStatisticsCard } from '@/common/components/common-relations/view-layouts/task-layout/components/TaskStatisticsCard'
+import {
+  TaskStatisticsCard,
+  type TaskStatisticsData
+} from '@/common/components/common-relations/view-layouts/task-layout/components/TaskStatisticsCard'
 import { deriveSortableColumns, deriveAvailableColumns } from '@/common/network/graphql/descriptorUtils'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
+import { buildDynamicFilterConfig } from '@/common/components/common-relations/view-layouts/task-layout/utils/filterHelpers'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-
-/**
- * Task Statistics Data
- */
-export interface TaskStatisticsData {
-  totalTasks: { value: number }
-  inProgress: { value: number }
-  completed: { value: number }
-  overdue: { value: number }
-}
 
 /**
  * My Tasks View Configuration
@@ -113,32 +107,6 @@ const createRowActionsRenderer = <TTask extends Task = Task>(
 }
 
 /**
- * Build dynamic filter configuration
- */
-const buildDynamicFilterConfig = (
-  baseConfig: FilterConfiguration,
-  descriptors: Descriptor[],
-  filterGroups: Record<string, Array<{ value: string; label: string }>>
-): FilterConfiguration => {
-  if (!baseConfig?.filters) {
-    return baseConfig
-  }
-
-  return {
-    ...baseConfig,
-    filters: baseConfig.filters.map(filter => {
-      if (filter.type === 'select' && filter.id && filterGroups[filter.id]) {
-        return {
-          ...filter,
-          options: filterGroups[filter.id]
-        }
-      }
-      return filter
-    })
-  }
-}
-
-/**
  * Generic My Tasks View Component
  * Displays user's personal tasks with KPIs, filtering, sorting, and detail sheet
  */
@@ -171,6 +139,12 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
   // Detail Sheet State
   const [selectedTask, setSelectedTask] = useState<TTask | null>(null)
 
+  // Store fetchMyTasks in ref to prevent unnecessary re-renders
+  const fetchMyTasksRef = useRef(config.fetchMyTasks)
+  useEffect(() => {
+    fetchMyTasksRef.current = config.fetchMyTasks
+  }, [config.fetchMyTasks])
+
   // Use centralized filter groups hook
   const filterGroups = useFilterGroups(
     { accessToken, userInfo } as BusinessAppContextProps,
@@ -194,7 +168,7 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
         sorting,
         userInfo
       }),
-    [pagination, searchTerm, selectedFilters, sorting, config, userInfo]
+    [pagination, searchTerm, selectedFilters, sorting, userInfo]
   )
 
   // Load Tasks
@@ -206,7 +180,7 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
       setError(null)
 
       try {
-        const result = await config.fetchMyTasks(queryVariables)
+        const result = await fetchMyTasksRef.current(queryVariables)
         setTasks(result.tasks || [])
         setTotalCount(result.total || 0)
       } catch (err) {
@@ -216,26 +190,32 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
         setIsInitialLoad(false)
       }
     },
-    [accessToken, config, queryVariables]
+    [accessToken, queryVariables]
   )
+
+  // Store loadTasks in ref for useEffects
+  const loadTasksRef = useRef(loadTasks)
+  useEffect(() => {
+    loadTasksRef.current = loadTasks
+  }, [loadTasks])
 
   // Initial load
   useEffect(() => {
     if (!accessToken || !isInitialLoad) return
-    loadTasks(true)
-  }, [accessToken, isInitialLoad, loadTasks])
+    loadTasksRef.current(true)
+  }, [accessToken, isInitialLoad])
 
   // Reload data when filters/search/sort change (skip initial load)
   useEffect(() => {
     if (isInitialLoad || !accessToken) return
-    loadTasks(false)
-  }, [queryVariables, isInitialLoad, accessToken, loadTasks])
+    loadTasksRef.current(false)
+  }, [queryVariables, accessToken])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
-    loadTasks(false)
+    loadTasksRef.current(false)
     config.taskStatistics?.refetch?.()
-  }, [loadTasks, config.taskStatistics])
+  }, [config.taskStatistics])
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
 
