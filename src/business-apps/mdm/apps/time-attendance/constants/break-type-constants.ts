@@ -2,7 +2,6 @@ import { z } from 'zod'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export const BREAK_TYPE_OPTIONS = [
-  { code: 'UNKNOWN_BREAK_TYPE', displayValue: 'Unknown' },
   { code: 'BREAK_TYPE_FIXED', displayValue: 'Fixed' },
   { code: 'BREAK_TYPE_CLOCKING', displayValue: 'Clocking' },
   { code: 'BREAK_TYPE_ATTENDANCE', displayValue: 'Attendance' },
@@ -10,7 +9,6 @@ export const BREAK_TYPE_OPTIONS = [
 ]
 
 export const PAY_OPTIONS = [
-  { code: 'UNKNOWN_PAY_OPTION', displayValue: 'Unknown' },
   { code: 'PAY_OPTION_PAID', displayValue: 'Paid' },
   { code: 'PAY_OPTION_UNPAID', displayValue: 'Unpaid' },
   { code: 'PAY_OPTION_PAID_NO_INCREMENT', displayValue: 'Paid No Increment' }
@@ -156,3 +154,24 @@ export const getDefaultBreakTypeDetailValues = (): BreakTypeDetailRowFormData =>
   payOption: null,
   combinedWithBreakTypeVersionDetailId: null
 })
+
+// Helper to determine which fields are required based on the selected type
+export const getRequiredFieldsForType = (
+  type: string | null | undefined
+): {
+  startTime: boolean
+  endTime: boolean
+  hours: boolean
+  length: boolean
+} => {
+  const isFixedOrClocking = type === 'BREAK_TYPE_FIXED' || type === 'BREAK_TYPE_CLOCKING'
+  const isAttendanceOrTargetTime = type === 'BREAK_TYPE_ATTENDANCE' || type === 'BREAK_TYPE_TARGET_TIME'
+  const isClocking = type === 'BREAK_TYPE_CLOCKING'
+
+  return {
+    startTime: isFixedOrClocking,
+    endTime: isFixedOrClocking,
+    hours: isAttendanceOrTargetTime,
+    length: isClocking || isAttendanceOrTargetTime
+  }
+}

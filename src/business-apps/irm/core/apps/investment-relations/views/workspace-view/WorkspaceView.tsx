@@ -2,23 +2,16 @@ import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PersonalWorkspace } from '@/common/components/common-relations/view-layouts/personal-workspace'
 import { irmWorkspaceConfig } from './config/irmWorkspaceConfig'
-import { buildIrmMyTasksConfig } from './config/myTasksConfig'
-import { useMyActivities } from './hooks/useMyActivities'
 
 /**
  * Workspace View for Investment Relations
  * Renders the personal workspace component with IRM-specific configuration
+ * Note: Task and Activity configs are now built inside their respective tab components
+ * to enable lazy loading (only fetch data when tab is active)
  */
 export const WorkspaceView: React.FC<BusinessAppContextProps> = props => {
-  // Call hooks at top level to get task and activities configs
-  const myTasksConfig = buildIrmMyTasksConfig(props)
-  const myActivitiesConfig = useMyActivities(props)
-
-  // Build config with task and activities configuration
-  const config = useMemo(
-    () => irmWorkspaceConfig(props, myTasksConfig, myActivitiesConfig),
-    [props, myTasksConfig, myActivitiesConfig]
-  )
+  // Build config without pre-fetching task/activity data
+  const config = useMemo(() => irmWorkspaceConfig(props), [props])
 
   return <PersonalWorkspace config={config} {...props} />
 }

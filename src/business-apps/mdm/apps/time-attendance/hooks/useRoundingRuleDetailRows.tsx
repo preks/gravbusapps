@@ -9,9 +9,13 @@ import {
   roundingRuleDetailRowSchema,
   getDefaultRoundingRuleDetailValues,
   CLOCKING_TYPE_OPTIONS,
-  ROUNDING_TYPE_OPTIONS
+  ROUNDING_TYPE_OPTIONS,
+  getRequiredFieldsForRoundingRule,
+  isRoundingValueEnabled
 } from '../constants/rounding-rule-constants'
 import { RowActionsCell } from '@/components/table-form'
+import { RequiredIndicator } from '../components/RequiredIndicator'
+import { FieldErrorTooltip } from '../components/FieldErrorTooltip'
 
 const NEW_ROW_KEY = '__new__'
 
@@ -56,6 +60,8 @@ export const useRoundingRuleDetailRows = ({
   // Multi-edit state: map of rowId -> form values
   const [editingRows, setEditingRows] = useState<Record<string, RoundingRuleDetailRowFormData>>({})
   const [savingRows, setSavingRows] = useState<Record<string, boolean>>({})
+  // Track which rows have attempted to save (to show errors)
+  const [attemptedSave, setAttemptedSave] = useState<Set<string>>(new Set())
 
   const isAddingNew = NEW_ROW_KEY in editingRows
 
@@ -75,6 +81,27 @@ export const useRoundingRuleDetailRows = ({
       if (!values) return false
       const result = roundingRuleDetailRowSchema.safeParse(values)
       return result.success
+    },
+    [editingRows]
+  )
+
+  // Get validation errors for a row
+  const getRowErrors = useCallback(
+    (rowId: string): Record<string, string> => {
+      const values = editingRows[rowId]
+      if (!values) return {}
+
+      const result = roundingRuleDetailRowSchema.safeParse(values)
+      if (result.success) return {}
+
+      const errors: Record<string, string> = {}
+      for (const issue of result.error.issues) {
+        const path = issue.path[0] as string
+        if (path && !errors[path]) {
+          errors[path] = issue.message
+        }
+      }
+      return errors
     },
     [editingRows]
   )
@@ -120,6 +147,12 @@ export const useRoundingRuleDetailRows = ({
       const { [rowId]: _, ...rest } = prev
       return rest
     })
+    // Clear attempted save state
+    setAttemptedSave(prev => {
+      const next = new Set(prev)
+      next.delete(rowId)
+      return next
+    })
   }, [])
 
   // Handle field change for a specific row
@@ -128,13 +161,18 @@ export const useRoundingRuleDetailRows = ({
       setEditingRows(prev => {
         const currentRow = prev[rowId]
         if (!currentRow) return prev
-        return {
-          ...prev,
-          [rowId]: {
-            ...currentRow,
-            [field]: value
+
+        const updatedRow = { ...currentRow, [field]: value }
+
+        // Reset roundingValue when roundingType changes to START or END
+        if (field === 'roundingType') {
+          const newType = value as string
+          if (newType === 'START_ROUNDING_TYPE' || newType === 'END_ROUNDING_TYPE') {
+            updatedRow.roundingValue = null
           }
         }
+
+        return { ...prev, [rowId]: updatedRow }
       })
     },
     []
@@ -174,6 +212,13 @@ export const useRoundingRuleDetailRows = ({
     async (rowId: string, originalDetail?: TransformedRoundingRuleVersionDetail) => {
       const values = editingRows[rowId]
       if (!values || !roundingRuleVersionId) return
+
+      // Mark that save was attempted (to show errors)
+      setAttemptedSave(prev => new Set(prev).add(rowId))
+
+      // Validate - if invalid, return early (errors will now be shown)
+      const result = roundingRuleDetailRowSchema.safeParse(values)
+      if (!result.success) return
 
       setSavingRows(prev => ({ ...prev, [rowId]: true }))
 
@@ -227,8 +272,14 @@ export const useRoundingRuleDetailRows = ({
       const isEditing = rowId in editingRows
       const isSaving = savingRows[rowId] || false
       const values = editingRows[rowId]
-      const isValid = isRowValid(rowId)
-      const isDirty = isRowDirty(rowId, detail)
+
+      // Get required fields based on current rounding type
+      const currentRoundingType = isEditing ? values?.roundingType : detail.roundingType
+      const requiredFields = getRequiredFieldsForRoundingRule(currentRoundingType)
+      const showRoundingValue = isRoundingValueEnabled(currentRoundingType)
+
+      // Get validation errors for the row (only show after save attempt)
+      const errors = isEditing && attemptedSave.has(rowId) ? getRowErrors(rowId) : {}
 
       return (
         <TableRow key={rowId} data-testid={formatDataTestId(dataTestId, `row-${rowId}`)}>
@@ -240,14 +291,20 @@ export const useRoundingRuleDetailRows = ({
           {/* Clocking Type */}
           <TableCell>
             {isEditing ? (
-              <Combobox
-                options={CLOCKING_TYPE_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
-                value={values?.clockingType || ''}
-                onValueChange={value => handleFieldChange(rowId, 'clockingType', value)}
-                placeholder="Select"
-                className="gba:w-full"
-                disabled={isSaving}
-              />
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Combobox
+                    options={CLOCKING_TYPE_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
+                    value={values?.clockingType || ''}
+                    onValueChange={value => handleFieldChange(rowId, 'clockingType', value)}
+                    placeholder="Select"
+                    className="gba:w-full"
+                    disabled={isSaving}
+                  />
+                  {requiredFields.clockingType && <RequiredIndicator />}
+                </div>
+                <FieldErrorTooltip error={errors.clockingType} />
+              </div>
             ) : (
               <Badge variant="outline">
                 {findClockingTypeOption(detail.clockingType)?.displayValue || detail.clockingType}
@@ -258,14 +315,20 @@ export const useRoundingRuleDetailRows = ({
           {/* Rounding Type */}
           <TableCell>
             {isEditing ? (
-              <Combobox
-                options={ROUNDING_TYPE_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
-                value={values?.roundingType || ''}
-                onValueChange={value => handleFieldChange(rowId, 'roundingType', value)}
-                placeholder="Select"
-                className="gba:w-full"
-                disabled={isSaving}
-              />
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Combobox
+                    options={ROUNDING_TYPE_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
+                    value={values?.roundingType || ''}
+                    onValueChange={value => handleFieldChange(rowId, 'roundingType', value)}
+                    placeholder="Select"
+                    className="gba:w-full"
+                    disabled={isSaving}
+                  />
+                  {requiredFields.roundingType && <RequiredIndicator />}
+                </div>
+                <FieldErrorTooltip error={errors.roundingType} />
+              </div>
             ) : (
               <Badge variant="outline">
                 {findRoundingTypeOption(detail.roundingType)?.displayValue || detail.roundingType}
@@ -276,13 +339,19 @@ export const useRoundingRuleDetailRows = ({
           {/* Start Time */}
           <TableCell>
             {isEditing ? (
-              <Input
-                type="time"
-                value={values?.startTime || ''}
-                onChange={e => handleFieldChange(rowId, 'startTime', e.target.value)}
-                className="gba:w-full"
-                disabled={isSaving}
-              />
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Input
+                    type="time"
+                    value={values?.startTime || ''}
+                    onChange={e => handleFieldChange(rowId, 'startTime', e.target.value)}
+                    className="gba:w-full"
+                    disabled={isSaving}
+                  />
+                  {requiredFields.startTime && <RequiredIndicator />}
+                </div>
+                <FieldErrorTooltip error={errors.startTime} />
+              </div>
             ) : (
               <span>{detail.startTime || '-'}</span>
             )}
@@ -291,13 +360,19 @@ export const useRoundingRuleDetailRows = ({
           {/* End Time */}
           <TableCell>
             {isEditing ? (
-              <Input
-                type="time"
-                value={values?.endTime || ''}
-                onChange={e => handleFieldChange(rowId, 'endTime', e.target.value)}
-                className="gba:w-full"
-                disabled={isSaving}
-              />
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Input
+                    type="time"
+                    value={values?.endTime || ''}
+                    onChange={e => handleFieldChange(rowId, 'endTime', e.target.value)}
+                    className="gba:w-full"
+                    disabled={isSaving}
+                  />
+                  {requiredFields.endTime && <RequiredIndicator />}
+                </div>
+                <FieldErrorTooltip error={errors.endTime} />
+              </div>
             ) : (
               <span>{detail.endTime || '-'}</span>
             )}
@@ -321,13 +396,19 @@ export const useRoundingRuleDetailRows = ({
           {/* Rounding Value */}
           <TableCell>
             {isEditing ? (
-              <Input
-                type="time"
-                value={values?.roundingValue || ''}
-                onChange={e => handleFieldChange(rowId, 'roundingValue', e.target.value)}
-                className="gba:w-full"
-                disabled={isSaving}
-              />
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <div className="gba:relative">
+                  <Input
+                    type="time"
+                    value={values?.roundingValue || ''}
+                    onChange={e => handleFieldChange(rowId, 'roundingValue', e.target.value)}
+                    className="gba:w-full"
+                    disabled={isSaving || !showRoundingValue}
+                  />
+                  {requiredFields.roundingValue && <RequiredIndicator />}
+                </div>
+                <FieldErrorTooltip error={errors.roundingValue} />
+              </div>
             ) : (
               <span>{detail.roundingValue || '-'}</span>
             )}
@@ -348,13 +429,13 @@ export const useRoundingRuleDetailRows = ({
             )}
           </TableCell>
 
-          {/* Actions */}
+          {/* Actions - isValid/isDirty forced to true so Save is always clickable, validation happens on click */}
           <TableCell>
             <RowActionsCell
               isEditing={isEditing}
               isSaving={isSaving}
-              isValid={isValid}
-              isDirty={isDirty}
+              isValid={true}
+              isDirty={true}
               onSave={() => handleSaveRow(rowId, detail)}
               onCancel={() => handleCancelRowEdit(rowId)}
               onEdit={() => handleStartEdit(detail)}
@@ -371,6 +452,8 @@ export const useRoundingRuleDetailRows = ({
       savingRows,
       isRowValid,
       isRowDirty,
+      getRowErrors,
+      attemptedSave,
       dataTestId,
       handleFieldChange,
       handleSaveRow,
@@ -389,8 +472,13 @@ export const useRoundingRuleDetailRows = ({
     const rowId = NEW_ROW_KEY
     const values = editingRows[rowId]
     const isSaving = savingRows[rowId] || false
-    const isValid = isRowValid(rowId)
-    const isDirty = isRowDirty(rowId)
+
+    // Get required fields based on current rounding type
+    const requiredFields = getRequiredFieldsForRoundingRule(values?.roundingType)
+    const showRoundingValue = isRoundingValueEnabled(values?.roundingType)
+
+    // Get validation errors for the new row (only show after save attempt)
+    const errors = attemptedSave.has(rowId) ? getRowErrors(rowId) : {}
 
     return (
       <TableRow key={rowId} data-testid={formatDataTestId(dataTestId, 'new-row')}>
@@ -401,48 +489,72 @@ export const useRoundingRuleDetailRows = ({
 
         {/* Clocking Type */}
         <TableCell>
-          <Combobox
-            options={CLOCKING_TYPE_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
-            value={values?.clockingType || ''}
-            onValueChange={value => handleFieldChange(rowId, 'clockingType', value)}
-            placeholder="Select"
-            className="gba:w-full"
-            disabled={isSaving}
-          />
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Combobox
+                options={CLOCKING_TYPE_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
+                value={values?.clockingType || ''}
+                onValueChange={value => handleFieldChange(rowId, 'clockingType', value)}
+                placeholder="Select"
+                className="gba:w-full"
+                disabled={isSaving}
+              />
+              {requiredFields.clockingType && <RequiredIndicator />}
+            </div>
+            <FieldErrorTooltip error={errors.clockingType} />
+          </div>
         </TableCell>
 
         {/* Rounding Type */}
         <TableCell>
-          <Combobox
-            options={ROUNDING_TYPE_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
-            value={values?.roundingType || ''}
-            onValueChange={value => handleFieldChange(rowId, 'roundingType', value)}
-            placeholder="Select"
-            className="gba:w-full"
-            disabled={isSaving}
-          />
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Combobox
+                options={ROUNDING_TYPE_OPTIONS.map(o => ({ value: o.code, label: o.displayValue }))}
+                value={values?.roundingType || ''}
+                onValueChange={value => handleFieldChange(rowId, 'roundingType', value)}
+                placeholder="Select"
+                className="gba:w-full"
+                disabled={isSaving}
+              />
+              {requiredFields.roundingType && <RequiredIndicator />}
+            </div>
+            <FieldErrorTooltip error={errors.roundingType} />
+          </div>
         </TableCell>
 
         {/* Start Time */}
         <TableCell>
-          <Input
-            type="time"
-            value={values?.startTime || ''}
-            onChange={e => handleFieldChange(rowId, 'startTime', e.target.value)}
-            className="gba:w-full"
-            disabled={isSaving}
-          />
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Input
+                type="time"
+                value={values?.startTime || ''}
+                onChange={e => handleFieldChange(rowId, 'startTime', e.target.value)}
+                className="gba:w-full"
+                disabled={isSaving}
+              />
+              {requiredFields.startTime && <RequiredIndicator />}
+            </div>
+            <FieldErrorTooltip error={errors.startTime} />
+          </div>
         </TableCell>
 
         {/* End Time */}
         <TableCell>
-          <Input
-            type="time"
-            value={values?.endTime || ''}
-            onChange={e => handleFieldChange(rowId, 'endTime', e.target.value)}
-            className="gba:w-full"
-            disabled={isSaving}
-          />
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Input
+                type="time"
+                value={values?.endTime || ''}
+                onChange={e => handleFieldChange(rowId, 'endTime', e.target.value)}
+                className="gba:w-full"
+                disabled={isSaving}
+              />
+              {requiredFields.endTime && <RequiredIndicator />}
+            </div>
+            <FieldErrorTooltip error={errors.endTime} />
+          </div>
         </TableCell>
 
         {/* Grace Period */}
@@ -458,13 +570,19 @@ export const useRoundingRuleDetailRows = ({
 
         {/* Rounding Value */}
         <TableCell>
-          <Input
-            type="time"
-            value={values?.roundingValue || ''}
-            onChange={e => handleFieldChange(rowId, 'roundingValue', e.target.value)}
-            className="gba:w-full"
-            disabled={isSaving}
-          />
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <div className="gba:relative">
+              <Input
+                type="time"
+                value={values?.roundingValue || ''}
+                onChange={e => handleFieldChange(rowId, 'roundingValue', e.target.value)}
+                className="gba:w-full"
+                disabled={isSaving || !showRoundingValue}
+              />
+              {requiredFields.roundingValue && <RequiredIndicator />}
+            </div>
+            <FieldErrorTooltip error={errors.roundingValue} />
+          </div>
         </TableCell>
 
         {/* Only First/Last */}
@@ -476,13 +594,12 @@ export const useRoundingRuleDetailRows = ({
           />
         </TableCell>
 
-        {/* Actions */}
+        {/* Actions - isValid forced to true so Save is always clickable, validation happens on click */}
         <TableCell>
           <RowActionsCell
             isEditing={true}
             isSaving={isSaving}
-            isValid={isValid}
-            isDirty={isDirty}
+            isValid={true}
             isNewRow={true}
             onSave={() => handleSaveRow(rowId)}
             onCancel={() => handleCancelRowEdit(rowId)}
@@ -499,7 +616,8 @@ export const useRoundingRuleDetailRows = ({
     editingRows,
     savingRows,
     isRowValid,
-    isRowDirty,
+    getRowErrors,
+    attemptedSave,
     dataTestId,
     handleFieldChange,
     handleSaveRow,
