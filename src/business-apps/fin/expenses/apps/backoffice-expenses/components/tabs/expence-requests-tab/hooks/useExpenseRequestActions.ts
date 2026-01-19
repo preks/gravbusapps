@@ -57,9 +57,7 @@ export const useExpenseRequestActions = (props: BusinessAppContextProps) => {
       let currentCell = ''
       let insideQuotes = false
 
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i]
-
+      for (const char of line) {
         if (char === '"') {
           // Skip quotes - don't add them to output
           insideQuotes = !insideQuotes
@@ -88,7 +86,7 @@ export const useExpenseRequestActions = (props: BusinessAppContextProps) => {
     const trimmedValue = value.trim()
     // Replace all decimal numbers: digits followed by period followed by digits
     // This handles cases like 57.50, 123.45, -10.00, 307.5
-    return trimmedValue.replace(/(\d)\.(\d)/g, '$1,$2')
+    return trimmedValue.replaceAll(/(\d)\.(\d)/g, '$1,$2')
   }
 
   const handleTriggerCSV = useCallback(async (record: ExpenseData) => {

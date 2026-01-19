@@ -1387,8 +1387,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     creationDate: expense.creationDate
   })
 
-  const handleExportCsv = useCallback(
-    async (e?: React.MouseEvent) => {
+  const handleExport = useCallback(
+    async (format: 'csv' | 'excel', e?: React.MouseEvent) => {
       e?.preventDefault()
       e?.stopPropagation()
 
@@ -1405,8 +1405,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
       setIsExporting(true)
 
+      const formatLabel = format === 'csv' ? 'CSV' : 'Excel'
+
       try {
-        // Fetch ALL expense requests (all pages)
         const allExpenses = await fetchAllExpenseRequestsForExport()
 
         if (!allExpenses || allExpenses.length === 0) {
@@ -1418,68 +1419,22 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
         const formattedData = allExpenses.map(formatExpenseForExport)
         const columns = getExportColumns()
-        const filename = buildFilename('expense-requests', 'csv')
-        downloadCsv(formattedData, columns, filename)
+        const filename = buildFilename('expense-requests', format === 'csv' ? 'csv' : 'xls')
 
-        toast.success('Export Successful', {
-          description: `Exported ${formattedData.length} expense requests to CSV`
-        })
-      } catch (err) {
-        console.error('[EXPORT CSV] Error during export:', err)
-        toast.error('Export Failed', {
-          description:
-            'Failed to export CSV: ' +
-            (err instanceof Error ? err.message : typeof err === 'string' ? err : String(err))
-        })
-      } finally {
-        setIsExporting(false)
-      }
-    },
-    [isExporting, totalItems, fetchAllExpenseRequestsForExport, formatExpenseForExport, getExportColumns]
-  )
-
-  const handleExportExcel = useCallback(
-    async (e?: React.MouseEvent) => {
-      e?.preventDefault()
-      e?.stopPropagation()
-
-      if (isExporting) {
-        return
-      }
-
-      if (totalItems === 0) {
-        toast.error('No Data Available', {
-          description: 'No expense data available to export'
-        })
-        return
-      }
-
-      setIsExporting(true)
-
-      try {
-        // Fetch ALL expense requests (all pages)
-        const allExpenses = await fetchAllExpenseRequestsForExport()
-
-        if (!allExpenses || allExpenses.length === 0) {
-          toast.error('No Data Available', {
-            description: 'No expense data available to export'
-          })
-          return
+        if (format === 'csv') {
+          downloadCsv(formattedData, columns, filename)
+        } else {
+          downloadExcel(formattedData, columns, filename)
         }
 
-        const formattedData = allExpenses.map(formatExpenseForExport)
-        const columns = getExportColumns()
-        const filename = buildFilename('expense-requests', 'xls')
-        downloadExcel(formattedData, columns, filename)
-
         toast.success('Export Successful', {
-          description: `Exported ${formattedData.length} expense requests to Excel`
+          description: `Exported ${formattedData.length} expense requests to ${formatLabel}`
         })
       } catch (err) {
-        console.error('[EXPORT EXCEL] Error during export:', err)
+        console.error(`[EXPORT ${formatLabel}] Error during export:`, err)
         toast.error('Export Failed', {
           description:
-            'Failed to export Excel: ' +
+            `Failed to export ${formatLabel}: ` +
             (err instanceof Error ? err.message : typeof err === 'string' ? err : String(err))
         })
       } finally {
@@ -1488,6 +1443,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     },
     [isExporting, totalItems, fetchAllExpenseRequestsForExport, formatExpenseForExport, getExportColumns]
   )
+
+  const handleExportCsv = useCallback((e?: React.MouseEvent) => handleExport('csv', e), [handleExport])
+
+  const handleExportExcel = useCallback((e?: React.MouseEvent) => handleExport('excel', e), [handleExport])
 
   // Keep DataContainer mounted at all times to avoid closing the filter sidebar during loading/errors
 
