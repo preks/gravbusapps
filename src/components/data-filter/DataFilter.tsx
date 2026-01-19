@@ -136,15 +136,18 @@ export const DataFilter: React.FC<Readonly<DataFilterProps>> = ({
       data-testid="data-filter-sidebar"
     >
       <div
-        className="gba:flex gba:flex-row gba:justify-center gba:items-start gba:p-0 gba:w-[336px] gba:max-w-[336px] gba:grow"
+        className="gba:flex gba:flex-row gba:justify-center gba:items-start gba:p-0 gba:w-[336px] gba:max-w-[336px] gba:h-full gba:grow gba:overflow-hidden"
         data-testid="data-filter-container"
       >
         <form
-          className="gba:min-w-0 gba:w-full gba:flex gba:flex-col gba:items-start gba:p-0 gba:gap-4 gba:grow gba:z-0"
+          className="gba:min-w-0 gba:w-full gba:flex gba:flex-col gba:items-start gba:p-0 gba:gap-4 gba:h-full gba:grow gba:z-0 gba:min-h-0 gba:overflow-hidden"
           onSubmit={e => e.preventDefault()}
           data-testid="data-filter-form"
         >
-          <div className="gba:flex gba:flex-col gba:w-full gba:gap-1" data-testid="data-filter-groups-container">
+          <div
+            className="gba:flex gba:flex-col gba:w-full gba:gap-1 gba:overflow-y-auto gba:grow gba:min-h-0"
+            data-testid="data-filter-groups-container"
+          >
             {filteredGroups.map(group => {
               // Determine if this group uses backend-powered search
               const groupSearch = groupSearchQueries[group.id] || ''

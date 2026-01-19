@@ -529,7 +529,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.currency', 'Currency'),
         type: 'custom',
         customComponent: (
-          <div className="gba:w-56">
+          <div className="gba:w-full">
             <Select
               onValueChange={val => {
                 setCurrencyRef(val || '')
@@ -569,7 +569,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         ),
         type: 'custom',
         customComponent: (
-          <div className="gba:w-64">
+          <div className="gba:w-full">
             <Select
               onValueChange={val => {
                 setDepartmentId(val)
@@ -602,7 +602,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.effective_date', 'Effective Date'),
         type: 'custom',
         customComponent: (
-          <div className="gba:w-72">
+          <div className="gba:w-full">
             <RangePicker
               value={
                 effectiveDateRange && effectiveDateRange[0] && effectiveDateRange[1]
@@ -646,7 +646,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         ),
         type: 'custom',
         customComponent: (
-          <div className="gba:w-72">
+          <div className="gba:w-full">
             <RangePicker
               value={
                 requestDateRange && requestDateRange[0] && requestDateRange[1]
@@ -673,7 +673,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date'),
         type: 'custom',
         customComponent: (
-          <div className="gba:w-72">
+          <div className="gba:w-full">
             <RangePicker
               value={startFrom && startTo ? [dayjs(startFrom), dayjs(startTo)] : null}
               onChange={handleStartDateChange}
@@ -696,7 +696,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date'),
         type: 'custom',
         customComponent: (
-          <div className="gba:w-72">
+          <div className="gba:w-full">
             <RangePicker
               value={endFrom && endTo ? [dayjs(endFrom), dayjs(endTo)] : null}
               onChange={handleEndDateChange}
