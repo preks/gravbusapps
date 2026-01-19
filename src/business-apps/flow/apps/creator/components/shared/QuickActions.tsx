@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
-import { Zap, User, Workflow, Database, Clock, FolderOpen } from 'lucide-react'
+import { Zap, User, Workflow, Database, Clock, FolderOpen, Users } from 'lucide-react'
 import { FlowTemplate } from '../../types/flowTemplate'
 
 interface QuickActionsProps {
@@ -88,6 +88,41 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
     }
   ]
 
+  const orgChartPatterns = [
+    {
+      label: "Initiator's Manager",
+      expression: '{{$orgchart.managerByUserId[$workflow.initiator]}}',
+      icon: <User className="gba:h-4 gba:w-4" />,
+      description: 'Manager of workflow starter'
+    },
+    {
+      label: "Initiator's Director",
+      expression: '{{$orgchart.skipLevelManagerByUserId[$workflow.initiator]}}',
+      icon: <Users className="gba:h-4 gba:w-4" />,
+      description: 'Skip-level manager approval'
+    },
+    {
+      label: "Initiator's Team",
+      expression: '{{$orgchart.directReportsByUserId[$workflow.initiator]}}',
+      icon: <Users className="gba:h-4 gba:w-4" />,
+      description: 'All direct reports'
+    },
+    {
+      label: "Initiator's Manager Name",
+      expression: '{{$orgchart.managerByUserId[$workflow.initiator].name}}',
+      icon: <User className="gba:h-4 gba:w-4" />,
+      description: 'Manager display name'
+    },
+    {
+      label: 'Employee Manager',
+      expression: firstFieldName
+        ? `{{$orgchart.manager[$workflow.input.${firstFieldName}]}}`
+        : '{{$orgchart.manager[$workflow.input.employeeId]}}',
+      icon: <User className="gba:h-4 gba:w-4" />,
+      description: 'Manager of specific employee'
+    }
+  ]
+
   return (
     <div className="gba:space-y-4" data-testid={testId}>
       {/* Common Patterns */}
@@ -111,6 +146,34 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
             >
               <span className="gba:mr-2">{pattern.icon}</span>
               <span className="gba:flex-1 gba:text-xs">{pattern.label}</span>
+            </Button>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* OrgChart Patterns */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="gba:text-sm gba:flex gba:items-center gba:gap-2">
+            <Users className="gba:h-4 gba:w-4 gba:text-blue-600" />
+            OrgChart Patterns
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="gba:space-y-2">
+          {orgChartPatterns.map((pattern, index) => (
+            <Button
+              key={index}
+              variant="outline"
+              size="sm"
+              className="gba:w-full gba:justify-start gba:text-left"
+              onClick={() => onInsert(pattern.expression)}
+              data-testid={`${testId}-orgchart-${index}`}
+            >
+              <span className="gba:mr-2">{pattern.icon}</span>
+              <div className="gba:flex-1">
+                <div className="gba:text-xs gba:font-medium">{pattern.label}</div>
+                <div className="gba:text-xs gba:text-gray-500">{pattern.description}</div>
+              </div>
             </Button>
           ))}
         </CardContent>

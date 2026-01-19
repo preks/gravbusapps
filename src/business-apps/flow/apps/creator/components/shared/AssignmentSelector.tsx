@@ -13,11 +13,18 @@ import {
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger
+  TabsTrigger,
+  Label,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider
 } from '@newwork/nw-design-system'
-import { X, UserCircle, Users, Building2, MapPin, DollarSign, FileCheck, AlertTriangle } from 'lucide-react'
+import { X, UserCircle, Users, Building2, MapPin, DollarSign, FileCheck, AlertTriangle, Info } from 'lucide-react'
 import { useMockData } from '../../../../providers/MockDataProvider'
 import { useOrgDirectory } from '@/common/network/org-directory'
+import { ExpressionInput } from './ExpressionInput'
+import { FlowTemplate } from '../../types/flowTemplate'
 
 // Mock data can be enabled via MockDataProvider for development/testing
 const USE_MOCK_DATA = false
@@ -51,6 +58,8 @@ interface AssignmentSelectorProps {
   assignmentMode: AssignmentMode
   accessToken: string
   userInfo?: any
+  template?: FlowTemplate
+  stepIndex?: number
   'data-testid'?: string
 }
 
@@ -194,9 +203,19 @@ const FieldBadges: React.FC<FieldBadgesProps> = ({
   capabilities = [],
   'data-testid': testId = 'field-badges'
 }) => {
+  // Check if value is an expression
+  const isExpression = (value: string): boolean => {
+    return value.includes('{{') && value.includes('}}')
+  }
+
   // Resolve entity name from real data or teammates
   const resolveEntityName = (dataSource: string, entityId: string): string => {
     if (entityId === ANY_SELECTOR) return 'Any'
+
+    // If it's an expression, return it as-is (will be styled differently)
+    if (isExpression(entityId)) {
+      return entityId
+    }
 
     // Define data source mappings with primary source and fallback teammate fields
     const sourceMappings: Record<
@@ -241,24 +260,32 @@ const FieldBadges: React.FC<FieldBadgesProps> = ({
 
   return (
     <div className="gba:flex gba:flex-wrap gba:gap-1 gba:mt-2" data-testid={testId}>
-      {values.map((value, index) => (
-        <Badge
-          key={`${field}-${value}`}
-          variant="outline"
-          className={`gba:flex gba:items-center gba:gap-1 gba:pr-1 gba:text-xs ${config.color}`}
-          data-testid={`${testId}-badge-${index}`}
-        >
-          {config.icon}
-          <span>{resolveEntityName(config.dataSource, value)}</span>
-          <button
-            onClick={() => onRemove(field, value)}
-            className="gba:ml-1 gba:text-gray-500 hover:gba:text-red-500 gba:transition-colors"
-            data-testid={`${testId}-remove-${index}`}
+      {values.map((value, index) => {
+        const valueIsExpression = isExpression(value)
+        return (
+          <Badge
+            key={`${field}-${value}`}
+            variant="outline"
+            className={`gba:flex gba:items-center gba:gap-1 gba:pr-1 gba:text-xs ${valueIsExpression ? 'gba:!bg-purple-100 gba:!text-purple-800 gba:!border-purple-300 gba:font-mono' : config.color}`}
+            data-testid={`${testId}-badge-${index}`}
           >
-            <X className="gba:w-3 gba:h-3" />
-          </button>
-        </Badge>
-      ))}
+            {config.icon}
+            <span
+              className={valueIsExpression ? 'gba:max-w-[300px] gba:truncate' : ''}
+              title={valueIsExpression ? value : undefined}
+            >
+              {resolveEntityName(config.dataSource, value)}
+            </span>
+            <button
+              onClick={() => onRemove(field, value)}
+              className="gba:ml-1 gba:text-gray-500 hover:gba:text-red-500 gba:transition-colors"
+              data-testid={`${testId}-remove-${index}`}
+            >
+              <X className="gba:w-3 gba:h-3" />
+            </button>
+          </Badge>
+        )
+      })}
     </div>
   )
 }
@@ -465,10 +492,16 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
   onChange,
   assignmentMode,
   accessToken,
+  userInfo,
+  template,
+  stepIndex = 0,
   'data-testid': testId = 'assignment-selector'
 }) => {
   // Tab state for organized assignment interface
   const [activeTab, setActiveTab] = useState<'people' | 'structure' | 'business' | 'location' | 'skills'>('people')
+
+  // State for expression-based user assignment
+  const [userExpression, setUserExpression] = useState('')
 
   // Check if we should use mock data (controlled by constant at top of file)
   let mockData = null
@@ -644,6 +677,19 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
     onChange(newAssignment)
   }
 
+  // Handle adding expression-based user assignment
+  const handleAddExpression = () => {
+    if (!userExpression.trim()) return
+
+    // Prevent adding expressions in CLAIM mode (direct user assignment not allowed)
+    if (assignmentMode === AssignmentMode.CLAIM) {
+      return
+    }
+
+    handleAddValue('users', userExpression)
+    setUserExpression('')
+  }
+
   // Handle reassignment toggle
   const handleReassignmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange({
@@ -764,6 +810,91 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
 
             {Object.entries(fieldConfigGroups).map(([groupKey, configs]) => (
               <TabsContent key={groupKey} value={groupKey} className="gba:space-y-4 gba:mt-4">
+                {/* Expression-based assignment - only show in People tab, when template is provided, and NOT in CLAIM mode */}
+                {groupKey === 'people' && template && assignmentMode !== AssignmentMode.CLAIM && (
+                  <div className="gba:space-y-2 gba:pb-4 gba:border-b gba:border-gray-200">
+                    <TooltipProvider>
+                      <Label className="gba:text-sm gba:font-medium gba:flex gba:items-center gba:gap-2">
+                        <UserCircle className="gba:w-4 gba:h-4" />
+                        Dynamic User Assignment (Expressions)
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="gba:w-4 gba:h-4 gba:text-blue-600 gba:cursor-help hover:gba:text-blue-700" />
+                          </TooltipTrigger>
+                          <TooltipContent className="gba:max-w-md gba:p-4 gba:bg-slate-900 gba:border-slate-700">
+                            <div className="gba:space-y-3 gba:text-xs gba:text-white">
+                              <p className="gba:font-semibold gba:text-sm gba:text-white">
+                                How OrgChart Expressions Work in Assignments
+                              </p>
+                              <p className="gba:text-slate-200">
+                                Expressions are evaluated <strong className="gba:text-white">at runtime</strong> when
+                                the workflow is executed, using the actual workflow initiator and context data.
+                              </p>
+                              <div className="gba:space-y-2">
+                                <p className="gba:font-semibold gba:text-white">Common Examples:</p>
+                                <ul className="gba:space-y-2">
+                                  <li className="gba:space-y-1">
+                                    <code className="gba:bg-slate-800 gba:text-blue-300 gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:block gba:font-mono">
+                                      {'{{$orgchart.managerByUserId[$workflow.initiator]}}'}
+                                    </code>
+                                    <span className="gba:text-slate-300 gba:block gba:ml-1">
+                                      Assigns to the manager of the person who started the workflow
+                                    </span>
+                                  </li>
+                                  <li className="gba:space-y-1">
+                                    <code className="gba:bg-slate-800 gba:text-blue-300 gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:block gba:font-mono">
+                                      {'{{$orgchart.skipLevelManagerByUserId[$workflow.initiator]}}'}
+                                    </code>
+                                    <span className="gba:text-slate-300 gba:block gba:ml-1">
+                                      Assigns to the skip-level manager (manager's manager)
+                                    </span>
+                                  </li>
+                                  <li className="gba:space-y-1">
+                                    <code className="gba:bg-slate-800 gba:text-blue-300 gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:block gba:font-mono">
+                                      {'{{$orgchart.directReportsByUserId[$workflow.initiator]}}'}
+                                    </code>
+                                    <span className="gba:text-slate-300 gba:block gba:ml-1">
+                                      Assigns to all direct reports of the initiator
+                                    </span>
+                                  </li>
+                                </ul>
+                              </div>
+                              <p className="gba:text-slate-400 gba:italic gba:text-xs">
+                                Note: Use the Expression Builder to explore all available fields and test expressions.
+                              </p>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </Label>
+                    </TooltipProvider>
+                    <p className="gba:text-xs gba:text-gray-600 gba:mb-2">
+                      Use expressions to dynamically assign users based on workflow context (e.g., manager, team
+                      members)
+                    </p>
+                    <ExpressionInput
+                      value={userExpression}
+                      onChange={setUserExpression}
+                      mode="expression"
+                      placeholder="e.g., {{$orgchart.managerByUserId[$workflow.initiator]}}"
+                      template={template}
+                      stepIndex={stepIndex}
+                      useTreeBuilder={true}
+                      context={{ accessToken, userInfo }}
+                      data-testid={`${testId}-expression-input`}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAddExpression}
+                      disabled={!userExpression.trim()}
+                      data-testid={`${testId}-add-expression`}
+                      type="button"
+                    >
+                      Add Expression
+                    </Button>
+                  </div>
+                )}
+
                 {configs.map(config => {
                   const fieldValues = currentTarget[config.field] || []
 

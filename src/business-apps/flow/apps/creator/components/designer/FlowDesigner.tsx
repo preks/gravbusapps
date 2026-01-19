@@ -920,6 +920,8 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                             assignmentMode={selectedStep.assignment?.assignmentMode || AssignmentMode.CLAIM}
                             accessToken={accessToken}
                             userInfo={userInfo}
+                            template={{ ...initialTemplate, steps } as any}
+                            stepIndex={selectedStepIndex}
                             data-testid={`${testId}-assignment-selector`}
                           />
                         </div>

@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { Code, Type, CheckCircle, AlertCircle, Network, Loader2 } from 'lucide-react'
+import { CheckCircle, AlertCircle, Network, Loader2 } from 'lucide-react'
 import { FlowTemplate } from '../../types/flowTemplate'
 import { ExpressionBuilder } from './ExpressionBuilder'
 import { useExpressionValidator } from '../../hooks/useExpressionValidator'
@@ -274,12 +274,6 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
     }
   }, [value, shouldValidate, hasExpressions, entitySchemas])
 
-  const toggleMode = () => {
-    if (mode !== 'auto') {
-      setIsExpressionMode(!isExpressionMode)
-    }
-  }
-
   // Get validation badge
   const getValidationBadge = () => {
     // Show badge only when validation is active AND there are expressions
@@ -374,29 +368,6 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
           )}
         </div>
 
-        {/* Mode toggle button */}
-        {mode !== 'auto' && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={toggleMode}
-                  disabled={disabled}
-                  className="gba:shrink-0"
-                  data-testid={`${testId}-mode-toggle`}
-                >
-                  {isExpressionMode ? <Type className="gba:h-4 gba:w-4" /> : <Code className="gba:h-4 gba:w-4" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="gba:text-xs">{isExpressionMode ? 'Switch to plain text' : 'Switch to expression mode'}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-
         {/* Builder button - Always show when useTreeBuilder is enabled */}
         {useTreeBuilder && template && (
           <TooltipProvider>
@@ -425,21 +396,6 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
           </TooltipProvider>
         )}
       </div>
-
-      {/* Mode indicator */}
-      {isExpressionMode && (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <Badge variant="secondary" className="gba:text-xs gba:bg-purple-100 gba:text-purple-800">
-            <Code className="gba:h-3 gba:w-3 gba:mr-1" />
-            Expression Mode
-          </Badge>
-          {hasExpressions && (
-            <span className="gba:text-xs gba:text-gray-500">
-              {(value.match(/\{\{/g) || []).length} expression(s) detected
-            </span>
-          )}
-        </div>
-      )}
 
       {/* Expression Builder */}
       {useTreeBuilder && template && context && (

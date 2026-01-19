@@ -596,6 +596,15 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
       return
     }
 
+    // Handle OrgChart field click - insert expression with common ID sources
+    if (node.type === 'orgchart-field' && node.expressionTemplate) {
+      // Replace ID_PLACEHOLDER with $workflow.initiator as the most common use case
+      // User can edit if needed
+      const expression = node.expressionTemplate.replace('ID_PLACEHOLDER', '$workflow.initiator')
+      insertAtCursor(expression)
+      return
+    }
+
     // Handle regular field selection
     if (node.type === 'field' && node.path) {
       // Build expression from path for workflow/steps fields
@@ -1104,27 +1113,93 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
                       </div>
                     </div>
 
-                    {/* Future Features Section */}
-                    <div className="gba:border-t gba:pt-4">
-                      <h4 className="gba:font-semibold gba:mb-2 gba:text-base gba:text-gray-500">Coming Soon</h4>
-                      <p className="gba:text-xs gba:text-gray-500 gba:mb-3 gba:italic">
-                        These features are planned for future releases
+                    {/* OrgChart Section */}
+                    <div>
+                      <h4 className="gba:font-semibold gba:mb-2 gba:text-base">OrgChart - Organizational Hierarchy</h4>
+                      <p className="gba:text-xs gba:text-gray-600 gba:mb-3">
+                        Access managers, skip-level managers, and direct reports based on organizational structure
                       </p>
-                      <div className="gba:space-y-3 gba:opacity-50">
+                      <div className="gba:space-y-2">
+                        <div>
+                          <h5 className="gba:font-medium gba:mb-1 gba:text-sm gba:text-blue-700">
+                            By User ID (Recommended)
+                          </h5>
+                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                            {'{{$orgchart.managerByUserId[$workflow.initiator]}}'}
+                            <br />
+                            <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                              → My manager (user ID)
+                            </span>
+                          </code>
+                        </div>
+                        <div>
+                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                            {'{{$orgchart.managerByUserId[$workflow.initiator].name}}'}
+                            <br />
+                            <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                              → My manager's display name
+                            </span>
+                          </code>
+                        </div>
+                        <div>
+                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                            {'{{$orgchart.skipLevelManagerByUserId[$workflow.initiator]}}'}
+                            <br />
+                            <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                              → My director (skip-level manager)
+                            </span>
+                          </code>
+                        </div>
+                        <div>
+                          <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                            {'{{$orgchart.directReportsByUserId[$workflow.initiator]}}'}
+                            <br />
+                            <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                              → My team members (array of user IDs)
+                            </span>
+                          </code>
+                        </div>
+                      </div>
+                      <div className="gba:mt-3 gba:space-y-2">
+                        <h5 className="gba:font-medium gba:mb-1 gba:text-sm gba:text-gray-700">By Employee ID</h5>
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'{{$orgchart.manager[$workflow.input.employeeId]}}'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → Manager of specific employee
+                          </span>
+                        </code>
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'{{$orgchart.manager[$workflow.input.employeeId].email}}'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → Manager's email address
+                          </span>
+                        </code>
+                      </div>
+                    </div>
+
+                    {/* Catalog & Entity Section */}
+                    <div>
+                      <h4 className="gba:font-semibold gba:mb-2 gba:text-base">Catalog & Entity Data</h4>
+                      <p className="gba:text-xs gba:text-gray-600 gba:mb-3">
+                        Access catalog entries and entity records
+                      </p>
+                      <div className="gba:space-y-2">
                         <div>
                           <h5 className="gba:font-medium gba:mb-1 gba:text-sm">Catalog Data</h5>
-                          <code className="gba:block gba:p-2 gba:bg-gray-50 gba:rounded gba:text-xs">
-                            {'{{$catalog.asset-management[0].name}}'}
+                          <code className="gba:block gba:p-2 gba:bg-gray-100 gba:rounded gba:text-xs gba:font-mono">
+                            {"{{$catalog.asset-management['asset-001'].name}}"}
                             <br />
-                            {'{{$catalog.employees[emp-001].email}}'}
+                            {"{{$catalog.employees['emp-001'].email}}"}
                           </code>
                         </div>
                         <div>
                           <h5 className="gba:font-medium gba:mb-1 gba:text-sm">Entity References</h5>
-                          <code className="gba:block gba:p-2 gba:bg-gray-50 gba:rounded gba:text-xs">
-                            {'{{$entity.ticket.TKT-123.subject}}'}
+                          <code className="gba:block gba:p-2 gba:bg-gray-100 gba:rounded gba:text-xs gba:font-mono">
+                            {'{{$entity.employee.emp-123.firstName}}'}
                             <br />
-                            {'{{$entity.employee.{{$workflow.initiator}}.email}}'}
+                            {'{{$entity.department.dept-456.name}}'}
                           </code>
                         </div>
                       </div>
