@@ -24,7 +24,7 @@ import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { useForm } from 'react-hook-form'
 
 export const EmployeeTerminationForm: React.FC = () => {
-  const { formValues, setFormValues, employee, loading, error } = useEmployeeTerminationContext()
+  const { formValues, setFormValues, employee, loading, error, hasJobPosition } = useEmployeeTerminationContext()
 
   const form = useForm<{ employeeId?: string }>({
     defaultValues: { employeeId: formValues.employeeId }
@@ -200,13 +200,19 @@ export const EmployeeTerminationForm: React.FC = () => {
                   id="terminate-job-checkbox"
                   checked={formValues.terminateJobPosition}
                   onCheckedChange={checked => setFormValues({ terminateJobPosition: !!checked })}
+                  disabled={!hasJobPosition}
                   data-testid="terminate-job-checkbox"
                 />
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_termination.checkbox_description',
-                    'Also terminate the employee’s job position '
-                  )}
+                <span className={!hasJobPosition ? 'gba:text-muted-foreground' : ''}>
+                  {hasJobPosition
+                    ? getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:employee_termination.checkbox_description',
+                        "Also terminate the employee's job position"
+                      )
+                    : getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:employee_termination.no_job_position_message',
+                        'This employee has no job position assigned'
+                      )}
                 </span>
               </div>
             </div>

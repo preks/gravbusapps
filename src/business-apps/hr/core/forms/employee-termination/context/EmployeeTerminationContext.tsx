@@ -15,6 +15,7 @@ export interface EmployeeTerminationContextState {
   employee: EmployeeTerminationData | null
   loading: boolean
   error: string | null
+  hasJobPosition: boolean
 }
 
 const EmployeeTerminationContext = createContext<EmployeeTerminationContextState | undefined>(undefined)
@@ -66,15 +67,21 @@ export const EmployeeTerminationProvider: React.FC<{
     setFormValuesState(prev => ({ ...prev, ...values }))
   }, [])
 
+  // Check if employee has a job position
+  const hasJobPosition = Boolean(employee?.employeePosition?.jobPosition?.name)
+
   // Initialize form from employee data: exitDate -> terminationDate, activeTo -> terminateJobPosition
   useEffect(() => {
     if (!employee) return
     const exitDate = employee.employeePosition?.exitDate
     const activeTo = employee.employeePosition?.activeTo ?? employee.employeePosition?.jobPosition?.activeTo
+    const employeeHasJobPosition = Boolean(employee.employeePosition?.jobPosition?.name)
+
     setFormValuesState(prev => ({
       ...prev,
       terminationDate: exitDate ? dayjs(exitDate) : prev.terminationDate,
-      terminateJobPosition: activeTo != null ? true : prev.terminateJobPosition
+      // Only allow terminateJobPosition if employee actually has a job position
+      terminateJobPosition: employeeHasJobPosition && activeTo != null ? true : false
     }))
   }, [employee])
 
@@ -89,7 +96,8 @@ export const EmployeeTerminationProvider: React.FC<{
         setFormValues,
         employee,
         loading: combinedLoading,
-        error: combinedError
+        error: combinedError,
+        hasJobPosition
       }}
     >
       {children}
