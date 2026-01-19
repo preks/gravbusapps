@@ -124,7 +124,7 @@ const FileExplorerDemo: React.FC<BusinessAppContextProps> = () => {
     setNodes(updated)
   }
 
-  const handleSelectionChange = (_selectedIds: string[]) => {
+  const handleSelectionChange = () => {
     // Selection can be handled here if needed for external state
   }
 

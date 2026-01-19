@@ -73,20 +73,10 @@ export const PersonalWorkspace: React.FC<PersonalWorkspaceProps> = ({ config, ac
     return () => globalThis.removeEventListener('popstate', handlePopState)
   }, [])
 
-  // Use module-specific hooks injected via config
-  const kpisResult = config.hooks.useKpis({ accessToken, userInfo }, employeeId)
-  const activitiesResult = config.hooks.useActivities({ accessToken, userInfo }, employeeId)
-  const tasksResult = config.hooks.useTasks({ accessToken, userInfo }, employeeId)
-
-  // Extract refetch functions to prevent unnecessary re-renders
-  const { refetch: refetchActivities } = activitiesResult
-  const { refetch: refetchTasks } = tasksResult
-
-  // Process Completion Handler - refresh Overview tab data when processes complete
+  // Process completion handler - let each tab handle its own refresh
   const handleProcessComplete = useCallback(() => {
-    refetchActivities?.()
-    refetchTasks?.()
-  }, [refetchActivities, refetchTasks])
+    // Each tab component will handle its own data refresh
+  }, [])
 
   useProcessCompletion({ onSuccess: handleProcessComplete })
 
@@ -118,46 +108,70 @@ export const PersonalWorkspace: React.FC<PersonalWorkspaceProps> = ({ config, ac
           <ActionButtons config={config} accessToken={accessToken} />
         </div>
 
-        <TabsContent value="overview">
-          <OverviewView
-            config={config}
-            kpisResult={kpisResult}
-            activitiesResult={activitiesResult}
-            tasksResult={tasksResult}
-            accessToken={accessToken}
-            userInfo={userInfo}
-          />
-        </TabsContent>
+        {/* Only render active tab to prevent data fetching for inactive tabs */}
+        {activeTab === 'overview' && (
+          <TabsContent value="overview">
+            <OverviewView config={config} employeeId={employeeId} accessToken={accessToken} userInfo={userInfo} />
+          </TabsContent>
+        )}
 
-        <TabsContent value="activities">
-          {config.myActivitiesConfig ? (
-            <MyActivitiesView
-              config={config.myActivitiesConfig}
-              accessToken={accessToken}
-              userInfo={userInfo}
-              dataTestId="workspace-my-activities"
-            />
-          ) : (
-            <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
-              {config.entities.activity.pluralName} view - Configuration not provided
-            </div>
-          )}
-        </TabsContent>
+        {activeTab === 'activities' && (
+          <TabsContent value="activities">
+            {(() => {
+              // Use component wrapper if available (lazy loading), otherwise use direct config
+              if (config.MyActivitiesComponent) {
+                const MyActivitiesComponent = config.MyActivitiesComponent
+                return <MyActivitiesComponent accessToken={accessToken} userInfo={userInfo} />
+              }
 
-        <TabsContent value="tasks">
-          {config.myTasksConfig ? (
-            <MyTasksView
-              config={config.myTasksConfig}
-              accessToken={accessToken}
-              userInfo={userInfo}
-              dataTestId="workspace-my-tasks"
-            />
-          ) : (
-            <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
-              {config.entities.task.pluralName} view - Configuration not provided
-            </div>
-          )}
-        </TabsContent>
+              if (config.myActivitiesConfig) {
+                return (
+                  <MyActivitiesView
+                    config={config.myActivitiesConfig}
+                    accessToken={accessToken}
+                    userInfo={userInfo}
+                    dataTestId="workspace-my-activities"
+                  />
+                )
+              }
+
+              return (
+                <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
+                  {config.entities.activity.pluralName} view - Configuration not provided
+                </div>
+              )
+            })()}
+          </TabsContent>
+        )}
+
+        {activeTab === 'tasks' && (
+          <TabsContent value="tasks">
+            {(() => {
+              // Use component wrapper if available (lazy loading), otherwise use direct config
+              if (config.MyTasksComponent) {
+                const MyTasksComponent = config.MyTasksComponent
+                return <MyTasksComponent accessToken={accessToken} userInfo={userInfo} />
+              }
+
+              if (config.myTasksConfig) {
+                return (
+                  <MyTasksView
+                    config={config.myTasksConfig}
+                    accessToken={accessToken}
+                    userInfo={userInfo}
+                    dataTestId="workspace-my-tasks"
+                  />
+                )
+              }
+
+              return (
+                <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
+                  {config.entities.task.pluralName} view - Configuration not provided
+                </div>
+              )
+            })()}
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   )
