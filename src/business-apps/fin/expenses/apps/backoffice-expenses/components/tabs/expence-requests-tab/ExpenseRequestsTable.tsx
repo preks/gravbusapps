@@ -237,10 +237,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   // ⚡ PERFORMANCE: Always fetch locally as fallback, but prefer propsFilterData if it has valid data
   const localFilterData = useFilterData({ accessToken })
   // Use propsFilterData if it has valid organizationalUnits, otherwise fall back to localFilterData
-  const filterData =
-    propsFilterData && propsFilterData.organizationalUnits && propsFilterData.organizationalUnits.length > 0
-      ? propsFilterData
-      : localFilterData
+  const filterData = (propsFilterData?.organizationalUnits?.length ?? 0) > 0 ? propsFilterData : localFilterData
   const { organizationalUnits = [], currencies = [] } = filterData || {}
 
   const selectedDepartmentName = useMemo(() => {
@@ -605,7 +602,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           <div className="gba:w-full">
             <RangePicker
               value={
-                effectiveDateRange && effectiveDateRange[0] && effectiveDateRange[1]
+                effectiveDateRange?.[0] && effectiveDateRange?.[1]
                   ? [dayjs(effectiveDateRange[0]), dayjs(effectiveDateRange[1])]
                   : null
               }
@@ -649,7 +646,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           <div className="gba:w-full">
             <RangePicker
               value={
-                requestDateRange && requestDateRange[0] && requestDateRange[1]
+                requestDateRange?.[0] && requestDateRange?.[1]
                   ? [dayjs(requestDateRange[0]), dayjs(requestDateRange[1])]
                   : null
               }
@@ -1869,10 +1866,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             handleCloseDetails()
           }
         }}
-        title={
-          selectedExpense?.title ||
-          getTranslationFromI18nKeyAndLabel('expense.request.details.title', 'Expense Request Details')
-        }
         data-testid="backoffice-expense-request-details-sheet"
       >
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">

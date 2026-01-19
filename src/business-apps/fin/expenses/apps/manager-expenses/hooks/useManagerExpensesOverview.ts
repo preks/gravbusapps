@@ -97,6 +97,188 @@ const DEFAULT_REQ_ORDER: any[] = [{ createdAt: 'DESC' }]
 const DEFAULT_PLAN_ORDER: any[] = [{ createdAt: 'DESC' }]
 const DEFAULT_PAY_ORDER: any[] = [{ createdAt: 'DESC' }]
 
+type DateRangeInput = { from?: string | null; to?: string | null } | null | undefined
+
+function buildSearchPattern(searchTerm?: string | null): string {
+  const trimmedSearch = (searchTerm ?? '').toString().trim()
+  return trimmedSearch.length > 0 ? `%${trimmedSearch}%` : '%%'
+}
+
+function buildDateRangeCondition(from?: string | null, to?: string | null): any | null {
+  if (!from && !to) return null
+  const condition: any = {}
+  if (from) condition._gte = from
+  if (to) condition._lte = to
+  return Object.keys(condition).length > 0 ? condition : null
+}
+
+function wrapFieldCondition(field: string, condition: any | null): any | null {
+  return condition ? { [field]: condition } : null
+}
+
+function buildPlanEffectiveDateFilter(range: DateRangeInput): any | null {
+  if (!range?.from && !range?.to) return null
+
+  const tripAnd: any[] = []
+  const expenseAnd: any[] = []
+
+  if (range.from) {
+    tripAnd.push({ startDate: { _gte: range.from } })
+    expenseAnd.push({ expensePlanItem: { expenseDate: { _gte: range.from } } })
+  }
+  if (range.to) {
+    tripAnd.push({ startDate: { _lte: range.to } })
+    expenseAnd.push({ expensePlanItem: { expenseDate: { _lte: range.to } } })
+  }
+
+  if (tripAnd.length === 0 && expenseAnd.length === 0) return null
+
+  return {
+    _or: [
+      { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd] },
+      { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd] }
+    ]
+  }
+}
+
+function buildRequestEffectiveDateFilter(range: DateRangeInput): any | null {
+  if (!range?.from && !range?.to) return null
+
+  const tripAnd: any[] = []
+  const expenseAnd: any[] = []
+
+  if (range.from) {
+    tripAnd.push({ startDate: { _gte: range.from } })
+    expenseAnd.push({ expenseItem: { expenseDate: { _gte: range.from } } })
+  }
+  if (range.to) {
+    tripAnd.push({ startDate: { _lte: range.to } })
+    expenseAnd.push({ expenseItem: { expenseDate: { _lte: range.to } } })
+  }
+
+  if (tripAnd.length === 0 && expenseAnd.length === 0) return null
+
+  return {
+    _or: [
+      { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd] },
+      { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd] }
+    ]
+  }
+}
+
+function buildPlanTypeFilter(typeFilters?: string[]): any | null {
+  if (!typeFilters || typeFilters.length === 0) return null
+
+  const planTypeTokens = typeFilters.filter(f => f.startsWith('planType:'))
+  if (planTypeTokens.length === 0) return null
+
+  const allowedTypes = planTypeTokens.map(t => t.replace('planType:', '')).filter(t => t === 'EXPENSES' || t === 'TRIP')
+  if (allowedTypes.length === 0) return null
+
+  const typeOr = allowedTypes.map(t => ({ requestTypeRef: { _eq: `ExpenseRequestType:v1:${t}` } }))
+  return { _or: typeOr }
+}
+
+function buildRequestTypeFilter(typeFilters?: string[]): any | null {
+  if (!typeFilters || typeFilters.length === 0) return null
+
+  const requestTypeTokens = typeFilters.filter(f => f.startsWith('ExpenseRequestType:'))
+  if (requestTypeTokens.length === 0) return null
+
+  const allowedTypes = requestTypeTokens
+    .map(t => t.replace('ExpenseRequestType:v1:', ''))
+    .filter(t => t === 'EXPENSES' || t === 'TRIP')
+  if (allowedTypes.length === 0) return null
+
+  const typeOr = allowedTypes.map(t => ({ requestTypeRef: { _eq: `ExpenseRequestType:v1:${t}` } }))
+  return { _or: typeOr }
+}
+
+function buildStatusWhere(statuses?: string[]): any {
+  if (Array.isArray(statuses) && statuses.length > 0) {
+    return { status: { _in: statuses } }
+  }
+  // Exclude CREATED status by default when no specific filter is provided
+  return { status: { _neq: 'CREATED' } }
+}
+
+function buildPlanDateWhereClause(params: UseManagerExpensesOverviewParams): any {
+  const conditions = [
+    buildPlanEffectiveDateFilter(params.plansEffectiveDateRange),
+    wrapFieldCondition(
+      'startDate',
+      buildDateRangeCondition(params.plansStartDateRange?.from, params.plansStartDateRange?.to)
+    ),
+    wrapFieldCondition(
+      'endDate',
+      buildDateRangeCondition(params.plansEndDateRange?.from, params.plansEndDateRange?.to)
+    ),
+    wrapFieldCondition(
+      'planDate',
+      buildDateRangeCondition(params.plansPlanDateRange?.from, params.plansPlanDateRange?.to)
+    ),
+    buildPlanTypeFilter(params.plansTypeFilter)
+  ].filter(Boolean)
+
+  return conditions.length > 0 ? { _and: conditions } : {}
+}
+
+function buildRequestDateWhereClause(params: UseManagerExpensesOverviewParams): any {
+  const conditions = [
+    buildRequestEffectiveDateFilter(params.requestsEffectiveDateRange),
+    wrapFieldCondition(
+      'requestDate',
+      buildDateRangeCondition(params.requestsRequestDateRange?.from, params.requestsRequestDateRange?.to)
+    ),
+    wrapFieldCondition(
+      'startDate',
+      buildDateRangeCondition(params.requestsStartDateRange?.from, params.requestsStartDateRange?.to)
+    ),
+    wrapFieldCondition(
+      'endDate',
+      buildDateRangeCondition(params.requestsEndDateRange?.from, params.requestsEndDateRange?.to)
+    ),
+    buildRequestTypeFilter(params.requestsTypeFilter)
+  ].filter(Boolean)
+
+  return conditions.length > 0 ? { _and: conditions } : {}
+}
+
+function buildOverviewVariables(params: UseManagerExpensesOverviewParams): any {
+  const currencyRef = params.currencyRef || null
+  const searchTerm = buildSearchPattern(params.searchTerm)
+
+  const reqCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+  const planCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+  const payCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+
+  return {
+    managerId: params.managerId,
+    currencyRef,
+    searchTerm,
+    reqLimit: params.requests?.limit ?? 20,
+    reqOffset: params.requests?.offset ?? 0,
+    reqOrderBy: params.requests?.orderBy ?? DEFAULT_REQ_ORDER,
+    planLimit: params.plans?.limit ?? 20,
+    planOffset: params.plans?.offset ?? 0,
+    planOrderBy: params.plans?.orderBy ?? DEFAULT_PLAN_ORDER,
+    payLimit: params.payments?.limit ?? 20,
+    payOffset: params.payments?.offset ?? 0,
+    payOrderBy: params.payments?.orderBy ?? DEFAULT_PAY_ORDER,
+    monthStart: params.monthStart ?? undefined,
+    monthEnd: params.monthEnd ?? undefined,
+    yearStart: params.yearStart ?? undefined,
+    reqCurrencyWhere,
+    planCurrencyWhere,
+    payCurrencyWhere,
+    planDateWhere: buildPlanDateWhereClause(params),
+    reqDateWhere: buildRequestDateWhereClause(params),
+    reqStatusWhere: buildStatusWhere(params.requestsStatus),
+    planStatusWhere: buildStatusWhere(params.plansStatus),
+    payStatusWhere: buildStatusWhere(params.paymentsStatus)
+  }
+}
+
 // Global in-flight request cache to deduplicate concurrent identical calls across components
 const inFlightBySignature: Map<string, Promise<any>> = new Map()
 // Small memory cache to keep recent results for smooth tab transitions
@@ -251,198 +433,7 @@ export const useManagerExpensesOverview = (
 
   // Normalize/prepare variables
   const variables = useMemo(() => {
-    const trimmedSearch = (params.searchTerm ?? '').toString().trim()
-    const searchPattern = trimmedSearch.length > 0 ? `%${trimmedSearch}%` : '%%'
-
-    // Build currency filter boolean expressions conditionally
-    const currencyRef = params.currencyRef || null
-    const reqCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
-    const planCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
-    const payCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
-
-    // Build date range filters for plans - extracted to helper functions to reduce complexity
-    const buildEffectiveDateFilter = (): any | null => {
-      if (!params.plansEffectiveDateRange?.from && !params.plansEffectiveDateRange?.to) return null
-
-      const tripAnd: any[] = []
-      const expenseAnd: any[] = []
-
-      if (params.plansEffectiveDateRange.from) {
-        tripAnd.push({ startDate: { _gte: params.plansEffectiveDateRange.from } })
-        expenseAnd.push({ expensePlanItem: { expenseDate: { _gte: params.plansEffectiveDateRange.from } } })
-      }
-      if (params.plansEffectiveDateRange.to) {
-        tripAnd.push({ startDate: { _lte: params.plansEffectiveDateRange.to } })
-        expenseAnd.push({ expensePlanItem: { expenseDate: { _lte: params.plansEffectiveDateRange.to } } })
-      }
-
-      if (tripAnd.length === 0 && expenseAnd.length === 0) return null
-
-      return {
-        _or: [
-          { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd] },
-          { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd] }
-        ]
-      }
-    }
-
-    const buildDateRangeCondition = (from?: string | null, to?: string | null): any | null => {
-      if (!from && !to) return null
-      const condition: any = {}
-      if (from) condition._gte = from
-      if (to) condition._lte = to
-      return Object.keys(condition).length > 0 ? condition : null
-    }
-
-    const buildPlanTypeFilter = (): any | null => {
-      if (!params.plansTypeFilter || params.plansTypeFilter.length === 0) return null
-
-      const planTypeTokens = params.plansTypeFilter.filter(f => f.startsWith('planType:'))
-      if (planTypeTokens.length === 0) return null
-
-      const allowedTypes = planTypeTokens
-        .map(t => t.replace('planType:', ''))
-        .filter(t => t === 'EXPENSES' || t === 'TRIP')
-      if (allowedTypes.length === 0) return null
-
-      const typeOr = allowedTypes.map(t => ({ requestTypeRef: { _eq: `ExpenseRequestType:v1:${t}` } }))
-      return { _or: typeOr }
-    }
-
-    const planDateWhere: any[] = []
-
-    const effectiveDateFilter = buildEffectiveDateFilter()
-    if (effectiveDateFilter) planDateWhere.push(effectiveDateFilter)
-
-    const startDateCondition = buildDateRangeCondition(params.plansStartDateRange?.from, params.plansStartDateRange?.to)
-    if (startDateCondition) planDateWhere.push({ startDate: startDateCondition })
-
-    const endDateCondition = buildDateRangeCondition(params.plansEndDateRange?.from, params.plansEndDateRange?.to)
-    if (endDateCondition) planDateWhere.push({ endDate: endDateCondition })
-
-    const planDateCondition = buildDateRangeCondition(params.plansPlanDateRange?.from, params.plansPlanDateRange?.to)
-    if (planDateCondition) planDateWhere.push({ planDate: planDateCondition })
-
-    const planTypeFilter = buildPlanTypeFilter()
-    if (planTypeFilter) planDateWhere.push(planTypeFilter)
-
-    const planDateWhereClause = planDateWhere.length > 0 ? { _and: planDateWhere } : {}
-
-    // Build date range filters for requests - extracted to helper functions to reduce complexity
-    const buildRequestEffectiveDateFilter = (): any | null => {
-      if (!params.requestsEffectiveDateRange?.from && !params.requestsEffectiveDateRange?.to) return null
-
-      const tripAnd: any[] = []
-      const expenseAnd: any[] = []
-
-      if (params.requestsEffectiveDateRange.from) {
-        tripAnd.push({ startDate: { _gte: params.requestsEffectiveDateRange.from } })
-        expenseAnd.push({ expenseItem: { expenseDate: { _gte: params.requestsEffectiveDateRange.from } } })
-      }
-      if (params.requestsEffectiveDateRange.to) {
-        tripAnd.push({ startDate: { _lte: params.requestsEffectiveDateRange.to } })
-        expenseAnd.push({ expenseItem: { expenseDate: { _lte: params.requestsEffectiveDateRange.to } } })
-      }
-
-      if (tripAnd.length === 0 && expenseAnd.length === 0) return null
-
-      return {
-        _or: [
-          { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd] },
-          { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd] }
-        ]
-      }
-    }
-
-    const reqDateWhere: any[] = []
-
-    const requestEffectiveDateFilter = buildRequestEffectiveDateFilter()
-    if (requestEffectiveDateFilter) reqDateWhere.push(requestEffectiveDateFilter)
-
-    const requestDateCondition = buildDateRangeCondition(
-      params.requestsRequestDateRange?.from,
-      params.requestsRequestDateRange?.to
-    )
-    if (requestDateCondition) reqDateWhere.push({ requestDate: requestDateCondition })
-
-    const requestStartDateCondition = buildDateRangeCondition(
-      params.requestsStartDateRange?.from,
-      params.requestsStartDateRange?.to
-    )
-    if (requestStartDateCondition) reqDateWhere.push({ startDate: requestStartDateCondition })
-
-    const requestEndDateCondition = buildDateRangeCondition(
-      params.requestsEndDateRange?.from,
-      params.requestsEndDateRange?.to
-    )
-    if (requestEndDateCondition) reqDateWhere.push({ endDate: requestEndDateCondition })
-
-    // Build request type filter
-    const buildRequestTypeFilter = (): any | null => {
-      if (!params.requestsTypeFilter || params.requestsTypeFilter.length === 0) return null
-
-      const requestTypeTokens = params.requestsTypeFilter.filter(f => f.startsWith('ExpenseRequestType:'))
-      if (requestTypeTokens.length === 0) return null
-
-      const allowedTypes = requestTypeTokens
-        .map(t => t.replace('ExpenseRequestType:v1:', ''))
-        .filter(t => t === 'EXPENSES' || t === 'TRIP')
-      if (allowedTypes.length === 0) return null
-
-      const typeOr = allowedTypes.map(t => ({ requestTypeRef: { _eq: `ExpenseRequestType:v1:${t}` } }))
-      return { _or: typeOr }
-    }
-
-    const requestTypeFilter = buildRequestTypeFilter()
-    if (requestTypeFilter) reqDateWhere.push(requestTypeFilter)
-
-    const reqDateWhereClause = reqDateWhere.length > 0 ? { _and: reqDateWhere } : {}
-
-    const v: any = {
-      managerId: params.managerId,
-      currencyRef,
-      searchTerm: searchPattern,
-      reqLimit: params.requests?.limit ?? 20,
-      reqOffset: params.requests?.offset ?? 0,
-      reqOrderBy: params.requests?.orderBy ?? DEFAULT_REQ_ORDER,
-      planLimit: params.plans?.limit ?? 20,
-      planOffset: params.plans?.offset ?? 0,
-      planOrderBy: params.plans?.orderBy ?? DEFAULT_PLAN_ORDER,
-      payLimit: params.payments?.limit ?? 20,
-      payOffset: params.payments?.offset ?? 0,
-      payOrderBy: params.payments?.orderBy ?? DEFAULT_PAY_ORDER,
-      monthStart: params.monthStart ?? undefined,
-      monthEnd: params.monthEnd ?? undefined,
-      yearStart: params.yearStart ?? undefined,
-      reqCurrencyWhere,
-      planCurrencyWhere,
-      payCurrencyWhere,
-      planDateWhere: planDateWhereClause,
-      reqDateWhere: reqDateWhereClause
-    }
-
-    // Build status filter boolean expressions conditionally
-    // Only add status filter if we have a non-empty array
-    if (Array.isArray(params.requestsStatus) && params.requestsStatus.length > 0) {
-      v.reqStatusWhere = { status: { _in: params.requestsStatus } }
-    } else {
-      // Exclude CREATED status by default when no specific filter is provided
-      v.reqStatusWhere = { status: { _neq: 'CREATED' } }
-    }
-    if (Array.isArray(params.plansStatus) && params.plansStatus.length > 0) {
-      v.planStatusWhere = { status: { _in: params.plansStatus } }
-    } else {
-      // Exclude CREATED status by default when no specific filter is provided
-      v.planStatusWhere = { status: { _neq: 'CREATED' } }
-    }
-    if (Array.isArray(params.paymentsStatus) && params.paymentsStatus.length > 0) {
-      v.payStatusWhere = { status: { _in: params.paymentsStatus } }
-    } else {
-      // Exclude CREATED status by default when no specific filter is provided
-      v.payStatusWhere = { status: { _neq: 'CREATED' } }
-    }
-
-    return v
+    return buildOverviewVariables(params)
   }, [
     params.managerId,
     params.currencyRef,
