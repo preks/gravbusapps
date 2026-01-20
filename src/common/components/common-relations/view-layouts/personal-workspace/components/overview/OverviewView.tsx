@@ -73,7 +73,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ config, employeeId, 
       <div className="gba:grid gba:grid-cols-2 gba:gap-6">
         {/* Recent Activities Widget - Workspace-enhanced activity display */}
         <RecentActivitiesWidget
-          activities={recentActivitiesResult.activities.slice(0, 5)} // Show top 5 from 10 fetched
+          activities={recentActivitiesResult.activities} // Show all 10 fetched activities
           loading={recentActivitiesResult.loading}
           config={config}
         />
