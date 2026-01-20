@@ -36,7 +36,7 @@ export interface ValidationRule {
 }
 
 // Data source configuration for dynamic SELECT/MULTISELECT fields
-export type DataSourceType = 'CATALOG' | 'ENTITY' | 'API' | 'STATIC'
+export type DataSourceType = 'CATALOG' | 'ENTITY' | 'API' | 'CUSTOM_DATA' | 'STATIC'
 
 export interface DataSourceConfig {
   type: DataSourceType
@@ -46,6 +46,9 @@ export interface DataSourceConfig {
   catalog?: string // Catalog identifier
   catalogIdentifier?: string // Alternative catalog identifier (new format)
   version?: string // Catalog version (default: 'v1')
+  // For CUSTOM_DATA type (namespace-scoped)
+  namespace?: string // Registered namespace
+  key?: string // Data source key within namespace
   // Field mapping
   valueField: string // Field to use as option value (e.g., 'id', 'code')
   labelField: string // Field to use as option label (e.g., 'displayName', 'value')

@@ -111,6 +111,13 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
   const [expandedEntityPreviews, setExpandedEntityPreviews] = useState<Record<string, boolean>>({})
   const hasFetchedEntities = useRef(false)
 
+  // Custom data (namespace-scoped) data source state
+  const [customDataNamespaces, setCustomDataNamespaces] = useState<string[]>([])
+  const [isLoadingCustomDataNamespaces, setIsLoadingCustomDataNamespaces] = useState(false)
+  const [customDataKeysByNamespace, setCustomDataKeysByNamespace] = useState<Record<string, string[]>>({})
+  const [isLoadingCustomDataKeys, setIsLoadingCustomDataKeys] = useState<Record<string, boolean>>({})
+  const hasFetchedCustomDataNamespaces = useRef(false)
+
   // Fetch catalogs when accessToken becomes available
   useEffect(() => {
     // Reset and fetch when accessToken changes
@@ -164,6 +171,77 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
 
     fetchEntities()
   }, [])
+
+  // Fetch registered custom-data namespaces (for CUSTOM_DATA data sources)
+  useEffect(() => {
+    if (!context?.accessToken) {
+      hasFetchedCustomDataNamespaces.current = false
+      setCustomDataNamespaces([])
+      return
+    }
+
+    if (hasFetchedCustomDataNamespaces.current) return
+
+    const fetchNamespaces = async () => {
+      setIsLoadingCustomDataNamespaces(true)
+      hasFetchedCustomDataNamespaces.current = true
+      try {
+        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+        const response = await fetch(`${apiUrl}/api/custom-data/namespaces`, {
+          headers: {
+            Authorization: `Bearer ${context.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to fetch custom data namespaces: ${response.statusText}`)
+        }
+        const data = await response.json()
+        const list = Array.isArray(data) ? data : []
+        setCustomDataNamespaces(list.map((n: any) => String(n.namespace)).filter(Boolean))
+      } catch (error) {
+        console.error('Failed to fetch custom data namespaces:', error)
+        setCustomDataNamespaces([])
+      } finally {
+        setIsLoadingCustomDataNamespaces(false)
+      }
+    }
+
+    fetchNamespaces()
+  }, [context?.accessToken])
+
+  const fetchCustomDataKeys = useCallback(
+    async (namespace: string) => {
+      const ns = String(namespace || '').trim() || 'default'
+      if (isLoadingCustomDataKeys[ns]) return
+      if (customDataKeysByNamespace[ns]) return
+      if (!context?.accessToken) return
+
+      setIsLoadingCustomDataKeys(prev => ({ ...prev, [ns]: true }))
+      try {
+        const apiUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+        const response = await fetch(`${apiUrl}/api/custom-data-sources/schema`, {
+          headers: {
+            Authorization: `Bearer ${context.accessToken}`,
+            'Content-Type': 'application/json',
+            'x-schema-namespace': ns
+          }
+        })
+        if (!response.ok) {
+          throw new Error(`Failed to fetch custom data schema: ${response.statusText}`)
+        }
+        const data = await response.json()
+        const keys = Object.keys((data && data.dataSources) || {})
+        setCustomDataKeysByNamespace(prev => ({ ...prev, [ns]: keys }))
+      } catch (error) {
+        console.error('Failed to fetch custom data sources schema:', error)
+        setCustomDataKeysByNamespace(prev => ({ ...prev, [ns]: [] }))
+      } finally {
+        setIsLoadingCustomDataKeys(prev => ({ ...prev, [ns]: false }))
+      }
+    },
+    [context?.accessToken, customDataKeysByNamespace, isLoadingCustomDataKeys]
+  )
 
   // Fetch catalog preview when catalog is selected or expanded
   const fetchCatalogPreview = useCallback(
@@ -534,7 +612,7 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <Checkbox
                             checked={input.dataSource?.type === 'CATALOG'}
-                            disabled={input.dataSource?.type === 'ENTITY'}
+                            disabled={input.dataSource?.type === 'ENTITY' || input.dataSource?.type === 'CUSTOM_DATA'}
                             onCheckedChange={checked => {
                               const newInputs = [...inputs]
                               if (checked) {
@@ -581,6 +659,11 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                             Disabled (Entity data source is active)
                           </div>
                         )}
+                        {input.dataSource?.type === 'CUSTOM_DATA' && (
+                          <div className="gba:text-xs gba:text-gray-500 gba:italic gba:pl-6">
+                            Disabled (Custom Data data source is active)
+                          </div>
+                        )}
                       </div>
 
                       {/* Entity Checkbox */}
@@ -588,7 +671,7 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <Checkbox
                             checked={input.dataSource?.type === 'ENTITY'}
-                            disabled={input.dataSource?.type === 'CATALOG'}
+                            disabled={input.dataSource?.type === 'CATALOG' || input.dataSource?.type === 'CUSTOM_DATA'}
                             onCheckedChange={checked => {
                               const newInputs = [...inputs]
                               if (checked) {
@@ -634,6 +717,78 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                           <div className="gba:text-xs gba:text-gray-500 gba:italic gba:pl-6">
                             Disabled (Catalog data source is active)
                           </div>
+                        )}
+                        {input.dataSource?.type === 'CUSTOM_DATA' && (
+                          <div className="gba:text-xs gba:text-gray-500 gba:italic gba:pl-6">
+                            Disabled (Custom Data data source is active)
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Custom Data Checkbox */}
+                      <div className="gba:space-y-2 gba:border-l-2 gba:border-green-200 gba:pl-3">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <Checkbox
+                            checked={input.dataSource?.type === 'CUSTOM_DATA'}
+                            disabled={input.dataSource?.type === 'CATALOG' || input.dataSource?.type === 'ENTITY'}
+                            onCheckedChange={checked => {
+                              const newInputs = [...inputs]
+                              if (checked) {
+                                const defaultNs = customDataNamespaces.includes('default')
+                                  ? 'default'
+                                  : customDataNamespaces[0] || 'default'
+                                newInputs[index] = {
+                                  ...newInputs[index],
+                                  dataSource: {
+                                    type: 'CUSTOM_DATA',
+                                    namespace: defaultNs,
+                                    key: '',
+                                    valueField: 'id',
+                                    labelField: 'id'
+                                  }
+                                }
+                                delete newInputs[index].options
+                                // Preload keys for default namespace
+                                fetchCustomDataKeys(defaultNs)
+                              } else {
+                                const updated = { ...newInputs[index] }
+                                delete updated.dataSource
+                                newInputs[index] = updated
+                              }
+                              onUpdateStep({ form: newInputs })
+                            }}
+                            data-testid={`${testId}-enable-custom-data-${index}`}
+                          />
+                          <Database className="gba:h-4 gba:w-4 gba:text-green-600" />
+                          <label className="gba:text-sm gba:text-gray-700 gba:font-medium">Custom Data</label>
+                          <Badge variant="secondary" className="gba:text-xs gba:bg-green-100 gba:text-green-800">
+                            Dynamic
+                          </Badge>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="gba:h-4 gba:w-4 gba:text-gray-400 gba:cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="gba:text-xs gba:max-w-xs">
+                                  Populate dropdown options from namespace-scoped custom data sources.
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        {input.dataSource?.type === 'CATALOG' && (
+                          <div className="gba:text-xs gba:text-gray-500 gba:italic gba:pl-6">
+                            Disabled (Catalog data source is active)
+                          </div>
+                        )}
+                        {input.dataSource?.type === 'ENTITY' && (
+                          <div className="gba:text-xs gba:text-gray-500 gba:italic gba:pl-6">
+                            Disabled (Entity data source is active)
+                          </div>
+                        )}
+                        {isLoadingCustomDataNamespaces && (
+                          <div className="gba:text-xs gba:text-gray-500 gba:italic gba:pl-6">Loading namespaces...</div>
                         )}
                       </div>
                     </div>
@@ -1041,10 +1196,131 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({
                     </div>
                   )}
 
+                {/* Custom Data Configuration (namespace-scoped) */}
+                {[InputType.SELECT, InputType.MULTISELECT].includes(input.type) &&
+                  input.dataSource?.type === 'CUSTOM_DATA' && (
+                    <div className="gba:pl-8 gba:space-y-3 gba:pt-2">
+                      <div className="gba:space-y-1">
+                        <label className="gba:text-xs gba:font-medium gba:text-gray-700">
+                          Namespace <span className="gba:text-destructive gba:ml-1">*</span>
+                        </label>
+                        <Select
+                          value={input.dataSource.namespace || undefined}
+                          onChange={value => {
+                            const ns = String(value || 'default')
+                            handleUpdateInput(index, 'dataSource', {
+                              ...input.dataSource,
+                              namespace: ns,
+                              key: ''
+                            })
+                            fetchCustomDataKeys(ns)
+                          }}
+                          placeholder={isLoadingCustomDataNamespaces ? 'Loading namespaces...' : 'Select namespace'}
+                          style={{ width: '100%' }}
+                          showSearch
+                          filterOption={(input, option) => {
+                            const children = option?.children
+                            const childStr = typeof children === 'string' ? children : String(children || '')
+                            return childStr.toLowerCase().includes(input.toLowerCase())
+                          }}
+                          data-testid={`${testId}-custom-data-namespace-${index}`}
+                          loading={isLoadingCustomDataNamespaces}
+                        >
+                          {customDataNamespaces.map(ns => (
+                            <Select.Option key={ns} value={ns}>
+                              {ns}
+                            </Select.Option>
+                          ))}
+                        </Select>
+                      </div>
+
+                      <div className="gba:space-y-1">
+                        <label className="gba:text-xs gba:font-medium gba:text-gray-700">
+                          Data Source Key <span className="gba:text-destructive gba:ml-1">*</span>
+                        </label>
+                        <Select
+                          value={input.dataSource.key || undefined}
+                          onChange={value => {
+                            handleUpdateInput(index, 'dataSource', {
+                              ...input.dataSource,
+                              key: String(value || '')
+                            })
+                          }}
+                          placeholder={
+                            input.dataSource.namespace
+                              ? isLoadingCustomDataKeys[input.dataSource.namespace]
+                                ? 'Loading data sources...'
+                                : 'Select data source'
+                              : 'Select namespace first'
+                          }
+                          style={{ width: '100%' }}
+                          showSearch
+                          disabled={!input.dataSource.namespace}
+                          filterOption={(input, option) => {
+                            const children = option?.children
+                            const childStr = typeof children === 'string' ? children : String(children || '')
+                            return childStr.toLowerCase().includes(input.toLowerCase())
+                          }}
+                          data-testid={`${testId}-custom-data-key-${index}`}
+                          loading={Boolean(
+                            input.dataSource.namespace && isLoadingCustomDataKeys[input.dataSource.namespace]
+                          )}
+                        >
+                          {(input.dataSource.namespace
+                            ? customDataKeysByNamespace[input.dataSource.namespace] || []
+                            : []
+                          ).map(k => (
+                            <Select.Option key={k} value={k}>
+                              {k}
+                            </Select.Option>
+                          ))}
+                        </Select>
+                      </div>
+
+                      <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+                        <div className="gba:space-y-1">
+                          <label className="gba:text-xs gba:font-medium gba:text-gray-700">
+                            Value Field <span className="gba:text-destructive gba:ml-1">*</span>
+                          </label>
+                          <Input
+                            value={input.dataSource.valueField || 'id'}
+                            onChange={e => {
+                              handleUpdateInput(index, 'dataSource', {
+                                ...input.dataSource,
+                                valueField: e.target.value
+                              })
+                            }}
+                            placeholder="id"
+                            className="gba:text-xs"
+                            data-testid={`${testId}-custom-data-value-field-${index}`}
+                          />
+                        </div>
+                        <div className="gba:space-y-1">
+                          <label className="gba:text-xs gba:font-medium gba:text-gray-700">
+                            Label Field <span className="gba:text-destructive gba:ml-1">*</span>
+                          </label>
+                          <Input
+                            value={input.dataSource.labelField || 'id'}
+                            onChange={e => {
+                              handleUpdateInput(index, 'dataSource', {
+                                ...input.dataSource,
+                                labelField: e.target.value
+                              })
+                            }}
+                            placeholder="id"
+                            className="gba:text-xs"
+                            data-testid={`${testId}-custom-data-label-field-${index}`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                 {/* Options for multi-value inputs (manual mode only) */}
                 {[InputType.SELECT, InputType.MULTISELECT, InputType.CHECKBOX].includes(input.type) &&
                   input.dataSource?.type !== 'CATALOG' &&
-                  input.dataSource?.type !== 'ENTITY' && (
+                  input.dataSource?.type !== 'ENTITY' &&
+                  input.dataSource?.type !== 'CUSTOM_DATA' && (
                     <div className="gba:space-y-2">
                       <div className="gba:flex gba:items-center gba:justify-between">
                         <span className="gba:text-xs gba:text-gray-600">Options:</span>
