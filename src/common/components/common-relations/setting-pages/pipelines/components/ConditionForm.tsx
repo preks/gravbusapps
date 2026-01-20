@@ -223,7 +223,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
           <form onSubmit={form.handleSubmit(handleSubmit)} className="gba:space-y-6">
             {/* Basic Information Section */}
             <div className="gba:space-y-4">
-              <h4 className="gba:font-medium gba:text-gray-900 gba:text-sm gba:border-b gba:border-gray-200 gba:pb-2">
+              <h4 className="gba:font-medium gba:text-foreground gba:text-sm gba:border-b gba:border-border gba:pb-2">
                 Basic Information
               </h4>
 
@@ -259,7 +259,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
 
             {/* Configuration Section */}
             <div className="gba:space-y-4">
-              <h4 className="gba:font-medium gba:text-gray-900 gba:text-sm gba:border-b gba:border-gray-200 gba:pb-2">
+              <h4 className="gba:font-medium gba:text-foreground gba:text-sm gba:border-b gba:border-border gba:pb-2">
                 Configuration
               </h4>
 
