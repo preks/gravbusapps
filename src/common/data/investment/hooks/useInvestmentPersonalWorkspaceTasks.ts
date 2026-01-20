@@ -1,84 +1,87 @@
-import { useState, useCallback, useEffect } from 'react'
+/**
+ * Hook for fetching personal workspace tasks
+ * Uses centralized query builders instead of hardcoded queries
+ * Returns pure functions - state management handled by consumer
+ */
+import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_MY_INVESTMENT_TASKS } from '../queries/investmentPersonalWorkspaceQueries'
-import type { MyInvestmentTask } from '../types/investmentPersonalWorkspaceTypes'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  buildInvestmentTaskQuery,
+  buildInvestmentTaskWhereCondition,
+  buildInvestmentTaskOrderBy,
+  type InvestmentTaskQueryVariables
+} from '../queries/investmentTaskQueries'
+import type { InvestmentTask } from '../types/investmentTaskTypes'
+import { toInvestmentTask } from '../mappers/investmentTaskMappers'
 
-interface UseInvestmentPersonalWorkspaceTasksParams {
+export interface InvestmentPersonalWorkspaceTasksVariables {
   employeeId: string
-  accessToken: string
   statusFilter?: string[]
   limit?: number
-  offset?: number
+  dueDateFrom?: string
+  dueDateTo?: string
 }
 
-interface UseInvestmentPersonalWorkspaceTasksReturn {
-  tasks: MyInvestmentTask[]
+export interface InvestmentPersonalWorkspaceTasksResult {
+  tasks: InvestmentTask[]
   total: number
-  loading: boolean
-  error: Error | null
-  refetch: () => void
 }
 
 /**
- * Hook for fetching investment personal workspace tasks
- * Returns tasks assigned to the employee with filtering and pagination
+ * Hook to fetch tasks assigned to a specific employee
+ * Used in Personal Workspace Overview and Tasks tabs
  */
-export const useInvestmentPersonalWorkspaceTasks = ({
-  employeeId,
-  accessToken,
-  statusFilter = ['PENDING', 'IN_PROGRESS'],
-  limit = 50,
-  offset = 0
-}: UseInvestmentPersonalWorkspaceTasksParams): UseInvestmentPersonalWorkspaceTasksReturn => {
-  const [tasks, setTasks] = useState<MyInvestmentTask[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
+export const useInvestmentPersonalWorkspaceTasks = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const graphqlClient = useGraphQLClient(accessToken)
+  const fetchTasks = useCallback(
+    async (variables: InvestmentPersonalWorkspaceTasksVariables): Promise<InvestmentPersonalWorkspaceTasksResult> => {
+      const { employeeId, statusFilter = ['PENDING', 'IN_PROGRESS'], limit = 100, dueDateFrom, dueDateTo } = variables
 
-  const fetchTasks = useCallback(async () => {
-    if (!employeeId || !accessToken) return
-
-    setLoading(true)
-    setError(null)
-
-    try {
-      const result = await graphqlClient.request<{
-        InvestmentTask: MyInvestmentTask[]
-        InvestmentTaskAggregate: {
-          aggregate: {
-            count: number
-          }
-        }
-      }>(GET_MY_INVESTMENT_TASKS, {
-        employeeId,
-        statusFilter,
+      // Build query variables
+      const queryVariables: InvestmentTaskQueryVariables = {
+        assignedEmployeeIds: [employeeId],
+        taskStatusIds: statusFilter,
         limit,
-        offset
-      })
+        offset: 0,
+        orderBy: [
+          { field: 'dueDate', direction: 'ASC_NULLS_LAST' },
+          { field: 'taskPriority', direction: 'DESC_NULLS_LAST' }
+        ],
+        dueDateFrom,
+        dueDateTo
+      }
 
-      setTasks(result.InvestmentTask || [])
-      setTotal(result.InvestmentTaskAggregate?.aggregate?.count || 0)
-    } catch (err) {
-      console.error('Error fetching investment personal workspace tasks:', err)
-      setError(err instanceof Error ? err : new Error('Failed to fetch investment tasks'))
-    } finally {
-      setLoading(false)
-    }
-  }, [employeeId, accessToken, JSON.stringify(statusFilter), limit, offset, graphqlClient])
+      // Build query using central builders
+      const query = buildInvestmentTaskQuery()
+      const whereCondition = buildInvestmentTaskWhereCondition(queryVariables)
+      const orderBy = buildInvestmentTaskOrderBy(queryVariables.orderBy || [])
 
-  useEffect(() => {
-    fetchTasks()
-  }, [fetchTasks])
+      const graphQLVariables = {
+        limit: queryVariables.limit,
+        offset: queryVariables.offset,
+        where: whereCondition,
+        orderBy
+      }
 
-  return {
-    tasks,
-    total,
-    loading,
-    error,
-    refetch: () => {
-      void fetchTasks()
-    }
-  }
+      try {
+        const result = await graphqlClient.request<{
+          InvestmentTask: any[]
+          InvestmentTaskAggregate: { aggregate: { count: number } }
+        }>(query, graphQLVariables)
+
+        const mappedTasks = result.InvestmentTask.map(toInvestmentTask)
+        const total = result.InvestmentTaskAggregate?.aggregate?.count || 0
+
+        return { tasks: mappedTasks, total }
+      } catch (error) {
+        console.error('Error fetching personal workspace tasks:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchTasks }
 }

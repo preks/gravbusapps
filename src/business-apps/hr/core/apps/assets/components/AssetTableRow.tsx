@@ -65,7 +65,9 @@ export const AssetTableRow: React.FC<AssetTableRowProps> = ({
           ? getCatalogValue(asset.assetBrand)
           : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
       </TableCell>
-      <TableCell data-testid={`asset-model-${asset.id}`}>{asset.model}</TableCell>
+      <TableCell data-testid={`asset-model-${asset.id}`}>
+        <div className="gba:max-w-[300px] gba:break-words gba:whitespace-normal">{asset.model}</div>
+      </TableCell>
       <TableCell data-testid={`asset-serial-${asset.id}`} className="gba:font-mono gba:text-sm">
         {asset.serialNumber}
       </TableCell>

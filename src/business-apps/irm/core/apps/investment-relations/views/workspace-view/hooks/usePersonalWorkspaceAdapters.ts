@@ -1,66 +1,53 @@
 /**
  * Adapter hooks to transform IRM-specific hooks into generic workspace interfaces
- * This allows IRM hooks to work with the generic PersonalWorkspace component
+ * Uses generic adapter factory to eliminate code duplication with CRM
  */
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type {
-  KpiResult,
-  ActivitiesResult,
-  TasksResult
-} from '@/common/components/common-relations/view-layouts/personal-workspace/types'
 import { useInvestmentPersonalWorkspaceKpis } from '@/common/data/investment/hooks/useInvestmentPersonalWorkspaceKpis'
-import { useRecentInvestmentActivities } from '@/common/data/investment/hooks/useInvestmentPersonalWorkspaceActivities'
+import { useInvestmentRecentActivities } from '@/common/data/investment/hooks/useInvestmentRecentActivities'
 import { useInvestmentPersonalWorkspaceTasks } from '@/common/data/investment/hooks/useInvestmentPersonalWorkspaceTasks'
+import { useInvestmentCalendarData } from '@/common/data/investment/hooks/useInvestmentCalendarData'
+import {
+  createKpiAdapter,
+  createActivitiesAdapter,
+  createTasksAdapter,
+  createCombinedCalendarAdapter
+} from '@/common/components/common-relations/view-layouts/personal-workspace/utils'
 
 /**
- * Adapter for KPIs hook
+ * IRM KPIs Adapter - uses generic factory
  */
-export const useIrmKpisAdapter = (context: BusinessAppContextProps, employeeId: string): KpiResult => {
-  const { kpis, loading, error } = useInvestmentPersonalWorkspaceKpis({
-    employeeId,
-    accessToken: context.accessToken || ''
-  })
-
-  return {
-    data: kpis,
-    loading,
-    error
-  }
-}
+export const useIrmKpisAdapter = createKpiAdapter(useInvestmentPersonalWorkspaceKpis, 'fetchKpis')
 
 /**
- * Adapter for Activities hook
+ * IRM Recent Activities Adapter - uses generic factory
+ * Fetches last 10 activities for Recent Activities widget
  */
-export const useIrmActivitiesAdapter = (context: BusinessAppContextProps, employeeId: string): ActivitiesResult => {
-  const { activities, loading, error, refetch } = useRecentInvestmentActivities({
-    employeeId,
-    accessToken: context.accessToken || '',
-    limit: 100 // Get more for calendar view
-  })
-
-  return {
-    activities,
-    loading,
-    error,
-    refetch
-  }
-}
+export const useIrmRecentActivitiesAdapter = createActivitiesAdapter(
+  useInvestmentRecentActivities,
+  'fetchActivities',
+  10 // limit to 10 activities
+)
 
 /**
- * Adapter for Tasks hook
+ * IRM Activities Adapter (alias for backward compatibility)
  */
-export const useIrmTasksAdapter = (context: BusinessAppContextProps, employeeId: string): TasksResult => {
-  const { tasks, loading, error, refetch } = useInvestmentPersonalWorkspaceTasks({
-    employeeId,
-    accessToken: context.accessToken || '',
-    statusFilter: ['PENDING', 'IN_PROGRESS'],
-    limit: 100
-  })
+export const useIrmActivitiesAdapter = useIrmRecentActivitiesAdapter
 
-  return {
-    tasks,
-    loading,
-    error,
-    refetch
-  }
-}
+/**
+ * IRM Tasks Adapter - uses generic factory
+ */
+export const useIrmTasksAdapter = createTasksAdapter(
+  useInvestmentPersonalWorkspaceTasks,
+  'fetchTasks',
+  ['PENDING', 'IN_PROGRESS'], // statusFilter
+  100 // limit
+)
+
+/**
+ * IRM Combined Calendar Adapter - uses generic factory
+ * Fetches both activities and tasks in parallel for calendar widget
+ */
+export const useIrmCombinedCalendarAdapter = createCombinedCalendarAdapter(
+  useInvestmentCalendarData,
+  'fetchCalendarData'
+)

@@ -1,66 +1,50 @@
 /**
  * Adapter hooks to transform CRM-specific hooks into generic workspace interfaces
- * This allows CRM hooks to work with the generic PersonalWorkspace component
+ * Uses generic adapter factory to eliminate code duplication with IRM
  */
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type {
-  KpiResult,
-  ActivitiesResult,
-  TasksResult
-} from '@/common/components/common-relations/view-layouts/personal-workspace/types'
 import { useCustomerPersonalWorkspaceKpis } from '@/common/data/customer/hooks/useCustomerPersonalWorkspaceKpis'
 import { useCustomerRecentActivities } from '@/common/data/customer/hooks/useCustomerRecentActivities'
 import { useCustomerPersonalWorkspaceTasks } from '@/common/data/customer/hooks/useCustomerPersonalWorkspaceTasks'
+import { useCustomerCalendarData } from '@/common/data/customer/hooks/useCustomerCalendarData'
+import {
+  createKpiAdapter,
+  createActivitiesAdapter,
+  createTasksAdapter,
+  createCombinedCalendarAdapter
+} from '@/common/components/common-relations/view-layouts/personal-workspace/utils'
 
 /**
- * Adapter for KPIs hook
+ * CRM KPIs Adapter - uses generic factory
  */
-export const useCrmKpisAdapter = (context: BusinessAppContextProps, employeeId: string): KpiResult => {
-  const { kpis, loading, error } = useCustomerPersonalWorkspaceKpis({
-    employeeId,
-    accessToken: context.accessToken || ''
-  })
-
-  return {
-    data: kpis,
-    loading,
-    error
-  }
-}
+export const useCrmKpisAdapter = createKpiAdapter(useCustomerPersonalWorkspaceKpis, 'fetchKpis')
 
 /**
- * Adapter for Activities hook
+ * CRM Recent Activities Adapter - uses generic factory
+ * Fetches last 10 activities for Recent Activities widget
  */
-export const useCrmActivitiesAdapter = (context: BusinessAppContextProps, employeeId: string): ActivitiesResult => {
-  const { activities, loading, error, refetch } = useCustomerRecentActivities({
-    employeeId,
-    accessToken: context.accessToken || '',
-    limit: 100 // Get more for calendar view
-  })
-
-  return {
-    activities,
-    loading,
-    error,
-    refetch
-  }
-}
+export const useCrmRecentActivitiesAdapter = createActivitiesAdapter(
+  useCustomerRecentActivities,
+  'fetchActivities',
+  10 // limit to 10 activities
+)
 
 /**
- * Adapter for Tasks hook
+ * CRM Activities Adapter (alias for backward compatibility)
  */
-export const useCrmTasksAdapter = (context: BusinessAppContextProps, employeeId: string): TasksResult => {
-  const { tasks, loading, error, refetch } = useCustomerPersonalWorkspaceTasks({
-    employeeId,
-    accessToken: context.accessToken || '',
-    statusFilter: ['PENDING', 'IN_PROGRESS'],
-    limit: 100
-  })
+export const useCrmActivitiesAdapter = useCrmRecentActivitiesAdapter
 
-  return {
-    tasks,
-    loading,
-    error,
-    refetch
-  }
-}
+/**
+ * CRM Tasks Adapter - uses generic factory
+ */
+export const useCrmTasksAdapter = createTasksAdapter(
+  useCustomerPersonalWorkspaceTasks,
+  'fetchTasks',
+  ['PENDING', 'IN_PROGRESS'], // statusFilter
+  100 // limit
+)
+
+/**
+ * CRM Combined Calendar Adapter - uses generic factory
+ * Fetches both activities and tasks in parallel for calendar widget
+ */
+export const useCrmCombinedCalendarAdapter = createCombinedCalendarAdapter(useCustomerCalendarData, 'fetchCalendarData')

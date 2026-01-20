@@ -6,7 +6,16 @@ export const irmOverviewDashboardConfig = {
   // Lead Source Data
   leadSource: {
     leadTable: 'InvestmentLead',
-    leadAggregateTable: 'InvestmentLeadAggregate'
+    leadAggregateTable: 'InvestmentLeadAggregate',
+    leadStatusPrefix: 'InvestmentLeadStatus'
+  },
+
+  // Opportunity Status Data (alternative to Lead Source for IRM)
+  opportunityStatus: {
+    opportunityTable: 'InvestmentOpportunity',
+    opportunityAggregateTable: 'InvestmentOpportunityAggregate',
+    opportunityStatusField: 'opportunityStatus',
+    opportunityStatusRefField: 'opportunityStatusRef'
   },
 
   // Recent Records Data
@@ -54,5 +63,8 @@ export const irmOverviewDashboardConfig = {
     leadField: 'lead',
     opportunityField: 'opportunity',
     leadNameFields: 'firstName\n              lastName'
-  }
+  },
+
+  // Feature flags
+  useOpportunityStatusInsteadOfLeadSource: true
 } as const

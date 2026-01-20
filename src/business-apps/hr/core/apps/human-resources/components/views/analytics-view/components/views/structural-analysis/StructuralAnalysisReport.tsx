@@ -5,8 +5,7 @@ import {
   ApartmentOutlined,
   TeamOutlined,
   DashboardOutlined,
-  ReloadOutlined,
-  NodeExpandOutlined
+  ReloadOutlined
 } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useStructuralAnalysisDataIntegration } from '../../../hooks/useStructuralAnalysisDataIntegration'
@@ -14,7 +13,7 @@ import { SunburstVisualization } from './components/SunburstVisualization'
 import { SpanOfControlChart } from './components/SpanOfControlChart'
 import { ReportingChainAnalysis } from './components/ReportingChainAnalysis'
 import { AnalysisTab } from './types/structuralTypes'
-import OrganizationalHierarchyReport from './components/organizational-hierarchy-report/OrgHierarchyReport'
+
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
@@ -33,8 +32,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
     'overview',
     'span-control',
     'depth-analysis',
-    'reporting-chains',
-    'organizational-hierarchy'
+    'reporting-chains'
   ]
   const defaultTab: AnalysisTab = 'overview'
 
@@ -271,16 +269,6 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
         />
       )
     },
-    {
-      key: 'organizational-hierarchy',
-      label: (
-        <span>
-          <NodeExpandOutlined />
-          {t('hr-analytics-organizational-hierarchy')}
-        </span>
-      ),
-      children: <OrganizationalHierarchyReport {...props} />
-    }
   ]
 
   return (

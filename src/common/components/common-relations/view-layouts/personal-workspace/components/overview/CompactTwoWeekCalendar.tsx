@@ -32,6 +32,8 @@ export interface CompactTwoWeekCalendarProps extends Pick<BusinessAppContextProp
   activitiesError: Error | null
   tasksError: Error | null
   config: PersonalWorkspaceConfig
+  refetchActivities?: (dateRange?: { occurredAtFrom?: string; occurredAtTo?: string }) => void | Promise<void>
+  refetchTasks?: (dateRange?: { dueDateFrom?: string; dueDateTo?: string }) => void | Promise<void>
 }
 
 interface CalendarActivity {
@@ -59,14 +61,57 @@ export const CompactTwoWeekCalendar: React.FC<CompactTwoWeekCalendarProps> = ({
   tasksError,
   config,
   accessToken,
-  userInfo
+  userInfo,
+  refetchActivities,
+  refetchTasks
 }) => {
   const [weekOffset, setWeekOffset] = useState(0) // 0 = current week, 1 = next week, -1 = prev week
   const [selectedTask, setSelectedTask] = useState<GenericTask | null>(null)
   const [selectedActivity, setSelectedActivity] = useState<GenericActivity | null>(null)
+  const [isInitialMount, setIsInitialMount] = useState(true)
 
   // Calculate date range for 2 weeks (weekdays only)
-  const startOfTwoWeeks = dayjs().add(weekOffset, 'week').startOf('week')
+  const startOfTwoWeeks = useMemo(() => dayjs().add(weekOffset, 'week').startOf('week'), [weekOffset])
+
+  // Mark as no longer initial mount after first render
+  React.useEffect(() => {
+    setIsInitialMount(false)
+  }, [])
+
+  // Store refetch functions in refs to prevent infinite loops
+  const refetchActivitiesRef = React.useRef(refetchActivities)
+  const refetchTasksRef = React.useRef(refetchTasks)
+
+  React.useEffect(() => {
+    refetchActivitiesRef.current = refetchActivities
+    refetchTasksRef.current = refetchTasks
+  }, [refetchActivities, refetchTasks])
+
+  React.useEffect(() => {
+    if (isInitialMount) {
+      return
+    }
+
+    // Calculate date range based on current weekOffset
+    const currentStartOfTwoWeeks = dayjs().add(weekOffset, 'week').startOf('week')
+    const rangeStart = currentStartOfTwoWeeks.subtract(1, 'day').startOf('day').toISOString()
+    const rangeEnd = currentStartOfTwoWeeks.add(2, 'week').endOf('day').toISOString()
+
+    // Call both refetch functions (combined adapter has duplicate prevention)
+    if (refetchActivitiesRef.current) {
+      void refetchActivitiesRef.current({
+        occurredAtFrom: rangeStart,
+        occurredAtTo: rangeEnd
+      })
+    }
+
+    if (refetchTasksRef.current) {
+      void refetchTasksRef.current({
+        dueDateFrom: rangeStart,
+        dueDateTo: rangeEnd
+      })
+    }
+  }, [weekOffset])
 
   // Calculate display range (Monday to Friday)
   const displayStartDate = startOfTwoWeeks.day(1) // Monday of first week
@@ -277,7 +322,7 @@ export const CompactTwoWeekCalendar: React.FC<CompactTwoWeekCalendarProps> = ({
         <TaskDetailSheet
           task={selectedTask as any}
           open={!!selectedTask}
-          onOpenChange={open => {
+          onOpenChange={(open: boolean) => {
             if (!open) setSelectedTask(null)
           }}
           buildReferenceUrl={config.myTasksConfig?.buildReferenceUrl}
@@ -329,19 +374,14 @@ const DayCell: React.FC<DayCellProps> = ({
   activityCreateContext
 }) => {
   const [isHovered, setIsHovered] = useState(false)
-  const maxActivities = 3
-  const hasMore = day.items.length > maxActivities
-  const displayedActivities = day.items.slice(0, maxActivities)
 
   return (
     <div
-      className={`gba:border gba:rounded gba:p-1.5 gba:h-[130px] gba:relative gba:flex gba:flex-col ${
+      className={`gba:border gba:rounded gba:p-1.5 gba:h-[140px] gba:relative gba:flex gba:flex-col ${
         day.isToday ? 'gba:ring-2 gba:ring-primary gba:bg-primary/5' : 'gba:bg-background'
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onFocus={() => setIsHovered(true)}
-      onBlur={() => setIsHovered(false)}
       data-testid={`day-cell-${day.date.format('YYYY-MM-DD')}`}
     >
       {/* Hover Action Icons - Top Right Corner */}
@@ -429,35 +469,24 @@ const DayCell: React.FC<DayCellProps> = ({
         </span>
       </div>
 
-      {/* Activities list */}
-      <div className="gba:flex-1 gba:flex gba:flex-col gba:overflow-hidden">
-        <div className="gba:space-y-1 gba:flex-1">
-          {displayedActivities.map(activity => {
-            const activityType = activity.activityType?.value || 'Task'
-            const isTask = activity.isTask
-            return (
-              <button
-                type="button"
-                key={activity.id}
-                onClick={() => onItemClick(activity)}
-                className={`gba:w-full gba:px-1.5 gba:py-1 gba:rounded gba:text-[11px] gba:text-left gba:border-0 gba:flex gba:items-center gba:gap-1 gba:cursor-pointer hover:gba:opacity-80 ${getActivityColorClass(activityType)}`}
-                data-testid={`${isTask ? 'task' : 'activity'}-${activity.id}`}
-              >
-                {getActivityTypeIcon(activityType, 11)}
-                <span className="gba:truncate gba:flex-1 gba:text-gray-700">{activity.title}</span>
-              </button>
-            )
-          })}
-        </div>
-        {hasMore && (
-          <button
-            type="button"
-            className="gba:text-xs gba:text-center gba:text-primary gba:font-medium gba:mt-1 gba:shrink-0 gba:w-full gba:bg-transparent gba:border-0 gba:cursor-pointer hover:gba:underline gba:p-0"
-            data-testid={`show-more-${day.date.format('YYYY-MM-DD')}`}
-          >
-            +{day.items.length - maxActivities} more
-          </button>
-        )}
+      {/* Activities list - scrollable */}
+      <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-1">
+        {day.items.map(activity => {
+          const activityType = activity.activityType?.value || 'Task'
+          const isTask = activity.isTask
+          return (
+            <button
+              type="button"
+              key={activity.id}
+              onClick={() => onItemClick(activity)}
+              className={`gba:w-full gba:px-1.5 gba:py-1 gba:rounded gba:text-[11px] gba:text-left gba:border-0 gba:flex gba:items-center gba:gap-1 gba:cursor-pointer hover:gba:opacity-80 ${getActivityColorClass(activityType)}`}
+              data-testid={`${isTask ? 'task' : 'activity'}-${activity.id}`}
+            >
+              {getActivityTypeIcon(activityType, 11)}
+              <span className="gba:truncate gba:flex-1 gba:text-gray-700">{activity.title}</span>
+            </button>
+          )
+        })}
       </div>
     </div>
   )

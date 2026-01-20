@@ -10,7 +10,8 @@ import {
   Badge,
   Alert,
   AlertDescription,
-  Spinner
+  Spinner,
+  EmptyState
 } from '@newwork/nw-design-system'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { TaskTemplateTableProps, BaseTaskTemplate, DAYS_OF_WEEK, MONTHS_OF_YEAR } from '../types'
@@ -92,7 +93,10 @@ export const TaskTemplateTable: React.FC<TaskTemplateTableProps> = ({
 
   if (error) {
     return (
-      <Alert className="gba:border-red-200 gba:bg-red-50" data-testid={`${dataTestId}-error`}>
+      <Alert
+        className="gba:border-destructive-secondary gba:bg-destructive-secondary"
+        data-testid={`${dataTestId}-error`}
+      >
         <AlertDescription>
           {error}
           {onRetry && (
@@ -139,8 +143,15 @@ export const TaskTemplateTable: React.FC<TaskTemplateTableProps> = ({
         <TableBody>
           {filteredTemplates.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="gba:text-center gba:py-8">
-                {search ? 'No templates match your search' : 'No task templates found'}
+              <TableCell colSpan={7} className="gba:py-8">
+                <EmptyState
+                  title={search ? 'No templates match your search' : 'No task templates configured yet'}
+                  description={
+                    search
+                      ? 'Try adjusting your search terms'
+                      : 'Click "Add Template" to create your first task template'
+                  }
+                />
               </TableCell>
             </TableRow>
           ) : (
@@ -158,7 +169,7 @@ export const TaskTemplateTable: React.FC<TaskTemplateTableProps> = ({
                     </div>
                     {template.description && (
                       <div
-                        className="gba:text-sm gba:text-gray-500"
+                        className="gba:text-sm gba:text-muted-foreground"
                         data-testid={`${dataTestId}-description-${template.id}`}
                       >
                         {template.description}

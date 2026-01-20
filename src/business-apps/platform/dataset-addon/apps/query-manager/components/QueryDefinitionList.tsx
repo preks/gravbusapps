@@ -255,6 +255,16 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
                     style={{ paddingLeft: 'var(--nw-spacing-10)' }}
                   />
                 </div>
+
+                <Button
+                  variant="outline"
+                  onClick={clearFilters}
+                  data-testid="clear-filters-button"
+                  className="gba:flex gba:items-center gba:whitespace-nowrap"
+                  style={{ gap: 'var(--nw-spacing-2)' }}
+                >
+                  Clear Filters
+                </Button>
               </div>
 
               <div className="gba:flex gba:items-center" style={{ gap: 'var(--nw-spacing-2)' }}>
@@ -267,15 +277,6 @@ export const QueryDefinitionList: React.FC<QueryDefinitionListProps> = ({
                 >
                   <PlusIcon size={16} />
                   Create New Query
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={clearFilters}
-                  data-testid="clear-filters-button"
-                  className="gba:flex gba:items-center gba:whitespace-nowrap"
-                  style={{ gap: 'var(--nw-spacing-2)' }}
-                >
-                  Clear Filters
                 </Button>
               </div>
             </div>

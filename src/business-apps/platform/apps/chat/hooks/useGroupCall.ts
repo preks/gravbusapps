@@ -230,7 +230,6 @@ export const useGroupCall = ({
           if (now - invite.invitedAt > INVITE_TIMEOUT_MS) {
             updated.delete(id)
             removed = true
-            console.log(`[useGroupCall] ⏰ Pending invite expired for ${invite.odName}`)
           }
         })
         return removed ? updated : prev
@@ -359,13 +358,11 @@ export const useGroupCall = ({
   const fetchIceServers = useCallback(async (): Promise<RTCIceServer[]> => {
     // Only use cache if it has TURN servers
     if (iceServersRef.current && hasTurnServers(iceServersRef.current)) {
-      console.log('[useGroupCall] ✅ Using cached ICE servers with TURN')
       return iceServersRef.current
     }
 
     // Clear stale cache without TURN
     if (iceServersRef.current) {
-      console.log('[useGroupCall] 🔄 Cached servers have no TURN, refreshing...')
       iceServersRef.current = null
     }
 
@@ -373,14 +370,12 @@ export const useGroupCall = ({
 
     if (apiClientRef.current) {
       try {
-        console.log('[useGroupCall] 📡 Fetching ICE servers from backend...')
         const response = await apiClientRef.current.getIceServers()
         backendServers = response.iceServers.map(server => ({
           urls: server.urls,
           username: server.username,
           credential: server.credential
         }))
-        console.log('[useGroupCall] Backend returned:', backendServers.length, 'servers')
       } catch (error) {
         console.error('[useGroupCall] ❌ Failed to fetch ICE servers from backend:', error)
       }
@@ -394,32 +389,13 @@ export const useGroupCall = ({
     // ALWAYS add fallback TURN servers if backend doesn't have any
     let finalServers: RTCIceServer[]
     if (!hasTurnFromBackend) {
-      console.log('[useGroupCall] ⚠️ Backend has NO TURN servers! Adding fallback TURN relay...')
       finalServers = [...backendServers, ...FALLBACK_TURN_SERVERS]
     } else {
-      console.log('[useGroupCall] ✅ Backend provided TURN servers')
       finalServers = backendServers
     }
 
     // Log final configuration
-    const hasStun = finalServers.some(
-      s =>
-        (typeof s.urls === 'string' && s.urls.startsWith('stun:')) ||
-        (Array.isArray(s.urls) && s.urls.some(u => u.startsWith('stun:')))
-    )
     const hasTurn = hasTurnServers(finalServers)
-
-    console.log('[useGroupCall] 🌐 Final ICE servers configuration:', {
-      serverCount: finalServers.length,
-      hasStun,
-      hasTurn,
-      fromBackend: backendServers.length,
-      fallbackAdded: !hasTurnFromBackend,
-      servers: finalServers.map(s => ({
-        urls: s.urls,
-        hasCredentials: !!(s.username && s.credential)
-      }))
-    })
 
     if (!hasTurn) {
       console.error('[useGroupCall] ❌ CRITICAL: No TURN servers! Some users WILL NOT be able to connect!')
@@ -1377,8 +1353,6 @@ export const useGroupCall = ({
         return
       }
 
-      console.log(`[useGroupCall] 🔄 Attempting to reconnect to ${participant.odName}...`)
-
       try {
         // Get a new offer with ICE restart from the WebRTC client
         const offer = await webrtcRef.current.reconnectParticipant(participantId)
@@ -1394,8 +1368,6 @@ export const useGroupCall = ({
           toParticipantId: participantId,
           payload: offer
         })
-
-        console.log(`[useGroupCall] ✅ Reconnect offer sent to ${participant.odName}`)
       } catch (error) {
         console.error(`[useGroupCall] ❌ Failed to reconnect to ${participantId}:`, error)
       }
