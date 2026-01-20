@@ -18,7 +18,7 @@ export const MyTasksTab: React.FC<BusinessAppContextProps> = context => {
   // Only depend on primitives that actually change, not object references
   const tasksConfig = useMemo(
     () => buildIrmMyTasksConfig(context, investmentTasksHook, taskStatistics),
-    [context.accessToken, context.userInfo?.employeeDetails?.employeeId, context.userInfo?.id]
+    [context.accessToken, context.userInfo?.employeeDetails?.employeeId, context.userInfo?.id, taskStatistics]
   )
 
   return (
