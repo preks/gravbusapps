@@ -26,7 +26,8 @@ import {
   Separator,
   LocalizationProvider,
   SupportedLocale,
-  Badge
+  Badge,
+  Switch
 } from '@newwork/nw-design-system'
 import { Gear, Info, Clock, Warning, CheckCircle, XCircle } from '@phosphor-icons/react'
 import { IDEMainMenu, BusinessAppInfo } from '@/components/ide-main-menu'
@@ -278,6 +279,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     // First try to find by full path (new format), then fallback to name (legacy format)
     getAppByPath(appFromUrl || '') || getAppByName(appFromUrl || '') || null
   )
+  const [hasLoadedSettings, setHasLoadedSettings] = useState(false)
   const [userInfo, setUserInfo] = useState<string>('')
   const [userInfoError, setUserInfoError] = useState<string>('')
   const [accessToken, setAccessToken] = useState<string>('')
@@ -298,6 +300,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
   // Locale state for LocalizationProvider
   const [locale, setLocale] = useState<SupportedLocale>('en-US')
+  const [enableIdeStructureIdAutofill, setEnableIdeStructureIdAutofill] = useState(true)
 
   // Apply density globally on <html> to ensure DS components outside wrapper are affected
   useEffect(() => {
@@ -432,6 +435,14 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     if (savedLocale) {
       setLocale(savedLocale)
     }
+
+    // Load saved structure id autofill toggle
+    const savedAutofill = localStorage.getItem('business-app-ide-structure-id-autofill')
+    if (savedAutofill === 'true' || savedAutofill === 'false') {
+      setEnableIdeStructureIdAutofill(savedAutofill === 'true')
+    }
+
+    setHasLoadedSettings(true)
 
     // Set open keys based on the currently selected app (from URL)
     // Only if menu is not collapsed initially and using legacy menu
@@ -662,6 +673,11 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     localStorage.setItem('business-app-ide-locale', locale)
   }, [locale])
 
+  // Persist structure id autofill selection
+  useEffect(() => {
+    localStorage.setItem('business-app-ide-structure-id-autofill', String(enableIdeStructureIdAutofill))
+  }, [enableIdeStructureIdAutofill])
+
   const parsedUserInfo = useCallback((): UserInfoProps | undefined => {
     if (userInfo?.length > 2) {
       try {
@@ -685,6 +701,94 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     }
     return undefined
   }, [additionalData])
+
+  const getIdeActiveStructureId = useCallback((): string | undefined => {
+    if (typeof process !== 'undefined' && process.env?.IDE_ACTIVE_STRUCTURE_ID) {
+      return String(process.env.IDE_ACTIVE_STRUCTURE_ID)
+    }
+
+    return undefined
+  }, [])
+
+  useEffect(() => {
+    if (!hasLoadedSettings || !enableIdeStructureIdAutofill) return
+    const ideStructureId = getIdeActiveStructureId()
+    if (!ideStructureId) return
+
+    if (!additionalData || additionalData.trim().length === 0) {
+      setAdditionalData(JSON.stringify({ platformContext: { structureId: ideStructureId } }, null, 2))
+      return
+    }
+
+    const existingAdditionalData = parsedAdditionalData()
+    if (!existingAdditionalData) return
+
+    const hasStructureId =
+      existingAdditionalData?.platformContext?.structureId ||
+      existingAdditionalData?.structureId ||
+      existingAdditionalData?.activeStructureId
+
+    if (hasStructureId) return
+
+    const mergedAdditionalData = {
+      ...existingAdditionalData,
+      platformContext: {
+        ...(existingAdditionalData?.platformContext || {}),
+        structureId: ideStructureId
+      }
+    }
+
+    const serialized = JSON.stringify(mergedAdditionalData, null, 2)
+    if (serialized !== additionalData) {
+      setAdditionalData(serialized)
+    }
+  }, [additionalData, enableIdeStructureIdAutofill, getIdeActiveStructureId, hasLoadedSettings, parsedAdditionalData])
+
+  // Provide a local platform context for localhost IDE usage.
+  // This mirrors platform-provided values without hardcoding any IDs.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const localUserInfo = parsedUserInfo()
+    const localAdditionalData = parsedAdditionalData()
+    if (!localUserInfo && !localAdditionalData) return
+
+    const lowcoder = ((window as any).lowcoder ??= {})
+    const platformContext = { ...(lowcoder.platformContext ?? {}) }
+    const additionalPlatformContext = localAdditionalData?.platformContext ?? {}
+
+    const structureId =
+      platformContext.structureId ||
+      additionalPlatformContext.structureId ||
+      localAdditionalData?.structureId ||
+      localAdditionalData?.activeStructureId
+
+    if (structureId && !platformContext.structureId) {
+      platformContext.structureId = structureId
+    }
+
+    if (structureId && !lowcoder.activeStructureId) {
+      lowcoder.activeStructureId = structureId
+    }
+
+    if (localUserInfo?.employeeDetails?.employeeId && !platformContext.employeeId) {
+      platformContext.employeeId = localUserInfo.employeeDetails.employeeId
+    }
+
+    if (localUserInfo?.employeeDetails?.organizationalUnit?.id && !platformContext.organizationalUnitId) {
+      platformContext.organizationalUnitId = localUserInfo.employeeDetails.organizationalUnit.id
+    }
+
+    if (localUserInfo?.employeeDetails?.supervisor?.id && !platformContext.managerId) {
+      platformContext.managerId = localUserInfo.employeeDetails.supervisor.id
+    }
+
+    if (localUserInfo?.id && !platformContext.userId) {
+      platformContext.userId = localUserInfo.id
+    }
+
+    lowcoder.platformContext = platformContext
+  }, [parsedAdditionalData, parsedUserInfo])
 
   // --- Authentication & user profile (Keycloak-based) ---
   const { initialized: authInitialized, accessToken: authToken, tokenParsed, logout, refreshToken } = useBusinessAuth()
@@ -1033,7 +1137,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                         <Label htmlFor="additionalData">Additional Data (JSON format)</Label>
                         <Textarea
                           id="additionalData"
-                          placeholder='Enter additional data in JSON format (e.g., {"employeeId": "123", "jobPositionId": "456"})'
+                          placeholder='Enter additional data in JSON format (e.g., {"employeeId": "123", "jobPositionId": "456", "platformContext": {"structureId": "uuid-here"}})'
                           rows={4}
                           value={additionalData}
                           onChange={e => {
@@ -1044,6 +1148,18 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                           style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                         />
                         {additionalDataError && <p className="gba:text-sm gba:text-red-500">{additionalDataError}</p>}
+                      </div>
+
+                      <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
+                        <Label htmlFor="enableStructureIdAutofill">
+                          Auto-fill structure ID from local environment variables
+                        </Label>
+                        <Switch
+                          id="enableStructureIdAutofill"
+                          checked={enableIdeStructureIdAutofill}
+                          onCheckedChange={setEnableIdeStructureIdAutofill}
+                          data-testid="ide-settings-structure-id-autofill-toggle"
+                        />
                       </div>
 
                       <p className="gba:text-sm gba:text-gray-600">
