@@ -328,7 +328,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     isManager,
     hasEmployeeGrowthPermission: !employeeGrowthPermission.loading && employeeGrowthPermission.hasPermission === true,
     hasEmployeeRecordAllHrBackoffice:
-      !employeeRecordAllHrBackoffice.loading && employeeRecordAllHrBackoffice?.hasPermission === true
+      !employeeRecordAllHrBackoffice.loading && employeeRecordAllHrBackoffice?.hasPermission === true,
+    hasEmployeeRecordAllEmployees:
+      !employeeRecordAllEmployees.loading && employeeRecordAllEmployees?.hasPermission === true
   })
 
   const getTabItems = () => {
