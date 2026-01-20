@@ -10,7 +10,8 @@ import {
   Label,
   Checkbox,
   Combobox,
-  Separator
+  Separator,
+  useTranslation
 } from '@newwork/nw-design-system'
 
 export type FrequencyType = 'Annual' | 'Quarterly' | 'Custom'
@@ -31,6 +32,7 @@ export interface CycleEditorValues {
   participants: ParticipantType[]
   stages: EvaluationStage[]
   ratingScaleId?: string
+  valueIds?: string[]
 }
 
 const frequencyOptions: FrequencyType[] = ['Annual', 'Quarterly', 'Custom']
@@ -39,6 +41,7 @@ const participantOptions: ParticipantType[] = ['Self', 'Peer', 'Manager', 'Team'
 // Stages are managed outside this modal; no stage templates here.
 
 // (no-op helper previously used for stages removed)
+import translations from './_i18n'
 
 interface CycleEditorModalProps {
   open: boolean
@@ -48,6 +51,7 @@ interface CycleEditorModalProps {
 }
 
 export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpenChange, onSave, initialValues }) => {
+  const { t } = useTranslation(translations)
   const [name, setName] = useState(initialValues?.name || '')
   const [startDate, setStartDate] = useState(initialValues?.startDate || '')
   const [endDate, setEndDate] = useState(initialValues?.endDate || '')
@@ -66,6 +70,12 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
   type RatingScale = { id: string; name: string; values: string[] }
   const [availableScales, setAvailableScales] = useState<RatingScale[]>([])
   const [selectedScaleId, setSelectedScaleId] = useState<string | undefined>(initialValues?.ratingScaleId)
+
+  // Values (managed in Values tab)
+  const VALUES_STORAGE_KEY = 'hr.performance.values.v1'
+  type LocalValue = { id: string; title: string; description: string; active: boolean }
+  const [availableValues, setAvailableValues] = useState<LocalValue[]>([])
+  const [selectedValueIds, setSelectedValueIds] = useState<string[]>(initialValues?.valueIds ?? [])
 
   // Auto-calc end date based on start date and selected frequency (Annual = +12 months, Quarterly = +3 months).
   useEffect(() => {
@@ -105,6 +115,18 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
     }
   }, [open])
 
+  // Load available values when modal opens
+  useEffect(() => {
+    if (!open) return
+    try {
+      const rawValues = localStorage.getItem(VALUES_STORAGE_KEY)
+      const parsedValues = rawValues ? (JSON.parse(rawValues) as LocalValue[]) : []
+      setAvailableValues(Array.isArray(parsedValues) ? parsedValues : [])
+    } catch {
+      setAvailableValues([])
+    }
+  }, [open])
+
   const selectedParticipants = useMemo(() => participantOptions.filter(p => participantsState[p]), [participantsState])
 
   const handleSave = () => {
@@ -117,47 +139,76 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
       frequency,
       participants: selectedParticipants,
       stages: initialStages,
-      ratingScaleId: selectedScaleId
+      ratingScaleId: selectedScaleId,
+      valueIds: selectedValueIds
     })
     onOpenChange(false)
   }
 
   const handleCancel = () => onOpenChange(false)
 
+  const getParticipantLabel = (p: ParticipantType): string => {
+    switch (p) {
+      case 'Self':
+        return t('participant-self')
+      case 'Peer':
+        return t('participant-peer')
+      case 'Manager':
+        return t('participant-manager')
+      case 'Team':
+        return t('participant-team')
+      default:
+        return p
+    }
+  }
+
+  const getFrequencyLabel = (f: FrequencyType): string => {
+    switch (f) {
+      case 'Annual':
+        return t('frequency-annual')
+      case 'Quarterly':
+        return t('frequency-quarterly')
+      case 'Custom':
+        return t('frequency-custom')
+      default:
+        return f
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent data-testid="performance-cycle-editor-modal">
         <DialogHeader>
-          <DialogTitle>{initialValues ? 'Edit Cycle' : 'Create New Cycle'}</DialogTitle>
-          <DialogDescription>Configure details and stages for the performance cycle.</DialogDescription>
+          <DialogTitle>{initialValues ? t('modal-edit-title') : t('modal-create-title')}</DialogTitle>
+          <DialogDescription>{t('modal-description')}</DialogDescription>
         </DialogHeader>
 
         <div className="gba:space-y-6">
           <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
             <div className="gba:space-y-2">
-              <Label htmlFor="cycle-name">Name</Label>
+              <Label htmlFor="cycle-name">{t('field-name')} *</Label>
               <Input
                 id="cycle-name"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="e.g., 2026 Annual Performance"
+                placeholder={t('placeholder-name')}
               />
             </div>
             <div className="gba:space-y-2">
-              <Label>Frequency/Type</Label>
-              <Combobox
-                value={frequency}
-                onValueChange={v => setFrequency((v as FrequencyType) || 'Annual')}
-                options={frequencyOptions.map(v => ({ label: v, value: v }))}
-                placeholder="Select a frequency"
-              />
-            </div>
-            <div className="gba:space-y-2">
-              <Label>Start Date</Label>
+              <Label>{t('field-start-date')} *</Label>
               <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
             </div>
             <div className="gba:space-y-2">
-              <Label>End Date</Label>
+              <Label>{t('field-frequency')} *</Label>
+              <Combobox
+                value={frequency}
+                onValueChange={v => setFrequency((v as FrequencyType) || 'Annual')}
+                options={frequencyOptions.map(v => ({ label: getFrequencyLabel(v), value: v }))}
+                placeholder={t('placeholder-select-frequency')}
+              />
+            </div>
+            <div className="gba:space-y-2">
+              <Label>{t('field-end-date')} *</Label>
               <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
             </div>
           </div>
@@ -165,17 +216,42 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
           <Separator />
 
           <div className="gba:space-y-2">
-            <Label>Rating Scale</Label>
+            <Label>{t('field-rating-scale')} *</Label>
             <Combobox
               value={selectedScaleId}
               onValueChange={v => setSelectedScaleId((v as string) || undefined)}
               options={availableScales.map(s => ({ label: `${s.name} (${s.values.join(', ')})`, value: s.id }))}
-              placeholder={availableScales.length ? 'Select a rating scale' : 'No scales. Add from Rating Scales tab.'}
+              placeholder={availableScales.length ? t('placeholder-select-scale') : t('placeholder-no-scales')}
             />
           </div>
 
+          <div className="gba:space-y-2">
+            <Label>{t('field-values')}</Label>
+            {availableValues.filter(v => v.active).length === 0 ? (
+              <div className="gba:text-sm gba:text-muted-foreground">{t('placeholder-no-values')}</div>
+            ) : (
+              <div className="gba:flex gba:flex-wrap gba:gap-6">
+                {availableValues
+                  .filter(v => v.active)
+                  .map(v => (
+                    <label key={v.id} className="gba:flex gba:items-center gba:gap-2">
+                      <Checkbox
+                        checked={selectedValueIds.includes(v.id)}
+                        onCheckedChange={(checked: boolean) =>
+                          setSelectedValueIds(prev =>
+                            checked ? Array.from(new Set([...prev, v.id])) : prev.filter(id => id !== v.id)
+                          )
+                        }
+                      />
+                      <span>{v.title}</span>
+                    </label>
+                  ))}
+              </div>
+            )}
+          </div>
+
           <div className="gba:space-y-3">
-            <div className="gba:text-sm gba:text-muted-foreground">Evaluation Participants</div>
+            <div className="gba:text-sm gba:text-muted-foreground">{t('label-evaluation-participants')} *</div>
             <div className="gba:flex gba:flex-wrap gba:gap-6">
               {participantOptions.map(p => (
                 <label key={p} className="gba:flex gba:items-center gba:gap-2">
@@ -183,7 +259,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
                     checked={!!participantsState[p]}
                     onCheckedChange={(v: boolean) => setParticipantsState(prev => ({ ...prev, [p]: !!v }))}
                   />
-                  <span>{p}</span>
+                  <span>{getParticipantLabel(p)}</span>
                 </label>
               ))}
             </div>
@@ -193,10 +269,15 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
 
           <div className="gba:flex gba:justify-end gba:gap-2">
             <Button variant="secondary" onClick={handleCancel}>
-              Cancel
+              {t('button-cancel')}
             </Button>
-            <Button variant="default" onClick={handleSave} disabled={!name.trim() || !startDate || !endDate}>
-              Save
+            <Button
+              type="button"
+              variant="default"
+              onClick={handleSave}
+              disabled={!name.trim() || !startDate || !endDate || !selectedScaleId || selectedParticipants.length === 0}
+            >
+              {t('button-save')}
             </Button>
           </div>
         </div>

@@ -12,12 +12,13 @@ import {
   Card,
   CardHeader,
   CardTitle,
-  CardContent
+  CardContent,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { CalendarBlank, ListChecks, PencilSimple, Plus } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from './_i18n'
 import CycleEditorModal, {
   CycleEditorValues,
   EvaluationStage as EditorStage,
@@ -25,6 +26,7 @@ import CycleEditorModal, {
   FrequencyType as EditorFrequencyType
 } from './CycleEditorModal'
 import RatingScaleEditorModal, { RatingScaleValues } from './RatingScaleEditorModal'
+import ValuesEditorModal, { ValueEditorValues } from './ValuesEditorModal'
 
 type FrequencyType = 'Annual' | 'Quarterly' | 'Custom'
 type ParticipantType = 'Self' | 'Peer' | 'Manager' | 'Calibration' | 'Team'
@@ -48,10 +50,12 @@ interface PerformanceCycle {
   status: CycleStatus
   deactivated?: boolean
   ratingScaleId?: string
+  valueIds?: string[]
 }
 
 const STORAGE_KEY = 'hr.performance.cycles.v1'
 const RATING_SCALES_STORAGE_KEY = 'hr.performance.ratingScales.v1'
+const VALUES_STORAGE_KEY = 'hr.performance.values.v1'
 
 function loadCycles(): PerformanceCycle[] {
   try {
@@ -99,6 +103,24 @@ function saveRatingScales(scales: RatingScale[]) {
   }
 }
 
+interface ValueItemStored {
+  id: string
+  title: string
+  description: string
+  active: boolean
+}
+
+function loadValues(): ValueItemStored[] {
+  try {
+    const raw = localStorage.getItem(VALUES_STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as ValueItemStored[]
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
 function computeStatus(cycle: Omit<PerformanceCycle, 'status'> & { deactivated?: boolean }): CycleStatus {
   if (cycle.deactivated) return 'Inactive'
   const today = new Date()
@@ -119,17 +141,21 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
   const [editing, setEditing] = useState<PerformanceCycle | null>(null)
   enum PerformanceTabEnum {
     Cycles = 'cycles',
-    RatingScales = 'rating-scales'
+    RatingScales = 'rating-scales',
+    Values = 'values'
   }
   const [activeTab, setActiveTab] = useState<PerformanceTabEnum>(PerformanceTabEnum.Cycles)
   const handleTabChange = (value: string) => setActiveTab(value as PerformanceTabEnum)
   const [ratingScales, setRatingScales] = useState<RatingScale[]>([])
   const [isScaleModalOpen, setIsScaleModalOpen] = useState(false)
   const [editingScale, setEditingScale] = useState<RatingScale | null>(null)
+  const [valuesStore, setValuesStore] = useState<ValueItemStored[]>([])
+  const { t } = useTranslation(translations)
 
   useEffect(() => {
     setCycles(loadCycles())
     setRatingScales(loadRatingScales())
+    setValuesStore(loadValues())
   }, [])
 
   useEffect(() => {
@@ -138,15 +164,16 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
   useEffect(() => {
     saveRatingScales(ratingScales)
   }, [ratingScales])
+  useEffect(() => {
+    try {
+      localStorage.setItem(VALUES_STORAGE_KEY, JSON.stringify(valuesStore))
+    } catch {
+      // ignore
+    }
+  }, [valuesStore])
 
-  const pageTitle = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:hr_performance_cycle_config.title',
-    'Performance Cycle Configuration'
-  )
-  const pageSubtitle = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:hr_performance_cycle_config.subtitle',
-    'Create and manage performance evaluation cycles'
-  )
+  const pageTitle = t('title')
+  const pageSubtitle = t('subtitle')
 
   const handleEdit = (cycle: PerformanceCycle) => {
     setEditing(cycle)
@@ -195,7 +222,8 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
         label: s.label
       })),
       deactivated: false,
-      ratingScaleId: values.ratingScaleId
+      ratingScaleId: values.ratingScaleId,
+      valueIds: values.valueIds ?? []
     }
     const status = computeStatus(base)
     const next: PerformanceCycle = { ...base, status }
@@ -229,13 +257,43 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
     setCycles(prev => prev.filter(c => c.id !== cycleId))
   }
 
+  // Values handlers
+  const [isValuesModalOpen, setIsValuesModalOpen] = useState(false)
+  const [editingValue, setEditingValue] = useState<ValueItemStored | null>(null)
+
+  const handleSaveFromValuesModal = (values: ValueEditorValues) => {
+    const base: ValueItemStored = {
+      id: values.id || makeId('value'),
+      title: values.title,
+      description: values.description,
+      active: values.active
+    }
+    setValuesStore(prev => {
+      const exists = prev.some(v => v.id === base.id)
+      return exists ? prev.map(v => (v.id === base.id ? base : v)) : [base, ...prev]
+    })
+    setEditingValue(null)
+  }
+
+  const handleDeleteValue = (id: string) => {
+    setValuesStore(prev => prev.filter(v => v.id !== id))
+  }
+
+  const handleActivateValue = (id: string) => {
+    setValuesStore(prev => prev.map(v => (v.id === id ? { ...v, active: true } : v)))
+  }
+
+  const handleDeactivateValue = (id: string) => {
+    setValuesStore(prev => prev.map(v => (v.id === id ? { ...v, active: false } : v)))
+  }
+
   const renderTable = () => (
     <Card>
       <CardHeader>
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
             <CalendarBlank size={20} />
-            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_performance_cycle_config.cycles', 'Cycles')}
+            {t('tab-cycles')}
           </CardTitle>
           <Button
             variant="default"
@@ -246,7 +304,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
             data-testid="performance-cycles-add-button"
           >
             <Plus className="gba:mr-2" size={16} />
-            {getTranslationFromI18nKeyAndLabel('lowcoder:common.add', 'Add')}
+            {t('button-add')}
           </Button>
         </div>
       </CardHeader>
@@ -256,29 +314,32 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
             <TableHeader>
               <TableRow>
                 <TableHead className="gba:w-[24px]"></TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Dates</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Scale</TableHead>
-                <TableHead>Participants</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="gba:text-right">Actions</TableHead>
+                <TableHead>{t('table-name')}</TableHead>
+                <TableHead>{t('table-dates')}</TableHead>
+                <TableHead>{t('table-type')}</TableHead>
+                <TableHead>{t('table-scale')}</TableHead>
+                <TableHead>{t('table-values')}</TableHead>
+                <TableHead>{t('table-participants')}</TableHead>
+                <TableHead>{t('table-status')}</TableHead>
+                <TableHead className="gba:text-right">{t('table-actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {cycles.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="gba:text-center gba:text-muted-foreground">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:hr_performance_cycle_config.no_cycles',
-                      'No cycles created yet.'
-                    )}
+                  <TableCell colSpan={9} className="gba:text-center gba:text-muted-foreground">
+                    {t('empty-no-cycles')}
                   </TableCell>
                 </TableRow>
               ) : (
                 cycles.map((c, i) => {
                   const participants = c.participants.join(', ')
                   const dates = `${c.startDate} → ${c.endDate}`
+                  const valueTitles =
+                    (c.valueIds ?? [])
+                      .map(id => valuesStore.find(v => v.id === id)?.title)
+                      .filter(Boolean)
+                      .join(', ') || '-'
                   return (
                     <TableRow key={c.id}>
                       <TableCell>{i + 1}</TableCell>
@@ -288,6 +349,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
                       <TableCell>
                         {c.ratingScaleId ? ratingScales.find(s => s.id === c.ratingScaleId)?.name || '-' : '-'}
                       </TableCell>
+                      <TableCell>{valueTitles}</TableCell>
                       <TableCell>{participants}</TableCell>
                       <TableCell>
                         <Badge
@@ -308,7 +370,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
                               onClick={() => handleActivate(c.id)}
                               data-testid={`cycle-activate-${c.id}`}
                             >
-                              Activate
+                              {t('button-activate')}
                             </Button>
                           ) : (
                             <Button
@@ -317,7 +379,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
                               onClick={() => handleDeactivate(c.id)}
                               data-testid={`cycle-deactivate-${c.id}`}
                             >
-                              Deactivate
+                              {t('button-deactivate')}
                             </Button>
                           )}
                           <Button
@@ -326,7 +388,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
                             onClick={() => handleDeleteCycle(c.id)}
                             data-testid={`cycle-delete-${c.id}`}
                           >
-                            Delete
+                            {t('button-delete')}
                           </Button>
                         </div>
                       </TableCell>
@@ -347,12 +409,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
     <Card>
       <CardHeader>
         <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:hr_performance_cycle_config.rating_scales_tab',
-              'Rating Scales'
-            )}
-          </CardTitle>
+          <CardTitle className="gba:flex gba:items-center gba:gap-2">{t('tab-rating-scales')}</CardTitle>
           <Button
             variant="default"
             onClick={() => {
@@ -362,7 +419,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
             data-testid="performance-rating-scales-add-button"
           >
             <Plus className="gba:mr-2" size={16} />
-            {getTranslationFromI18nKeyAndLabel('lowcoder:common.add', 'Add')}
+            {t('button-add')}
           </Button>
         </div>
       </CardHeader>
@@ -372,19 +429,16 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
             <TableHeader>
               <TableRow>
                 <TableHead className="gba:w-[24px]"></TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Values</TableHead>
-                <TableHead className="gba:text-right">Actions</TableHead>
+                <TableHead>{t('table-name')}</TableHead>
+                <TableHead>{t('table-values')}</TableHead>
+                <TableHead className="gba:text-right">{t('table-actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {ratingScales.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="gba:text-center gba:text-muted-foreground">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:hr_performance_cycle_config.no_rating_scales',
-                      'No rating scales defined yet.'
-                    )}
+                    {t('empty-no-rating-scales')}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -404,7 +458,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
                           }}
                           aria-label="Edit Scale"
                         >
-                          Edit
+                          {t('button-edit')}
                         </Button>
                         <Button
                           variant="destructive"
@@ -412,7 +466,105 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
                           onClick={() => handleDeleteScale(s.id)}
                           aria-label="Delete Scale"
                         >
-                          Delete
+                          {t('button-delete')}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  )
+
+  const renderValuesTable = () => (
+    <Card>
+      <CardHeader>
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <CardTitle className="gba:flex gba:items-center gba:gap-2">{t('tab-values')}</CardTitle>
+          <Button
+            variant="default"
+            onClick={() => {
+              setEditingValue(null)
+              setIsValuesModalOpen(true)
+            }}
+            data-testid="performance-values-add-button"
+          >
+            <Plus className="gba:mr-2" size={16} />
+            {t('button-add')}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="gba:border gba:rounded-lg gba:overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="gba:w-[24px]"></TableHead>
+                <TableHead>{t('field-title')}</TableHead>
+                <TableHead>{t('field-description')}</TableHead>
+                <TableHead>{t('table-status')}</TableHead>
+                <TableHead className="gba:text-right">{t('table-actions')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {valuesStore.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="gba:text-center gba:text-muted-foreground">
+                    {t('empty-no-values')}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                valuesStore.map((v, i) => (
+                  <TableRow key={v.id}>
+                    <TableCell>{i + 1}</TableCell>
+                    <TableCell className="gba:font-medium">{v.title}</TableCell>
+                    <TableCell>{v.description}</TableCell>
+                    <TableCell>
+                      <Badge variant={v.active ? 'success' : 'secondary'}>{v.active ? 'Active' : 'Inactive'}</Badge>
+                    </TableCell>
+                    <TableCell className="gba:text-right">
+                      <div className="gba:flex gba:justify-end gba:gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setEditingValue(v)
+                            setIsValuesModalOpen(true)
+                          }}
+                          aria-label="Edit Value"
+                        >
+                          {t('button-edit')}
+                        </Button>
+                        {v.active ? (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeactivateValue(v.id)}
+                            data-testid={`value-deactivate-${v.id}`}
+                          >
+                            {t('button-deactivate')}
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleActivateValue(v.id)}
+                            data-testid={`value-activate-${v.id}`}
+                          >
+                            {t('button-activate')}
+                          </Button>
+                        )}
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteValue(v.id)}
+                          data-testid={`value-delete-${v.id}`}
+                        >
+                          {t('button-delete')}
                         </Button>
                       </div>
                     </TableCell>
@@ -438,14 +590,15 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
           items: [
             {
               value: PerformanceTabEnum.Cycles,
-              label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_performance_cycle_config.cycles_tab', 'Cycles')
+              label: t('tab-cycles')
             },
             {
               value: PerformanceTabEnum.RatingScales,
-              label: getTranslationFromI18nKeyAndLabel(
-                'lowcoder:hr_performance_cycle_config.rating_scales_tab',
-                'Rating Scales'
-              )
+              label: t('tab-rating-scales')
+            },
+            {
+              value: PerformanceTabEnum.Values,
+              label: t('tab-values')
             }
           ]
         }}
@@ -456,6 +609,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
         {activeTab === PerformanceTabEnum.RatingScales && (
           <div className="gba:space-y-6">{renderRatingScalesTable()}</div>
         )}
+        {activeTab === PerformanceTabEnum.Values && <div className="gba:space-y-6">{renderValuesTable()}</div>}
       </PageLayout>
       <CycleEditorModal
         open={isModalOpen}
@@ -471,7 +625,8 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
                 frequency: editing.frequency as EditorFrequencyType,
                 participants: editing.participants as EditorParticipantType[],
                 stages: editing.stages as unknown as EditorStage[],
-                ratingScaleId: editing.ratingScaleId
+                ratingScaleId: editing.ratingScaleId,
+                valueIds: editing.valueIds ?? []
               }
             : undefined
         }
@@ -486,6 +641,21 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
                 id: editingScale.id,
                 name: editingScale.name,
                 values: editingScale.values
+              }
+            : undefined
+        }
+      />
+      <ValuesEditorModal
+        open={isValuesModalOpen}
+        onOpenChange={open => setIsValuesModalOpen(open)}
+        onSave={handleSaveFromValuesModal}
+        initialValues={
+          editingValue
+            ? {
+                id: editingValue.id,
+                title: editingValue.title,
+                description: editingValue.description,
+                active: editingValue.active
               }
             : undefined
         }
