@@ -163,7 +163,7 @@ const DashboardLayoutExample: React.FC<DashboardLayoutExampleProps> = ({ moduleC
 
       {/* Bottom Row - Performance Metrics */}
       <div className="gba:grid gba:gap-6 gba:grid-cols-1 gba:md:grid-cols-3 gba:mt-6">
-        {performanceData.map((item, index) => (
+        {performanceData.map(item => (
           <Card key={item.metric}>
             <CardHeader className="gba:flex gba:items-center gba:gap-3">
               <IconAvatar icon={CircleHalfIcon} variant={moduleColor as any} size="sm" decorative />
