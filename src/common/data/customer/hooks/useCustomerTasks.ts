@@ -1,5 +1,5 @@
 // Customer Task hooks - list and search operations for customer tasks
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -50,7 +50,33 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
     async (variables: CustomerTaskQueryVariables = {}): Promise<CustomerTaskListData> => {
       const query = buildCustomerTaskQuery()
 
-      const whereCondition = buildCustomerTaskWhereCondition(variables)
+      // Handle reference type filtering - add as custom conditions
+      const customConditions: Record<string, any>[] = []
+
+      if (variables.referenceTypes && variables.referenceTypes.length > 0) {
+        const referenceConditions = variables.referenceTypes
+          .map(type => {
+            switch (type) {
+              case 'opportunity':
+                return { opportunity: { id: { _neq: null } } }
+              case 'account':
+                return { account: { id: { _neq: null } } }
+              case 'lead':
+                return { lead: { id: { _neq: null } } }
+              case 'contact':
+                return { contact: { id: { _neq: null } } }
+              default:
+                return null
+            }
+          })
+          .filter(c => c !== null)
+
+        if (referenceConditions.length > 0) {
+          customConditions.push({ _or: referenceConditions })
+        }
+      }
+
+      const whereCondition = buildCustomerTaskWhereCondition(variables, [], customConditions)
 
       const orderBy = buildCustomerTaskOrderBy(variables.orderBy || [])
       if (orderBy.length === 0) {
@@ -74,7 +100,7 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
         throw error
       }
     },
-    [graphqlClient]
+    [context.accessToken]
   )
 
   const fetchCustomerTasksByAccountId = useCallback(
@@ -173,12 +199,23 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
     [graphqlClient]
   )
 
-  return {
-    fetchCustomerTasks,
-    fetchCustomerTasksByAccountId,
-    fetchCustomerTasksByContactId,
-    fetchCustomerTasksByLeadId,
-    fetchCustomerTasksByOpportunityId,
-    fetchCustomerTaskById
-  }
+  // Memoize return object to provide stable reference for consumers
+  return useMemo(
+    () => ({
+      fetchCustomerTasks,
+      fetchCustomerTasksByAccountId,
+      fetchCustomerTasksByContactId,
+      fetchCustomerTasksByLeadId,
+      fetchCustomerTasksByOpportunityId,
+      fetchCustomerTaskById
+    }),
+    [
+      fetchCustomerTasks,
+      fetchCustomerTasksByAccountId,
+      fetchCustomerTasksByContactId,
+      fetchCustomerTasksByLeadId,
+      fetchCustomerTasksByOpportunityId,
+      fetchCustomerTaskById
+    ]
+  )
 }

@@ -18,6 +18,8 @@ import { toInvestmentActivity } from '../mappers/investmentRelatedEntityMappers'
 export interface InvestmentRecentActivitiesVariables {
   employeeId: string
   limit?: number
+  occurredAtFrom?: string
+  occurredAtTo?: string
 }
 
 export interface InvestmentRecentActivitiesResult {
@@ -34,14 +36,16 @@ export const useInvestmentRecentActivities = (context: BusinessAppContextProps) 
 
   const fetchActivities = useCallback(
     async (variables: InvestmentRecentActivitiesVariables): Promise<InvestmentRecentActivitiesResult> => {
-      const { employeeId, limit = 100 } = variables
+      const { employeeId, limit = 100, occurredAtFrom, occurredAtTo } = variables
 
       // Build query variables
       const queryVariables: InvestmentActivityQueryVariables = {
         ownerEmployeeIds: [employeeId],
         limit,
         offset: 0,
-        orderBy: [{ field: 'occurredAt', direction: 'DESC_NULLS_LAST' }]
+        orderBy: [{ field: 'occurredAt', direction: 'DESC_NULLS_LAST' }],
+        occurredAtFrom,
+        occurredAtTo
       }
 
       // Build query using central builders
