@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react'
+import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -31,6 +31,9 @@ import { EmployeeSelect } from '@/components/employee-select'
 import { JobPositionSelect } from '@/components/job-position-select'
 import { JobProfileSelect } from '@/components/job-profile-select'
 import { OrganizationalUnitSelect } from '@/components/organizational-unit-select'
+import { CompanySelect } from '@/components/company-select'
+import { CostCenterSelect } from '@/components/cost-center-select'
+import { SiteLocationSelect } from '@/components/site-location-select'
 import { RECRUITING_CATALOGS } from '@/common/data/recruiting/constants/recruitingConstants'
 import { JobRequestType, JobRequestStatus, getJobRequestTypeOptions } from '@/common/data/recruiting/types/enums'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -54,6 +57,7 @@ const jobRequestSubmitSchema = z.object({
   jobProfileId: z.string().optional(),
   jobPositionId: z.string().optional(),
   requesterEmployeeId: z.string().optional(),
+  amount: z.number().min(1, 'Amount must be at least 1').default(1),
   additionalProperties: z.any().optional()
 })
 
@@ -65,14 +69,45 @@ const JobRequestSubmitForm: React.FC<JobRequestSubmitFormProps> = ({ accessToken
 
   const { jobRequest, loading, error } = useJobRequest(accessToken || '', jobRequestId)
 
+  // Extract context data for prefilling
+  const contextData = useMemo(
+    () => ({
+      organizationalUnitId: additionalData?.organizationalUnitId,
+      costCenterId: additionalData?.costCenterId,
+      siteLocationId: additionalData?.siteLocationId,
+      companyId: additionalData?.companyId
+    }),
+    [additionalData]
+  )
+
+  // Build initial default values
+  const initialDefaultValues = useMemo(() => {
+    const baseValues = mapToFormValues(jobRequest || {}, jobRequestSubmitSchema) as any
+
+    // If no existing job request, prefill from context
+    if (!jobRequestId) {
+      return {
+        ...baseValues,
+        organizationalUnitId: contextData.organizationalUnitId || baseValues.organizationalUnitId,
+        costCenterId: contextData.costCenterId || baseValues.costCenterId,
+        siteLocationId: contextData.siteLocationId || baseValues.siteLocationId,
+        companyId: contextData.companyId || baseValues.companyId,
+        amount: 1
+      }
+    }
+
+    return baseValues
+  }, [jobRequest, jobRequestId, contextData])
+
   const form = useForm({
     resolver: zodResolver(jobRequestSubmitSchema),
-    defaultValues: mapToFormValues(jobRequest || {}, jobRequestSubmitSchema) as any,
+    defaultValues: initialDefaultValues,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
 
   const [isSaving, setIsSaving] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const jobRequestRef = useRef(jobRequest)
   useEffect(() => {
@@ -104,6 +139,7 @@ const JobRequestSubmitForm: React.FC<JobRequestSubmitFormProps> = ({ accessToken
   }, [form])
 
   const handleSubmit = useCallback(async (data: any) => {
+    setIsSubmitting(true)
     try {
       const dataWithStatus = {
         ...data,
@@ -117,6 +153,8 @@ const JobRequestSubmitForm: React.FC<JobRequestSubmitFormProps> = ({ accessToken
     } catch (error) {
       console.error('Error submitting job request:', error)
       throw error
+    } finally {
+      setIsSubmitting(false)
     }
   }, [])
 
@@ -156,7 +194,7 @@ const JobRequestSubmitForm: React.FC<JobRequestSubmitFormProps> = ({ accessToken
         variant="outline"
         type="button"
         onClick={handleCancel}
-        disabled={isSaving || loading}
+        disabled={isSaving || isSubmitting || loading}
         data-testid={formatDataTestId('job-request-submit-form', 'cancel-button')}
       >
         Cancel
@@ -165,17 +203,17 @@ const JobRequestSubmitForm: React.FC<JobRequestSubmitFormProps> = ({ accessToken
         variant="outline"
         type="button"
         onClick={handleSave}
-        disabled={isSaving || loading}
+        disabled={isSaving || isSubmitting || loading}
         data-testid={formatDataTestId('job-request-submit-form', 'save-button')}
       >
         {isSaving ? 'Saving...' : 'Save'}
       </Button>
       <Button
         type="submit"
-        disabled={isSaving || loading}
+        disabled={isSaving || isSubmitting || loading}
         data-testid={formatDataTestId('job-request-submit-form', 'submit-button')}
       >
-        Submit
+        {isSubmitting ? 'Submitting...' : 'Submit'}
       </Button>
     </div>
   )
@@ -390,6 +428,27 @@ const JobRequestSubmitForm: React.FC<JobRequestSubmitFormProps> = ({ accessToken
 
             <FormField
               control={form.control}
+              name="amount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Amount</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={1}
+                      {...field}
+                      value={field.value || 1}
+                      onChange={e => field.onChange(e.target.value ? parseInt(e.target.value, 10) : 1)}
+                      data-testid={formatDataTestId('job-request-submit-form', 'amount-input')}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="description"
               render={({ field }) => (
                 <FormItem>
@@ -404,6 +463,68 @@ const JobRequestSubmitForm: React.FC<JobRequestSubmitFormProps> = ({ accessToken
                 </FormItem>
               )}
             />
+
+            <div className="gba:grid gba:grid-cols-3 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="companyId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Company</FormLabel>
+                    <FormControl>
+                      <CompanySelect
+                        value={field.value || null}
+                        onValueChange={v => field.onChange(v || '')}
+                        businessAppContext={{ accessToken, userInfo, additionalData }}
+                        placeholder="Select company..."
+                        data-testid={formatDataTestId('job-request-submit-form', 'company-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="costCenterId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cost Center</FormLabel>
+                    <FormControl>
+                      <CostCenterSelect
+                        value={field.value || null}
+                        onValueChange={v => field.onChange(v || '')}
+                        businessAppContext={{ accessToken, userInfo, additionalData }}
+                        placeholder="Select cost center..."
+                        data-testid={formatDataTestId('job-request-submit-form', 'cost-center-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="siteLocationId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Site Location</FormLabel>
+                    <FormControl>
+                      <SiteLocationSelect
+                        value={field.value || null}
+                        onValueChange={v => field.onChange(v || '')}
+                        businessAppContext={{ accessToken, userInfo, additionalData }}
+                        placeholder="Select site location..."
+                        data-testid={formatDataTestId('job-request-submit-form', 'site-location-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <FormField

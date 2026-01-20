@@ -12,6 +12,7 @@ export const JobRequestFormFields = {
   description: 'description',
   plannedHireDate: 'plannedHireDate',
   plannedExitDate: 'plannedExitDate',
+  amount: 'amount',
   jobRequestType: 'jobRequestType',
   jobRequestStatus: 'jobRequestStatus',
   contractTypeRef: 'contractTypeRef',

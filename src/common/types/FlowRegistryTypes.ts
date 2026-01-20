@@ -28,6 +28,7 @@ export enum FlowContextName {
   jobRequestCreate = 'jobRequestCreate',
   jobRequestUpdate = 'jobRequestUpdate',
   jobRequestDelete = 'jobRequestDelete',
+  jobRequestSubmit = 'jobRequestSubmit',
 
   /// Job Postings
   jobPostingEntity = 'jobPostingEntity',
