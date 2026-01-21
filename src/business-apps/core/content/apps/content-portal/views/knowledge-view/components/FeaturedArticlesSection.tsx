@@ -1,93 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React from 'react'
 import { Card } from '@newwork/nw-design-system'
 import { Eye } from 'lucide-react'
 import { extractTextFromHTML } from '../../../../../utils/translationUtils'
-import { buildFileUrl } from '@/common/utils/fileUtils'
+import { ContentArticleAnalyzer } from '@/business-apps/core/content/components/ContentArticleAnalyzer'
+import { ContentGroup } from '@/common/data/content/types/contentEnums'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { ContentImage } from '../../../components/shared/ContentImage'
 
-interface FeaturedArticlesSectionProps {
+interface FeaturedArticlesSectionProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
   articles: ContentEntry[]
   onArticleClick: (entryId: string) => void
   truncateText: (text: string, maxLength: number) => string
   t: (key: string) => string
-  accessToken?: string
-}
-
-// Helper component to handle async blob URL for article images
-const ArticleImage: React.FC<{ picture: any; accessToken?: string; alt: string }> = ({ picture, accessToken, alt }) => {
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
-  const blobUrlRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    // Clean up previous blob URL if it exists
-    if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
-      URL.revokeObjectURL(blobUrlRef.current)
-      blobUrlRef.current = null
-    }
-
-    if (!picture) {
-      setImageUrl(null)
-      return
-    }
-
-    let fileInfo: any = null
-    try {
-      fileInfo = typeof picture === 'string' ? JSON.parse(picture) : picture
-    } catch {
-      if (typeof picture === 'string' && picture.startsWith('data:')) {
-        setImageUrl(picture)
-        return
-      }
-      setImageUrl(picture)
-      return
-    }
-
-    if (!fileInfo?.path) {
-      setImageUrl(null)
-      return
-    }
-
-    if (accessToken) {
-      let isCancelled = false
-
-      const fetchImage = async () => {
-        try {
-          const blobUrl = await buildFileUrl(fileInfo, accessToken)
-          if (!isCancelled) {
-            blobUrlRef.current = blobUrl
-            setImageUrl(blobUrl)
-          } else {
-            URL.revokeObjectURL(blobUrl)
-          }
-        } catch (error) {
-          if (!isCancelled) {
-            console.error('[FeaturedArticlesSection] Error fetching image:', error)
-            setImageUrl(null)
-          }
-        }
-      }
-
-      fetchImage()
-
-      return () => {
-        isCancelled = true
-        if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
-          URL.revokeObjectURL(blobUrlRef.current)
-          blobUrlRef.current = null
-        }
-      }
-    } else {
-      setImageUrl(buildFileUrl(fileInfo))
-    }
-  }, [picture, accessToken])
-
-  if (!imageUrl) return null
-
-  return (
-    <div className="gba:w-48 gba:h-32 gba:rounded-lg gba:overflow-hidden gba:shrink-0">
-      <img src={imageUrl} alt={alt} className="gba:w-full gba:h-full gba:object-cover" />
-    </div>
-  )
 }
 
 const FeaturedArticlesSection: React.FC<FeaturedArticlesSectionProps> = ({
@@ -95,7 +20,8 @@ const FeaturedArticlesSection: React.FC<FeaturedArticlesSectionProps> = ({
   onArticleClick,
   truncateText,
   t,
-  accessToken
+  accessToken,
+  userInfo
 }) => {
   if (articles.length === 0) {
     return null
@@ -108,12 +34,31 @@ const FeaturedArticlesSection: React.FC<FeaturedArticlesSectionProps> = ({
         {articles.map(entry => (
           <Card
             key={entry.id}
-            className="gba:p-6 gba:cursor-pointer gba:hover:shadow-lg gba:transition-shadow"
+            className="gba:p-6 gba:cursor-pointer gba:hover:shadow-lg gba:transition-shadow gba:relative"
             onClick={() => onArticleClick(entry.id || '')}
             data-testid={`featured-article-${entry.id}`}
           >
+            {/* AI Analyzer Button - Only for KNOWLEDGE */}
+            {entry.contentGroupRef === ContentGroup.KNOWLEDGE && accessToken && userInfo?.id && (
+              <div
+                className="gba:absolute gba:top-2 gba:right-2 gba:z-10"
+                onClick={e => e.stopPropagation()}
+                onKeyDown={e => e.stopPropagation()}
+              >
+                <ContentArticleAnalyzer contentEntry={entry} accessToken={accessToken} userId={userInfo.id} />
+              </div>
+            )}
             <div className="gba:flex gba:gap-6">
-              <ArticleImage picture={entry.picture} accessToken={accessToken} alt={entry.title || ''} />
+              {entry.picture && (
+                <div className="gba:w-48 gba:h-32 gba:rounded-lg gba:overflow-hidden gba:shrink-0">
+                  <ContentImage
+                    picture={entry.picture}
+                    accessToken={accessToken!}
+                    alt={entry.title || ''}
+                    className="gba:w-full gba:h-full"
+                  />
+                </div>
+              )}
               <div className="gba:flex-1">
                 <h3 className="gba:text-2xl gba:font-bold gba:mb-2 gba:text-foreground gba:hover:text-primary gba:transition-colors">
                   {entry.title}

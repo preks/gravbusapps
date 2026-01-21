@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { MessageSquare, TrendingUp } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { buildFileUrl } from '@/common/utils/fileUtils'
 import { useTrendingContent } from '../../hooks/useTrendingContent'
+import { ContentImage } from '../shared/ContentImage'
 import translations from '../../_i18n'
 
 interface TrendingNowProps {
@@ -12,85 +12,6 @@ interface TrendingNowProps {
   className?: string
   currentTab?: string
   accessToken?: string
-}
-
-// Helper component to handle async blob URL for trending images
-const TrendingImage: React.FC<{ picture: any; accessToken?: string; alt: string }> = ({
-  picture,
-  accessToken,
-  alt
-}) => {
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
-  const blobUrlRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    // Clean up previous blob URL if it exists
-    if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
-      URL.revokeObjectURL(blobUrlRef.current)
-      blobUrlRef.current = null
-    }
-
-    if (!picture) {
-      setImageUrl(null)
-      return
-    }
-
-    let fileInfo: any = null
-    try {
-      fileInfo = typeof picture === 'string' ? JSON.parse(picture) : picture
-    } catch {
-      if (typeof picture === 'string' && picture.startsWith('data:')) {
-        setImageUrl(picture)
-        return
-      }
-      setImageUrl(picture)
-      return
-    }
-
-    if (!fileInfo?.path) {
-      setImageUrl(null)
-      return
-    }
-
-    if (accessToken) {
-      let isCancelled = false
-
-      const fetchImage = async () => {
-        try {
-          const blobUrl = await buildFileUrl(fileInfo, accessToken)
-          if (!isCancelled) {
-            blobUrlRef.current = blobUrl
-            setImageUrl(blobUrl)
-          } else {
-            URL.revokeObjectURL(blobUrl)
-          }
-        } catch (error) {
-          if (!isCancelled) {
-            console.error('[TrendingNow] Error fetching image:', error)
-            setImageUrl(null)
-          }
-        }
-      }
-
-      fetchImage()
-
-      return () => {
-        isCancelled = true
-        if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
-          URL.revokeObjectURL(blobUrlRef.current)
-          blobUrlRef.current = null
-        }
-      }
-    } else {
-      setImageUrl(buildFileUrl(fileInfo))
-    }
-  }, [picture, accessToken])
-
-  if (imageUrl) {
-    return <img src={imageUrl} alt={alt} className="gba:w-full gba:h-full gba:object-cover" />
-  }
-
-  return null
 }
 
 const TrendingNow: React.FC<TrendingNowProps> = ({ entries, className = '', currentTab, accessToken }) => {
@@ -134,7 +55,12 @@ const TrendingNow: React.FC<TrendingNowProps> = ({ entries, className = '', curr
         >
           <div className="gba:w-16 gba:h-16 gba:rounded-md gba:overflow-hidden gba:shrink-0">
             {entry.picture ? (
-              <TrendingImage picture={entry.picture} accessToken={accessToken} alt={entry.title || ''} />
+              <ContentImage
+                picture={entry.picture}
+                accessToken={accessToken!}
+                alt={entry.title || ''}
+                className="gba:w-full gba:h-full"
+              />
             ) : (
               <div className="gba:w-full gba:h-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-xs gba:text-muted-foreground">
                 {t('no_image')}
