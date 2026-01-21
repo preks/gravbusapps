@@ -16,6 +16,7 @@ import type { CustomerDocument } from './customerDocumentTypes'
 import type { CustomerLead } from './customerLeadTypes'
 import type { CustomerOpportunity, CustomerOpportunityStageCondition } from './customerOpportunityTypes'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
+import { toISOFormat } from '@/common/utils/dateFormatter'
 
 export interface CustomerTask extends Task {
   account?: CustomerAccount
@@ -109,6 +110,15 @@ export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
 export const buildCustomerTaskPayload = (task: Partial<CustomerTask> & Record<string, any>) => {
   // Build base payload using buildPayload utility (handles most fields)
   const payload = buildPayload(task, CustomerTaskFormFields)
+
+  // Convert date strings to ISO format (backend expects java.time.Instant)
+  // This handles dates from calendar quick actions which pass YYYY-MM-DD format
+  const dateFields = ['dueDate', 'startDate', 'endDate', 'templateStartDate'] as const
+  dateFields.forEach(field => {
+    if (payload[field] && typeof payload[field] === 'string') {
+      payload[field] = toISOFormat(payload[field])
+    }
+  })
 
   // Manually construct taskAssignees to preserve assignedUserId field name
   // (buildPayload's transformIdFields would transform assignedUserId → assignedUser, which is wrong)

@@ -51,6 +51,19 @@ interface DataSourceApiResponse {
   }
 }
 
+// Custom data sources API response format
+interface CustomDataSourceApiResponse {
+  data: Array<Record<string, any>>
+  meta: {
+    namespace: string
+    key: string
+    total: number
+    hasMore: boolean
+    limit: number
+    offset: number
+  }
+}
+
 /**
  * Check if dataSource configuration is valid for fetching
  */
@@ -58,7 +71,7 @@ const isValidDataSource = (dataSource: DataSourceConfig | undefined): boolean =>
   if (!dataSource) return false
 
   // Must be ENTITY or CATALOG type
-  if (dataSource.type !== 'ENTITY' && dataSource.type !== 'CATALOG') {
+  if (dataSource.type !== 'ENTITY' && dataSource.type !== 'CATALOG' && dataSource.type !== 'CUSTOM_DATA') {
     return false
   }
 
@@ -69,6 +82,11 @@ const isValidDataSource = (dataSource: DataSourceConfig | undefined): boolean =>
 
   // CATALOG type requires catalog or catalogIdentifier field
   if (dataSource.type === 'CATALOG' && !dataSource.catalog && !dataSource.catalogIdentifier) {
+    return false
+  }
+
+  // CUSTOM_DATA type requires namespace + key
+  if (dataSource.type === 'CUSTOM_DATA' && (!dataSource.namespace || !dataSource.key)) {
     return false
   }
 
@@ -116,8 +134,24 @@ export const useDataSource = (
         case 'CATALOG':
           entityType = dataSource.catalog || dataSource.catalogIdentifier
           break
+        case 'CUSTOM_DATA':
+          entityType = undefined
+          break
         default:
           return null
+      }
+
+      // CUSTOM_DATA uses a dedicated endpoint
+      if (dataSource.type === 'CUSTOM_DATA') {
+        const ns = dataSource.namespace
+        const key = dataSource.key
+        if (!ns || !key) return null
+
+        const url = new URL(`${apiBase}/custom-data-sources/query/${encodeURIComponent(key)}`)
+        url.searchParams.set('limit', String(limit))
+        url.searchParams.set('offset', String(currentOffset))
+        // search is not supported by the current backend query provider; ignore for now.
+        return url.toString()
       }
 
       if (!entityType) return null
@@ -186,11 +220,17 @@ export const useDataSource = (
       setError(null)
 
       try {
+        const extraHeaders: Record<string, string> = {}
+        if (dataSource?.type === 'CUSTOM_DATA' && dataSource.namespace) {
+          extraHeaders['x-schema-namespace'] = dataSource.namespace
+        }
+
         const response = await fetch(url, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            ...extraHeaders
           },
           signal: abortControllerRef.current.signal
         })
@@ -199,8 +239,14 @@ export const useDataSource = (
           throw new Error(`Failed to fetch data: ${response.statusText}`)
         }
 
-        const data: DataSourceApiResponse = await response.json()
-        const newOptions = transformToOptions(data.entities)
+        const raw = await response.json()
+
+        // Support both response shapes:
+        // - /api/datasource/:entityType => { entities, meta }
+        // - /api/custom-data-sources/query/:key => { data, meta }
+        const entities = (raw as DataSourceApiResponse)?.entities ?? (raw as CustomDataSourceApiResponse)?.data ?? []
+
+        const newOptions = transformToOptions(entities)
 
         if (append) {
           setOptions(prev => [...prev, ...newOptions])
@@ -209,17 +255,17 @@ export const useDataSource = (
         }
 
         // Use consistent fallback logic for total count and hasMore
-        const fetchedCount = data.entities.length
-        const total = data.meta.total ?? fetchedCount
+        const fetchedCount = entities.length
+        const total = (raw as any)?.meta?.total ?? fetchedCount
         setTotalCount(total)
 
         // Determine if more data is available
-        const hasTotal = typeof data.meta.total === 'number' && data.meta.total > 0
+        const hasTotal = typeof (raw as any)?.meta?.total === 'number' && (raw as any).meta.total > 0
 
         if (hasTotal) {
           // Use server total if available
           const totalLoaded = append ? currentOffset + fetchedCount : fetchedCount
-          setHasMore(totalLoaded < data.meta.total)
+          setHasMore(totalLoaded < (raw as any).meta.total)
         } else {
           // Without total count from API:
           // - If we got fewer than limit items, we've reached the end
