@@ -7,7 +7,8 @@ import {
   ListChecksIcon,
   CalendarIcon,
   BuildingsIcon,
-  FileTextIcon
+  FileTextIcon,
+  MegaphoneIcon
 } from '@phosphor-icons/react'
 import { SettingsLayout } from '@/components/layout/settings-layout'
 // inline pipeline card rendering moved to PipelineDataPage
@@ -17,6 +18,7 @@ import OpportunityDataPage from './pages/opportunity-data/OpportunityDataPage'
 import AccountDataPage from './pages/account-data/AccountDataPage'
 import TaskTemplateDataPage from './pages/task-template-data/TaskTemplateDataPage'
 import DocumentDataPage from './pages/document-data/DocumentDataPage'
+import CampaignDataPage from './pages/campaign-data/CampaignDataPage'
 import { FolderTemplateDataPage, ModuleType } from '@/common/components/common-relations/setting-pages/folder-templates'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -187,6 +189,18 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
           onClick: () => handleInlinePageChange({ key: 'engagement', tab: 'task-priorities' })
         }
       ]
+    },
+    {
+      title: t('crm.campaign_data', 'Campaign Data'),
+      description: t('crm.campaign_data_description', 'Manage campaign types'),
+      icon: MegaphoneIcon,
+      iconSize: 'md' as const,
+      entries: [
+        {
+          label: t('crm.campaign_types', 'Campaign Types'),
+          onClick: () => handleInlinePageChange({ key: 'campaign-data' })
+        }
+      ]
     }
   ]
 
@@ -261,6 +275,16 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
       <DocumentDataPage
         {...context}
         prefixDataTestId={`${prefixDataTestId || ''}-CustomerDocumentSettings`}
+        onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'campaign-data') {
+    return (
+      <CampaignDataPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-CustomerCampaignSettings`}
         onBack={() => handleInlinePageChange(null)}
       />
     )

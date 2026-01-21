@@ -1,7 +1,6 @@
-import React from 'react'
-import { EngagementSettings } from '@/common/components/common-relations/setting-pages/engagement/EngagementSettings'
+import React, { useMemo } from 'react'
+import { EngagementSettingsLayout } from '@/common/components/common-relations/setting-pages/engagement'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useCatalogSettings } from '@/common/components/common-relations/setting-pages/hooks/useCatalogSettings'
 
 export interface EngagementDataPageProps extends BusinessAppContextProps {
   className?: string
@@ -9,27 +8,21 @@ export interface EngagementDataPageProps extends BusinessAppContextProps {
   onBack?: () => void
 }
 
-const DATA_TEST_ID = 'CustomerEngagementDataPage'
-
-const EngagementDataPage: React.FC<EngagementDataPageProps> = ({ prefixDataTestId, onBack, ...context }) => {
-  const activityTypes = useCatalogSettings(context, 'SalesActivityType')
-  const taskTypes = useCatalogSettings(context, 'SalesTaskType')
-  const taskPriorities = useCatalogSettings(context, 'SalesTaskPriority')
-
-  return (
-    <EngagementSettings
-      prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-      onBack={onBack}
-      activityTypes={activityTypes}
-      taskTypes={taskTypes}
-      taskPriorities={taskPriorities}
-      showConfigurationTab={true}
-      accessToken={context.accessToken}
-      userInfo={context.userInfo}
-      additionalData={context.additionalData}
-      taskTypeCatalogIdentifier="SalesTaskType"
-    />
+const EngagementDataPage: React.FC<EngagementDataPageProps> = props => {
+  const config = useMemo(
+    () => ({
+      activityTypeCatalog: 'SalesActivityType',
+      taskTypeCatalog: 'SalesTaskType',
+      taskPriorityCatalog: 'SalesTaskPriority',
+      dataTestIdPrefix: 'CustomerEngagementDataPage',
+      headerTitle: 'Engagement Data',
+      headerDescription: 'Manage activity types, task types, and priorities',
+      showConfigurationTab: true
+    }),
+    []
   )
+
+  return <EngagementSettingsLayout config={config} {...props} />
 }
 
 export default EngagementDataPage

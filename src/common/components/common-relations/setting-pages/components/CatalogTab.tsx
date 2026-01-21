@@ -23,86 +23,20 @@ import {
   Badge,
   Alert,
   AlertDescription,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-  PageLayout,
   EmptyState
 } from '@newwork/nw-design-system'
-import { TargetIcon } from '@phosphor-icons/react'
 import { Plus, Edit, Trash2 } from 'lucide-react'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { useForm } from 'react-hook-form'
-import PipelineSettings from '../pipelines/PipelineSettings'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import type { CatalogItem, CatalogUpsertData, CatalogTabState, CatalogTabHandlers } from '../types/catalogTypes'
 
-export interface CatalogItem {
-  id: string
-  code: string
-  value: string
-  type?: string
-  alternativeCode?: string
-  displayOrder?: number
-  additionalValue1?: string
-  additionalValue2?: string
-  additionalValue3?: string
-}
-
-export interface CatalogUpsertData {
-  code: string
-  value: string
-  type?: string
-  alternativeCode?: string
-  additionalValue1?: string
-  displayOrder?: number
-}
-
-export interface CatalogTabState {
-  items: CatalogItem[]
-  isLoading?: boolean
-  error?: string | null
-}
-
-export interface CatalogTabHandlers {
-  onCreate: (data: CatalogUpsertData) => Promise<void> | void
-  onUpdate: (id: string, data: CatalogUpsertData) => Promise<void> | void
-  onDelete: (id: string) => Promise<void> | void
-  onRetry?: () => void
-}
-
-export interface PipelineTabProps extends BusinessAppContextProps {
-  pipelines: any[]
-  isLoading?: boolean
-  error?: string | null
-  onRetry?: () => void
-  catalogConfig: {
-    pipelineCatalog: string
-    stageCatalog: string
-    conditionCatalog: string
-    version: string
-  }
-}
-
-export interface OpportunitySettingsProps {
-  className?: string
-  prefixDataTestId?: string
-  headerTitle?: string
-  headerDescription?: string
-  pipelineTab: PipelineTabProps
-  statuses: CatalogTabState & CatalogTabHandlers
-  forecasts: CatalogTabState & CatalogTabHandlers
-  initialTab?: 'pipelines' | 'statuses' | 'forecasts'
-  onBack?: () => void
-}
-
-interface GenericTabProps extends CatalogTabState, CatalogTabHandlers {
+interface CatalogTabProps extends CatalogTabState, CatalogTabHandlers {
   entityName: string
   dataTestId: string
   onSearchChange?: (value: string) => void
 }
 
-const GenericCatalogTab: React.FC<GenericTabProps> = ({
+export const CatalogTab: React.FC<CatalogTabProps> = ({
   entityName,
   dataTestId,
   items,
@@ -122,7 +56,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
       code: '',
       value: '',
       type: '',
-      displayOrder: undefined
+      displayOrder: 0
     }
   })
 
@@ -139,7 +73,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
   }, [items, search])
 
   const handleAdd = () => {
-    form.reset({ code: '', value: '', type: '', displayOrder: undefined })
+    form.reset({ code: '', value: '', type: '', displayOrder: 0 })
     setEditingItem(null)
     setIsModalOpen(true)
   }
@@ -149,7 +83,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
       code: item.code,
       value: item.value,
       type: item.type || '',
-      displayOrder: item.displayOrder
+      displayOrder: item.displayOrder ?? 0
     })
     setEditingItem(item)
     setIsModalOpen(true)
@@ -168,6 +102,16 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
     } catch (err) {
       console.error('Error saving item:', err)
     }
+  }
+
+  const renderOrderBadge = (item: CatalogItem) => {
+    if (item.displayOrder != null) {
+      return <Badge variant="secondary">{item.displayOrder}</Badge>
+    }
+    if (item.alternativeCode) {
+      return <Badge variant="secondary">{item.alternativeCode}</Badge>
+    }
+    return <span>-</span>
   }
 
   return (
@@ -243,7 +187,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
                           type="number"
                           onChange={e => {
                             const value = e.target.value
-                            field.onChange(value === '' ? 0 : parseInt(value, 10) || 0)
+                            field.onChange(value === '' ? 0 : Number.parseInt(value, 10) || 0)
                           }}
                           value={field.value ?? 0}
                           data-testid={`${dataTestId}-DisplayOrder-Input`}
@@ -320,15 +264,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
                     </TableCell>
                     <TableCell>{item.value}</TableCell>
                     <TableCell>{item.type ? <Badge variant="secondary">{item.type}</Badge> : <span>-</span>}</TableCell>
-                    <TableCell>
-                      {item.displayOrder != null ? (
-                        <Badge variant="secondary">{item.displayOrder}</Badge>
-                      ) : item.alternativeCode ? (
-                        <Badge variant="secondary">{item.alternativeCode}</Badge>
-                      ) : (
-                        <span>-</span>
-                      )}
-                    </TableCell>
+                    <TableCell>{renderOrderBadge(item)}</TableCell>
                     <TableCell>
                       <div className="gba:flex gba:gap-1">
                         <Button
@@ -370,64 +306,5 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
         </Alert>
       )}
     </div>
-  )
-}
-
-export const OpportunitySettings: React.FC<OpportunitySettingsProps> = ({
-  prefixDataTestId = 'OpportunitySettings',
-  className,
-  headerTitle = 'Opportunity Data',
-  headerDescription = 'Manage opportunity pipelines, statuses, and forecasts',
-  pipelineTab,
-  statuses,
-  forecasts,
-  initialTab = 'pipelines',
-  onBack
-}) => {
-  const [active, setActive] = useState<'pipelines' | 'statuses' | 'forecasts'>(initialTab)
-
-  return (
-    <PageLayout
-      headerIcon={TargetIcon}
-      headerTitle={headerTitle}
-      headerDescription={headerDescription}
-      onBack={onBack}
-      className={className}
-      data-testid={`${prefixDataTestId}-Container`}
-    >
-      <Tabs value={active} onValueChange={k => setActive(k as any)} data-testid={`${prefixDataTestId}-Tabs`}>
-        <TabsList>
-          <TabsTrigger value="pipelines">Pipelines</TabsTrigger>
-          <TabsTrigger value="statuses">Statuses</TabsTrigger>
-          <TabsTrigger value="forecasts">Forecasts</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="pipelines">
-          <PipelineSettings
-            prefixDataTestId={`${prefixDataTestId}-Pipelines`}
-            accessToken={pipelineTab.accessToken}
-            userInfo={pipelineTab.userInfo}
-            additionalData={pipelineTab.additionalData}
-            pipelines={pipelineTab.pipelines}
-            isLoading={pipelineTab.isLoading}
-            error={pipelineTab.error}
-            onRetry={pipelineTab.onRetry}
-            catalogConfig={pipelineTab.catalogConfig}
-            headerPhosphorIcon={{ icon: undefined }}
-            headerTitle=""
-            headerDescription=""
-            hidePageLayout={true}
-          />
-        </TabsContent>
-
-        <TabsContent value="statuses">
-          <GenericCatalogTab entityName="Status" dataTestId={`${prefixDataTestId}-Statuses`} {...statuses} />
-        </TabsContent>
-
-        <TabsContent value="forecasts">
-          <GenericCatalogTab entityName="Forecast" dataTestId={`${prefixDataTestId}-Forecasts`} {...forecasts} />
-        </TabsContent>
-      </Tabs>
-    </PageLayout>
   )
 }

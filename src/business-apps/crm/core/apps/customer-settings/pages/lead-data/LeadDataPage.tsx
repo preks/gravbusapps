@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react'
-import { LeadSettings } from '@/common/components/common-relations/setting-pages/lead/LeadSettings'
+import React, { useMemo } from 'react'
+import { LeadSettingsLayout } from '@/common/components/common-relations/setting-pages/lead'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useCatalogSettings } from '@/common/components/common-relations/setting-pages/hooks/useCatalogSettings'
 
 export interface LeadDataPageProps extends BusinessAppContextProps {
   className?: string
@@ -10,31 +9,20 @@ export interface LeadDataPageProps extends BusinessAppContextProps {
   initialTab?: 'ratings' | 'statuses' | 'sources'
 }
 
-const DATA_TEST_ID = 'CustomerLeadDataPage'
-
-const LeadDataPage: React.FC<LeadDataPageProps> = ({ prefixDataTestId, onBack, initialTab, ...context }) => {
-  const [tab, setTab] = useState<'ratings' | 'statuses' | 'sources'>(initialTab || 'ratings')
-
-  useEffect(() => {
-    const url = new URL(window.location.href)
-    const t = url.searchParams.get('tab') as any
-    if (t && ['ratings', 'statuses', 'sources'].includes(t)) setTab(t)
-  }, [])
-
-  const ratings = useCatalogSettings(context, 'SalesLeadRating')
-  const statuses = useCatalogSettings(context, 'SalesLeadStatus')
-  const sources = useCatalogSettings(context, 'SalesLeadSource')
-
-  return (
-    <LeadSettings
-      prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-      initialTab={tab}
-      onBack={onBack}
-      ratings={ratings}
-      statuses={statuses}
-      sources={sources}
-    />
+const LeadDataPage: React.FC<LeadDataPageProps> = props => {
+  const config = useMemo(
+    () => ({
+      ratingCatalog: 'SalesLeadRating',
+      statusCatalog: 'SalesLeadStatus',
+      sourceCatalog: 'SalesLeadSource',
+      dataTestIdPrefix: 'CustomerLeadDataPage',
+      headerTitle: 'Lead Data',
+      headerDescription: 'Manage lead ratings, statuses, and sources'
+    }),
+    []
   )
+
+  return <LeadSettingsLayout config={config} {...props} />
 }
 
 export default LeadDataPage

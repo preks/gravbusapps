@@ -1,7 +1,9 @@
-import React from 'react'
-import { InvestmentSettings } from '@/common/components/common-relations/setting-pages/investment/InvestmentSettings'
+import React, { useState } from 'react'
+import { PageLayout, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
+import { ChartLineIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogSettings } from '@/common/components/common-relations/setting-pages/hooks/useCatalogSettings'
+import { CatalogTab } from '@/common/components/common-relations/setting-pages/components/CatalogTab'
 
 export interface InvestmentSpecificDataPageProps extends BusinessAppContextProps {
   className?: string
@@ -14,23 +16,58 @@ const DATA_TEST_ID = 'InvestmentSpecificDataPage'
 
 const InvestmentSpecificDataPage: React.FC<InvestmentSpecificDataPageProps> = ({
   prefixDataTestId,
-  initialTab,
+  initialTab = 'roles',
   onBack,
+  className,
   ...context
 }) => {
+  const [active, setActive] = useState<'roles' | 'statuses' | 'stake-types'>(initialTab)
+
   const roles = useCatalogSettings(context, 'InvestmentRole')
   const statuses = useCatalogSettings(context, 'InvestmentStatus')
   const stakeTypes = useCatalogSettings(context, 'InvestmentStakeType')
 
   return (
-    <InvestmentSettings
-      prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-      initialTab={initialTab}
+    <PageLayout
+      headerIcon={ChartLineIcon}
+      headerTitle="Investment Specific Data"
+      headerDescription="Manage investment roles, statuses, and stake types"
       onBack={onBack}
-      roles={roles}
-      statuses={statuses}
-      stakeTypes={stakeTypes}
-    />
+      className={className}
+      data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Container`}
+    >
+      <Tabs
+        value={active}
+        onValueChange={k => setActive(k as any)}
+        data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Tabs`}
+      >
+        <TabsList>
+          <TabsTrigger value="roles">Roles</TabsTrigger>
+          <TabsTrigger value="statuses">Statuses</TabsTrigger>
+          <TabsTrigger value="stake-types">Stake Types</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="roles">
+          <CatalogTab entityName="Role" dataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Roles`} {...roles} />
+        </TabsContent>
+
+        <TabsContent value="statuses">
+          <CatalogTab
+            entityName="Status"
+            dataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Statuses`}
+            {...statuses}
+          />
+        </TabsContent>
+
+        <TabsContent value="stake-types">
+          <CatalogTab
+            entityName="Stake Type"
+            dataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}-StakeTypes`}
+            {...stakeTypes}
+          />
+        </TabsContent>
+      </Tabs>
+    </PageLayout>
   )
 }
 

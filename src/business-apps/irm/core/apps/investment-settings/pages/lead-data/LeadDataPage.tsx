@@ -1,7 +1,6 @@
-import React from 'react'
-import { LeadSettings } from '@/common/components/common-relations/setting-pages/lead/LeadSettings'
+import React, { useMemo } from 'react'
+import { LeadSettingsLayout } from '@/common/components/common-relations/setting-pages/lead'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useCatalogSettings } from '@/common/components/common-relations/setting-pages/hooks/useCatalogSettings'
 
 export interface LeadDataPageProps extends BusinessAppContextProps {
   className?: string
@@ -10,23 +9,20 @@ export interface LeadDataPageProps extends BusinessAppContextProps {
   initialTab?: 'ratings' | 'statuses' | 'sources'
 }
 
-const DATA_TEST_ID = 'InvestmentLeadDataPage'
-
-const LeadDataPage: React.FC<LeadDataPageProps> = ({ prefixDataTestId, onBack, initialTab, ...context }) => {
-  const ratings = useCatalogSettings(context, 'InvestmentLeadRating')
-  const statuses = useCatalogSettings(context, 'InvestmentLeadStatus')
-  const sources = useCatalogSettings(context, 'InvestmentLeadSource')
-
-  return (
-    <LeadSettings
-      prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-      initialTab={initialTab}
-      onBack={onBack}
-      ratings={ratings}
-      statuses={statuses}
-      sources={sources}
-    />
+const LeadDataPage: React.FC<LeadDataPageProps> = props => {
+  const config = useMemo(
+    () => ({
+      ratingCatalog: 'InvestmentLeadRating',
+      statusCatalog: 'InvestmentLeadStatus',
+      sourceCatalog: 'InvestmentLeadSource',
+      dataTestIdPrefix: 'InvestmentLeadDataPage',
+      headerTitle: 'Lead Data',
+      headerDescription: 'Manage lead ratings, statuses, and sources'
+    }),
+    []
   )
+
+  return <LeadSettingsLayout config={config} {...props} />
 }
 
 export default LeadDataPage

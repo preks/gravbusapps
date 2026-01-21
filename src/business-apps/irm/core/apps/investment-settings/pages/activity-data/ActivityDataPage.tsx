@@ -1,7 +1,6 @@
-import React from 'react'
-import { EngagementSettings } from '@/common/components/common-relations/setting-pages/engagement/EngagementSettings'
+import React, { useMemo } from 'react'
+import { EngagementSettingsLayout } from '@/common/components/common-relations/setting-pages/engagement'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useCatalogSettings } from '@/common/components/common-relations/setting-pages/hooks/useCatalogSettings'
 
 export interface ActivityDataPageProps extends BusinessAppContextProps {
   className?: string
@@ -9,27 +8,21 @@ export interface ActivityDataPageProps extends BusinessAppContextProps {
   onBack?: () => void
 }
 
-const DATA_TEST_ID = 'InvestmentActivityDataPage'
-
-const ActivityDataPage: React.FC<ActivityDataPageProps> = ({ prefixDataTestId, onBack, ...context }) => {
-  const activityTypes = useCatalogSettings(context, 'InvestmentActivityType')
-  const taskTypes = useCatalogSettings(context, 'InvestmentTaskType')
-  const taskPriorities = useCatalogSettings(context, 'InvestmentTaskPriority')
-
-  return (
-    <EngagementSettings
-      prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-      onBack={onBack}
-      activityTypes={activityTypes}
-      taskTypes={taskTypes}
-      taskPriorities={taskPriorities}
-      showConfigurationTab={true}
-      accessToken={context.accessToken}
-      userInfo={context.userInfo}
-      additionalData={context.additionalData}
-      taskTypeCatalogIdentifier="InvestmentTaskType"
-    />
+const ActivityDataPage: React.FC<ActivityDataPageProps> = props => {
+  const config = useMemo(
+    () => ({
+      activityTypeCatalog: 'InvestmentActivityType',
+      taskTypeCatalog: 'InvestmentTaskType',
+      taskPriorityCatalog: 'InvestmentTaskPriority',
+      dataTestIdPrefix: 'InvestmentActivityDataPage',
+      headerTitle: 'Activity Data',
+      headerDescription: 'Manage activity types, task types, and priorities',
+      showConfigurationTab: true
+    }),
+    []
   )
+
+  return <EngagementSettingsLayout config={config} {...props} />
 }
 
 export default ActivityDataPage
