@@ -1,10 +1,11 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import { Alert, AlertDescription, AlertTitle } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { PersonalWorkspaceConfig, ActivitiesResult, TasksResult } from '../../types'
 import { PersonalKpisCard } from './PersonalKpisCard'
 import { RecentActivitiesWidget } from './RecentActivitiesWidget'
 import { CompactTwoWeekCalendar } from './CompactTwoWeekCalendar'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 export interface OverviewViewProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
   config: PersonalWorkspaceConfig
@@ -44,6 +45,21 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ config, employeeId, 
     calendarActivitiesResult = recentActivitiesResult
     calendarTasksResult = config.hooks.useTasks({ accessToken, userInfo }, employeeId)
   }
+
+  // Process Completion Handler - refresh all data when processes complete
+  const handleProcessComplete = useCallback(() => {
+    // Refetch KPIs
+    kpisResult.refetch?.()
+
+    // Refetch recent activities
+    recentActivitiesResult.refetch?.()
+
+    // Refetch calendar data
+    calendarActivitiesResult.refetch?.()
+    calendarTasksResult.refetch?.()
+  }, [kpisResult, recentActivitiesResult, calendarActivitiesResult, calendarTasksResult])
+
+  useProcessCompletion({ onSuccess: handleProcessComplete })
 
   const errors = [
     kpisResult.error,
