@@ -181,20 +181,20 @@ export const EmployeePopover: React.FC<EmployeePopoverProps> = ({
     return phonePattern.test(phone.trim())
   }
 
-  const handleEmailClick = () => {
-    if (employeeWorkEmail && isValidEmail(employeeWorkEmail)) {
-      globalThis.window.location.href = `mailto:${encodeURIComponent(employeeWorkEmail)}`
+  const getSafeEmailHref = (email: string): string | null => {
+    if (!isValidEmail(email)) {
+      return null
     }
+    return `mailto:${encodeURIComponent(email)}`
   }
 
-  const handlePhoneClick = () => {
-    if (employeeWorkPhone && isValidPhone(employeeWorkPhone)) {
-      // Only allow validated phone numbers - extra safety layer
-      const sanitized = employeeWorkPhone.replace(/[^\d+\-\s()]/g, '')
-      if (sanitized) {
-        globalThis.window.location.href = `tel:${encodeURIComponent(sanitized)}`
-      }
+  const getSafePhoneHref = (phone: string): string | null => {
+    if (!isValidPhone(phone)) {
+      return null
     }
+    // Sanitize: only allow safe characters
+    const sanitized = phone.replace(/[^\d+\-\s()]/g, '')
+    return sanitized ? `tel:${encodeURIComponent(sanitized)}` : null
   }
 
   const initials = employeeName
@@ -205,6 +205,8 @@ export const EmployeePopover: React.FC<EmployeePopoverProps> = ({
     .slice(0, 2)
 
   const hasContactInfo = employeeWorkEmail || employeeWorkPhone
+  const emailHref = employeeWorkEmail ? getSafeEmailHref(employeeWorkEmail) : null
+  const phoneHref = employeeWorkPhone ? getSafePhoneHref(employeeWorkPhone) : null
 
   return (
     <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
@@ -242,23 +244,25 @@ export const EmployeePopover: React.FC<EmployeePopoverProps> = ({
         {/* Contact Information */}
         {hasContactInfo && (
           <div className="gba:space-y-1.5 gba:mb-4 gba:pb-4 gba:border-b gba:border-border">
-            {employeeWorkEmail && (
-              <button
-                onClick={handleEmailClick}
-                className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-foreground hover:gba:text-primary gba:transition-colors gba:w-full gba:px-2 gba:py-1.5 gba:rounded-md hover:gba:bg-muted/50 gba:cursor-pointer gba:bg-transparent gba:border-0 gba:text-left"
+            {emailHref && (
+              <a
+                href={emailHref}
+                className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-foreground hover:gba:text-primary gba:transition-colors gba:w-full gba:px-2 gba:py-1.5 gba:rounded-md hover:gba:bg-muted/50 gba:no-underline"
+                data-testid="employee-popover-email-link"
               >
                 <Mail className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:shrink-0" />
                 <span className="gba:truncate gba:text-xs">{employeeWorkEmail}</span>
-              </button>
+              </a>
             )}
-            {employeeWorkPhone && (
-              <button
-                onClick={handlePhoneClick}
-                className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-foreground hover:gba:text-primary gba:transition-colors gba:w-full gba:px-2 gba:py-1.5 gba:rounded-md hover:gba:bg-muted/50 gba:cursor-pointer gba:bg-transparent gba:border-0 gba:text-left"
+            {phoneHref && (
+              <a
+                href={phoneHref}
+                className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-foreground hover:gba:text-primary gba:transition-colors gba:w-full gba:px-2 gba:py-1.5 gba:rounded-md hover:gba:bg-muted/50 gba:no-underline"
+                data-testid="employee-popover-phone-link"
               >
                 <Phone className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:shrink-0" />
                 <span className="gba:text-xs">{employeeWorkPhone}</span>
-              </button>
+              </a>
             )}
           </div>
         )}
