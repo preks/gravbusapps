@@ -456,31 +456,36 @@ export function createCollaborationClient(options?: CollaborationWebSocketOption
   // Get API URL from environment or determine from context
   let apiUrl: string | undefined
 
-  // Check for explicit environment variable first (Vite env var)
-  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DOCUMENT_SERVICE_URL) {
-    apiUrl = import.meta.env.VITE_DOCUMENT_SERVICE_URL
-  } else {
-    // If platform is running on localhost, connect to DEV environment
-    // This handles the case where UI is loaded from CDN but platform is running locally
-    if (typeof window !== 'undefined') {
-      const host = window.location.hostname
-      const isLocalHost = host === 'localhost' || host === '127.0.0.1'
-      if (isLocalHost) {
-        apiUrl = 'https://newwork-dev.newwork.com/document/api/v1'
-      } else {
-        // Try to get base URL from environment and construct document-service URL
-        const baseUrl = env('NEXT_PUBLIC_BASE_URL')
-        if (baseUrl) {
-          const trimmed = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-          apiUrl = `${trimmed}/document/api/v1`
-        }
-      }
-    }
+  const envUrl =
+    typeof import.meta !== 'undefined' && import.meta.env?.VITE_DOCUMENT_SERVICE_URL
+      ? import.meta.env.VITE_DOCUMENT_SERVICE_URL
+      : undefined
+  const host = typeof window !== 'undefined' ? window.location.hostname : undefined
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1'
 
-    // Default to dev environment if nothing else worked
-    if (!apiUrl) {
-      apiUrl = 'https://newwork-dev.newwork.com/document/api/v1'
+  // Only allow local overrides when running on localhost
+  if (isLocalHost && envUrl) {
+    apiUrl = envUrl
+  }
+
+  // If platform is running on localhost, connect to DEV environment
+  // This handles the case where UI is loaded from CDN but platform is running locally
+  if (!apiUrl && isLocalHost) {
+    apiUrl = 'https://newwork-dev.newwork.com/document/api/v1'
+  }
+
+  if (!apiUrl) {
+    // Try to get base URL from environment and construct document-service URL
+    const baseUrl = env('NEXT_PUBLIC_BASE_URL')
+    if (baseUrl) {
+      const trimmed = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+      apiUrl = `${trimmed}/document/api/v1`
     }
+  }
+
+  // Default to dev environment if nothing else worked
+  if (!apiUrl) {
+    apiUrl = 'https://newwork-dev.newwork.com/document/api/v1'
   }
 
   // Remove /api/v1 suffix if present to get base service URL

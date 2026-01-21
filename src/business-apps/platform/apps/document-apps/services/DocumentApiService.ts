@@ -31,19 +31,16 @@ import { env } from '@/common/env/EnvUtils'
 
 // Get the API URL from environment or default to dev environment
 const getApiUrl = (): string => {
-  // Check for explicit environment variable first (Vite env var)
-  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DOCUMENT_SERVICE_URL) {
-    return import.meta.env.VITE_DOCUMENT_SERVICE_URL
-  }
+  const envUrl =
+    typeof import.meta !== 'undefined' && import.meta.env?.VITE_DOCUMENT_SERVICE_URL
+      ? import.meta.env.VITE_DOCUMENT_SERVICE_URL
+      : undefined
+  const host = typeof window !== 'undefined' ? window.location.hostname : undefined
+  const isLocalHost = host === 'localhost' || host === '127.0.0.1'
 
-  // If platform is running on localhost, connect to DEV environment
-  // This handles the case where UI is loaded from CDN but platform is running locally
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname
-    const isLocalHost = host === 'localhost' || host === '127.0.0.1'
-    if (isLocalHost) {
-      return 'https://newwork-dev.newwork.com/document/api/v1'
-    }
+  // Only allow local overrides when running on localhost
+  if (isLocalHost) {
+    return envUrl || 'https://newwork-dev.newwork.com/document/api/v1'
   }
 
   // Try to get base URL from environment and construct document-service URL

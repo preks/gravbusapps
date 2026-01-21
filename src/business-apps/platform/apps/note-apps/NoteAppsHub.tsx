@@ -31,14 +31,12 @@ import {
   StickyNote,
   Plus,
   Search,
-  Grid,
   List,
   Pin,
   Archive,
   Users,
   Sparkles,
   FileText,
-  Folder,
   MoreHorizontal,
   Star,
   Clock,
@@ -50,16 +48,16 @@ import {
   RefreshCw,
   Copy,
   Share2,
-  Download,
   Link2,
-  Settings,
   User,
-  LayoutGrid
+  LayoutGrid,
+  ChevronLeft
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 // Components
-import { NotePreviewCard, type SharedUserInfo } from './components/NotePreviewCard'
+import { type SharedUserInfo } from './components/NotePreviewCard'
 import { NoteEditor } from './NoteEditor'
 import { ShareNoteDialog, type SharedNoteUser } from './components/ShareNoteDialog'
 
@@ -159,7 +157,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
 
   // Data state
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
-  const [sharedUsersMap, setSharedUsersMap] = useState<Record<string, SharedUserInfo[]>>({})
+  const [sharedUsersMap] = useState<Record<string, SharedUserInfo[]>>({})
   const [ownerInfoMap, setOwnerInfoMap] = useState<Map<string, { name: string; avatar?: string }>>(new Map())
 
   // Share dialog state
@@ -188,7 +186,9 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       urlParams.delete('noteId')
       urlParams.delete('view')
     }
-    const newUrl = urlParams.toString() ? `${window.location.pathname}?${urlParams.toString()}` : window.location.pathname
+    const newUrl = urlParams.toString()
+      ? `${window.location.pathname}?${urlParams.toString()}`
+      : window.location.pathname
     window.history.pushState({ noteId, view }, '', newUrl)
   }, [])
 
@@ -199,7 +199,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     isLoading: isLoadingNotes,
     error: notesError,
     currentNotePermission,
-    loadNotes,
     loadNote,
     createNote,
     updateNote,
@@ -207,7 +206,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     duplicateNote,
     togglePin,
     archiveNote,
-    unarchiveNote,
     clearCurrentNote,
     refreshNotes,
     shareNote,
@@ -239,8 +237,11 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   useEffect(() => {
     const referrer = document.referrer
     const urlParams = new URLSearchParams(window.location.search)
-    cameFromDeskRef.current = referrer.includes('/platform/apps/desk') || referrer.includes('?app=platform/apps/desk') || urlParams.get('from') === 'desk'
-    
+    cameFromDeskRef.current =
+      referrer.includes('/platform/apps/desk') ||
+      referrer.includes('?app=platform/apps/desk') ||
+      urlParams.get('from') === 'desk'
+
     // Push state to track navigation from desk
     if (cameFromDeskRef.current && currentView === 'list') {
       window.history.replaceState({ fromDesk: true }, '', window.location.href)
@@ -251,13 +252,13 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
       const state = event.state as { noteId?: string; view?: HubView; fromDesk?: boolean } | null
-      
+
       // If we came from desk and there's no note, go back to desk
       if (state?.fromDesk && !state?.noteId && currentView === 'list') {
         navigateTo('/platform/apps/desk')
         return
       }
-      
+
       if (state?.noteId) {
         loadNote(state.noteId).then(note => {
           if (note) {
@@ -297,19 +298,23 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
             Employee: Array<{ displayName: string; pictureThumbnail?: string }>
           }>(query)
           const emp = result.Employee?.[0]
-          setOwnerInfoMap(prev => new Map(prev).set(ownerId, {
-            name: emp?.displayName || `User ${ownerId.slice(0, 8)}`,
-            avatar: emp?.pictureThumbnail
-              ? emp.pictureThumbnail.startsWith('data:')
-                ? emp.pictureThumbnail
-                : `data:image/png;base64,${emp.pictureThumbnail}`
-              : undefined
-          }))
+          setOwnerInfoMap(prev =>
+            new Map(prev).set(ownerId, {
+              name: emp?.displayName || `User ${ownerId.slice(0, 8)}`,
+              avatar: emp?.pictureThumbnail
+                ? emp.pictureThumbnail.startsWith('data:')
+                  ? emp.pictureThumbnail
+                  : `data:image/png;base64,${emp.pictureThumbnail}`
+                : undefined
+            })
+          )
         } catch {
           // Ignore errors - just show fallback
-          setOwnerInfoMap(prev => new Map(prev).set(ownerId, {
-            name: `User ${ownerId.slice(0, 8)}`
-          }))
+          setOwnerInfoMap(prev =>
+            new Map(prev).set(ownerId, {
+              name: `User ${ownerId.slice(0, 8)}`
+            })
+          )
         } finally {
           loadingOwnerInfoRef.current.delete(ownerId)
         }
@@ -601,7 +606,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const handleShareSubmit = useCallback(
     async (userIds: string[], permission: 'view' | 'edit' | 'comment') => {
       if (!noteToShare) return false
-      const success = await shareNote(noteToShare.id, userIds.map(userId => ({ userId, permission })))
+      const success = await shareNote(
+        noteToShare.id,
+        userIds.map(userId => ({ userId, permission }))
+      )
       return success
     },
     [noteToShare, shareNote]
@@ -676,7 +684,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     const effectivePermission = currentNotePermission || 'owner'
     const canEdit = effectivePermission === 'owner' || effectivePermission === 'edit'
     const isOwner = currentNote.ownerId === currentUserId || effectivePermission === 'owner'
-    
+
     console.log('[NoteAppsHub] Editor permissions:', {
       currentNotePermission,
       effectivePermission,
@@ -712,6 +720,16 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       <aside className="gba:w-60 gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0">
         {/* Logo / Brand */}
         <div className="gba:p-4 gba:border-b">
+          {/* Back button row */}
+          <button
+            onClick={() => navigateTo('/platform/apps/platform/apps/desk')}
+            className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors gba:mb-3"
+          >
+            <ChevronLeft className="gba:w-4 gba:h-4" />
+            <span>Back to Desk</span>
+          </button>
+
+          {/* Existing brand section */}
           <div className="gba:flex gba:items-center gba:gap-3">
             <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-amber-500 gba:to-orange-600 gba:flex gba:items-center gba:justify-center">
               <StickyNote className="gba:w-5 gba:h-5 gba:text-white" />
@@ -1102,7 +1120,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                                       className="gba:flex gba:items-center gba:-space-x-1 hover:gba:opacity-80 gba:transition-opacity"
                                     >
                                       {sharedWith.slice(0, 3).map(user => (
-                                        <Avatar key={user.userId} className="gba:w-5 gba:h-5 gba:border gba:border-background">
+                                        <Avatar
+                                          key={user.userId}
+                                          className="gba:w-5 gba:h-5 gba:border gba:border-background"
+                                        >
                                           {user.userAvatar && <AvatarImage src={user.userAvatar} />}
                                           <AvatarFallback className="gba:text-[8px] gba:bg-muted">
                                             {user.userName ? getInitials(user.userName) : '?'}
@@ -1158,7 +1179,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                       </div>
 
                       {/* Actions */}
-                      <div className="gba:w-10 gba:flex-shrink-0 gba:flex gba:justify-end" onClick={e => e.stopPropagation()}>
+                      <div
+                        className="gba:w-10 gba:flex-shrink-0 gba:flex gba:justify-end"
+                        onClick={e => e.stopPropagation()}
+                      >
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="gba:h-8 gba:w-8 gba:p-0">
@@ -1186,11 +1210,15 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleTogglePin(note.id)}>
-                              <Pin className={`gba:w-4 gba:h-4 gba:mr-2 ${note.isPinned ? 'gba:fill-current gba:text-amber-500' : ''}`} />
+                              <Pin
+                                className={`gba:w-4 gba:h-4 gba:mr-2 ${note.isPinned ? 'gba:fill-current gba:text-amber-500' : ''}`}
+                              />
                               {note.isPinned ? 'Unpin' : 'Pin'}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => toggleFavorite(note.id)}>
-                              <Star className={`gba:w-4 gba:h-4 gba:mr-2 ${isFavorite ? 'gba:fill-current gba:text-amber-500' : ''}`} />
+                              <Star
+                                className={`gba:w-4 gba:h-4 gba:mr-2 ${isFavorite ? 'gba:fill-current gba:text-amber-500' : ''}`}
+                              />
                               {isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleArchiveNote(note.id)}>
@@ -1198,7 +1226,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                               Archive
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="gba:text-destructive" onClick={() => handleDeleteNote(note.id)}>
+                            <DropdownMenuItem
+                              className="gba:text-destructive"
+                              onClick={() => handleDeleteNote(note.id)}
+                            >
                               <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
                               Delete
                             </DropdownMenuItem>
@@ -1240,7 +1271,11 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                         className={`gba:absolute gba:top-2 gba:left-2 gba:opacity-0 group-hover:gba:opacity-100 ${isSelected ? 'gba:opacity-100' : ''} gba:transition-opacity`}
                         onClick={e => e.stopPropagation()}
                       >
-                        <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectNote(note.id)} className="gba:bg-background" />
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelectNote(note.id)}
+                          className="gba:bg-background"
+                        />
                       </div>
 
                       {/* Favorite star */}
@@ -1270,7 +1305,9 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
 
                     {/* Info */}
                     <div className="gba:p-3">
-                      <h3 className="gba:font-medium gba:text-foreground gba:truncate gba:mb-1">{note.title || 'Untitled'}</h3>
+                      <h3 className="gba:font-medium gba:text-foreground gba:truncate gba:mb-1">
+                        {note.title || 'Untitled'}
+                      </h3>
                       <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
                         <span>{formatRelativeTime(note.updatedAt)}</span>
                       </div>

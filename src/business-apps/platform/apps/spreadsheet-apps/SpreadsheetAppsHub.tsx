@@ -37,8 +37,6 @@ import {
   FileSpreadsheet,
   Plus,
   Search,
-  Sparkles,
-  Grid,
   List,
   Upload,
   Database,
@@ -51,7 +49,6 @@ import {
   Clock,
   Trash2,
   MoreHorizontal,
-  ChevronRight,
   Share2,
   Link2,
   Download,
@@ -61,14 +58,13 @@ import {
   ArrowUpDown,
   Check,
   X,
-  Pencil,
-  SlidersHorizontal,
   LayoutGrid,
-  Table2,
   User,
-  RefreshCw
+  RefreshCw,
+  ChevronLeft
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 // Components
 import { ExcelUploader } from './components/ExcelUploader'
@@ -93,7 +89,7 @@ import { SpreadsheetApiService, setSpreadsheetApiAuthTokenProvider } from './ser
 
 // Types
 import type { ParsedExcelFile, SpreadsheetAnalysis, SpreadsheetApp, SpreadsheetAppSummary } from './types'
-import { getIconByName, DEFAULT_APP_ICON } from './utils/appIcons'
+import { getIconByName } from './utils/appIcons'
 
 export interface SpreadsheetAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -128,7 +124,11 @@ function formatRelativeTime(dateString: string): string {
   if (diffHours < 24) return `${diffHours} hours ago`
   if (diffDays === 1) return 'Yesterday'
   if (diffDays < 7) return `${diffDays} days ago`
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined })
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+  })
 }
 
 /**
@@ -145,7 +145,11 @@ function formatDate(dateString: string): string {
   }
   if (diffDays === 1) return 'Yesterday'
   if (diffDays < 7) return `${diffDays} days ago`
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined })
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+  })
 }
 
 /**
@@ -238,9 +242,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   // Shared user info maps for displaying avatars
   const [sharedUsersMap, setSharedUsersMap] = useState<Map<string, SharedUserInfo[]>>(new Map())
-  const [sharedByUsersMap, setSharedByUsersMap] = useState<Map<string, SharedUserInfo>>(new Map())
+  // const [sharedByUsersMap] = useState<Map<string, SharedUserInfo>>(new Map())
   const [ownerInfoMap, setOwnerInfoMap] = useState<Map<string, { name: string; avatar?: string }>>(new Map())
-  
+
   // GraphQL client for fetching user info
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -305,8 +309,11 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   useEffect(() => {
     const referrer = document.referrer
     const urlParams = new URLSearchParams(window.location.search)
-    cameFromDeskRef.current = referrer.includes('/platform/apps/desk') || referrer.includes('?app=platform/apps/desk') || urlParams.get('from') === 'desk'
-    
+    cameFromDeskRef.current =
+      referrer.includes('/platform/apps/desk') ||
+      referrer.includes('?app=platform/apps/desk') ||
+      urlParams.get('from') === 'desk'
+
     // Push state to track navigation from desk
     if (cameFromDeskRef.current && currentView === 'list') {
       window.history.replaceState({ fromDesk: true }, '', window.location.href)
@@ -317,13 +324,13 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
       const state = event.state as { appId?: string; view?: HubView; fromDesk?: boolean } | null
-      
+
       // If we came from desk and there's no app, go back to desk
       if (state?.fromDesk && !state?.appId && currentView === 'list') {
         navigateTo('/platform/apps/desk')
         return
       }
-      
+
       if (state?.appId) {
         loadApp(state.appId).then(app => {
           if (app) {
@@ -348,17 +355,19 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     // Filter by section
     switch (activeSection) {
       case 'my-files':
-        filtered = apps.filter(app => app.isOwner ?? (app.createdBy === currentUserId))
+        filtered = apps.filter(app => app.isOwner ?? app.createdBy === currentUserId)
         break
       case 'shared':
-        filtered = apps.filter(app => app.isShared && !(app.isOwner ?? (app.createdBy === currentUserId)))
+        filtered = apps.filter(app => app.isShared && !(app.isOwner ?? app.createdBy === currentUserId))
         break
       case 'favorites':
         filtered = apps.filter(app => favorites.has(app.id))
         break
       case 'recent':
         // Show all apps sorted by most recently updated
-        filtered = [...apps].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 10)
+        filtered = [...apps]
+          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+          .slice(0, 10)
         break
       case 'home':
       default:
@@ -369,8 +378,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     // Filter by search
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(app => 
-        app.name.toLowerCase().includes(query) || app.description?.toLowerCase().includes(query)
+      filtered = filtered.filter(
+        app => app.name.toLowerCase().includes(query) || app.description?.toLowerCase().includes(query)
       )
     }
 
@@ -411,14 +420,16 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             Employee: Array<{ displayName: string; pictureThumbnail?: string }>
           }>(query)
           const emp = result.Employee?.[0]
-          setOwnerInfoMap(prev => new Map(prev).set(ownerId, {
-            name: emp?.displayName || `User ${ownerId.slice(0, 8)}`,
-            avatar: emp?.pictureThumbnail
-              ? emp.pictureThumbnail.startsWith('data:')
-                ? emp.pictureThumbnail
-                : `data:image/png;base64,${emp.pictureThumbnail}`
-              : undefined
-          }))
+          setOwnerInfoMap(prev =>
+            new Map(prev).set(ownerId, {
+              name: emp?.displayName || `User ${ownerId.slice(0, 8)}`,
+              avatar: emp?.pictureThumbnail
+                ? emp.pictureThumbnail.startsWith('data:')
+                  ? emp.pictureThumbnail
+                  : `data:image/png;base64,${emp.pictureThumbnail}`
+                : undefined
+            })
+          )
         } catch {
           // Ignore errors
         } finally {
@@ -435,8 +446,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   useEffect(() => {
     if (!graphqlClient || activeSection !== 'my-files') return
 
-    const ownedApps = apps.filter(app => app.isOwner ?? (app.createdBy === currentUserId))
-    
+    const ownedApps = apps.filter(app => app.isOwner ?? app.createdBy === currentUserId)
+
     const loadSharedUsersData = async () => {
       for (const app of ownedApps) {
         if (sharedUsersMap.has(app.id) || loadingSharedUsersRef.current.has(app.id)) continue
@@ -485,13 +496,16 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   }, [apps, activeSection, currentUserId, graphqlClient, sharedUsersMap])
 
   // Handlers
-  const handleManageShares = useCallback((id: string) => {
-    const app = apps.find(a => a.id === id)
-    if (app) {
-      setSelectedAppForManageShares(app)
-      setManageSharesDialogOpen(true)
-    }
-  }, [apps])
+  const handleManageShares = useCallback(
+    (id: string) => {
+      const app = apps.find(a => a.id === id)
+      if (app) {
+        setSelectedAppForManageShares(app)
+        setManageSharesDialogOpen(true)
+      }
+    },
+    [apps]
+  )
 
   const handleSharesChanged = useCallback(async () => {
     await refreshApps()
@@ -603,9 +617,12 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     [deleteApp, selectedAppId, updateUrl]
   )
 
-  const handleDuplicateApp = useCallback(async (id: string) => {
+  const handleDuplicateApp = useCallback(
+    async (id: string) => {
       await duplicateApp(id)
-  }, [duplicateApp])
+    },
+    [duplicateApp]
+  )
 
   const handleExportApp = useCallback(
     async (id: string) => {
@@ -630,7 +647,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         setSelectedAppForShare(app)
         // Get shared users from API (returns basic info)
         const shares = await getSharedUsers(id)
-        
+
         // Fetch user details via GraphQL for each shared user
         if (graphqlClient && shares.length > 0) {
           const enrichedUsers = await Promise.all(
@@ -714,13 +731,13 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     await refreshApps()
   }, [selectedAppForShare, getSharedUsers, refreshApps])
 
-  const handlePromoteApp = useCallback(
-    async (id: string) => {
-      const app = await loadApp(id)
-      if (app) setAppToPromote(app)
-    },
-    [loadApp]
-  )
+  // const _handlePromoteApp = useCallback(
+  //   async (id: string) => {
+  //     const app = await loadApp(id)
+  //     if (app) setAppToPromote(app)
+  //   },
+  //   [loadApp]
+  // )
 
   const handlePromoteExecute = useCallback(
     async (app: SpreadsheetApp, entityName: string) => {
@@ -822,19 +839,27 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       <SpreadsheetAppViewer
         app={currentApp}
         onBack={handleBack}
-        onEdit={canEdit ? () => {
+        onEdit={
+          canEdit
+            ? () => {
                 setCurrentView('editor')
                 updateUrl(currentApp.id, 'editor', currentApp.filePath)
-        } : undefined}
+              }
+            : undefined
+        }
         onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
         onSheetUpdate={canEdit ? updateSheet : undefined}
         onRowAdd={canEdit ? addRow : undefined}
         onRowUpdate={canEdit ? updateRow : undefined}
-        onDataChange={canEdit ? (sheetId, data) => {
+        onDataChange={
+          canEdit
+            ? (sheetId, data) => {
                 const latestApp = currentAppRef.current
                 if (!latestApp) return
                 updateSheetData(latestApp.id, sheetId, data)
-        } : undefined}
+              }
+            : undefined
+        }
         isEditing={canEdit}
         accessToken={accessToken}
         userId={currentUserId}
@@ -865,13 +890,20 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   // Section title helper
   const getSectionTitle = () => {
     switch (activeSection) {
-      case 'home': return 'Home'
-      case 'my-files': return 'My Spreadsheets'
-      case 'shared': return 'Shared with me'
-      case 'favorites': return 'Favorites'
-      case 'recent': return 'Recent'
-      case 'trash': return 'Trash'
-      default: return 'Spreadsheets'
+      case 'home':
+        return 'Home'
+      case 'my-files':
+        return 'My Spreadsheets'
+      case 'shared':
+        return 'Shared with me'
+      case 'favorites':
+        return 'Favorites'
+      case 'recent':
+        return 'Recent'
+      case 'trash':
+        return 'Trash'
+      default:
+        return 'Spreadsheets'
     }
   }
 
@@ -881,43 +913,53 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       <aside className="gba:w-60 gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0">
         {/* Logo / Brand */}
         <div className="gba:p-4 gba:border-b">
+          {/* Back button row */}
+          <button
+            onClick={() => navigateTo('/platform/apps/platform/apps/desk')}
+            className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors gba:mb-3"
+          >
+            <ChevronLeft className="gba:w-4 gba:h-4" />
+            <span>Back to Desk</span>
+          </button>
+
+          {/* Existing brand section */}
           <div className="gba:flex gba:items-center gba:gap-3">
             <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-emerald-500 gba:to-teal-600 gba:flex gba:items-center gba:justify-center">
               <FileSpreadsheet className="gba:w-5 gba:h-5 gba:text-white" />
-              </div>
-              <div>
+            </div>
+            <div>
               <h1 className="gba:font-semibold gba:text-foreground">Spreadsheets</h1>
               <p className="gba:text-xs gba:text-muted-foreground">NEWWORK Apps</p>
             </div>
-              </div>
-            </div>
+          </div>
+        </div>
 
         {/* New Button */}
         <div className="gba:p-3">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button className="gba:w-full gba:justify-start gba:gap-2 gba:bg-gradient-to-r gba:from-emerald-500 gba:to-teal-600 gba:text-white hover:gba:from-emerald-600 hover:gba:to-teal-700">
                 <Plus className="gba:w-4 gba:h-4" />
                 New
-                    </Button>
-                  </DropdownMenuTrigger>
+              </Button>
+            </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="gba:w-56">
-                    <DropdownMenuItem onClick={() => setIsCreateEmptyDialogOpen(true)}>
+              <DropdownMenuItem onClick={() => setIsCreateEmptyDialogOpen(true)}>
                 <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-emerald-500" />
                 <div>
                   <div className="gba:font-medium">Blank Spreadsheet</div>
                   <div className="gba:text-xs gba:text-muted-foreground">Start from scratch</div>
                 </div>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleStartUpload}>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleStartUpload}>
                 <Upload className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
                 <div>
                   <div className="gba:font-medium">Upload Excel</div>
                   <div className="gba:text-xs gba:text-muted-foreground">Import .xlsx or .xls file</div>
                 </div>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Navigation */}
@@ -957,9 +999,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             >
               <Users className="gba:w-4 gba:h-4" />
               Shared with me
-              {apps.filter(a => a.isShared && !(a.isOwner ?? (a.createdBy === currentUserId))).length > 0 && (
+              {apps.filter(a => a.isShared && !(a.isOwner ?? a.createdBy === currentUserId)).length > 0 && (
                 <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                  {apps.filter(a => a.isShared && !(a.isOwner ?? (a.createdBy === currentUserId))).length}
+                  {apps.filter(a => a.isShared && !(a.isOwner ?? a.createdBy === currentUserId)).length}
                 </Badge>
               )}
             </button>
@@ -987,27 +1029,27 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
               <Clock className="gba:w-4 gba:h-4" />
               Recent
             </button>
-            </div>
+          </div>
 
           <div className="gba:mt-6 gba:pt-4 gba:border-t">
             <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Storage</p>
             <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
               <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <Database className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-emerald-500' : 'gba:text-amber-500'}`} />
+                <Database
+                  className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-emerald-500' : 'gba:text-amber-500'}`}
+                />
                 <span className="gba:text-xs gba:text-muted-foreground">
                   {storageMode === 'database' ? 'Cloud storage' : 'Local storage'}
                 </span>
-          </div>
+              </div>
               <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
-                <div 
+                <div
                   className="gba:h-full gba:bg-gradient-to-r gba:from-emerald-500 gba:to-teal-500 gba:rounded-full"
                   style={{ width: `${Math.min((apps.length / 50) * 100, 100)}%` }}
                 />
-        </div>
-              <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">
-                {apps.length} spreadsheets
-              </p>
-      </div>
+              </div>
+              <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">{apps.length} spreadsheets</p>
+            </div>
           </div>
         </nav>
       </aside>
@@ -1017,37 +1059,35 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         {/* Upload View */}
         {currentView === 'upload' && (
           <div className="gba:flex-1 gba:overflow-auto gba:p-8">
-          <div className="gba:max-w-2xl gba:mx-auto gba:space-y-6">
+            <div className="gba:max-w-2xl gba:mx-auto gba:space-y-6">
               <Button variant="ghost" onClick={handleBack} className="gba:mb-4">
                 <X className="gba:w-4 gba:h-4 gba:mr-2" />
                 Cancel
               </Button>
-              
-            <div className="gba:text-center gba:mb-8">
+
+              <div className="gba:text-center gba:mb-8">
                 <div className="gba:w-16 gba:h-16 gba:rounded-2xl gba:bg-gradient-to-br gba:from-emerald-500 gba:to-teal-600 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
                   <Upload className="gba:w-8 gba:h-8 gba:text-white" />
                 </div>
                 <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">Upload Excel File</h2>
-              <p className="gba:text-muted-foreground">
-                  Transform your spreadsheet into a powerful app with AI
-              </p>
-            </div>
+                <p className="gba:text-muted-foreground">Transform your spreadsheet into a powerful app with AI</p>
+              </div>
 
-            <ExcelUploader
-              onFileParsed={handleFileParsed}
-              onError={error => console.error(error)}
-              data-testid={`${testId}-uploader`}
-            />
+              <ExcelUploader
+                onFileParsed={handleFileParsed}
+                onError={error => console.error(error)}
+                data-testid={`${testId}-uploader`}
+              />
 
-            {isAnalyzing && (
-              <Card className="gba:p-8 gba:text-center">
-                <Spinner size="lg" className="gba:mx-auto gba:mb-4" />
+              {isAnalyzing && (
+                <Card className="gba:p-8 gba:text-center">
+                  <Spinner size="lg" className="gba:mx-auto gba:mb-4" />
                   <h3 className="gba:font-semibold gba:text-foreground gba:mb-2">Analyzing your spreadsheet...</h3>
-                <p className="gba:text-sm gba:text-muted-foreground">
+                  <p className="gba:text-sm gba:text-muted-foreground">
                     AI is detecting column types and suggesting the best structure
-                </p>
-              </Card>
-            )}
+                  </p>
+                </Card>
+              )}
             </div>
           </div>
         )}
@@ -1055,18 +1095,18 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         {/* Analysis View */}
         {currentView === 'analysis' && analysis && (
           <div className="gba:flex-1 gba:overflow-auto gba:p-8">
-          <div className="gba:max-w-4xl gba:mx-auto">
+            <div className="gba:max-w-4xl gba:mx-auto">
               <Button variant="ghost" onClick={handleBack} className="gba:mb-4">
                 <X className="gba:w-4 gba:h-4 gba:mr-2" />
                 Cancel
               </Button>
-            <SheetAnalysisPreview
-              analysis={analysis}
-              onConfirm={handleAnalysisConfirm}
-              onReanalyze={handleReanalyze}
-              isLoading={isAnalyzing}
-              data-testid={`${testId}-analysis`}
-            />
+              <SheetAnalysisPreview
+                analysis={analysis}
+                onConfirm={handleAnalysisConfirm}
+                onReanalyze={handleReanalyze}
+                isLoading={isAnalyzing}
+                data-testid={`${testId}-analysis`}
+              />
             </div>
           </div>
         )}
@@ -1091,23 +1131,36 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                         Clear ({selectedApps.size})
                       </Button>
                       <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-2" />
-                      <Button variant="ghost" size="sm" onClick={() => {
-                        selectedApps.forEach(id => handleShareApp(id))
-                      }}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          selectedApps.forEach(id => handleShareApp(id))
+                        }}
+                      >
                         <Share2 className="gba:w-4 gba:h-4 gba:mr-1" />
                         Share
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => {
-                        selectedApps.forEach(id => handleExportApp(id))
-                      }}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          selectedApps.forEach(id => handleExportApp(id))
+                        }}
+                      >
                         <Download className="gba:w-4 gba:h-4 gba:mr-1" />
                         Download
                       </Button>
-                      <Button variant="ghost" size="sm" className="gba:text-destructive" onClick={() => {
-                        if (confirm(`Delete ${selectedApps.size} spreadsheet(s)?`)) {
-                          selectedApps.forEach(id => handleDeleteApp(id))
-                        }
-                      }}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gba:text-destructive"
+                        onClick={() => {
+                          if (confirm(`Delete ${selectedApps.size} spreadsheet(s)?`)) {
+                            selectedApps.forEach(id => handleDeleteApp(id))
+                          }
+                        }}
+                      >
                         <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
                         Delete
                       </Button>
@@ -1122,15 +1175,30 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">
-                          <DropdownMenuItem onClick={() => { setSortBy('name'); setSortOrder('asc') }}>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSortBy('name')
+                              setSortOrder('asc')
+                            }}
+                          >
                             {sortBy === 'name' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
                             Name
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => { setSortBy('modified'); setSortOrder('desc') }}>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSortBy('modified')
+                              setSortOrder('desc')
+                            }}
+                          >
                             {sortBy === 'modified' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
                             Modified
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => { setSortBy('created'); setSortOrder('desc') }}>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSortBy('created')
+                              setSortOrder('desc')
+                            }}
+                          >
                             {sortBy === 'created' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
                             Created
                           </DropdownMenuItem>
@@ -1144,71 +1212,75 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                 </div>
 
                 <div className="gba:flex gba:items-center gba:gap-2">
-                <div className="gba:relative">
-                  <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
-                  <Input
+                  <div className="gba:relative">
+                    <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                    <Input
                       placeholder="Search..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
                       className="gba:pl-9 gba:w-64 gba:h-9"
-                  />
-                </div>
+                    />
+                  </div>
                   <div className="gba:flex gba:items-center gba:border gba:rounded-md">
-                <Button
+                    <Button
                       variant={viewLayout === 'list' ? 'secondary' : 'ghost'}
-                  size="sm"
+                      size="sm"
                       onClick={() => setViewLayout('list')}
                       className="gba:rounded-r-none"
-                >
+                    >
                       <List className="gba:w-4 gba:h-4" />
-                </Button>
-                <Button
+                    </Button>
+                    <Button
                       variant={viewLayout === 'grid' ? 'secondary' : 'ghost'}
-                  size="sm"
+                      size="sm"
                       onClick={() => setViewLayout('grid')}
                       className="gba:rounded-l-none"
-                >
+                    >
                       <LayoutGrid className="gba:w-4 gba:h-4" />
-                </Button>
-              </div>
-            </div>
+                    </Button>
+                  </div>
+                </div>
               </div>
             </header>
 
             {/* Content Area */}
             <div className="gba:flex-1 gba:overflow-auto">
-            {/* Loading state */}
-            {isLoadingApps && (
-              <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
-                <Spinner size="lg" />
-              </div>
-            )}
-
-            {/* Error state */}
-            {appsError && (
-                <div className="gba:p-6">
-              <Card className="gba:p-6 gba:text-center">
-                <AlertCircle className="gba:w-12 gba:h-12 gba:text-destructive gba:mx-auto gba:mb-4" />
-                <p className="gba:text-destructive">{appsError}</p>
-              </Card>
+              {/* Loading state */}
+              {isLoadingApps && (
+                <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
+                  <Spinner size="lg" />
                 </div>
-            )}
+              )}
 
-            {/* Empty state */}
-            {!isLoadingApps && !appsError && filteredApps.length === 0 && (
+              {/* Error state */}
+              {appsError && (
+                <div className="gba:p-6">
+                  <Card className="gba:p-6 gba:text-center">
+                    <AlertCircle className="gba:w-12 gba:h-12 gba:text-destructive gba:mx-auto gba:mb-4" />
+                    <p className="gba:text-destructive">{appsError}</p>
+                  </Card>
+                </div>
+              )}
+
+              {/* Empty state */}
+              {!isLoadingApps && !appsError && filteredApps.length === 0 && (
                 <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-20 gba:px-4">
                   <div className="gba:w-24 gba:h-24 gba:rounded-3xl gba:bg-gradient-to-br gba:from-emerald-500/20 gba:to-teal-500/20 gba:flex gba:items-center gba:justify-center gba:mb-6">
                     <FileSpreadsheet className="gba:w-12 gba:h-12 gba:text-emerald-500" />
                   </div>
                   <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">
-                    {activeSection === 'favorites' ? 'No favorites yet' :
-                     activeSection === 'shared' ? 'Nothing shared with you' :
-                     'No spreadsheets yet'}
+                    {activeSection === 'favorites'
+                      ? 'No favorites yet'
+                      : activeSection === 'shared'
+                        ? 'Nothing shared with you'
+                        : 'No spreadsheets yet'}
                   </h3>
                   <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
-                    {activeSection === 'favorites' ? 'Star your frequently used spreadsheets to see them here.' :
-                     activeSection === 'shared' ? 'When someone shares a spreadsheet with you, it will appear here.' :
-                     'Create your first spreadsheet to get started.'}
+                    {activeSection === 'favorites'
+                      ? 'Star your frequently used spreadsheets to see them here.'
+                      : activeSection === 'shared'
+                        ? 'When someone shares a spreadsheet with you, it will appear here.'
+                        : 'Create your first spreadsheet to get started.'}
                   </p>
                   {activeSection !== 'favorites' && activeSection !== 'shared' && (
                     <div className="gba:flex gba:gap-3">
@@ -1238,24 +1310,33 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                         />
                       </div>
                       <div className="gba:w-8 gba:flex-shrink-0" />
-                      <div 
+                      <div
                         className="gba:flex-1 gba:min-w-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
-                        onClick={() => { setSortBy('name'); setSortOrder(sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc') }}
+                        onClick={() => {
+                          setSortBy('name')
+                          setSortOrder(sortBy === 'name' && sortOrder === 'asc' ? 'desc' : 'asc')
+                        }}
                       >
                         Name
                         {sortBy === 'name' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                       </div>
-                      <div 
+                      <div
                         className="gba:w-36 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
-                        onClick={() => { setSortBy('modified'); setSortOrder(sortBy === 'modified' && sortOrder === 'desc' ? 'asc' : 'desc') }}
+                        onClick={() => {
+                          setSortBy('modified')
+                          setSortOrder(sortBy === 'modified' && sortOrder === 'desc' ? 'asc' : 'desc')
+                        }}
                       >
                         Modified
                         {sortBy === 'modified' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
                       </div>
                       <div className="gba:w-40 gba:flex-shrink-0">Modified By</div>
-                      <div 
+                      <div
                         className="gba:w-32 gba:flex-shrink-0 gba:cursor-pointer hover:gba:text-foreground gba:flex gba:items-center gba:gap-1"
-                        onClick={() => { setSortBy('created'); setSortOrder(sortBy === 'created' && sortOrder === 'desc' ? 'asc' : 'desc') }}
+                        onClick={() => {
+                          setSortBy('created')
+                          setSortOrder(sortBy === 'created' && sortOrder === 'desc' ? 'asc' : 'desc')
+                        }}
                       >
                         Created
                         {sortBy === 'created' && <ArrowUpDown className="gba:w-3 gba:h-3" />}
@@ -1268,7 +1349,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                   {/* Table Body */}
                   <div className="gba:divide-y gba:divide-border">
                     {filteredApps.map(app => {
-                      const isOwner = app.isOwner ?? (app.createdBy === currentUserId)
+                      const isOwner = app.isOwner ?? app.createdBy === currentUserId
                       const isSelected = selectedApps.has(app.id)
                       const isFavorite = favorites.has(app.id)
                       const ownerInfo = app.createdBy ? ownerInfoMap.get(app.createdBy) : undefined
@@ -1276,7 +1357,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
                       return (
                         <div
-                    key={app.id}
+                          key={app.id}
                           className={`gba:flex gba:items-center gba:px-4 gba:py-3 gba:transition-colors gba:cursor-pointer ${
                             isSelected ? 'gba:bg-primary/5' : 'hover:gba:bg-muted/30'
                           }`}
@@ -1284,10 +1365,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                         >
                           {/* Checkbox */}
                           <div className="gba:w-8 gba:flex-shrink-0" onClick={e => e.stopPropagation()}>
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={() => toggleSelectApp(app.id)}
-                            />
+                            <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectApp(app.id)} />
                           </div>
 
                           {/* Star */}
@@ -1332,7 +1410,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                           className="gba:flex gba:items-center gba:-space-x-1 hover:gba:opacity-80 gba:transition-opacity"
                                         >
                                           {sharedWith.slice(0, 3).map(user => (
-                                            <Avatar key={user.userId} className="gba:w-5 gba:h-5 gba:border gba:border-background">
+                                            <Avatar
+                                              key={user.userId}
+                                              className="gba:w-5 gba:h-5 gba:border gba:border-background"
+                                            >
                                               {user.userAvatar && <AvatarImage src={user.userAvatar} />}
                                               <AvatarFallback className="gba:text-[8px] gba:bg-muted">
                                                 {user.userName ? getInitials(user.userName) : '?'}
@@ -1342,23 +1423,26 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                           {sharedWith.length > 3 && (
                                             <div className="gba:w-5 gba:h-5 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-[8px] gba:border gba:border-background">
                                               +{sharedWith.length - 3}
-              </div>
+                                            </div>
                                           )}
                                         </button>
                                       </TooltipTrigger>
                                       <TooltipContent>
-                                        <p>Shared with {sharedWith.length} {sharedWith.length === 1 ? 'person' : 'people'}</p>
+                                        <p>
+                                          Shared with {sharedWith.length}{' '}
+                                          {sharedWith.length === 1 ? 'person' : 'people'}
+                                        </p>
                                         <p className="gba:text-xs gba:text-muted-foreground">Click to manage</p>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
-            )}
-          </div>
+                                )}
+                              </div>
                               {app.description && (
                                 <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{app.description}</p>
-        )}
+                              )}
                             </div>
-      </div>
+                          </div>
 
                           {/* Modified */}
                           <div className="gba:w-36 gba:flex-shrink-0 gba:text-sm gba:text-muted-foreground">
@@ -1367,7 +1451,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
                           {/* Modified By */}
                           <div className="gba:w-40 gba:flex-shrink-0">
-            <div className="gba:flex gba:items-center gba:gap-2">
+                            <div className="gba:flex gba:items-center gba:gap-2">
                               <Avatar className="gba:w-6 gba:h-6">
                                 {ownerInfo?.avatar && <AvatarImage src={ownerInfo.avatar} />}
                                 <AvatarFallback className="gba:text-[10px] gba:bg-muted">
@@ -1391,7 +1475,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                           </div>
 
                           {/* Actions */}
-                          <div className="gba:w-10 gba:flex-shrink-0 gba:flex gba:justify-end" onClick={e => e.stopPropagation()}>
+                          <div
+                            className="gba:w-10 gba:flex-shrink-0 gba:flex gba:justify-end"
+                            onClick={e => e.stopPropagation()}
+                          >
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="sm" className="gba:h-8 gba:w-8 gba:p-0">
@@ -1433,11 +1520,13 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                   Duplicate
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => toggleFavorite(app.id)}>
-                                  <Star className={`gba:w-4 gba:h-4 gba:mr-2 ${isFavorite ? 'gba:fill-current gba:text-amber-500' : ''}`} />
+                                  <Star
+                                    className={`gba:w-4 gba:h-4 gba:mr-2 ${isFavorite ? 'gba:fill-current gba:text-amber-500' : ''}`}
+                                  />
                                   {isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem 
+                                <DropdownMenuItem
                                   className="gba:text-destructive"
                                   onClick={() => handleDeleteApp(app.id)}
                                 >
@@ -1458,7 +1547,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
               {!isLoadingApps && filteredApps.length > 0 && viewLayout === 'grid' && (
                 <div className="gba:p-6 gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:xl:grid-cols-5 gba:gap-4">
                   {filteredApps.map(app => {
-                    const isOwner = app.isOwner ?? (app.createdBy === currentUserId)
+                    const isOwner = app.isOwner ?? app.createdBy === currentUserId
                     const isSelected = selectedApps.has(app.id)
                     const isFavorite = favorites.has(app.id)
 
@@ -1485,7 +1574,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                           <div className="gba:absolute gba:inset-0 gba:bg-black/0 group-hover:gba:bg-black/5 gba:transition-colors gba:rounded-t-lg" />
 
                           {/* Selection checkbox */}
-                          <div 
+                          <div
                             className={`gba:absolute gba:top-2 gba:left-2 gba:opacity-0 group-hover:gba:opacity-100 ${isSelected ? 'gba:opacity-100' : ''} gba:transition-opacity`}
                             onClick={e => e.stopPropagation()}
                           >
@@ -1494,7 +1583,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                               onCheckedChange={() => toggleSelectApp(app.id)}
                               className="gba:bg-background"
                             />
-            </div>
+                          </div>
 
                           {/* Favorite star */}
                           <button
@@ -1511,7 +1600,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                               Shared
                             </Badge>
                           )}
-            </div>
+                        </div>
 
                         {/* Info */}
                         <div className="gba:p-3">
@@ -1519,11 +1608,11 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                           <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
                             <span>{formatRelativeTime(app.updatedAt)}</span>
                             <span>{app.rowCount} rows</span>
-            </div>
-          </div>
+                          </div>
+                        </div>
 
                         {/* Quick actions on hover */}
-                        <div 
+                        <div
                           className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:p-2 gba:bg-gradient-to-t gba:from-background gba:via-background/95 gba:to-transparent gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:flex gba:justify-center gba:gap-1"
                           onClick={e => e.stopPropagation()}
                         >
@@ -1555,7 +1644,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                 Download
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 className="gba:text-destructive"
                                 onClick={() => handleDeleteApp(app.id)}
                               >
@@ -1568,8 +1657,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                       </Card>
                     )
                   })}
-        </div>
-      )}
+                </div>
+              )}
             </div>
           </>
         )}

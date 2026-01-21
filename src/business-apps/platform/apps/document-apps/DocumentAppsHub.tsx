@@ -54,9 +54,11 @@ import {
   LayoutGrid,
   Archive,
   Send,
-  Sparkles
+  Sparkles,
+  ChevronLeft
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 // Components
 import { WordUploader } from './components/WordUploader'
@@ -197,7 +199,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       urlParams.delete('docId')
       urlParams.delete('view')
     }
-    const newUrl = urlParams.toString() ? `${window.location.pathname}?${urlParams.toString()}` : window.location.pathname
+    const newUrl = urlParams.toString()
+      ? `${window.location.pathname}?${urlParams.toString()}`
+      : window.location.pathname
     window.history.pushState({ docId, view }, '', newUrl)
   }, [])
 
@@ -251,8 +255,11 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   useEffect(() => {
     const referrer = document.referrer
     const urlParams = new URLSearchParams(window.location.search)
-    cameFromDeskRef.current = referrer.includes('/platform/apps/desk') || referrer.includes('?app=platform/apps/desk') || urlParams.get('from') === 'desk'
-    
+    cameFromDeskRef.current =
+      referrer.includes('/platform/apps/desk') ||
+      referrer.includes('?app=platform/apps/desk') ||
+      urlParams.get('from') === 'desk'
+
     // Push state to track navigation from desk
     if (cameFromDeskRef.current && currentView === 'list') {
       window.history.replaceState({ fromDesk: true }, '', window.location.href)
@@ -263,13 +270,13 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
       const state = event.state as { docId?: string; view?: HubView; fromDesk?: boolean } | null
-      
+
       // If we came from desk and there's no document, go back to desk
       if (state?.fromDesk && !state?.docId && currentView === 'list') {
         navigateTo('/platform/apps/desk')
         return
       }
-      
+
       if (state?.docId) {
         loadDocument(state.docId).then(doc => {
           if (doc) {
@@ -431,7 +438,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     const archived: DocumentSummary[] = []
 
     // Sort by updatedAt for recent
-    const sortedByDate = [...documents].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    const sortedByDate = [...documents].sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    )
     const recent = sortedByDate.slice(0, 10)
 
     documents.forEach(doc => {
@@ -505,7 +514,18 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     })
 
     return baseDocuments
-  }, [myDocuments, sharedDocuments, recentDocuments, archivedDocuments, documents, activeSection, searchQuery, sortBy, sortOrder, favorites])
+  }, [
+    myDocuments,
+    sharedDocuments,
+    recentDocuments,
+    archivedDocuments,
+    documents,
+    activeSection,
+    searchQuery,
+    sortBy,
+    sortOrder,
+    favorites
+  ])
 
   /**
    * Handle Word file parsed from uploader
@@ -812,6 +832,16 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       <aside className="gba:w-60 gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0">
         {/* Logo / Brand */}
         <div className="gba:p-4 gba:border-b">
+          {/* Back button row */}
+          <button
+            onClick={() => navigateTo('/platform/apps/platform/apps/desk')}
+            className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors gba:mb-3"
+          >
+            <ChevronLeft className="gba:w-4 gba:h-4" />
+            <span>Back to Desk</span>
+          </button>
+
+          {/* Existing brand section */}
           <div className="gba:flex gba:items-center gba:gap-3">
             <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-blue-500 gba:to-indigo-600 gba:flex gba:items-center gba:justify-center">
               <FileText className="gba:w-5 gba:h-5 gba:text-white" />
@@ -960,7 +990,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
             <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Storage</p>
             <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
               <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <Database className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-blue-500' : 'gba:text-amber-500'}`} />
+                <Database
+                  className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-blue-500' : 'gba:text-amber-500'}`}
+                />
                 <span className="gba:text-xs gba:text-muted-foreground">
                   {storageMode === 'database' ? 'Cloud storage' : 'Local storage'}
                 </span>
@@ -1016,7 +1048,11 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
               </div>
             </header>
             <div className="gba:flex-1 gba:overflow-auto gba:p-6">
-              <TemplateGallery templates={templates} onSelectTemplate={handleSelectTemplate} data-testid={`${testId}-templates`} />
+              <TemplateGallery
+                templates={templates}
+                onSelectTemplate={handleSelectTemplate}
+                data-testid={`${testId}-templates`}
+              />
             </div>
           </>
         )}
@@ -1265,7 +1301,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                   </Badge>
                                 )}
                                 {doc.status === 'approved' && (
-                                  <Badge variant="secondary" className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:bg-success/20 gba:text-success">
+                                  <Badge
+                                    variant="secondary"
+                                    className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:bg-success/20 gba:text-success"
+                                  >
                                     Approved
                                   </Badge>
                                 )}
@@ -1286,7 +1325,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                           className="gba:flex gba:items-center gba:-space-x-1 hover:gba:opacity-80 gba:transition-opacity"
                                         >
                                           {sharedWith.slice(0, 3).map(user => (
-                                            <Avatar key={user.userId} className="gba:w-5 gba:h-5 gba:border gba:border-background">
+                                            <Avatar
+                                              key={user.userId}
+                                              className="gba:w-5 gba:h-5 gba:border gba:border-background"
+                                            >
                                               {user.userAvatar && <AvatarImage src={user.userAvatar} />}
                                               <AvatarFallback className="gba:text-[8px] gba:bg-muted">
                                                 {user.userName ? getInitials(user.userName) : '?'}
@@ -1302,7 +1344,8 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                       </TooltipTrigger>
                                       <TooltipContent>
                                         <p>
-                                          Shared with {sharedWith.length} {sharedWith.length === 1 ? 'person' : 'people'}
+                                          Shared with {sharedWith.length}{' '}
+                                          {sharedWith.length === 1 ? 'person' : 'people'}
                                         </p>
                                         <p className="gba:text-xs gba:text-muted-foreground">Click to manage</p>
                                       </TooltipContent>
@@ -1342,7 +1385,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                           </div>
 
                           {/* Actions */}
-                          <div className="gba:w-10 gba:flex-shrink-0 gba:flex gba:justify-end" onClick={e => e.stopPropagation()}>
+                          <div
+                            className="gba:w-10 gba:flex-shrink-0 gba:flex gba:justify-end"
+                            onClick={e => e.stopPropagation()}
+                          >
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="sm" className="gba:h-8 gba:w-8 gba:p-0">
@@ -1388,7 +1434,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                                   {isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="gba:text-destructive" onClick={() => handleDeleteDocument(doc.id)}>
+                                <DropdownMenuItem
+                                  className="gba:text-destructive"
+                                  onClick={() => handleDeleteDocument(doc.id)}
+                                >
                                   <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
                                   Delete
                                 </DropdownMenuItem>
@@ -1463,7 +1512,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
                         {/* Info */}
                         <div className="gba:p-3">
-                          <h3 className="gba:font-medium gba:text-foreground gba:truncate gba:mb-1">{doc.title || 'Untitled'}</h3>
+                          <h3 className="gba:font-medium gba:text-foreground gba:truncate gba:mb-1">
+                            {doc.title || 'Untitled'}
+                          </h3>
                           <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground">
                             <span>{formatRelativeTime(doc.updatedAt)}</span>
                           </div>
