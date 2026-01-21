@@ -4,11 +4,12 @@ import React from 'react'
 import { Card, Button, Combobox, Spinner, Alert } from '@newwork/nw-design-system'
 import { Play as PlayIcon } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import ServiceIqForm from './SerficeFormIq'
 
 // Lazy imports so initial load doesn't pull heavy libs until needed
 type ZXingReader = typeof import('@zxing/library')
 
-export interface WebcamUserIdScannerProps extends Pick<BusinessAppContextProps, 'userInfo'> {
+export interface WebcamUserIdScannerProps extends Pick<BusinessAppContextProps, 'userInfo' | 'accessToken'> {
   onDetected?: (userId: string, raw?: string) => void
 }
 
@@ -16,17 +17,20 @@ type ScanMode = 'barcode' | 'ocr'
 
 const DEFAULT_ID_REGEX = String.raw`(?:\b(?:User|Employee|Emp|ID|UID)\b[:\s#-]*([A-Za-z0-9_-]{5,}))|\b([0-9]{6,12})\b`
 
-export const WebcamUserIdScanner: React.FC<WebcamUserIdScannerProps> = ({ onDetected }) => {
+export const WebcamUserIdScanner: React.FC<WebcamUserIdScannerProps> = ({ onDetected, userInfo, accessToken }) => {
   const videoRef = React.useRef<HTMLVideoElement | null>(null)
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const [selectedDeviceId, setSelectedDeviceId] = React.useState<string>('')
 
   // Track flow stage and detected values across stages
-  type Stage = 'user' | 'invoice'
+  type Stage = 'user' | 'invoice' | 'form'
   const getStageFromUrl = (): Stage => {
     try {
       const sp = new URLSearchParams(window.location.search)
-      return sp.get('stage') === 'invoice' ? 'invoice' : 'user'
+      const stageParam = sp.get('stage')
+      if (stageParam === 'invoice') return 'invoice'
+      if (stageParam === 'form') return 'form'
+      return 'user'
     } catch {
       return 'user'
     }
@@ -48,6 +52,8 @@ export const WebcamUserIdScanner: React.FC<WebcamUserIdScannerProps> = ({ onDete
   const [invoiceNumber, setInvoiceNumber] = React.useState<string>('')
   const [selectedItem, setSelectedItem] = React.useState<string>('')
   const [userScanCompleted, setUserScanCompleted] = React.useState<boolean>(false)
+  const [manualUserIdInput, setManualUserIdInput] = React.useState<string>('')
+  const [manualInvoiceInput, setManualInvoiceInput] = React.useState<string>('')
 
   const zxingReaderRef = React.useRef<InstanceType<ZXingReader['BrowserMultiFormatReader']> | null>(null)
   const currentStreamRef = React.useRef<MediaStream | null>(null)
@@ -299,6 +305,26 @@ export const WebcamUserIdScanner: React.FC<WebcamUserIdScannerProps> = ({ onDete
     else startCameraForOcr()
   }
 
+  // Render Service IQ Form instead of scanner when in 'form' stage
+  if (stage === 'form') {
+    return (
+      <ServiceIqForm
+        userInfo={userInfo}
+        accessToken={accessToken}
+        initialData={{
+          client: 'NewWork SRL',
+          phoneNumber: '0722456789',
+          address: 'Selgros',
+          buyer: 'Bogdan Iliescu',
+          article: selectedItem,
+          articleName: selectedItem,
+          numarFactura: invoiceNumber
+        }}
+        onCancel={() => navigateToStage('user')}
+      />
+    )
+  }
+
   return (
     <div className="gba:p-6 gba:min-h-screen gba:bg-background" data-testid="webcam-userid-scanner">
       <div className="gba:mb-4 gba:flex gba:items-start gba:justify-between gba:gap-4">
@@ -344,6 +370,68 @@ export const WebcamUserIdScanner: React.FC<WebcamUserIdScannerProps> = ({ onDete
         </div>
 
         <div className="gba:space-y-6">
+          {stage === 'user' && (
+            <Card className="gba:p-4">
+              <div className="gba:space-y-3">
+                <h2 className="gba:text-2xl gba:font-bold">Manual insert User ID</h2>
+                <form
+                  className="gba:flex gba:items-center gba:gap-2"
+                  onSubmit={e => {
+                    e.preventDefault()
+                    const value = manualUserIdInput.trim()
+                    if (!value) return
+                    clearAutoStopTimer()
+                    stopCamera()
+                    setUserIdAndPersist(value)
+                    setUserScanCompleted(true)
+                  }}
+                >
+                  <input
+                    type="text"
+                    value={manualUserIdInput}
+                    onChange={e => setManualUserIdInput(e.target.value)}
+                    placeholder="Enter UserID"
+                    className="gba:flex-1 gba:h-9 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-1 gba:text-sm gba:outline-none focus:gba:ring-2 focus:gba:ring-ring"
+                    data-testid="manual-userid-input"
+                  />
+                  <Button type="submit" data-testid="manual-userid-submit">
+                    Submit
+                  </Button>
+                </form>
+              </div>
+            </Card>
+          )}
+          {stage === 'invoice' && (
+            <Card className="gba:p-4">
+              <div className="gba:space-y-3">
+                <h2 className="gba:text-2xl gba:font-bold">Manual insert Invoice Number</h2>
+                <form
+                  className="gba:flex gba:items-center gba:gap-2"
+                  onSubmit={e => {
+                    e.preventDefault()
+                    const value = manualInvoiceInput.trim()
+                    if (!value) return
+                    clearAutoStopTimer()
+                    stopCamera()
+                    setInvoiceNumber(value)
+                    setSelectedItem('')
+                  }}
+                >
+                  <input
+                    type="text"
+                    value={manualInvoiceInput}
+                    onChange={e => setManualInvoiceInput(e.target.value)}
+                    placeholder="Enter Invoice Number"
+                    className="gba:flex-1 gba:h-9 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-1 gba:text-sm gba:outline-none focus:gba:ring-2 focus:gba:ring-ring"
+                    data-testid="manual-invoice-input"
+                  />
+                  <Button type="submit" data-testid="manual-invoice-submit">
+                    Submit
+                  </Button>
+                </form>
+              </div>
+            </Card>
+          )}
           <Card className="gba:p-4">
             <div className="gba:space-y-3">
               {(stage === 'invoice' ? !!userId : userId && userScanCompleted) && (
@@ -383,6 +471,14 @@ export const WebcamUserIdScanner: React.FC<WebcamUserIdScannerProps> = ({ onDete
               )}
             </div>
           </Card>
+
+          {stage === 'invoice' && userId && invoiceNumber && selectedItem && (
+            <div className="gba:flex gba:justify-end">
+              <Button variant="default" onClick={() => navigateToStage('form')} data-testid="open-service-iq-form">
+                Open Form
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>
