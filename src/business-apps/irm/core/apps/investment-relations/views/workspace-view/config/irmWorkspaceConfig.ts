@@ -1,21 +1,24 @@
+import { PersonalWorkspaceConfig } from '@/common/components/common-relations/view-layouts/personal-workspace/types/configTypes'
 import {
-  PersonalWorkspaceConfig,
-  type MyTasksViewConfig,
-  type MyActivitiesViewConfig
-} from '@/common/components/common-relations/view-layouts/personal-workspace/types/configTypes'
-import { useIrmKpisAdapter, useIrmActivitiesAdapter, useIrmTasksAdapter } from '../hooks/usePersonalWorkspaceAdapters'
+  useIrmKpisAdapter,
+  useIrmRecentActivitiesAdapter,
+  useIrmCombinedCalendarAdapter,
+  useIrmTasksAdapter
+} from '../hooks/usePersonalWorkspaceAdapters'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { TargetIcon, BuildingsIcon, UsersIcon, ChartPieIcon, UserIcon, ChartLineUpIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { MyActivitiesTab } from '../components/MyActivitiesTab'
+import { MyTasksTab } from '../components/MyTasksTab'
 
 /**
  * IRM-specific configuration for Personal Workspace
  * Following the agnostic pattern - no UI metadata, only behavioral configuration
+ * Provides factory functions for lazy loading tab-specific data
  */
 const buildIrmWorkspaceConfig = (
-  context: BusinessAppContextProps,
-  myTasksConfig?: MyTasksViewConfig<any, any>,
-  myActivitiesConfig?: MyActivitiesViewConfig<any>
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _context: BusinessAppContextProps
 ): PersonalWorkspaceConfig => ({
   // Module identifier
   module: 'irm',
@@ -103,8 +106,9 @@ const buildIrmWorkspaceConfig = (
   // Data hooks (using adapters)
   hooks: {
     useKpis: useIrmKpisAdapter,
-    useActivities: useIrmActivitiesAdapter,
-    useTasks: useIrmTasksAdapter
+    useActivities: useIrmRecentActivitiesAdapter, // ✅ For Recent Activities widget (10 items)
+    useTasks: useIrmTasksAdapter,
+    useCombinedCalendarData: useIrmCombinedCalendarAdapter // ✅ Parallel queries for calendar (activities + tasks)
   },
 
   // Navigation configuration
@@ -133,11 +137,9 @@ const buildIrmWorkspaceConfig = (
     }
   },
 
-  // My Activities configuration (passed in from component level)
-  myActivitiesConfig,
-
-  // My Tasks configuration (passed in from component level)
-  myTasksConfig
+  // Component wrappers for lazy loading (rendered only when their tab is active)
+  MyActivitiesComponent: MyActivitiesTab,
+  MyTasksComponent: MyTasksTab
 })
 
 /**

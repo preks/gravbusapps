@@ -317,7 +317,11 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
       />
 
       <Dialog open={dialogs.isRegisterOpen} onOpenChange={dialogs.closeRegister}>
-        <DialogContent className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto">
+        <DialogContent
+          className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto"
+          onInteractOutside={e => e.preventDefault()}
+          onEscapeKeyDown={e => e.preventDefault()}
+        >
           <DialogTitle className="gba:sr-only">{registerDialogTitle}</DialogTitle>
           {dialogs.isRegisterOpen && (
             <EquipmentRegistration
@@ -330,7 +334,11 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
       </Dialog>
 
       <Dialog open={dialogs.isAllocateOpen} onOpenChange={dialogs.closeAllocate}>
-        <DialogContent className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto">
+        <DialogContent
+          className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto"
+          onInteractOutside={e => e.preventDefault()}
+          onEscapeKeyDown={e => e.preventDefault()}
+        >
           <DialogTitle className="gba:sr-only">{allocateDialogTitle}</DialogTitle>
           <AllocateAsset
             key={`allocate-asset-${currentLocale}`}
@@ -345,7 +353,11 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
       </Dialog>
 
       <Dialog open={dialogs.isReturnOpen} onOpenChange={dialogs.closeReturn}>
-        <DialogContent className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto">
+        <DialogContent
+          className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-y-auto"
+          onInteractOutside={e => e.preventDefault()}
+          onEscapeKeyDown={e => e.preventDefault()}
+        >
           <DialogTitle className="gba:sr-only">{returnDialogTitle}</DialogTitle>
           <ReturnAsset
             key={`return-asset-${currentLocale}`}

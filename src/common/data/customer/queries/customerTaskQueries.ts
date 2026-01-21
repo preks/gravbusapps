@@ -41,7 +41,9 @@ import { CustomerOpportunityFields } from '../types/customerOpportunityTypes'
  * Customer Task Query Variables Interface
  * Extends CommonTaskQueryVariables with CRM-specific filters
  */
-export type CustomerTaskQueryVariables = CommonTaskQueryVariables
+export interface CustomerTaskQueryVariables extends CommonTaskQueryVariables {
+  referenceTypes?: string[]
+}
 
 /**
  * Build Customer Task query with fields mapping

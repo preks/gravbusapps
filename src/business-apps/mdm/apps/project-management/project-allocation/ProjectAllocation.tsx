@@ -25,7 +25,7 @@ import {
   DialogFooter,
   DialogClose,
   Icon,
-  SheetPrimitive,
+  Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
@@ -852,7 +852,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
         />
 
         {selectedProject && (
-          <SheetPrimitive
+          <Sheet
             open={drawerVisible}
             onOpenChange={openStatus => {
               if (!openStatus) {
@@ -950,7 +950,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
                 </div>
               </ScrollArea>
             </SheetContent>
-          </SheetPrimitive>
+          </Sheet>
         )}
 
         {selectedEmployeeForRemove && isRemoveEmployeeOpen && (

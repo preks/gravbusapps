@@ -16,7 +16,20 @@ interface EveryApiScreenProps extends BusinessAppContextProps {
 export const EveryApiScreen: React.FC<EveryApiScreenProps> = ({ userInfo, accessToken }) => {
   useEffect(() => {
     const handleApiRequest = async () => {
+      const renderJson = (data: unknown) => {
+        const pre = document.createElement('pre')
+        pre.textContent = JSON.stringify(data, null, 2)
+        pre.className = 'gba:font-mono gba:p-4'
+        document.body.replaceChildren(pre)
+      }
+
       try {
+        if (!accessToken) {
+          console.error('Access token missing')
+          renderJson({ status: 'error', message: 'Access token missing' })
+          return
+        }
+
         // Parse the current URL to determine what API call to make
         const url = new URL(globalThis.location.href)
         const pathname = url.pathname
@@ -110,9 +123,7 @@ export const EveryApiScreen: React.FC<EveryApiScreenProps> = ({ userInfo, access
           }
         }
 
-        // Replace the entire document with JSON using innerHTML instead of deprecated document.write
-        document.body.innerHTML =
-          '<pre style="font-family: monospace; padding: 20px;">' + JSON.stringify(jsonData, null, 2) + '</pre>'
+        renderJson(jsonData)
       } catch (error) {
         const errorData = {
           status: 'error',
@@ -120,7 +131,7 @@ export const EveryApiScreen: React.FC<EveryApiScreenProps> = ({ userInfo, access
           details: String(error)
         }
 
-        document.body.innerHTML = '<pre>' + JSON.stringify(errorData, null, 2) + '</pre>'
+        renderJson(errorData)
       }
     }
 
@@ -129,8 +140,8 @@ export const EveryApiScreen: React.FC<EveryApiScreenProps> = ({ userInfo, access
 
   // Return a loading state while the effect runs
   return (
-    <div style={{ padding: '20px', fontFamily: 'monospace' }}>
-      <p>Loading Every API...</p>
+    <div className="gba:p-4 gba:font-mono">
+      <p className="gba:text-foreground">Loading Every API...</p>
     </div>
   )
 }

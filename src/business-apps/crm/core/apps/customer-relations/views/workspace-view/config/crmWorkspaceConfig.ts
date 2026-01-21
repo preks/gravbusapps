@@ -1,21 +1,23 @@
+import { PersonalWorkspaceConfig } from '@/common/components/common-relations/view-layouts/personal-workspace/types/configTypes'
 import {
-  PersonalWorkspaceConfig,
-  type MyTasksViewConfig,
-  type MyActivitiesViewConfig
-} from '@/common/components/common-relations/view-layouts/personal-workspace/types/configTypes'
-import { useCrmKpisAdapter, useCrmActivitiesAdapter, useCrmTasksAdapter } from '../hooks/usePersonalWorkspaceAdapters'
+  useCrmKpisAdapter,
+  useCrmRecentActivitiesAdapter,
+  useCrmTasksAdapter,
+  useCrmCombinedCalendarAdapter
+} from '../hooks/usePersonalWorkspaceAdapters'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { UserIcon, TargetIcon, BuildingsIcon, ChartLineUpIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { MyTasksTab } from '../components/MyTasksTab'
+import { MyActivitiesTab } from '../components/MyActivitiesTab'
 
 /**
  * CRM-specific configuration for Personal Workspace
  * Following the agnostic pattern - no UI metadata, only behavioral configuration
  */
 const buildCrmWorkspaceConfig = (
-  context: BusinessAppContextProps,
-  myTasksConfig?: MyTasksViewConfig<any, any>,
-  myActivitiesConfig?: MyActivitiesViewConfig<any>
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _context: BusinessAppContextProps
 ): PersonalWorkspaceConfig => ({
   // Module identifier
   module: 'crm',
@@ -100,8 +102,9 @@ const buildCrmWorkspaceConfig = (
   // Data hooks (using adapters)
   hooks: {
     useKpis: useCrmKpisAdapter,
-    useActivities: useCrmActivitiesAdapter,
-    useTasks: useCrmTasksAdapter
+    useActivities: useCrmRecentActivitiesAdapter, // For Recent Activities widget
+    useTasks: useCrmTasksAdapter, // Still used for the dedicated Tasks tab
+    useCombinedCalendarData: useCrmCombinedCalendarAdapter // New combined hook for calendar
   },
 
   // Navigation configuration
@@ -130,11 +133,9 @@ const buildCrmWorkspaceConfig = (
     }
   },
 
-  // My Activities configuration (passed in from component level)
-  myActivitiesConfig,
-
-  // My Tasks configuration (passed in from component level)
-  myTasksConfig
+  // Tab wrapper components (for lazy loading)
+  MyActivitiesComponent: MyActivitiesTab,
+  MyTasksComponent: MyTasksTab
 })
 
 /**

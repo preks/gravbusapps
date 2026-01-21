@@ -172,7 +172,7 @@ export const TaskTemplateForm: React.FC<
 
               {/* Recurring Schedule Section */}
               <div className="gba:space-y-4">
-                <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">Recurring Schedule</h3>
+                <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">Recurring Schedule</h3>
                 <ScheduleFormSegment
                   value={form.watch('recurringSchedule')}
                   onChange={value => form.setValue('recurringSchedule', value)}
