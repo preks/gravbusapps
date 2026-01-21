@@ -173,8 +173,12 @@ export const EmployeePopover: React.FC<EmployeePopoverProps> = ({
     return emailPattern.test(email)
   }
 
-  const sanitizePhone = (phone: string): string => {
-    return phone.replace(/[^\d+\-\s()]/g, '')
+  const isValidPhone = (phone: string): boolean => {
+    // Strict validation for phone numbers - prevents Open Redirect
+    // Allows: digits, +, -, spaces, parentheses only
+    // Must start with + or digit, max 20 chars
+    const phonePattern = /^[+]?[\d\s\-()]{7,20}$/
+    return phonePattern.test(phone.trim())
   }
 
   const handleEmailClick = () => {
@@ -184,8 +188,9 @@ export const EmployeePopover: React.FC<EmployeePopoverProps> = ({
   }
 
   const handlePhoneClick = () => {
-    if (employeeWorkPhone) {
-      const sanitized = sanitizePhone(employeeWorkPhone)
+    if (employeeWorkPhone && isValidPhone(employeeWorkPhone)) {
+      // Only allow validated phone numbers - extra safety layer
+      const sanitized = employeeWorkPhone.replace(/[^\d+\-\s()]/g, '')
       if (sanitized) {
         globalThis.window.location.href = `tel:${encodeURIComponent(sanitized)}`
       }
