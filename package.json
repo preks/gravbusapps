@@ -128,7 +128,6 @@
     "js-yaml": "4.1.1",
     "next": "^15.5.9",
     "glob": "^11.1.0",
-    "quill": "^2.0.3",
     "@newwork/remote-component-loader": {
       "@newwork/gravity-ui-catalog": "7.10.28"
     }

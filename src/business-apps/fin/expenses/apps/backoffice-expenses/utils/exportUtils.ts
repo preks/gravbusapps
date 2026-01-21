@@ -88,7 +88,7 @@ const triggerDownload = (blob: Blob, filename: string): void => {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = sanitizeFilename(filename)
+  link.download = filename
 
   // Set additional security attributes
   link.setAttribute('rel', 'noopener noreferrer')
