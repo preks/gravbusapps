@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React from 'react'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { useTranslation, Badge } from '@newwork/nw-design-system'
 import { MessageSquare, Share2 } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { buildFileUrl } from '@/common/utils/fileUtils'
 import { AppAction } from '@/components/app-action'
 import { getEntityTypeFromTab, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
+import { ContentImage } from '../shared/ContentImage'
+import { EmployeePopover } from '@/components/employee-popover'
 import translations from '../../_i18n'
 
 interface MainFeaturedArticleProps {
@@ -41,77 +42,6 @@ const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({
   const entityType = getEntityTypeFromTab(currentTab)
   const entityDisplayUrl = buildContentRecordUrl(item.id || '', currentTab)
 
-  // Handle image URL with async blob URL support
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
-  const blobUrlRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    // Clean up previous blob URL if it exists
-    if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
-      URL.revokeObjectURL(blobUrlRef.current)
-      blobUrlRef.current = null
-    }
-
-    if (!item.picture) {
-      setImageUrl(null)
-      return
-    }
-
-    let fileInfo: any = null
-    try {
-      fileInfo = typeof item.picture === 'string' ? JSON.parse(item.picture) : item.picture
-    } catch {
-      // If it's not JSON, check if it's a data URL (base64) - use directly
-      if (typeof item.picture === 'string' && item.picture.startsWith('data:')) {
-        setImageUrl(item.picture)
-        return
-      }
-      // Otherwise try to use as direct URL (old format)
-      setImageUrl(item.picture)
-      return
-    }
-
-    if (!fileInfo?.path) {
-      setImageUrl(null)
-      return
-    }
-
-    // If accessToken is provided, fetch as blob URL (async)
-    if (accessToken) {
-      let isCancelled = false
-
-      const fetchImage = async () => {
-        try {
-          const blobUrl = await buildFileUrl(fileInfo, accessToken)
-          if (!isCancelled) {
-            blobUrlRef.current = blobUrl
-            setImageUrl(blobUrl)
-          } else {
-            URL.revokeObjectURL(blobUrl)
-          }
-        } catch (error) {
-          if (!isCancelled) {
-            console.error('[MainFeaturedArticle] Error fetching image:', error)
-            setImageUrl(null)
-          }
-        }
-      }
-
-      fetchImage()
-
-      return () => {
-        isCancelled = true
-        if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
-          URL.revokeObjectURL(blobUrlRef.current)
-          blobUrlRef.current = null
-        }
-      }
-    } else {
-      // No accessToken, use plain URL (synchronous)
-      setImageUrl(buildFileUrl(fileInfo))
-    }
-  }, [item.picture, accessToken])
-
   const handleClick = () => {
     if (onClick) {
       onClick(item)
@@ -142,13 +72,13 @@ const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({
         className="gba:cursor-pointer gba:w-full gba:text-left gba:bg-transparent gba:border-0 gba:p-0"
       >
         <div className="gba:h-[280px] gba:overflow-hidden gba:relative">
-          {imageUrl ? (
-            <img src={imageUrl} alt={t('knowledge_image')} className="gba:w-full gba:h-full gba:object-cover" />
-          ) : (
-            <div className="gba:w-full gba:h-full gba:bg-muted gba:flex gba:items-center gba:justify-center">
-              <span className="gba:text-muted-foreground gba:text-2xl gba:font-bold">KB</span>
-            </div>
-          )}
+          <ContentImage
+            picture={item.picture}
+            accessToken={accessToken!}
+            alt={t('knowledge_image')}
+            className="gba:w-full gba:h-full"
+            fallbackText="KB"
+          />
         </div>
         <div className="gba:p-5">
           <div className="gba:flex gba:justify-between gba:items-center gba:mb-2 gba:text-xs gba:text-muted-foreground">
@@ -160,32 +90,24 @@ const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({
 
           <div className="gba:flex gba:items-center gba:mb-4">
             {item.displayCreator && item.creatorEmployee ? (
-              <div className="gba:flex gba:items-center">
-                <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-muted gba:mr-2 gba:overflow-hidden">
-                  {item.creatorEmployee.pictureThumbnail || item.creatorEmployee.picture ? (
-                    <img
-                      src={item.creatorEmployee.pictureThumbnail || item.creatorEmployee.picture}
-                      alt={item.creatorEmployee.displayName || item.creatorEmployee.fullName || ''}
-                      className="gba:w-full gba:h-full gba:object-cover"
-                    />
-                  ) : (
-                    <div className="gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-muted gba:text-xs gba:text-muted-foreground">
-                      {item.creatorEmployee.firstName?.[0] || ''}
-                      {item.creatorEmployee.lastName?.[0] || ''}
-                    </div>
-                  )}
-                </div>
-                <div className="gba:flex gba:flex-col">
-                  <span className="gba:text-xs gba:text-foreground">
-                    {item.creatorEmployee.displayName || item.creatorEmployee.fullName}
-                  </span>
-                  {item.creatorEmployee.employeePosition?.jobPosition?.name && (
-                    <span className="gba:text-xs gba:text-muted-foreground">
-                      {item.creatorEmployee.employeePosition.jobPosition.name}
+              <EmployeePopover employee={item.creatorEmployee} accessToken={accessToken}>
+                <div className="gba:flex gba:items-center gba:cursor-pointer">
+                  <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-muted gba:mr-2 gba:overflow-hidden gba:flex gba:items-center gba:justify-center gba:text-xs gba:text-muted-foreground">
+                    {item.creatorEmployee.firstName?.[0] || ''}
+                    {item.creatorEmployee.lastName?.[0] || ''}
+                  </div>
+                  <div className="gba:flex gba:flex-col">
+                    <span className="gba:text-xs gba:text-foreground">
+                      {item.creatorEmployee.displayName || item.creatorEmployee.fullName}
                     </span>
-                  )}
+                    {item.creatorEmployee.employeePosition?.jobPosition?.name && (
+                      <span className="gba:text-xs gba:text-muted-foreground">
+                        {item.creatorEmployee.employeePosition.jobPosition.name}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </EmployeePopover>
             ) : (
               <div className="gba:h-6">{/* Empty space holder with same height */}</div>
             )}

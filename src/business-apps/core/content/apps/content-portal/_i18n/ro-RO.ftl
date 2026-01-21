@@ -41,6 +41,10 @@ all_articles = Toate articolele
 categories = Categorii
 recent_articles = Articole recente
 more_articles = Mai multe articole
+recent_news_articles = Articole de știri recente
+recent_knowledge_articles = Articole de cunoștințe recente
+recently_uploaded_documents = Documente încărcate recent
+unanswered_questions = Întrebări fără răspuns
 
 # Buttons
 create_article = Creează articol

@@ -188,15 +188,18 @@ const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent"
+                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent gba:min-w-0 gba:max-w-full"
                       onClick={handleReferenceClick}
                       data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-reference-link`}
                     >
-                      <Badge variant={getReferenceTypeBadgeVariant(referenceType.toLowerCase()) as any}>
+                      <Badge
+                        variant={getReferenceTypeBadgeVariant(referenceType.toLowerCase()) as any}
+                        className="gba:shrink-0"
+                      >
                         {referenceType}
                       </Badge>
-                      <span className="gba:text-sm gba:font-medium">{referenceName}</span>
-                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
+                      <span className="gba:text-sm gba:font-medium gba:truncate">{referenceName}</span>
+                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground gba:shrink-0" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>View {referenceType.toLowerCase()} record</TooltipContent>
@@ -213,11 +216,11 @@ const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent"
+                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent gba:min-w-0 gba:max-w-full"
                       onClick={handleOwnerClick}
                       data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-owner-link`}
                     >
-                      <Avatar size="sm" className="gba:size-6">
+                      <Avatar size="sm" className="gba:size-6 gba:shrink-0">
                         {activity.ownerEmployee.pictureThumbnail && (
                           <AvatarImage
                             src={`data:image/gif;base64,${activity.ownerEmployee.pictureThumbnail}`}
@@ -231,12 +234,12 @@ const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
                           {getInitials(activity.ownerEmployee.firstName || '', activity.ownerEmployee.lastName || '')}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="gba:text-sm gba:font-medium">
+                      <span className="gba:text-sm gba:font-medium gba:truncate">
                         {activity.ownerEmployee.displayName ||
                           `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() ||
                           'Unknown'}
                       </span>
-                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
+                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground gba:shrink-0" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>View employee profile</TooltipContent>

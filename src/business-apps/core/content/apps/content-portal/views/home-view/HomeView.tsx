@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton, Card } from '@newwork/nw-design-system'
-import { Home as HomeIcon } from 'lucide-react'
+import { Home as HomeIcon, Newspaper, BookOpen, FileText, MessageCircleQuestion } from 'lucide-react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
-import { ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
+import { useContentStatistics } from '../../hooks/useContentStatistics'
 import ContentCard from '../../components/cards/ContentCard'
 import SearchInput from '../../components/shared/SearchInput'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
@@ -11,6 +12,7 @@ import ContentCardSkeleton from '../../components/skeletons/ContentCardSkeleton'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useInfiniteScroll } from '@/common/hooks/useInfiniteScroll'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import translations from '../../_i18n'
 
 const PAGE_SIZE = 20
@@ -40,10 +42,11 @@ const HomeView: React.FC<HomeViewProps> = ({
   const [loadedCount, setLoadedCount] = useState(PAGE_SIZE)
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Featured content (independent of search) - always shows latest
+  // Featured content (independent of search) - filter by NEWS and KNOWLEDGE
   const featuredQueryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
+      contentGroupRefs: [ContentGroup.NEWS, ContentGroup.KNOWLEDGE],
       limit: 12,
       offset: 0,
       sortBy: 'createdAt' as const,
@@ -52,10 +55,11 @@ const HomeView: React.FC<HomeViewProps> = ({
     []
   )
 
-  // Search/browsing content
+  // Search/browsing content - filter by NEWS and KNOWLEDGE
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
+      contentGroupRefs: [ContentGroup.NEWS, ContentGroup.KNOWLEDGE],
       search: searchQuery,
       limit: loadedCount,
       offset: 0,
@@ -65,19 +69,79 @@ const HomeView: React.FC<HomeViewProps> = ({
     [searchQuery, loadedCount]
   )
 
+  // Query for open questions (questions without accepted answers) - still needed for the detailed view
+  const openQuestionsQueryParams = useMemo(
+    () => ({
+      role: ContentRole.ROOT,
+      contentGroupRef: ContentGroup.QUESTION,
+      limit: 1000,
+      offset: 0,
+      sortBy: 'createdAt' as const,
+      sortOrder: 'DESC' as const
+    }),
+    []
+  )
+
+  const openQuestionsQueryOptions = useMemo(
+    () => ({
+      config: 'list' as const,
+      fields: ['id', 'childContentEntries'] as const
+    }),
+    []
+  )
+
+  // Single query for all statistics
+  const {
+    recentNewsCount,
+    recentKnowledgeCount,
+    recentDocumentsCount,
+    unansweredQuestionsCount: openQuestionsCount,
+    refetch: refetchStatistics
+  } = useContentStatistics(accessToken)
+
   // Featured entries (carousel + trending) - not affected by search
   const { entries: featuredEntries, refetch: refetchFeatured } = useContentEntries(featuredQueryParams, accessToken)
 
   // Main content entries - affected by search
   const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken)
 
+  // Open questions query - still needed for detailed view
+  const { refetch: refetchOpenQuestions } = useContentEntries(
+    openQuestionsQueryParams,
+    accessToken,
+    openQuestionsQueryOptions
+  )
+
   // Listen for process completion to refresh data
   useProcessCompletion({
     onSuccess: () => {
       refetchFeatured()
       refetch()
+      refetchOpenQuestions()
+      refetchStatistics()
     }
   })
+
+  // Navigation handlers for statistics cards
+  const handleNavigateToNews = () => {
+    const url = buildPlatformUrl('/platform/content/intranet', { tab: 'news' })
+    navigateTo(url)
+  }
+
+  const handleNavigateToKnowledge = () => {
+    const url = buildPlatformUrl('/platform/content/intranet', { tab: 'knowledge' })
+    navigateTo(url)
+  }
+
+  const handleNavigateToDocuments = () => {
+    const url = buildPlatformUrl('/platform/content/intranet', { tab: 'documents' })
+    navigateTo(url)
+  }
+
+  const handleNavigateToQuestions = () => {
+    const url = buildPlatformUrl('/platform/content/intranet', { tab: 'questions' })
+    navigateTo(url)
+  }
 
   // Use entries directly (no conversion needed)
   const data = entries
@@ -184,6 +248,88 @@ const HomeView: React.FC<HomeViewProps> = ({
       )}
 
       <div className="gba:w-full gba:max-w-[1300px] gba:mx-auto gba:mb-10 gba:px-4">
+        {/* Statistics Cards Section */}
+        <div
+          className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-4 gba:gap-4"
+          data-testid="home-statistics-section"
+        >
+          {/* Recent News Articles */}
+          <Card
+            className="gba:p-6 gba:cursor-pointer hover:gba:shadow-md gba:transition-shadow"
+            onClick={handleNavigateToNews}
+            data-testid="statistics-card-news"
+          >
+            <div className="gba:flex gba:items-center gba:justify-between">
+              <div className="gba:flex-1">
+                <p className="gba:text-sm gba:text-muted-foreground gba:mb-1">
+                  {t('recent_news_articles') || 'Recent News Articles'}
+                </p>
+                <p className="gba:text-3xl gba:font-bold gba:text-foreground">{recentNewsCount}</p>
+              </div>
+              <div className="gba:bg-primary/10 gba:p-3 gba:rounded-lg">
+                <Newspaper className="gba:w-6 gba:h-6 gba:text-primary" />
+              </div>
+            </div>
+          </Card>
+
+          {/* Recent Knowledge Articles */}
+          <Card
+            className="gba:p-6 gba:cursor-pointer hover:gba:shadow-md gba:transition-shadow"
+            onClick={handleNavigateToKnowledge}
+            data-testid="statistics-card-knowledge"
+          >
+            <div className="gba:flex gba:items-center gba:justify-between">
+              <div className="gba:flex-1">
+                <p className="gba:text-sm gba:text-muted-foreground gba:mb-1">
+                  {t('recent_knowledge_articles') || 'Recent Knowledge Articles'}
+                </p>
+                <p className="gba:text-3xl gba:font-bold gba:text-foreground">{recentKnowledgeCount}</p>
+              </div>
+              <div className="gba:bg-success/10 gba:p-3 gba:rounded-lg">
+                <BookOpen className="gba:w-6 gba:h-6 gba:text-success" />
+              </div>
+            </div>
+          </Card>
+
+          {/* Recently Uploaded Documents */}
+          <Card
+            className="gba:p-6 gba:cursor-pointer hover:gba:shadow-md gba:transition-shadow"
+            onClick={handleNavigateToDocuments}
+            data-testid="statistics-card-documents"
+          >
+            <div className="gba:flex gba:items-center gba:justify-between">
+              <div className="gba:flex-1">
+                <p className="gba:text-sm gba:text-muted-foreground gba:mb-1">
+                  {t('recently_uploaded_documents') || 'Recently Uploaded Documents'}
+                </p>
+                <p className="gba:text-3xl gba:font-bold gba:text-foreground">{recentDocumentsCount}</p>
+              </div>
+              <div className="gba:bg-info/10 gba:p-3 gba:rounded-lg">
+                <FileText className="gba:w-6 gba:h-6 gba:text-info" />
+              </div>
+            </div>
+          </Card>
+
+          {/* Unanswered Questions */}
+          <Card
+            className="gba:p-6 gba:cursor-pointer hover:gba:shadow-md gba:transition-shadow"
+            onClick={handleNavigateToQuestions}
+            data-testid="statistics-card-questions"
+          >
+            <div className="gba:flex gba:items-center gba:justify-between">
+              <div className="gba:flex-1">
+                <p className="gba:text-sm gba:text-muted-foreground gba:mb-1">
+                  {t('unanswered_questions') || 'Unanswered Questions'}
+                </p>
+                <p className="gba:text-3xl gba:font-bold gba:text-foreground">{openQuestionsCount}</p>
+              </div>
+              <div className="gba:bg-warning/10 gba:p-3 gba:rounded-lg">
+                <MessageCircleQuestion className="gba:w-6 gba:h-6 gba:text-warning" />
+              </div>
+            </div>
+          </Card>
+        </div>
+
         {/* Header with Search */}
         {isLoading ? (
           <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
