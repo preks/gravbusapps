@@ -18,7 +18,6 @@ export const ContentImage: React.FC<ContentImageProps> = ({
   fallbackText
 }) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [isLoaded, setIsLoaded] = useState(false)
   const [hasError, setHasError] = useState(false)
   const blobUrlRef = useRef<string | null>(null)
@@ -33,7 +32,6 @@ export const ContentImage: React.FC<ContentImageProps> = ({
 
     if (!picture) {
       setImageUrl(null)
-      setIsLoading(false)
       setIsLoaded(false)
       setHasError(false)
       return
@@ -46,27 +44,23 @@ export const ContentImage: React.FC<ContentImageProps> = ({
       // If it's not JSON, check if it's a data URL
       if (typeof picture === 'string' && picture.startsWith('data:')) {
         setImageUrl(picture)
-        setIsLoading(false)
         setIsLoaded(true)
         return
       }
       // Otherwise try to use as direct URL (old format)
       setImageUrl(picture)
-      setIsLoading(false)
       setIsLoaded(true)
       return
     }
 
     if (!fileInfo?.path) {
       setImageUrl(null)
-      setIsLoading(false)
       setIsLoaded(false)
       setHasError(true)
       return
     }
 
     // Always use accessToken for buildFileUrl
-    setIsLoading(true)
     setIsLoaded(false)
     setHasError(false)
     let isCancelled = false
@@ -77,7 +71,7 @@ export const ContentImage: React.FC<ContentImageProps> = ({
         if (!isCancelled) {
           blobUrlRef.current = blobUrl
           setImageUrl(blobUrl)
-          // Keep isLoading true until image actually loads (onLoad event)
+          // Keep loading state until image actually loads (onLoad event)
         } else {
           URL.revokeObjectURL(blobUrl)
         }
@@ -85,7 +79,6 @@ export const ContentImage: React.FC<ContentImageProps> = ({
         if (!isCancelled) {
           console.error('[ContentImage] Error fetching image:', error)
           setImageUrl(null)
-          setIsLoading(false)
           setIsLoaded(false)
           setHasError(true)
         }
@@ -105,12 +98,10 @@ export const ContentImage: React.FC<ContentImageProps> = ({
 
   const handleImageLoad = () => {
     setIsLoaded(true)
-    setIsLoading(false)
   }
 
   const handleImageError = () => {
     setHasError(true)
-    setIsLoading(false)
     setIsLoaded(false)
   }
 
@@ -146,8 +137,6 @@ export const ContentImage: React.FC<ContentImageProps> = ({
           }}
         />
       )}
-      {/* Fallback background while waiting for image URL */}
-      {!imageUrl && isLoading && <div className="gba:absolute gba:inset-0 gba:bg-muted" />}
       {/* Actual image - fades in when loaded */}
       {imageUrl && (
         <img

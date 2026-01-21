@@ -250,7 +250,7 @@ const HomeView: React.FC<HomeViewProps> = ({
       <div className="gba:w-full gba:max-w-[1300px] gba:mx-auto gba:mb-10 gba:px-4">
         {/* Statistics Cards Section */}
         <div
-          className="1. gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-4 gba:gap-4"
+          className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-4 gba:gap-4"
           data-testid="home-statistics-section"
         >
           {/* Recent News Articles */}

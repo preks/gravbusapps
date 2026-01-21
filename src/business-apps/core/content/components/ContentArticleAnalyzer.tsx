@@ -76,7 +76,7 @@ export const ContentArticleAnalyzer: React.FC<ContentArticleAnalyzerProps> = ({
 
   // Auto-analyze when popover opens
   useEffect(() => {
-    if (isPopoverOpen && !analysis && !isLoading && !isLoadingDescendants && descendants.length >= 0) {
+    if (isPopoverOpen && !analysis && !isLoading && !isLoadingDescendants) {
       handleAnalyze()
     }
   }, [isPopoverOpen, analysis, isLoading, isLoadingDescendants, descendants, handleAnalyze])

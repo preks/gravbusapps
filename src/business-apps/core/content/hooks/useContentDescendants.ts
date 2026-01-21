@@ -54,12 +54,13 @@ export const useContentDescendants = (
         const children = response.ContentEntry || []
         allDescendants.push(...children)
 
-        // Recursively fetch descendants of each child
-        for (const child of children) {
-          if (child.id) {
-            await fetchAllDescendants(child.id, allDescendants)
-          }
-        }
+        // Recursively fetch descendants of each child IN PARALLEL
+        const childFetches = children
+          .filter((child): child is ContentEntry & { id: string } => !!child.id)
+          .map(child => fetchAllDescendants(child.id, []))
+
+        const nestedResults = await Promise.all(childFetches)
+        nestedResults.forEach(nested => allDescendants.push(...nested))
 
         return allDescendants
       } catch (err) {

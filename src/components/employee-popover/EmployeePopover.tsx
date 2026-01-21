@@ -16,7 +16,24 @@ import { useEmployeePopoverData } from './useEmployeePopoverData'
 import { FileInfo } from '@/common/types/FileTypes'
 
 // Cache for employee pictures to avoid fetching the same file twice
+// LRU cache with automatic cleanup to prevent memory leaks
+const MAX_CACHE_SIZE = 50
 const pictureCache = new Map<string, string>()
+
+const addToCache = (key: string, blobUrl: string) => {
+  // Evict oldest entry if cache is full (LRU)
+  if (pictureCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = pictureCache.keys().next().value
+    if (firstKey !== undefined) {
+      const oldUrl = pictureCache.get(firstKey)
+      if (oldUrl && oldUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(oldUrl)
+      }
+      pictureCache.delete(firstKey)
+    }
+  }
+  pictureCache.set(key, blobUrl)
+}
 
 export interface EmployeePopoverProps {
   /** Employee data object - if provided, use directly */
@@ -101,8 +118,8 @@ export const EmployeePopover: React.FC<EmployeePopoverProps> = ({
       try {
         const blobUrl = await buildFileUrl(fileInfo!, accessToken)
         if (!isCancelled) {
-          // Cache the blob URL
-          pictureCache.set(pictureKey, blobUrl)
+          // Cache the blob URL with LRU eviction
+          addToCache(pictureKey, blobUrl)
           blobUrlRef.current = blobUrl
           setPictureUrl(blobUrl)
           setIsLoadingPicture(false)
@@ -149,15 +166,26 @@ export const EmployeePopover: React.FC<EmployeePopoverProps> = ({
     navigateTo(employeeUrl)
   }
 
+  const isValidEmail = (email: string): boolean => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  }
+
+  const sanitizePhone = (phone: string): string => {
+    return phone.replace(/[^\d+\-\s()]/g, '')
+  }
+
   const handleEmailClick = () => {
-    if (employeeWorkEmail) {
-      globalThis.window.location.href = `mailto:${employeeWorkEmail}`
+    if (employeeWorkEmail && isValidEmail(employeeWorkEmail)) {
+      globalThis.window.location.href = `mailto:${encodeURIComponent(employeeWorkEmail)}`
     }
   }
 
   const handlePhoneClick = () => {
     if (employeeWorkPhone) {
-      globalThis.window.location.href = `tel:${employeeWorkPhone}`
+      const sanitized = sanitizePhone(employeeWorkPhone)
+      if (sanitized) {
+        globalThis.window.location.href = `tel:${encodeURIComponent(sanitized)}`
+      }
     }
   }
 
