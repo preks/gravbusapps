@@ -113,8 +113,9 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
   )
 
   const createAppURL = (app: BusinessAppInfo): string => {
-    const baseUrl = window.location.origin + window.location.pathname
-    return `${baseUrl}?${app.type}=${app.screenKey}`
+    const paramKey = encodeURIComponent(app.type)
+    const paramValue = encodeURIComponent(app.screenKey)
+    return `?${paramKey}=${paramValue}`
   }
 
   const handleAppLinkClick = (event: React.MouseEvent, app: BusinessAppInfo) => {
