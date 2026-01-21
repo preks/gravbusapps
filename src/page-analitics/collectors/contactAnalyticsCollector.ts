@@ -17,7 +17,6 @@ const GET_CONTACT_ANALYTICS = `
       firstName
       lastName
       fullName
-      displayName
       email
       phone
       jobTitle
