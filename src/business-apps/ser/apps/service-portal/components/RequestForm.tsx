@@ -52,6 +52,8 @@ import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { DataSourceSelect } from './DataSourceSelect'
 import { DataSourceMultiSelect } from './DataSourceMultiSelect'
 import { MessageRenderer } from '../../../components/MessageRenderer'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 export interface RequestFormProps extends BusinessAppContextProps {
   flowTemplate: FlowTemplate
@@ -739,6 +741,28 @@ Please try again in a few moments, or proceed with submitting your request.`)
                 />
               </div>
             </Card>
+
+            {/* Flow launcher button under Form Progress */}
+            <div className="gba:flex gba:justify-end">
+              <AppAction
+                variant="create-primary"
+                data-testid="warranty-start-button"
+                contexts={[
+                  {
+                    context: FlowContextName.employeeRequestFeedback,
+                    contextData: {
+                      employeeId: contextProps.userInfo?.employeeId,
+                      isRequestingFeedback: true
+                    }
+                  }
+                ]}
+                prefixDataTestId="warranty-start"
+                accessToken={contextProps.accessToken}
+                autoExecute={true}
+              >
+                Start New Waranty Service
+              </AppAction>
+            </div>
 
             {/* Request Form */}
             <Card className="gba:p-8">
