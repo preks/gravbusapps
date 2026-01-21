@@ -100,6 +100,8 @@ task-completion-outcome-acknowledged = Bestätigt
 task-footer-reject = Ablehnen
 task-footer-reassign = Neu zuweisen
 task-footer-unclaim = Freigeben
+task-details-task-claimed = Aufgabe erfolgreich übernommen!
+task-details-task-unclaimed = Aufgabe erfolgreich freigegeben!
 
 # FlowDetailDialog Component
 flow-detail-loading = Wird geladen...

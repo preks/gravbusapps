@@ -383,7 +383,7 @@ export const FlowDetailDialog: React.FC<FlowDetailDialogProps> = ({ flow, onClos
             {flow.initiatedBy && (
               <div>
                 <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">{t('flow-detail-initiated-by')}</div>
-                <InitiatorInfo initiatorUserId={flow.initiatedBy} accessToken={accessToken} />
+                <InitiatorInfo initiatorUserId={flow.initiatorUserId || flow.initiatedBy} accessToken={accessToken} />
               </div>
             )}
 

@@ -2,10 +2,10 @@
  * useCompletedTasks Hook
  * Fetches completed tasks from both CFlow and Kogito using the unified API
  *
- * OPTIMIZATION: Same strategy as useInboxTasks
- * - Fetch 4 batches upfront (~400 tasks) for accurate count
- * - Smart polling: updates in background without disrupting UI
- * - Client-side pagination from merged results
+ * OPTIMIZATION: Single batch fetch with accurate totalCount from API
+ * - Fetch 1 batch of 20 tasks initially
+ * - Use API totalCount for accurate badge
+ * - Load more on demand
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
@@ -28,11 +28,9 @@ interface UseCompletedTasksResult {
 
 export const useCompletedTasks = (context: BusinessAppContextProps): UseCompletedTasksResult => {
   const [allFetchedTasks, setAllFetchedTasks] = useState<UnifiedTask[]>([])
-  const [displayedTasks, setDisplayedTasks] = useState<UnifiedTask[]>([])
   const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
   const [hasMoreToFetch, setHasMoreToFetch] = useState(true)
   const [hasNewTasks, setHasNewTasks] = useState(false)
 
@@ -41,14 +39,12 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
   const lastTaskIdsRef = useRef<Set<string>>(new Set())
   const previousUserIdRef = useRef<string>('')
 
-  const ITEMS_PER_PAGE = 50
-  const FETCH_SIZE = 50
-  const INITIAL_BATCH_COUNT = 4
+  const FETCH_SIZE = 20 // Match useInboxTasks
 
   const fetchBatch = useCallback(
-    async (offset: number): Promise<{ tasks: UnifiedTask[]; hasMore: boolean }> => {
+    async (offset: number): Promise<{ tasks: UnifiedTask[]; hasMore: boolean; totalCount: number }> => {
       if (!userId) {
-        return { tasks: [], hasMore: false }
+        return { tasks: [], hasMore: false, totalCount: 0 }
       }
 
       const response = await fetchCompletedUserTasks(userId, context.accessToken || '', {
@@ -57,7 +53,7 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
       })
 
       const hasMore = response.tasks.length >= FETCH_SIZE
-      return { tasks: response.tasks, hasMore }
+      return { tasks: response.tasks, hasMore, totalCount: response.totalCount }
     },
     [userId, context.accessToken]
   )
@@ -72,15 +68,10 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
     setError(null)
 
     try {
-      const batchPromises = []
-      for (let i = 0; i < INITIAL_BATCH_COUNT; i++) {
-        batchPromises.push(fetchBatch(i * FETCH_SIZE))
-      }
+      // Single batch fetch - use API totalCount for accurate badge
+      const batch = await fetchBatch(0)
 
-      const batches = await Promise.all(batchPromises)
-      const allTasks = batches.flatMap(b => b.tasks)
-
-      const sortedTasks = [...allTasks].sort((a, b) => {
+      const sortedTasks = [...batch.tasks].sort((a, b) => {
         const aTime = new Date(a.completedAt || a.createdAt || 0).getTime()
         const bTime = new Date(b.completedAt || b.createdAt || 0).getTime()
         return bTime - aTime
@@ -89,10 +80,9 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
       lastTaskIdsRef.current = new Set(sortedTasks.map(t => t.id))
 
       setAllFetchedTasks(sortedTasks)
-      setDisplayedTasks(sortedTasks.slice(0, ITEMS_PER_PAGE))
-      setCurrentPage(1)
-      setTotalCount(sortedTasks.length)
-      setHasMoreToFetch(batches[batches.length - 1].hasMore)
+      // Use accurate totalCount from API (cflow + kogito combined)
+      setTotalCount(batch.totalCount)
+      setHasMoreToFetch(batch.hasMore)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load completed tasks'
       setError(errorMessage)
@@ -127,8 +117,6 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
   const refetch = useCallback(async () => {
     setHasNewTasks(false)
     setAllFetchedTasks([])
-    setDisplayedTasks([])
-    setCurrentPage(1)
     setHasMoreToFetch(true)
     lastTaskIdsRef.current.clear()
     await loadInitial()
@@ -140,17 +128,7 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
   }, [refetch])
 
   const loadMore = useCallback(async () => {
-    const nextPage = currentPage + 1
-    const startIdx = (nextPage - 1) * ITEMS_PER_PAGE
-    const endIdx = startIdx + ITEMS_PER_PAGE
-
-    if (endIdx <= allFetchedTasks.length) {
-      setDisplayedTasks(allFetchedTasks.slice(0, endIdx))
-      setCurrentPage(nextPage)
-      return
-    }
-
-    if (!hasMoreToFetch) {
+    if (!hasMoreToFetch || isLoading) {
       return
     }
 
@@ -169,24 +147,20 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
       lastTaskIdsRef.current = new Set(sortedTasks.map(t => t.id))
 
       setAllFetchedTasks(sortedTasks)
-      setDisplayedTasks(sortedTasks.slice(0, endIdx))
-      setCurrentPage(nextPage)
-      setTotalCount(sortedTasks.length)
+      // Keep using API totalCount (doesn't change with pagination)
       setHasMoreToFetch(batch.hasMore)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load more')
     } finally {
       setIsLoading(false)
     }
-  }, [currentPage, allFetchedTasks, hasMoreToFetch, fetchBatch])
+  }, [allFetchedTasks, hasMoreToFetch, isLoading, fetchBatch])
 
   useEffect(() => {
     // Reset when userId changes
     if (previousUserIdRef.current && previousUserIdRef.current !== userId) {
       hasInitialFetchRef.current = false
       setAllFetchedTasks([])
-      setDisplayedTasks([])
-      setCurrentPage(1)
       setHasMoreToFetch(true)
       lastTaskIdsRef.current.clear()
     }
@@ -198,16 +172,14 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
     }
   }, [userId, loadInitial])
 
-  const hasMore = displayedTasks.length < allFetchedTasks.length || hasMoreToFetch
-
   return {
-    tasks: displayedTasks,
+    tasks: allFetchedTasks,
     totalCount,
     isLoading,
     error,
     refetch,
     loadMore,
-    hasMore,
+    hasMore: hasMoreToFetch,
     hasNewTasks,
     backgroundRefresh,
     clearNewTasksFlag
