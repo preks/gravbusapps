@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import {
   Card,
   CardHeader,
@@ -8,8 +8,20 @@ import {
   Button,
   Tooltip,
   TooltipContent,
-  TooltipTrigger
+  TooltipTrigger,
+  toast
 } from '@newwork/nw-design-system'
+import {
+  DndContext,
+  DragOverlay,
+  useSensors,
+  useSensor,
+  PointerSensor,
+  DragEndEvent,
+  DragStartEvent,
+  useDraggable,
+  useDroppable
+} from '@dnd-kit/core'
 import { CaretLeftIcon, CaretRightIcon, CheckSquareIcon, CalendarBlankIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { TaskDetailSheet } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
@@ -17,6 +29,7 @@ import { ActivityDetailSheet } from '@/common/components/common-relations/detail
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AppAction } from '@/components/app-action/AppAction'
 import type { GenericActivity, GenericTask, PersonalWorkspaceConfig } from '../../types'
+import { startProcess } from '@/common/utils/start-process'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import weekOfYear from 'dayjs/plugin/weekOfYear'
@@ -69,6 +82,19 @@ export const CompactTwoWeekCalendar: React.FC<CompactTwoWeekCalendarProps> = ({
   const [selectedTask, setSelectedTask] = useState<GenericTask | null>(null)
   const [selectedActivity, setSelectedActivity] = useState<GenericActivity | null>(null)
   const [isInitialMount, setIsInitialMount] = useState(true)
+
+  // Drag and drop state
+  const [activeItem, setActiveItem] = useState<CalendarActivity | null>(null)
+  const [recentProcessStarts, setRecentProcessStarts] = useState<Set<string>>(new Set())
+
+  // Configure drag sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8 // Require 8px movement before drag starts (prevents accidental drags)
+      }
+    })
+  )
 
   // Calculate date range for 2 weeks (weekdays only)
   const startOfTwoWeeks = useMemo(() => dayjs().add(weekOffset, 'week').startOf('week'), [weekOffset])
@@ -217,6 +243,104 @@ export const CompactTwoWeekCalendar: React.FC<CompactTwoWeekCalendarProps> = ({
     }
   }
 
+  // Handle drag start
+  const handleDragStart = useCallback(
+    (event: DragStartEvent) => {
+      const { active } = event
+      const draggedItem = combinedItems.find(item => item.id === active.id)
+      if (draggedItem) {
+        setActiveItem(draggedItem)
+      }
+    },
+    [combinedItems]
+  )
+
+  // Handle drag end - update task/activity date
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event
+
+      // Clear active item
+      setActiveItem(null)
+
+      if (!over || active.id === over.id) {
+        return
+      }
+
+      const draggedItem = combinedItems.find(item => item.id === active.id)
+      const targetDate = over.id as string // Day cell ID in 'YYYY-MM-DD' format
+
+      if (!draggedItem) return
+
+      // Prevent duplicate process starts
+      const processKey = `${draggedItem.id}-${targetDate}`
+      if (recentProcessStarts.has(processKey)) {
+        return
+      }
+
+      // Add to recent starts
+      setRecentProcessStarts(prev => new Set(prev).add(processKey))
+
+      // Remove from recent starts after 3 seconds
+      setTimeout(() => {
+        setRecentProcessStarts(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(processKey)
+          return newSet
+        })
+      }, 3000)
+
+      try {
+        if (draggedItem.isTask && draggedItem.originalTask) {
+          // Update task dueDate
+          const fullTask = draggedItem.originalTask as any // Has version from AUDIT_FIELDS
+
+          startProcess({
+            domain: isIRM ? 'investment-relations' : 'customer-relations',
+            processName: isIRM ? 'updateInvestmentTask' : 'updateSalesTask',
+            payload: {
+              taskId: fullTask.id,
+              dueDate: targetDate, // Pass date at top level for form to pick up
+              psi_taskPayload: {
+                psi_initialParameters: {
+                  taskId: fullTask.id,
+                  dueDate: targetDate // Also pass in initialParameters for form
+                }
+              }
+            },
+            builderType: 'NATIVE_SCREEN'
+          })
+        } else if (draggedItem.originalActivity) {
+          // Update activity occurredAt
+          const fullActivity = draggedItem.originalActivity as any // Has version from AUDIT_FIELDS
+          const newOccurredAt = dayjs(targetDate).toISOString()
+
+          startProcess({
+            domain: isIRM ? 'investment-relations' : 'customer-relations',
+            processName: isIRM ? 'updateInvestmentActivity' : 'updateSalesActivity',
+            payload: {
+              activityId: fullActivity.id,
+              occurredAt: newOccurredAt, // Pass date at top level for form to pick up
+              psi_activityPayload: {
+                psi_initialParameters: {
+                  activityId: fullActivity.id,
+                  occurredAt: newOccurredAt // Also pass in initialParameters for form
+                }
+              }
+            },
+            builderType: 'NATIVE_SCREEN'
+          })
+        }
+
+        // Data will be refetched automatically via process completion event listener
+      } catch (e: any) {
+        console.error('Failed to update date:', e)
+        toast.error(e?.message || `Failed to update ${draggedItem.isTask ? 'task' : 'activity'} date`)
+      }
+    },
+    [combinedItems, isIRM, recentProcessStarts]
+  )
+
   if (error) {
     return (
       <Card data-testid="compact-two-week-calendar-error">
@@ -233,116 +357,134 @@ export const CompactTwoWeekCalendar: React.FC<CompactTwoWeekCalendarProps> = ({
   }
 
   return (
-    <Card data-testid="compact-two-week-calendar">
-      <CardHeader>
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle>
-            {config.entities.activity.pluralName} & {config.entities.task.pluralName}
-          </CardTitle>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleToday}
-              disabled={weekOffset === 0}
-              data-testid="calendar-today-button"
-            >
-              Today
-            </Button>
-            <Button size="icon" variant="ghost" onClick={handlePrevWeek} data-testid="calendar-prev-week">
-              <CaretLeftIcon size={16} />
-            </Button>
-            <span className="gba:text-sm gba:font-medium gba:min-w-[120px] gba:text-center">
-              {displayStartDate.format('MMM D')} - {displayEndDate.format('MMM D')}
-            </span>
-            <Button size="icon" variant="ghost" onClick={handleNextWeek} data-testid="calendar-next-week">
-              <CaretRightIcon size={16} />
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
-            <Spinner size="md" />
-          </div>
-        ) : (
-          <div className="gba:space-y-4">
-            {/* Week 1 */}
-            <div>
-              <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2 gba:uppercase">
-                Week {startOfTwoWeeks.week()}
-              </div>
-              <div className="gba:grid gba:grid-cols-5 gba:gap-2">
-                {calendarDays.slice(0, 5).map(day => (
-                  <DayCell
-                    key={day.date.format('YYYY-MM-DD')}
-                    day={day}
-                    getActivityTypeIcon={getActivityTypeIcon}
-                    getActivityColorClass={getActivityColorClass}
-                    onItemClick={handleItemClick}
-                    taskEnabled={config.entities.task.enabled}
-                    activityEnabled={config.entities.activity.enabled}
-                    accessToken={accessToken || ''}
-                    taskCreateContext={taskCreateContext}
-                    activityCreateContext={activityCreateContext}
-                  />
-                ))}
-              </div>
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <Card data-testid="compact-two-week-calendar">
+        <CardHeader>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <CardTitle>
+              {config.entities.activity.pluralName} & {config.entities.task.pluralName}
+            </CardTitle>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleToday}
+                disabled={weekOffset === 0}
+                data-testid="calendar-today-button"
+              >
+                Today
+              </Button>
+              <Button size="icon" variant="ghost" onClick={handlePrevWeek} data-testid="calendar-prev-week">
+                <CaretLeftIcon size={16} />
+              </Button>
+              <span className="gba:text-sm gba:font-medium gba:min-w-[120px] gba:text-center">
+                {displayStartDate.format('MMM D')} - {displayEndDate.format('MMM D')}
+              </span>
+              <Button size="icon" variant="ghost" onClick={handleNextWeek} data-testid="calendar-next-week">
+                <CaretRightIcon size={16} />
+              </Button>
             </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
+              <Spinner size="md" />
+            </div>
+          ) : (
+            <div className="gba:space-y-4">
+              {/* Week 1 */}
+              <div>
+                <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2 gba:uppercase">
+                  Week {startOfTwoWeeks.week()}
+                </div>
+                <div className="gba:grid gba:grid-cols-5 gba:gap-2">
+                  {calendarDays.slice(0, 5).map(day => (
+                    <DayCell
+                      key={day.date.format('YYYY-MM-DD')}
+                      day={day}
+                      getActivityTypeIcon={getActivityTypeIcon}
+                      getActivityColorClass={getActivityColorClass}
+                      onItemClick={handleItemClick}
+                      taskEnabled={config.entities.task.enabled}
+                      activityEnabled={config.entities.activity.enabled}
+                      accessToken={accessToken || ''}
+                      taskCreateContext={taskCreateContext}
+                      activityCreateContext={activityCreateContext}
+                    />
+                  ))}
+                </div>
+              </div>
 
-            {/* Week 2 */}
-            <div>
-              <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2 gba:uppercase">
-                Week {startOfTwoWeeks.add(7, 'days').week()}
-              </div>
-              <div className="gba:grid gba:grid-cols-5 gba:gap-2">
-                {calendarDays.slice(5, 10).map(day => (
-                  <DayCell
-                    key={day.date.format('YYYY-MM-DD')}
-                    day={day}
-                    getActivityTypeIcon={getActivityTypeIcon}
-                    getActivityColorClass={getActivityColorClass}
-                    onItemClick={handleItemClick}
-                    taskEnabled={config.entities.task.enabled}
-                    activityEnabled={config.entities.activity.enabled}
-                    accessToken={accessToken || ''}
-                    taskCreateContext={taskCreateContext}
-                    activityCreateContext={activityCreateContext}
-                  />
-                ))}
+              {/* Week 2 */}
+              <div>
+                <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2 gba:uppercase">
+                  Week {startOfTwoWeeks.add(7, 'days').week()}
+                </div>
+                <div className="gba:grid gba:grid-cols-5 gba:gap-2">
+                  {calendarDays.slice(5, 10).map(day => (
+                    <DayCell
+                      key={day.date.format('YYYY-MM-DD')}
+                      day={day}
+                      getActivityTypeIcon={getActivityTypeIcon}
+                      getActivityColorClass={getActivityColorClass}
+                      onItemClick={handleItemClick}
+                      taskEnabled={config.entities.task.enabled}
+                      activityEnabled={config.entities.activity.enabled}
+                      accessToken={accessToken || ''}
+                      taskCreateContext={taskCreateContext}
+                      activityCreateContext={activityCreateContext}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
+          )}
+        </CardContent>
+
+        {/* Task Detail Sheet */}
+        {selectedTask && (
+          <TaskDetailSheet
+            task={selectedTask as any}
+            open={!!selectedTask}
+            onOpenChange={(open: boolean) => {
+              if (!open) setSelectedTask(null)
+            }}
+            buildReferenceUrl={config.myTasksConfig?.buildReferenceUrl}
+            data-testid="calendar-task-detail-sheet"
+            businessAppContext={{ accessToken, userInfo } as BusinessAppContextProps}
+            accessToken={accessToken}
+            flowContext={config.myTasksConfig?.flowContexts?.entityContext}
+          />
         )}
-      </CardContent>
 
-      {/* Task Detail Sheet */}
-      {selectedTask && (
-        <TaskDetailSheet
-          task={selectedTask as any}
-          open={!!selectedTask}
-          onOpenChange={(open: boolean) => {
-            if (!open) setSelectedTask(null)
-          }}
-          buildReferenceUrl={config.myTasksConfig?.buildReferenceUrl}
-          data-testid="calendar-task-detail-sheet"
-          businessAppContext={{ accessToken, userInfo } as BusinessAppContextProps}
-        />
-      )}
+        {/* Activity Detail Sheet */}
+        {selectedActivity && (
+          <ActivityDetailSheet
+            activity={selectedActivity as any}
+            open={!!selectedActivity}
+            onOpenChange={(open: boolean) => {
+              if (!open) setSelectedActivity(null)
+            }}
+            data-testid="calendar-activity-detail-sheet"
+            accessToken={accessToken}
+            flowContext={config.myActivitiesConfig?.rowActionsContextArray?.[0]}
+          />
+        )}
+      </Card>
 
-      {/* Activity Detail Sheet */}
-      {selectedActivity && (
-        <ActivityDetailSheet
-          activity={selectedActivity as any}
-          open={!!selectedActivity}
-          onOpenChange={(open: boolean) => {
-            if (!open) setSelectedActivity(null)
-          }}
-          data-testid="calendar-activity-detail-sheet"
-        />
-      )}
-    </Card>
+      {/* Drag Overlay - shows item being dragged */}
+      <DragOverlay>
+        {activeItem ? (
+          <div
+            className={`gba:px-1.5 gba:py-1 gba:rounded gba:text-[11px] gba:flex gba:items-center gba:gap-1 gba:opacity-90 gba:shadow-lg ${getActivityColorClass(activeItem.activityType?.value || 'Task')}`}
+          >
+            {getActivityTypeIcon(activeItem.activityType?.value || 'Task', 11)}
+            <span className="gba:truncate gba:text-gray-700">{activeItem.title}</span>
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   )
 }
 
@@ -375,11 +517,17 @@ const DayCell: React.FC<DayCellProps> = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false)
 
+  // Make day cell droppable
+  const { setNodeRef, isOver } = useDroppable({
+    id: day.date.format('YYYY-MM-DD')
+  })
+
   return (
     <div
-      className={`gba:border gba:rounded gba:p-1.5 gba:h-[140px] gba:relative gba:flex gba:flex-col ${
+      ref={setNodeRef}
+      className={`gba:border gba:rounded gba:p-1.5 gba:h-[140px] gba:relative gba:flex gba:flex-col gba:transition-all gba:duration-200 ${
         day.isToday ? 'gba:ring-2 gba:ring-primary gba:bg-primary/5' : 'gba:bg-background'
-      }`}
+      } ${isOver ? 'gba:ring-4 gba:ring-info-secondary gba:bg-info-secondary/20 gba:shadow-lg gba:scale-[1.02]' : ''}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       data-testid={`day-cell-${day.date.format('YYYY-MM-DD')}`}
@@ -471,24 +619,63 @@ const DayCell: React.FC<DayCellProps> = ({
 
       {/* Activities list - scrollable */}
       <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-1">
-        {day.items.map(activity => {
-          const activityType = activity.activityType?.value || 'Task'
-          const isTask = activity.isTask
-          return (
-            <button
-              type="button"
-              key={activity.id}
-              onClick={() => onItemClick(activity)}
-              className={`gba:w-full gba:px-1.5 gba:py-1 gba:rounded gba:text-[11px] gba:text-left gba:border-0 gba:flex gba:items-center gba:gap-1 gba:cursor-pointer hover:gba:opacity-80 ${getActivityColorClass(activityType)}`}
-              data-testid={`${isTask ? 'task' : 'activity'}-${activity.id}`}
-            >
-              {getActivityTypeIcon(activityType, 11)}
-              <span className="gba:truncate gba:flex-1 gba:text-gray-700">{activity.title}</span>
-            </button>
-          )
-        })}
+        {day.items.map(activity => (
+          <DraggableCalendarItem
+            key={activity.id}
+            activity={activity}
+            onItemClick={onItemClick}
+            getActivityTypeIcon={getActivityTypeIcon}
+            getActivityColorClass={getActivityColorClass}
+          />
+        ))}
       </div>
     </div>
+  )
+}
+
+// Draggable calendar item component
+interface DraggableCalendarItemProps {
+  activity: CalendarActivity
+  onItemClick: (item: CalendarActivity) => void
+  getActivityTypeIcon: (type: string, size?: number) => React.ReactNode
+  getActivityColorClass: (activityType: string) => string
+}
+
+const DraggableCalendarItem: React.FC<DraggableCalendarItemProps> = ({
+  activity,
+  onItemClick,
+  getActivityTypeIcon,
+  getActivityColorClass
+}) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: activity.id
+  })
+
+  const style = transform
+    ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`
+      }
+    : undefined
+
+  const activityType = activity.activityType?.value || 'Task'
+  const isTask = activity.isTask
+
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      onClick={() => onItemClick(activity)}
+      style={style}
+      className={`gba:w-full gba:px-1.5 gba:py-1 gba:rounded gba:text-[11px] gba:text-left gba:border-0 gba:flex gba:items-center gba:gap-1 gba:cursor-grab active:gba:cursor-grabbing hover:gba:opacity-80 ${getActivityColorClass(activityType)} ${
+        isDragging ? 'gba:opacity-50' : ''
+      }`}
+      data-testid={`${isTask ? 'task' : 'activity'}-${activity.id}`}
+      {...listeners}
+      {...attributes}
+    >
+      {getActivityTypeIcon(activityType, 11)}
+      <span className="gba:truncate gba:flex-1 gba:text-gray-700">{activity.title}</span>
+    </button>
   )
 }
 
