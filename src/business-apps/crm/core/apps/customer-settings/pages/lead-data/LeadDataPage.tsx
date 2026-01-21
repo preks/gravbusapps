@@ -21,9 +21,9 @@ const LeadDataPage: React.FC<LeadDataPageProps> = ({ prefixDataTestId, onBack, i
     if (t && ['ratings', 'statuses', 'sources'].includes(t)) setTab(t)
   }, [])
 
-  const ratings = useCatalogSettings(context.accessToken, 'SalesLeadRating')
-  const statuses = useCatalogSettings(context.accessToken, 'SalesLeadStatus')
-  const sources = useCatalogSettings(context.accessToken, 'SalesLeadSource')
+  const ratings = useCatalogSettings(context, 'SalesLeadRating')
+  const statuses = useCatalogSettings(context, 'SalesLeadStatus')
+  const sources = useCatalogSettings(context, 'SalesLeadSource')
 
   return (
     <LeadSettings

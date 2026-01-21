@@ -10,6 +10,7 @@ import { TargetIcon, BuildingsIcon, UsersIcon, ChartPieIcon, UserIcon, ChartLine
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MyActivitiesTab } from '../components/MyActivitiesTab'
 import { MyTasksTab } from '../components/MyTasksTab'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 /**
  * IRM-specific configuration for Personal Workspace
@@ -136,6 +137,21 @@ const buildIrmWorkspaceConfig = (
       default: 'Tasks'
     }
   },
+
+  // Activity and Task configuration for detail sheets in Overview tab
+  myActivitiesConfig: {
+    flowContexts: {
+      entityContext: FlowContextName.investmentActivityEntity,
+      createContext: FlowContextName.investmentActivityCreate
+    }
+  } as any,
+
+  myTasksConfig: {
+    flowContexts: {
+      entityContext: FlowContextName.investmentTaskEntity,
+      createContext: FlowContextName.investmentTaskCreate
+    }
+  } as any,
 
   // Component wrappers for lazy loading (rendered only when their tab is active)
   MyActivitiesComponent: MyActivitiesTab,

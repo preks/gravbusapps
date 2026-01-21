@@ -35,18 +35,22 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
     setSelectedGroup,
     selectedType,
     setSelectedType,
+    selectedLiquidFundType,
+    setSelectedLiquidFundType,
     selectedEntry,
     setSelectedEntry,
     catalogData,
     setCatalogData,
     configSection,
     setConfigSection,
-    getTypesForGroup
+    getTypesForGroup,
+    getLiquidFundTypesForType
   } = useInvestmentDataPageState()
 
   const { configuration, isInherited, setConfiguration, setIsInherited } = useInvestmentConfiguration({
     selectedEntry,
     selectedGroup,
+    selectedType,
     targetLevel
   })
 
@@ -124,6 +128,7 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
     const groupEntry = mapCatalogEntryToTyped(group)
     setSelectedGroup(groupEntry)
     setSelectedType(null)
+    setSelectedLiquidFundType(null)
     setTargetLevel('group')
     setSelectedEntry(groupEntry)
   }
@@ -131,17 +136,27 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
   const handleTypeSelect = (type: any) => {
     const typeEntry = mapCatalogEntryToTyped(type)
     setSelectedType(typeEntry)
+    setSelectedLiquidFundType(null)
     setTargetLevel('type')
     setSelectedEntry(typeEntry)
+  }
+
+  const handleLiquidFundTypeSelect = (liquidFundType: any) => {
+    const liquidFundTypeEntry = mapCatalogEntryToTyped(liquidFundType)
+    setSelectedLiquidFundType(liquidFundTypeEntry)
+    setTargetLevel('liquidFundType')
+    setSelectedEntry(liquidFundTypeEntry)
   }
 
   const handleGeneralSelect = () => {
     setTargetLevel('group')
     setSelectedType(null)
+    setSelectedLiquidFundType(null)
     setSelectedEntry(selectedGroup)
   }
 
   const currentTypes = selectedGroup ? getTypesForGroup(selectedGroup.id) : []
+  const currentLiquidFundTypes = selectedType ? getLiquidFundTypesForType(selectedType.id) : []
 
   if (isLoading) {
     return (
@@ -190,9 +205,12 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
         catalogData={catalogData}
         selectedGroup={selectedGroup}
         selectedType={selectedType}
+        selectedLiquidFundType={selectedLiquidFundType}
         currentTypes={currentTypes}
+        currentLiquidFundTypes={currentLiquidFundTypes}
         onGroupSelect={handleGroupSelect}
         onTypeSelect={handleTypeSelect}
+        onLiquidFundTypeSelect={handleLiquidFundTypeSelect}
         onGeneralSelect={handleGeneralSelect}
         prefixDataTestId={`${prefixDataTestId}-${DATA_TEST_ID}`}
       />
@@ -229,7 +247,9 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
             isTileInherited={isInherited.tileFields}
             inheritedFrom={
               isInherited.formFields || isInherited.prospectFields || isInherited.tileFields
-                ? selectedGroup?.value
+                ? targetLevel === 'liquidFundType'
+                  ? selectedType?.value
+                  : selectedGroup?.value
                 : undefined
             }
             onClearFormInheritance={() => {

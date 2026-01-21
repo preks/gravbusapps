@@ -12,10 +12,9 @@ export interface EngagementDataPageProps extends BusinessAppContextProps {
 const DATA_TEST_ID = 'CustomerEngagementDataPage'
 
 const EngagementDataPage: React.FC<EngagementDataPageProps> = ({ prefixDataTestId, onBack, ...context }) => {
-  const activityTypes = useCatalogSettings(context.accessToken, 'SalesActivityType')
-  const taskTypes = useCatalogSettings(context.accessToken, 'SalesTaskType')
-  const taskPriorities = useCatalogSettings(context.accessToken, 'SalesTaskPriority')
-  const taskStatuses = useCatalogSettings(context.accessToken, 'SalesTaskStatus')
+  const activityTypes = useCatalogSettings(context, 'SalesActivityType')
+  const taskTypes = useCatalogSettings(context, 'SalesTaskType')
+  const taskPriorities = useCatalogSettings(context, 'SalesTaskPriority')
 
   return (
     <EngagementSettings
@@ -24,7 +23,11 @@ const EngagementDataPage: React.FC<EngagementDataPageProps> = ({ prefixDataTestI
       activityTypes={activityTypes}
       taskTypes={taskTypes}
       taskPriorities={taskPriorities}
-      taskStatuses={taskStatuses}
+      showConfigurationTab={true}
+      accessToken={context.accessToken}
+      userInfo={context.userInfo}
+      additionalData={context.additionalData}
+      taskTypeCatalogIdentifier="SalesTaskType"
     />
   )
 }
