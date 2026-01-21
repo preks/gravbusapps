@@ -1,3 +1,4 @@
+import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { MyTasksViewConfig } from '../components/tasks'
 import type { MyActivitiesViewConfig } from '../components/activities'
@@ -27,6 +28,11 @@ export interface PersonalWorkspaceConfig {
     useKpis: (context: BusinessAppContextProps, employeeId: string) => KpiResult
     useActivities: (context: BusinessAppContextProps, employeeId: string) => ActivitiesResult
     useTasks: (context: BusinessAppContextProps, employeeId: string) => TasksResult
+    // Optional: Combined hook for calendar (parallel queries for activities + tasks)
+    useCombinedCalendarData?: (
+      context: BusinessAppContextProps,
+      employeeId: string
+    ) => { activitiesResult: ActivitiesResult; tasksResult: TasksResult }
   }
 
   // Navigation configuration (module-specific URL building)
@@ -42,11 +48,15 @@ export interface PersonalWorkspaceConfig {
     tasks: { key: string; default: string }
   }
 
-  // Optional: My Activities configuration for Activities tab
+  // Optional: My Activities configuration for Activities tab (direct config)
   myActivitiesConfig?: MyActivitiesViewConfig<any>
 
-  // Optional: My Tasks configuration for Tasks tab
+  // Optional: My Tasks configuration for Tasks tab (direct config)
   myTasksConfig?: MyTasksViewConfig<any, any>
+
+  // Optional: Component wrappers for lazy loading (rendered only when tab is active)
+  MyActivitiesComponent?: React.ComponentType<BusinessAppContextProps>
+  MyTasksComponent?: React.ComponentType<BusinessAppContextProps>
 }
 
 /**
@@ -102,7 +112,7 @@ export interface ActivitiesResult {
   activities: any[]
   loading: boolean
   error: Error | null
-  refetch?: () => void
+  refetch?: (dateRange?: { occurredAtFrom?: string; occurredAtTo?: string }) => void | Promise<void>
 }
 
 /**
@@ -112,5 +122,5 @@ export interface TasksResult {
   tasks: any[]
   loading: boolean
   error: Error | null
-  refetch?: () => void
+  refetch?: (dateRange?: { dueDateFrom?: string; dueDateTo?: string }) => void | Promise<void>
 }

@@ -1,31 +1,72 @@
-import React from 'react'
+import React, { useCallback } from 'react'
 import { Alert, AlertDescription, AlertTitle } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { PersonalWorkspaceConfig, KpiResult, ActivitiesResult, TasksResult } from '../../types'
+import type { PersonalWorkspaceConfig, ActivitiesResult, TasksResult } from '../../types'
 import { PersonalKpisCard } from './PersonalKpisCard'
 import { RecentActivitiesWidget } from './RecentActivitiesWidget'
 import { CompactTwoWeekCalendar } from './CompactTwoWeekCalendar'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 export interface OverviewViewProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
   config: PersonalWorkspaceConfig
-  kpisResult: KpiResult
-  activitiesResult: ActivitiesResult
-  tasksResult: TasksResult
+  employeeId: string
 }
 
 /**
  * Generic Overview View
  * Main dashboard view showing KPIs, recent activities, and calendar
+ * Fetches data only when this component is mounted (lazy loading per tab)
  */
-export const OverviewView: React.FC<OverviewViewProps> = ({
-  config,
-  kpisResult,
-  activitiesResult,
-  tasksResult,
-  accessToken,
-  userInfo
-}) => {
-  const errors = [kpisResult.error, activitiesResult.error, tasksResult.error].filter(Boolean)
+export const OverviewView: React.FC<OverviewViewProps> = ({ config, employeeId, accessToken, userInfo }) => {
+  console.log('[OverviewView] Component render, employeeId:', employeeId)
+
+  React.useEffect(() => {
+    console.log('[OverviewView] Component MOUNTED')
+    return () => {
+      console.log('[OverviewView] Component UNMOUNTED')
+    }
+  }, [])
+
+  // Fetch Overview tab data (only when this component is mounted)
+  const kpisResult = config.hooks.useKpis({ accessToken, userInfo }, employeeId)
+  const recentActivitiesResult = config.hooks.useActivities({ accessToken, userInfo }, employeeId)
+
+  // Calendar Activities & Tasks
+  let calendarActivitiesResult: ActivitiesResult
+  let calendarTasksResult: TasksResult
+
+  if (config.hooks.useCombinedCalendarData) {
+    // ✅ Parallel queries for both activities and tasks
+    const combinedResult = config.hooks.useCombinedCalendarData({ accessToken, userInfo }, employeeId)
+    calendarActivitiesResult = combinedResult.activitiesResult
+    calendarTasksResult = combinedResult.tasksResult
+  } else {
+    // Fallback to separate hooks for backward compatibility
+    calendarActivitiesResult = recentActivitiesResult
+    calendarTasksResult = config.hooks.useTasks({ accessToken, userInfo }, employeeId)
+  }
+
+  // Process Completion Handler - refresh all data when processes complete
+  const handleProcessComplete = useCallback(() => {
+    // Refetch KPIs
+    kpisResult.refetch?.()
+
+    // Refetch recent activities
+    recentActivitiesResult.refetch?.()
+
+    // Refetch calendar data
+    calendarActivitiesResult.refetch?.()
+    calendarTasksResult.refetch?.()
+  }, [kpisResult, recentActivitiesResult, calendarActivitiesResult, calendarTasksResult])
+
+  useProcessCompletion({ onSuccess: handleProcessComplete })
+
+  const errors = [
+    kpisResult.error,
+    recentActivitiesResult.error,
+    calendarActivitiesResult.error,
+    calendarTasksResult.error
+  ].filter(Boolean)
 
   return (
     <div className="gba:space-y-6" data-testid="overview-view">
@@ -48,22 +89,24 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       <div className="gba:grid gba:grid-cols-2 gba:gap-6">
         {/* Recent Activities Widget - Workspace-enhanced activity display */}
         <RecentActivitiesWidget
-          activities={activitiesResult.activities.slice(0, 5)} // Show top 5
-          loading={activitiesResult.loading}
+          activities={recentActivitiesResult.activities} // Show all 10 fetched activities
+          loading={recentActivitiesResult.loading}
           config={config}
         />
 
         {/* Calendar */}
         <CompactTwoWeekCalendar
-          activities={activitiesResult.activities}
-          tasks={tasksResult.tasks}
-          activitiesLoading={activitiesResult.loading}
-          tasksLoading={tasksResult.loading}
-          activitiesError={activitiesResult.error}
-          tasksError={tasksResult.error}
+          activities={calendarActivitiesResult.activities}
+          tasks={calendarTasksResult.tasks}
+          activitiesLoading={calendarActivitiesResult.loading}
+          tasksLoading={calendarTasksResult.loading}
+          activitiesError={calendarActivitiesResult.error}
+          tasksError={calendarTasksResult.error}
           config={config}
           accessToken={accessToken}
           userInfo={userInfo}
+          refetchActivities={calendarActivitiesResult.refetch}
+          refetchTasks={calendarTasksResult.refetch}
         />
       </div>
     </div>

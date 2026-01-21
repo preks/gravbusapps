@@ -72,7 +72,7 @@ export function useInvestmentTask(accessToken: string, taskId: string | undefine
       console.error('Error fetching investment task:', error)
       setState({ task: null, loading: false, error: errorMessage })
     }
-  }, [taskId, accessToken, graphqlClient])
+  }, [taskId, accessToken])
 
   // Auto-fetch on mount and when dependencies change
   useEffect(() => {

@@ -27,11 +27,13 @@ import {
   TabsList,
   TabsTrigger,
   TabsContent,
-  PageHeader
+  PageLayout,
+  EmptyState
 } from '@newwork/nw-design-system'
+import { StarIcon } from '@phosphor-icons/react'
+import { Plus, Edit, Trash2 } from 'lucide-react'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { useForm } from 'react-hook-form'
-import { Star, CircleDot, Share2 } from 'lucide-react'
 
 export interface CatalogItem {
   id: string
@@ -78,17 +80,13 @@ export interface LeadSettingsProps {
 }
 
 interface GenericTabProps extends CatalogTabState, CatalogTabHandlers {
-  title: string
-  description: string
-  icon: React.ReactNode
+  entityName: string
   dataTestId: string
   onSearchChange?: (value: string) => void
 }
 
 const GenericCatalogTab: React.FC<GenericTabProps> = ({
-  title,
-  description,
-  icon,
+  entityName,
   dataTestId,
   items,
   isLoading,
@@ -149,7 +147,10 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
 
   if (error) {
     return (
-      <Alert className="gba:border-red-200 gba:bg-red-50" data-testid={`${dataTestId}-Error`}>
+      <Alert
+        className="gba:border-destructive-secondary gba:bg-destructive-secondary"
+        data-testid={`${dataTestId}-Error`}
+      >
         <AlertDescription>
           {error}
           {onRetry && (
@@ -164,19 +165,12 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
 
   return (
     <div data-testid={dataTestId}>
-      <div className="gba:flex gba:items-center gba:justify-between">
-        <div>
-          <h3>
-            {icon}
-            {title}
-          </h3>
-          <p>{description}</p>
-        </div>
-
+      <div className="gba:flex gba:justify-end gba:mb-6">
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
             <Button onClick={handleAdd} data-testid={`${dataTestId}-Add-Button`}>
-              Add
+              <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
+              Add {entityName}
             </Button>
           </DialogTrigger>
           <DialogContent data-testid={`${dataTestId}-Modal`}>
@@ -290,7 +284,16 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4}>No entries found</TableCell>
+                  <TableCell colSpan={4} className="gba:py-8">
+                    <EmptyState
+                      title={search ? 'No entries match your search' : `No ${entityName.toLowerCase()}s configured yet`}
+                      description={
+                        search
+                          ? 'Try adjusting your search terms'
+                          : `Click "Add ${entityName}" to create your first entry`
+                      }
+                    />
+                  </TableCell>
                 </TableRow>
               ) : (
                 filtered.map(item => (
@@ -309,22 +312,22 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="gba:flex">
+                      <div className="gba:flex gba:gap-1">
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="icon"
                           onClick={() => handleEdit(item)}
                           data-testid={`${dataTestId}-Edit-Button-${item.id}`}
                         >
-                          Edit
+                          <Edit className="gba:w-4 gba:h-4" />
                         </Button>
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="icon"
                           onClick={() => onDelete(item.id)}
                           data-testid={`${dataTestId}-Delete-Button-${item.id}`}
                         >
-                          Delete
+                          <Trash2 className="gba:w-4 gba:h-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -353,59 +356,50 @@ export const LeadSettings: React.FC<LeadSettingsProps> = ({
   const [active, setActive] = useState<'ratings' | 'statuses' | 'sources'>(initialTab || 'ratings')
 
   return (
-    <div className={className} data-testid={`${prefixDataTestId || ''}-LeadSettings-Container`}>
-      <PageHeader
-        title={headerTitle}
-        subtitle={headerDescription}
-        avatar={<Star />}
-        data-testid={`${prefixDataTestId || ''}-LeadSettings-Header`}
-        onBack={onBack}
-      />
+    <PageLayout
+      headerIcon={StarIcon}
+      headerTitle={headerTitle}
+      headerDescription={headerDescription}
+      onBack={onBack}
+      className={className}
+      data-testid={`${prefixDataTestId || ''}-LeadSettings-Container`}
+    >
+      <Tabs
+        value={active}
+        onValueChange={k => setActive(k as any)}
+        data-testid={`${prefixDataTestId || ''}-LeadSettings-Tabs`}
+      >
+        <TabsList>
+          <TabsTrigger value="ratings">Ratings</TabsTrigger>
+          <TabsTrigger value="statuses">Statuses</TabsTrigger>
+          <TabsTrigger value="sources">Sources</TabsTrigger>
+        </TabsList>
 
-      <div>
-        <Tabs
-          value={active}
-          onValueChange={k => setActive(k as any)}
-          data-testid={`${prefixDataTestId || ''}-LeadSettings-Tabs`}
-        >
-          <TabsList>
-            <TabsTrigger value="ratings">Ratings</TabsTrigger>
-            <TabsTrigger value="statuses">Statuses</TabsTrigger>
-            <TabsTrigger value="sources">Sources</TabsTrigger>
-          </TabsList>
+        <TabsContent value="ratings">
+          <GenericCatalogTab
+            entityName="Rating"
+            dataTestId={`${prefixDataTestId || ''}-LeadSettings-Ratings`}
+            {...ratings}
+          />
+        </TabsContent>
 
-          <TabsContent value="ratings">
-            <GenericCatalogTab
-              title="Lead Ratings"
-              description="Manage rating levels for lead qualification"
-              icon={<Star />}
-              dataTestId={`${prefixDataTestId || ''}-LeadSettings-Ratings`}
-              {...ratings}
-            />
-          </TabsContent>
+        <TabsContent value="statuses">
+          <GenericCatalogTab
+            entityName="Status"
+            dataTestId={`${prefixDataTestId || ''}-LeadSettings-Statuses`}
+            {...statuses}
+          />
+        </TabsContent>
 
-          <TabsContent value="statuses">
-            <GenericCatalogTab
-              title="Lead Statuses"
-              description="Manage status values for lead lifecycle"
-              icon={<CircleDot />}
-              dataTestId={`${prefixDataTestId || ''}-LeadSettings-Statuses`}
-              {...statuses}
-            />
-          </TabsContent>
-
-          <TabsContent value="sources">
-            <GenericCatalogTab
-              title="Lead Sources"
-              description="Manage source channels for lead attribution"
-              icon={<Share2 />}
-              dataTestId={`${prefixDataTestId || ''}-LeadSettings-Sources`}
-              {...sources}
-            />
-          </TabsContent>
-        </Tabs>
-      </div>
-    </div>
+        <TabsContent value="sources">
+          <GenericCatalogTab
+            entityName="Source"
+            dataTestId={`${prefixDataTestId || ''}-LeadSettings-Sources`}
+            {...sources}
+          />
+        </TabsContent>
+      </Tabs>
+    </PageLayout>
   )
 }
 
