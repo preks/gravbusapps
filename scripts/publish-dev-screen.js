@@ -311,9 +311,21 @@ async function main() {
   const viteEntryKey = screenPathArg
   const buildOutputDir = path.join(projectRootDir, 'dist', screenPathArg)
   // Allow custom destination path override
-  const azureDestinationPath = argv.destination
+  let azureDestinationPath = argv.destination
     ? argv.destination.replace(/\\/g, '/').replace(/^\//, '') // Remove leading slash if present
     : screenPathArg.replace(/\\/g, '/')
+
+  // Fix duplicate platform/apps prefix if present
+  // Remove any duplicate platform/apps prefix
+  while (azureDestinationPath.startsWith('platform/apps/platform/apps/')) {
+    azureDestinationPath = azureDestinationPath.replace(/^platform\/apps\/platform\/apps\//, 'platform/apps/')
+  }
+
+  // Also handle case where path might have been incorrectly constructed
+  // If path is platform/apps/platform/apps/..., normalize it
+  if (azureDestinationPath.match(/^platform\/apps\/platform\/apps\//)) {
+    azureDestinationPath = azureDestinationPath.replace(/^platform\/apps\/platform\/apps\//, 'platform/apps/')
+  }
 
   console.log(`   Source Entry File: ${sourceEntryFile}`)
   console.log(`   Vite Entry Key: ${viteEntryKey}`)

@@ -85,6 +85,7 @@ import { useSpreadsheetAutomations } from './hooks/useSpreadsheetAutomations'
 import { isTrackingColumn } from './utils/trackingColumns'
 import { TRACKING_COLUMNS } from './components/automations/TrackingColumnsConfig'
 import { normalizeImageSrc } from './utils/normalizeImageSrc'
+import { isValidUrl, urlToMarkdown, parseMarkdownLink, isMarkdownLink } from './utils/linkUtils'
 import { useCollaboration } from '../shared/hooks/useCollaboration'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { DocumentParticipant } from '../shared/services/CollaborationClient'
@@ -101,6 +102,7 @@ import { AutoSaveIndicator } from '../shared/components/AutoSaveIndicator'
 import { StatusBadge } from '../shared/components/StatusBadge'
 import { PublishDialog } from '../shared/components/PublishDialog'
 import { CommentPanel } from '../shared/components/CommentPanel'
+import { LinkEditor } from './components/LinkEditor'
 
 /**
  * Get a nested value from an object using dot notation path
@@ -186,6 +188,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   onSheetUpdate,
   onBack,
   onEdit,
+  isEditing = true,
   accessToken = '',
   userId,
   'data-testid': testId = 'spreadsheet-app-viewer'
@@ -2255,6 +2258,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       // Don't handle if we're in an input or textarea (unless it's a cell input)
       const target = e.target as HTMLElement
       const isCellInput = target.closest('[data-cell-rowid]')
+
+      // Don't handle if target is inside a link editor
+      const isLinkEditorInput =
+        target.closest('[data-link-editor="true"]') || target.hasAttribute('data-link-editor-input')
+      if (isLinkEditorInput) return
+
       if ((target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') && !isCellInput) return
 
       // Don't handle if a cell is currently being edited
@@ -2272,7 +2281,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const { rowIndex, colIndex, rowId, colId } = selectedCell
       // Find column by colId (more reliable than index)
       const column = activeSheet?.columns.find(c => c.id === colId)
-      const canEdit = activeSheet?.settings.allowEdit && column?.isEditable && column?.type !== 'calculated'
+      const canEdit =
+        isEditing && activeSheet?.settings.allowEdit && column?.isEditable && column?.type !== 'calculated'
 
       // Navigation function
       const navigateTo = (direction: 'up' | 'down' | 'left' | 'right') => {
@@ -2351,7 +2361,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         e.preventDefault()
         if (canEdit && column) {
           navigator.clipboard.readText().then(text => {
-            handleCellChange(rowId, column.name, text)
+            // If pasted text is a URL, convert it to markdown link format
+            const processedText = isValidUrl(text) ? urlToMarkdown(text) : text
+            handleCellChange(rowId, column.name, processedText)
           })
         }
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -2603,7 +2615,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               rowIndex={row.index}
               colIndex={colIndex}
               onSave={handleCellChange}
-              isEditable={activeSheet.settings.allowEdit && col.type !== 'calculated'}
+              isEditable={isEditing && activeSheet.settings.allowEdit && col.type !== 'calculated'}
               allRows={filteredData}
               columns={activeSheet.columns}
               onFormulaCellSelect={handleFormulaCellSelect}
@@ -2621,6 +2633,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               }}
               participants={cursorParticipants}
               onCursorEmit={emitCursorImmediate}
+              accessToken={accessToken}
             />
           )
         }
@@ -2831,45 +2844,59 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
               {/* Divider */}
               <div className="gba:h-6 gba:w-px gba:bg-border/50" />
 
-              {/* Versioning Features - Clean */}
-              <div className="gba:flex gba:items-center gba:gap-1.5">
-                {/* Auto-save indicator */}
-                <AutoSaveIndicator
-                  isSaving={versioning.isSaving}
-                  lastSaveTime={versioning.lastSaveTime}
-                  hasUnsavedChanges={versioning.hasUnsavedChanges}
-                  onManualSave={() => setShowCheckpointDialog(true)}
-                  data-testid="spreadsheet-auto-save-indicator"
-                />
-
-                {/* Comments button */}
-                <Button
-                  variant={showComments ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setShowComments(!showComments)}
-                  title="Comments"
-                  data-testid="spreadsheet-comments-button"
-                  className="gba:h-8"
+              {/* View Only Badge */}
+              {!isEditing && (
+                <Badge
+                  variant="secondary"
+                  className="gba:bg-muted/50 gba:text-muted-foreground gba:border-border/30 gba:backdrop-blur-sm"
+                  data-testid="view-only-badge"
                 >
-                  <MessageSquare className="gba:w-4 gba:h-4" />
-                  {comments.unresolvedCount > 0 && (
-                    <Badge variant="warning" className="gba:ml-1 gba:px-1 gba:py-0 gba:h-4 gba:text-xs">
-                      {comments.unresolvedCount}
+                  <Eye className="gba:h-3 gba:w-3 gba:mr-1" />
+                  View Only
+                </Badge>
+              )}
+
+              {/* Versioning Features - Clean */}
+              {isEditing && (
+                <div className="gba:flex gba:items-center gba:gap-1.5">
+                  {/* Auto-save indicator */}
+                  <AutoSaveIndicator
+                    isSaving={versioning.isSaving}
+                    lastSaveTime={versioning.lastSaveTime}
+                    hasUnsavedChanges={versioning.hasUnsavedChanges}
+                    onManualSave={() => setShowCheckpointDialog(true)}
+                    data-testid="spreadsheet-auto-save-indicator"
+                  />
+
+                  {/* Comments button */}
+                  <Button
+                    variant={showComments ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setShowComments(!showComments)}
+                    title="Comments"
+                    data-testid="spreadsheet-comments-button"
+                    className="gba:h-8"
+                  >
+                    <MessageSquare className="gba:w-4 gba:h-4" />
+                    {comments.unresolvedCount > 0 && (
+                      <Badge variant="warning" className="gba:ml-1 gba:px-1 gba:py-0 gba:h-4 gba:text-xs">
+                        {comments.unresolvedCount}
+                      </Badge>
+                    )}
+                  </Button>
+
+                  {/* Lock status (compact) */}
+                  {fileLock.lock?.isLocked && fileLock.isLockedByMe && (
+                    <Badge variant="default" className="gba:flex gba:items-center gba:gap-1">
+                      <Lock className="gba:h-3 gba:w-3" />
+                      Locked
                     </Badge>
                   )}
-                </Button>
 
-                {/* Lock status (compact) */}
-                {fileLock.lock?.isLocked && fileLock.isLockedByMe && (
-                  <Badge variant="default" className="gba:flex gba:items-center gba:gap-1">
-                    <Lock className="gba:h-3 gba:w-3" />
-                    Locked
-                  </Badge>
-                )}
-
-                {/* Status badge */}
-                <StatusBadge status={publishing.metadata?.status || 'draft'} />
-              </div>
+                  {/* Status badge */}
+                  <StatusBadge status={publishing.metadata?.status || 'draft'} />
+                </div>
+              )}
 
               <div className="gba:h-6 gba:w-px gba:bg-border/50" />
 
@@ -4188,6 +4215,8 @@ interface EditableCellProps {
   participants?: import('../shared/services/CollaborationClient').DocumentParticipant[]
   /** Emit cursor position immediately on cell selection (for faster collaboration) */
   onCursorEmit?: (rowId: string, colId: string, rowIndex: number, colIndex: number) => void
+  /** Access token for API calls */
+  accessToken?: string
 }
 
 const EditableCell: React.FC<EditableCellProps> = ({
@@ -4208,11 +4237,13 @@ const EditableCell: React.FC<EditableCellProps> = ({
   formulaSelectedCells,
   onEditingStateChange,
   participants = [],
-  onCursorEmit
+  onCursorEmit,
+  accessToken = ''
 }) => {
   const [isEditing, setIsEditing] = useState(false)
   const [originalValue, setOriginalValue] = useState<string>('')
   const [editValue, setEditValue] = useState('')
+  const [showLinkEditor, setShowLinkEditor] = useState(false)
 
   // Notify parent when editing state changes
   useEffect(() => {
@@ -4311,6 +4342,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
       setOriginalValue(storedFormula || String(value ?? ''))
       setEditValue(startChar)
       setIsEditing(true)
+      setShowLinkEditor(false) // Don't show link editor when typing
 
       // If it's a formula, enter formula selection mode and store the value
       if (startChar.trim().startsWith('=')) {
@@ -4337,6 +4369,13 @@ const EditableCell: React.FC<EditableCellProps> = ({
     setOriginalValue(storedFormula || String(value ?? ''))
     setEditValue(initialValue)
     setIsEditing(true)
+
+    // Check if the value is a markdown link - if so, show link editor
+    if (!clearContent && (isMarkdownLink(initialValue) || isValidUrl(initialValue))) {
+      setShowLinkEditor(true)
+    } else {
+      setShowLinkEditor(false)
+    }
   }
 
   // Save the cell value
@@ -4408,6 +4447,9 @@ const EditableCell: React.FC<EditableCellProps> = ({
   const handleCellKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (isEditing) return
 
+    // Don't handle if link editor is open
+    if (showLinkEditor) return
+
     // Arrow keys - navigate
     if (e.key === 'ArrowUp') {
       e.preventDefault()
@@ -4452,7 +4494,9 @@ const EditableCell: React.FC<EditableCellProps> = ({
       e.preventDefault()
       if (canEdit) {
         navigator.clipboard.readText().then(text => {
-          onSave(rowId, column.name, text)
+          // If pasted text is a URL, convert it to markdown link format
+          const processedText = isValidUrl(text) ? urlToMarkdown(text) : text
+          onSave(rowId, column.name, processedText)
         })
       }
     } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -4531,6 +4575,11 @@ const EditableCell: React.FC<EditableCellProps> = ({
   const handleBlur = (_e: React.FocusEvent<HTMLInputElement>) => {
     if (isCommittingRef.current) return
 
+    // Don't save if link editor is open (user is editing link)
+    if (showLinkEditor) {
+      return
+    }
+
     // Don't save if in formula mode (clicking other cells)
     if (formulaSelectionMode && isInFormulaMode) {
       // Keep edit session open, but NEVER steal focus back.
@@ -4545,6 +4594,11 @@ const EditableCell: React.FC<EditableCellProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value
     setEditValue(newValue)
+
+    // Hide link editor if user is typing (they want to edit raw markdown)
+    if (showLinkEditor) {
+      setShowLinkEditor(false)
+    }
 
     // Update the formula value at viewer level for formula mode
     if (newValue.trim().startsWith('=') && onFormulaValueChange) {
@@ -4561,6 +4615,28 @@ const EditableCell: React.FC<EditableCellProps> = ({
     } else if (!newValue.trim().startsWith('=') && formulaSelectionMode && isInFormulaMode) {
       setFormulaSelectionMode(null)
     }
+  }
+
+  // Handle link editor save
+  const handleLinkEditorSave = (markdownLink: string) => {
+    setEditValue(markdownLink)
+    // Save immediately with the new markdown link value
+    if (isCommittingRef.current) return
+    isCommittingRef.current = true
+
+    onSave(rowId, column.name, markdownLink)
+    setIsEditing(false)
+    setShowLinkEditor(false)
+
+    setTimeout(() => {
+      isCommittingRef.current = false
+    }, 0)
+  }
+
+  // Handle link editor cancel
+  const handleLinkEditorCancel = () => {
+    setShowLinkEditor(false)
+    setIsEditing(false)
   }
 
   // Check if this cell is selected in formula mode (for highlighting)
@@ -4612,21 +4688,33 @@ const EditableCell: React.FC<EditableCellProps> = ({
         />
       )}
       {isEditing ? (
-        <div className="gba:relative">
-          <Input
-            ref={inputRef}
-            autoFocus
-            value={editValue}
-            onChange={handleInputChange}
-            onKeyDown={handleInputKeyDown}
-            onBlur={handleBlur}
-            className="gba:h-[26px] gba:py-0 gba:px-1 gba:text-sm gba:min-w-[40px] gba:border-primary gba:rounded-none"
-            data-testid={`cell-input-${rowId}-${column.id}`}
-          />
-          {editValue.trim().startsWith('=') && (
-            <span className="gba:absolute gba:right-1 gba:top-1/2 gba:-translate-y-1/2 gba:text-[10px] gba:text-muted-foreground">
-              fx
-            </span>
+        <div className="gba:relative" onKeyDown={e => showLinkEditor && e.stopPropagation()}>
+          {showLinkEditor ? (
+            <LinkEditor
+              value={editValue}
+              onSave={handleLinkEditorSave}
+              onCancel={handleLinkEditorCancel}
+              accessToken={accessToken}
+              data-testid={`link-editor-${rowId}-${column.id}`}
+            />
+          ) : (
+            <>
+              <Input
+                ref={inputRef}
+                autoFocus
+                value={editValue}
+                onChange={handleInputChange}
+                onKeyDown={handleInputKeyDown}
+                onBlur={handleBlur}
+                className="gba:h-[26px] gba:py-0 gba:px-1 gba:text-sm gba:min-w-[40px] gba:border-primary gba:rounded-none"
+                data-testid={`cell-input-${rowId}-${column.id}`}
+              />
+              {editValue.trim().startsWith('=') && (
+                <span className="gba:absolute gba:right-1 gba:top-1/2 gba:-translate-y-1/2 gba:text-[10px] gba:text-muted-foreground">
+                  fx
+                </span>
+              )}
+            </>
           )}
         </div>
       ) : (
@@ -5068,6 +5156,38 @@ function formatCellValue(value: unknown, column: SpreadsheetColumn, isStatusColu
         </a>
       )
     default:
+      // Check if value is a markdown link
+      const stringValue = String(value)
+      const linkData = parseMarkdownLink(stringValue)
+      if (linkData) {
+        return (
+          <a
+            href={linkData.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="gba:text-primary gba:hover:underline"
+            onClick={e => e.stopPropagation()}
+            title={linkData.url}
+          >
+            {linkData.title}
+          </a>
+        )
+      }
+      // Check if value is a plain URL
+      if (isValidUrl(stringValue)) {
+        return (
+          <a
+            href={stringValue}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="gba:text-primary gba:hover:underline"
+            onClick={e => e.stopPropagation()}
+            title={stringValue}
+          >
+            {stringValue}
+          </a>
+        )
+      }
       return String(value)
   }
 }

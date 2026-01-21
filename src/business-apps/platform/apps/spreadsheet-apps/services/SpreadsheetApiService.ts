@@ -940,9 +940,19 @@ export const SpreadsheetApiService = {
         }
       )
 
-      console.log('[SpreadsheetApiService] Restore complete!')
+      console.log('[SpreadsheetApiService] Backend restore complete!')
       console.log('[SpreadsheetApiService] Message:', result.message)
       console.log('[SpreadsheetApiService] Restored rows:', result.restoredRows)
+
+      if (result.success) {
+        // Create a new version marking it as a restore (like documents do)
+        console.log('[SpreadsheetApiService] Creating restore checkpoint...')
+        await this.createVersion(appId, {
+          changeDescription: `Restored from version ${versionNumber}`,
+          isCheckpoint: true
+        })
+        console.log('[SpreadsheetApiService] Restore checkpoint created!')
+      }
 
       return result.success
     } catch (error) {

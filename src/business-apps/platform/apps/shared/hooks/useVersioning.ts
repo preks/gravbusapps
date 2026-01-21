@@ -278,16 +278,33 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
       setState(prev => ({ ...prev, isRestoring: true, error: null }))
 
       try {
+        console.log('[useVersioning] Restoring to version:', versionNumber)
         const success = await apiService.restoreVersion(entityId, versionNumber)
 
         if (success) {
+          console.log('[useVersioning] Restore succeeded, reloading versions...')
           // Reload versions to get the new "restored" checkpoint
           await loadVersions()
+
+          // After restore, a NEW version was created with "Restored from version X"
+          // The current version is now the NEWEST version (index 0 after sorting DESC)
+          // NOT the old version we restored from
+          setState(prev => {
+            const newestVersion = prev.versions.length > 0 ? prev.versions[0] : undefined
+            console.log('[useVersioning] Setting current version to newest:', newestVersion?.version)
+            return {
+              ...prev,
+              currentVersion: newestVersion,
+              isRestoring: false
+            }
+          })
 
           const restoredVersion = state.versions.find(v => v.version === versionNumber)
           if (restoredVersion && onVersionRestored) {
             onVersionRestored(restoredVersion)
           }
+
+          return true
         }
 
         setState(prev => ({ ...prev, isRestoring: false }))

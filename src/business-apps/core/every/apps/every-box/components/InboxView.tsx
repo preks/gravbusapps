@@ -710,24 +710,15 @@ export const InboxView: React.FC<InboxViewProps> = ({
         }`}
       >
         {selectedTask && (
-          <>
-            {/* Debug: Log userId being passed to TaskDetailDialog */}
-            {console.log('[InboxView] Rendering TaskDetailDialog with userId:', {
-              userId: context.userInfo?.id,
-              hasUserInfo: !!context.userInfo,
-              userInfoKeys: context.userInfo ? Object.keys(context.userInfo) : [],
-              employeeId: context.userInfo?.employeeDetails?.employeeId
-            })}
-            <TaskDetailDialog
-              task={selectedTask}
-              onClose={handleCloseTask}
-              onTaskUpdated={onRefresh}
-              onTaskCompleted={handleTaskCompleted}
-              accessToken={context.accessToken}
-              userId={context.userInfo?.id}
-              userInfo={context.userInfo}
-            />
-          </>
+          <TaskDetailDialog
+            task={selectedTask}
+            onClose={handleCloseTask}
+            onTaskUpdated={onRefresh}
+            onTaskCompleted={handleTaskCompleted}
+            accessToken={context.accessToken}
+            userId={context.userInfo?.id}
+            userInfo={context.userInfo}
+          />
         )}
       </div>
     </div>
