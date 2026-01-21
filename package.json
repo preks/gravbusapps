@@ -44,6 +44,7 @@
     "@remixicon/react": "^4.6.0",
     "@uiw/react-codemirror": "^4.25.3",
     "@zxing/browser": "^0.1.5",
+    "@zxing/library": "^0.21.3",
     "antd": "^5.26.1",
     "clsx": "^2.1.1",
     "d3": "^7.9.0",
