@@ -6,7 +6,7 @@
   "core/content/apps/content-hub": "09d9960ad94ce914a5ec850f00c5ddaf",
   "core/content/apps/content-management": "8abba99a2c3d1c18d554cd3a134b82f2",
   "core/content/apps/content-manager": "0b1d967125cdf13306a300766adc4135",
-  "core/content/apps/content-portal": "c76528f1c138e3b429caadc98691b7b3",
+  "core/content/apps/content-portal": "83c64ac80d80ce32eba65deef41688dc",
   "core/content/apps/content-settings": "33587e787f624fbda6f31db710dcff9a",
   "core/content/forms/content-form": "df93ef2d167697a7a61226d183ebe042",
   "core/content/forms/document-form": "55203a2ec0706fd6d154a6c436415880",
@@ -14,7 +14,7 @@
   "core/content/forms/glossary-entry-task-form": "9755d3d38a18ba7f0ff1d0627fa16880",
   "core/content/popups/content-document-popup": "fae10f5023c0e47eaf6a14e95f6f2057",
   "core/content/popups/content-entry-delete-popup": "6cdd7d51d0d73bc0fc3f3d7f998541c6",
-  "core/content/records/content-record": "60508e779ec4e69c385286c32e71a694",
+  "core/content/records/content-record": "91e98c3b7919150e02b3a686888f8164",
   "core/documents/apps/document-creator": "5fce84515e8e4d9823108acf4e5ce6fa",
   "core/every/apps/every-api": "adb2b35d77517532769e68efde769c64",
   "core/every/apps/every-box": "09bf87c9d5b4e08e6124e0b91269abd5",
@@ -282,6 +282,6 @@
   "sales-demo/sales-order/apps/sales-order-overview": "d4d6a93c5ff29a9e7ea10d8e6e6eabdd",
   "sales-demo/sales-order/apps/sales-performance-report": "313953c3b9838677483e949efbe263a6",
   "sales-demo/sales-order/forms/sales-order-creation-form": "8532951efd850c821aaf7c2f5e4bae21",
-  "ser/apps/service-desk": "33dc1191218e73937b335e73e9415069",
+  "ser/apps/service-desk": "5cad2c24b963f636fbed46bc2f6ab24f",
   "ser/apps/service-portal": "bdc67030d0cd21c7a0aee049fc0ddd41"
 }
