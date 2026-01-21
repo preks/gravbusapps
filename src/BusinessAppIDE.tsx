@@ -733,7 +733,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     const mergedAdditionalData = {
       ...existingAdditionalData,
       platformContext: {
-        ...(existingAdditionalData?.platformContext || {}),
+        ...existingAdditionalData.platformContext,
         structureId: ideStructureId
       }
     }
@@ -747,14 +747,14 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   // Provide a local platform context for localhost IDE usage.
   // This mirrors platform-provided values without hardcoding any IDs.
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof globalThis === 'undefined') return
 
     const localUserInfo = parsedUserInfo()
     const localAdditionalData = parsedAdditionalData()
     if (!localUserInfo && !localAdditionalData) return
 
-    const lowcoder = ((window as any).lowcoder ??= {})
-    const platformContext = { ...(lowcoder.platformContext ?? {}) }
+    const lowcoder = ((globalThis as any).lowcoder ??= {})
+    const platformContext = { ...lowcoder.platformContext }
     const additionalPlatformContext = localAdditionalData?.platformContext ?? {}
 
     const structureId =
