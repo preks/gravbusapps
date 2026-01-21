@@ -93,12 +93,6 @@ export const IconSelect: React.FC<IconSelectProps> = ({ value, onValueChange, di
   // Final fallback to Article icon
   if (!IconComponent) {
     IconComponent = PhosphorIcons.Article
-    if (process.env.NODE_ENV === 'development') {
-      console.warn(
-        `Icon not found: ${value}, using Article as fallback. Available icons:`,
-        Object.keys(PhosphorIcons).slice(0, 10)
-      )
-    }
   }
 
   // Filter icons based on search

@@ -1,9 +1,8 @@
-import { Button, ButtonGroup } from '@newwork/nw-design-system'
-import { Save, X } from 'lucide-react'
+import { Button } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 import { EditableCell, EditableComboboxCell } from '@/components/editable-cell'
 import type { NavigationDTO } from '@/common/data/resources/types/navigation.types'
-import type { UseEditableStateResult } from '../../../../hooks/useEditableState'
+import type { UseEditableStateResult } from '../../../../../hooks/useEditableState'
 
 export interface NavigationWithMenuItems {
   id?: string
@@ -302,50 +301,6 @@ export const createNavigationTableColumns = (
               onClick={e => e.stopPropagation()}
             />
           </div>
-        )
-      }
-    },
-    {
-      id: 'actions',
-      header: 'Actions',
-      size: 120,
-      cell: ({ row }) => {
-        const navigationId = row.original.id || ''
-        const hasEdits = config.editableState.hasEdits(navigationId)
-        const isSaving =
-          config.editableState.state.savingEntryId === navigationId && config.editableState.state.isSaving
-
-        return (
-          <ButtonGroup onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} className="gba:h-6">
-            <Button
-              size="iconSm"
-              variant="secondary"
-              className="gba:h-6"
-              onClick={e => {
-                e.stopPropagation()
-                config.handleSaveEntry(navigationId)
-              }}
-              disabled={!hasEdits || isSaving || config.isUpdating}
-              data-testid={`${config.dataTestId}-save-navigation-${navigationId}`}
-              title="Save changes"
-            >
-              <Save className="gba:h-4 gba:w-4" />
-            </Button>
-            <Button
-              size="iconSm"
-              variant="secondary"
-              className="gba:h-6"
-              onClick={e => {
-                e.stopPropagation()
-                config.editableState.onDiscardEntry(navigationId)
-              }}
-              disabled={!hasEdits || isSaving || config.isUpdating}
-              data-testid={`${config.dataTestId}-discard-navigation-${navigationId}`}
-              title="Discard changes"
-            >
-              <X className="gba:h-4 gba:w-4" />
-            </Button>
-          </ButtonGroup>
         )
       }
     }

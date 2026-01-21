@@ -4,24 +4,25 @@ import { useResourceClient } from '@/common/network/resources/useResourceClient'
 import type { MenuItemDTO, MenuItemUpsertRequestDTO } from '../types/menuItem.types'
 
 interface UseUpdateMenuItemResult {
-  updateMenuItem: (id: string, data: Partial<MenuItemUpsertRequestDTO>, isHub: boolean) => Promise<MenuItemDTO | null>
-  isLoading: boolean
+  updateMenuItem: (id: string, data: Partial<MenuItemUpsertRequestDTO>, isHub: boolean) => Promise<MenuItemDTO>
+  isUpdating: boolean
   error: string | null
 }
 
 export const useUpdateMenuItem = (context: BusinessAppContextProps): UseUpdateMenuItemResult => {
-  const [isLoading, setIsLoading] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const resourceClient = useResourceClient(context.accessToken)
 
   const updateMenuItem = useCallback(
-    async (id: string, data: Partial<MenuItemUpsertRequestDTO>, isHub: boolean): Promise<MenuItemDTO | null> => {
+    async (id: string, data: Partial<MenuItemUpsertRequestDTO>, isHub: boolean): Promise<MenuItemDTO> => {
       if (!context.accessToken) {
-        setError('Access token not available')
-        return null
+        const err = 'Access token not available'
+        setError(err)
+        throw new Error(err)
       }
 
-      setIsLoading(true)
+      setIsUpdating(true)
       setError(null)
 
       try {
@@ -31,9 +32,9 @@ export const useUpdateMenuItem = (context: BusinessAppContextProps): UseUpdateMe
         const errorMessage = err instanceof Error ? err.message : 'Failed to update menu item'
         setError(errorMessage)
         console.error('Error updating menu item:', err)
-        return null
+        throw err
       } finally {
-        setIsLoading(false)
+        setIsUpdating(false)
       }
     },
     [context.accessToken, resourceClient]
@@ -41,7 +42,7 @@ export const useUpdateMenuItem = (context: BusinessAppContextProps): UseUpdateMe
 
   return {
     updateMenuItem,
-    isLoading,
+    isUpdating,
     error
   }
 }

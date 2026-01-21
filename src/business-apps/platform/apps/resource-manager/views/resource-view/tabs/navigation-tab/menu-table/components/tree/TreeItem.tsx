@@ -1,0 +1,49 @@
+import React, { forwardRef } from 'react'
+import styles from './TreeItem.module.css'
+
+export const DragHandleContext = React.createContext<any>(null)
+
+interface TreeItemProps {
+  id: string
+  isDraft: boolean
+  children: React.ReactNode
+  clone?: boolean
+  ghost?: boolean
+  indicator?: boolean
+  indentationWidth: number
+  handleProps?: any
+  wrapperRef?: (node: HTMLLIElement) => void
+  style?: React.CSSProperties
+}
+
+export const TreeItem = forwardRef<HTMLDivElement, TreeItemProps>(
+  (
+    { children, clone = false, ghost = false, indicator = false, indentationWidth, handleProps, wrapperRef, style },
+    ref
+  ) => {
+    const wrapperClasses = [clone && styles.clone, ghost && styles.ghost, indicator && styles.indicator]
+      .filter(Boolean)
+      .join(' ')
+
+    return (
+      <DragHandleContext.Provider value={handleProps}>
+        <li
+          ref={wrapperRef}
+          className={wrapperClasses}
+          style={{
+            listStyle: 'none',
+            boxSizing: 'border-box',
+            paddingLeft: `${indentationWidth}px`,
+            marginBottom: '-1px'
+          }}
+        >
+          <div ref={ref} style={style}>
+            {children}
+          </div>
+        </li>
+      </DragHandleContext.Provider>
+    )
+  }
+)
+
+TreeItem.displayName = 'TreeItem'

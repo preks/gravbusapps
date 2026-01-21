@@ -58,92 +58,102 @@ export const useComponentPaths = (
       // Use Azure Storage REST API directly (same pattern as BusinessAppIDE.tsx)
       // Format: https://{accountName}.blob.core.windows.net/{containerName}?restype=container&comp=list&{sasToken}
       // Note: CORS must be enabled on Azure Storage to allow these requests
-      const listBlobsUrl = `https://${accountName}.blob.core.windows.net/${containerName}?restype=container&comp=list&${sasToken}`
+      // Azure Storage List Blobs API returns max 5000 blobs per request, so we need to paginate
 
-      const response = await fetch(listBlobsUrl, {
-        method: 'GET',
-        mode: 'cors', // This requires proper CORS configuration on Azure Storage (same as BusinessAppIDE.tsx)
-        headers: {
-          'x-ms-version': '2021-04-10'
-        }
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error')
-        throw new Error(`Failed to list blobs: ${response.status} ${response.statusText}. ${errorText}`)
-      }
-
-      const xmlText = await response.text()
-
-      // Parse XML response
-      const parser = new DOMParser()
-      const xmlDoc = parser.parseFromString(xmlText, 'text/xml')
-
-      // Check for XML parsing errors
-      const parseError = xmlDoc.querySelector('parsererror')
-      if (parseError) {
-        throw new Error(`Failed to parse XML response: ${parseError.textContent}`)
-      }
-
-      const blobElements = xmlDoc.getElementsByTagName('Blob')
-
-      // List all blobs in container
       const versionsMap = new Map<string, ComponentPathVersionInfo>()
       let blobCount = 0
       const sampleBlobNames: string[] = []
       const indexBlobNames: string[] = []
+      let marker: string | null = null
 
-      // Iterate through all blobs from XML
-      for (let i = 0; i < blobElements.length; i++) {
-        const blobElement = blobElements[i]
-        const nameElement = blobElement.getElementsByTagName('Name')[0]
-        if (!nameElement || !nameElement.textContent) continue
+      // Paginate through all blobs using NextMarker continuation token
+      do {
+        const markerParam = marker ? `&marker=${encodeURIComponent(marker)}` : ''
+        const listBlobsUrl = `https://${accountName}.blob.core.windows.net/${containerName}?restype=container&comp=list${markerParam}&${sasToken}`
 
-        const blobName = nameElement.textContent
-        blobCount++
+        const response = await fetch(listBlobsUrl, {
+          method: 'GET',
+          mode: 'cors',
+          headers: {
+            'x-ms-version': '2021-04-10'
+          }
+        })
 
-        // Log first 20 blob names to understand the format
-        if (blobCount <= 20) {
-          sampleBlobNames.push(blobName)
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => 'Unknown error')
+          throw new Error(`Failed to list blobs: ${response.status} ${response.statusText}. ${errorText}`)
         }
 
-        // Collect all blobs containing "index" for debugging
-        if (blobName.includes('index')) {
-          indexBlobNames.push(blobName)
+        const xmlText = await response.text()
+
+        // Parse XML response
+        const parser = new DOMParser()
+        const xmlDoc = parser.parseFromString(xmlText, 'text/xml')
+
+        // Check for XML parsing errors
+        const parseError = xmlDoc.querySelector('parsererror')
+        if (parseError) {
+          throw new Error(`Failed to parse XML response: ${parseError.textContent}`)
         }
 
-        // Match patterns:
-        // 1. {componentPath}/index-{version}.js (versioned - can have multiple)
-        // 2. {componentPath}/index.js (unversioned)
-        const indexVersionMatch = blobName.match(/^(.+)\/index-(\d+)\.js$/)
-        const indexUnversionedMatch = blobName.match(/^(.+)\/index\.js$/)
+        // Extract NextMarker for pagination
+        const nextMarkerElement = xmlDoc.getElementsByTagName('NextMarker')[0]
+        marker = nextMarkerElement?.textContent || null
 
-        if (indexVersionMatch) {
-          const componentPath = indexVersionMatch[1]
-          const version = indexVersionMatch[2]
+        const blobElements = xmlDoc.getElementsByTagName('Blob')
 
-          // Initialize if doesn't exist
-          if (!versionsMap.has(componentPath)) {
-            versionsMap.set(componentPath, { versions: [], hasUnversioned: false })
+        // Iterate through all blobs from this page
+        for (let i = 0; i < blobElements.length; i++) {
+          const blobElement = blobElements[i]
+          const nameElement = blobElement.getElementsByTagName('Name')[0]
+          if (!nameElement || !nameElement.textContent) continue
+
+          const blobName = nameElement.textContent
+          blobCount++
+
+          // Log first 20 blob names to understand the format
+          if (blobCount <= 20) {
+            sampleBlobNames.push(blobName)
           }
 
-          // Add version to array (avoid duplicates)
-          const info = versionsMap.get(componentPath)!
-          if (!info.versions.includes(version)) {
-            info.versions.push(version)
-          }
-        } else if (indexUnversionedMatch) {
-          const componentPath = indexUnversionedMatch[1]
-
-          // Initialize if doesn't exist
-          if (!versionsMap.has(componentPath)) {
-            versionsMap.set(componentPath, { versions: [], hasUnversioned: false })
+          // Collect all blobs containing "index" for debugging
+          if (blobName.includes('index')) {
+            indexBlobNames.push(blobName)
           }
 
-          // Mark as having unversioned index.js
-          versionsMap.get(componentPath)!.hasUnversioned = true
+          // Match patterns:
+          // 1. {componentPath}/index-{version}.js (versioned - can have multiple)
+          // 2. {componentPath}/index.js (unversioned)
+          const indexVersionMatch = blobName.match(/^(.+)\/index-(\d+)\.js$/)
+          const indexUnversionedMatch = blobName.match(/^(.+)\/index\.js$/)
+
+          if (indexVersionMatch) {
+            const componentPath = indexVersionMatch[1]
+            const version = indexVersionMatch[2]
+
+            // Initialize if doesn't exist
+            if (!versionsMap.has(componentPath)) {
+              versionsMap.set(componentPath, { versions: [], hasUnversioned: false })
+            }
+
+            // Add version to array (avoid duplicates)
+            const info = versionsMap.get(componentPath)!
+            if (!info.versions.includes(version)) {
+              info.versions.push(version)
+            }
+          } else if (indexUnversionedMatch) {
+            const componentPath = indexUnversionedMatch[1]
+
+            // Initialize if doesn't exist
+            if (!versionsMap.has(componentPath)) {
+              versionsMap.set(componentPath, { versions: [], hasUnversioned: false })
+            }
+
+            // Mark as having unversioned index.js
+            versionsMap.get(componentPath)!.hasUnversioned = true
+          }
         }
-      }
+      } while (marker)
 
       setComponentPathVersions(versionsMap)
     } catch (err) {

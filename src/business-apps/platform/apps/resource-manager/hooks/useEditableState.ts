@@ -4,6 +4,7 @@ export interface EditableState<T> {
   editedEntries: Map<string, Partial<T>>
   isSaving: boolean
   savingEntryId: string | null
+  draftEntryIds: Set<string>
 }
 
 export interface UseEditableStateResult<T> {
@@ -12,6 +13,7 @@ export interface UseEditableStateResult<T> {
   getFieldValue: (entryId: string, field: keyof T) => any
   isFieldEdited: (entryId: string, field: keyof T) => boolean
   hasEdits: (entryId: string) => boolean
+  isDraft: (entryId: string) => boolean
   onFieldEdit: (entryId: string, field: keyof T, value: any) => void
   onDiscardEntry: (entryId: string) => void
   setSaving: (entryId: string | null, isSaving: boolean) => void
@@ -22,7 +24,8 @@ export function useEditableState<T extends { id: string }>(entries: T[]): UseEdi
   const [state, setState] = useState<EditableState<T>>({
     editedEntries: new Map(),
     isSaving: false,
-    savingEntryId: null
+    savingEntryId: null,
+    draftEntryIds: new Set()
   })
 
   // Get current value (edited if exists, otherwise original)
@@ -51,6 +54,14 @@ export function useEditableState<T extends { id: string }>(entries: T[]): UseEdi
       return state.editedEntries.has(entryId) && state.editedEntries.get(entryId) !== undefined
     },
     [state.editedEntries]
+  )
+
+  // Check if entry is a draft
+  const isDraft = useCallback(
+    (entryId: string) => {
+      return state.draftEntryIds.has(entryId)
+    },
+    [state.draftEntryIds]
   )
 
   // Handle field edit
@@ -104,6 +115,7 @@ export function useEditableState<T extends { id: string }>(entries: T[]): UseEdi
     getFieldValue,
     isFieldEdited,
     hasEdits,
+    isDraft,
     onFieldEdit,
     onDiscardEntry,
     setSaving,

@@ -17,9 +17,9 @@ import { Trash, Plus } from '@phosphor-icons/react'
 import type { ExpandedState, Row } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { ContextWithActions, ContextDTO } from '@/common/data/resources/types/context.types'
-import { ContextDialog } from './ContextDialog'
+import { ContextDialog } from './components/ContextDialog'
 import { EditableSelectCell } from '@/components/editable-cell'
-import { useEditableState } from '../../../../hooks/useEditableState'
+import { useEditableState } from '../../../../../hooks/useEditableState'
 import type { ActionDTO } from '@/common/data/resources/types/action.types'
 import { createContextTableColumns } from './ContextTableColumns'
 
@@ -38,6 +38,7 @@ interface ContextTableProps extends BusinessAppContextProps {
   setContextDialogOpen: (open: boolean) => void
   onCreateContext: (contextData: Omit<ContextDTO, 'id'>, actionIds: string[]) => Promise<void>
   actions: Array<{ action: ActionDTO }>
+  onAddContextRef?: React.MutableRefObject<(() => void) | null>
   'data-testid'?: string
 }
 
@@ -56,20 +57,64 @@ export const ContextTable: React.FC<ContextTableProps> = ({
   setContextDialogOpen,
   onCreateContext,
   actions,
+  onAddContextRef,
   'data-testid': dataTestId = 'context-table',
   ...context
 }) => {
   const [expanded, setExpanded] = useState<ExpandedState>({})
   const [contextDataDialogOpen, setContextDataDialogOpen] = useState<string | null>(null)
 
+  // Draft contexts state (managed locally)
+  const [draftContexts, setDraftContexts] = useState<ContextWithActions[]>([])
+
+  // Merge draft contexts with regular contexts (drafts at the top)
+  const allContexts = useMemo(() => {
+    return [...draftContexts, ...contexts]
+  }, [draftContexts, contexts])
+
   // Editable state for contexts
-  const contextEntries = useMemo(() => contexts.map(item => item.context), [contexts])
+  const contextEntries = useMemo(() => allContexts.map(item => item.context), [allContexts])
   const editableState = useEditableState<ContextDTO>(contextEntries)
+
+  // Handle add context - create draft row
+  const handleAddContext = useCallback(() => {
+    const draftId = `draft:${Date.now()}`
+    const draftContext: ContextWithActions = {
+      context: {
+        id: draftId,
+        contextName: '',
+        contextData: []
+      } as ContextDTO,
+      actions: []
+    }
+
+    setDraftContexts(prev => [draftContext, ...prev])
+
+    // Seed edits so Save/Discard buttons appear
+    editableState.setState(prev => {
+      const newEdited = new Map(prev.editedEntries)
+      newEdited.set(draftId, { contextName: '' })
+      const newDrafts = new Set(prev.draftEntryIds)
+      newDrafts.add(draftId)
+      return {
+        ...prev,
+        editedEntries: newEdited,
+        draftEntryIds: newDrafts
+      }
+    })
+  }, [editableState])
+
+  // Expose handleAddContext via ref
+  React.useEffect(() => {
+    if (onAddContextRef) {
+      onAddContextRef.current = handleAddContext
+    }
+  }, [onAddContextRef, handleAddContext])
 
   // Filter and sort data
   const safeData = useMemo(() => {
-    if (!Array.isArray(contexts)) return []
-    let filtered = contexts
+    if (!Array.isArray(allContexts)) return []
+    let filtered = allContexts
       .filter(item => item?.context?.id)
       .map(item => ({
         ...item,
@@ -108,7 +153,7 @@ export const ContextTable: React.FC<ContextTableProps> = ({
     }
 
     return filtered
-  }, [contexts, searchValue, sorting])
+  }, [allContexts, searchValue, sorting])
 
   // Paginate data
   const paginatedData = useMemo(() => {
@@ -275,7 +320,6 @@ export const ContextTable: React.FC<ContextTableProps> = ({
     const handleRemoveAction = useCallback(
       async (actionId: string) => {
         // TODO: Remove action from assignment via ActionAssignment API
-        console.log('Remove action', actionId, 'from context', contextId)
         const newActions = localActions.filter(a => a.action.id !== actionId)
         setLocalActions(newActions)
       },
@@ -338,7 +382,6 @@ export const ContextTable: React.FC<ContextTableProps> = ({
             variant="outline"
             onClick={() => {
               // TODO: Open dialog to select and add action
-              console.log('Add action to context', contextId)
             }}
             disabled={isSaving}
             data-testid={`${dataTestId}-add-action-${contextId}`}

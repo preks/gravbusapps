@@ -11,8 +11,14 @@ interface ResourceViewProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
-const VALID_TABS = ['url-resources', 'action-resources', 'debug-resources'] as const
+const VALID_TABS = ['navigations', 'actions', 'debug'] as const
 type TabKey = (typeof VALID_TABS)[number]
+
+const VALID_NAV_SUBVIEWS = ['items', 'menu'] as const
+type NavSubView = (typeof VALID_NAV_SUBVIEWS)[number]
+
+const VALID_ACTION_SUBVIEWS = ['items', 'contexts'] as const
+type ActionSubView = (typeof VALID_ACTION_SUBVIEWS)[number]
 
 export const ResourceView: React.FC<ResourceViewProps> = ({
   'data-testid': dataTestId = 'resource-view',
@@ -24,9 +30,9 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
 
   // Get initial tab from URL or default to first tab
   const getInitialTab = useCallback((): TabKey => {
-    if (typeof window === 'undefined') return 'url-resources'
+    if (typeof window === 'undefined') return 'navigations'
     const urlParams = new URLSearchParams(window.location.search)
-    const tabFromUrl = urlParams.get('tabs')
+    const tabFromUrl = urlParams.get('tab')
 
     // Validate that the tab exists in our valid tabs
     if (tabFromUrl && VALID_TABS.includes(tabFromUrl as TabKey)) {
@@ -34,7 +40,33 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
     }
 
     // Default to first tab
-    return 'url-resources'
+    return 'navigations'
+  }, [])
+
+  // Get initial navigation subview from URL or default
+  const getInitialNavSubview = useCallback((): NavSubView => {
+    if (typeof window === 'undefined') return 'items'
+    const urlParams = new URLSearchParams(window.location.search)
+    const subviewFromUrl = urlParams.get('subview')
+
+    if (subviewFromUrl && VALID_NAV_SUBVIEWS.includes(subviewFromUrl as NavSubView)) {
+      return subviewFromUrl as NavSubView
+    }
+
+    return 'items'
+  }, [])
+
+  // Get initial action subview from URL or default
+  const getInitialActionSubview = useCallback((): ActionSubView => {
+    if (typeof window === 'undefined') return 'items'
+    const urlParams = new URLSearchParams(window.location.search)
+    const subviewFromUrl = urlParams.get('subview')
+
+    if (subviewFromUrl && VALID_ACTION_SUBVIEWS.includes(subviewFromUrl as ActionSubView)) {
+      return subviewFromUrl as ActionSubView
+    }
+
+    return 'items'
   }, [])
 
   const [activeSection, setActiveSection] = useState<TabKey>(getInitialTab())
@@ -47,22 +79,25 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
   const [hasInitialized, setHasInitialized] = useState(false)
 
   // Sub-view state for NavigationTab
-  const [navigationView, setNavigationView] = useState<string>('urls')
-  const [navigationViewCounts, setNavigationViewCounts] = useState<{ urls: number; menu: number }>({ urls: 0, menu: 0 })
-  const [navigationViewLoading, setNavigationViewLoading] = useState<{ urls: boolean; menu: boolean }>({
-    urls: false,
+  const [navigationView, setNavigationView] = useState<NavSubView>(getInitialNavSubview())
+  const [navigationViewCounts, setNavigationViewCounts] = useState<{ items: number; menu: number }>({
+    items: 0,
+    menu: 0
+  })
+  const [navigationViewLoading, setNavigationViewLoading] = useState<{ items: boolean; menu: boolean }>({
+    items: false,
     menu: false
   })
   const [navigationRefetch, setNavigationRefetch] = useState<(() => void) | null>(null)
 
   // Sub-view state for ActionTab
-  const [actionView, setActionView] = useState<string>('actions')
-  const [actionViewCounts, setActionViewCounts] = useState<{ actions: number; contexts: number }>({
-    actions: 0,
+  const [actionView, setActionView] = useState<ActionSubView>(getInitialActionSubview())
+  const [actionViewCounts, setActionViewCounts] = useState<{ items: number; contexts: number }>({
+    items: 0,
     contexts: 0
   })
-  const [actionViewLoading, setActionViewLoading] = useState<{ actions: boolean; contexts: boolean }>({
-    actions: false,
+  const [actionViewLoading, setActionViewLoading] = useState<{ items: boolean; contexts: boolean }>({
+    items: false,
     contexts: false
   })
   const [actionDialogOpen, setActionDialogOpen] = useState<boolean>(false)
@@ -71,6 +106,10 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
   const [contextRefetch, setContextRefetch] = useState<(() => void) | null>(null)
   const [actionLoading, setActionLoading] = useState<boolean>(false)
   const [contextLoading, setContextLoading] = useState<boolean>(false)
+  const [addAction, setAddAction] = useState<(() => void) | null>(null)
+  const [addContext, setAddContext] = useState<(() => void) | null>(null)
+  const [addNavigation, setAddNavigation] = useState<(() => void) | null>(null)
+  const [addMenuItem, setAddMenuItem] = useState<(() => void) | null>(null)
 
   // Performance logging (only in dev, after state declarations)
   if (process.env.NODE_ENV === 'development') {
@@ -81,22 +120,24 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
       currentProps.actionView !== prevPropsRef.current.actionView
 
     if (propsChanged || renderCountRef.current <= 3) {
-      console.log(`[ResourceView] Render #${renderCountRef.current}`, {
-        propsChanged,
-        currentProps,
-        timestamp: new Date().toISOString()
-      })
       prevPropsRef.current = currentProps
     }
   }
 
-  // Update URL when tab changes
-  const updateUrl = useCallback((tab: string) => {
+  // Update URL when tab or subview changes
+  const updateUrl = useCallback((tab: string, subview?: string) => {
     if (typeof window === 'undefined') return
     const urlParams = new URLSearchParams(window.location.search)
 
-    // Always set the tabs parameter
-    urlParams.set('tabs', tab)
+    // Always set the tab parameter
+    urlParams.set('tab', tab)
+
+    // Set or clear subview parameter
+    if (subview) {
+      urlParams.set('subview', subview)
+    } else {
+      urlParams.delete('subview')
+    }
 
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`
     window.history.replaceState({}, '', newUrl)
@@ -109,22 +150,35 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
       }
       if (VALID_TABS.includes(section as TabKey)) {
         setActiveSection(section as TabKey)
-        updateUrl(section)
+
+        // Set default subview based on the tab
+        let defaultSubview: string | undefined
+        if (section === 'navigations') {
+          defaultSubview = 'items'
+          setNavigationView('items')
+        } else if (section === 'actions') {
+          defaultSubview = 'items'
+          setActionView('items')
+        }
+
+        updateUrl(section, defaultSubview)
       }
     },
     [activeSection, updateUrl]
   )
 
-  // Ensure URL always has tabs parameter on initial load
+  // Ensure URL always has tab parameter on initial load
   useEffect(() => {
     if (typeof window === 'undefined') return
     const urlParams = new URLSearchParams(window.location.search)
-    // Only set tabs if we're in the resources view (view parameter should be set by parent)
+    // Only set tab if we're in the resources view (view parameter should be set by parent)
     const viewParam = urlParams.get('view')
-    if (viewParam === 'resources' && !urlParams.has('tabs')) {
-      updateUrl(activeSection)
+    if (viewParam === 'resources' && !urlParams.has('tab')) {
+      const subview =
+        activeSection === 'navigations' || activeSection === 'actions' ? navigationView || actionView : undefined
+      updateUrl(activeSection, subview)
     }
-  }, [activeSection, updateUrl])
+  }, [activeSection, navigationView, actionView, updateUrl])
 
   // Initial load: Load all sections when view opens (not just the active one)
   useEffect(() => {
@@ -141,19 +195,75 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
     const handlePopState = () => {
       const newTab = getInitialTab()
       setActiveSection(newTab)
+
+      if (newTab === 'navigations') {
+        const newSubview = getInitialNavSubview()
+        setNavigationView(newSubview)
+      } else if (newTab === 'actions') {
+        const newSubview = getInitialActionSubview()
+        setActionView(newSubview)
+      }
     }
 
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [getInitialTab])
+  }, [getInitialTab, getInitialNavSubview, getInitialActionSubview])
 
   // Get primary action based on active section and view
   const getPrimaryAction = useMemo(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[ResourceView] getPrimaryAction recalculated', { activeSection, actionView })
-    }
-    if (activeSection === 'url-resources') {
-      // NavigationTab: Refresh button
+    if (activeSection === 'navigations') {
+      // NavigationTab: Refresh button (for both items and Menu views now we also have Create)
+      if (navigationView === 'items') {
+        return (
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => addNavigation?.()}
+              disabled={urlResourcesLoading}
+              data-testid={`${dataTestId}-create-navigation-button`}
+            >
+              <Plus className="gba:h-4 gba:w-4 gba:mr-1" />
+              Create
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                navigationRefetch?.()
+              }}
+              disabled={urlResourcesLoading}
+            >
+              <RefreshCw className={`gba:h-4 gba:w-4 ${urlResourcesLoading ? 'gba:animate-spin' : ''}`} />
+            </Button>
+          </div>
+        )
+      } else if (navigationView === 'menu') {
+        return (
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => addMenuItem?.()}
+              disabled={urlResourcesLoading}
+              data-testid={`${dataTestId}-create-menu-item-button`}
+            >
+              <Plus className="gba:h-4 gba:w-4 gba:mr-1" />
+              Create
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                navigationRefetch?.()
+              }}
+              disabled={urlResourcesLoading}
+            >
+              <RefreshCw className={`gba:h-4 gba:w-4 ${urlResourcesLoading ? 'gba:animate-spin' : ''}`} />
+            </Button>
+          </div>
+        )
+      }
       return (
         <Button
           variant="outline"
@@ -166,15 +276,15 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
           <RefreshCw className={`gba:h-4 gba:w-4 ${urlResourcesLoading ? 'gba:animate-spin' : ''}`} />
         </Button>
       )
-    } else if (activeSection === 'action-resources') {
+    } else if (activeSection === 'actions') {
       // ActionTab: Create button + Refresh button based on view
-      if (actionView === 'actions') {
+      if (actionView === 'items') {
         return (
           <div className="gba:flex gba:items-center gba:gap-2">
             <Button
               variant="default"
               size="sm"
-              onClick={() => setActionDialogOpen(true)}
+              onClick={() => addAction?.()}
               disabled={actionLoading}
               data-testid={`${dataTestId}-create-action-button`}
             >
@@ -192,7 +302,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
             <Button
               variant="default"
               size="sm"
-              onClick={() => setContextDialogOpen(true)}
+              onClick={() => addContext?.()}
               disabled={contextLoading}
               data-testid={`${dataTestId}-create-context-button`}
             >
@@ -210,6 +320,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
   }, [
     activeSection,
     actionView,
+    navigationView,
     urlResourcesLoading,
     actionLoading,
     contextLoading,
@@ -226,12 +337,12 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
     }
     return [
       {
-        value: 'urls',
+        value: 'items',
         label: 'URL Resources',
         icon: Link,
         metadata: {
-          count: navigationViewCounts.urls,
-          isLoading: navigationViewLoading.urls
+          count: navigationViewCounts.items,
+          isLoading: navigationViewLoading.items
         }
       },
       {
@@ -248,17 +359,14 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
 
   // View options for ActionTab sub-views
   const actionViewOptions = useMemo(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[ResourceView] actionViewOptions recalculated', { actionViewCounts, actionViewLoading })
-    }
     return [
       {
-        value: 'actions',
+        value: 'items',
         label: 'Action Items',
         icon: Lightning,
         metadata: {
-          count: actionViewCounts.actions,
-          isLoading: actionViewLoading.actions
+          count: actionViewCounts.items,
+          isLoading: actionViewLoading.items
         }
       },
       {
@@ -275,9 +383,9 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
 
   // Get viewOptions for current section
   const currentViewOptions = useMemo(() => {
-    if (activeSection === 'url-resources') {
+    if (activeSection === 'navigations') {
       return navigationViewOptions
-    } else if (activeSection === 'action-resources') {
+    } else if (activeSection === 'actions') {
       return actionViewOptions
     }
     return undefined
@@ -285,69 +393,56 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
 
   // Get current view for current section
   const currentView = useMemo(() => {
-    if (activeSection === 'url-resources') {
+    if (activeSection === 'navigations') {
       return navigationView
-    } else if (activeSection === 'action-resources') {
+    } else if (activeSection === 'actions') {
       return actionView
     }
     return undefined
   }, [activeSection, navigationView, actionView])
 
-  // Handle view change for sub-views
-  const handleViewChange = useCallback(
-    (view: string) => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[ResourceView] handleViewChange called', { activeSection, view })
-      }
-      if (activeSection === 'url-resources') {
-        setNavigationView(view)
-      } else if (activeSection === 'action-resources') {
-        setActionView(view)
-      }
-    },
-    [activeSection]
-  )
+  // Handle view change - no longer needed as parent manages it
+  // Parent passes currentView and onViewChange props
 
   // Memoize callbacks to prevent unnecessary re-renders
-  const handleNavigationViewChange = useCallback((view: string) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[ResourceView] Navigation view changed', { view })
-    }
-    setNavigationView(view)
-  }, [])
+  const handleNavigationViewChange = useCallback(
+    (view: string) => {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[ResourceView] Navigation view changed', { view })
+      }
+      setNavigationView(view as NavSubView)
+      updateUrl(activeSection, view)
+    },
+    [activeSection, updateUrl]
+  )
 
-  const handleActionViewChange = useCallback((view: string) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[ResourceView] Action view changed', { view })
-    }
-    setActionView(view)
-  }, [])
+  const handleActionViewChange = useCallback(
+    (view: string) => {
+      setActionView(view as ActionSubView)
+      updateUrl(activeSection, view)
+    },
+    [activeSection, updateUrl]
+  )
 
-  const handleNavigationViewCountChange = useCallback((counts: { urls: number; menu: number }) => {
+  const handleNavigationViewCountChange = useCallback((counts: { items: number; menu: number }) => {
     if (process.env.NODE_ENV === 'development') {
       console.log('[ResourceView] Navigation view counts changed', counts)
     }
     setNavigationViewCounts(counts)
   }, [])
 
-  const handleNavigationViewLoadingChange = useCallback((loading: { urls: boolean; menu: boolean }) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[ResourceView] Navigation view loading changed', loading)
-    }
+  const handleNavigationViewLoadingChange = useCallback((loading: { items: boolean; menu: boolean }) => {
     setNavigationViewLoading(loading)
   }, [])
 
-  const handleActionViewCountChange = useCallback((counts: { actions: number; contexts: number }) => {
+  const handleActionViewCountChange = useCallback((counts: { items: number; contexts: number }) => {
     if (process.env.NODE_ENV === 'development') {
       console.log('[ResourceView] Action view counts changed', counts)
     }
     setActionViewCounts(counts)
   }, [])
 
-  const handleActionViewLoadingChange = useCallback((loading: { actions: boolean; contexts: boolean }) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[ResourceView] Action view loading changed', loading)
-    }
+  const handleActionViewLoadingChange = useCallback((loading: { items: boolean; contexts: boolean }) => {
     setActionViewLoading(loading)
   }, [])
 
@@ -359,9 +454,6 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
   }, [])
 
   const handleActionRefetchChange = useCallback((refetch: () => void) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[ResourceView] Action refetch function set')
-    }
     setActionRefetch(() => refetch)
   }, [])
 
@@ -373,17 +465,30 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
   }, [])
 
   const handleActionLoadingChange = useCallback((loading: boolean) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[ResourceView] Action loading changed', { loading })
-    }
     setActionLoading(loading)
   }, [])
 
   const handleContextLoadingChange = useCallback((loading: boolean) => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[ResourceView] Context loading changed', { loading })
-    }
     setContextLoading(loading)
+  }, [])
+
+  const handleAddActionChange = useCallback((addActionFn: () => void) => {
+    setAddAction(() => addActionFn)
+  }, [])
+
+  const handleAddContextChange = useCallback((addContextFn: () => void) => {
+    setAddContext(() => addContextFn)
+  }, [])
+
+  const handleAddNavigationChange = useCallback((addNavigationFn: () => void) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[ResourceView] Add navigation function set')
+    }
+    setAddNavigation(() => addNavigationFn)
+  }, [])
+
+  const handleAddMenuItemChange = useCallback((addMenuItemFn: () => void) => {
+    setAddMenuItem(() => addMenuItemFn)
   }, [])
 
   return (
@@ -391,7 +496,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
       <DataDisplay
         titleSections={[
           {
-            id: 'url-resources',
+            id: 'navigations',
             label: 'Navigations',
             metadata: {
               count: urlResourcesViewCount,
@@ -399,7 +504,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
             }
           },
           {
-            id: 'action-resources',
+            id: 'actions',
             label: 'Actions',
             metadata: {
               count: actionResourcesViewCount,
@@ -407,7 +512,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
             }
           },
           {
-            id: 'debug-resources',
+            id: 'debug',
             label: 'Debug',
             metadata: {
               count: debugViewCount,
@@ -419,14 +524,14 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
         onSectionChange={handleSectionChange}
         viewOptions={currentViewOptions}
         currentView={currentView}
-        onViewChange={handleViewChange}
+        onViewChange={activeSection === 'navigations' ? handleNavigationViewChange : handleActionViewChange}
         primaryAction={getPrimaryAction}
       >
         {/* Render all tabs but hide inactive ones - this allows initial loading of all sections */}
-        <div className={activeSection === 'url-resources' ? '' : 'gba:hidden'}>
+        <div className={activeSection === 'navigations' ? '' : 'gba:hidden'}>
           <NavigationTab
             {...context}
-            data-testid={`${dataTestId}-url-resources`}
+            data-testid={`${dataTestId}-navigations`}
             onCountChange={setUrlResourcesViewCount}
             onLoadingChange={setUrlResourcesLoading}
             currentView={navigationView}
@@ -434,14 +539,16 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
             onViewCountChange={handleNavigationViewCountChange}
             onViewLoadingChange={handleNavigationViewLoadingChange}
             onRefetchChange={handleNavigationRefetchChange}
-            isActive={activeSection === 'url-resources'}
+            onAddNavigationChange={handleAddNavigationChange}
+            onAddMenuItemChange={handleAddMenuItemChange}
+            isActive={activeSection === 'navigations'}
             shouldInitialLoad={!hasInitialized}
           />
         </div>
-        <div className={activeSection === 'action-resources' ? '' : 'gba:hidden'}>
+        <div className={activeSection === 'actions' ? '' : 'gba:hidden'}>
           <ActionTab
             {...context}
-            data-testid={`${dataTestId}-action-resources`}
+            data-testid={`${dataTestId}-actions`}
             onCountChange={setActionResourcesViewCount}
             onLoadingChange={setActionResourcesLoading}
             currentView={actionView}
@@ -452,20 +559,22 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
             onContextRefetchChange={handleContextRefetchChange}
             onActionLoadingChange={handleActionLoadingChange}
             onContextLoadingChange={handleContextLoadingChange}
+            onAddActionChange={handleAddActionChange}
+            onAddContextChange={handleAddContextChange}
             dialogOpen={actionDialogOpen}
             onDialogOpenChange={setActionDialogOpen}
             contextDialogOpen={contextDialogOpen}
             onContextDialogOpenChange={setContextDialogOpen}
-            isActive={activeSection === 'action-resources'}
+            isActive={activeSection === 'actions'}
             shouldInitialLoad={!hasInitialized}
           />
         </div>
-        <div className={activeSection === 'debug-resources' ? '' : 'gba:hidden'}>
+        <div className={activeSection === 'debug' ? '' : 'gba:hidden'}>
           <DebugTab
             {...context}
-            data-testid={`${dataTestId}-debug-resources`}
+            data-testid={`${dataTestId}-debug`}
             onCountChange={setDebugViewCount}
-            isActive={activeSection === 'debug-resources'}
+            isActive={activeSection === 'debug'}
             shouldInitialLoad={!hasInitialized}
           />
         </div>

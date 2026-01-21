@@ -1,11 +1,25 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react'
-import { DataDisplay, DataTable, Button, Badge } from '@newwork/nw-design-system'
-import { Check, X } from '@phosphor-icons/react'
-import { RefreshCw } from 'lucide-react'
+import {
+  DataDisplay,
+  DataTable,
+  Button,
+  Badge,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@newwork/nw-design-system'
+import { Check, X, Plus, DotsThree } from '@phosphor-icons/react'
 import type { ExpandedState, Row } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCreateComponent } from '@/common/data/resources/hooks/useCreateComponent'
+import { useUpdateComponent } from '@/common/data/resources/hooks/useUpdateComponent'
+import { useDeleteComponent } from '@/common/data/resources/hooks/useDeleteComponent'
 import { useComponentResources } from '@/common/data/resources/hooks/useComponentResources'
-import type { ComponentResource } from '@/common/data/resources/types/component.types'
+import type { ComponentResource, Component, AzureBlobVersions } from '@/common/data/resources/types/component.types'
+import { ComponentDialog } from './ComponentDialog'
+import { combineBuildAndScreenType } from '../../utils/componentKeyUtils'
+import { useResourceManagerContext } from '../../contexts/ResourceManagerContext'
 
 interface ComponentsViewProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -16,143 +30,236 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
   ...context
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'name', desc: false }])
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'updatedAt', desc: true }])
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
   const [expanded, setExpanded] = useState<ExpandedState>({})
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [dialogMode, setDialogMode] = useState<'create' | 'update'>('create')
+  const [selectedComponent, setSelectedComponent] = useState<Component | undefined>()
 
-  // Calculate limit and offset from pagination
-  const limit = pagination.pageSize
-  const offset = pagination.pageIndex * pagination.pageSize
+  // Get Azure Storage data from context
+  const { devComponentPathVersions, prodComponentPathVersions } = useResourceManagerContext()
 
-  // Build sort parameter from sorting state
-  const sortParam = useMemo(() => {
-    if (sorting.length > 0) {
-      const sort = sorting[0]
-      return {
-        field: sort.id,
-        order: sort.desc ? 'DESC' : ('ASC' as 'ASC' | 'DESC')
-      }
-    }
-    return { field: 'name', order: 'ASC' as const }
-  }, [sorting])
-
-  const { resources, totalCount, isLoading, error, refetch } = useComponentResources(context, {
-    searchParameter: searchTerm.trim() || undefined,
-    sort: sortParam,
-    limit,
-    offset
+  // Fetch components with server-side pagination, sorting, and filtering
+  const { components, totalCount, isLoading, refetch } = useComponentResources(context, {
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+    searchParameter: searchTerm,
+    sort: sorting.length > 0 ? { field: sorting[0].id, order: sorting[0].desc ? 'DESC' : 'ASC' } : undefined
   })
 
-  // Track last fetched params to prevent duplicate requests
-  const lastFetchedRef = useRef<{
-    limit: number
-    offset: number
-    search?: string
-    sortField?: string
-    sortOrder?: string
-  } | null>(null)
-  const isInitialMount = useRef(true)
+  // Merge component data with Azure Storage versions from context
+  const componentsWithAzureData = useMemo<ComponentResource[]>(() => {
+    return components.map(component => {
+      const componentPath = component.screenComponents?.formDefinition?.componentPath
+      const pathWithoutSlash = componentPath?.startsWith('/') ? componentPath.substring(1) : componentPath || ''
 
-  // Load data when pagination, search, or sorting changes
-  useEffect(() => {
-    // Only fetch if params actually changed
-    const paramsKey = `${limit}-${offset}-${searchTerm.trim()}-${sortParam.field}-${sortParam.order}`
-    const lastKey = lastFetchedRef.current
-      ? `${lastFetchedRef.current.limit}-${lastFetchedRef.current.offset}-${lastFetchedRef.current.search || ''}-${lastFetchedRef.current.sortField || ''}-${lastFetchedRef.current.sortOrder || ''}`
-      : null
+      const devComponentPathInfo = devComponentPathVersions.get(pathWithoutSlash)
+      const devAzureVersions: AzureBlobVersions = devComponentPathInfo
+        ? { versions: devComponentPathInfo.versions, hasUnversioned: devComponentPathInfo.hasUnversioned }
+        : { versions: [], hasUnversioned: false }
 
-    if (paramsKey !== lastKey) {
-      lastFetchedRef.current = {
-        limit,
-        offset,
-        search: searchTerm.trim() || undefined,
-        sortField: sortParam.field,
-        sortOrder: sortParam.order
+      const prodComponentPathInfo = prodComponentPathVersions.get(pathWithoutSlash)
+      const prodAzureVersions: AzureBlobVersions = prodComponentPathInfo
+        ? { versions: prodComponentPathInfo.versions, hasUnversioned: prodComponentPathInfo.hasUnversioned }
+        : { versions: [], hasUnversioned: false }
+
+      return {
+        ...component,
+        azureVersions: {
+          dev: devAzureVersions,
+          prod: prodAzureVersions
+        }
       }
-      // Only show loading on initial mount
-      refetch(
-        {
-          searchParameter: searchTerm.trim() || undefined,
-          sort: sortParam,
-          limit,
-          offset
-        },
-        isInitialMount.current
-      )
-      isInitialMount.current = false
-    }
-  }, [limit, offset, searchTerm, sortParam, refetch])
+    })
+  }, [components, devComponentPathVersions, prodComponentPathVersions])
 
-  // Use resources directly - API handles pagination, search, and sorting
-  const displayResources = resources
+  const { createComponent } = useCreateComponent(context)
+  const { updateComponent } = useUpdateComponent(context)
+  const { deleteComponent } = useDeleteComponent(context)
 
-  const formatComponentPath = (path: string | undefined): string => {
+  // Track if this is the first fetch to show loading state only initially
+  const isFirstFetch = useRef(true)
+
+  // Trigger refetch when pagination, sorting, or search changes
+  useEffect(() => {
+    refetch(
+      {
+        limit: pagination.pageSize,
+        offset: pagination.pageIndex * pagination.pageSize,
+        searchParameter: searchTerm,
+        sort: sorting.length > 0 ? { field: sorting[0].id, order: sorting[0].desc ? 'DESC' : 'ASC' } : undefined
+      },
+      isFirstFetch.current
+    ) // Only show loading on first fetch
+
+    isFirstFetch.current = false // After first fetch, never show loading state again
+  }, [pagination.pageIndex, pagination.pageSize, sorting, searchTerm, refetch])
+
+  // Handlers for component actions
+  const handleCreate = useCallback(() => {
+    setSelectedComponent(undefined)
+    setDialogMode('create')
+    setDialogOpen(true)
+  }, [])
+
+  const handleEdit = useCallback((component: Component) => {
+    setSelectedComponent(component)
+    setDialogMode('update')
+    setDialogOpen(true)
+  }, [])
+
+  const handleDelete = useCallback(
+    async (component: Component) => {
+      if (!component.id) return
+
+      const confirmed = window.confirm(`Are you sure you want to delete "${component.name}"?`)
+      if (!confirmed) return
+
+      try {
+        await deleteComponent(component.id)
+        // Refetch current page
+        await refetch({
+          limit: pagination.pageSize,
+          offset: pagination.pageIndex * pagination.pageSize,
+          searchParameter: searchTerm,
+          sort: sorting.length > 0 ? { field: sorting[0].id, order: sorting[0].desc ? 'DESC' : 'ASC' } : undefined
+        })
+      } catch (error) {
+        console.error('Failed to delete component:', error)
+      }
+    },
+    [deleteComponent, refetch, pagination, searchTerm, sorting]
+  )
+
+  const handleSubmit = useCallback(
+    async (component: Component) => {
+      try {
+        if (dialogMode === 'create') {
+          await createComponent(component)
+        } else if (dialogMode === 'update' && component.id) {
+          await updateComponent(component.id, component)
+        }
+
+        setDialogOpen(false)
+        setSelectedComponent(undefined)
+
+        // Refetch current page
+        await refetch({
+          limit: pagination.pageSize,
+          offset: pagination.pageIndex * pagination.pageSize,
+          searchParameter: searchTerm,
+          sort: sorting.length > 0 ? { field: sorting[0].id, order: sorting[0].desc ? 'DESC' : 'ASC' } : undefined
+        })
+      } catch (error) {
+        console.error('Failed to submit component:', error)
+        throw error
+      }
+    },
+    [dialogMode, createComponent, updateComponent, refetch, pagination, searchTerm, sorting]
+  )
+
+  const handleSortingChange = useCallback((newSorting: Array<{ id: string; desc: boolean }>) => {
+    setSorting(newSorting)
+    setPagination(prev => ({ ...prev, pageIndex: 0 })) // Reset to first page on sort change
+  }, [])
+
+  // Helper functions for DataTable
+  const getRowId = (row: ComponentResource) => row.id || row.screenKey || ''
+
+  const getRowCanExpand = (row: ComponentResource) => {
+    const prodVersions = row.azureVersions?.prod?.versions || []
+    return prodVersions.length > 0
+  }
+
+  const renderExpandedRow = (row: Row<ComponentResource>) => {
+    const component = row.original
+    const prodVersions = component.azureVersions?.prod?.versions || []
+    const sortedVersions = [...prodVersions].sort((a, b) => parseInt(b) - parseInt(a))
+
+    return (
+      <div className="gba:p-4 gba:bg-muted/20 gba:space-y-3">
+        <div>
+          <span className="gba:font-medium gba:text-sm">Available PROD Versions:</span>
+          <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-2">
+            {sortedVersions.map((version, index) => (
+              <Badge key={version} variant={index === 0 ? 'default' : 'secondary'} size="sm">
+                {version}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const formatComponentPath = (path?: string) => {
     if (!path) return '-'
     return path.startsWith('/') ? path.substring(1) : path
   }
-
-  const getRowId = useCallback((row: ComponentResource) => {
-    return row.id || `fallback-${Math.random()}`
-  }, [])
-
-  const getRowCanExpand = useCallback(() => {
-    // All rows can be expanded to show version details
-    return true
-  }, [])
-
-  const renderExpandedRow = useCallback(
-    (row: Row<ComponentResource>) => {
-      const resource = row.original
-      const prodVersions = resource.azureVersions.prod?.versions || []
-      // Sort descending (newest first)
-      const prodSortedVersions = [...prodVersions].sort((a, b) => parseInt(b) - parseInt(a))
-
-      return (
-        <div data-testid={`${dataTestId}-expanded-row-${resource.id}`}>
-          <h4 className="gba:font-semibold gba:mb-3 gba:text-sm">Available PROD Versions</h4>
-          {prodSortedVersions.length > 0 ? (
-            <div className="gba:flex gba:flex-wrap gba:gap-2">
-              {prodSortedVersions.map(version => (
-                <span
-                  key={version}
-                  className="gba:inline-flex gba:items-center gba:px-2.5 gba:py-1 gba:rounded gba:text-xs gba:bg-muted"
-                >
-                  {version}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">No PROD versions found</span>
-          )}
-        </div>
-      )
-    },
-    [dataTestId]
-  )
 
   // Define columns for DataTable
   const columns = useMemo(
     () => [
       {
-        id: 'namespace',
-        accessorKey: 'namespaceCode',
-        header: 'Namespace',
-        size: 120,
-        cell: ({ row }: { row: { original: ComponentResource } }) => (
-          <span className="gba:inline-flex gba:items-center gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:border">
-            {row.original.namespaceCode}
-          </span>
-        )
+        id: 'type',
+        accessorKey: 'type',
+        header: 'Type',
+        size: 130,
+        enableResizing: false,
+        cell: ({ row }: { row: { original: ComponentResource } }) => {
+          const builderType = row.original.screenComponents?.builderType || 'NATIVE_SCREEN'
+          const screenType = row.original.type || 'SCREEN'
+          const combinedType = combineBuildAndScreenType(builderType, screenType)
+
+          // Map combined type to label and color
+          const typeConfig: Record<string, { label: string; color: string }> = {
+            'native-screen': { label: 'Native Screen', color: 'gba:bg-blue-100 gba:text-blue-700 gba:border-blue-200' },
+            'native-form': { label: 'Native Form', color: 'gba:bg-green-100 gba:text-green-700 gba:border-green-200' },
+            'native-popup': {
+              label: 'Native Popup',
+              color: 'gba:bg-purple-100 gba:text-purple-700 gba:border-purple-200'
+            },
+            'native-window': { label: 'Native Window', color: 'gba:bg-cyan-100 gba:text-cyan-700 gba:border-cyan-200' },
+            'lowcoder-screen': {
+              label: 'Lowcoder Screen',
+              color: 'gba:bg-orange-100 gba:text-orange-700 gba:border-orange-200'
+            },
+            'lowcoder-form': {
+              label: 'Lowcoder Form',
+              color: 'gba:bg-yellow-100 gba:text-yellow-700 gba:border-yellow-200'
+            },
+            'formio-form': { label: 'FormIO Form', color: 'gba:bg-pink-100 gba:text-pink-700 gba:border-pink-200' }
+          }
+
+          const config = typeConfig[combinedType] || {
+            label: combinedType,
+            color: 'gba:bg-muted gba:text-foreground gba:border-border'
+          }
+
+          return (
+            <span
+              className={`gba:inline-flex gba:items-center gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:border gba:truncate ${config.color}`}
+            >
+              {config.label}
+            </span>
+          )
+        }
       },
       {
         id: 'name',
         accessorKey: 'name',
         header: 'Name',
-        size: 300,
+        size: 350,
+        minSize: 200,
+        maxSize: 500,
+        enableResizing: true,
         cell: ({ row }: { row: { original: ComponentResource } }) => (
-          <div>
-            <div className="gba:font-medium">{row.original.name}</div>
-            <code className="gba:text-xs gba:text-muted-foreground">{row.original.screenKey}</code>
+          <div className="gba:overflow-hidden">
+            <div className="gba:font-medium gba:truncate">{row.original.name}</div>
+            <code className="gba:text-xs gba:text-muted-foreground gba:truncate gba:block">
+              {row.original.screenKey}
+            </code>
           </div>
         )
       },
@@ -160,18 +267,33 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
         id: 'componentPath',
         accessorKey: 'componentPath',
         header: 'Component Path',
-        size: 300,
+        size: 350,
+        minSize: 200,
+        maxSize: 600,
+        enableResizing: true,
+        cell: ({ row }: { row: { original: ComponentResource } }) => {
+          return (
+            <code className="gba:text-xs gba:bg-muted gba:px-2 gba:py-1 gba:rounded gba:truncate gba:block">
+              {formatComponentPath(row.original.screenComponents?.formDefinition?.componentPath)}
+            </code>
+          )
+        }
+      },
+      {
+        id: 'devVersion',
+        accessorKey: 'devVersion',
+        header: 'DEV',
+        size: 100,
+        enableResizing: false,
         cell: ({ row }: { row: { original: ComponentResource } }) => {
           const hasUnversioned = row.original.azureVersions.dev.hasUnversioned
+
           return (
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <code className="gba:text-xs gba:bg-muted gba:px-2 gba:py-1 gba:rounded">
-                {formatComponentPath(row.original.screenComponents?.formDefinition?.componentPath)}
-              </code>
+            <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
               {hasUnversioned ? (
-                <Check className="gba:w-4 gba:h-4 gba:text-success" weight="bold" title="index.js exists" />
+                <Check className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
               ) : (
-                <X className="gba:w-4 gba:h-4 gba:text-destructive" weight="bold" title="index.js not found" />
+                <X className="gba:w-4 gba:h-4 gba:text-destructive" weight="bold" />
               )}
             </div>
           )
@@ -180,24 +302,36 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
       {
         id: 'prodVersion',
         accessorKey: 'prodVersion',
-        header: 'PROD Version',
-        size: 150,
+        header: 'PROD',
+        size: 100,
+        enableResizing: false,
         cell: ({ row }: { row: { original: ComponentResource } }) => {
           const prodVersions = row.original.azureVersions.prod?.versions || []
-          if (prodVersions.length === 0) {
-            return <span className="gba:text-muted-foreground gba:text-sm">-</span>
-          }
-          // Get most recent version (highest number)
           const sortedVersions = [...prodVersions].sort((a, b) => parseInt(b) - parseInt(a))
-          const mostRecent = sortedVersions[0]
+          const latestVersion = sortedVersions[0]
+          const remainingVersionsCount = sortedVersions.length - 1
+
+          // If no versions, show X
+          if (!latestVersion) {
+            return (
+              <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
+                <X className="gba:w-4 gba:h-4 gba:text-destructive" weight="bold" />
+              </div>
+            )
+          }
+
           return (
-            <div className="gba:relative gba:inline-flex gba:items-center">
-              <span className="gba:inline-flex gba:items-center gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:border">
-                {mostRecent}
-              </span>
-              <Badge variant="info" size="sm" className="gba:absolute gba:-top-2 gba:-right-2">
-                {prodVersions.length}
-              </Badge>
+            <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
+              <div className="gba:relative gba:inline-block">
+                <span className="gba:inline-flex gba:items-center gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:border">
+                  {latestVersion}
+                </span>
+                {remainingVersionsCount > 0 && (
+                  <Badge size="xs" variant="default" className="gba:absolute gba:-top-2 gba:-right-2">
+                    +{remainingVersionsCount}
+                  </Badge>
+                )}
+              </div>
             </div>
           )
         }
@@ -206,7 +340,8 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
         id: 'updatedAt',
         accessorKey: 'updatedAt',
         header: 'Updated',
-        size: 120,
+        size: 110,
+        enableResizing: false,
         cell: ({ row }: { row: { original: ComponentResource } }) => {
           const date = row.original.updatedAt || row.original.createdAt
           return (
@@ -217,32 +352,48 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
         }
       }
     ],
-    [dataTestId]
+    [handleEdit, handleDelete]
   )
 
-  const handleSortingChange = useCallback((newSorting: Array<{ id: string; desc: boolean }>) => {
-    setSorting(newSorting)
-  }, [])
+  const sortableColumns = [
+    { id: 'name', label: 'Name' },
+    { id: 'screenKey', label: 'Screen Key' },
+    { id: 'type', label: 'Type' },
+    { id: 'updatedAt', label: 'Updated' },
+    { id: 'createdAt', label: 'Created' }
+  ]
 
-  const sortableColumns = useMemo(
-    () => [
-      { id: 'name', label: 'Name' },
-      { id: 'screenKey', label: 'Screen Key' },
-      { id: 'namespaceCode', label: 'Namespace' },
-      { id: 'updatedAt', label: 'Updated' }
-    ],
-    []
+  const availableColumns = [
+    { id: 'type', label: 'Type' },
+    { id: 'name', label: 'Name' },
+    { id: 'componentPath', label: 'Component Path' },
+    { id: 'devVersion', label: 'DEV' },
+    { id: 'prodVersion', label: 'PROD' },
+    { id: 'updatedAt', label: 'Updated' }
+  ]
+
+  const visibleColumns = availableColumns.map(col => col.id)
+
+  // Actions renderer for DataTable - automatically creates pinned actions column
+  const renderActions = useCallback(
+    (row: { original: ComponentResource }) => (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm">
+            <DotsThree className="gba:h-4 gba:w-4" weight="bold" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => handleEdit(row.original)}>Edit</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => handleDelete(row.original)}>Delete</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ),
+    [handleEdit, handleDelete]
   )
-
-  const availableColumns = useMemo(() => columns.map(col => ({ id: col.id, label: col.header as string })), [columns])
-
-  const visibleColumns = useMemo(() => columns.map(col => col.id), [columns])
-
-  // Determine initial loading state (only when data hasn't been loaded yet)
-  const isInitialLoading = isLoading && isInitialMount.current
 
   return (
-    <div data-testid={dataTestId}>
+    <>
       <DataDisplay
         titleSections={[
           {
@@ -250,7 +401,7 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
             label: 'Components',
             metadata: {
               count: totalCount,
-              isLoading: isInitialLoading
+              isLoading: isLoading
             }
           }
         ]}
@@ -265,20 +416,22 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={() => {}}
         primaryAction={
-          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
-            <RefreshCw className={`gba:h-4 gba:w-4 ${isLoading ? 'gba:animate-spin' : ''}`} />
-          </Button>
+          <div className="gba:flex gba:gap-2">
+            <Button variant="default" size="sm" onClick={handleCreate}>
+              <Plus className="gba:h-4 gba:w-4" />
+              Create Component
+            </Button>
+          </div>
         }
         toolbarDensity="default"
         enableLiveFiltering
       >
         <DataTable<ComponentResource>
           variant="compact"
-          data={displayResources}
+          data={componentsWithAzureData}
           columns={columns}
           getRowId={getRowId}
-          loading={isInitialLoading}
-          error={error || undefined}
+          loading={isLoading}
           totalCount={totalCount}
           sorting={sorting}
           onSortingChange={handleSortingChange}
@@ -298,10 +451,23 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
           tableLayout="fixed"
           enableResizing={true}
           enableColumnPinning
+          actions={renderActions}
           emptyMessage="No screens found"
           data-testid={`${dataTestId}-table`}
         />
       </DataDisplay>
-    </div>
+
+      <ComponentDialog
+        open={dialogOpen}
+        mode={dialogMode}
+        component={selectedComponent}
+        onClose={() => {
+          setDialogOpen(false)
+          setSelectedComponent(undefined)
+        }}
+        onSubmit={data => handleSubmit({ ...data, id: selectedComponent?.id } as Component)}
+        context={context}
+      />
+    </>
   )
 }

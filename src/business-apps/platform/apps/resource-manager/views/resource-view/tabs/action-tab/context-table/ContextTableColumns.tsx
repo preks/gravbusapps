@@ -2,8 +2,8 @@ import { Button } from '@newwork/nw-design-system'
 import type { ContextWithActions, ContextDTO } from '@/common/data/resources/types/context.types'
 import type { ColumnDef } from '@tanstack/react-table'
 import { EditableCell } from '@/components/editable-cell'
-import type { UseEditableStateResult } from '../../../../hooks/useEditableState'
-import { ContextDataDialog } from './ContextDataDialog'
+import type { UseEditableStateResult } from '../../../../../hooks/useEditableState'
+import { ContextDataDialog } from './components/ContextDataDialog'
 
 export interface ContextTableColumnsConfig {
   dataTestId: string

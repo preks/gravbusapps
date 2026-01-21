@@ -1,11 +1,8 @@
-import { Button, ButtonGroup } from '@newwork/nw-design-system'
-import { Trash, X } from '@phosphor-icons/react'
-import { Save } from 'lucide-react'
 import type { ActionWithContexts } from '@/common/data/resources/types/action.types'
 import type { ColumnDef } from '@tanstack/react-table'
 import { EditableCell, EditableComboboxCell, EditableSelectCell } from '@/components/editable-cell'
 import type { ActionDTO } from '@/common/data/resources/types/action.types'
-import type { UseEditableStateResult } from '../../../../hooks/useEditableState'
+import type { UseEditableStateResult } from '../../../../../hooks/useEditableState'
 
 export interface ActionTableColumnsConfig {
   dataTestId: string
@@ -17,13 +14,9 @@ export interface ActionTableColumnsConfig {
   isDeleting: boolean
   setDescriptionActionId: (id: string | null) => void
   setDescriptionDialogOpen: (open: boolean) => void
-  // Service/Process related
-  availableServices: Array<{ id: string; name: string }>
-  servicesLoading: boolean
-  loadServices: () => void
+  // Service/Process related (from context)
+  domains: Array<{ id: string; name: string }>
   getProcessesForDomain: (domain: string) => Array<{ id: string; name: string }>
-  domainProcessesLoading: boolean
-  refetchDomainProcesses: (domain: string) => Promise<Array<{ id: string; name: string }>>
   // Component related
   screenComponentOptions: Array<{ id: string; name: string }>
   screenResourcesLoading: boolean
@@ -121,16 +114,10 @@ export const createActionTableColumns = (
               config.editableState.onFieldEdit(actionId, 'domain', value)
               config.editableState.onFieldEdit(actionId, 'processName', '')
             }}
-            options={config.availableServices}
+            options={config.domains}
             testId={`${config.dataTestId}-service-${actionId}`}
             isEdited={isEdited}
             disabled={isSaving}
-            isLoading={config.servicesLoading}
-            onOpenChange={open => {
-              if (open) {
-                config.loadServices()
-              }
-            }}
             placeholder="Select service..."
           />
         )
@@ -166,14 +153,6 @@ export const createActionTableColumns = (
             testId={`${config.dataTestId}-processName-${actionId}`}
             isEdited={isEdited}
             disabled={isSaving || !selectedDomain}
-            isLoading={config.domainProcessesLoading}
-            onOpenChange={async open => {
-              if (open && selectedDomain) {
-                if (!config.domainProcessesLoading) {
-                  await config.refetchDomainProcesses(selectedDomain)
-                }
-              }
-            }}
             placeholder={selectedDomain ? 'Select process...' : 'Select service first'}
           />
         )
@@ -433,62 +412,6 @@ export const createActionTableColumns = (
               />
             )}
           </div>
-        )
-      }
-    },
-    {
-      id: 'actions',
-      header: 'Actions',
-      size: 150,
-      cell: ({ row }) => {
-        const actionId = row.original.action.id
-        const hasEdits = config.editableState.hasEdits(actionId)
-        const isSaving = config.editableState.state.savingEntryId === actionId && config.editableState.state.isSaving
-        return (
-          <ButtonGroup onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} className="gba:h-6">
-            <Button
-              size="iconSm"
-              variant="secondary"
-              className="gba:h-6"
-              onClick={e => {
-                e.stopPropagation()
-                config.handleSaveEntry(actionId)
-              }}
-              disabled={!hasEdits || isSaving || config.isUpdating || config.isDeleting}
-              data-testid={`${config.dataTestId}-save-action-${actionId}`}
-              title="Save changes"
-            >
-              <Save className="gba:h-4 gba:w-4" />
-            </Button>
-            <Button
-              size="iconSm"
-              variant="secondary"
-              className="gba:h-6"
-              onClick={e => {
-                e.stopPropagation()
-                config.editableState.onDiscardEntry(actionId)
-              }}
-              disabled={!hasEdits || isSaving || config.isUpdating || config.isDeleting}
-              data-testid={`${config.dataTestId}-discard-action-${actionId}`}
-              title="Discard changes"
-            >
-              <X className="gba:h-4 gba:w-4" />
-            </Button>
-            <Button
-              size="iconSm"
-              variant="secondary"
-              className="gba:h-6"
-              onClick={e => {
-                e.stopPropagation()
-                config.onDelete(row.original)
-              }}
-              disabled={config.isUpdating || config.isDeleting}
-              data-testid={`${config.dataTestId}-delete-action-${actionId}`}
-              title="Delete"
-            >
-              <Trash className="gba:h-4 gba:w-4" />
-            </Button>
-          </ButtonGroup>
         )
       }
     }

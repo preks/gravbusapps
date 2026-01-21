@@ -2,14 +2,16 @@ import React, { useCallback, useMemo, useState } from 'react'
 import { DataTable } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useUpdateAction } from '@/common/data/resources/hooks/useUpdateAction'
+import { useCreateAction } from '@/common/data/resources/hooks/useCreateAction'
 import type { ActionWithContexts } from '@/common/data/resources/types/action.types'
-import { DescriptionDialog } from '../../../../components/DescriptionDialog'
-import { useEditableState } from '../../../../hooks/useEditableState'
+import { DescriptionDialog } from '../../../../../components/DescriptionDialog'
+import { useEditableState } from '../../../../../hooks/useEditableState'
 import type { ActionDTO } from '@/common/data/resources/types/action.types'
-import { useDomainProcesses } from '@/common/data/resources/hooks/useDomainProcesses'
 import { useComponents } from '@/common/data/resources/hooks/useComponents'
-import { useResourceClient } from '@/common/network/resources/useResourceClient'
 import { createActionTableColumns } from './ActionTableColumns'
+import { useResourceManagerContext } from '../../../../../contexts/ResourceManagerContext'
+import { Button, ButtonGroup } from '@newwork/nw-design-system'
+import { Save, X, Trash } from 'lucide-react'
 
 interface ActionTableProps extends BusinessAppContextProps {
   actions: ActionWithContexts[]
@@ -34,6 +36,7 @@ interface ActionTableProps extends BusinessAppContextProps {
   onDelete: (action: ActionWithContexts) => void
   isUpdating: boolean
   isDeleting: boolean
+  onAddActionRef?: React.MutableRefObject<(() => void) | null>
   'data-testid'?: string
 }
 
@@ -60,56 +63,26 @@ export const ActionTable: React.FC<ActionTableProps> = ({
   onDelete,
   isUpdating,
   isDeleting,
+  onAddActionRef,
   'data-testid': dataTestId = 'action-table',
   ...context
 }) => {
+  // Draft actions state (managed locally)
+  const [draftActions, setDraftActions] = useState<ActionWithContexts[]>([])
+
+  // Merge draft actions with regular actions (drafts at the top)
+  const allActions = useMemo(() => {
+    return [...draftActions, ...actions]
+  }, [draftActions, actions])
+
   // Editable state for inline editing
-  const actionEntries = useMemo(() => actions.map(item => item.action), [actions])
+  const actionEntries = useMemo(() => allActions.map(item => item.action), [allActions])
 
-  // Services state - loaded when combobox opens
-  const [services, setServices] = useState<Array<{ id: string; name: string }>>([])
-  const [servicesLoading, setServicesLoading] = useState(false)
+  // Get domain/process data from context
+  const { domains, getProcessesForDomain } = useResourceManagerContext()
 
-  // Extract services from loaded actions as fallback (for initial display)
-  const servicesFromActions = useMemo(() => {
-    const domainSet = new Set<string>()
-    actions.forEach(item => {
-      if (item.action.domain) {
-        domainSet.add(item.action.domain)
-      }
-    })
-    return Array.from(domainSet)
-      .sort()
-      .map(domain => ({ id: domain, name: domain }))
-  }, [actions])
-
-  // Use services from API if loaded, otherwise use services from actions
-  const availableServices = services.length > 0 ? services : servicesFromActions
-
-  // Resource client for loading services
-  const resourceClient = useResourceClient(context.accessToken)
-
-  // Load services from API
-  const loadServices = useCallback(async () => {
-    if (servicesLoading || services.length > 0) return
-
-    setServicesLoading(true)
-    try {
-      const servicesData = await resourceClient.action.getServices()
-      setServices(servicesData)
-    } catch (error) {
-      console.error('Error loading services:', error)
-    } finally {
-      setServicesLoading(false)
-    }
-  }, [resourceClient, servicesLoading, services.length])
-
-  // Domain Processes hook - lazy loaded (only when combobox opens)
-  const {
-    getProcessesForDomain,
-    isLoading: domainProcessesLoading,
-    refetch: refetchDomainProcesses
-  } = useDomainProcesses(context)
+  // Create action hook
+  const { createAction } = useCreateAction(context)
 
   // Components for targetDesktop/targetMobile - lazy loaded (only component list, no Azure Blobs)
   const {
@@ -158,6 +131,47 @@ export const ActionTable: React.FC<ActionTableProps> = ({
   const [descriptionDialogOpen, setDescriptionDialogOpen] = useState(false)
   const [descriptionActionId, setDescriptionActionId] = useState<string | null>(null)
 
+  // Handle add action - create draft row
+  const handleAddAction = useCallback(() => {
+    const draftId = `draft:${Date.now()}`
+    const draftAction: ActionWithContexts = {
+      action: {
+        id: draftId,
+        flowName: '',
+        flowType: '',
+        processName: '',
+        domain: '',
+        targetDesktop: '',
+        targetMobile: '',
+        description: ''
+      } as ActionDTO,
+      roleContexts: [],
+      featureContexts: []
+    }
+
+    setDraftActions(prev => [draftAction, ...prev])
+
+    // Seed edits so Save/Discard buttons appear
+    editableState.setState(prev => {
+      const newEdited = new Map(prev.editedEntries)
+      newEdited.set(draftId, { flowName: '', flowType: '' })
+      const newDrafts = new Set(prev.draftEntryIds)
+      newDrafts.add(draftId)
+      return {
+        ...prev,
+        editedEntries: newEdited,
+        draftEntryIds: newDrafts
+      }
+    })
+  }, [editableState])
+
+  // Expose handleAddAction via ref
+  React.useEffect(() => {
+    if (onAddActionRef) {
+      onAddActionRef.current = handleAddAction
+    }
+  }, [onAddActionRef, handleAddAction])
+
   // Save handler for inline editing
   const handleSaveEntry = useCallback(
     async (actionId: string) => {
@@ -166,24 +180,114 @@ export const ActionTable: React.FC<ActionTableProps> = ({
 
       editableState.setSaving(actionId, true)
       try {
-        const result = await updateAction(actionId, edits)
-        if (result) {
-          editableState.onDiscardEntry(actionId)
-          await refetchActions()
+        const isDraft = editableState.isDraft(actionId)
+
+        if (isDraft) {
+          // Create new action via API
+          const result = await createAction(edits)
+          if (result) {
+            // Remove draft from local state
+            setDraftActions(prev => prev.filter(d => d.action.id !== actionId))
+            editableState.setState(prev => {
+              const newEdited = new Map(prev.editedEntries)
+              newEdited.delete(actionId)
+              const newDrafts = new Set(prev.draftEntryIds)
+              newDrafts.delete(actionId)
+              return { ...prev, editedEntries: newEdited, draftEntryIds: newDrafts }
+            })
+            await refetchActions()
+          }
+        } else {
+          // Update existing action
+          const result = await updateAction(actionId, edits)
+          if (result) {
+            editableState.onDiscardEntry(actionId)
+            await refetchActions()
+          }
         }
-      } catch (error) {
-        console.error('Error saving action:', error)
+      } catch {
+        // Error handled
       } finally {
         editableState.setSaving(actionId, false)
       }
     },
-    [editableState, updateAction, refetchActions]
+    [editableState, updateAction, createAction, refetchActions, setDraftActions]
+  )
+
+  // Handle discard entry
+  const handleDiscardEntry = useCallback(
+    (actionId: string) => {
+      const isDraft = editableState.isDraft(actionId)
+      if (isDraft) {
+        // Remove draft from local state
+        setDraftActions(prev => prev.filter(d => d.action.id !== actionId))
+      }
+      editableState.onDiscardEntry(actionId)
+    },
+    [editableState, setDraftActions]
+  )
+
+  // Render actions for DataTable actions prop
+  const renderActions = useCallback(
+    (row: any) => {
+      const actionId = row.original.action.id
+      const hasEdits = editableState.hasEdits(actionId)
+      const isSaving = editableState.state.savingEntryId === actionId && editableState.state.isSaving
+
+      return (
+        <ButtonGroup onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} className="gba:h-6">
+          <Button
+            size="iconSm"
+            variant="secondary"
+            className="gba:h-6"
+            onClick={e => {
+              e.stopPropagation()
+              handleSaveEntry(actionId)
+            }}
+            disabled={!hasEdits || isSaving || isUpdating || isDeleting}
+            data-testid={`${dataTestId}-save-action-${actionId}`}
+            title="Save changes"
+          >
+            <Save className="gba:h-4 gba:w-4" />
+          </Button>
+          <Button
+            size="iconSm"
+            variant="secondary"
+            className="gba:h-6"
+            onClick={e => {
+              e.stopPropagation()
+              handleDiscardEntry(actionId)
+            }}
+            disabled={!hasEdits || isSaving || isUpdating || isDeleting}
+            data-testid={`${dataTestId}-discard-action-${actionId}`}
+            title="Discard changes"
+          >
+            <X className="gba:h-4 gba:w-4" />
+          </Button>
+          <Button
+            size="iconSm"
+            variant="secondary"
+            className="gba:h-6"
+            onClick={e => {
+              e.stopPropagation()
+              onDelete(row.original)
+            }}
+            disabled={isUpdating || isDeleting}
+            data-testid={`${dataTestId}-delete-action-${actionId}`}
+            title="Delete"
+          >
+            <Trash className="gba:h-4 gba:w-4" />
+          </Button>
+        </ButtonGroup>
+      )
+    },
+    [editableState, handleSaveEntry, handleDiscardEntry, isUpdating, isDeleting, onDelete, dataTestId]
   )
 
   // Filter and sort data
   const safeData = useMemo(() => {
-    if (!Array.isArray(actions)) return []
-    let filtered = actions
+    if (!Array.isArray(allActions)) return []
+    let filtered = allActions
       .filter(item => item?.action?.id)
       .map(item => ({
         ...item,
@@ -206,7 +310,7 @@ export const ActionTable: React.FC<ActionTableProps> = ({
 
     // Note: Sorting is handled by DataTable via enableSorting prop
     return filtered
-  }, [actions, searchValue])
+  }, [allActions, searchValue])
 
   // Use filtered data directly (API handles pagination)
   const paginatedData = useMemo(() => {
@@ -232,12 +336,8 @@ export const ActionTable: React.FC<ActionTableProps> = ({
         isDeleting,
         setDescriptionActionId,
         setDescriptionDialogOpen,
-        availableServices,
-        servicesLoading,
-        loadServices,
+        domains,
         getProcessesForDomain,
-        domainProcessesLoading,
-        refetchDomainProcesses,
         screenComponentOptions,
         screenResourcesLoading,
         screenResourcesLength: screenResources.length,
@@ -251,7 +351,7 @@ export const ActionTable: React.FC<ActionTableProps> = ({
         featuresError,
         refetchRoles,
         refetchFeatures
-      }),
+      }).filter(col => col.id !== 'table-actions'),
     [
       dataTestId,
       actionEntries,
@@ -262,12 +362,8 @@ export const ActionTable: React.FC<ActionTableProps> = ({
       isDeleting,
       setDescriptionActionId,
       setDescriptionDialogOpen,
-      availableServices,
-      servicesLoading,
-      loadServices,
+      domains,
       getProcessesForDomain,
-      domainProcessesLoading,
-      refetchDomainProcesses,
       screenComponentOptions,
       screenResourcesLoading,
       screenResources.length,
@@ -311,6 +407,7 @@ export const ActionTable: React.FC<ActionTableProps> = ({
         variant="compact"
         data={paginatedData}
         columns={columns as any}
+        actions={renderActions}
         loading={isLoading}
         error={error || undefined}
         totalCount={totalCount}

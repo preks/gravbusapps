@@ -1,6 +1,5 @@
-import { useState, useMemo, useCallback } from 'react'
-import { ComponentResource, AzureBlobVersions, Component } from '../types/component.types'
-import { useComponentPaths } from './useComponentPaths'
+import { useState, useCallback } from 'react'
+import { Component } from '../types/component.types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useResourceClient } from '@/common/network/resources/useResourceClient'
 
@@ -20,7 +19,7 @@ interface UseComponentResourcesParams {
 }
 
 interface UseComponentResourcesResult {
-  resources: ComponentResource[]
+  components: Component[]
   totalCount: number
   isLoading: boolean
   error: string | null
@@ -28,8 +27,8 @@ interface UseComponentResourcesResult {
 }
 
 /**
- * Hook for Components View - combines Screen Management API and Azure Storage data
- * Only used in ComponentsView, not on app level
+ * Hook for Components View - fetches component data from Screen Management API
+ * Does NOT fetch Azure Storage data - that's handled by ResourceManagerContext
  * Supports pagination with limit/offset
  */
 export const useComponentResources = (
@@ -41,35 +40,6 @@ export const useComponentResources = (
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const resourceClient = useResourceClient(context.accessToken)
-
-  // Extract component paths from components
-  const componentPaths = useMemo(() => {
-    return components
-      .map(component => component.screenComponents?.formDefinition?.componentPath)
-      .filter((path): path is string => !!path && path.startsWith('/'))
-      .map(path => path.substring(1)) // Remove leading '/'
-  }, [components])
-
-  // Fetch DEV and PROD component path versions - pass componentPaths so hooks can track them
-  // Hooks won't auto-fetch, only when refetch() is called
-  const {
-    componentPathVersions: devComponentPathVersions,
-    error: devComponentPathsError,
-    refetch: refetchDevComponentPaths
-  } = useComponentPaths(
-    context,
-    componentPaths, // Pass actual paths - hook will only fetch when refetch() is called
-    'dev'
-  )
-  const {
-    componentPathVersions: prodComponentPathVersions,
-    error: prodComponentPathsError,
-    refetch: refetchProdComponentPaths
-  } = useComponentPaths(
-    context,
-    componentPaths, // Pass actual paths - hook will only fetch when refetch() is called
-    'prod'
-  )
 
   const fetchComponents = useCallback(
     async (fetchParams?: UseComponentResourcesParams, isInitial = false) => {
@@ -152,53 +122,18 @@ export const useComponentResources = (
     [context.accessToken, params, resourceClient]
   )
 
-  // Combine Component Management data with Azure Storage versions (DEV and PROD)
-  const resources = useMemo<ComponentResource[]>(() => {
-    return components.map(component => {
-      const componentPath = component.screenComponents?.formDefinition?.componentPath
-      const pathWithoutSlash = componentPath?.startsWith('/') ? componentPath.substring(1) : componentPath || ''
-
-      const devComponentPathInfo = devComponentPathVersions.get(pathWithoutSlash)
-      const devAzureVersions: AzureBlobVersions = devComponentPathInfo
-        ? { versions: devComponentPathInfo.versions, hasUnversioned: devComponentPathInfo.hasUnversioned }
-        : { versions: [], hasUnversioned: false }
-
-      const prodComponentPathInfo = prodComponentPathVersions.get(pathWithoutSlash)
-      const prodAzureVersions: AzureBlobVersions = prodComponentPathInfo
-        ? { versions: prodComponentPathInfo.versions, hasUnversioned: prodComponentPathInfo.hasUnversioned }
-        : { versions: [], hasUnversioned: false }
-
-      return {
-        ...component,
-        azureVersions: {
-          dev: devAzureVersions,
-          prod: prodAzureVersions
-        }
-      }
-    })
-  }, [components, devComponentPathVersions, prodComponentPathVersions])
-
-  const errorState = error || devComponentPathsError || prodComponentPathsError
-
   const refetch = useCallback(
     async (fetchParams?: UseComponentResourcesParams, isInitial = false) => {
       await fetchComponents(fetchParams, isInitial)
-
-      // Only fetch Azure paths on initial load (they contain ALL blobs, not just current page)
-      if (isInitial) {
-        Promise.all([refetchDevComponentPaths(), refetchProdComponentPaths()]).catch(() => {
-          // Silently handle component path fetch errors
-        })
-      }
     },
-    [fetchComponents, refetchDevComponentPaths, refetchProdComponentPaths]
+    [fetchComponents]
   )
 
   return {
-    resources,
+    components,
     totalCount,
-    isLoading: isInitialLoading, // Only show loading on initial load
-    error: errorState,
+    isLoading: isInitialLoading,
+    error,
     refetch
   }
 }

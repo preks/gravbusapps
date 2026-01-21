@@ -91,4 +91,50 @@ export class ComponentClient {
       return null
     }
   }
+
+  public async createComponent(
+    data: Omit<Component, 'id' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy' | 'isDeleted'>,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<Component> {
+    const response = await this.resourceClient['post']<Component>(
+      '/screen',
+      data,
+      {
+        ...options,
+        withCredentials: false
+      },
+      this.baseUrl
+    )
+
+    return response
+  }
+
+  public async updateComponent(
+    id: string,
+    data: Partial<Component>,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<Component> {
+    const response = await this.resourceClient['put']<Component>(
+      `/screen/${id}`,
+      data,
+      {
+        ...options,
+        withCredentials: false
+      },
+      this.baseUrl
+    )
+
+    return response
+  }
+
+  public async deleteComponent(id: string, options: Omit<RequestOptions, 'body'> = {}): Promise<void> {
+    await this.resourceClient['delete']<void>(
+      `/screen/${id}`,
+      {
+        ...options,
+        withCredentials: false
+      },
+      this.baseUrl
+    )
+  }
 }

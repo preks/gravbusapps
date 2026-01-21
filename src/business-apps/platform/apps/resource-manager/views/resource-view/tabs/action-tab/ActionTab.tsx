@@ -2,17 +2,15 @@ import React, { useCallback, useState, useEffect, useLayoutEffect, useRef } from
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useActions } from '@/common/data/resources/hooks/useActions'
 import { useContexts } from '@/common/data/resources/hooks/useContexts'
-import { useCreateAction } from '@/common/data/resources/hooks/useCreateAction'
 import { useUpdateAction } from '@/common/data/resources/hooks/useUpdateAction'
 import { useDeleteAction } from '@/common/data/resources/hooks/useDeleteAction'
 import { useCreateContext } from '@/common/data/resources/hooks/useCreateContext'
 import { useUpdateActionAssignment } from '@/common/data/resources/hooks/useUpdateActionAssignment'
 import type { ActionWithContexts } from '@/common/data/resources/types/action.types'
 import type { ContextDTO } from '@/common/data/resources/types/context.types'
-import { ActionDialog } from './ActionDialog'
-import { ActionTable } from './ActionTable'
-import { ContextTable } from './ContextTable'
-import { ContextDialog } from './ContextDialog'
+import { ActionTable } from './action-table/ActionTable'
+import { ContextTable } from './context-table/ContextTable'
+import { ContextDialog } from './context-table/components/ContextDialog'
 import { useRolesCatalog } from '@/common/data/resources/hooks/useRolesCatalog'
 import { useFeaturesCatalog } from '@/common/data/resources/hooks/useFeaturesCatalog'
 
@@ -22,8 +20,8 @@ interface ActionTabProps extends BusinessAppContextProps {
   onLoadingChange?: (isLoading: boolean) => void
   currentView?: string
   onViewChange?: (view: string) => void
-  onViewCountChange?: (counts: { actions: number; contexts: number }) => void
-  onViewLoadingChange?: (loading: { actions: boolean; contexts: boolean }) => void
+  onViewCountChange?: (counts: { items: number; contexts: number }) => void
+  onViewLoadingChange?: (loading: { items: boolean; contexts: boolean }) => void
   onActionRefetchChange?: (refetch: () => void) => void
   onContextRefetchChange?: (refetch: () => void) => void
   onActionLoadingChange?: (loading: boolean) => void
@@ -34,6 +32,8 @@ interface ActionTabProps extends BusinessAppContextProps {
   onContextDialogOpenChange?: (open: boolean) => void
   isActive?: boolean
   shouldInitialLoad?: boolean
+  onAddActionChange?: (addAction: () => void) => void
+  onAddContextChange?: (addContext: () => void) => void
 }
 
 const ActionTabComponent: React.FC<ActionTabProps> = ({
@@ -41,21 +41,25 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
   onCountChange,
   onLoadingChange,
   currentView: externalCurrentView,
-  onViewChange: externalOnViewChange,
   onViewCountChange,
   onViewLoadingChange,
   onActionRefetchChange,
   onContextRefetchChange,
   onActionLoadingChange,
   onContextLoadingChange,
-  dialogOpen: externalDialogOpen,
-  onDialogOpenChange: externalOnDialogOpenChange,
   contextDialogOpen: externalContextDialogOpen,
   onContextDialogOpenChange: externalOnContextDialogOpenChange,
   isActive = true,
   shouldInitialLoad = false,
+  onAddActionChange,
+  onAddContextChange,
   ...context
 }) => {
+  // Ref to hold addAction function from ActionTable
+  const addActionRef = React.useRef<(() => void) | null>(null)
+  // Ref to hold addContext function from ContextTable
+  const addContextRef = React.useRef<(() => void) | null>(null)
+
   // Performance logging (only in dev, limited)
   const renderCountRef = useRef(0)
   const prevPropsRef = useRef<{ isActive: boolean; currentView: string }>({ isActive: false, currentView: '' })
@@ -68,31 +72,25 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
       currentProps.currentView !== prevPropsRef.current.currentView
 
     if (propsChanged || renderCountRef.current <= 3) {
-      console.log(`[ActionTab] Render #${renderCountRef.current}`, {
-        propsChanged,
-        currentProps,
-        timestamp: new Date().toISOString()
-      })
       prevPropsRef.current = currentProps
     }
   }
-  // Get initial view from URL or default to 'actions'
+  // Get initial view from URL or default to 'items'
   const getInitialView = useCallback(() => {
-    if (typeof window === 'undefined') return 'actions'
+    if (typeof window === 'undefined') return 'items'
     const urlParams = new URLSearchParams(window.location.search)
-    const viewFromUrl = urlParams.get('actionView')
+    const viewFromUrl = urlParams.get('subview')
 
-    // Default to 'actions' if no view is specified or if invalid view
+    // Default to 'items' if no view is specified or if invalid view
     if (viewFromUrl === 'contexts') {
       return 'contexts'
     }
 
-    return 'actions'
+    return 'items'
   }, [])
 
-  const [internalCurrentView, setInternalCurrentView] = useState<string>(getInitialView())
+  const [internalCurrentView] = useState<string>(getInitialView())
   const currentView = externalCurrentView ?? internalCurrentView
-  const setCurrentView = externalOnViewChange ?? setInternalCurrentView
 
   // Search state - separate for each sub-view
   const [actionsSearchValue, setActionsSearchValue] = useState<string>('')
@@ -104,7 +102,7 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
 
   // Track what has been loaded to prevent duplicate requests
   const loadedRef = useRef({
-    actions: false,
+    items: false,
     contexts: false,
     initialLoadDone: false
   })
@@ -139,7 +137,7 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
   // Track when data has been successfully loaded (not just requested)
   useEffect(() => {
     if (!actionsLoading && actions.length > 0) {
-      loadedRef.current.actions = true
+      loadedRef.current.items = true
     }
   }, [actionsLoading, actions.length])
 
@@ -153,7 +151,7 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
   useEffect(() => {
     if (shouldInitialLoad && !loadedRef.current.initialLoadDone) {
       // Load both views for initial counts - load immediately when view opens
-      if (!loadedRef.current.actions && !actionsLoading) {
+      if (!loadedRef.current.items && !actionsLoading) {
         refetchActions().catch(() => {})
       }
       if (!loadedRef.current.contexts && !contextsLoading) {
@@ -168,7 +166,7 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
   // Refetch actions when pagination or search changes (only if actions view is active)
   const lastActionsParamsRef = useRef({ pageIndex: -1, pageSize: -1, search: '' })
   useEffect(() => {
-    if (!isActive || currentView !== 'actions' || !loadedRef.current.actions) return
+    if (!isActive || currentView !== 'items' || !loadedRef.current.items) return
     if (actionsLoading) return // Don't refetch if already loading
 
     // Only refetch if pagination or search actually changed
@@ -226,7 +224,6 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
   ])
 
   // CUD hooks
-  const { createAction } = useCreateAction(context)
   const { isLoading: isUpdating } = useUpdateAction(context) // Only used for isUpdating state
   const { deleteAction, isLoading: isDeleting } = useDeleteAction(context)
   const { createContext } = useCreateContext(context)
@@ -255,7 +252,7 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
   // Preload roles/features ONCE when actions are loaded (similar to NavigationTab)
   // Load always when actions are present, not just when they have roles/features
   useEffect(() => {
-    if (!isActive || currentView !== 'actions' || actions.length === 0) return
+    if (!isActive || currentView !== 'items' || actions.length === 0) return
 
     // Always preload roles/features if not already loaded (like NavigationTab does)
     // Only preload once if no error and data not already loaded
@@ -286,56 +283,17 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
   ])
 
   // Dialog state - use external if provided, otherwise internal
-  const [internalDialogOpen, setInternalDialogOpen] = useState(false)
   const [internalContextDialogOpen, setInternalContextDialogOpen] = useState(false)
-  const dialogOpen = externalDialogOpen ?? internalDialogOpen
-  const setDialogOpen = externalOnDialogOpenChange ?? setInternalDialogOpen
   const contextDialogOpen = externalContextDialogOpen ?? internalContextDialogOpen
   const setContextDialogOpen = externalOnContextDialogOpenChange ?? setInternalContextDialogOpen
 
-  // Update URL when view changes
-  const updateUrl = useCallback((view: string) => {
-    if (typeof window === 'undefined') return
-    const urlParams = new URLSearchParams(window.location.search)
-    urlParams.set('actionView', view)
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
-    window.history.replaceState({}, '', newUrl)
-  }, [])
-
-  // Update URL when view changes
-  useEffect(() => {
-    if (currentView) {
-      updateUrl(currentView)
-    }
-  }, [currentView, updateUrl])
-
-  // Ensure URL always has actionView parameter on initial load
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const urlParams = new URLSearchParams(window.location.search)
-    if (!urlParams.has('actionView')) {
-      updateUrl(currentView)
-    }
-  }, [currentView, updateUrl])
-
-  // Listen for browser back/forward navigation
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const handlePopState = () => {
-      const newView = getInitialView()
-      setCurrentView(newView)
-    }
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [getInitialView])
-
   // Determine initial loading state (only when data hasn't been loaded yet)
-  const isActionsInitialLoading = actionsLoading && !loadedRef.current.actions
+  const isActionsInitialLoading = actionsLoading && !loadedRef.current.items
   const isContextsInitialLoading = contextsLoading && !loadedRef.current.contexts
 
   // Central count and loading update based on current view
   useEffect(() => {
-    if (currentView === 'actions') {
+    if (currentView === 'items') {
       onCountChange?.(actionsTotalCount)
       onLoadingChange?.(isActionsInitialLoading)
     } else if (currentView === 'contexts') {
@@ -353,8 +311,8 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
   ])
 
   // Store previous values to avoid unnecessary updates
-  const prevCountsRef = useRef<{ actions: number; contexts: number }>({ actions: 0, contexts: 0 })
-  const prevLoadingRef = useRef<{ actions: boolean; contexts: boolean }>({ actions: false, contexts: false })
+  const prevCountsRef = useRef<{ items: number; contexts: number }>({ items: 0, contexts: 0 })
+  const prevLoadingRef = useRef<{ items: boolean; contexts: boolean }>({ items: false, contexts: false })
   const prevActionLoadingRef = useRef<boolean>(false)
   const prevContextLoadingRef = useRef<boolean>(false)
   const actionRefetchFnRef = useRef<(() => void) | null>(null)
@@ -378,34 +336,23 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
     // Use totalCount from hooks (null = not loaded yet)
     // Only use actual count if data has been loaded, otherwise use 0 (DataDisplay will show loading via isLoading)
     const newCounts = {
-      actions: actionsTotalCount !== null ? actionsTotalCount : 0, // Use 0 if not loaded yet (isLoading will show spinner)
+      items: actionsTotalCount !== null ? actionsTotalCount : 0, // Use 0 if not loaded yet (isLoading will show spinner)
       contexts: contextsTotalCount !== null ? contextsTotalCount : 0 // Use 0 if not loaded yet (isLoading will show spinner)
     }
     const newLoading = {
-      actions: isActionsInitialLoading || actionsTotalCount === null, // Show loading if initial loading OR not loaded yet
+      items: isActionsInitialLoading || actionsTotalCount === null, // Show loading if initial loading OR not loaded yet
       contexts: isContextsInitialLoading || contextsTotalCount === null // Show loading if initial loading OR not loaded yet
     }
 
     // Only update if values actually changed
     const countsChanged =
-      newCounts.actions !== prevCountsRef.current.actions || newCounts.contexts !== prevCountsRef.current.contexts
+      newCounts.items !== prevCountsRef.current.items || newCounts.contexts !== prevCountsRef.current.contexts
     const loadingChanged =
-      newLoading.actions !== prevLoadingRef.current.actions || newLoading.contexts !== prevLoadingRef.current.contexts
+      newLoading.items !== prevLoadingRef.current.items || newLoading.contexts !== prevLoadingRef.current.contexts
     const actionLoadingChanged = actionsLoading !== prevActionLoadingRef.current
     const contextLoadingChanged = contextsLoading !== prevContextLoadingRef.current
 
     if (countsChanged || loadingChanged || actionLoadingChanged || contextLoadingChanged) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[ActionTab] Batch updating parent', {
-          countsChanged,
-          loadingChanged,
-          actionLoadingChanged,
-          contextLoadingChanged,
-          newCounts,
-          newLoading
-        })
-      }
-
       if (countsChanged && onViewCountChange) {
         prevCountsRef.current = newCounts
         onViewCountChange(newCounts)
@@ -429,9 +376,6 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
 
     // Set refetch functions once (stable references)
     if (onActionRefetchChange && actionRefetchFnRef.current !== actionRefetchFn) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[ActionTab] Setting action refetch function')
-      }
       onActionRefetchChange(() => {
         actionRefetchFnRef.current?.()
       })
@@ -439,9 +383,6 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
     }
 
     if (onContextRefetchChange && contextRefetchFnRef.current !== contextRefetchFn) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[ActionTab] Setting context refetch function')
-      }
       onContextRefetchChange(() => {
         contextRefetchFnRef.current?.()
       })
@@ -482,16 +423,33 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
     [deleteAction, refetchActions]
   )
 
-  // Handle dialog submit (only for create)
-  const handleDialogSubmit = useCallback(
-    async (data: any) => {
-      const result = await createAction(data)
-      if (result) {
-        await refetchActions()
-      }
-    },
-    [createAction, refetchActions]
-  )
+  // Handle add action - call the function from ActionTable via ref
+  const handleAddAction = useCallback(() => {
+    if (addActionRef.current) {
+      addActionRef.current()
+    }
+  }, [])
+
+  // Handle add context - call the function from ContextTable via ref
+  const handleAddContext = useCallback(() => {
+    if (addContextRef.current) {
+      addContextRef.current()
+    }
+  }, [])
+
+  // Expose handleAddAction to parent via callback
+  React.useEffect(() => {
+    if (onAddActionChange) {
+      onAddActionChange(handleAddAction)
+    }
+  }, [onAddActionChange, handleAddAction])
+
+  // Expose handleAddContext to parent via callback
+  React.useEffect(() => {
+    if (onAddContextChange) {
+      onAddContextChange(handleAddContext)
+    }
+  }, [onAddContextChange, handleAddContext])
 
   // Handle create context
   const handleCreateContext = useCallback(
@@ -527,7 +485,7 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
 
   return (
     <>
-      {currentView === 'actions' && (
+      {currentView === 'items' && (
         <ActionTable
           searchValue={actionsSearchValue}
           sorting={sorting}
@@ -551,6 +509,7 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
           isUpdating={isUpdating}
           isDeleting={isDeleting}
           refetchActions={refetchActions}
+          onAddActionRef={addActionRef}
           data-testid={dataTestId}
           {...context}
         />
@@ -571,19 +530,12 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
           setContextDialogOpen={setContextDialogOpen}
           onCreateContext={handleCreateContext}
           actions={actions.map(a => ({ action: a.action }))}
+          onAddContextRef={addContextRef}
           data-testid={dataTestId}
           {...context}
         />
       )}
 
-      <ActionDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onSubmit={handleDialogSubmit}
-        mode="create"
-        {...context}
-        data-testid={`${dataTestId}-dialog`}
-      />
       {contextDialogOpen && (
         <ContextDialog
           open={contextDialogOpen}

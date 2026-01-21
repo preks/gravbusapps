@@ -4,24 +4,25 @@ import { useResourceClient } from '@/common/network/resources/useResourceClient'
 import type { MenuItemDTO, MenuItemUpsertRequestDTO } from '../types/menuItem.types'
 
 interface UseCreateMenuItemResult {
-  createMenuItem: (data: MenuItemUpsertRequestDTO, isHub: boolean) => Promise<MenuItemDTO | null>
-  isLoading: boolean
+  createMenuItem: (data: MenuItemUpsertRequestDTO, isHub: boolean) => Promise<MenuItemDTO>
+  isCreating: boolean
   error: string | null
 }
 
 export const useCreateMenuItem = (context: BusinessAppContextProps): UseCreateMenuItemResult => {
-  const [isLoading, setIsLoading] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const resourceClient = useResourceClient(context.accessToken)
 
   const createMenuItem = useCallback(
-    async (data: MenuItemUpsertRequestDTO, isHub: boolean): Promise<MenuItemDTO | null> => {
+    async (data: MenuItemUpsertRequestDTO, isHub: boolean): Promise<MenuItemDTO> => {
       if (!context.accessToken) {
-        setError('Access token not available')
-        return null
+        const err = 'Access token not available'
+        setError(err)
+        throw new Error(err)
       }
 
-      setIsLoading(true)
+      setIsCreating(true)
       setError(null)
 
       try {
@@ -31,9 +32,9 @@ export const useCreateMenuItem = (context: BusinessAppContextProps): UseCreateMe
         const errorMessage = err instanceof Error ? err.message : 'Failed to create menu item'
         setError(errorMessage)
         console.error('Error creating menu item:', err)
-        return null
+        throw err
       } finally {
-        setIsLoading(false)
+        setIsCreating(false)
       }
     },
     [context.accessToken, resourceClient]
@@ -41,7 +42,7 @@ export const useCreateMenuItem = (context: BusinessAppContextProps): UseCreateMe
 
   return {
     createMenuItem,
-    isLoading,
+    isCreating,
     error
   }
 }

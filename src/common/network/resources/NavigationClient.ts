@@ -2,11 +2,7 @@ import type { RequestOptions } from '../rest/RestClient'
 import { env } from '../../env/EnvUtils'
 import type { ResourceClient } from './ResourceClient'
 import type { NavigationDTO, GetNavigationsParams } from '@/common/data/resources/types/navigation.types'
-import type {
-  MenuItemDTO,
-  MenuItemResultDTO,
-  MenuItemUpsertRequestDTO
-} from '@/common/data/resources/types/menuItem.types'
+import type { MenuItemDTO, MenuItemUpsertRequestDTO } from '@/common/data/resources/types/menuItem.types'
 
 export class NavigationClient {
   constructor(private resourceClient: ResourceClient) {}
@@ -19,11 +15,14 @@ export class NavigationClient {
   public async getNavigations(
     params?: GetNavigationsParams,
     options: Omit<RequestOptions, 'body'> = {}
-  ): Promise<NavigationDTO[]> {
+  ): Promise<{ data: NavigationDTO[]; totalCount: number }> {
     const endpoint = params?.search || params?.sort ? '/resource-url/search' : '/resource-url'
 
     const response = await this.resourceClient['get']<
-      NavigationDTO[] | { data: NavigationDTO[] } | { content: NavigationDTO[] } | { resourceUrlList: NavigationDTO[] }
+      | NavigationDTO[]
+      | { data: NavigationDTO[]; totalElements?: number; totalCount?: number; paging?: { totalRecords?: number } }
+      | { content: NavigationDTO[]; totalElements?: number; totalCount?: number }
+      | { resourceUrlList: NavigationDTO[]; totalElements?: number; totalCount?: number }
     >(
       endpoint,
       {
@@ -36,16 +35,25 @@ export class NavigationClient {
 
     // Handle different response structures
     if (Array.isArray(response)) {
-      return response
+      return { data: response, totalCount: response.length }
     } else if (response && 'resourceUrlList' in response && Array.isArray(response.resourceUrlList)) {
-      return response.resourceUrlList
+      return {
+        data: response.resourceUrlList,
+        totalCount: response.totalCount ?? response.totalElements ?? response.resourceUrlList.length
+      }
     } else if (response && 'data' in response && Array.isArray(response.data)) {
-      return response.data
+      // Check for paging.totalRecords first (new API format)
+      const totalCount =
+        (response as any).paging?.totalRecords ?? response.totalCount ?? response.totalElements ?? response.data.length
+      return { data: response.data, totalCount }
     } else if (response && 'content' in response && Array.isArray(response.content)) {
-      return response.content
+      return {
+        data: response.content,
+        totalCount: response.totalCount ?? response.totalElements ?? response.content.length
+      }
     }
 
-    return []
+    return { data: [], totalCount: 0 }
   }
 
   public async getNavigation(id: string, options: Omit<RequestOptions, 'body'> = {}): Promise<NavigationDTO | null> {
@@ -110,28 +118,10 @@ export class NavigationClient {
     params?: { hubType?: 'USE' | 'CREATE' | 'MANAGE' },
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<MenuItemDTO[]> {
-    // Fetch both hubs and menu items, then combine them
-    const [hubsResponse, menuItemsResponse] = await Promise.all([
-      this.resourceClient['get']<
-        | {
-            hubs: Array<{
-              id: string
-              name: string
-              icon?: string
-              description?: string
-              rank?: number
-              nameTranslated?: Record<string, string>
-              descriptionTranslated?: Record<string, string>
-              resourceUrlId?: string
-              resourceUrl?: any
-              menuItems?: MenuItemDTO[]
-              code?: string
-              type?: 'USE' | 'CREATE' | 'MANAGE'
-              hasChildren?: boolean
-              codeTranslated?: Record<string, string>
-            }>
-          }
-        | Array<{
+    // Fetch hubs - they already contain all menu items nested in hub.menuItems
+    const hubsResponse = await this.resourceClient['get']<
+      | {
+          hubs: Array<{
             id: string
             name: string
             icon?: string
@@ -147,24 +137,32 @@ export class NavigationClient {
             hasChildren?: boolean
             codeTranslated?: Record<string, string>
           }>
-      >(
-        '/hubs',
-        {
-          ...options,
-          params: params as Record<string, string | number | boolean>,
-          withCredentials: false
-        },
-        this.baseUrl
-      ),
-      this.resourceClient['get']<MenuItemResultDTO | MenuItemDTO[]>(
-        '/menuItems',
-        {
-          ...options,
-          withCredentials: false
-        },
-        this.baseUrl
-      )
-    ])
+        }
+      | Array<{
+          id: string
+          name: string
+          icon?: string
+          description?: string
+          rank?: number
+          nameTranslated?: Record<string, string>
+          descriptionTranslated?: Record<string, string>
+          resourceUrlId?: string
+          resourceUrl?: any
+          menuItems?: MenuItemDTO[]
+          code?: string
+          type?: 'USE' | 'CREATE' | 'MANAGE'
+          hasChildren?: boolean
+          codeTranslated?: Record<string, string>
+        }>
+    >(
+      '/hubs',
+      {
+        ...options,
+        params: params as Record<string, string | number | boolean>,
+        withCredentials: false
+      },
+      this.baseUrl
+    )
 
     // Process hubs
     let hubs: Array<{
@@ -189,23 +187,8 @@ export class NavigationClient {
       hubs = hubsResponse.hubs
     }
 
-    // Process menu items
-    let menuItems: MenuItemDTO[] = []
-    if (Array.isArray(menuItemsResponse)) {
-      menuItems = menuItemsResponse
-    } else if (menuItemsResponse && 'menuItems' in menuItemsResponse && Array.isArray(menuItemsResponse.menuItems)) {
-      menuItems = menuItemsResponse.menuItems
-    }
-
-    // Convert hubs to menu items (level 0) and attach their menu items (level 1+)
+    // Convert hubs to menu items (level 0) with nested children
     const unifiedMenuItems: MenuItemDTO[] = hubs.map(hub => this.hubToMenuItem(hub, 0))
-
-    // Add standalone menu items (those not attached to hubs) as level 1 items
-    menuItems.forEach(item => {
-      if (!item.hubId) {
-        unifiedMenuItems.push(this.menuItemToMenuItem(item, 1))
-      }
-    })
 
     return unifiedMenuItems
   }

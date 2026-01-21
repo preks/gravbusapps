@@ -5,6 +5,7 @@ import type { NavigationDTO, GetNavigationsParams } from '../types/navigation.ty
 
 interface UseNavigationsResult {
   navigations: NavigationDTO[]
+  totalCount: number
   isLoading: boolean
   error: string | null
   refetch: () => Promise<void>
@@ -15,6 +16,7 @@ export const useNavigations = (
   params?: GetNavigationsParams
 ): UseNavigationsResult => {
   const [navigations, setNavigations] = useState<NavigationDTO[]>([])
+  const [totalCount, setTotalCount] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const resourceClient = useResourceClient(context.accessToken)
@@ -42,9 +44,10 @@ export const useNavigations = (
     setError(null)
 
     try {
-      const data = await resourceClient.navigation.getNavigations(paramsRef.current)
+      const result = await resourceClient.navigation.getNavigations(paramsRef.current)
       has401Error.current = false
-      setNavigations(data)
+      setNavigations(result.data)
+      setTotalCount(result.totalCount)
     } catch (err: any) {
       // Check if it's a 401 error
       if (err?.response?.status === 401 || err?.status === 401 || (err?.message && err.message.includes('401'))) {
@@ -55,6 +58,7 @@ export const useNavigations = (
       setError(errorMessage)
       console.error('Error fetching navigations:', err)
       setNavigations([])
+      setTotalCount(0)
     } finally {
       setIsLoading(false)
     }
@@ -70,6 +74,7 @@ export const useNavigations = (
 
   return {
     navigations,
+    totalCount,
     isLoading,
     error,
     refetch
