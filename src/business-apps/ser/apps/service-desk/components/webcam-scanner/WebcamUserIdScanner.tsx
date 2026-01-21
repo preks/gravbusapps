@@ -6,7 +6,7 @@ import { Play as PlayIcon } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Lazy imports so initial load doesn't pull heavy libs until needed
-type ZXingReader = typeof import('@zxing/browser')
+type ZXingReader = typeof import('@zxing/library')
 
 export interface WebcamUserIdScannerProps extends Pick<BusinessAppContextProps, 'userInfo'> {
   onDetected?: (userId: string, raw?: string) => void
@@ -203,7 +203,7 @@ export const WebcamUserIdScanner: React.FC<WebcamUserIdScannerProps> = ({ onDete
     setIsStarting(true)
 
     try {
-      const ZXing: ZXingReader = await import('@zxing/browser')
+      const ZXing: ZXingReader = await import('@zxing/library')
       const reader = new ZXing.BrowserMultiFormatReader()
       zxingReaderRef.current = reader
 
@@ -220,24 +220,28 @@ export const WebcamUserIdScanner: React.FC<WebcamUserIdScannerProps> = ({ onDete
       setIsRunning(true)
       scheduleAutoStopAndReturnMock()
 
-      reader.decodeFromVideoElement(videoRef.current, result => {
-        if (!isMountedRef.current) return
-        if (result) {
-          const text = result.getText()
-          if (stageRef.current === 'invoice') setInvoiceNumber(text)
-          else {
-            setUserIdAndPersist(text)
-            setUserScanCompleted(true)
-          }
-          clearAutoStopTimer()
-          stopCamera()
+      reader.decodeFromVideoDevice(
+        selectedDeviceId || null,
+        videoRef.current,
+        (result: import('@zxing/library').Result | undefined) => {
+          if (!isMountedRef.current) return
+          if (result) {
+            const text = result.getText()
+            if (stageRef.current === 'invoice') setInvoiceNumber(text)
+            else {
+              setUserIdAndPersist(text)
+              setUserScanCompleted(true)
+            }
+            clearAutoStopTimer()
+            stopCamera()
 
-          const extracted = extractUserId(text, regexInput)
-          if (extracted) {
-            onDetected?.(extracted, text)
+            const extracted = extractUserId(text, regexInput)
+            if (extracted) {
+              onDetected?.(extracted, text)
+            }
           }
         }
-      })
+      )
     } catch (e: any) {
       setError(e?.message || 'Failed to start barcode scanner.')
       stopCamera()
