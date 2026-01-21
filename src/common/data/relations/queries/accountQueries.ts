@@ -104,6 +104,7 @@ export const buildAccountQuery = (
           ${CATALOG_ENTRY}
         }
         ${entityFields.timeZoneRef}
+        ${entityFields.website}
         ${additionalFields || ''}
 
       }

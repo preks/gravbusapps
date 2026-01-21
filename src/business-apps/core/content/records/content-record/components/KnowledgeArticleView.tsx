@@ -5,6 +5,8 @@ import { CommentSection } from '@/business-apps/core/content/records/content-rec
 import ContentInfoSection from './ContentInfoSection'
 import { ContentHtmlRenderer } from './ContentHtmlRenderer'
 import { buildFileUrl } from '@/common/utils/fileUtils'
+import { ContentArticleAnalyzer } from '@/business-apps/core/content/components/ContentArticleAnalyzer'
+import { ContentGroup } from '@/common/data/content/types/contentEnums'
 import type { TranslatedTexts } from '@/common/components/content'
 
 interface KnowledgeArticleViewProps {
@@ -134,10 +136,17 @@ const KnowledgeArticleView: React.FC<KnowledgeArticleViewProps> = ({
           </div>
         )}
 
-        {/* Title */}
-        <h1 className="gba:text-5xl gba:mt-4 gba:leading-tight gba:font-bold gba:mb-6 gba:text-foreground">
-          {displayTitle}
-        </h1>
+        {/* Title with AI Analyzer */}
+        <div className="gba:flex gba:items-start gba:justify-between gba:gap-4 gba:mb-6">
+          <h1 className="gba:text-5xl gba:mt-4 gba:leading-tight gba:font-bold gba:flex-1 gba:text-foreground">
+            {displayTitle}
+          </h1>
+          {item.contentGroupRef === ContentGroup.KNOWLEDGE && accessToken && userId && (
+            <div className="gba:mt-4">
+              <ContentArticleAnalyzer contentEntry={item} accessToken={accessToken} userId={userId} />
+            </div>
+          )}
+        </div>
 
         {/* Preview/Summary */}
         {displayPreview && (

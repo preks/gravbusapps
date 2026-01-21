@@ -98,7 +98,6 @@ const SCALAR_FIELDS = [
   'preview',
   'content',
   'picture',
-  'pictureThumbnail',
   'contentGroupRef',
   'contentTypeRef',
   'languageRef',
@@ -257,10 +256,12 @@ function buildRelationFields(fields: Array<keyof ContentEntry>, limit: number, o
         orderBy: { createdAt: DESC }
       ) {
         id
+        version
         title
         preview
         content
         role
+        accepted
         creatorEmployeeId
         creatorEmployee {
           ${EMPLOYEE_REF}

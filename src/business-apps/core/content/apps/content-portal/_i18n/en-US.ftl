@@ -44,6 +44,10 @@ all_articles = All Articles
 categories = Categories
 recent_articles = Recent Articles
 more_articles = More Articles
+recent_news_articles = Recent News Articles
+recent_knowledge_articles = Recent Knowledge Articles
+recently_uploaded_documents = Recently Uploaded Documents
+unanswered_questions = Unanswered Questions
 
 # Buttons
 create_article = Create Article
