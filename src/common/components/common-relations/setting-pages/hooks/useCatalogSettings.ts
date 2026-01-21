@@ -1,11 +1,19 @@
 import React from 'react'
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import {
+  useCatalogEntries,
+  useCreateCatalogEntry,
+  useUpdateCatalogEntry,
+  useDeleteCatalogEntry
+} from '@/common/data/catalog'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface CatalogItem {
   id: string
   code: string
   value: string
+  type?: string
   alternativeCode?: string
+  parentEntryId?: string
   displayOrder?: number
   additionalValue1?: string
   additionalValue2?: string
@@ -20,19 +28,36 @@ export interface CatalogSettingsState {
   onCreate: (data: {
     code: string
     value: string
+    type?: string
     alternativeCode?: string
+    parentEntryId?: string
     additionalValue1?: string
+    displayOrder?: number
   }) => Promise<void>
   onUpdate: (
     id: string,
-    data: { code: string; value: string; alternativeCode?: string; additionalValue1?: string }
+    data: {
+      code: string
+      value: string
+      type?: string
+      alternativeCode?: string
+      parentEntryId?: string
+      additionalValue1?: string
+      displayOrder?: number
+    }
   ) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onSearchChange: (value: string) => void
 }
 
-export function useCatalogSettings(accessToken: string, catalogIdentifier: string): CatalogSettingsState {
-  const catalogClient = useCatalogManagerClient(accessToken)
+export function useCatalogSettings(
+  context: Pick<BusinessAppContextProps, 'accessToken' | 'userInfo' | 'additionalData'>,
+  catalogIdentifier: string
+): CatalogSettingsState {
+  const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken: context.accessToken })
+  const { createCatalogEntry } = useCreateCatalogEntry(context)
+  const { updateCatalogEntry } = useUpdateCatalogEntry(context)
+  const { deleteCatalogEntry } = useDeleteCatalogEntry(context)
 
   const [items, setItems] = React.useState<CatalogItem[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
@@ -43,35 +68,32 @@ export function useCatalogSettings(accessToken: string, catalogIdentifier: strin
     try {
       setIsLoading(true)
       setError(null)
-      const response = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier, version: 'v1' },
-        {
-          limit: 100,
-          offset: 0,
-          returnTotalRecords: true,
-          includeChildCatalogEntries: false,
-          ...(search && { searchCriteria: search })
-        }
-      )
-      const entries = (response.data || []).map((entry: any) => ({
+      const { entries } = await fetchCatalogEntriesByIdentifier(catalogIdentifier, {
+        version: 'v1',
+        limit: 1000,
+        offset: 0,
+        includeChildCatalogEntries: true,
+        ...(search && { search })
+      })
+      const mappedEntries = entries.map(entry => ({
         id: entry.id,
-        code: entry.code,
-        value: entry.value,
+        code: entry.code || '',
+        value: entry.value || '',
+        type: entry.type,
         alternativeCode: entry.alternativeCode,
-        displayOrder:
-          (entry.displayOrder ?? (entry.alternativeCode ? parseInt(entry.alternativeCode, 10) : undefined)) ||
-          undefined,
+        parentEntryId: entry.parentEntryId,
+        displayOrder: entry.displayOrder,
         additionalValue1: entry.additionalValue1,
         additionalValue2: entry.additionalValue2,
         additionalValue3: entry.additionalValue3
       }))
-      setItems(entries)
+      setItems(mappedEntries)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load data')
     } finally {
       setIsLoading(false)
     }
-  }, [catalogClient, catalogIdentifier, search])
+  }, [fetchCatalogEntriesByIdentifier, catalogIdentifier, search])
 
   React.useEffect(() => {
     load()
@@ -81,33 +103,48 @@ export function useCatalogSettings(accessToken: string, catalogIdentifier: strin
     async (data: {
       code: string
       value: string
+      type?: string
       alternativeCode?: string
+      parentEntryId?: string
       additionalValue1?: string
       displayOrder?: number
     }) => {
-      await catalogClient.createCatalogEntry(catalogIdentifier, 'v1', {
+      await createCatalogEntry(catalogIdentifier, 'v1', {
         code: data.code,
         value: data.value,
-        alternativeCode: data.alternativeCode ?? (data.displayOrder != null ? String(data.displayOrder) : undefined),
+        type: data.type,
+        alternativeCode: data.alternativeCode,
+        parentEntryId: data.parentEntryId,
         displayOrder: data.displayOrder,
         additionalValue1: data.additionalValue1,
         objectValue: {},
         translations: []
-      })
+      } as any)
       await load()
     },
-    [catalogClient, catalogIdentifier, load]
+    [createCatalogEntry, catalogIdentifier, load]
   )
 
   const update = React.useCallback(
     async (
       id: string,
-      data: { code: string; value: string; alternativeCode?: string; additionalValue1?: string; displayOrder?: number }
+      data: {
+        code: string
+        value: string
+        type?: string
+        alternativeCode?: string
+        parentEntryId?: string
+        additionalValue1?: string
+        displayOrder?: number
+      }
     ) => {
-      await catalogClient.updateCatalogEntry(id, {
+      await updateCatalogEntry(catalogIdentifier, 'v1', id, {
+        id: id,
         code: data.code,
         value: data.value,
-        alternativeCode: data.alternativeCode ?? (data.displayOrder != null ? String(data.displayOrder) : undefined),
+        type: data.type,
+        alternativeCode: data.alternativeCode,
+        parentEntryId: data.parentEntryId,
         displayOrder: data.displayOrder,
         additionalValue1: data.additionalValue1,
         objectValue: {},
@@ -115,15 +152,15 @@ export function useCatalogSettings(accessToken: string, catalogIdentifier: strin
       })
       await load()
     },
-    [catalogClient, load]
+    [updateCatalogEntry, catalogIdentifier, load]
   )
 
   const remove = React.useCallback(
     async (id: string) => {
-      await catalogClient.deleteCatalogEntry(id)
+      await deleteCatalogEntry(catalogIdentifier, 'v1', id)
       await load()
     },
-    [catalogClient, load]
+    [deleteCatalogEntry, catalogIdentifier, load]
   )
 
   return {

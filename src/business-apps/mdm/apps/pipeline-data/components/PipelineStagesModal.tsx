@@ -37,7 +37,7 @@ import { useForm } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useSalesPipelineStages } from '../hooks/useSalesPipelineStages'
 import { useStageConditions } from '../hooks/useStageConditions'
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { useCreateCatalogEntry, useUpdateCatalogEntry, useDeleteCatalogEntry } from '@/common/data/catalog'
 import { getPipelineCatalogConfig } from '../utils/catalogConfig'
 import {
   EnhancedSalesPipeline,
@@ -279,7 +279,9 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
 
   const { fetchSalesPipelineStagesByParent } = useSalesPipelineStages(context)
   const { fetchStageConditionsCount } = useStageConditions(context)
-  const catalogClient = useCatalogManagerClient(context.accessToken)
+  const { createCatalogEntry } = useCreateCatalogEntry(context)
+  const { updateCatalogEntry } = useUpdateCatalogEntry(context)
+  const { deleteCatalogEntry } = useDeleteCatalogEntry(context)
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -410,6 +412,8 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
     try {
       setOperationLoading(true)
 
+      const cfg = getPipelineCatalogConfig((pipeline?.type as 'CRM' | 'IRM') || sourceApp || 'CRM')
+
       for (const stage of updatedStages) {
         const originalEntry = originalStageEntries.find(entry => entry.id === stage.id)
         if (originalEntry) {
@@ -425,7 +429,7 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
             translations: []
           }
 
-          await catalogClient.updateCatalogEntry(stage.id, payload)
+          await updateCatalogEntry(cfg.stageCatalog, cfg.version, stage.id, payload)
         }
       }
     } catch (error) {
@@ -474,11 +478,12 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
   }
 
   const confirmDeleteStage = async () => {
-    if (!stageToDelete) return
+    if (!stageToDelete || !pipeline) return
 
     try {
       setOperationLoading(true)
-      await catalogClient.deleteCatalogEntry(stageToDelete.id)
+      const cfg = getPipelineCatalogConfig((pipeline?.type as 'CRM' | 'IRM') || sourceApp || 'CRM')
+      await deleteCatalogEntry(cfg.stageCatalog, cfg.version, stageToDelete.id)
       console.log(`Stage "${stageToDelete.value}" deleted successfully`)
       await loadStages()
     } catch (error) {
@@ -498,6 +503,7 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
 
       if (editingStage) {
         // Update existing stage
+        const cfg = getPipelineCatalogConfig((pipeline?.type as 'CRM' | 'IRM') || sourceApp || 'CRM')
         const payload = {
           id: editingStage.id,
           code: values.code,
@@ -510,7 +516,7 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
           translations: []
         }
 
-        await catalogClient.updateCatalogEntry(editingStage.id, payload)
+        await updateCatalogEntry(cfg.stageCatalog, cfg.version, editingStage.id, payload)
         console.log(`Stage "${values.value}" updated successfully`)
       } else {
         // Create new stage
@@ -528,7 +534,7 @@ export const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
         }
 
         const cfg = getPipelineCatalogConfig((pipeline?.type as 'CRM' | 'IRM') || 'CRM')
-        await catalogClient.createCatalogEntry(cfg.stageCatalog, cfg.version, payload)
+        await createCatalogEntry(cfg.stageCatalog, cfg.version, payload as any)
         console.log(`Stage "${values.value}" created successfully`)
       }
 

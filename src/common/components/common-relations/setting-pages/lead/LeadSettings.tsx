@@ -39,6 +39,7 @@ export interface CatalogItem {
   id: string
   code: string
   value: string
+  type?: string
   alternativeCode?: string
   displayOrder?: number
   additionalValue1?: string
@@ -49,6 +50,7 @@ export interface CatalogItem {
 export interface CatalogUpsertData {
   code: string
   value: string
+  type?: string
   alternativeCode?: string
   additionalValue1?: string
   displayOrder?: number
@@ -108,6 +110,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
       i =>
         i.code.toLowerCase().includes(s) ||
         i.value.toLowerCase().includes(s) ||
+        (i.type && i.type.toLowerCase().includes(s)) ||
         (i.alternativeCode && i.alternativeCode.toLowerCase().includes(s)) ||
         (i.displayOrder != null && String(i.displayOrder).toLowerCase().includes(s))
     )
@@ -115,7 +118,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
 
   const handleAdd = () => {
     setEditing(null)
-    form.reset({ code: '', value: '', alternativeCode: '', additionalValue1: '', displayOrder: undefined })
+    form.reset({ code: '', value: '', type: '', alternativeCode: '', additionalValue1: '', displayOrder: undefined })
     setIsModalOpen(true)
   }
 
@@ -124,6 +127,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
     form.reset({
       code: item.code,
       value: item.value,
+      type: item.type || '',
       alternativeCode: item.alternativeCode || '',
       additionalValue1: item.additionalValue1 || '',
       displayOrder: item.displayOrder
@@ -134,7 +138,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
   const handleSubmit = async (data: CatalogUpsertData) => {
     const payload: CatalogUpsertData = {
       ...data,
-      alternativeCode: data.alternativeCode ?? (data.displayOrder != null ? String(data.displayOrder) : undefined),
+      alternativeCode: data.alternativeCode,
       displayOrder: data.displayOrder
     }
     if (editing) {
@@ -179,7 +183,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
               <DialogDescription>{editing ? 'Update the details below.' : 'Add a new entry.'}</DialogDescription>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSubmit)}>
+              <form onSubmit={form.handleSubmit(handleSubmit)} className="gba:space-y-6">
                 <FormField
                   control={form.control}
                   name="code"
@@ -188,7 +192,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
                     <FormItem>
                       <FormLabel>Code</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Enter code" />
+                        <Input {...field} placeholder="Enter code" disabled={!!editing} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -210,44 +214,39 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
                 />
                 <FormField
                   control={form.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Type</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Enter type" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
                   name="displayOrder"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Display Order</FormLabel>
                       <FormControl>
-                        <Input {...field} type="number" placeholder="Enter display order" />
+                        <Input
+                          type="number"
+                          placeholder="Enter display order"
+                          onChange={e => {
+                            const value = e.target.value
+                            field.onChange(value === '' ? 0 : parseInt(value, 10) || 0)
+                          }}
+                          value={field.value ?? 0}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="alternativeCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Alternative Code (fallback)</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter alternative code" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="additionalValue1"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Additional Value 1</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter additional value 1" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="gba:flex gba:justify-end">
+                <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-6">
                   <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
                     Cancel
                   </Button>
@@ -259,7 +258,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
         </Dialog>
       </div>
 
-      <div>
+      <div className="gba:rounded-md gba:border gba:p-4 gba:mb-6">
         <DebouncedInput
           placeholder="Search..."
           value={search}
@@ -268,7 +267,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
         />
       </div>
 
-      <div>
+      <div className="gba:rounded-md gba:border">
         {isLoading ? (
           <div>Loading...</div>
         ) : (
@@ -277,6 +276,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
               <TableRow>
                 <TableHead>Code</TableHead>
                 <TableHead>Value</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Display Order</TableHead>
                 <TableHead className="gba:w-24">Actions</TableHead>
               </TableRow>
@@ -284,7 +284,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="gba:py-8">
+                  <TableCell colSpan={5} className="gba:py-8">
                     <EmptyState
                       title={search ? 'No entries match your search' : `No ${entityName.toLowerCase()}s configured yet`}
                       description={
@@ -302,6 +302,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
                       <Badge variant="outline">{item.code}</Badge>
                     </TableCell>
                     <TableCell>{item.value}</TableCell>
+                    <TableCell>{item.type ? <Badge variant="secondary">{item.type}</Badge> : <span>-</span>}</TableCell>
                     <TableCell>
                       {item.displayOrder != null ? (
                         <Badge variant="secondary">{item.displayOrder}</Badge>
