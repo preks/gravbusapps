@@ -167,7 +167,10 @@ export const EmployeePopover: React.FC<EmployeePopoverProps> = ({
   }
 
   const isValidEmail = (email: string): boolean => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    // Simple pattern without backtracking risk - prevents ReDoS
+    // Checks: something@something.something
+    const emailPattern = /^[a-zA-Z0-9._%-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+    return emailPattern.test(email)
   }
 
   const sanitizePhone = (phone: string): string => {
