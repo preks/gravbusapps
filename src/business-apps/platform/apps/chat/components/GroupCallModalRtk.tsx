@@ -7,7 +7,7 @@
  * Phase 2: Full SDK integration with remote video/audio rendering
  */
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useRealtimeKitSelector } from '@cloudflare/realtimekit-react'
 import {
@@ -18,7 +18,7 @@ import {
   Avatar,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Users, Minimize2 } from 'lucide-react'
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Users, Minimize2, Monitor, Shrink, Maximize2 } from 'lucide-react'
 import type { GroupCallParticipant, VideoQuality } from '../services/groupWebrtcClient'
 import type { GroupCallUIState, PendingInvite } from '../hooks/useGroupCall'
 import type { CallParticipant } from '../services/webrtcClient'
@@ -76,6 +76,124 @@ const getInitials = (name: string): string => {
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
 }
 
+// Helper to detect if a video track is a screen share
+const isVideoTrackScreenShare = (videoTrack: MediaStreamTrack | null | undefined): boolean => {
+  if (!videoTrack) return false
+
+  const label = videoTrack.label?.toLowerCase() || ''
+  if (label.includes('screen') || label.includes('window') || label.includes('display') || label.includes('tab')) {
+    return true
+  }
+
+  // Check track settings for displaySurface (Chrome/Firefox)
+  try {
+    const settings = videoTrack.getSettings?.()
+    if (settings && 'displaySurface' in settings) {
+      return true
+    }
+  } catch {
+    // Ignore errors
+  }
+
+  return false
+}
+
+// Helper to extract tracks from various possible structures (Map, Set, Array, object)
+const extractTracksFromCollection = (tracks: any): MediaStreamTrack[] => {
+  if (!tracks) return []
+
+  // If it's already an array
+  if (Array.isArray(tracks)) {
+    return tracks.filter(t => t instanceof MediaStreamTrack)
+  }
+
+  // If it's a Map
+  if (tracks instanceof Map) {
+    return Array.from(tracks.values()).filter(t => t instanceof MediaStreamTrack)
+  }
+
+  // If it's a Set
+  if (tracks instanceof Set) {
+    return Array.from(tracks).filter(t => t instanceof MediaStreamTrack)
+  }
+
+  // If it's an object with numeric keys (array-like) or values
+  if (typeof tracks === 'object') {
+    // Try to get values if it's an object
+    const values = Object.values(tracks)
+    const tracksFromValues = values.filter(t => t instanceof MediaStreamTrack)
+    if (tracksFromValues.length > 0) {
+      return tracksFromValues
+    }
+
+    // Try to iterate if it has forEach or similar
+    if (typeof tracks.forEach === 'function') {
+      const result: MediaStreamTrack[] = []
+      tracks.forEach((value: any) => {
+        if (value instanceof MediaStreamTrack) {
+          result.push(value)
+        }
+      })
+      return result
+    }
+
+    // Try to get entries if it's iterable
+    if (typeof tracks[Symbol.iterator] === 'function') {
+      const result: MediaStreamTrack[] = []
+      for (const value of tracks) {
+        if (value instanceof MediaStreamTrack) {
+          result.push(value)
+        }
+      }
+      return result
+    }
+  }
+
+  return []
+}
+
+// Helper to get screen share track from peer
+const getScreenShareTrack = (peer: any): MediaStreamTrack | null => {
+  // First check screenShareTracks - handle various collection types
+  const screenShareTracks = extractTracksFromCollection(peer.screenShareTracks)
+  if (screenShareTracks.length > 0) {
+    console.log(`[RTK Modal] Found screen share track in screenShareTracks for peer ${peer.name || peer.id}:`, {
+      trackId: screenShareTracks[0].id,
+      trackLabel: screenShareTracks[0].label,
+      trackKind: screenShareTracks[0].kind
+    })
+    return screenShareTracks[0]
+  }
+
+  // Then check if videoTrack is actually a screen share
+  if (peer.videoTrack && isVideoTrackScreenShare(peer.videoTrack)) {
+    console.log(`[RTK Modal] Found screen share track in videoTrack for peer ${peer.name || peer.id}:`, {
+      trackId: peer.videoTrack.id,
+      trackLabel: peer.videoTrack.label,
+      trackKind: peer.videoTrack.kind
+    })
+    return peer.videoTrack
+  }
+
+  // Debug: Log what we found
+  if (peer.screenShareEnabled) {
+    console.warn(`[RTK Modal] Peer ${peer.name || peer.id} has screenShareEnabled=true but no track found:`, {
+      screenShareEnabled: peer.screenShareEnabled,
+      screenShareTracks: peer.screenShareTracks,
+      screenShareTracksType: typeof peer.screenShareTracks,
+      videoTrack: peer.videoTrack
+        ? {
+            id: peer.videoTrack.id,
+            label: peer.videoTrack.label,
+            isScreenShare: isVideoTrackScreenShare(peer.videoTrack)
+          }
+        : null
+    })
+  }
+
+  return null
+}
+
 export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   callState,
   localStream,
@@ -83,13 +201,24 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   onEndCall,
   onToggleMute,
   onToggleVideo,
+  onToggleScreenShare,
   onToggleMinimize,
   prefixDataTestId = 'rtk-group-call'
 }) => {
   const t = useChatTranslation()
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
+  const screenShareVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
   const [showDebugInfo, setShowDebugInfo] = useState(false)
+  const [focusedScreenShareId, setFocusedScreenShareId] = useState<string | null>(null)
+  const [expandedScreenShare, setExpandedScreenShare] = useState<{
+    peerId: string
+    peerName: string
+    stream: MediaStream
+  } | null>(null)
+
+  // Get meeting object from SDK to access local tracks
+  const meeting = useRealtimeKitSelector((m: any) => m)
 
   // Subscribe to remote participants from SDK
   const remotePeers = useRealtimeKitSelector((m: any) => {
@@ -98,21 +227,74 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
     try {
       const joined = Array.from(m.participants.joined.values())
       // Filter out local participant
-      return joined.filter((p: any) => p.id !== m.self?.id)
+      const peers = joined.filter((p: any) => p.id !== m.self?.id)
+
+      // Debug: Log screen share status only when screen share is actually enabled
+      peers.forEach((peer: any) => {
+        if (peer.screenShareEnabled) {
+          console.log(`[RTK Modal] Remote peer ${peer.name || peer.id} screen share ACTIVE:`, {
+            screenShareEnabled: peer.screenShareEnabled,
+            screenShareTracks: peer.screenShareTracks,
+            screenShareTracksType: typeof peer.screenShareTracks,
+            videoTrackLabel: peer.videoTrack?.label
+          })
+        }
+      })
+
+      return peers
     } catch {
       return []
     }
   })
 
+  // Get local screen share track from SDK
+  const localScreenShareTrack = useRealtimeKitSelector((m: any) => {
+    if (!m?.self) return null
+
+    // Extract tracks from various possible structures
+    const screenShareTracks = extractTracksFromCollection(m.self.screenShareTracks)
+    if (screenShareTracks.length > 0) {
+      console.log('[RTK Modal] 📺 Local screen share tracks found:', {
+        count: screenShareTracks.length,
+        trackIds: screenShareTracks.map(t => t.id),
+        trackLabels: screenShareTracks.map(t => t.label),
+        rawType: typeof m.self.screenShareTracks,
+        rawIsArray: Array.isArray(m.self.screenShareTracks),
+        rawIsMap: m.self.screenShareTracks instanceof Map,
+        rawIsSet: m.self.screenShareTracks instanceof Set,
+        rawKeys: m.self.screenShareTracks ? Object.keys(m.self.screenShareTracks) : []
+      })
+      return screenShareTracks[0]
+    }
+
+    // Also check if videoTrack is actually a screen share
+    if (m.self.videoTrack && isVideoTrackScreenShare(m.self.videoTrack)) {
+      return m.self.videoTrack
+    }
+
+    return null
+  })
+
   console.log('[RTK Modal] Remote peers count:', remotePeers?.length || 0)
 
-  // Auto-play local stream (set once, srcObject stays the same)
+  // Auto-play local video stream (fallback if meeting.self.videoTrack not available)
   useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream
-      console.log('[RTK Modal] Set local video srcObject')
+    const videoElement = localVideoRef.current
+    if (!videoElement) return
+
+    // Prefer meeting.self.videoTrack if available, otherwise use localStream
+    const localVideoTrack = meeting?.self?.videoTrack
+    if (localVideoTrack && callState.isVideoEnabled) {
+      const stream = new MediaStream()
+      stream.addTrack(localVideoTrack)
+      if (meeting?.self?.audioTrack) {
+        stream.addTrack(meeting.self.audioTrack)
+      }
+      videoElement.srcObject = stream
+    } else if (localStream) {
+      videoElement.srcObject = localStream
     }
-  }, [localStream])
+  }, [localStream, meeting?.self?.videoTrack, meeting?.self?.audioTrack, callState.isVideoEnabled])
 
   // Track which peers have had streams attached to avoid flickering
   const attachedPeersRef = useRef<Set<string>>(new Set())
@@ -147,30 +329,62 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
       const videoElement = remoteVideoRefs.current.get(peer.id)
       const isAttached = attachedPeersRef.current.has(peer.id)
 
+      // Get screen share track using helper function (for detection/logging)
+      const primaryScreenShareTrack = getScreenShareTrack(peer)
+      const hasScreenShare = !!primaryScreenShareTrack
+
+      // Log all peer properties to debug screen share detection
+      const peerKeys = Object.keys(peer)
+      const screenShareRelatedKeys = peerKeys.filter(
+        key =>
+          key.toLowerCase().includes('screen') ||
+          key.toLowerCase().includes('share') ||
+          key.toLowerCase().includes('display')
+      )
+
+      const extractedScreenShareTracks = extractTracksFromCollection(peer.screenShareTracks)
       console.log(`[RTK Modal] Checking peer ${peer.name || peer.id}:`, {
         hasVideoElement: !!videoElement,
         hasVideoTrack: !!peer.videoTrack,
         hasAudioTrack: !!peer.audioTrack,
+        hasScreenShare: hasScreenShare,
+        extractedScreenShareTracksCount: extractedScreenShareTracks.length,
+        screenShareTracksRaw: peer.screenShareTracks,
+        screenShareTracksType: typeof peer.screenShareTracks,
+        screenShareTracksIsArray: Array.isArray(peer.screenShareTracks),
+        screenShareTracksIsMap: peer.screenShareTracks instanceof Map,
+        screenShareTracksIsSet: peer.screenShareTracks instanceof Set,
         videoTrackEnabled: peer.videoTrack?.enabled,
         audioTrackEnabled: peer.audioTrack?.enabled,
         videoEnabled: peer.videoEnabled,
         audioEnabled: peer.audioEnabled,
+        screenShareEnabled: peer.screenShareEnabled,
         isAttached,
         videoTrackId: peer.videoTrack?.id,
-        audioTrackId: peer.audioTrack?.id
+        audioTrackId: peer.audioTrack?.id,
+        screenShareTrackId: primaryScreenShareTrack?.id,
+        // Debug: show all screen-share related properties
+        screenShareRelatedKeys,
+        allPeerKeys: peerKeys
       })
 
+      // Get camera track (exclude screen share track)
+      // When screen sharing, peer.videoTrack should still be the camera track
+      // Screen share is in screenShareTracks, not videoTrack
+      const cameraVideoTrack = peer.videoTrack && !isVideoTrackScreenShare(peer.videoTrack) ? peer.videoTrack : null
+
       // Only attach if we haven't attached this peer yet
-      if (videoElement && (peer.videoTrack || peer.audioTrack) && !isAttached) {
+      if (videoElement && (cameraVideoTrack || peer.audioTrack) && !isAttached) {
         const stream = new MediaStream()
-        if (peer.videoTrack) stream.addTrack(peer.videoTrack)
+        if (cameraVideoTrack) stream.addTrack(cameraVideoTrack)
         if (peer.audioTrack) stream.addTrack(peer.audioTrack)
 
         videoElement.srcObject = stream
         attachedPeersRef.current.add(peer.id)
         console.log(`[RTK Modal] ✅ Attached stream for peer ${peer.name || peer.id}`, {
-          hasVideo: !!peer.videoTrack,
-          hasAudio: !!peer.audioTrack
+          hasVideo: !!cameraVideoTrack,
+          hasAudio: !!peer.audioTrack,
+          videoTrackIsScreenShare: isVideoTrackScreenShare(peer.videoTrack)
         })
       }
 
@@ -188,7 +402,10 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
         const currentVideoTrack = currentStream?.getVideoTracks()[0]
         const currentAudioTrack = currentStream?.getAudioTracks()[0]
 
-        const videoTrackChanged = currentVideoTrack?.id !== peer.videoTrack?.id
+        // Get camera track (exclude screen share track)
+        const cameraVideoTrack = peer.videoTrack && !isVideoTrackScreenShare(peer.videoTrack) ? peer.videoTrack : null
+
+        const videoTrackChanged = currentVideoTrack?.id !== cameraVideoTrack?.id
         const audioTrackChanged = currentAudioTrack?.id !== peer.audioTrack?.id
 
         // Update stream if ANY track changed
@@ -197,9 +414,10 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
             videoChanged: videoTrackChanged,
             audioChanged: audioTrackChanged,
             oldVideoId: currentVideoTrack?.id,
-            newVideoId: peer.videoTrack?.id,
+            newVideoId: cameraVideoTrack?.id,
             oldAudioId: currentAudioTrack?.id,
-            newAudioId: peer.audioTrack?.id
+            newAudioId: peer.audioTrack?.id,
+            videoTrackIsScreenShare: isVideoTrackScreenShare(peer.videoTrack)
           })
 
           // Cancel any pending update for this peer to avoid race conditions
@@ -230,7 +448,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
            * See: https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/srcObject
            */
           const newStream = new MediaStream()
-          if (peer.videoTrack) newStream.addTrack(peer.videoTrack)
+          if (cameraVideoTrack) newStream.addTrack(cameraVideoTrack)
           if (peer.audioTrack) newStream.addTrack(peer.audioTrack)
 
           // Debounced update to prevent flickering from rapid track changes
@@ -246,7 +464,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
               })
 
               console.log(`[RTK Modal] ✅ Updated stream for peer ${peer.name || peer.id}`, {
-                hasVideo: !!peer.videoTrack,
+                hasVideo: !!cameraVideoTrack,
                 hasAudio: !!peer.audioTrack,
                 videoElementMuted: videoElement.muted,
                 streamAudioTracks: newStream.getAudioTracks().length,
@@ -260,6 +478,54 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
 
           trackUpdateTimersRef.current.set(peer.id, timer)
         }
+      }
+
+      /**
+       * Screen Share Detection & Logging
+       *
+       * Screen shares are now handled by the dedicated screen share area (mainScreenShareRef).
+       * This section just logs screen share status for debugging.
+       */
+      if (hasScreenShare && primaryScreenShareTrack) {
+        console.log(`[RTK Modal] 📺 Screen share detected for peer ${peer.name || peer.id}:`, {
+          trackId: primaryScreenShareTrack.id,
+          trackLabel: primaryScreenShareTrack.label,
+          trackEnabled: primaryScreenShareTrack.enabled,
+          trackKind: primaryScreenShareTrack.kind,
+          trackSettings: primaryScreenShareTrack.getSettings?.(),
+          screenShareEnabled: peer.screenShareEnabled,
+          extractedTracksCount: extractTracksFromCollection(peer.screenShareTracks).length,
+          screenShareTracksRaw: peer.screenShareTracks,
+          screenShareTracksType: typeof peer.screenShareTracks,
+          screenShareTracksIsArray: Array.isArray(peer.screenShareTracks),
+          screenShareTracksIsMap: peer.screenShareTracks instanceof Map,
+          screenShareTracksIsSet: peer.screenShareTracks instanceof Set
+        })
+      } else if (peer.screenShareEnabled && !hasScreenShare) {
+        // Screen share is enabled but track not found - potential issue
+        const extractedTracks = extractTracksFromCollection(peer.screenShareTracks)
+        console.warn(`[RTK Modal] ⚠️ Screen share enabled for peer ${peer.name || peer.id} but no track found:`, {
+          screenShareEnabled: peer.screenShareEnabled,
+          extractedTracksCount: extractedTracks.length,
+          extractedTracks: extractedTracks.map(t => ({ id: t.id, label: t.label, kind: t.kind })),
+          screenShareTracksRaw: peer.screenShareTracks,
+          screenShareTracksType: typeof peer.screenShareTracks,
+          screenShareTracksIsArray: Array.isArray(peer.screenShareTracks),
+          screenShareTracksIsMap: peer.screenShareTracks instanceof Map,
+          screenShareTracksIsSet: peer.screenShareTracks instanceof Set,
+          screenShareTracksKeys:
+            peer.screenShareTracks && typeof peer.screenShareTracks === 'object'
+              ? Object.keys(peer.screenShareTracks)
+              : [],
+          videoTrack: peer.videoTrack
+            ? {
+                id: peer.videoTrack.id,
+                label: peer.videoTrack.label,
+                kind: peer.videoTrack.kind,
+                isScreenShare: isVideoTrackScreenShare(peer.videoTrack)
+              }
+            : null
+        })
       }
     })
 
@@ -278,6 +544,8 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
         }
       }
     })
+
+    // Screen share cleanup is handled by the mainScreenShareRef useEffect
   }, [remotePeers])
 
   // Cleanup all debounce timers on unmount
@@ -287,6 +555,333 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
       trackUpdateTimersRef.current.clear()
     }
   }, [])
+
+  // Get ALL screen shares (not just one)
+  const allScreenShares = useMemo(() => {
+    const shares: Array<{
+      peerId: string
+      peerName: string
+      screenShareTrack: MediaStreamTrack
+      trackId: string
+      peer: any
+    }> = []
+
+    // Find screen shares from remote peers
+    remotePeers?.forEach((peer: any) => {
+      // Check multiple ways to detect screen share
+      const screenShareTrack = getScreenShareTrack(peer)
+      const hasScreenShareEnabled = peer.screenShareEnabled === true
+
+      console.log(`[RTK Modal] Checking peer ${peer.name || peer.id} for screen share:`, {
+        hasScreenShareTrack: !!screenShareTrack,
+        screenShareEnabled: hasScreenShareEnabled,
+        screenShareTracks: peer.screenShareTracks,
+        videoTrackLabel: peer.videoTrack?.label
+      })
+
+      if (screenShareTrack) {
+        shares.push({
+          peerId: peer.id,
+          peerName: peer.name || peer.displayName || peer.customParticipantId || 'Unknown',
+          screenShareTrack,
+          trackId: screenShareTrack.id,
+          peer
+        })
+      } else if (hasScreenShareEnabled) {
+        // Screen share is enabled but track not found yet - might be initializing
+        console.warn(`[RTK Modal] Peer ${peer.name || peer.id} has screenShareEnabled=true but no track found`)
+      }
+    })
+
+    // Add local screen share if active
+    if (callState.isScreenSharing && localScreenShareTrack) {
+      shares.push({
+        peerId: 'local',
+        peerName: participants[0]?.odName || 'You',
+        screenShareTrack: localScreenShareTrack,
+        trackId: localScreenShareTrack.id,
+        peer: null
+      })
+    }
+
+    console.log(
+      `[RTK Modal] Found ${shares.length} screen shares:`,
+      shares.map(s => ({
+        peerId: s.peerId,
+        peerName: s.peerName,
+        trackId: s.trackId
+      }))
+    )
+
+    return shares
+  }, [remotePeers, callState.isScreenSharing, localScreenShareTrack, participants])
+
+  // Get focused screen share (user-selected or first one)
+  const focusedScreenShare = useMemo(() => {
+    if (focusedScreenShareId) {
+      return allScreenShares.find(s => s.peerId === focusedScreenShareId) || allScreenShares[0] || null
+    }
+    return allScreenShares[0] || null
+  }, [allScreenShares, focusedScreenShareId])
+
+  // Auto-focus first screen share when it appears
+  useEffect(() => {
+    if (allScreenShares.length > 0 && !focusedScreenShareId) {
+      setFocusedScreenShareId(allScreenShares[0].peerId)
+    } else if (allScreenShares.length === 0) {
+      setFocusedScreenShareId(null)
+    }
+  }, [allScreenShares, focusedScreenShareId])
+
+  // Build unified grid items: participants + screen shares
+  const gridItems = useMemo(() => {
+    const items: Array<{
+      id: string
+      type: 'video' | 'screen-share' | 'avatar'
+      peerId: string
+      peerName: string
+      videoTrack?: MediaStreamTrack
+      audioTrack?: MediaStreamTrack
+      screenShareTrack?: MediaStreamTrack
+      hasVideoTrack?: boolean // For render decision
+      hasAudioTrack?: boolean // For render decision
+      isLocal: boolean
+      isMuted: boolean
+      isVideoEnabled: boolean
+      isFocusedScreenShare?: boolean
+    }> = []
+
+    // Add focused screen share first (if exists) - will be larger in grid
+    if (focusedScreenShare) {
+      items.push({
+        id: `screen-share-${focusedScreenShare.peerId}`,
+        type: 'screen-share',
+        peerId: focusedScreenShare.peerId,
+        peerName: focusedScreenShare.peerName,
+        screenShareTrack: focusedScreenShare.screenShareTrack,
+        isLocal: focusedScreenShare.peerId === 'local',
+        isMuted: focusedScreenShare.peerId === 'local' ? callState.isMuted : false,
+        isVideoEnabled: true,
+        isFocusedScreenShare: true
+      })
+    }
+
+    // Add local participant (video or avatar) - ALWAYS show, even when screen sharing
+    // Screen share and camera video are separate and should both be visible
+    const localVideoTrack = meeting?.self?.videoTrack
+    const localAudioTrack = meeting?.self?.audioTrack
+    const localHasVideo = callState.isVideoEnabled && !!localVideoTrack
+
+    // Always add local participant - screen share is a separate item
+    items.push({
+      id: 'local-participant',
+      type: localHasVideo ? 'video' : 'avatar',
+      peerId: 'local',
+      peerName: participants[0]?.odName || 'You',
+      videoTrack: localVideoTrack,
+      audioTrack: localAudioTrack,
+      hasVideoTrack: localHasVideo, // For rendering decision
+      hasAudioTrack: !!localAudioTrack, // Audio needs video element too!
+      isLocal: true,
+      isMuted: callState.isMuted,
+      isVideoEnabled: callState.isVideoEnabled
+    })
+
+    // Add ALL non-focused screen shares (from allScreenShares array)
+    allScreenShares.forEach(share => {
+      if (share.peerId !== focusedScreenShare?.peerId) {
+        items.push({
+          id: `screen-share-${share.peerId}`,
+          type: 'screen-share',
+          peerId: share.peerId,
+          peerName: share.peerName,
+          screenShareTrack: share.screenShareTrack,
+          isLocal: share.peerId === 'local',
+          isMuted: share.peerId === 'local' ? callState.isMuted : false,
+          isVideoEnabled: true
+        })
+      }
+    })
+
+    // Add remote participants (videos or avatars) - always add, even if sharing screen
+    remotePeers?.forEach((peer: any) => {
+      // Get camera track - exclude screen share track
+      const cameraVideoTrack = peer.videoTrack && !isVideoTrackScreenShare(peer.videoTrack) ? peer.videoTrack : null
+      const hasVideo = peer.videoEnabled && !!cameraVideoTrack
+
+      items.push({
+        id: `participant-${peer.id}`,
+        type: hasVideo ? 'video' : 'avatar',
+        peerId: peer.id,
+        peerName: peer.name || peer.displayName || peer.customParticipantId || 'Unknown',
+        videoTrack: cameraVideoTrack,
+        audioTrack: peer.audioTrack,
+        hasVideoTrack: hasVideo, // For rendering decision
+        hasAudioTrack: !!peer.audioTrack, // Audio needs video element too!
+        isLocal: false,
+        isMuted: !peer.audioEnabled,
+        isVideoEnabled: peer.videoEnabled || false
+      })
+    })
+
+    console.log(`[RTK Modal] Grid items built:`, {
+      totalItems: items.length,
+      screenShares: items.filter(i => i.type === 'screen-share').length,
+      focusedScreenShare: focusedScreenShare?.peerId,
+      items: items.map(i => ({
+        id: i.id,
+        type: i.type,
+        peerId: i.peerId,
+        peerName: i.peerName,
+        isFocused: i.isFocusedScreenShare
+      }))
+    })
+
+    return items
+  }, [
+    focusedScreenShare,
+    allScreenShares,
+    remotePeers,
+    callState.isVideoEnabled,
+    callState.isMuted,
+    callState.isScreenSharing,
+    participants,
+    meeting?.self
+  ])
+
+  // Calculate grid layout based on item count and focused screen share
+  const gridLayout = useMemo(() => {
+    const itemCount = gridItems.length
+    const hasFocusedScreenShare = !!focusedScreenShare
+    const screenShareCount = allScreenShares.length
+
+    console.log('[RTK Modal] Grid layout calculation:', {
+      itemCount,
+      hasFocusedScreenShare,
+      screenShareCount,
+      focusedScreenShareId
+    })
+
+    if (itemCount === 0) {
+      return { cols: 1, rows: 1, focusedSpan: { col: 1, row: 1 } }
+    }
+
+    if (hasFocusedScreenShare) {
+      // With focused screen share: make it 2x2, others fill remaining space
+      // Adjust based on total items to ensure good layout
+      if (itemCount <= 5) {
+        // 1 focused (2x2) + up to 4 others = 3x3 grid
+        return { cols: 3, rows: 3, focusedSpan: { col: 2, row: 2 } }
+      } else if (itemCount <= 8) {
+        // 1 focused (2x2) + up to 7 others = 4x3 grid
+        return { cols: 4, rows: 3, focusedSpan: { col: 2, row: 2 } }
+      } else if (itemCount <= 12) {
+        // 1 focused (2x2) + up to 11 others = 4x4 grid
+        return { cols: 4, rows: 4, focusedSpan: { col: 2, row: 2 } }
+      } else {
+        // Many items: 5x4 grid with focused 2x2
+        return { cols: 5, rows: 4, focusedSpan: { col: 2, row: 2 } }
+      }
+    } else {
+      // No focused screen share: standard grid
+      if (itemCount <= 4) {
+        return { cols: 2, rows: 2, focusedSpan: { col: 1, row: 1 } }
+      } else if (itemCount <= 9) {
+        return { cols: 3, rows: 3, focusedSpan: { col: 1, row: 1 } }
+      } else if (itemCount <= 16) {
+        return { cols: 4, rows: 4, focusedSpan: { col: 1, row: 1 } }
+      } else {
+        return { cols: 5, rows: 4, focusedSpan: { col: 1, row: 1 } }
+      }
+    }
+  }, [gridItems.length, focusedScreenShare, allScreenShares.length, focusedScreenShareId])
+
+  // Create stable track IDs for dependency tracking
+  const screenShareTrackIds = useMemo(() => {
+    return gridItems
+      .filter(item => item.type === 'screen-share' && item.screenShareTrack)
+      .map(item => `${item.peerId}:${item.screenShareTrack!.id}`)
+      .sort()
+      .join('|')
+  }, [gridItems])
+
+  const videoTrackIds = useMemo(() => {
+    return gridItems
+      .filter(item => item.type === 'video' && item.videoTrack)
+      .map(item => `${item.peerId}:${item.videoTrack!.id}`)
+      .sort()
+      .join('|')
+  }, [gridItems])
+
+  // Attach screen share tracks to video elements in grid
+  useEffect(() => {
+    gridItems.forEach(item => {
+      if (item.type === 'screen-share' && item.screenShareTrack) {
+        const videoEl = screenShareVideoRefs.current.get(item.peerId)
+        if (!videoEl) return
+
+        const stream = new MediaStream()
+        stream.addTrack(item.screenShareTrack)
+
+        // Only update if track changed
+        const currentStream = videoEl.srcObject as MediaStream
+        const currentTrack = currentStream?.getVideoTracks()[0]
+        if (currentTrack?.id === item.screenShareTrack.id) {
+          return // Same track, no need to update
+        }
+
+        videoEl.srcObject = null
+        setTimeout(() => {
+          videoEl.srcObject = stream
+          videoEl.muted = false
+          videoEl.play().catch(err => console.warn(`[RTK Modal] Could not auto-play screen share ${item.peerId}:`, err))
+        }, 10)
+      }
+    })
+  }, [screenShareTrackIds, gridItems])
+
+  // Attach video tracks to video elements in grid
+  useEffect(() => {
+    gridItems.forEach(item => {
+      if (item.type === 'video' && item.videoTrack) {
+        const videoEl = item.isLocal ? localVideoRef.current : remoteVideoRefs.current.get(item.peerId)
+
+        if (!videoEl) return
+
+        const stream = new MediaStream()
+        if (item.videoTrack) stream.addTrack(item.videoTrack)
+        if (item.audioTrack) stream.addTrack(item.audioTrack)
+
+        // Only update if track changed
+        const currentStream = videoEl.srcObject as MediaStream
+        const currentVideoTrack = currentStream?.getVideoTracks()[0]
+        if (currentVideoTrack?.id === item.videoTrack.id) {
+          return // Same track, no need to update
+        }
+
+        videoEl.srcObject = null
+        setTimeout(() => {
+          videoEl.srcObject = stream
+          videoEl.muted = item.isLocal
+          videoEl.play().catch(err => console.warn(`[RTK Modal] Could not auto-play video ${item.peerId}:`, err))
+        }, 10)
+      }
+    })
+  }, [videoTrackIds, gridItems])
+
+  // Expanded screen share video ref (for fullscreen overlay)
+  const expandedScreenShareVideoRef = useRef<HTMLVideoElement>(null)
+
+  // Update expanded screen share video element
+  useEffect(() => {
+    if (expandedScreenShareVideoRef.current && expandedScreenShare?.stream) {
+      expandedScreenShareVideoRef.current.srcObject = expandedScreenShare.stream
+      expandedScreenShareVideoRef.current.muted = false
+      expandedScreenShareVideoRef.current.play().catch(err => {
+        console.warn('[RTK Modal] Could not auto-play expanded screen share:', err)
+      })
+    }
+  }, [expandedScreenShare])
 
   const isOpen =
     callState.status === 'connected' || callState.status === 'joining' || callState.status === 'reconnecting'
@@ -352,102 +947,165 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
             </div>
           )}
 
-          {/* Video Grid */}
+          {/* Main Content Area - Unified Grid Layout */}
           <div className="gba:flex-1 gba:p-4 gba:bg-muted/30 gba:overflow-hidden">
-            <div
-              className={`gba:h-full gba:grid gba:gap-4 ${
-                remotePeers && remotePeers.length > 0
-                  ? remotePeers.length === 1
-                    ? 'gba:grid-cols-2'
-                    : remotePeers.length <= 4
-                      ? 'gba:grid-cols-2'
-                      : 'gba:grid-cols-3'
-                  : 'gba:grid-cols-2'
-              }`}
-            >
-              {/* Local Video */}
-              <div className="gba:relative gba:rounded-lg gba:overflow-hidden gba:bg-muted">
-                {callState.isVideoEnabled && localStream ? (
-                  <video
-                    ref={localVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="gba:w-full gba:h-full gba:object-cover"
-                    data-testid={`${prefixDataTestId}-local-video`}
-                  />
-                ) : (
-                  <div className="gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-muted">
-                    <Avatar className="gba:w-24 gba:h-24">
-                      <AvatarFallback className="gba:text-2xl">
-                        {getInitials(participants[0]?.odName || 'You')}
-                      </AvatarFallback>
-                    </Avatar>
-                  </div>
-                )}
-
-                {/* Name overlay */}
-                <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm">
-                  {participants[0]?.odName || 'You'} (you) {callState.isMuted && '🔇'}
+            {gridItems.length === 0 ? (
+              <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:rounded-lg gba:bg-muted gba:text-muted-foreground">
+                <div className="gba:text-center">
+                  <Users className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-2" />
+                  <p>{t('groupCall.waitingForParticipants')}</p>
                 </div>
               </div>
+            ) : (
+              <div
+                className="gba:h-full gba:grid gba:gap-3"
+                style={{
+                  gridTemplateColumns: `repeat(${gridLayout.cols}, 1fr)`,
+                  gridTemplateRows: `repeat(${gridLayout.rows}, 1fr)`
+                }}
+              >
+                {gridItems.map(item => {
+                  const isFocused = item.isFocusedScreenShare
+                  const gridColumn = isFocused ? `span ${gridLayout.focusedSpan.col}` : 'span 1'
+                  const gridRow = isFocused ? `span ${gridLayout.focusedSpan.row}` : 'span 1'
 
-              {/* Remote Participants from SDK */}
-              {remotePeers && remotePeers.length > 0 ? (
-                remotePeers.map((peer: any) => (
-                  <div
-                    key={peer.id}
-                    className="gba:relative gba:rounded-lg gba:overflow-hidden gba:bg-muted"
-                    data-testid={`${prefixDataTestId}-remote-${peer.id}`}
-                  >
-                    {peer.videoEnabled && peer.videoTrack ? (
-                      <video
-                        ref={el => {
-                          if (el) {
-                            remoteVideoRefs.current.set(peer.id, el)
-                          }
-                        }}
-                        autoPlay
-                        playsInline
-                        className="gba:w-full gba:h-full gba:object-cover"
-                      />
-                    ) : (
-                      <div className="gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-muted">
-                        <Avatar className="gba:w-24 gba:h-24">
-                          <AvatarFallback className="gba:text-2xl">
-                            {getInitials(peer.name || peer.displayName || 'User')}
-                          </AvatarFallback>
-                        </Avatar>
-                      </div>
-                    )}
+                  return (
+                    <div
+                      key={item.id}
+                      className={`gba:relative gba:rounded-lg gba:overflow-hidden gba:flex gba:items-center gba:justify-center ${
+                        isFocused
+                          ? 'gba:bg-black gba:ring-2 gba:ring-primary gba:ring-offset-2'
+                          : item.type === 'screen-share'
+                            ? 'gba:bg-black'
+                            : 'gba:bg-muted'
+                      }`}
+                      style={{ gridColumn, gridRow }}
+                      data-testid={`${prefixDataTestId}-grid-item-${item.id}`}
+                    >
+                      {item.type === 'screen-share' && item.screenShareTrack ? (
+                        // Screen Share Tile
+                        <>
+                          <video
+                            ref={el => {
+                              if (el) {
+                                screenShareVideoRefs.current.set(item.peerId, el)
+                              } else {
+                                screenShareVideoRefs.current.delete(item.peerId)
+                              }
+                            }}
+                            autoPlay
+                            playsInline
+                            className="gba:w-full gba:h-full gba:object-contain gba:bg-black"
+                            data-testid={`${prefixDataTestId}-screenshare-${item.peerId}`}
+                            onClick={() => {
+                              // Click to focus/unfocus this screen share
+                              if (isFocused && allScreenShares.length > 1) {
+                                // Unfocus: focus on next screen share
+                                const currentIndex = allScreenShares.findIndex(s => s.peerId === item.peerId)
+                                const nextIndex = (currentIndex + 1) % allScreenShares.length
+                                setFocusedScreenShareId(allScreenShares[nextIndex].peerId)
+                              } else if (!isFocused) {
+                                // Focus this screen share
+                                setFocusedScreenShareId(item.peerId)
+                              } else {
+                                // Click focused screen share to expand to fullscreen
+                                const stream = new MediaStream()
+                                stream.addTrack(item.screenShareTrack!)
+                                setExpandedScreenShare({
+                                  peerId: item.peerId,
+                                  peerName: item.peerName,
+                                  stream
+                                })
+                              }
+                            }}
+                          />
 
-                    {/* Name overlay */}
-                    <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm">
-                      {(() => {
-                        const displayName = peer.name || peer.displayName || peer.customParticipantId || 'Unknown'
-                        console.log('[RTK Modal] Peer display info:', {
-                          peerId: peer.id,
-                          name: peer.name,
-                          displayName: peer.displayName,
-                          customParticipantId: peer.customParticipantId,
-                          userId: peer.userId,
-                          chosen: displayName
-                        })
-                        return displayName
-                      })()}{' '}
-                      {!peer.audioEnabled && '🔇'}
+                          {/* Screen share overlay */}
+                          <div
+                            className={`gba:absolute gba:top-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:flex gba:items-center gba:gap-1 ${
+                              isFocused
+                                ? 'gba:bg-primary gba:text-primary-foreground'
+                                : 'gba:bg-black/70 gba:text-white'
+                            }`}
+                          >
+                            <Monitor className="gba:w-3 gba:h-3" />
+                            <span className="gba:font-medium">
+                              {item.peerName} {item.isLocal ? '(You)' : ''}
+                            </span>
+                            {isFocused && allScreenShares.length > 1 && (
+                              <span className="gba:ml-1 gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-primary-foreground/20 gba:text-primary-foreground gba:text-[10px] gba:font-bold">
+                                FOCUSED
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Focus button for non-focused screen shares */}
+                          {!isFocused && allScreenShares.length > 1 && (
+                            <button
+                              onClick={e => {
+                                e.stopPropagation()
+                                setFocusedScreenShareId(item.peerId)
+                              }}
+                              className="gba:absolute gba:top-2 gba:right-2 gba:p-2 gba:rounded-lg gba:bg-primary/90 hover:gba:bg-primary gba:text-primary-foreground gba:transition-colors gba:shadow-lg"
+                              title="Focus this screen share"
+                              data-testid={`${prefixDataTestId}-focus-screenshare-${item.peerId}`}
+                            >
+                              <Maximize2 className="gba:w-4 gba:h-4" />
+                            </button>
+                          )}
+                        </>
+                      ) : item.hasVideoTrack || item.hasAudioTrack ? (
+                        // Video Tile (or hidden video element for audio-only playback)
+                        <>
+                          <video
+                            ref={
+                              item.isLocal
+                                ? localVideoRef
+                                : el => {
+                                    if (el) {
+                                      remoteVideoRefs.current.set(item.peerId, el)
+                                    } else {
+                                      remoteVideoRefs.current.delete(item.peerId)
+                                    }
+                                  }
+                            }
+                            autoPlay
+                            playsInline
+                            muted={item.isLocal}
+                            className={item.hasVideoTrack ? 'gba:w-full gba:h-full gba:object-cover' : 'gba:hidden'}
+                            data-testid={`${prefixDataTestId}-video-${item.peerId}`}
+                          />
+
+                          {/* Show avatar when no video but has audio */}
+                          {!item.hasVideoTrack && item.hasAudioTrack && (
+                            <Avatar className="gba:w-24 gba:h-24">
+                              <AvatarFallback className="gba:text-2xl">{getInitials(item.peerName)}</AvatarFallback>
+                            </Avatar>
+                          )}
+
+                          {/* Name overlay */}
+                          <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm">
+                            {item.peerName} {item.isLocal ? '(You)' : ''} {item.isMuted && '🔇'}
+                          </div>
+                        </>
+                      ) : (
+                        // Avatar Tile (no video, no audio)
+                        <>
+                          <Avatar className="gba:w-24 gba:h-24">
+                            <AvatarFallback className="gba:text-2xl">{getInitials(item.peerName)}</AvatarFallback>
+                          </Avatar>
+
+                          {/* Name overlay */}
+                          <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm">
+                            {item.peerName} {item.isLocal ? '(You)' : ''} {item.isMuted && '🔇'}
+                          </div>
+                        </>
+                      )}
                     </div>
-                  </div>
-                ))
-              ) : (
-                <div className="gba:flex gba:items-center gba:justify-center gba:rounded-lg gba:bg-muted gba:text-muted-foreground">
-                  <div className="gba:text-center">
-                    <Users className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-2" />
-                    <p>{t('groupCall.waitingForParticipants')}</p>
-                  </div>
-                </div>
-              )}
-            </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* Controls */}
@@ -486,6 +1144,31 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
               </button>
             )}
 
+            {/* Screen share button */}
+            {onToggleScreenShare && (
+              <button
+                onClick={onToggleScreenShare}
+                className={`gba:p-4 gba:rounded-full gba:transition-colors ${
+                  callState.isScreenSharing
+                    ? 'gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90'
+                    : 'gba:bg-accent hover:gba:bg-accent/80'
+                }`}
+                data-testid={`${prefixDataTestId}-screen-share-btn`}
+                aria-label={
+                  callState.isScreenSharing
+                    ? t('chat-stopSharing') || 'Stop sharing screen'
+                    : t('chat-shareScreen') || 'Share screen'
+                }
+                title={
+                  callState.isScreenSharing
+                    ? t('chat-stopSharing') || 'Stop sharing screen'
+                    : t('chat-shareScreen') || 'Share screen'
+                }
+              >
+                <Monitor className="gba:w-6 gba:h-6" />
+              </button>
+            )}
+
             {/* End call button */}
             <button
               onClick={onEndCall}
@@ -497,6 +1180,44 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Expanded screen share overlay (fullscreen view) */}
+        {expandedScreenShare && (
+          <div
+            className="gba:fixed gba:inset-0 gba:z-50 gba:bg-black gba:flex gba:items-center gba:justify-center gba:cursor-pointer"
+            onClick={() => setExpandedScreenShare(null)}
+          >
+            {/* Close button */}
+            <button
+              className="gba:absolute gba:top-4 gba:right-4 gba:p-3 gba:rounded-full gba:bg-white/10 hover:gba:bg-white/20 gba:text-white gba:transition-colors gba:z-10"
+              onClick={e => {
+                e.stopPropagation()
+                setExpandedScreenShare(null)
+              }}
+              title="Close"
+              aria-label="Close expanded screen share"
+            >
+              <Shrink className="gba:h-6 gba:w-6" />
+            </button>
+
+            {/* Participant name */}
+            <div className="gba:absolute gba:top-4 gba:left-4 gba:bg-black/60 gba:text-white gba:px-4 gba:py-2 gba:rounded-lg gba:flex gba:items-center gba:gap-2">
+              <Monitor className="gba:h-4 gba:w-4" />
+              <span>
+                {t('chat-screenShare', { name: expandedScreenShare.peerName }) ||
+                  `${expandedScreenShare.peerName} is sharing their screen`}
+              </span>
+            </div>
+
+            {/* Video element - object-contain to preserve aspect ratio */}
+            <video
+              ref={expandedScreenShareVideoRef}
+              autoPlay
+              playsInline
+              className="gba:max-w-full gba:max-h-full gba:object-contain"
+            />
+          </div>
+        )}
       </DialogContent>
     </Dialog>,
     document.body

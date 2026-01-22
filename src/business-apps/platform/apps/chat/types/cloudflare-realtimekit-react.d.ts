@@ -26,12 +26,30 @@ declare module '@cloudflare/realtimekit-react' {
       disableAudio: () => Promise<void>
       enableVideo: () => Promise<void>
       disableVideo: () => Promise<void>
-      startScreenShare: () => Promise<void>
-      stopScreenShare: () => Promise<void>
+      enableScreenShare: () => Promise<void>
+      disableScreenShare: () => Promise<void>
       setName: (name: string) => Promise<void>
+      on?: (event: string, handler: (data: any) => void) => void
+      off?: (event: string, handler?: (data: any) => void) => void
     }
     participants?: {
-      joined?: Map<string, any>
+      joined?: Map<
+        string,
+        {
+          id?: string
+          userId?: string
+          customParticipantId?: string
+          name?: string
+          displayName?: string
+          picture?: string
+          audioEnabled?: boolean
+          videoEnabled?: boolean
+          screenShareEnabled?: boolean
+          videoTrack?: MediaStreamTrack
+          audioTrack?: MediaStreamTrack
+          screenShareTracks?: MediaStreamTrack[]
+        }
+      >
       active?: Set<string>
       lastActiveSpeaker?: string
     }

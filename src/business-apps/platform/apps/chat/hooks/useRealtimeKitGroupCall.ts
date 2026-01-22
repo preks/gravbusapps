@@ -87,6 +87,7 @@ const initialCallState: GroupCallUIState = {
   status: 'idle',
   participants: [],
   hostId: null,
+  callImplementation: 'realtime-kit',
   isMuted: false,
   isVideoEnabled: true,
   isScreenSharing: false,
@@ -123,6 +124,7 @@ export const useRealtimeKitGroupCall = ({
   const durationTimerRef = useRef<NodeJS.Timeout | null>(null)
   const callStateRoomIdRef = useRef<string | null>(null)
   const isInCallRef = useRef<boolean>(false)
+  const joinCallConversationIdRef = useRef<string | null>(null)
 
   // Helper to emit WebSocket events
   const emitSocketEvent = useCallback(
@@ -278,21 +280,11 @@ export const useRealtimeKitGroupCall = ({
           }
         }
 
-        // 6. Get local media from SDK (after enabling)
-        const localVideoTrack = meetingToUse.self?.videoTrack
-        const localAudioTrack = meetingToUse.self?.audioTrack
-
-        console.log('[RTK] Local tracks:', {
-          hasAudio: !!localAudioTrack,
-          hasVideo: !!localVideoTrack
+        // 6. Local media will be automatically set by the useEffect watching SDK tracks
+        console.log('[RTK] Local tracks will be set by useEffect:', {
+          hasAudio: !!meetingToUse.self?.audioTrack,
+          hasVideo: !!meetingToUse.self?.videoTrack
         })
-
-        // Create MediaStream from SDK tracks
-        const stream = new MediaStream()
-        if (localAudioTrack) stream.addTrack(localAudioTrack)
-        if (localVideoTrack) stream.addTrack(localVideoTrack)
-
-        setLocalStream(stream)
 
         // Update state
         // Use current time as temp start time (will be overwritten by conversation:call-started event)
@@ -301,10 +293,11 @@ export const useRealtimeKitGroupCall = ({
           roomId: meetingId,
           callType,
           status: 'connected',
+          callImplementation: 'realtime-kit',
           participants: [
             {
               ...currentUser,
-              stream
+              stream: undefined // Will be set by useEffect
             }
           ],
           hostId: currentUser.id,
@@ -379,12 +372,26 @@ export const useRealtimeKitGroupCall = ({
 
   /**
    * Join an existing call (participant)
+   *
+   * Note: The interface expects (roomId, callType, initialParticipants?) but we need conversationId.
+   * We store conversationId in a ref before calling this, or look it up from activeConversationCalls by roomId.
    */
   const joinCall = useCallback(
-    async (roomId: string, callType: CallType, conversationId?: string): Promise<void> => {
+    async (roomId: string, callType: CallType): Promise<void> => {
       if (!currentUser || !apiClient) {
         console.error('[RTK] Cannot join call: missing requirements')
         return
+      }
+
+      // Try to find conversationId from activeConversationCalls by roomId
+      let conversationId = joinCallConversationIdRef.current
+      if (!conversationId) {
+        for (const [convId, callInfo] of activeConversationCalls.entries()) {
+          if (callInfo.roomId === roomId) {
+            conversationId = convId
+            break
+          }
+        }
       }
 
       try {
@@ -510,21 +517,11 @@ export const useRealtimeKitGroupCall = ({
           }
         }
 
-        // 6. Get local media from SDK (after enabling)
-        const localVideoTrack = meetingToUse.self?.videoTrack
-        const localAudioTrack = meetingToUse.self?.audioTrack
-
-        console.log('[RTK] Local tracks:', {
-          hasAudio: !!localAudioTrack,
-          hasVideo: !!localVideoTrack
+        // 6. Local media will be automatically set by the useEffect watching SDK tracks
+        console.log('[RTK] Local tracks will be set by useEffect:', {
+          hasAudio: !!meetingToUse.self?.audioTrack,
+          hasVideo: !!meetingToUse.self?.videoTrack
         })
-
-        // Create MediaStream from SDK tracks
-        const stream = new MediaStream()
-        if (localAudioTrack) stream.addTrack(localAudioTrack)
-        if (localVideoTrack) stream.addTrack(localVideoTrack)
-
-        setLocalStream(stream)
 
         // Update state
         // Try to get global startedAt from activeConversationCalls using conversationId
@@ -561,7 +558,7 @@ export const useRealtimeKitGroupCall = ({
           participants: [
             {
               ...currentUser,
-              stream
+              stream: undefined // Will be set by useEffect
             }
           ],
           startTime: Date.now()
@@ -605,9 +602,34 @@ export const useRealtimeKitGroupCall = ({
       } catch (error) {
         console.error('[RTK] Failed to join call:', error)
         setCallState(initialCallState)
+      } finally {
+        // Clear conversationId ref after use
+        joinCallConversationIdRef.current = null
       }
     },
     [currentUser, apiClient, initMeeting, meeting, emitSocketEvent, activeConversationCalls]
+  )
+
+  // Wrapper for joinCall that accepts conversationId
+  // This maintains interface compatibility while allowing conversationId to be passed
+  // Chat.tsx passes conversationId as string, but interface expects CallParticipant[]
+  const joinCallWrapper = useCallback(
+    async (roomId: string, callType: CallType, conversationIdOrParticipants?: CallParticipant[]): Promise<void> => {
+      // Chat.tsx passes conversationId as string in the 3rd parameter
+      // We need to handle this by checking if it's actually a string
+      // Since TypeScript interface expects CallParticipant[], we'll use a type assertion
+      const param = conversationIdOrParticipants as any
+      if (typeof param === 'string') {
+        // It's actually a conversationId string
+        joinCallConversationIdRef.current = param
+        return joinCall(roomId, callType)
+      } else {
+        // It's CallParticipant[] or undefined (from interface)
+        // Try to find conversationId from activeConversationCalls by roomId
+        return joinCall(roomId, callType)
+      }
+    },
+    [joinCall]
   )
 
   /**
@@ -695,235 +717,241 @@ export const useRealtimeKitGroupCall = ({
 
   /**
    * Toggle mute (using SDK)
+   * Simple approach: Let SDK manage state, just call enable/disable
    */
   const toggleMute = useCallback((): boolean => {
-    if (!meeting?.self) return callState.isMuted
+    console.log('[RTK] 🎤 toggleMute called!', {
+      hasMeeting: !!meeting,
+      hasSelf: !!meeting?.self,
+      currentIsMuted: callState.isMuted
+    })
 
-    const currentMuted = callState.isMuted
-    const newMuted = !currentMuted
-
-    // Update state immediately for responsive UI
-    setCallState(prev => ({ ...prev, isMuted: newMuted }))
-
-    // Call SDK in background
-    if (newMuted) {
-      meeting.self.disableAudio().catch((error: any) => {
-        console.error('[RTK] Failed to disable audio:', error)
-        setCallState(prev => ({ ...prev, isMuted: false })) // Revert on error
-      })
-    } else {
-      meeting.self.enableAudio().catch((error: any) => {
-        console.error('[RTK] Failed to enable audio:', error)
-        setCallState(prev => ({ ...prev, isMuted: true })) // Revert on error
-      })
+    if (!meeting?.self) {
+      console.log('[RTK] ⚠️ toggleMute: No meeting.self, returning early')
+      return callState.isMuted
     }
 
+    const currentEnabled = meeting.self.audioEnabled ?? false
+    const newMuted = currentEnabled // if audio is enabled, we're muting (newMuted = true)
+
+    console.log('[RTK] Toggling audio:', currentEnabled ? 'disable' : 'enable', {
+      sdkAudioEnabled: meeting.self.audioEnabled,
+      stateIsMuted: callState.isMuted,
+      willBeMuted: newMuted
+    })
+
+    if (currentEnabled) {
+      meeting.self.disableAudio()
+    } else {
+      meeting.self.enableAudio()
+    }
+
+    // Return intended new mute state (for optimistic UI update)
     return newMuted
-  }, [meeting, callState.isMuted])
+  }, [meeting])
 
   /**
    * Toggle video (using SDK)
+   * Simple approach: Let SDK manage state, just call enable/disable
    */
   const toggleVideo = useCallback((): boolean => {
-    if (!meeting?.self || !localStream) {
-      console.log('[RTK] toggleVideo: no meeting.self or localStream')
+    console.log('[RTK] 📹 toggleVideo called!', {
+      hasMeeting: !!meeting,
+      hasSelf: !!meeting?.self,
+      currentIsVideoEnabled: callState.isVideoEnabled
+    })
+
+    if (!meeting?.self) {
+      console.log('[RTK] ⚠️ toggleVideo: No meeting.self, returning early')
       return callState.isVideoEnabled
     }
 
-    const currentEnabled = callState.isVideoEnabled
+    const currentEnabled = meeting.self.videoEnabled ?? false
     const newEnabled = !currentEnabled
 
-    console.log('[RTK] toggleVideo:', {
-      currentEnabled,
-      newEnabled,
-      hasVideoTrack: !!meeting.self.videoTrack,
-      videoTrackEnabled: meeting.self.videoTrack?.enabled,
-      localStreamVideoTracks: localStream.getVideoTracks().length
+    console.log('[RTK] Toggling video:', currentEnabled ? 'disable' : 'enable', {
+      sdkVideoEnabled: meeting.self.videoEnabled,
+      stateVideoEnabled: callState.isVideoEnabled,
+      willEnable: newEnabled
     })
 
-    // Update state immediately for responsive UI
-    setCallState(prev => ({ ...prev, isVideoEnabled: newEnabled }))
-
-    if (newEnabled) {
-      console.log('[RTK] Enabling video via SDK...')
-      console.log('[RTK] LocalStream BEFORE enableVideo:', {
-        hasStream: !!localStream,
-        videoTracks: localStream?.getVideoTracks().length || 0,
-        audioTracks: localStream?.getAudioTracks().length || 0
-      })
-
-      meeting.self
-        .enableVideo()
-        .then(async () => {
-          console.log('[RTK] ✅ Video enabled and published to SFU')
-          console.log('[RTK] LocalStream AFTER enableVideo:', {
-            hasStream: !!localStream,
-            videoTracks: localStream?.getVideoTracks().length || 0,
-            audioTracks: localStream?.getAudioTracks().length || 0,
-            videoTrackId: localStream?.getVideoTracks()[0]?.id,
-            hasSDKVideoTrack: !!meeting.self?.videoTrack,
-            sdkVideoTrackId: meeting.self?.videoTrack?.id
-          })
-
-          /**
-           * CRITICAL WORKAROUND: Cloudflare SDK Video Track Synchronization
-           *
-           * Issue: When enableVideo() is called, the SDK creates a NEW MediaStreamTrack
-           * but doesn't update the localStream reference. This causes the HTML <video>
-           * element to still reference the OLD stopped track, resulting in black screen.
-           *
-           * Root Cause: The SDK manages its own track lifecycle internally, but our
-           * localStream state reference becomes stale after disableVideo()/enableVideo().
-           *
-           * Solution: Manually synchronize localStream with SDK's meeting.self.videoTrack
-           * by removing old tracks and adding the new SDK track. IMPORTANT: We must NOT
-           * call track.stop() on the old track as the SDK manages its lifecycle - calling
-           * stop() would kill the track that might still be in use by the video element.
-           *
-           * Then we force a React state update by creating a NEW MediaStream object with
-           * the same tracks. This triggers React's re-render cycle, which updates the
-           * HTML <video> element's srcObject with the fresh stream containing the new track.
-           */
-          if (meeting.self?.videoTrack && localStream) {
-            const currentVideoTracks = localStream.getVideoTracks()
-            const sdkVideoTrack = meeting.self.videoTrack
-
-            // Check if SDK's video track is already in localStream
-            const trackInStream = currentVideoTracks.some(t => t.id === sdkVideoTrack.id)
-
-            if (!trackInStream) {
-              console.log('[RTK] 🔧 Syncing SDK video track to localStream...')
-
-              // Remove old video tracks WITHOUT stopping them
-              // (SDK manages track lifecycle - stopping here would kill the track prematurely)
-              currentVideoTracks.forEach(track => {
-                console.log('[RTK] Removing old video track from stream:', track.id)
-                localStream.removeTrack(track)
-              })
-
-              // Add new video track from SDK
-              localStream.addTrack(sdkVideoTrack)
-              console.log('[RTK] ✅ Added new video track to localStream:', sdkVideoTrack.id)
-
-              // Force React state update by creating a NEW MediaStream object
-              // This triggers re-render and updates the HTML video element's srcObject
-              setLocalStream(prev => {
-                if (!prev) return prev
-                const newStream = new MediaStream()
-                prev.getTracks().forEach(track => newStream.addTrack(track))
-                console.log('[RTK] 🔄 Created new localStream object for React refresh')
-                return newStream
-              })
-            }
-          }
-
-          /**
-           * CRITICAL WORKAROUND: Cloudflare SDK Audio Republish After Video Toggle
-           *
-           * Issue: When disableVideo() is called, the Cloudflare SDK internally unpublishes
-           * BOTH video AND audio tracks from the SFU, even though only video was disabled.
-           * When enableVideo() is subsequently called, the SDK republishes the video track
-           * but FAILS to automatically republish the audio track to the SFU.
-           *
-           * Result: Local user can see their audio track enabled and working locally, but
-           * remote participants receive NO audio stream because the SFU never forwarded it.
-           *
-           * Root Cause: This appears to be a bug/limitation in the Cloudflare Realtime Kit
-           * SDK where disableVideo() affects both media types at the SFU level, but
-           * enableVideo() only restores video forwarding.
-           *
-           * Solution: After successfully calling enableVideo(), force an audio cycle:
-           * 1. disableAudio() - Explicitly unpublish audio from SFU
-           * 2. Wait 100ms - Give SFU time to process the unpublish
-           * 3. enableAudio() - Republish audio to SFU
-           *
-           * This ensures audio is properly forwarded to remote participants even after
-           * video has been toggled OFF then back ON.
-           *
-           * Note: Only do this if user is NOT muted (isMuted = false). If user is muted,
-           * audio should remain unpublished as expected.
-           */
-          if (!callState.isMuted && meeting.self?.audioTrack) {
-            console.log('[RTK] 🔧 WORKAROUND: Force audio republish after video enable...')
-            try {
-              const audioTrack = meeting.self.audioTrack
-              console.log('[RTK] Audio track state:', {
-                id: audioTrack.id,
-                enabled: audioTrack.enabled,
-                readyState: audioTrack.readyState
-              })
-
-              // Force audio unpublish/republish cycle to SFU
-              await meeting.self.disableAudio()
-              console.log('[RTK] 1️⃣ Temporarily disabled audio')
-
-              await new Promise(resolve => setTimeout(resolve, 100))
-
-              await meeting.self.enableAudio()
-              console.log('[RTK] 2️⃣ ✅ Audio re-published to SFU!')
-            } catch (error) {
-              console.error('[RTK] ❌ Failed to republish audio:', error)
-            }
-          }
-        })
-        .catch((error: any) => {
-          console.error('[RTK] Failed to enable video:', error)
-          setCallState(prev => ({ ...prev, isVideoEnabled: false }))
-        })
+    if (currentEnabled) {
+      meeting.self.disableVideo()
     } else {
-      /**
-       * Disable Video Path
-       *
-       * Note: Cloudflare SDK's disableVideo() also unpublishes audio from the SFU
-       * as a side effect (see detailed explanation in enableVideo path above).
-       * This is expected behavior from the SDK, but results in remote participants
-       * not hearing audio when local user has video OFF.
-       *
-       * The workaround (audio republish) is applied when video is turned back ON,
-       * not here, because:
-       * 1. We don't want to republish audio immediately after unpublishing it
-       * 2. The audio should remain unpublished while video is OFF (SDK's intention)
-       * 3. Only when enableVideo() is called do we need to restore audio forwarding
-       */
-      console.log('[RTK] Disabling video via SDK...')
-      meeting.self
-        .disableVideo()
-        .then(() => {
-          console.log('[RTK] ✅ Video disabled via SDK')
-          console.log('[RTK] ⚠️ NOTE: Cloudflare SDK unpublishes audio along with video')
-        })
-        .catch((error: any) => {
-          console.error('[RTK] Failed to disable video:', error)
-          setCallState(prev => ({ ...prev, isVideoEnabled: true }))
-        })
+      meeting.self.enableVideo()
     }
 
+    // Return intended new state (for optimistic UI update)
     return newEnabled
-  }, [meeting, callState.isVideoEnabled, localStream])
+  }, [meeting])
 
   /**
    * Toggle screen share (using SDK)
+   *
+   * Handles screen sharing with comprehensive error handling for:
+   * - Browser permission denial
+   * - No screen/window available
+   * - Browser compatibility issues
    */
   const toggleScreenShare = useCallback(async (): Promise<boolean> => {
-    if (!meeting?.self) return false
+    if (!meeting?.self) {
+      console.error('[RTK] Cannot toggle screen share: meeting.self not available')
+      return false
+    }
 
     try {
       const currentSharing = callState.isScreenSharing
 
       if (currentSharing) {
-        await meeting.self.stopScreenShare()
+        // Stop screen sharing
+        await meeting.self.disableScreenShare()
         setCallState(prev => ({ ...prev, isScreenSharing: false }))
-        console.log('[RTK] Screen share stopped via SDK')
+        console.log('[RTK] ✅ Screen share stopped via SDK')
         return false
       } else {
-        await meeting.self.startScreenShare()
+        // Start screen sharing
+        // Check browser support
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+          const error = new Error('Screen sharing is not supported in this browser')
+          console.error('[RTK] Screen share error:', error.message)
+          throw error
+        }
+
+        await meeting.self.enableScreenShare()
+
+        // Wait a bit for SDK to process and publish the screen share track
+        await new Promise(resolve => setTimeout(resolve, 500))
+
+        // Check if screen share tracks are available
+        // screenShareTracks might be a Map, Set, Array, or object - handle all cases
+        const screenShareTracksRaw = meeting.self?.screenShareTracks
+        let screenShareTracks: MediaStreamTrack[] = []
+
+        if (screenShareTracksRaw) {
+          // If it's an array
+          if (Array.isArray(screenShareTracksRaw)) {
+            screenShareTracks = screenShareTracksRaw.filter(
+              (t: any): t is MediaStreamTrack => t instanceof MediaStreamTrack
+            )
+          }
+          // If it's a Map
+          else if (
+            screenShareTracksRaw &&
+            typeof screenShareTracksRaw === 'object' &&
+            'get' in screenShareTracksRaw &&
+            'set' in screenShareTracksRaw
+          ) {
+            // Type guard for Map-like structure
+            const mapLike = screenShareTracksRaw as Map<any, any>
+            if (mapLike instanceof Map) {
+              screenShareTracks = Array.from(mapLike.values()).filter(
+                (t: any): t is MediaStreamTrack => t instanceof MediaStreamTrack
+              )
+            }
+          }
+          // If it's a Set
+          else if (
+            screenShareTracksRaw &&
+            typeof screenShareTracksRaw === 'object' &&
+            'has' in screenShareTracksRaw &&
+            'add' in screenShareTracksRaw
+          ) {
+            // Type guard for Set-like structure
+            const setLike = screenShareTracksRaw as Set<any>
+            if (setLike instanceof Set) {
+              screenShareTracks = Array.from(setLike).filter(
+                (t: any): t is MediaStreamTrack => t instanceof MediaStreamTrack
+              )
+            }
+          }
+          // If it's an object
+          else if (typeof screenShareTracksRaw === 'object' && screenShareTracksRaw !== null) {
+            // Try Object.values first
+            const values = Object.values(screenShareTracksRaw)
+            screenShareTracks = values.filter((t: any): t is MediaStreamTrack => t instanceof MediaStreamTrack)
+
+            // If that didn't work, try forEach if available
+            if (screenShareTracks.length === 0 && typeof (screenShareTracksRaw as any).forEach === 'function') {
+              ;(screenShareTracksRaw as any).forEach((value: any) => {
+                if (value instanceof MediaStreamTrack) {
+                  screenShareTracks.push(value)
+                }
+              })
+            }
+
+            // If still nothing, try iterating
+            if (
+              screenShareTracks.length === 0 &&
+              typeof (screenShareTracksRaw as any)[Symbol.iterator] === 'function'
+            ) {
+              try {
+                for (const value of screenShareTracksRaw as Iterable<any>) {
+                  if (value instanceof MediaStreamTrack) {
+                    screenShareTracks.push(value)
+                  }
+                }
+              } catch {
+                // Ignore iteration errors
+              }
+            }
+          }
+        }
+
+        const screenShareEnabled = meeting.self?.screenShareEnabled
+
+        console.log('[RTK] ✅ Screen share started via SDK', {
+          screenShareEnabled,
+          screenShareTracksCount: screenShareTracks.length,
+          screenShareTrackIds: screenShareTracks.map(t => t.id),
+          screenShareTrackKinds: screenShareTracks.map(t => t.kind),
+          screenShareTrackLabels: screenShareTracks.map(t => t.label),
+          screenShareTracksRawType: typeof screenShareTracksRaw,
+          screenShareTracksRawIsArray: Array.isArray(screenShareTracksRaw),
+          screenShareTracksRawIsMap: screenShareTracksRaw instanceof Map,
+          screenShareTracksRawIsSet: screenShareTracksRaw instanceof Set,
+          screenShareTracksRawKeys:
+            screenShareTracksRaw && typeof screenShareTracksRaw === 'object' ? Object.keys(screenShareTracksRaw) : [],
+          screenShareTracksRawValue: screenShareTracksRaw, // Full object for inspection
+          meetingSelf: {
+            id: meeting.self?.id,
+            screenShareEnabled: meeting.self?.screenShareEnabled,
+            hasScreenShareTracks: !!meeting.self?.screenShareTracks,
+            screenShareTracksType: typeof meeting.self?.screenShareTracks
+          }
+        })
+
+        if (screenShareTracks.length === 0) {
+          console.warn('[RTK] ⚠️ Screen share enabled but no tracks available yet - may need more time', {
+            screenShareTracksRaw,
+            screenShareTracksRawType: typeof screenShareTracksRaw,
+            screenShareTracksRawIsMap: screenShareTracksRaw instanceof Map,
+            screenShareTracksRawIsSet: screenShareTracksRaw instanceof Set,
+            screenShareTracksRawKeys:
+              screenShareTracksRaw && typeof screenShareTracksRaw === 'object' ? Object.keys(screenShareTracksRaw) : [],
+            screenShareTracksRawValue: screenShareTracksRaw
+          })
+        }
+
         setCallState(prev => ({ ...prev, isScreenSharing: true }))
-        console.log('[RTK] Screen share started via SDK')
         return true
       }
-    } catch (error) {
-      console.error('[RTK] Failed to toggle screen share:', error)
-      return callState.isScreenSharing
+    } catch (error: any) {
+      console.error('[RTK] ❌ Failed to toggle screen share:', error)
+
+      // Reset state on error
+      setCallState(prev => ({ ...prev, isScreenSharing: false }))
+
+      // Provide user-friendly error messages
+      const errorMessage = error?.message || 'Unknown error'
+      if (errorMessage.includes('Permission denied') || errorMessage.includes('NotAllowedError')) {
+        console.error('[RTK] Screen share permission denied by user')
+      } else if (errorMessage.includes('NotSupportedError') || errorMessage.includes('not supported')) {
+        console.error('[RTK] Screen sharing not supported in this browser')
+      } else if (errorMessage.includes('NotFoundError') || errorMessage.includes('No screen')) {
+        console.error('[RTK] No screen or window available for sharing')
+      }
+
+      return false
     }
   }, [meeting, callState.isScreenSharing])
 
@@ -1006,6 +1034,27 @@ export const useRealtimeKitGroupCall = ({
     ])
   }, [callState.status, participants.length])
 
+  // Recreate localStream whenever SDK tracks OR enabled states change (like the simple test)
+  useEffect(() => {
+    if (!meeting?.self) return
+
+    const videoTrack = meeting.self.videoTrack
+    const audioTrack = meeting.self.audioTrack
+
+    console.log('[RTK] SDK tracks/enabled changed, recreating localStream:', {
+      hasVideo: !!videoTrack,
+      hasAudio: !!audioTrack,
+      videoEnabled: meeting.self.videoEnabled,
+      audioEnabled: meeting.self.audioEnabled
+    })
+
+    const newStream = new MediaStream()
+    if (videoTrack) newStream.addTrack(videoTrack)
+    if (audioTrack) newStream.addTrack(audioTrack)
+
+    setLocalStream(newStream)
+  }, [meeting?.self?.videoTrack, meeting?.self?.audioTrack, meeting?.self?.videoEnabled, meeting?.self?.audioEnabled])
+
   // Subscribe to remote participants from SDK (event-driven)
   useEffect(() => {
     if (!meeting?.participants?.joined || callState.status !== 'connected') {
@@ -1036,7 +1085,23 @@ export const useRealtimeKitGroupCall = ({
           totalParticipants: allParticipants.length,
           selfId: meeting.self?.id,
           selfRoomJoined: meeting.self?.roomJoined,
-          participantIds: allParticipants.map((p: any) => ({ id: p.id, name: p.name, roomJoined: p.roomJoined }))
+          participantIds: allParticipants.map((p: any) => ({ id: p.id, name: p.name, roomJoined: p.roomJoined })),
+          // Debug: check self screen share state
+          selfScreenShareEnabled: meeting.self?.screenShareEnabled,
+          selfScreenShareTracksRaw: meeting.self?.screenShareTracks,
+          selfScreenShareTracksType: typeof meeting.self?.screenShareTracks,
+          selfScreenShareTracksIsArray: Array.isArray(meeting.self?.screenShareTracks),
+          selfScreenShareTracksCount: Array.isArray(meeting.self?.screenShareTracks)
+            ? meeting.self.screenShareTracks.length
+            : 0,
+          selfScreenShareTracks: Array.isArray(meeting.self?.screenShareTracks)
+            ? meeting.self.screenShareTracks.map((t: MediaStreamTrack) => ({
+                id: t.id,
+                kind: t.kind,
+                label: t.label,
+                enabled: t.enabled
+              }))
+            : null
         })
 
         // Update remote streams
@@ -1044,6 +1109,15 @@ export const useRealtimeKitGroupCall = ({
         const newParticipants: GroupCallParticipant[] = []
 
         remotePeers.forEach((peer: any) => {
+          // Get all keys from peer object to see what's available
+          const peerKeys = Object.keys(peer)
+          const screenShareKeys = peerKeys.filter(
+            k =>
+              k.toLowerCase().includes('screen') ||
+              k.toLowerCase().includes('share') ||
+              k.toLowerCase().includes('display')
+          )
+
           console.log('[RTK] Processing remote peer:', {
             id: peer.id,
             name: peer.name,
@@ -1051,17 +1125,78 @@ export const useRealtimeKitGroupCall = ({
             customParticipantId: peer.customParticipantId,
             userId: peer.userId,
             hasVideoTrack: !!peer.videoTrack,
-            hasAudioTrack: !!peer.audioTrack
+            hasAudioTrack: !!peer.audioTrack,
+            // Screen share debugging
+            screenShareEnabled: peer.screenShareEnabled,
+            screenShareTracks: peer.screenShareTracks,
+            screenShareTracksLength: peer.screenShareTracks?.length,
+            screenShareKeys,
+            allPeerKeys: peerKeys,
+            // Check video track details (might be screen share)
+            videoTrack: peer.videoTrack
+              ? {
+                  id: peer.videoTrack.id,
+                  kind: peer.videoTrack.kind,
+                  label: peer.videoTrack.label,
+                  enabled: peer.videoTrack.enabled,
+                  readyState: peer.videoTrack.readyState
+                }
+              : null
           })
 
           const stream = new MediaStream()
 
+          // Add video track (regular camera, not screen share - screen shares are in peer.screenShareTracks)
           if (peer.videoTrack) {
             stream.addTrack(peer.videoTrack)
+            console.log('[RTK] Added video track to stream for peer:', peer.id, {
+              videoTrackId: peer.videoTrack.id,
+              videoTrackLabel: peer.videoTrack.label,
+              videoTrackKind: peer.videoTrack.kind
+            })
           }
+
+          // Always add audio track if available (microphone audio, separate from screen share)
+          // Screen share tracks are handled separately by the component and don't include audio
           if (peer.audioTrack) {
             stream.addTrack(peer.audioTrack)
+            const existingStream = remoteStreams.get(peer.id)
+            const existingAudioTrack = existingStream?.getAudioTracks()[0]
+            const audioTrackChanged = existingAudioTrack?.id !== peer.audioTrack.id
+
+            console.log('[RTK] 🔊 [REMOTE AUDIO DEBUG] Added audio track to stream for peer:', peer.id, {
+              audioTrackId: peer.audioTrack.id,
+              audioTrackLabel: peer.audioTrack.label,
+              audioTrackEnabled: peer.audioTrack.enabled,
+              audioTrackReadyState: peer.audioTrack.readyState,
+              audioTrackMuted: peer.audioTrack.muted,
+              hadExistingAudioTrack: !!existingAudioTrack,
+              existingAudioTrackId: existingAudioTrack?.id,
+              audioTrackChanged,
+              peerVideoEnabled: peer.videoEnabled,
+              peerAudioEnabled: peer.audioEnabled,
+              timestamp: new Date().toISOString()
+            })
+          } else {
+            const existingStream = remoteStreams.get(peer.id)
+            const hadAudioTrack = !!existingStream?.getAudioTracks()[0]
+
+            console.log('[RTK] 🔊 [REMOTE AUDIO DEBUG] ⚠️ No audio track available for peer:', peer.id, {
+              hadAudioTrack,
+              existingAudioTrackId: existingStream?.getAudioTracks()[0]?.id,
+              peerVideoEnabled: peer.videoEnabled,
+              peerAudioEnabled: peer.audioEnabled,
+              timestamp: new Date().toISOString()
+            })
           }
+
+          const streamTracks = stream.getTracks()
+          console.log('[RTK] Stream created for peer:', peer.id, {
+            totalTracks: streamTracks.length,
+            videoTracks: streamTracks.filter(t => t.kind === 'video').length,
+            audioTracks: streamTracks.filter(t => t.kind === 'audio').length,
+            trackIds: streamTracks.map(t => ({ id: t.id, kind: t.kind, label: t.label }))
+          })
 
           if (stream.getTracks().length > 0) {
             newRemoteStreams.set(peer.id, stream)
@@ -1096,6 +1231,19 @@ export const useRealtimeKitGroupCall = ({
     // Listen for participant join events
     const handleParticipantJoined = (participant: any) => {
       console.log('[RTK] Participant joined event:', participant.id, participant.name)
+
+      // Listen to track changes for this new participant
+      if (participant && typeof participant.on === 'function') {
+        participant.on('trackPublished', () => {
+          console.log('[RTK] Remote participant track published:', participant.id)
+          updateParticipantList()
+        })
+        participant.on('trackUnpublished', () => {
+          console.log('[RTK] Remote participant track unpublished:', participant.id)
+          updateParticipantList()
+        })
+      }
+
       updateParticipantList()
     }
 
@@ -1112,18 +1260,126 @@ export const useRealtimeKitGroupCall = ({
       console.log('[RTK] Event listeners attached')
     }
 
+    // Also attach track listeners to existing participants
+    if (joined && typeof joined.forEach === 'function') {
+      joined.forEach((participant: any) => {
+        if (participant.id !== meeting.self?.id && typeof participant.on === 'function') {
+          participant.on('trackPublished', () => {
+            console.log('[RTK] Remote participant track published:', participant.id)
+            updateParticipantList()
+          })
+          participant.on('trackUnpublished', () => {
+            console.log('[RTK] Remote participant track unpublished:', participant.id)
+            updateParticipantList()
+          })
+        }
+      })
+    }
+
+    // Define event handlers (outside if block so they're accessible in cleanup)
+    // Listen to audioUpdate event - sync our state with SDK state
+    const handleAudioUpdate = (event: any) => {
+      if (!meeting?.self) return
+
+      const { audioEnabled } = event
+
+      console.log('[RTK] 🎤 audioUpdate event fired:', {
+        audioEnabled,
+        sdkAudioEnabled: meeting.self.audioEnabled,
+        currentStateIsMuted: callState.isMuted
+      })
+
+      // Update our state to match SDK state
+      setCallState(prev => ({ ...prev, isMuted: !audioEnabled }))
+    }
+
+    // Listen to videoUpdate event - sync our state with SDK state
+    const handleVideoUpdate = (event: any) => {
+      if (!meeting?.self) return
+
+      const { videoEnabled } = event
+
+      console.log('[RTK] 📹 videoUpdate event fired:', {
+        videoEnabled,
+        sdkVideoEnabled: meeting.self.videoEnabled,
+        currentStateVideoEnabled: callState.isVideoEnabled
+      })
+
+      // Update our state to match SDK state
+      setCallState(prev => ({ ...prev, isVideoEnabled: videoEnabled }))
+    }
+
+    const handleScreenShareUpdate = (event: any) => {
+      // Extract tracks from event (might be various structures)
+      let tracks: MediaStreamTrack[] = []
+      if (event?.screenShareTracks) {
+        const tracksRaw = event.screenShareTracks
+        if (Array.isArray(tracksRaw)) {
+          tracks = tracksRaw.filter((t: any): t is MediaStreamTrack => t instanceof MediaStreamTrack)
+        } else if (tracksRaw && typeof tracksRaw === 'object' && 'get' in tracksRaw && 'set' in tracksRaw) {
+          const mapLike = tracksRaw as Map<any, any>
+          if (mapLike instanceof Map) {
+            tracks = Array.from(mapLike.values()).filter(
+              (t: any): t is MediaStreamTrack => t instanceof MediaStreamTrack
+            )
+          }
+        } else if (tracksRaw && typeof tracksRaw === 'object' && 'has' in tracksRaw && 'add' in tracksRaw) {
+          const setLike = tracksRaw as Set<any>
+          if (setLike instanceof Set) {
+            tracks = Array.from(setLike).filter((t: any): t is MediaStreamTrack => t instanceof MediaStreamTrack)
+          }
+        } else if (typeof tracksRaw === 'object' && tracksRaw !== null) {
+          tracks = Object.values(tracksRaw).filter((t: any): t is MediaStreamTrack => t instanceof MediaStreamTrack)
+        }
+      }
+
+      console.log('[RTK] 📺 Screen share update event:', {
+        screenShareEnabled: event?.screenShareEnabled,
+        screenShareTracksCount: tracks.length,
+        screenShareTrackIds: tracks.map(t => t.id),
+        screenShareTracksRaw: event?.screenShareTracks,
+        screenShareTracksRawType: typeof event?.screenShareTracks,
+        screenShareTracksRawIsArray: Array.isArray(event?.screenShareTracks),
+        screenShareTracksRawIsMap: event?.screenShareTracks instanceof Map,
+        screenShareTracksRawIsSet: event?.screenShareTracks instanceof Set,
+        fullEvent: event
+      })
+
+      // Update state based on event
+      if (event?.screenShareEnabled !== undefined) {
+        setCallState(prev => ({ ...prev, isScreenSharing: event.screenShareEnabled }))
+      }
+    }
+
+    // Attach event listeners if SDK supports them
+    const self = meeting.self as any
+    if (self && typeof self.on === 'function') {
+      self.on('audioUpdate', handleAudioUpdate)
+      self.on('videoUpdate', handleVideoUpdate)
+      self.on('screenShareUpdate', handleScreenShareUpdate)
+      console.log('[RTK] Audio, video, and screen share event listeners attached')
+    }
+
     // Initial update
     updateParticipantList()
 
-    // Fallback: Also poll every 2 seconds in case events don't fire
-    const intervalId = setInterval(updateParticipantList, 2000)
-
     return () => {
-      clearInterval(intervalId)
       const joined = meeting.participants?.joined as any
       if (typeof joined?.off === 'function') {
         joined.off('participantJoined', handleParticipantJoined)
         joined.off('participantLeft', handleParticipantLeft)
+      }
+
+      // Remove event listeners
+      const self = meeting.self as any
+      if (self && typeof self.off === 'function') {
+        try {
+          self.off('audioUpdate', handleAudioUpdate)
+          self.off('videoUpdate', handleVideoUpdate)
+          self.off('screenShareUpdate', handleScreenShareUpdate)
+        } catch {
+          // Ignore - SDK will handle cleanup
+        }
       }
     }
   }, [meeting, callState.status, localStream, currentUser])
@@ -1384,7 +1640,7 @@ export const useRealtimeKitGroupCall = ({
     incomingInvite,
     activeConversationCalls,
     startCall,
-    joinCall,
+    joinCall: joinCallWrapper,
     acceptInvite,
     declineInvite,
     leaveCall,

@@ -10,7 +10,7 @@ import { GroupWebRTCClient, GroupCallParticipant, VideoQuality } from '../servic
 import { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import { ChatApiClient } from '../services/chatApiClient'
 import { BackgroundProcessor } from '../services/backgroundProcessor'
-import { globalCallManager } from '../services/globalCallManager'
+import { globalCallManager, type GlobalCallState } from '../services/globalCallManager'
 import type { CallParticipant, CallType } from '../services/webrtcClient'
 
 export interface UseGroupCallOptions {
@@ -44,6 +44,7 @@ export interface GroupCallUIState {
   backgroundEnabled: boolean
   startTime: number | null
   duration: number
+  callImplementation: 'mesh' | 'realtime-kit' | '1-on-1' // Track which implementation is used
 }
 
 export interface ActiveConversationCall {
@@ -147,6 +148,7 @@ const initialCallState: GroupCallUIState = {
   participants: [],
   hostId: null,
   isMuted: false,
+  callImplementation: 'mesh',
   isVideoEnabled: true,
   isScreenSharing: false,
   isMinimized: false,
@@ -277,7 +279,35 @@ export const useGroupCall = ({
       webrtcRef.current = storedData.webrtcClient
 
       // Restore state - set isMinimized to false since Chat is handling it now
-      const restoredState = { ...storedData.callState, isMinimized: false }
+      // Convert GlobalCallState back to GroupCallUIState
+      // Map GlobalCallState status to GroupCallUIState status (GlobalCallState doesn't have 'reconnecting' or 'ended')
+      const globalStatus = storedData.callState.status as 'idle' | 'joining' | 'connected'
+      let uiStatus: 'idle' | 'joining' | 'connected' | 'reconnecting' | 'ended'
+      if (globalStatus === 'idle') {
+        uiStatus = 'idle'
+      } else if (globalStatus === 'joining') {
+        uiStatus = 'joining'
+      } else {
+        // TypeScript knows this must be 'connected' at this point
+        uiStatus = 'connected' // 'connected' is the only other option in GlobalCallState
+      }
+
+      const restoredState: GroupCallUIState = {
+        roomId: storedData.callState.roomId,
+        callType: storedData.callState.callType,
+        status: uiStatus,
+        participants: storedData.participants || [],
+        hostId: storedData.callState.hostId,
+        isMuted: storedData.callState.isMuted,
+        isVideoEnabled: storedData.callState.isVideoEnabled,
+        isScreenSharing: storedData.callState.isScreenSharing,
+        isMinimized: false, // Chat is handling it now
+        videoQuality: storedData.callState.videoQuality,
+        backgroundEnabled: storedData.callState.backgroundEnabled,
+        startTime: storedData.callState.startTime,
+        duration: storedData.callState.duration,
+        callImplementation: storedData.callState.callImplementation || 'mesh'
+      }
       setCallState(restoredState)
       setLocalStream(storedData.localStream)
       setRemoteStreams(new Map(storedData.remoteStreams))
@@ -309,8 +339,35 @@ export const useGroupCall = ({
         // Restore refs
         webrtcRef.current = storedData.webrtcClient
 
-        // Restore state
-        const restoredState = { ...storedData.callState, isMinimized: false }
+        // Restore state - convert GlobalCallState back to GroupCallUIState
+        // Map GlobalCallState status to GroupCallUIState status (GlobalCallState doesn't have 'reconnecting' or 'ended')
+        const globalStatus = storedData.callState.status as 'idle' | 'joining' | 'connected'
+        let uiStatus: 'idle' | 'joining' | 'connected' | 'reconnecting' | 'ended'
+        if (globalStatus === 'idle') {
+          uiStatus = 'idle'
+        } else if (globalStatus === 'joining') {
+          uiStatus = 'joining'
+        } else {
+          // TypeScript knows this must be 'connected' at this point
+          uiStatus = 'connected' // 'connected' is the only other option in GlobalCallState
+        }
+
+        const restoredState: GroupCallUIState = {
+          roomId: storedData.callState.roomId,
+          callType: storedData.callState.callType,
+          status: uiStatus,
+          participants: storedData.participants || [],
+          hostId: storedData.callState.hostId,
+          isMuted: storedData.callState.isMuted,
+          isVideoEnabled: storedData.callState.isVideoEnabled,
+          isScreenSharing: storedData.callState.isScreenSharing,
+          isMinimized: false, // Chat is handling it now
+          videoQuality: storedData.callState.videoQuality,
+          backgroundEnabled: storedData.callState.backgroundEnabled,
+          startTime: storedData.callState.startTime,
+          duration: storedData.callState.duration,
+          callImplementation: storedData.callState.callImplementation || 'mesh'
+        }
         setCallState(restoredState)
         setLocalStream(storedData.localStream)
         setRemoteStreams(new Map(storedData.remoteStreams))
@@ -1203,10 +1260,40 @@ export const useGroupCall = ({
   useEffect(() => {
     if (callState.isMinimized && callState.status !== 'idle' && webrtcRef.current && wsClientRef.current) {
       console.debug('useGroupCall: Storing call data in global manager')
+      // Convert GroupCallUIState to GlobalCallState
+      // Map GroupCallUIState status to GlobalCallState status (GlobalCallState doesn't support 'reconnecting' or 'ended')
+      const uiStatus = callState.status as 'idle' | 'joining' | 'connected' | 'reconnecting' | 'ended'
+      let globalStatus: 'idle' | 'joining' | 'connected'
+      if (uiStatus === 'idle') {
+        globalStatus = 'idle'
+      } else if (uiStatus === 'joining') {
+        globalStatus = 'joining'
+      } else if (uiStatus === 'ended') {
+        globalStatus = 'idle' // Map 'ended' to 'idle'
+      } else {
+        // TypeScript knows this must be 'connected' or 'reconnecting' at this point
+        globalStatus = 'connected' // 'connected', 'reconnecting' both map to 'connected'
+      }
+
+      const globalCallState: GlobalCallState = {
+        status: globalStatus,
+        roomId: callState.roomId,
+        callType: callState.callType,
+        callImplementation: callState.callImplementation || 'mesh',
+        hostId: callState.hostId,
+        isMuted: callState.isMuted,
+        isVideoEnabled: callState.isVideoEnabled,
+        isScreenSharing: callState.isScreenSharing,
+        isMinimized: callState.isMinimized,
+        duration: callState.duration,
+        videoQuality: callState.videoQuality,
+        backgroundEnabled: callState.backgroundEnabled,
+        startTime: callState.startTime
+      }
       globalCallManager.storeCall({
         webrtcClient: webrtcRef.current,
         wsClient: wsClientRef.current,
-        callState: callState,
+        callState: globalCallState,
         localStream,
         remoteStreams: new Map(remoteStreams), // Clone the Map
         participants: [...participants], // Clone the array
@@ -1239,10 +1326,53 @@ export const useGroupCall = ({
 
         // Store final state before unmount
         if (webrtcRef.current && wsClientRef.current) {
+          // Convert GroupCallUIState to GlobalCallState
+          // Map GroupCallUIState status to GlobalCallState status (GlobalCallState doesn't support 'reconnecting' or 'ended')
+          // Use type assertion to preserve full union type and avoid narrowing issues
+          const currentStatus = callStateRef.current.status as
+            | 'idle'
+            | 'joining'
+            | 'connected'
+            | 'reconnecting'
+            | 'ended'
+          let globalStatus: 'idle' | 'joining' | 'connected'
+          // Use switch to avoid TypeScript narrowing issues with if/else chains
+          switch (currentStatus) {
+            case 'idle':
+              globalStatus = 'idle'
+              break
+            case 'joining':
+              globalStatus = 'joining'
+              break
+            case 'ended':
+              globalStatus = 'idle' // Map 'ended' to 'idle'
+              break
+            case 'connected':
+            case 'reconnecting':
+            default:
+              globalStatus = 'connected' // 'connected', 'reconnecting' both map to 'connected'
+              break
+          }
+
+          const globalCallState: GlobalCallState = {
+            status: globalStatus,
+            roomId: callStateRef.current.roomId,
+            callType: callStateRef.current.callType,
+            callImplementation: callStateRef.current.callImplementation || 'mesh',
+            hostId: callStateRef.current.hostId,
+            isMuted: callStateRef.current.isMuted,
+            isVideoEnabled: callStateRef.current.isVideoEnabled,
+            isScreenSharing: callStateRef.current.isScreenSharing,
+            isMinimized: callStateRef.current.isMinimized,
+            duration: callStateRef.current.duration,
+            videoQuality: callStateRef.current.videoQuality,
+            backgroundEnabled: callStateRef.current.backgroundEnabled,
+            startTime: callStateRef.current.startTime
+          }
           globalCallManager.storeCall({
             webrtcClient: webrtcRef.current,
             wsClient: wsClientRef.current,
-            callState: callStateRef.current,
+            callState: globalCallState,
             localStream: localStreamRef.current,
             remoteStreams: new Map(remoteStreamsRef.current),
             participants: [...participantsRef.current],

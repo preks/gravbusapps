@@ -521,7 +521,9 @@ const ChatInner: React.FC<ChatProps> = memo(
           'conversationId:',
           activeConversation.id
         )
-        joinGroupCall(existingCall.roomId, callType, activeConversation.id)
+        // Pass undefined for initialParticipants - conversationId is handled internally by the hook
+        // The hook will find conversationId from activeConversationCalls using roomId
+        joinGroupCall(existingCall.roomId, callType, undefined)
       } else {
         // Get all participants including current user
         const callParticipants: CallParticipant[] =
