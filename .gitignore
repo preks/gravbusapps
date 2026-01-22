@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
 changed-tsx.txt
 
 # Generated Cursor rules (synced from @newwork/cursor-rules)
