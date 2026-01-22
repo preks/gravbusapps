@@ -56,11 +56,6 @@ definitions:
         files:
           - package-lock.json
       path: ~/.npm
-    nodecustom:
-      key:
-        files:
-          - package-lock.json
-      path: ./node_modules
 
   steps:
     - step: &check-hash-file-change
@@ -106,7 +101,6 @@ definitions:
           depth: full
         caches:
           - npm
-          - nodecustom
         script:
           - set -e
           - echo $NEWWORK_NMP_CREDENTIALS | base64 -d > ~/.npmrc
@@ -116,6 +110,7 @@ definitions:
             # Pre-install native dependencies to avoid rebuilds later
             npm install @rollup/rollup-linux-x64-gnu lightningcss-linux-x64-gnu --ignore-scripts=true || true
         artifacts:
+          - node_modules/**
           - pipeline/scripts/**
           - envs/**
 
@@ -147,8 +142,6 @@ definitions:
         clone:
           enabled: true
           depth: full
-        caches:
-          - nodecustom
         services:
           - docker
         script:
@@ -165,8 +158,6 @@ definitions:
         clone:
           enabled: true
           depth: full
-        caches:
-          - nodecustom
         services:
           - docker
         script:
@@ -192,8 +183,6 @@ definitions:
         clone:
           enabled: true
           depth: full
-        caches:
-          - nodecustom
         services:
           - docker
         script:
@@ -211,8 +200,6 @@ definitions:
         clone:
           enabled: true
           depth: full
-        caches:
-          - nodecustom
         services:
           - docker
         script:
@@ -242,8 +229,6 @@ definitions:
         clone:
           enabled: true
           depth: full
-        caches:
-          - nodecustom
         services:
           - docker
         script:
@@ -273,8 +258,6 @@ definitions:
         clone:
           enabled: true
           depth: full # SonarCloud scanner needs the full history to assign issues properly
-        caches:
-          - nodecustom
         services:
           - docker-large
         script:
@@ -292,8 +275,6 @@ definitions:
         clone:
           enabled: true
           depth: full # SonarCloud scanner needs the full history to assign issues properly
-        caches:
-          - nodecustom
         services:
           - docker-large
         script:
@@ -409,8 +390,6 @@ pipelines:
             enabled: true
             depth: full
           size: 2x
-          caches:
-            - nodecustom
           script:
             - echo "🔧 Calculating hashes for $HASH_ENV environment"
             - |
