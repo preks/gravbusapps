@@ -251,6 +251,18 @@ call-reconnect = Reconectare
 call-retrying = Se reîncearcă...
 call-waitingForParticipants = Se așteaptă participanții...
 
+# Group Call
+groupCall-title = Apel de grup
+groupCall-participants = participanți
+groupCall-audioOnly = Doar audio
+groupCall-minimize = Minimizează apelul
+groupCall-waitingForParticipants = Se așteaptă participanții...
+groupCall-unmute = Activează sunetul
+groupCall-mute = Dezactivează sunetul
+groupCall-turnOnVideo = Pornește camera
+groupCall-turnOffVideo = Oprește camera
+groupCall-endCall = Termină apelul
+
 # Notifications
 notifications-title = Notificări
 notifications-empty = Nu există notificări momentan

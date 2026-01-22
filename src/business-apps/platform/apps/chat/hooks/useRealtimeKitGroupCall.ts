@@ -1034,14 +1034,15 @@ export const useRealtimeKitGroupCall = ({
     ])
   }, [callState.status, participants.length])
 
-  // Recreate localStream whenever SDK tracks OR enabled states change (like the simple test)
+  // Recreate localStream whenever SDK tracks change (not enabled states)
+  // Enabled states (mute/unmute) don't require stream recreation - tracks are same objects
   useEffect(() => {
     if (!meeting?.self) return
 
     const videoTrack = meeting.self.videoTrack
     const audioTrack = meeting.self.audioTrack
 
-    console.log('[RTK] SDK tracks/enabled changed, recreating localStream:', {
+    console.log('[RTK] SDK tracks changed, recreating localStream:', {
       hasVideo: !!videoTrack,
       hasAudio: !!audioTrack,
       videoEnabled: meeting.self.videoEnabled,
@@ -1053,7 +1054,7 @@ export const useRealtimeKitGroupCall = ({
     if (audioTrack) newStream.addTrack(audioTrack)
 
     setLocalStream(newStream)
-  }, [meeting?.self?.videoTrack, meeting?.self?.audioTrack, meeting?.self?.videoEnabled, meeting?.self?.audioEnabled])
+  }, [meeting?.self?.videoTrack, meeting?.self?.audioTrack])
 
   // Subscribe to remote participants from SDK (event-driven)
   useEffect(() => {

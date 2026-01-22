@@ -1800,6 +1800,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                 getConnectionDiagnostics={getGroupConnectionDiagnostics}
                 accessToken={accessToken}
                 currentUserId={currentUser?.id || null}
+                conversationName={activeConversation?.name}
               />
             </RealtimeKitProvider>
           ) : (

@@ -52,6 +52,7 @@ interface GroupCallModalRtkProps {
   getConnectionDiagnostics?: () => Map<string, any>
   accessToken?: string
   currentUserId?: string | null
+  conversationName?: string
 }
 
 // Format duration as MM:SS or HH:MM:SS
@@ -203,13 +204,13 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   onToggleVideo,
   onToggleScreenShare,
   onToggleMinimize,
-  prefixDataTestId = 'rtk-group-call'
+  prefixDataTestId = 'rtk-group-call',
+  conversationName
 }) => {
   const t = useChatTranslation()
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
   const screenShareVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
-  const [showDebugInfo, setShowDebugInfo] = useState(false)
   const [focusedScreenShareId, setFocusedScreenShareId] = useState<string | null>(null)
   const [expandedScreenShare, setExpandedScreenShare] = useState<{
     peerId: string
@@ -896,12 +897,10 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
         className="gba:max-w-6xl gba:h-[80vh] gba:p-0 gba:overflow-hidden"
         data-testid={`${prefixDataTestId}-modal`}
       >
-        <DialogTitle className="gba:sr-only">
-          {t('chat-groupCall') || 'Group Call'} - Cloudflare Realtime Kit
-        </DialogTitle>
+        <DialogTitle className="gba:sr-only">{conversationName || t('chat-groupCall') || 'Group Call'}</DialogTitle>
         <DialogDescription className="gba:sr-only">
-          {callState.callType === 'video' ? t('chat-videoCall') : t('chat-audioCall')} with {participants.length}{' '}
-          {participants.length === 1 ? 'participant' : 'participants'}
+          {callState.callType === 'video' ? t('chat-videoCall') : t('chat-audioCall')} with {remotePeers.length + 1}{' '}
+          {remotePeers.length + 1 === 1 ? 'participant' : 'participants'}
         </DialogDescription>
         <div className="gba:flex gba:flex-col gba:h-full gba:bg-background">
           {/* Header */}
@@ -910,10 +909,12 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
               <Users className="gba:w-5 gba:h-5 gba:text-muted-foreground" />
               <div>
                 <h3 className="gba:font-semibold">
-                  {t('groupCall.title')} {callState.callType === 'audio' && `(${t('groupCall.audioOnly')})`}
+                  {conversationName || t('groupCall-title') || 'Group Call'}{' '}
+                  {callState.callType === 'audio' && `(${t('groupCall-audioOnly')})`}
                 </h3>
                 <p className="gba:text-sm gba:text-muted-foreground">
-                  {formatDuration(callState.duration)} • {participants.length} {t('groupCall.participants')}
+                  {formatDuration(callState.duration)} • {remotePeers.length + 1}{' '}
+                  {t('groupCall-participants') || 'participants'}
                 </p>
               </div>
             </div>
@@ -924,28 +925,13 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                   onClick={onToggleMinimize}
                   className="gba:p-2 gba:rounded-lg hover:gba:bg-accent"
                   data-testid={`${prefixDataTestId}-minimize-btn`}
-                  aria-label={t('groupCall.minimize')}
+                  aria-label={t('groupCall-minimize')}
                 >
                   <Minimize2 className="gba:w-5 gba:h-5" />
                 </button>
               )}
-
-              <button
-                onClick={() => setShowDebugInfo(!showDebugInfo)}
-                className="gba:px-3 gba:py-1 gba:text-xs gba:rounded gba:bg-accent"
-              >
-                RTK
-              </button>
             </div>
           </div>
-
-          {/* Debug Info */}
-          {showDebugInfo && (
-            <div className="gba:p-2 gba:bg-info-secondary gba:text-xs gba:text-info-secondary-foreground">
-              <strong>Cloudflare Realtime Kit</strong> • SFU Architecture • Meeting ID:{' '}
-              {callState.roomId?.substring(0, 8)}...
-            </div>
-          )}
 
           {/* Main Content Area - Unified Grid Layout */}
           <div className="gba:flex-1 gba:p-4 gba:bg-muted/30 gba:overflow-hidden">
@@ -953,7 +939,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
               <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:rounded-lg gba:bg-muted gba:text-muted-foreground">
                 <div className="gba:text-center">
                   <Users className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-2" />
-                  <p>{t('groupCall.waitingForParticipants')}</p>
+                  <p>{t('groupCall-waitingForParticipants')}</p>
                 </div>
               </div>
             ) : (
@@ -1119,7 +1105,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                   : 'gba:bg-accent hover:gba:bg-accent/80'
               }`}
               data-testid={`${prefixDataTestId}-mute-btn`}
-              aria-label={callState.isMuted ? t('groupCall.unmute') : t('groupCall.mute')}
+              aria-label={callState.isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
             >
               {callState.isMuted ? <MicOff className="gba:w-6 gba:h-6" /> : <Mic className="gba:w-6 gba:h-6" />}
             </button>
@@ -1134,7 +1120,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                     : 'gba:bg-accent hover:gba:bg-accent/80'
                 }`}
                 data-testid={`${prefixDataTestId}-video-btn`}
-                aria-label={callState.isVideoEnabled ? t('groupCall.turnOffVideo') : t('groupCall.turnOnVideo')}
+                aria-label={callState.isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
               >
                 {callState.isVideoEnabled ? (
                   <Video className="gba:w-6 gba:h-6" />
@@ -1174,7 +1160,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
               onClick={onEndCall}
               className="gba:p-4 gba:rounded-full gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90 gba:transition-colors"
               data-testid={`${prefixDataTestId}-end-btn`}
-              aria-label={t('groupCall.endCall')}
+              aria-label={t('groupCall-endCall')}
             >
               <PhoneOff className="gba:w-6 gba:h-6" />
             </button>

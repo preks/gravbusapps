@@ -251,6 +251,18 @@ call-reconnect = Erneut verbinden
 call-retrying = Wird wiederholt...
 call-waitingForParticipants = Warte auf Teilnehmer...
 
+# Group Call
+groupCall-title = Gruppenanruf
+groupCall-participants = Teilnehmer
+groupCall-audioOnly = Nur Audio
+groupCall-minimize = Anruf minimieren
+groupCall-waitingForParticipants = Warte auf Teilnehmer...
+groupCall-unmute = Stummschaltung aufheben
+groupCall-mute = Stummschalten
+groupCall-turnOnVideo = Kamera einschalten
+groupCall-turnOffVideo = Kamera ausschalten
+groupCall-endCall = Anruf beenden
+
 # Notifications
 notifications-title = Benachrichtigungen
 notifications-empty = Derzeit keine Benachrichtigungen
