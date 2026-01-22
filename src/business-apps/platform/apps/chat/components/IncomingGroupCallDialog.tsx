@@ -2,6 +2,8 @@ import React, { useEffect, useState, memo } from 'react'
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
+  DialogDescription,
   Button,
   Avatar,
   AvatarImage,
@@ -116,6 +118,10 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
           onPointerDownOutside={e => e.preventDefault()}
           onEscapeKeyDown={e => e.preventDefault()}
         >
+          <DialogTitle className="gba:sr-only">{t('chat-incomingGroupCall') || 'Incoming Group Call'}</DialogTitle>
+          <DialogDescription className="gba:sr-only">
+            {callerName} {t('chat-isCallingYou') || 'is calling you'} to join {groupName}
+          </DialogDescription>
           <div className="gba:flex gba:flex-col gba:items-center gba:py-8 gba:px-6">
             {/* Call Type Indicator */}
             <div className="gba:flex gba:items-center gba:gap-2 gba:text-gray-400 gba:text-sm gba:mb-6">
