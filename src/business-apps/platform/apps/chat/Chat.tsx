@@ -502,9 +502,26 @@ const ChatInner: React.FC<ChatProps> = memo(
       const existingCall = activeCalls[activeConversation.id]
       const shouldJoinExisting = isJoiningExisting || !!existingCall
 
+      console.log('[CHAT] handleGroupCall check:', {
+        conversationId: activeConversation.id,
+        existingCall,
+        activeCalls,
+        shouldJoinExisting
+      })
+
       if (shouldJoinExisting) {
-        // Join the existing call without ringing everyone
-        joinGroupCall(activeConversation.id, callType)
+        // Join the existing call using the roomId (meetingId) from activeCalls
+        if (!existingCall?.roomId) {
+          console.error('[CHAT] Cannot join - no roomId in existingCall!')
+          return
+        }
+        console.log(
+          '[CHAT] Joining existing call with roomId:',
+          existingCall.roomId,
+          'conversationId:',
+          activeConversation.id
+        )
+        joinGroupCall(existingCall.roomId, callType, activeConversation.id)
       } else {
         // Get all participants including current user
         const callParticipants: CallParticipant[] =

@@ -121,6 +121,8 @@ export const useRealtimeKitGroupCall = ({
   const meetingIdRef = useRef<string | null>(null)
   const startTimeRef = useRef<number | null>(null)
   const durationTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const callStateRoomIdRef = useRef<string | null>(null)
+  const isInCallRef = useRef<boolean>(false)
 
   // Helper to emit WebSocket events
   const emitSocketEvent = useCallback(
@@ -136,6 +138,10 @@ export const useRealtimeKitGroupCall = ({
   // Computed
   const isInCall = callState.status === 'connected' || callState.status === 'reconnecting'
   const isHost = currentUser ? callState.hostId === currentUser.id : false
+
+  // Keep refs in sync with state
+  callStateRoomIdRef.current = callState.roomId
+  isInCallRef.current = isInCall
 
   /**
    * Start a new group call (host)
@@ -289,6 +295,7 @@ export const useRealtimeKitGroupCall = ({
         setLocalStream(stream)
 
         // Update state
+        // Use current time as temp start time (will be overwritten by conversation:call-started event)
         startTimeRef.current = Date.now()
         setCallState({
           roomId: meetingId,
@@ -341,9 +348,21 @@ export const useRealtimeKitGroupCall = ({
 
         // Start duration timer
         durationTimerRef.current = setInterval(() => {
+          const currentTime = Date.now()
+          const startTime = startTimeRef.current || currentTime
+          const duration = Math.floor((currentTime - startTime) / 1000)
+          if (duration % 5 === 0) {
+            // Log every 5 seconds
+            console.log('[RTK] ⏱️ Duration timer tick (HOST):', {
+              duration,
+              startTime,
+              currentTime,
+              diff: (currentTime - startTime) / 1000
+            })
+          }
           setCallState(prev => ({
             ...prev,
-            duration: Math.floor((Date.now() - (startTimeRef.current || Date.now())) / 1000)
+            duration
           }))
         }, 1000)
 
@@ -362,14 +381,14 @@ export const useRealtimeKitGroupCall = ({
    * Join an existing call (participant)
    */
   const joinCall = useCallback(
-    async (roomId: string, callType: CallType): Promise<void> => {
+    async (roomId: string, callType: CallType, conversationId?: string): Promise<void> => {
       if (!currentUser || !apiClient) {
         console.error('[RTK] Cannot join call: missing requirements')
         return
       }
 
       try {
-        console.log('[RTK] Joining Realtime Kit group call with SDK...', { roomId })
+        console.log('[RTK] Joining Realtime Kit group call with SDK...', { roomId, conversationId })
         console.log('[RTK] Current user (PARTICIPANT):', {
           id: currentUser.id,
           odId: currentUser.odId,
@@ -508,7 +527,32 @@ export const useRealtimeKitGroupCall = ({
         setLocalStream(stream)
 
         // Update state
-        startTimeRef.current = Date.now()
+        // Try to get global startedAt from activeConversationCalls using conversationId
+        const callInfo = conversationId ? activeConversationCalls.get(conversationId) : null
+        console.log('[RTK] 🔍 Looking for call info in activeConversationCalls:', {
+          conversationId,
+          roomId,
+          hasConversationId: !!conversationId,
+          activeConversationCallsSize: activeConversationCalls.size,
+          activeConversationCallsKeys: Array.from(activeConversationCalls.keys()),
+          foundCallInfo: !!callInfo,
+          callInfoStartedAt: callInfo?.startedAt
+        })
+
+        const globalStartTime = callInfo?.startedAt ? new Date(callInfo.startedAt).getTime() : Date.now()
+        startTimeRef.current = globalStartTime
+        console.log('[RTK] ⏱️ Join call timer setup:', {
+          roomId,
+          conversationId,
+          hasCallInfo: !!callInfo,
+          startedAt: callInfo?.startedAt,
+          startedAtType: callInfo?.startedAt ? typeof callInfo.startedAt : null,
+          globalStartTime,
+          now: Date.now(),
+          diff: callInfo?.startedAt ? (Date.now() - globalStartTime) / 1000 : 0,
+          willUseGlobal: !!callInfo?.startedAt
+        })
+
         setCallState(prev => ({
           ...prev,
           roomId,
@@ -539,9 +583,21 @@ export const useRealtimeKitGroupCall = ({
 
         // Start duration timer
         durationTimerRef.current = setInterval(() => {
+          const currentTime = Date.now()
+          const startTime = startTimeRef.current || currentTime
+          const duration = Math.floor((currentTime - startTime) / 1000)
+          if (duration % 5 === 0) {
+            // Log every 5 seconds
+            console.log('[RTK] ⏱️ Duration timer tick (PARTICIPANT):', {
+              duration,
+              startTime,
+              currentTime,
+              diff: (currentTime - startTime) / 1000
+            })
+          }
           setCallState(prev => ({
             ...prev,
-            duration: Math.floor((Date.now() - (startTimeRef.current || Date.now())) / 1000)
+            duration
           }))
         }, 1000)
 
@@ -551,7 +607,7 @@ export const useRealtimeKitGroupCall = ({
         setCallState(initialCallState)
       }
     },
-    [currentUser, apiClient, initMeeting, meeting, emitSocketEvent]
+    [currentUser, apiClient, initMeeting, meeting, emitSocketEvent, activeConversationCalls]
   )
 
   /**
@@ -583,6 +639,11 @@ export const useRealtimeKitGroupCall = ({
     }
 
     console.log('[RTK] Leaving call via SDK...')
+    console.log('[RTK] Leave call state:', {
+      roomId: callState.roomId,
+      meetingIdRef: meetingIdRef.current,
+      currentUserId: currentUser?.id
+    })
 
     try {
       // 1. Leave via Cloudflare SDK
@@ -601,11 +662,13 @@ export const useRealtimeKitGroupCall = ({
 
     // 3. Notify via WebSocket that participant left
     if (callState.roomId && currentUser) {
-      emitSocketEvent('rtk-group-call:left', {
+      const leaveEventData = {
         conversationId: callState.roomId,
-        meetingId: callState.roomId,
+        meetingId: meetingIdRef.current || callState.roomId,
         participantId: currentUser.id
-      })
+      }
+      console.log('[RTK] 📤 Sending rtk-group-call:participant-left:', leaveEventData)
+      emitSocketEvent('rtk-group-call:participant-left', leaveEventData)
     }
 
     // 4. Clean up
@@ -1091,10 +1154,9 @@ export const useRealtimeKitGroupCall = ({
       }
 
       // Also ignore if we're in ANY call (prevents modal from showing)
-      if (callState.status !== 'idle' && callState.roomId) {
+      if (callStateRoomIdRef.current) {
         console.log('[RTK] Ignoring invite - already in another call', {
-          currentStatus: callState.status,
-          currentRoomId: callState.roomId
+          currentRoomId: callStateRoomIdRef.current
         })
         return
       }
@@ -1110,7 +1172,7 @@ export const useRealtimeKitGroupCall = ({
     const handleCallEnded = (data: { meetingId: string; conversationId: string }) => {
       console.log('[RTK] Call ended by host', data)
 
-      if (callState.roomId === data.meetingId) {
+      if (callStateRoomIdRef.current === data.meetingId) {
         leaveCall()
       }
     }
@@ -1121,11 +1183,16 @@ export const useRealtimeKitGroupCall = ({
       callType: 'audio' | 'video'
       startedBy: { id: string; odId: string; odName: string; avatarUrl?: string }
       participantIds: string[]
+      startedAt?: Date | string
     }) => {
       console.log('[RTK] 📞 Conversation call started/updated:', {
         conversationId: data.conversationId,
+        roomId: data.roomId,
         participantCount: data.participantIds.length,
-        participantIds: data.participantIds
+        participantIds: data.participantIds,
+        startedAt: data.startedAt,
+        startedAtType: typeof data.startedAt,
+        startedAtValue: data.startedAt ? new Date(data.startedAt).toISOString() : null
       })
 
       setActiveConversationCalls(prev => {
@@ -1134,10 +1201,62 @@ export const useRealtimeKitGroupCall = ({
           roomId: data.roomId,
           callType: data.callType,
           participantIds: data.participantIds,
-          startedBy: data.startedBy.id
+          startedBy: data.startedBy.id,
+          startedAt: data.startedAt
         })
         return newMap
       })
+
+      /**
+       * Global Call Timer Synchronization
+       *
+       * Update startTimeRef with the global call start time from backend.
+       * This ensures all participants see the same call duration, matching
+       * behavior in MS Teams, Slack, Zoom (global timer, not per-user).
+       *
+       * Sync timer if:
+       * 1. Backend provided a startedAt timestamp
+       * 2. Either this is for the current active call OR we're not in a call yet (event arrived early)
+       * 3. We don't already have a more accurate local start time
+       */
+      const currentRoomId = callStateRoomIdRef.current
+      const currentlyInCall = isInCallRef.current
+
+      console.log('[RTK] ⏱️ Timer sync check:', {
+        dataRoomId: data.roomId,
+        currentRoomId,
+        matches: data.roomId === currentRoomId,
+        hasStartedAt: !!data.startedAt,
+        currentStartTime: startTimeRef.current,
+        isInCall: currentlyInCall
+      })
+
+      // Sync timer if we have startedAt and either:
+      // - This is for the current call (roomId matches), OR
+      // - We're not in a call yet (event arrived before joinCall/startCall completed)
+      if (data.startedAt && (data.roomId === currentRoomId || !currentlyInCall)) {
+        const globalStartTime = new Date(data.startedAt).getTime()
+        // Only update if we don't have a start time yet or if backend time is earlier
+        if (!startTimeRef.current || globalStartTime < startTimeRef.current) {
+          console.log('[RTK] ⏱️ ✅ Syncing to global call timer:', {
+            previousStartTime: startTimeRef.current,
+            globalStartTime,
+            diff: startTimeRef.current ? (startTimeRef.current - globalStartTime) / 1000 : 0,
+            reason: data.roomId === callState.roomId ? 'roomId matches' : 'not in call yet (early event)'
+          })
+          startTimeRef.current = globalStartTime
+        } else {
+          console.log('[RTK] ⏱️ ⏭️ Skipping timer sync (already have earlier time):', {
+            currentStartTime: startTimeRef.current,
+            globalStartTime
+          })
+        }
+      } else if (data.startedAt && data.roomId !== currentRoomId && currentlyInCall) {
+        console.log('[RTK] ⏱️ ⚠️ Timer sync skipped - different roomId:', {
+          eventRoomId: data.roomId,
+          currentRoomId
+        })
+      }
     }
 
     const handleConversationCallEnded = (data: { conversationId: string; roomId: string }) => {
@@ -1168,7 +1287,61 @@ export const useRealtimeKitGroupCall = ({
       socket.off('conversation:call-started', handleConversationCallStarted)
       socket.off('conversation:call-ended', handleConversationCallEnded)
     }
-  }, [wsClient, callState.roomId, leaveCall])
+  }, [wsClient, leaveCall])
+
+  /**
+   * Sync timer when callState.roomId is set and we have activeConversationCalls data
+   * This handles the case where conversation:call-started event arrived before joinCall/startCall completed
+   */
+  useEffect(() => {
+    if (!callState.roomId || !isInCall) return
+
+    // Find the call info by roomId (meetingId) in activeConversationCalls
+    for (const [conversationId, callInfo] of activeConversationCalls.entries()) {
+      if (callInfo.roomId === callState.roomId && callInfo.startedAt) {
+        const globalStartTime = new Date(callInfo.startedAt).getTime()
+        // Only update if we don't have a start time yet or if backend time is earlier
+        if (!startTimeRef.current || globalStartTime < startTimeRef.current) {
+          console.log('[RTK] ⏱️ 🔄 Syncing timer from activeConversationCalls:', {
+            conversationId,
+            roomId: callState.roomId,
+            previousStartTime: startTimeRef.current,
+            globalStartTime,
+            diff: startTimeRef.current ? (startTimeRef.current - globalStartTime) / 1000 : 0
+          })
+          startTimeRef.current = globalStartTime
+        }
+        break
+      }
+    }
+  }, [callState.roomId, isInCall, activeConversationCalls])
+
+  /**
+   * Sync timer when activeConversationCalls updates (event arrived)
+   * This handles the case where event arrives after joinCall/startCall completed
+   */
+  useEffect(() => {
+    if (!callState.roomId || !isInCall) return
+
+    // Find the call info by roomId (meetingId) in activeConversationCalls
+    for (const [conversationId, callInfo] of activeConversationCalls.entries()) {
+      if (callInfo.roomId === callState.roomId && callInfo.startedAt) {
+        const globalStartTime = new Date(callInfo.startedAt).getTime()
+        // Only update if we don't have a start time yet or if backend time is earlier
+        if (!startTimeRef.current || globalStartTime < startTimeRef.current) {
+          console.log('[RTK] ⏱️ 🔄 Syncing timer from activeConversationCalls update:', {
+            conversationId,
+            roomId: callState.roomId,
+            previousStartTime: startTimeRef.current,
+            globalStartTime,
+            diff: startTimeRef.current ? (startTimeRef.current - globalStartTime) / 1000 : 0
+          })
+          startTimeRef.current = globalStartTime
+        }
+        break
+      }
+    }
+  }, [activeConversationCalls, callState.roomId, isInCall])
 
   // Cleanup on unmount
   // Cleanup ONLY on component unmount

@@ -51,6 +51,7 @@ export interface ActiveConversationCall {
   callType: CallType
   participantIds: string[]
   startedBy: string
+  startedAt?: Date | string // Global call start timestamp from backend
 }
 
 export interface PendingInvite {
