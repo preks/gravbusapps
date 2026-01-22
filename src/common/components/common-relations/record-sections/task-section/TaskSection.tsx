@@ -680,6 +680,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
         assignedUserId={getFirstAssignee((tasks || []).find(x => x.id === selectedTask?.id)?.assigneeEmployee)?.userId}
         currentUserId={userInfo?.id}
         businessAppContext={businessAppContext}
+        flowContext={taskEntityActionProps?.contextsArray?.[0]}
       />
 
       {/* DocuSign Modal (from list actions) */}

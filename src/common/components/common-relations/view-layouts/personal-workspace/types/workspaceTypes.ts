@@ -4,6 +4,7 @@
  */
 export interface GenericActivity {
   id: string
+  version?: number
   title: string
   description?: string
   occurredAt?: string
@@ -25,6 +26,7 @@ export interface GenericActivity {
  */
 export interface GenericTask {
   id: string
+  version?: number
   name: string
   description?: string
   createdAt: string

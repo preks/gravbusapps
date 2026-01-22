@@ -70,8 +70,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
     resolver: zodResolver(investmentTaskSchema) as any,
     defaultValues: {
       ...mapToFormValues(task || {}, investmentTaskSchema),
-      // Include dueDate from context if provided (e.g., from calendar quick action)
-      ...(dueDate && !taskId ? { dueDate } : {})
+      // Include dueDate from context if provided (e.g., from calendar quick action or drag & drop)
+      ...(dueDate ? { dueDate } : {})
     } as any,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
@@ -161,6 +161,11 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
         form.setValue('taskAssignees', taskAssigneesArray)
         form.setValue('assignedEmployeeIds', employeeIds)
         form.setValue('assignedEmployees', employees)
+      }
+
+      // Re-apply override dueDate from drag & drop or context (after DB data loads)
+      if (dueDate && task) {
+        form.setValue('dueDate', dueDate)
       }
 
       // Set relatedEntityId and hydrate entity (relatedEntityId is required for form validation)
@@ -343,6 +348,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
           catalogSelectConfig={{
             code: { mode: 'omit', values: ['APPROVAL'] }
           }}
+          // Assignee selection control - hide in update mode (tasks cannot be reassigned)
+          hideAssigneeSelection={!!taskId}
           // Entity search - hide if any entity is set
           showEntitySelection={shouldShowEntitySelection}
           entities={entities}
