@@ -57,6 +57,9 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
   const leadId = additionalData?.leadId || initialParameters?.leadId || null
   const investmentId = additionalData?.investmentId || initialParameters?.investmentId || null
 
+  // Get dueDate from additionalData or initialParameters (for calendar quick actions)
+  const dueDate = additionalData?.dueDate || initialParameters?.dueDate || null
+
   // Extract typeRef from additionalData or initialParameters
   const typeRef = additionalData?.typeRef || initialParameters?.typeRef || null
 
@@ -65,7 +68,11 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
 
   const form = useForm<z.infer<typeof investmentTaskSchema>>({
     resolver: zodResolver(investmentTaskSchema) as any,
-    defaultValues: mapToFormValues(task || {}, investmentTaskSchema) as any,
+    defaultValues: {
+      ...mapToFormValues(task || {}, investmentTaskSchema),
+      // Include dueDate from context if provided (e.g., from calendar quick action or drag & drop)
+      ...(dueDate ? { dueDate } : {})
+    } as any,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
@@ -79,6 +86,19 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
       investmentId: task?.investmentId || investmentId
     }),
     [accountId, contactId, opportunityId, leadId, investmentId, task]
+  )
+
+  // Calculate if entity selection should be shown (no entity context exists)
+  const shouldShowEntitySelection = useMemo(
+    () =>
+      !(
+        relatedEntityIds.accountId ||
+        relatedEntityIds.contactId ||
+        relatedEntityIds.opportunityId ||
+        relatedEntityIds.leadId ||
+        relatedEntityIds.investmentId
+      ),
+    [relatedEntityIds]
   )
 
   // Watch assignedEmployeeIds and sync taskAssignees array
@@ -141,6 +161,11 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
         form.setValue('taskAssignees', taskAssigneesArray)
         form.setValue('assignedEmployeeIds', employeeIds)
         form.setValue('assignedEmployees', employees)
+      }
+
+      // Re-apply override dueDate from drag & drop or context (after DB data loads)
+      if (dueDate && task) {
+        form.setValue('dueDate', dueDate)
       }
 
       // Set relatedEntityId and hydrate entity (relatedEntityId is required for form validation)
@@ -323,16 +348,10 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
           catalogSelectConfig={{
             code: { mode: 'omit', values: ['APPROVAL'] }
           }}
+          // Assignee selection control - hide in update mode (tasks cannot be reassigned)
+          hideAssigneeSelection={!!taskId}
           // Entity search - hide if any entity is set
-          showEntitySelection={
-            !(
-              relatedEntityIds.accountId ||
-              relatedEntityIds.contactId ||
-              relatedEntityIds.opportunityId ||
-              relatedEntityIds.leadId ||
-              relatedEntityIds.investmentId
-            )
-          }
+          showEntitySelection={shouldShowEntitySelection}
           entities={entities}
           entitiesLoading={entitiesLoading}
           entitiesHasMore={entitiesHasMore}

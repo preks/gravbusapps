@@ -17,6 +17,7 @@ import type { InvestmentDocument } from './investmentDocumentTypes'
 import type { InvestmentLead } from './investmentLeadTypes'
 import type { InvestmentOpportunity, InvestmentOpportunityStageCondition } from './investmentOpportunityTypes'
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
+import { toISOFormat } from '@/common/utils/dateFormatter'
 
 /**
  * Investment Task Assignee (NEW - Multiple Assignees Support)
@@ -126,7 +127,7 @@ export const InvestmentTaskFormFields = {
 /**
  * Investment Task Descriptors
  * Uses createTaskDescriptors with InvestmentTaskFields mapping
- * Adds IRM-specific reference field
+ * Adds IRM-specific reference field and investment descriptor
  * NOTE: assignedEmployeeIds filtering handled separately via taskAssignees relationship
  */
 export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
@@ -146,6 +147,19 @@ export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
     ],
     sortPaths: [`${InvestmentTaskFields.source}`],
     type: 'text'
+  },
+  // Add investment descriptor (IRM-specific)
+  {
+    key: 'investment',
+    searchPaths: [`${InvestmentTaskFields.investment}.name`, `${InvestmentTaskFields.investment}.code`],
+    sortPath: `${InvestmentTaskFields.investment}.name`,
+    type: 'text'
+  },
+  // Add investment ID filter
+  {
+    key: 'investmentIds',
+    path: InvestmentTaskFields.investmentId,
+    kind: 'inIds'
   }
 ]
 
@@ -156,6 +170,15 @@ export const INVESTMENT_TASK_DESCRIPTORS: Descriptor[] = [
 export const buildInvestmentTaskPayload = (task: Partial<InvestmentTask> & Record<string, any>) => {
   // Build base payload using buildPayload utility (handles most fields)
   const payload = buildPayload(task, InvestmentTaskFormFields)
+
+  // Convert date strings to ISO format (backend expects java.time.Instant)
+  // This handles dates from calendar quick actions which pass YYYY-MM-DD format
+  const dateFields = ['dueDate', 'startDate', 'endDate', 'templateStartDate'] as const
+  dateFields.forEach(field => {
+    if (payload[field] && typeof payload[field] === 'string') {
+      payload[field] = toISOFormat(payload[field])
+    }
+  })
 
   // Manually construct taskAssignees to preserve assignedUserId field name
   // (buildPayload's transformIdFields would transform assignedUserId → assignedUser, which is wrong)

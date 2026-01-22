@@ -6,16 +6,21 @@ import {
   AddressBookIcon,
   ListChecksIcon,
   DatabaseIcon,
-  FileHtmlIcon
+  FileHtmlIcon,
+  BuildingsIcon,
+  FileTextIcon
 } from '@phosphor-icons/react'
 import { SettingsLayout } from '@/components/layout/settings-layout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import LeadDataPage from './pages/lead-data/LeadDataPage'
-import EngagementDataPage from './pages/engagement-data/EngagementDataPage'
-import PipelineDataPage from './pages/pipeline-data/PipelineDataPage'
+import ActivityDataPage from './pages/activity-data/ActivityDataPage'
+import OpportunityDataPage from './pages/opportunity-data/OpportunityDataPage'
+import AccountDataPage from './pages/account-data/AccountDataPage'
 import InvestmentDataPage from './pages/investment-data/InvestmentDataPage'
+import InvestmentSpecificDataPage from './pages/investment-specific-data/InvestmentSpecificDataPage'
 import TemplateDataPage from './pages/template-data/TemplateDataPage'
 import TaskTemplateDataPage from './pages/task-template-data/TaskTemplateDataPage'
+import DocumentDataPage from './pages/document-data/DocumentDataPage'
 import { FolderTemplateDataPage, ModuleType } from '@/common/components/common-relations/setting-pages/folder-templates'
 
 export interface InvestmentSettingsProps extends BusinessAppContextProps {
@@ -36,7 +41,7 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
   // Handle query parameters on component mount and browser back/forward
   React.useEffect(() => {
     const parseUrlAndSetPage = () => {
-      const urlParams = new URLSearchParams(window.location.search)
+      const urlParams = new URLSearchParams(globalThis.location.search)
       const page = urlParams.get('page')
       const tab = urlParams.get('tab')
 
@@ -55,10 +60,10 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
       parseUrlAndSetPage()
     }
 
-    window.addEventListener('popstate', handlePopState)
+    globalThis.addEventListener('popstate', handlePopState)
 
     return () => {
-      window.removeEventListener('popstate', handlePopState)
+      globalThis.removeEventListener('popstate', handlePopState)
     }
   }, [])
 
@@ -66,7 +71,7 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
   const handleInlinePageChange = (page: { key: string; tab?: string } | null) => {
     setInlinePage(page)
 
-    const newSearchParams = new URLSearchParams(window.location.search)
+    const newSearchParams = new URLSearchParams(globalThis.location.search)
 
     if (page) {
       newSearchParams.set('page', page.key)
@@ -81,23 +86,32 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
     }
 
     // Update URL without page reload
-    const newURL = `${window.location.pathname}${newSearchParams.toString() ? '?' + newSearchParams.toString() : ''}`
-    window.history.replaceState({}, '', newURL)
+    const newURL = `${globalThis.location.pathname}${newSearchParams.toString() ? '?' + newSearchParams.toString() : ''}`
+    globalThis.history.replaceState({}, '', newURL)
   }
 
   const cards = [
     {
       title: t('crm.investment_data', 'Investment Data'),
-      description: t(
-        'crm.investment_data_description',
-        'Configure form fields, record fields, and tile fields for investments'
-      ),
+      description: t('crm.investment_data_description', 'Configure investment form and record fields'),
       icon: DatabaseIcon,
       iconSize: 'md' as const,
       entries: [
         {
           label: t('crm.investment_configuration', 'Investment Configuration'),
           onClick: () => handleInlinePageChange({ key: 'investment-data' })
+        },
+        {
+          label: t('crm.investment_roles', 'Roles'),
+          onClick: () => handleInlinePageChange({ key: 'investment-specific-data', tab: 'roles' })
+        },
+        {
+          label: t('crm.investment_statuses', 'Statuses'),
+          onClick: () => handleInlinePageChange({ key: 'investment-specific-data', tab: 'statuses' })
+        },
+        {
+          label: t('crm.investment_stake_types', 'Stake Types'),
+          onClick: () => handleInlinePageChange({ key: 'investment-specific-data', tab: 'stake-types' })
         }
       ]
     },
@@ -122,14 +136,50 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
       ]
     },
     {
-      title: t('crm.opportunity_pipelines', 'Opportunity Pipelines'),
-      description: t('crm.opportunity_pipelines_description', 'Manage opportunity pipelines and sales processes'),
+      title: t('crm.document_data', 'Document Data'),
+      description: t('crm.document_data_description', 'Manage document groups and types'),
+      icon: FileTextIcon,
+      iconSize: 'md' as const,
+      entries: [
+        {
+          label: t('crm.document_groups_and_types', 'Groups & Types'),
+          onClick: () => handleInlinePageChange({ key: 'document-data' })
+        }
+      ]
+    },
+    {
+      title: t('crm.opportunity_data', 'Opportunity Data'),
+      description: t('crm.opportunity_data_description', 'Manage opportunity pipelines, statuses, and forecasts'),
       icon: FlowArrowIcon,
       iconSize: 'md' as const,
       entries: [
         {
           label: t('crm.pipelines', 'Pipelines'),
-          onClick: () => handleInlinePageChange({ key: 'pipeline' })
+          onClick: () => handleInlinePageChange({ key: 'opportunity-data', tab: 'pipelines' })
+        },
+        {
+          label: t('crm.opportunity_statuses', 'Statuses'),
+          onClick: () => handleInlinePageChange({ key: 'opportunity-data', tab: 'statuses' })
+        },
+        {
+          label: t('crm.opportunity_forecasts', 'Forecasts'),
+          onClick: () => handleInlinePageChange({ key: 'opportunity-data', tab: 'forecasts' })
+        }
+      ]
+    },
+    {
+      title: t('crm.account_data', 'Account Data'),
+      description: t('crm.account_data_description', 'Manage account priorities and types'),
+      icon: BuildingsIcon,
+      iconSize: 'md' as const,
+      entries: [
+        {
+          label: t('crm.account_priorities', 'Priorities'),
+          onClick: () => handleInlinePageChange({ key: 'account-data', tab: 'priorities' })
+        },
+        {
+          label: t('crm.account_types', 'Types'),
+          onClick: () => handleInlinePageChange({ key: 'account-data', tab: 'types' })
         }
       ]
     },
@@ -155,25 +205,21 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
     },
     {
       title: t('crm.engagement_data', 'Engagement Data'),
-      description: t('crm.engagement_description', 'Manage activity types, task types, priorities, and statuses'),
+      description: t('crm.engagement_description', 'Manage activity types, task types, and priorities'),
       icon: ListChecksIcon,
       iconSize: 'md' as const,
       entries: [
         {
           label: t('crm.activity_types', 'Activity Types'),
-          onClick: () => handleInlinePageChange({ key: 'engagement', tab: 'activity-types' })
+          onClick: () => handleInlinePageChange({ key: 'activity', tab: 'activity-types' })
         },
         {
           label: t('crm.task_types', 'Task Types'),
-          onClick: () => handleInlinePageChange({ key: 'engagement', tab: 'task-types' })
+          onClick: () => handleInlinePageChange({ key: 'activity', tab: 'task-types' })
         },
         {
           label: t('crm.task_priorities', 'Task Priorities'),
-          onClick: () => handleInlinePageChange({ key: 'engagement', tab: 'task-priorities' })
-        },
-        {
-          label: t('crm.task_statuses', 'Task Statuses'),
-          onClick: () => handleInlinePageChange({ key: 'engagement', tab: 'task-statuses' })
+          onClick: () => handleInlinePageChange({ key: 'activity', tab: 'task-priorities' })
         }
       ]
     }
@@ -185,6 +231,18 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
         {...context}
         prefixDataTestId={`${prefixDataTestId || ''}-InvestmentDataSettings`}
         onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'investment-specific-data') {
+    const initialTab = inlinePage.tab as 'roles' | 'statuses' | 'stake-types' | undefined
+    return (
+      <InvestmentSpecificDataPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentSpecificSettings`}
+        onBack={() => handleInlinePageChange(null)}
+        initialTab={initialTab || 'roles'}
       />
     )
   }
@@ -222,22 +280,36 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
     )
   }
 
-  if (inlinePage?.key === 'engagement') {
+  if (inlinePage?.key === 'activity') {
     return (
-      <EngagementDataPage
+      <ActivityDataPage
         {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentEngagementSettings`}
+        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentActivitySettings`}
         onBack={() => handleInlinePageChange(null)}
       />
     )
   }
 
-  if (inlinePage?.key === 'pipeline') {
+  if (inlinePage?.key === 'opportunity-data') {
+    const initialTab = inlinePage.tab as 'pipelines' | 'statuses' | 'forecasts' | undefined
     return (
-      <PipelineDataPage
+      <OpportunityDataPage
         {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentPipelineSettings`}
+        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentOpportunitySettings`}
         onBack={() => handleInlinePageChange(null)}
+        initialTab={initialTab || 'pipelines'}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'account-data') {
+    const initialTab = inlinePage.tab as 'priorities' | 'types' | undefined
+    return (
+      <AccountDataPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentAccountSettings`}
+        onBack={() => handleInlinePageChange(null)}
+        initialTab={initialTab || 'priorities'}
       />
     )
   }
@@ -248,6 +320,16 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
         accessToken={context.accessToken}
         moduleType={ModuleType.IRM}
         prefixDataTestId={`${prefixDataTestId || ''}-InvestmentFolderTemplateSettings`}
+        onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'document-data') {
+    return (
+      <DocumentDataPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentDocumentSettings`}
         onBack={() => handleInlinePageChange(null)}
       />
     )

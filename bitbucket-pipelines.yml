@@ -119,6 +119,9 @@ definitions:
           - 'self.hosted'
           - 'do.global.runner.size1'
         size: 1x
+        clone:
+          enabled: true
+          depth: full
         services:
           - docker
         script:
@@ -135,6 +138,9 @@ definitions:
           - 'self.hosted'
           - 'do.global.runner.size2'
         size: 2x
+        clone:
+          enabled: true
+          depth: full
         caches:
           - nodecustom
         services:
@@ -150,6 +156,9 @@ definitions:
           - 'self.hosted'
           - 'do.global.runner.size2'
         size: 2x
+        clone:
+          enabled: true
+          depth: full
         caches:
           - nodecustom
         services:
@@ -174,6 +183,9 @@ definitions:
           - 'self.hosted'
           - 'do.global.runner.size2'
         size: 2x
+        clone:
+          enabled: true
+          depth: full
         caches:
           - nodecustom
         services:
@@ -190,6 +202,9 @@ definitions:
           - 'self.hosted'
           - 'do.global.runner.size2'
         size: 2x
+        clone:
+          enabled: true
+          depth: full
         caches:
           - nodecustom
         services:
@@ -218,6 +233,9 @@ definitions:
           - 'self.hosted'
           - 'do.global.runner.size2'
         size: 2x
+        clone:
+          enabled: true
+          depth: full
         caches:
           - nodecustom
         services:
@@ -381,6 +399,9 @@ pipelines:
           runs-on:
             - 'self.hosted'
             - 'do.global.runner.size2'
+          clone:
+            enabled: true
+            depth: full
           size: 2x
           caches:
             - nodecustom

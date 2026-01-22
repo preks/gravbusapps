@@ -7,6 +7,7 @@ import 'dayjs/locale/en'
 import 'dayjs/locale/ro'
 import type { CalendarEvent, DateRange } from '../types'
 import { CalendarEventItem } from './CalendarEventItem'
+import { useChatTranslation } from '../../contexts/TranslationContext'
 
 dayjs.extend(localizedFormat)
 
@@ -90,6 +91,7 @@ const getEventPosition = (event: CalendarEvent, dayStart: Date): { top: number; 
 
 export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventClick, onTimeSlotClick }) => {
   const { locale } = useLocale()
+  const t = useChatTranslation()
   const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
   const days = useMemo(() => getDaysInWeek(dateRange.start), [dateRange.start])
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -281,6 +283,7 @@ export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventCl
                       compact={true}
                       height={position.height}
                       onClick={() => onEventClick(event)}
+                      t={t}
                     />
                   </div>
                 )

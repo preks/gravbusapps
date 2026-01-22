@@ -32,6 +32,7 @@ import {
   CalendarPlusIcon,
   ClockCounterClockwiseIcon,
   TextAlignLeftIcon,
+  DotsThreeVerticalIcon,
   Icon as PhosphorIcon
 } from '@phosphor-icons/react'
 import { Task, TaskReference, TaskDocument } from './types'
@@ -53,6 +54,8 @@ import { buildInvestmentTaskFormDataFromTask } from '@/common/components/docusig
 import { useEnvelopeStatusCache } from '@/common/components/docusign/hooks/useEnvelopeStatusCache'
 import { getDocuSignButtonState } from '@/common/components/docusign/utils/docuSignTaskUtils'
 import { computeTaskStatus, formatTaskProgress, getTaskStatusLabel } from '../../utils/taskStatusUtils'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 interface TaskDetailSheetProps {
   task: Task | null
@@ -64,6 +67,7 @@ interface TaskDetailSheetProps {
   assignedUserId?: string
   currentUserId?: string
   businessAppContext?: BusinessAppContextProps
+  flowContext?: FlowContextName
 }
 
 const DATA_TEST_ID_PREFIX = 'TaskDetailSheet'
@@ -98,15 +102,34 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
   accessToken,
   assignedUserId,
   currentUserId,
-  businessAppContext
+  businessAppContext,
+  flowContext
 }) => {
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title="Task Details">
       <SheetContent className="gba:!w-[500px] gba:sm:!w-[500px] gba:!max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
         <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
-          <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
+          <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left gba:mb-3">
             {task?.name || 'Task Details'}
           </SheetTitle>
+          {accessToken && flowContext && task && (
+            <div className="gba:flex gba:justify-end">
+              <AppAction
+                contexts={[{ context: flowContext, contextData: { taskId: task.id } }]}
+                accessToken={accessToken}
+                mode="button"
+                buttonSize="sm"
+                buttonVariant="outline"
+                emptyState="enable"
+                lazyLoad
+                prefixDataTestId={`${dataTestId || DATA_TEST_ID_PREFIX}-actions`}
+                data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-actions-button`}
+              >
+                <DotsThreeVerticalIcon size={16} className="gba:mr-2" />
+                Actions
+              </AppAction>
+            </div>
+          )}
         </SheetHeader>
         <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
           {task ? (
@@ -200,9 +223,11 @@ const TaskInstanceCard: React.FC<TaskInstanceCardProps> = ({ taskAssignee, index
 
         <div className="gba:flex-1 gba:min-w-0">
           <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-            <span className="gba:text-sm gba:font-medium">{employee?.displayName || 'Unknown Assignee'}</span>
+            <span className="gba:text-sm gba:font-medium gba:truncate">
+              {employee?.displayName || 'Unknown Assignee'}
+            </span>
             {isCurrentUser && (
-              <Badge variant="outline" size="sm">
+              <Badge variant="outline" size="sm" className="gba:shrink-0">
                 You
               </Badge>
             )}
@@ -251,8 +276,8 @@ const ReferenceField: React.FC<ReferenceFieldProps> = ({
 
   if (!buildReferenceUrl) {
     return (
-      <div className="gba:px-2 gba:py-1 gba:w-fit gba:min-h-[24px]">
-        <div className="gba:flex gba:items-center gba:gap-2">
+      <div className="gba:px-2 gba:py-1 gba:w-fit gba:max-w-full gba:min-h-[24px]">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
           <Badge variant={getReferenceTypeBadgeVariant(reference.type) as any} className="gba:text-xs gba:shrink-0">
             {referenceTypeName}
           </Badge>
@@ -266,11 +291,11 @@ const ReferenceField: React.FC<ReferenceFieldProps> = ({
     <Tooltip>
       <TooltipTrigger asChild>
         <div
-          className="gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
+          className="gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:max-w-full gba:min-h-[24px]"
           onClick={onReferenceClick}
           data-testid={`${dataTestId}-reference-link`}
         >
-          <div className="gba:flex gba:items-center gba:gap-2">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
             <Badge variant={getReferenceTypeBadgeVariant(reference.type) as any} className="gba:text-xs gba:shrink-0">
               {referenceTypeName}
             </Badge>
@@ -492,7 +517,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
-                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:min-h-[24px]"
+                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:max-w-full gba:min-h-[24px] gba:min-w-0"
                       onClick={() => {
                         if (task.creatorEmployee) {
                           const url = buildPlatformUrl('/platform/employee-record', {
@@ -503,7 +528,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
                       }}
                       data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-creator-link`}
                     >
-                      <Avatar size="sm" className="gba:size-6">
+                      <Avatar size="sm" className="gba:size-6 gba:shrink-0">
                         {task.creatorEmployee.pictureThumbnail && (
                           <AvatarImage
                             src={`data:image/gif;base64,${task.creatorEmployee.pictureThumbnail}`}
@@ -517,12 +542,12 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
                           {getInitials(task.creatorEmployee.firstName || '', task.creatorEmployee.lastName || '')}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="gba:text-sm gba:font-medium">
+                      <span className="gba:text-sm gba:font-medium gba:truncate">
                         {task.creatorEmployee.displayName ||
                           `${task.creatorEmployee.firstName || ''} ${task.creatorEmployee.lastName || ''}`.trim() ||
                           'Unknown'}
                       </span>
-                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
+                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground gba:shrink-0" />
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>View employee profile</TooltipContent>

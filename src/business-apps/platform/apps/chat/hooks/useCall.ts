@@ -11,7 +11,6 @@ const generateCallId = (): string => {
   return 'call-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 15)
 }
 import { WebRTCClient, CallType, CallParticipant, CallState, CallSignal } from '../services/webrtcClient'
-import { debugLog } from '../utils/debugLog'
 
 const RING_TIMEOUT = 30000 // 30 seconds ring timeout
 
@@ -200,13 +199,11 @@ export const useCall = ({
   const fetchIceServers = useCallback(async (): Promise<RTCIceServer[]> => {
     // Only use cache if it has TURN servers
     if (iceServersRef.current && hasTurnServers(iceServersRef.current)) {
-      debugLog('[useCall] ✅ Using cached ICE servers with TURN')
       return iceServersRef.current
     }
 
     // Clear stale cache without TURN
     if (iceServersRef.current) {
-      debugLog('[useCall] 🔄 Cached servers have no TURN, refreshing...')
       iceServersRef.current = null
     }
 
@@ -215,14 +212,12 @@ export const useCall = ({
     // Try to fetch from backend
     if (apiClientRef.current) {
       try {
-        debugLog('[useCall] 📡 Fetching ICE servers from backend...')
         const response = await apiClientRef.current.getIceServers()
         backendServers = response.iceServers.map(server => ({
           urls: server.urls,
           username: server.username,
           credential: server.credential
         }))
-        debugLog('[useCall] Backend returned:', backendServers.length, 'servers')
       } catch (error) {
         console.warn('[useCall] Failed to fetch ICE servers from backend:', error)
       }
@@ -234,24 +229,12 @@ export const useCall = ({
     // ALWAYS add fallback TURN servers if backend doesn't have any
     let finalServers: RTCIceServer[]
     if (!hasTurnFromBackend) {
-      debugLog('[useCall] ⚠️ Backend has NO TURN servers! Adding fallback TURN relay...')
       finalServers = [...backendServers, ...FALLBACK_TURN_SERVERS]
     } else {
-      debugLog('[useCall] ✅ Backend provided TURN servers')
       finalServers = backendServers
     }
 
     const hasTurn = hasTurnServers(finalServers)
-    debugLog('[useCall] 🌐 Final ICE servers configuration:', {
-      serverCount: finalServers.length,
-      hasTurn,
-      fromBackend: backendServers.length,
-      fallbackAdded: !hasTurnFromBackend,
-      servers: finalServers.map(s => ({
-        urls: s.urls,
-        hasCredentials: !!(s.username && s.credential)
-      }))
-    })
 
     if (!hasTurn) {
       console.error('[useCall] ❌ CRITICAL: No TURN servers! Some users WILL NOT be able to connect!')
@@ -285,7 +268,6 @@ export const useCall = ({
 
     // Handle ICE connection state changes
     webrtc.on('iceConnectionStateChanged', (state: RTCIceConnectionState) => {
-      debugLog('ICE state changed:', state)
       if (state === 'connected' || state === 'completed') {
         updateCallState({ status: 'connected', startTime: Date.now() })
         // Mark active call in localStorage for multi-tab detection
@@ -293,13 +275,14 @@ export const useCall = ({
           setActiveCallInStorage(currentUserRef.current.id, callStateRef.current.callId)
         }
       } else if (state === 'failed') {
+        console.error('[useCall] ❌ ICE connection failed')
         updateCallState({ status: 'failed', error: 'Connection failed' })
         clearActiveCallFromStorage()
         // Auto-cleanup after failure
         setTimeout(() => cleanupCall(false), 3000)
       } else if (state === 'disconnected') {
         // Could be temporary, wait a bit
-        console.warn('ICE disconnected, waiting for reconnection...')
+        console.warn('[useCall] ⚠️ ICE disconnected, waiting for reconnection...')
       }
     })
 
@@ -333,12 +316,12 @@ export const useCall = ({
   const initiateCall = useCallback(
     async (participant: CallParticipant, type: CallType, conversationId?: string) => {
       if (!wsClient || !currentUser) {
-        console.error('Cannot initiate call: WebSocket or user not available')
+        console.error('[useCall] ❌ Cannot initiate call: WebSocket or user not available')
         return
       }
 
       if (callState.status !== 'idle') {
-        console.warn('Already in a call')
+        console.warn('[useCall] ⚠️ Already in a call, status:', callState.status)
         return
       }
 
@@ -379,7 +362,7 @@ export const useCall = ({
 
         // Set ring timeout
         ringTimeoutRef.current = setTimeout(() => {
-          console.warn('Call ring timeout')
+          console.warn('[useCall] ⏰ Call ring timeout - no answer')
           updateCallState({ status: 'ended', error: 'No answer' })
           wsClient.endCall({
             callId,
@@ -389,7 +372,7 @@ export const useCall = ({
           setTimeout(() => cleanupCall(false), 2000)
         }, RING_TIMEOUT)
       } catch (error) {
-        console.error('Failed to initiate call:', error)
+        console.error('[useCall] ❌ Failed to initiate call:', error)
         updateCallState({
           status: 'failed',
           error: error instanceof Error ? error.message : 'Failed to start call'
@@ -403,7 +386,7 @@ export const useCall = ({
   // Accept incoming call
   const acceptCall = useCallback(async () => {
     if (!wsClient || !currentUser || !pendingSignalRef.current) {
-      console.error('Cannot accept call: missing requirements')
+      console.error('[useCall] ❌ Cannot accept call: missing requirements')
       return
     }
 
@@ -432,7 +415,7 @@ export const useCall = ({
 
       onCallStarted?.(signal.callId, signal.from)
     } catch (error) {
-      console.error('Failed to accept call:', error)
+      console.error('[useCall] ❌ Failed to accept call:', error)
       updateCallState({
         status: 'failed',
         error: error instanceof Error ? error.message : 'Failed to accept call'
@@ -515,12 +498,13 @@ export const useCall = ({
   // Handle incoming call signals
   // Using refs to avoid recreating handlers on every state change
   useEffect(() => {
-    if (!wsClient || !currentUser) return
+    if (!wsClient || !currentUser) {
+      // Skip setup until both are available (expected during initialization)
+      return
+    }
 
     // Handle incoming call initiation
     const handleCallInitiate = (signal: CallSignal) => {
-      debugLog('Received call:initiate', signal)
-
       // Ignore if already in a call (use ref to get latest status)
       if (callStateRef.current.status !== 'idle') {
         wsClientRef.current?.sendBusy({
@@ -533,7 +517,6 @@ export const useCall = ({
 
       // Ignore if user is in a call in another tab
       if (currentUserRef.current && isInCallInAnotherTab(currentUserRef.current.id)) {
-        debugLog('Ignoring call - user is in call in another tab')
         wsClientRef.current?.sendBusy({
           callId: signal.callId,
           from: currentUserRef.current!,
@@ -557,14 +540,14 @@ export const useCall = ({
 
       // Set ring timeout
       ringTimeoutRef.current = setTimeout(() => {
-        console.warn('Incoming call ring timeout')
+        console.warn('[useCall] ⏰ Incoming call ring timeout')
         cleanupCall(false)
       }, RING_TIMEOUT)
     }
 
     // Handle call accepted
     const handleCallAccept = async (signal: CallSignal) => {
-      debugLog('Received call:accept', signal)
+      console.debug('Received call:accept', signal)
 
       if (callStateRef.current.callId !== signal.callId) return
       clearRingTimeout()
@@ -598,7 +581,7 @@ export const useCall = ({
 
     // Handle call rejected
     const handleCallReject = (signal: CallSignal) => {
-      debugLog('Received call:reject', signal)
+      console.debug('Received call:reject', signal)
 
       if (callStateRef.current.callId !== signal.callId) return
 
@@ -608,7 +591,7 @@ export const useCall = ({
 
     // Handle call ended
     const handleCallEnd = (signal: CallSignal) => {
-      debugLog('Received call:end', signal)
+      console.debug('Received call:end', signal)
 
       if (callStateRef.current.callId !== signal.callId) return
 
@@ -618,7 +601,7 @@ export const useCall = ({
 
     // Handle WebRTC offer
     const handleCallOffer = async (signal: CallSignal) => {
-      debugLog('Received call:offer', signal)
+      console.debug('Received call:offer', signal)
 
       if (callStateRef.current.callId !== signal.callId || !signal.payload) return
 
@@ -646,7 +629,7 @@ export const useCall = ({
 
     // Handle WebRTC answer
     const handleCallAnswer = async (signal: CallSignal) => {
-      debugLog('Received call:answer', signal)
+      console.debug('Received call:answer', signal)
 
       if (callStateRef.current.callId !== signal.callId || !signal.payload) return
 
@@ -683,7 +666,7 @@ export const useCall = ({
 
     // Handle busy signal
     const handleCallBusy = (signal: CallSignal) => {
-      debugLog('Received call:busy', signal)
+      console.debug('Received call:busy', signal)
 
       if (callStateRef.current.callId !== signal.callId) return
 
@@ -705,7 +688,8 @@ export const useCall = ({
       wsClient.removeCallListeners()
     }
     // Using refs for most values to avoid effect re-runs during call flow
-  }, [wsClient, updateCallState, clearRingTimeout, cleanupCall, onCallStarted])
+    // CRITICAL: Only depend on wsClient and currentUser - functions use refs internally
+  }, [wsClient, currentUser])
 
   // Listen for storage changes to detect when user accepts call in another tab
   // This allows us to dismiss the incoming call dialog in other tabs
@@ -722,7 +706,7 @@ export const useCall = ({
           const data = JSON.parse(event.newValue)
           // If the active call is for the same user and it's recent, dismiss the incoming call
           if (data.userId === currentUserRef.current.id && Date.now() - data.timestamp < 5000) {
-            debugLog('User accepted call in another tab, dismissing incoming call')
+            console.debug('User accepted call in another tab, dismissing incoming call')
             cleanupCall(false)
           }
         } catch {

@@ -50,9 +50,9 @@ interface StatusSelectProps {
 }
 
 const StatusSelect: React.FC<StatusSelectProps> = ({ field, dataTestId, t, onStatusChangeRequest }) => {
-  const { setValue } = useFormContext()
+  const { setValue, trigger } = useFormContext()
 
-  const handleStatusChange = (value: string) => {
+  const handleStatusChange = async (value: string) => {
     const newStatus = value as ProjectStatusBE
 
     // Check if user is trying to set CANCELLED or COMPLETED
@@ -62,6 +62,8 @@ const StatusSelect: React.FC<StatusSelectProps> = ({ field, dataTestId, t, onSta
     } else {
       // For other statuses, update directly
       setValue('status', newStatus, { shouldValidate: true, shouldDirty: true })
+      // Re-trigger validation for validFrom since cross-field validation depends on status
+      await trigger('validFrom')
     }
   }
 
@@ -125,29 +127,35 @@ const ConfirmStatusDialog: React.FC<ConfirmStatusDialogProps> = ({
   dataTestId,
   t
 }) => {
-  const { setValue } = useFormContext()
+  const { setValue, trigger } = useFormContext()
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     // Restore previous status if user cancels
     if (previousStatusValue) {
       setValue('status', previousStatusValue, { shouldValidate: true, shouldDirty: true })
+      // Re-trigger validation for validFrom since cross-field validation depends on status
+      await trigger('validFrom')
     }
     onClose()
   }
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (pendingStatus) {
       // Update the form field with the confirmed status
       setValue('status', pendingStatus, { shouldValidate: true, shouldDirty: true })
+      // Re-trigger validation for validFrom since cross-field validation depends on status
+      await trigger('validFrom')
     }
     onClose()
   }
 
-  const handleOpenChange = (open: boolean) => {
+  const handleOpenChange = async (open: boolean) => {
     if (!open) {
       // Restore previous status if dialog is closed without confirmation
       if (previousStatusValue) {
         setValue('status', previousStatusValue, { shouldValidate: true, shouldDirty: true })
+        // Re-trigger validation for validFrom since cross-field validation depends on status
+        await trigger('validFrom')
       }
       onClose()
     }

@@ -79,8 +79,15 @@ export const CampaignManagementLayout: React.FC<CampaignManagementLayoutProps> =
     accessToken
   } = props
 
-  // Tab state for main view
-  const [mainActiveTab, setMainActiveTab] = useState('overview')
+  // Tab state for main view - initialize from URL parameter if present
+  const [mainActiveTab, setMainActiveTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const mainTab = params.get('mainTab')
+      return mainTab === 'analytics' ? 'analytics' : 'overview'
+    }
+    return 'overview'
+  })
 
   // Table state for DataDisplay
   const [searchTerm, setSearchTerm] = useState(search || '')
@@ -218,7 +225,20 @@ export const CampaignManagementLayout: React.FC<CampaignManagementLayoutProps> =
           }
         ]}
         currentSection={mainActiveTab}
-        onSectionChange={section => setMainActiveTab(section)}
+        onSectionChange={section => {
+          setMainActiveTab(section)
+          // Update URL parameter
+          if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search)
+            if (section === 'analytics') {
+              params.set('mainTab', 'analytics')
+            } else {
+              params.delete('mainTab')
+            }
+            const newUrl = `${window.location.pathname}?${params.toString()}`
+            window.history.replaceState({}, '', newUrl)
+          }
+        }}
         searchValue={searchTerm}
         searchPlaceholder={
           translations?.searchPlaceholder ||

@@ -1,10 +1,11 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useTranslation, Skeleton, FormSection } from '@newwork/nw-design-system'
+import { useTranslation, Skeleton, FormSection, useFormAccordionContext } from '@newwork/nw-design-system'
 import { LeadInformationSegment } from '../../form-segments/lead-information-segment'
 import { LeadPersonSegment } from '../../form-segments/lead-person-segment'
 import { LeadCompanySegment } from '../../form-segments/lead-company-segment'
 import translations from './_i18n'
+import type { AutocompleteOption } from '@newwork/nw-design-system'
 
 interface LeadLayoutProps {
   businessAppContext?: BusinessAppContextProps
@@ -22,6 +23,19 @@ interface LeadLayoutProps {
 
   // Loading state - shows skeletons while data is being fetched
   loading?: boolean
+
+  // Account autocomplete props
+  accountSearchOptions?: AutocompleteOption[]
+  onAccountSearch?: (query: string) => void
+  onAccountSelect?: (accountId: string, accountData: any) => void
+  accountSearchLoading?: boolean
+
+  // Auto-filled fields tracking
+  autoFilledFields?: Set<string>
+  onFieldChange?: (fieldName: string) => void
+
+  // Expand company section when account is selected
+  expandCompanySection?: boolean
 }
 
 const LeadLayout: React.FC<LeadLayoutProps> = ({
@@ -37,9 +51,24 @@ const LeadLayout: React.FC<LeadLayoutProps> = ({
   leadPersonCustomFields,
   leadCompanyCustomFields,
   customSegments = [],
-  loading = false
+  loading = false,
+  accountSearchOptions = [],
+  onAccountSearch,
+  onAccountSelect,
+  accountSearchLoading = false,
+  autoFilledFields = new Set(),
+  onFieldChange,
+  expandCompanySection = false
 }) => {
   const { t } = useTranslation(translations)
+  const accordionContext = useFormAccordionContext()
+
+  // Auto-expand company section when account is selected
+  useEffect(() => {
+    if (expandCompanySection && accordionContext) {
+      accordionContext.expandSectionOnError('company-information')
+    }
+  }, [expandCompanySection, accordionContext])
 
   // Show skeletons while loading (after all hooks)
   if (loading) {
@@ -72,6 +101,12 @@ const LeadLayout: React.FC<LeadLayoutProps> = ({
         leadSourceCatalogIdentifier={leadSourceCatalogIdentifier}
         leadRatingCatalogIdentifier={leadRatingCatalogIdentifier}
         customFields={leadInformationCustomFields}
+        accountSearchOptions={accountSearchOptions}
+        onAccountSearch={onAccountSearch}
+        onAccountSelect={onAccountSelect}
+        accountSearchLoading={accountSearchLoading}
+        autoFilledFields={autoFilledFields}
+        onFieldChange={onFieldChange}
       />
       <FormSection title={t('personal-title')} value="personal-information">
         <LeadPersonSegment customFields={leadPersonCustomFields} />
@@ -81,6 +116,8 @@ const LeadLayout: React.FC<LeadLayoutProps> = ({
           companySizeCatalogIdentifier={companySizeCatalogIdentifier}
           annualRevenueCatalogIdentifier={annualRevenueCatalogIdentifier}
           customFields={leadCompanyCustomFields}
+          autoFilledFields={autoFilledFields}
+          onFieldChange={onFieldChange}
         />
       </FormSection>
       {customSegments.map(segment => (

@@ -16,6 +16,7 @@ export interface ActivityListLayoutProps<TActivity extends Activity = Activity> 
   onPaginationChange: (pagination: { pageIndex: number; pageSize: number }) => void
   onSortingChange: (sorting: Array<{ id: string; desc: boolean }>) => void
   onRowClick?: (activity: TActivity) => void
+  actions?: (row: { original: TActivity }) => React.ReactNode
   onRetry?: () => void
   dataTestId?: string
 }
@@ -31,6 +32,7 @@ export const ActivityListLayout = <TActivity extends Activity = Activity>({
   onPaginationChange,
   onSortingChange,
   onRowClick,
+  actions,
   onRetry,
   dataTestId = 'activity-list'
 }: ActivityListLayoutProps<TActivity>) => {
@@ -65,9 +67,18 @@ export const ActivityListLayout = <TActivity extends Activity = Activity>({
         onPaginationChange={onPaginationChange}
         onSortingChange={onSortingChange}
         onRowClick={onRowClick}
+        actions={actions}
         enablePagination
         enableSorting
         enableSelection={false}
+        enableColumnPinning
+        enableResizing={false}
+        tableLayout="fixed"
+        rowsPerPageOptions={[10, 20, 50, 100]}
+        showPageNumbers
+        maxVisiblePages={7}
+        emptyMessage="No activities found"
+        data-testid={dataTestId}
       />
     </div>
   )

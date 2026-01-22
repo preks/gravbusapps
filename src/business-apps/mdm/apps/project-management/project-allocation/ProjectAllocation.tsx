@@ -7,7 +7,6 @@ import {
   Accordion,
   Button,
   Card,
-  Input,
   CardContent,
   Alert,
   AlertTitle,
@@ -26,7 +25,7 @@ import {
   DialogFooter,
   DialogClose,
   Icon,
-  SheetPrimitive,
+  Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
@@ -47,7 +46,8 @@ import {
   CheckCircleIcon,
   ClockIcon,
   WallIcon,
-  UsersIcon
+  UsersIcon,
+  MagnifyingGlassIcon
 } from '@phosphor-icons/react'
 import { EmployeeAllocationForm } from '@/business-apps/mdm/forms/employee-allocation-form'
 import { AssignEmployeesDialog } from './components/AssignEmployeesDialog'
@@ -58,6 +58,7 @@ import CardTabHeaderComponent from '../../generic-components/card'
 import { useTeams } from '../../organizational-data/hooks'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { showProjectManager } from '../project-setup/ProjectSetup'
+import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 
 export interface ProjectAllocationProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -824,15 +825,22 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
       )}
 
       <CardContent className="gba:overflow-auto">
-        <div className="gba:mb-6 gba:relative gba:max-w-sm">
-          <Input
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:smart_project.search_placeholder',
-              'Search projects...'
-            )}
+        <div className="gba:mb-6 gba:pt-4 gba:relative gba:max-w-sm">
+          <DebouncedInput
+            key="search-input"
             value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            data-testid={`${dataTestId}-search-input`}
+            onChange={value => setSearchTerm(value)}
+            placeholder="Search projects..."
+            className="gba:w-full gba:pr-10"
+            debounceDelay={300}
+            ariaLabel="Search projects..."
+            data-testid="asset-search-input"
+            icon={
+              <MagnifyingGlassIcon
+                className="gba:w-4 gba:h-4 gba:text-muted-foreground"
+                data-testid="asset-search-icon"
+              />
+            }
           />
         </div>
 
@@ -844,7 +852,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
         />
 
         {selectedProject && (
-          <SheetPrimitive
+          <Sheet
             open={drawerVisible}
             onOpenChange={openStatus => {
               if (!openStatus) {
@@ -942,7 +950,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
                 </div>
               </ScrollArea>
             </SheetContent>
-          </SheetPrimitive>
+          </Sheet>
         )}
 
         {selectedEmployeeForRemove && isRemoveEmployeeOpen && (

@@ -10,7 +10,8 @@ import {
   AmountField,
   PercentageField,
   CatalogField,
-  ReferenceField
+  ReferenceField,
+  BooleanField
 } from './field-types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -223,6 +224,17 @@ export function DynamicFormField<TFieldValues extends FieldValues = FieldValues>
           />
         )
 
+      case 'BOOLEAN':
+        return (
+          <BooleanField
+            value={formField.value}
+            onChange={checked => formField.onChange(checked)}
+            onBlur={formField.onBlur}
+            fieldName={fieldName}
+            testIdPrefix={testIdPrefix}
+          />
+        )
+
       case 'CATALOG': {
         const catalogName = field.type.replace('CATALOG_', '')
         return (
@@ -259,7 +271,7 @@ export function DynamicFormField<TFieldValues extends FieldValues = FieldValues>
       default:
         throw new Error(
           `DynamicFormField: Unhandled field type "${field.type}". ` +
-            `Supported types: DATE, DATETIME, AMOUNT, PERCENTAGE, NUMBER, TEXT, TEXTAREA, CATALOG_*, REF_*. ` +
+            `Supported types: DATE, DATETIME, AMOUNT, PERCENTAGE, NUMBER, TEXT, TEXTAREA, BOOLEAN, CATALOG_*, REF_*. ` +
             `Please add support for this type in field-types/ directory.`
         )
     }

@@ -41,6 +41,10 @@ all_articles = Alle Artikel
 categories = Kategorien
 recent_articles = Aktuelle Artikel
 more_articles = Weitere Artikel
+recent_news_articles = Aktuelle Nachrichtenartikel
+recent_knowledge_articles = Aktuelle Wissensartikel
+recently_uploaded_documents = Kürzlich hochgeladene Dokumente
+unanswered_questions = Unbeantwortete Fragen
 
 # Buttons
 create_article = Artikel erstellen

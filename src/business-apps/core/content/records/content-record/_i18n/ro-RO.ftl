@@ -15,6 +15,7 @@ answered_by = răspuns de
 answer = Răspuns
 answers = Răspunsuri
 best_answer = Cel mai bun răspuns
+accepted_answer = Răspuns acceptat
 
 # Comments
 add_comment = Adaugă un comentariu...

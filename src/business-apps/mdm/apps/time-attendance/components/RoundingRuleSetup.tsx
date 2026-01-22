@@ -1,13 +1,20 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Button, DataTable, Badge } from '@newwork/nw-design-system'
-import { ColumnDef, SortingState } from '@tanstack/react-table'
-import { PlusIcon, PencilSimpleLineIcon, TrashIcon, CheckIcon } from '@phosphor-icons/react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody
+} from '@newwork/nw-design-system'
+import { PlusIcon } from '@phosphor-icons/react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useRoundingRuleVersionDetailsData } from '../hooks/useRoundingRuleVersionDetailsData'
-import RoundingRuleDetailsForm, {
-  CLOCKING_TYPE_OPTIONS,
-  ROUNDING_TYPE_OPTIONS
-} from '@/business-apps/mdm/forms/time-attendance/RoundingRuleDetailsForm'
+import { useRoundingRuleDetailRows } from '../hooks/useRoundingRuleDetailRows'
 import { TransformedRoundingRuleVersionDetail } from '../types/rounding-rule-version-details'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
@@ -27,7 +34,6 @@ export const RoundingRuleSetup: React.FC<RoundingRuleSetupProps> = ({
   prefixDataTestId = ''
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
-  const [sorting, setSorting] = useState<SortingState>([])
   const [selectedRoundingRuleDetail, setSelectedRoundingRuleDetail] =
     useState<TransformedRoundingRuleVersionDetail | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -41,12 +47,15 @@ export const RoundingRuleSetup: React.FC<RoundingRuleSetupProps> = ({
     roundingRuleVersionId: roundingRuleVersionId || null
   })
 
-  const findClockingTypeOption = useCallback((code: string) => {
-    return CLOCKING_TYPE_OPTIONS.find(option => option.code === code)
-  }, [])
+  // Sort details by displayOrder
+  const sortedDetails = useMemo(
+    () => [...roundingRuleVersionDetails].sort((a, b) => a.displayOrder - b.displayOrder),
+    [roundingRuleVersionDetails]
+  )
 
-  const findRoundingTypeOption = useCallback((code: string) => {
-    return ROUNDING_TYPE_OPTIONS.find(option => option.code === code)
+  const handleDeleteClick = useCallback((detail: TransformedRoundingRuleVersionDetail) => {
+    setSelectedRoundingRuleDetail(detail)
+    setIsDeleteDialogOpen(true)
   }, [])
 
   const handleDeleteDetail = useCallback(
@@ -81,117 +90,32 @@ export const RoundingRuleSetup: React.FC<RoundingRuleSetupProps> = ({
     [restClient, accessToken, refetch]
   )
 
-  // Table columns
-  const roundingRuleSetupColumns: ColumnDef<TransformedRoundingRuleVersionDetail>[] = useMemo(
-    () => [
-      {
-        accessorKey: 'displayOrder',
-        header: 'Display Order',
-        enableSorting: true
-      },
-      {
-        accessorKey: 'clockingType',
-        header: 'Clocking Type',
-        enableSorting: true,
-        cell: ({ row }) => {
-          const option = findClockingTypeOption(row.original.clockingType)
-          return <Badge variant="outline">{option?.displayValue || row.original.clockingType}</Badge>
-        }
-      },
-      {
-        accessorKey: 'roundingType',
-        header: 'Rounding Type',
-        enableSorting: true,
-        cell: ({ row }) => {
-          const option = findRoundingTypeOption(row.original.roundingType)
-          return <Badge variant="outline">{option?.displayValue || row.original.roundingType}</Badge>
-        }
-      },
-      {
-        accessorKey: 'startTime',
-        header: 'Time Start',
-        enableSorting: true,
-        cell: ({ row }) => row.original.startTime || '-'
-      },
-      {
-        accessorKey: 'endTime',
-        header: 'Time End',
-        enableSorting: true,
-        cell: ({ row }) => row.original.endTime || '-'
-      },
-      {
-        accessorKey: 'gracePeriod',
-        header: 'Grace Period',
-        enableSorting: true,
-        cell: ({ row }) => row.original.gracePeriod || '-'
-      },
-      {
-        accessorKey: 'roundingValue',
-        header: 'Rounding Value',
-        enableSorting: true,
-        cell: ({ row }) => row.original.roundingValue || '-'
-      },
-      {
-        accessorKey: 'onlyFirstLast',
-        header: 'First/Last Only',
-        enableSorting: true,
-        cell: ({ row }) => {
-          return row.original.onlyFirstLast ? <CheckIcon className="gba:h-4 gba:w-4" /> : '-'
-        }
-      },
-      {
-        id: 'actions',
-        header: 'Actions',
-        cell: ({ row }) => {
-          const detail = row.original
+  // Use the inline editing hook
+  const { isAddingNew, handleAddRow, renderDataRow, renderNewRow } = useRoundingRuleDetailRows({
+    roundingRuleVersionId,
+    roundingRuleVersionDetails: sortedDetails,
+    accessToken,
+    refetch,
+    dataTestId,
+    onDeleteClick: handleDeleteClick
+  })
 
-          return (
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <RoundingRuleDetailsForm
-                roundingRuleVersionId={roundingRuleVersionId || ''}
-                childAddButton={
-                  <Button
-                    onClick={event => event.stopPropagation()}
-                    variant="ghost"
-                    className="gba:flex gba:items-center gba:gap-2"
-                  >
-                    <PencilSimpleLineIcon />
-                  </Button>
-                }
-                refetch={refetch}
-                accessToken={accessToken}
-                prefixDataTestId={dataTestId}
-                roundingRuleDetail={{
-                  id: detail.id,
-                  version: detail.version,
-                  displayOrder: detail.displayOrder,
-                  clockingType: detail.clockingType,
-                  roundingType: detail.roundingType,
-                  startTime: detail.startTime,
-                  endTime: detail.endTime,
-                  gracePeriod: detail.gracePeriod,
-                  roundingValue: detail.roundingValue,
-                  onlyFirstLast: detail.onlyFirstLast
-                }}
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={event => {
-                  event.stopPropagation()
-                  setSelectedRoundingRuleDetail(detail)
-                  setIsDeleteDialogOpen(true)
-                }}
-                data-testid={formatDataTestId(dataTestId, `delete-row-button-${detail.id}`)}
-              >
-                <TrashIcon className="gba:h-4 gba:w-4" />
-              </Button>
-            </div>
-          )
-        }
-      }
-    ],
-    [dataTestId, roundingRuleVersionId, accessToken, refetch, findClockingTypeOption, findRoundingTypeOption]
+  // Table columns
+  const tableColumns = useMemo(
+    () => (
+      <>
+        <TableHead className="gba:w-[6%]">Priority</TableHead>
+        <TableHead className="gba:w-[14%]">Clocking Type</TableHead>
+        <TableHead className="gba:w-[14%]">Rounding Type</TableHead>
+        <TableHead className="gba:w-[12%]">Start Time</TableHead>
+        <TableHead className="gba:w-[12%]">End Time</TableHead>
+        <TableHead className="gba:w-[12%]">Grace Period</TableHead>
+        <TableHead className="gba:w-[12%]">Rounding Value</TableHead>
+        <TableHead className="gba:w-[8%]">First/Last Only</TableHead>
+        <TableHead className="gba:w-[10%]">Actions</TableHead>
+      </>
+    ),
+    []
   )
 
   if (error) {
@@ -209,36 +133,30 @@ export const RoundingRuleSetup: React.FC<RoundingRuleSetupProps> = ({
       <CardHeader>
         <div className="gba:flex gba:justify-between gba:items-center">
           <CardTitle>Rounding Rules</CardTitle>
-          <RoundingRuleDetailsForm
-            roundingRuleVersionId={roundingRuleVersionId || ''}
-            childAddButton={
-              <Button
-                onClick={event => event.stopPropagation()}
-                disabled={!roundingRuleVersionId || loading}
-                className="gba:flex gba:items-center gba:gap-2"
-              >
-                <PlusIcon className="gba:h-4 gba:w-4" />
-                Add Rule
-              </Button>
-            }
-            refetch={refetch}
-            accessToken={accessToken}
-            prefixDataTestId={dataTestId}
-          />
+          <Button
+            onClick={handleAddRow}
+            disabled={!roundingRuleVersionId || loading || isAddingNew}
+            className="gba:flex gba:items-center gba:gap-2"
+            data-testid={formatDataTestId(dataTestId, 'add-rule-button')}
+          >
+            <PlusIcon className="gba:h-4 gba:w-4" />
+            Add Rule
+          </Button>
         </div>
       </CardHeader>
       <CardContent>
         {loading ? (
           <div className="gba:text-center gba:py-8">Loading...</div>
-        ) : roundingRuleVersionDetails.length > 0 ? (
-          <DataTable
-            data={roundingRuleVersionDetails}
-            columns={roundingRuleSetupColumns}
-            enablePagination={false}
-            sorting={sorting}
-            onSortingChange={setSorting}
-            enableSorting
-          />
+        ) : sortedDetails.length > 0 || isAddingNew ? (
+          <Table>
+            <TableHeader>
+              <TableRow>{tableColumns}</TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedDetails.map(detail => renderDataRow(detail))}
+              {renderNewRow()}
+            </TableBody>
+          </Table>
         ) : (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
             <div className="gba:text-muted-foreground gba:mb-2">No rounding rules configured yet</div>

@@ -48,9 +48,8 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
   const opportunityId = additionalData?.opportunityId || initialParameters?.opportunityId || null
   const leadId = additionalData?.leadId || initialParameters?.leadId || null
 
-  // Determine if entity selection should be shown
-  const hasEntityFromContext = accountId || contactId || opportunityId || leadId
-  const shouldShowEntitySelection = !hasEntityFromContext
+  // Get occurredAt from additionalData or initialParameters (for calendar quick actions)
+  const occurredAt = additionalData?.occurredAt || initialParameters?.occurredAt || null
 
   const {
     entities,
@@ -65,7 +64,11 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
 
   const form = useForm<z.infer<typeof activitySchema>>({
     resolver: zodResolver(activitySchema),
-    defaultValues: mapToFormValues(activity || {}, activitySchema) as any,
+    defaultValues: {
+      ...mapToFormValues(activity || {}, activitySchema),
+      // Include occurredAt from context if provided (e.g., from calendar quick action or drag & drop)
+      ...(occurredAt ? { occurredAt } : {})
+    } as any,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
@@ -78,6 +81,18 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
       leadId: activity?.leadId || leadId
     }),
     [accountId, contactId, opportunityId, leadId, activity]
+  )
+
+  // Calculate if entity selection should be shown (no entity context exists)
+  const shouldShowEntitySelection = useMemo(
+    () =>
+      !(
+        relatedEntityIds.accountId ||
+        relatedEntityIds.contactId ||
+        relatedEntityIds.opportunityId ||
+        relatedEntityIds.leadId
+      ),
+    [relatedEntityIds]
   )
 
   const activityRef = useRef(activity)
@@ -153,6 +168,11 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
       form.reset(mapToFormValues(activity || {}, activitySchema) as any)
       activityRef.current = activity
 
+      // Re-apply override occurredAt from drag & drop or context (after DB data loads)
+      if (occurredAt && activity) {
+        form.setValue('occurredAt', occurredAt)
+      }
+
       // Hydrate first found entity
       const entity = [
         { type: 'account' as const, id: activity?.accountId },
@@ -165,13 +185,14 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
         hydrateEntityById(entity.type, entity.id)
       }
     }
-  }, [activity?.id, activity, form, hydrateEntityById])
+  }, [activity?.id, activity, form, hydrateEntityById, occurredAt])
 
   useEffect(() => {
-    if (shouldShowEntitySelection) {
+    if (accessToken && !activityId) {
+      // Only trigger initial search in create mode
       searchEntities('')
     }
-  }, [shouldShowEntitySelection, searchEntities])
+  }, [accessToken, activityId, searchEntities])
 
   useEffect(() => {
     if (!accountId && !contactId && !opportunityId && !leadId) return

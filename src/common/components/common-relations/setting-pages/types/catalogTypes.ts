@@ -1,0 +1,37 @@
+/**
+ * Shared types for catalog settings pages
+ */
+
+export interface CatalogItem {
+  id: string
+  code: string
+  value: string
+  type?: string
+  alternativeCode?: string
+  displayOrder?: number
+  additionalValue1?: string
+  additionalValue2?: string
+  additionalValue3?: string
+}
+
+export interface CatalogUpsertData {
+  code: string
+  value: string
+  type?: string
+  alternativeCode?: string
+  additionalValue1?: string
+  displayOrder?: number
+}
+
+export interface CatalogTabState {
+  items: CatalogItem[]
+  isLoading?: boolean
+  error?: string | null
+}
+
+export interface CatalogTabHandlers {
+  onCreate: (data: CatalogUpsertData) => Promise<void> | void
+  onUpdate: (id: string, data: CatalogUpsertData) => Promise<void> | void
+  onDelete: (id: string) => Promise<void> | void
+  onRetry?: () => void
+}

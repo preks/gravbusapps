@@ -1,6 +1,6 @@
 /**
  * Agent Actions Service
- * 
+ *
  * Executes agent actions like queries, notifications, updates.
  */
 
@@ -25,6 +25,19 @@ export class AgentActionsService {
     this.baseUrl = baseUrl
   }
 
+  private ensureAccessToken(): boolean {
+    if (!this.accessToken) {
+      console.error('Access token missing')
+      return false
+    }
+    return true
+  }
+
+  private replaceToken(source: string, token: string, value: string): string {
+    if (!token) return source
+    return source.split(token).join(value)
+  }
+
   /**
    * Execute all actions for an agent
    */
@@ -34,6 +47,19 @@ export class AgentActionsService {
     actions: AgentAction[],
     context?: Record<string, any>
   ): Promise<AgentExecutionResult> {
+    if (!this.ensureAccessToken()) {
+      return {
+        agentId,
+        executionId: `exec_${Date.now()}_${agentId}`,
+        startTime: new Date().toISOString(),
+        endTime: new Date().toISOString(),
+        status: 'error',
+        error: 'Access token missing',
+        data: [],
+        notificationsSent: 0
+      }
+    }
+
     const executionId = `exec_${Date.now()}_${agentId}`
     const startTime = new Date().toISOString()
     let notificationsSent = 0
@@ -77,6 +103,10 @@ export class AgentActionsService {
    * Execute a GraphQL query action
    */
   private async executeQueryAction(action: QueryAction, context?: Record<string, any>): Promise<any> {
+    if (!this.ensureAccessToken()) {
+      throw new Error('Access token missing')
+    }
+
     const graphqlClient = useGraphQLClient(this.accessToken)
 
     // Resolve variables with context
@@ -120,7 +150,8 @@ export class AgentActionsService {
     // Replace context variables
     if (context) {
       Object.keys(context).forEach(key => {
-        message = message.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), String(context[key]))
+        const token = `{{${key}}}`
+        message = this.replaceToken(message, token, String(context[key]))
       })
     }
 
@@ -132,7 +163,8 @@ export class AgentActionsService {
           // Support {{results.0.fieldName}} syntax
           Object.keys(resultData).forEach(key => {
             const value = this.formatQueryResultForMessage(resultData[key])
-            message = message.replace(new RegExp(`\\{\\{results\\.${index}\\.${key}\\}\\}`, 'g'), value)
+            const token = `{{results.${index}.${key}}}`
+            message = this.replaceToken(message, token, value)
           })
         }
       })
@@ -158,13 +190,17 @@ export class AgentActionsService {
    * Send a Blink notification to user's EveryBox
    */
   private async sendBlinkNotification(notification: BlinkNotification): Promise<void> {
+    if (!this.ensureAccessToken()) {
+      throw new Error('Access token missing')
+    }
+
     // This would integrate with the Blink/notification service
     // For now, using a REST API call
     const response = await fetch(`${this.baseUrl}/api/notifications/blink`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.accessToken}`
+        Authorization: `Bearer ${this.accessToken}`
       },
       body: JSON.stringify(notification)
     })
@@ -192,7 +228,10 @@ export class AgentActionsService {
   /**
    * Build GraphQL query for common entity types
    */
-  static buildEntityQuery(entityType: string, filters?: Record<string, any>): { query: string; variables: Record<string, any> } {
+  static buildEntityQuery(
+    entityType: string,
+    filters?: Record<string, any>
+  ): { query: string; variables: Record<string, any> } {
     // Example queries for common entities
     switch (entityType) {
       case 'opportunity':
@@ -213,7 +252,7 @@ export class AgentActionsService {
           `,
           variables: { limit: 10, offset: 0, ...filters }
         }
-      
+
       case 'account':
         return {
           query: `
@@ -234,7 +273,7 @@ export class AgentActionsService {
           `,
           variables: { limit: 10, ...filters }
         }
-      
+
       case 'expense':
         return {
           query: `
@@ -251,10 +290,9 @@ export class AgentActionsService {
           `,
           variables: { limit: 10, ...filters }
         }
-      
+
       default:
         throw new Error(`Unsupported entity type: ${entityType}`)
     }
   }
 }
-

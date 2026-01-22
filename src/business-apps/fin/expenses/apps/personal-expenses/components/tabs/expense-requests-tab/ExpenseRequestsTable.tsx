@@ -14,13 +14,12 @@ import {
   Spinner,
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle
 } from '@newwork/nw-design-system'
+import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { getExpenseRequestStatusDisplay } from '../../../utils'
 import { Badge } from '@newwork/nw-design-system'
@@ -315,8 +314,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         } else if (!result.success) {
           console.error('Error printing request:', result.error)
         }
-      } catch {
-        console.error('Error fetching print PDF:', error)
+      } catch (error) {
+        console.error('Error fetching print PDF:', error instanceof Error ? error.message : 'Unknown error')
       } finally {
         if (isMounted.current) {
           setPrintLoading(false)
@@ -703,25 +702,24 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         data-testid="expense-request-details-sheet"
       >
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedItem?.title ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details',
-                  'Expense Request Details'
-                )}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-            {selectedItem && (
+          <ExpenseDetailsShell
+            title={
+              selectedItem?.title ||
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details',
+                'Expense Request Details'
+              )
+            }
+          >
+            {selectedItem ? (
               <ExpenseRequestDetails
                 selectedItem={selectedItem}
                 onClose={handleCloseDetails}
                 accessToken={props.accessToken}
                 userInfo={props.userInfo}
               />
-            )}
-          </div>
+            ) : null}
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
 

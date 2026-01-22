@@ -85,6 +85,10 @@ export class ChatWebSocketClient {
     })
 
     this.socket.on('disconnect', reason => {
+      console.warn('[WebSocket] ⚠️ Disconnected from chat service', {
+        reason,
+        socketId: this.socket?.id
+      })
       // Handle different disconnect reasons
       if (reason === 'io server disconnect') {
         // Server forcibly disconnected - attempt manual reconnection
@@ -92,7 +96,12 @@ export class ChatWebSocketClient {
       }
     })
 
-    this.socket.on('connect_error', () => {
+    this.socket.on('connect_error', error => {
+      console.error('[WebSocket] ❌ Connection error', {
+        attempt: this.reconnectAttempts + 1,
+        maxAttempts: this.maxReconnectAttempts,
+        error: error.message
+      })
       this.reconnectAttempts++
     })
 
@@ -229,8 +238,13 @@ export class ChatWebSocketClient {
   }
 
   // Emit events
-  joinConversation(conversationId: string) {
-    this.socket?.emit('join_conversation', { conversationId })
+  joinConversation(conversationId: string, lastMessageTimestamp?: number) {
+    // PERFORMANCE: Tell backend the newest message we have
+    // Backend should skip sending historical messages older than this timestamp
+    this.socket?.emit('join_conversation', {
+      conversationId,
+      lastMessageTimestamp: lastMessageTimestamp || 0
+    })
   }
 
   leaveConversation(conversationId: string) {
@@ -360,7 +374,9 @@ export class ChatWebSocketClient {
 
   // Call event listeners
   onCallInitiate(handler: (signal: CallSignal) => void) {
-    this.socket?.on('call:initiate', handler)
+    this.socket?.on('call:initiate', (signal: CallSignal) => {
+      handler(signal)
+    })
   }
 
   onCallAccept(handler: (signal: CallSignal) => void) {
@@ -593,8 +609,37 @@ export class ChatWebSocketClient {
     // or by the component that registered them
   }
 
+  // Generic event listener registration
+  on(event: string, handler: ChatEventHandler) {
+    // Map V2 event names to backend event names
+    const eventMap: Record<string, string> = {
+      'presence:update': 'user_status_change',
+      'typing:update': 'user_typing',
+      'message:new': 'new_message',
+      'message:update': 'message:updated',
+      'message:delete': 'message:deleted',
+      'message:status': 'message:status',
+      'conversation:update': 'conversation_updated'
+    }
+
+    const backendEvent = eventMap[event] || event
+    this.socket?.on(backendEvent, handler)
+  }
+
   // Remove event listeners
   off(event: string, handler?: ChatEventHandler) {
-    this.socket?.off(event, handler)
+    // Map V2 event names to backend event names
+    const eventMap: Record<string, string> = {
+      'presence:update': 'user_status_change',
+      'typing:update': 'user_typing',
+      'message:new': 'new_message',
+      'message:update': 'message:updated',
+      'message:delete': 'message:deleted',
+      'message:status': 'message:status',
+      'conversation:update': 'conversation_updated'
+    }
+
+    const backendEvent = eventMap[event] || event
+    this.socket?.off(backendEvent, handler)
   }
 }

@@ -6,7 +6,6 @@ import { D3SankeyChart } from './charts/D3SankeyChart'
 import { D3HierarchicalChart } from './charts/D3HierarchicalChart'
 import { D3ChordChart } from './charts/D3ChordChart'
 import { D3TimelineChart } from './charts/D3TimelineChart'
-import { D3ExecutiveCommandCenter } from './charts/D3ExecutiveCommandCenter'
 
 interface GuardianD3VisualizationProps {
   networkData: GuardianNetworkData | null
@@ -37,17 +36,39 @@ export const GuardianD3Visualization: React.FC<GuardianD3VisualizationProps> = (
   useEffect(() => {
     const updateDimensions = () => {
       if (containerRef.current) {
-        const { clientWidth, clientHeight } = containerRef.current
-        setDimensions({
-          width: clientWidth || 800,
-          height: clientHeight || 600
-        })
+        const rect = containerRef.current.getBoundingClientRect()
+        const clientWidth = Math.round(rect.width)
+        const clientHeight = Math.round(rect.height)
+        // Avoid locking into the fallback size when the container hasn't been laid out yet.
+        // We'll retry via rAF + ResizeObserver + timeout below.
+        if (clientWidth < 50 || clientHeight < 50) return
+        setDimensions({ width: clientWidth, height: clientHeight })
       }
     }
 
     updateDimensions()
+    // Window resize covers viewport changes, but not layout shifts (e.g. loading state, container resizing).
+    // ResizeObserver ensures we re-measure when the surrounding layout changes without a window resize.
+    let ro: ResizeObserver | null = null
+    if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+      ro = new ResizeObserver(() => updateDimensions())
+      ro.observe(containerRef.current)
+    }
+
+    // Extra safety: on the platform the container size can change right after mount without triggering a window resize.
+    // rAF + small timeout reliably catches the final layout width (prevents "looks correct only after resize").
+    const raf1 = requestAnimationFrame(() => updateDimensions())
+    const raf2 = requestAnimationFrame(() => updateDimensions())
+    const t = window.setTimeout(() => updateDimensions(), 200)
+
     window.addEventListener('resize', updateDimensions)
-    return () => window.removeEventListener('resize', updateDimensions)
+    return () => {
+      window.removeEventListener('resize', updateDimensions)
+      ro?.disconnect()
+      cancelAnimationFrame(raf1)
+      cancelAnimationFrame(raf2)
+      window.clearTimeout(t)
+    }
   }, [])
 
   // Reset error when view mode changes
@@ -59,14 +80,7 @@ export const GuardianD3Visualization: React.FC<GuardianD3VisualizationProps> = (
     if (!networkData || !networkData.nodes.length) {
       return (
         <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100%',
-            color: '#6b7280',
-            fontSize: '16px'
-          }}
+          className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground gba:text-base"
           data-testid={`${prefixDataTestId}-empty-state`}
         >
           {isLoading ? 'Loading network data...' : 'No data available for visualization'}
@@ -132,9 +146,9 @@ export const GuardianD3Visualization: React.FC<GuardianD3VisualizationProps> = (
           return (
             <D3TimelineChart
               auditData={auditData}
+              networkData={networkData}
               dimensions={dimensions}
               filters={filters}
-              isRealTime={isRealTime}
               onError={setError}
               prefixDataTestId={prefixDataTestId}
               data-testid={`${prefixDataTestId}-timeline`}
@@ -143,15 +157,7 @@ export const GuardianD3Visualization: React.FC<GuardianD3VisualizationProps> = (
 
         case 'geographic':
           return (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%',
-                color: '#6b7280'
-              }}
-            >
+            <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground">
               Geographic view coming soon...
             </div>
           )
@@ -189,18 +195,11 @@ export const GuardianD3Visualization: React.FC<GuardianD3VisualizationProps> = (
   if (isLoading) {
     return (
       <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100%',
-          flexDirection: 'column',
-          gap: '16px'
-        }}
+        className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-4"
         data-testid={`${prefixDataTestId}-loading`}
       >
-        <Spinner size="large" />
-        <span style={{ color: '#6b7280', fontSize: '14px', textTransform: 'capitalize' }}>
+        <Spinner size="lg" />
+        <span className="gba:text-sm gba:text-muted-foreground gba:capitalize">
           Loading {viewMode.replace('-', ' ')} visualization...
         </span>
       </div>
@@ -209,8 +208,13 @@ export const GuardianD3Visualization: React.FC<GuardianD3VisualizationProps> = (
 
   if (error) {
     return (
-      <div style={{ padding: '24px', height: '100%' }}>
-        <Alert type="error" title="Visualization Error" description={error} data-testid={`${prefixDataTestId}-error`} />
+      <div className="gba:p-6 gba:h-full">
+        <Alert variant="destructive" data-testid={`${prefixDataTestId}-error`}>
+          <div>
+            <h4 className="gba:font-semibold">Visualization Error</h4>
+            <p className="gba:text-sm gba:mt-1">{error}</p>
+          </div>
+        </Alert>
       </div>
     )
   }
@@ -218,102 +222,40 @@ export const GuardianD3Visualization: React.FC<GuardianD3VisualizationProps> = (
   return (
     <div
       ref={containerRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        position: 'relative',
-        background: 'transparent', // Let parent container handle background
-        overflow: 'hidden'
-      }}
+      className="gba:w-full gba:h-full gba:relative gba:overflow-hidden"
       data-testid={`${prefixDataTestId}-container`}
     >
       {/* Chart Container */}
-      <div style={{ width: '100%', height: '100%', position: 'relative' }}>{renderChart()}</div>
+      <div className="gba:w-full gba:h-full gba:relative">{renderChart()}</div>
 
-      {/* View Mode Indicator */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '12px',
-          right: '12px',
-          background: 'rgba(0, 0, 0, 0.7)',
-          color: '#60a5fa',
-          padding: '8px 12px',
-          borderRadius: '6px',
-          fontSize: '12px',
-          fontWeight: '500',
-          textTransform: 'capitalize',
-          backdropFilter: 'blur(4px)'
-        }}
-      >
-        {viewMode.replace('-', ' ')} View
-      </div>
+      {/* View Mode Indicator (hide for timeline; heading already exists) */}
+      {viewMode !== 'timeline' && (
+        <div className="gba:absolute gba:top-3 gba:right-3 gba:rounded-md gba:border gba:border-border gba:bg-popover/80 gba:px-3 gba:py-2 gba:text-xs gba:font-medium gba:text-foreground gba:capitalize gba:backdrop-blur-sm">
+          {viewMode.replace('-', ' ')} View
+        </div>
+      )}
 
       {/* Real-time Indicator */}
       {isRealTime && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '12px',
-            left: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(0, 0, 0, 0.7)',
-            color: '#10b981',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: '500',
-            backdropFilter: 'blur(4px)'
-          }}
-        >
-          <div
-            style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: '#10b981',
-              animation: 'pulse 2s infinite'
-            }}
-          />
+        <div className="gba:absolute gba:top-3 gba:left-3 gba:flex gba:items-center gba:gap-2 gba:rounded-md gba:border gba:border-border gba:bg-popover/80 gba:px-3 gba:py-2 gba:text-xs gba:font-medium gba:text-success gba:backdrop-blur-sm">
+          <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-success gba:animate-pulse" />
           Live Data
         </div>
       )}
 
       {/* Legend Overlay - Only show for force-directed network graph */}
       {viewMode === 'force-directed' && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '12px',
-            right: '12px',
-            background: 'rgba(0, 0, 0, 0.7)',
-            color: '#e5e7eb',
-            padding: '12px',
-            borderRadius: '6px',
-            fontSize: '11px',
-            backdropFilter: 'blur(4px)',
-            lineHeight: '1.4'
-          }}
-        >
-          <div style={{ fontWeight: '600', marginBottom: '6px', color: '#60a5fa' }}>Legend</div>
+        <div className="gba:absolute gba:bottom-3 gba:right-3 gba:rounded-md gba:border gba:border-border gba:bg-popover/80 gba:p-3 gba:text-xs gba:text-foreground gba:backdrop-blur-sm gba:leading-snug">
+          <div className="gba:font-semibold gba:mb-2">Legend</div>
           <div>🟠 Departments</div>
           <div>🟣 Users</div>
           <div>⬢ Active Workflows</div>
-          <div style={{ marginTop: '6px', borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: '6px' }}>
+          <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border-border">
             <div>✨ Moving dots = Active tasks in progress</div>
             <div>🌀 Green halo = Good SLA adherence</div>
           </div>
         </div>
       )}
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-      `}</style>
     </div>
   )
 }

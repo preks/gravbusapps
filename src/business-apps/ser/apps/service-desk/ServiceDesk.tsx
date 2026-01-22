@@ -13,7 +13,16 @@ import { ServiceDeskCatalogDiagnostic } from './components/ServiceDeskCatalogDia
 import { PageLayout } from '@newwork/nw-design-system'
 import { EmployeeNameCacheProvider, enableCacheDebugConsole } from '../../services/employee-cache'
 import { ServiceDeskCatalogCacheProvider, enableCatalogCacheDebugConsole } from '../../services/catalog-cache'
-import { HeadsetIcon, ChartBarIcon, TicketIcon, FileTextIcon, HouseIcon, BugIcon } from '@phosphor-icons/react'
+import {
+  HeadsetIcon,
+  ChartBarIcon,
+  TicketIcon,
+  FileTextIcon,
+  HouseIcon,
+  BugIcon,
+  CameraIcon
+} from '@phosphor-icons/react'
+import WebcamUserIdScanner from './components/webcam-scanner/WebcamUserIdScanner'
 
 // UI Components
 import { Alert } from '@newwork/nw-design-system'
@@ -274,6 +283,8 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({ accessToken, userInfo, deskKe
         return <Analytics accessToken={accessToken} userInfo={userInfo} />
       case 'diagnostic':
         return <ServiceDeskCatalogDiagnostic accessToken={accessToken} userInfo={userInfo} />
+      case 'scanner':
+        return <WebcamUserIdScanner userInfo={userInfo} />
       default:
         return <Dashboard accessToken={accessToken} userInfo={userInfo} />
     }
@@ -332,6 +343,11 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({ accessToken, userInfo, deskKe
                   value: 'analytics',
                   label: getTranslationFromI18nKeyAndLabel('services.desk.submenu.analytics', 'Analytics'),
                   icon: <ChartBarIcon size={16} />
+                },
+                {
+                  value: 'scanner',
+                  label: getTranslationFromI18nKeyAndLabel('services.desk.submenu.scanner', 'Scanner'),
+                  icon: <CameraIcon size={16} />
                 },
                 // Only show diagnostic tab for allowed users
                 ...(canSeeDiagnostic

@@ -135,10 +135,11 @@ export class WebRTCClient {
       }
 
       this.localStream = await navigator.mediaDevices.getUserMedia(constraints)
+
       this.emit('localStreamReady', this.localStream)
       return this.localStream
     } catch (error) {
-      console.error('Failed to get local media stream:', error)
+      console.error('[WebRTC] ❌ Failed to get local media stream:', error)
       this.emit('error', { type: 'media', message: 'Failed to access camera/microphone', error })
       throw error
     }
@@ -330,13 +331,18 @@ export class WebRTCClient {
    * Toggle local video
    */
   toggleVideo(): boolean {
-    if (!this.localStream) return false
+    if (!this.localStream) {
+      console.warn('[WebRTC] ⚠️ No local stream available for toggle')
+      return false
+    }
 
     const videoTrack = this.localStream.getVideoTracks()[0]
     if (videoTrack) {
       videoTrack.enabled = !videoTrack.enabled
-      return !videoTrack.enabled // Returns true if video is now off
+      const isVideoOff = !videoTrack.enabled
+      return isVideoOff // Returns true if video is now off
     }
+    console.warn('[WebRTC] ⚠️ No video track found in local stream')
     return false
   }
 
@@ -346,11 +352,9 @@ export class WebRTCClient {
   async startScreenShare(): Promise<MediaStream> {
     try {
       this.screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          cursor: 'always'
-        },
+        video: true,
         audio: false
-      })
+      } as DisplayMediaStreamOptions)
 
       // Replace video track with screen share
       if (this.peerConnection && this.localStream) {

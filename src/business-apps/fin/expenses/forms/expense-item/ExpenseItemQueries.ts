@@ -161,6 +161,7 @@ export const fetchExpenseData = `query MyQuery($expenseId:uuid! ,$activeUserLoca
     expenseRequest {
       id
       title
+      status
     }
     title
     autoCalculated

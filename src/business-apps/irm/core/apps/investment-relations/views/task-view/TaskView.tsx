@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentTasks } from '@/common/data/investment/hooks/useInvestmentTasks'
 import { useInvestmentTaskStatistics } from '@/common/data/investment/hooks/useInvestmentTaskStatistics'
@@ -68,11 +68,12 @@ const copyInvestmentTaskFilters = (
 export type TaskViewProps = BusinessAppContextProps
 
 export const TaskView: React.FC<TaskViewProps> = context => {
-  const { fetchInvestmentTasks } = useInvestmentTasks(context)
+  const investmentTasksHook = useInvestmentTasks(context)
+  const { fetchInvestmentTasks } = investmentTasksHook
   const taskStatistics = useInvestmentTaskStatistics(context)
 
   // Build reference URLs for IRM context
-  const buildReferenceUrl = (reference: TaskReference): string => {
+  const buildReferenceUrl = useCallback((reference: TaskReference): string => {
     switch (reference.type) {
       case 'lead':
         return buildPlatformUrl('/platform/irm/lead-record', { leadId: reference.id })
@@ -87,29 +88,58 @@ export const TaskView: React.FC<TaskViewProps> = context => {
       default:
         return ''
     }
-  }
+  }, [])
 
-  const config: TaskViewConfig<InvestmentTask, InvestmentTaskQueryVariables> = useMemo(
-    () => ({
-      fetchMyTasks: async (variables: InvestmentTaskQueryVariables) => {
-        const employeeId = context.userInfo?.employeeDetails?.employeeId || context.userInfo?.id
-        const result = await fetchInvestmentTasks({
-          ...variables,
-          assignedEmployeeIds: employeeId ? [employeeId] : []
-        })
-        return {
-          tasks: result.tasks as any,
-          total: result.total || 0
-        }
-      },
+  // Memoize fetchTasks wrapper separately to keep reference stable
+  const fetchTasks = useCallback(
+    async (variables: InvestmentTaskQueryVariables) => {
+      const result = await fetchInvestmentTasks(variables)
+      return {
+        tasks: result.tasks as any,
+        total: result.total || 0
+      }
+    },
+    [fetchInvestmentTasks]
+  )
 
-      fetchTeamTasks: async (variables: InvestmentTaskQueryVariables) => {
-        const result = await fetchInvestmentTasks(variables)
-        return {
-          tasks: result.tasks as any,
-          total: result.total || 0
+  // Memoize buildQueryVariables separately to keep reference stable
+  const buildQueryVariables = useCallback((params: any) => {
+    const vars: InvestmentTaskQueryVariables = {
+      limit: params.pagination.pageSize,
+      offset: params.pagination.pageIndex * params.pagination.pageSize,
+      search: params.searchTerm.trim() || undefined
+    }
+
+    const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'dueDateRange', 'startDateRange', 'endDateRange']
+
+    // Process reference type filter using helper
+    processInvestmentReferenceTypeFilter(params.selectedFilters, vars)
+
+    // Process date range filters using helper
+    processInvestmentTaskDateRanges(params.selectedFilters, vars)
+
+    // Copy all other filters using helper
+    copyInvestmentTaskFilters(params.selectedFilters, dateRangeKeys, vars)
+
+    // Use column ID directly - buildOrderBy will use descriptors (INVESTMENT_TASK_DESCRIPTORS)
+    // to resolve correct GraphQL paths (e.g., taskType.value, taskPriority.value, taskStatus.value)
+    if (params.sorting.length > 0) {
+      vars.orderBy = [
+        {
+          field: params.sorting[0].id as any,
+          direction: params.sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
         }
-      },
+      ]
+    } else {
+      vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
+    }
+
+    return vars
+  }, [])
+
+  const config: TaskViewConfig<InvestmentTask, InvestmentTaskQueryVariables> = useMemo(() => {
+    return {
+      fetchTasks,
 
       createColumns: () => createTaskColumns() as any,
       descriptors: INVESTMENT_TASK_DESCRIPTORS,
@@ -128,46 +158,19 @@ export const TaskView: React.FC<TaskViewProps> = context => {
 
       baseFilterConfig: taskFilterConfig,
 
-      buildQueryVariables: params => {
-        const vars: InvestmentTaskQueryVariables = {
-          limit: params.pagination.pageSize,
-          offset: params.pagination.pageIndex * params.pagination.pageSize,
-          search: params.searchTerm.trim() || undefined
-        }
-
-        const dateRangeKeys = ['createdAtRange', 'updatedAtRange', 'dueDateRange', 'startDateRange', 'endDateRange']
-
-        // Process reference type filter using helper
-        processInvestmentReferenceTypeFilter(params.selectedFilters, vars)
-
-        // Process date range filters using helper
-        processInvestmentTaskDateRanges(params.selectedFilters, vars)
-
-        // Copy all other filters using helper
-        copyInvestmentTaskFilters(params.selectedFilters, dateRangeKeys, vars)
-
-        // Use column ID directly - buildOrderBy will use descriptors (INVESTMENT_TASK_DESCRIPTORS)
-        // to resolve correct GraphQL paths (e.g., taskType.value, taskPriority.value, taskStatus.value)
-        if (params.sorting.length > 0) {
-          vars.orderBy = [
-            {
-              field: params.sorting[0].id as any,
-              direction: params.sorting[0].desc ? 'DESC_NULLS_LAST' : 'ASC_NULLS_LAST'
-            }
-          ]
-        } else {
-          vars.orderBy = [{ field: 'createdAt' as any, direction: 'DESC_NULLS_LAST' }]
-        }
-
-        return vars
-      },
+      buildQueryVariables,
 
       flowContexts: {
         entityContext: FlowContextName.investmentTaskEntity,
         createContext: FlowContextName.investmentTaskCreate
       },
 
-      taskStatistics,
+      taskStatistics: {
+        statistics: taskStatistics.teamTasksStatistics,
+        isLoading: taskStatistics.isLoading,
+        error: taskStatistics.error,
+        refetch: taskStatistics.refetch
+      },
 
       rowActionsContextArray: [FlowContextName.investmentTaskEntity],
       buildRowActionsExternalContextData: (row: { original: InvestmentTask }) => {
@@ -201,9 +204,8 @@ export const TaskView: React.FC<TaskViewProps> = context => {
       },
 
       buildReferenceUrl
-    }),
-    [context, fetchInvestmentTasks, taskStatistics, buildReferenceUrl]
-  )
+    }
+  }, [fetchTasks, buildQueryVariables, taskStatistics, buildReferenceUrl])
 
   return (
     <TaskLayout<InvestmentTask, InvestmentTaskQueryVariables>

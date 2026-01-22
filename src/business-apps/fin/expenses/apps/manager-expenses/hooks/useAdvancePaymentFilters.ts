@@ -147,7 +147,6 @@ export const useAdvancePaymentFilters = ({
   // Include all relevant statuses from the ExpenseStatus enum to match backend values
   const availableFilterStatuses: ExpenseStatus[] = [
     ExpenseStatus.PREPARED,
-    ExpenseStatus.CREATED,
     ExpenseStatus.ASSIGNED,
     ExpenseStatus.PENDING,
     ExpenseStatus.APPROVED,

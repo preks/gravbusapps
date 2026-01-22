@@ -22,6 +22,7 @@ changed-tsx.txt
 !.vscode/extensions.json
 .idea
 .DS_Store
+*.code-workspace
 *.suo
 *.ntvs*
 *.njsproj
@@ -34,3 +35,6 @@ temp_build_files
 
 # Desktop app build artifacts
 desktop/release/
+.npm-cache/
+TEST_AI_SCHEMA_GENERATION_UI.md
+*.plan.md

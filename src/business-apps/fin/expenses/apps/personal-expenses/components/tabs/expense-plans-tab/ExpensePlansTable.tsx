@@ -17,9 +17,7 @@ import {
   Spinner,
   Badge,
   Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle
+  SheetContent
 } from '@newwork/nw-design-system'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -31,6 +29,7 @@ import { useExpensePlanFileService } from '../../../utils/expensePlanFileService
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { formatCurrencyDisplay } from '../../../utils'
 import { TablePagination } from '../../../../../components'
+import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 
 const DATA_TEST_ID_PREFIX = 'ExpensePlansTable'
 
@@ -74,6 +73,52 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
     sortOrder,
     ...contextProps
   } = props
+
+  const dataControllerFilterLabelMap = useMemo(() => {
+    const currencyLabelMap: Record<string, string> = {}
+    ;(props.currencyStats || []).forEach(cs => {
+      currencyLabelMap[`currency:${cs.ref}`] = cs.code
+    })
+
+    // Ensure selected currency filters always have a readable label (e.g. "EUR"),
+    // even when currencyStats is empty or does not include the selected ref.
+    ;(props.selectedFilters || [])
+      .filter(token => token.startsWith('currency:'))
+      .forEach(token => {
+        if (!currencyLabelMap[token]) {
+          const ref = token.substring('currency:'.length)
+          const codeFromRef = (ref.split(':').pop() || '').toUpperCase()
+          currencyLabelMap[token] = codeFromRef || ref
+        }
+      })
+
+    return { ...props.filterLabelMap, ...currencyLabelMap }
+  }, [props.filterLabelMap, props.currencyStats, props.selectedFilters])
+
+  const dataFilterGroups = useMemo(() => {
+    const currencyFilters =
+      props.currencyStats?.map(cs => ({
+        id: `currency:${cs.ref}`,
+        label: cs.code,
+        selected: (props.selectedFilters || []).includes(`currency:${cs.ref}`)
+      })) || []
+
+    const currencyGroup =
+      currencyFilters.length > 0
+        ? [
+            {
+              id: 'currency',
+              title: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
+                'Currency'
+              ),
+              filters: currencyFilters
+            }
+          ]
+        : []
+
+    return [...currencyGroup, ...props.filterGroups]
+  }, [props.filterGroups, props.selectedFilters, props.currencyStats])
 
   // Preserve page index across search clear (search is controlled by parent via props)
   const savedPageBeforeSearchRef = useRef<number | null>(null)
@@ -258,8 +303,11 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
       onTableChange(pagination, {}, {})
       savedPageBeforeSearchRef.current = currentPage
     } else if (prev !== '' && next === '') {
-      // clearing search → restore saved page
-      const pagination = { current: savedPageBeforeSearchRef.current || 1, pageSize, total: totalCount }
+      // clearing search → restore saved page, but validate it's not beyond available pages
+      const savedPage = savedPageBeforeSearchRef.current || 1
+      const maxPages = Math.max(1, Math.ceil(totalCount / pageSize))
+      const validPage = savedPage > maxPages ? 1 : savedPage
+      const pagination = { current: validPage, pageSize, total: totalCount }
       onTableChange(pagination, {}, {})
       savedPageBeforeSearchRef.current = null
     }
@@ -722,26 +770,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
           setSearch: props.onSearchChange,
           filter: props.selectedFilters,
           setFilter: props.setFilters,
-          filterLabelMap: useMemo(() => {
-            const currencyLabelMap: Record<string, string> = {}
-            ;(props.currencyStats || []).forEach(cs => {
-              currencyLabelMap[`currency:${cs.ref}`] = cs.code
-            })
-
-            // Ensure selected currency filters always have a readable label (e.g. "EUR"),
-            // even when currencyStats is empty or does not include the selected ref.
-            ;(props.selectedFilters || [])
-              .filter(token => token.startsWith('currency:'))
-              .forEach(token => {
-                if (!currencyLabelMap[token]) {
-                  const ref = token.substring('currency:'.length)
-                  const codeFromRef = (ref.split(':').pop() || '').toUpperCase()
-                  currencyLabelMap[token] = codeFromRef || ref
-                }
-              })
-
-            return { ...props.filterLabelMap, ...currencyLabelMap }
-          }, [props.filterLabelMap, props.currencyStats, props.selectedFilters]),
+          filterLabelMap: dataControllerFilterLabelMap,
           placeholder:
             getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_report_filter.job_search', 'Search') +
             '...',
@@ -757,28 +786,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
           listAmount: totalCount ? `${totalCount}` : undefined
         }}
         dataFilterProps={{
-          filterGroups: useMemo(() => {
-            const currencyFilters =
-              props.currencyStats?.map(cs => ({
-                id: `currency:${cs.ref}`,
-                label: cs.code,
-                selected: (props.selectedFilters || []).includes(`currency:${cs.ref}`)
-              })) || []
-            const currencyGroup =
-              currencyFilters.length > 0
-                ? [
-                    {
-                      id: 'currency',
-                      title: getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
-                        'Currency'
-                      ),
-                      filters: currencyFilters
-                    }
-                  ]
-                : []
-            return [...currencyGroup, ...props.filterGroups]
-          }, [props.filterGroups, props.selectedFilters, (props as any).currencyStats]),
+          filterGroups: dataFilterGroups,
           onFilterChange: props.handleFilterChange
         }}
         hideFilter={false}
@@ -800,25 +808,24 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         data-testid="expense-plan-details-sheet"
       >
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedItem?.title ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:approve_expense_plan.expense_subtitle_details',
-                  'Expense Plan Details'
-                )}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-            {selectedItem && (
+          <ExpenseDetailsShell
+            title={
+              selectedItem?.title ||
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:approve_expense_plan.expense_subtitle_details',
+                'Expense Plan Details'
+              )
+            }
+          >
+            {selectedItem ? (
               <ExpensePlanDetails
                 selectedItem={selectedItem}
                 onClose={handleCloseDetails}
                 accessToken={props.accessToken}
                 userInfo={props.userInfo}
               />
-            )}
-          </div>
+            ) : null}
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
 
@@ -836,25 +843,24 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         data-testid="expense-request-details-sheet"
       >
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedExpenseRequest?.title ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details',
-                  'Expense Request Details'
-                )}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-            {selectedExpenseRequest && (
+          <ExpenseDetailsShell
+            title={
+              selectedExpenseRequest?.title ||
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details',
+                'Expense Request Details'
+              )
+            }
+          >
+            {selectedExpenseRequest ? (
               <ExpenseRequestDetails
                 selectedItem={selectedExpenseRequest}
                 onClose={handleCloseDetails}
                 accessToken={props.accessToken}
                 userInfo={props.userInfo}
               />
-            )}
-          </div>
+            ) : null}
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
 

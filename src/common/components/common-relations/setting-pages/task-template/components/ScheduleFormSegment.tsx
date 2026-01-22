@@ -126,7 +126,7 @@ export const ScheduleFormSegment: React.FC<
   return (
     <div className="gba:space-y-6" data-testid={dataTestId}>
       <div className="gba:space-y-2">
-        <Label className="gba:text-sm gba:font-medium gba:text-gray-700">Scheduling Type</Label>
+        <Label className="gba:text-sm gba:font-medium gba:text-foreground">Scheduling Type</Label>
         <Select value={schedulingType} onValueChange={v => onSchedulingTypeChange?.(v as any)}>
           <FormControl>
             <SelectTrigger data-testid={`${dataTestId}-scheduling-type`}>
@@ -147,7 +147,7 @@ export const ScheduleFormSegment: React.FC<
 
       {schedulingType !== 'EVENTS' && (
         <div className="gba:space-y-2">
-          <Label className="gba:text-sm gba:font-medium gba:text-gray-700">Next Start Date</Label>
+          <Label className="gba:text-sm gba:font-medium gba:text-foreground">Next Start Date</Label>
           <Input
             type="date"
             value={nextStartDate || ''}
@@ -159,7 +159,7 @@ export const ScheduleFormSegment: React.FC<
 
       {(schedulingType === 'WEEKLY' || schedulingType === 'BIWEEKLY' || schedulingType === 'CUSTOM') && (
         <div className="gba:space-y-2">
-          <Label className="gba:text-sm gba:font-medium gba:text-gray-700">Days of Week</Label>
+          <Label className="gba:text-sm gba:font-medium gba:text-foreground">Days of Week</Label>
           <Combobox
             value=""
             onValueChange={addWeekDay}
@@ -190,7 +190,7 @@ export const ScheduleFormSegment: React.FC<
 
       {(schedulingType === 'MONTHLY' || schedulingType === 'CUSTOM') && (
         <div className="gba:space-y-2">
-          <Label className="gba:text-sm gba:font-medium gba:text-gray-700">Days of Month</Label>
+          <Label className="gba:text-sm gba:font-medium gba:text-foreground">Days of Month</Label>
           <Combobox
             value=""
             onValueChange={addMonthDay}
@@ -221,7 +221,7 @@ export const ScheduleFormSegment: React.FC<
 
       {(schedulingType === 'MONTHLY' || schedulingType === 'CUSTOM') && (
         <div className="gba:space-y-2">
-          <Label className="gba:text-sm gba:font-medium gba:text-gray-700">Months of Year</Label>
+          <Label className="gba:text-sm gba:font-medium gba:text-foreground">Months of Year</Label>
           <Combobox
             value=""
             onValueChange={addYearMonth}
@@ -253,7 +253,7 @@ export const ScheduleFormSegment: React.FC<
       {schedulingType !== 'ONCE' && schedulingType !== 'EVENTS' && (
         <div className="gba:grid gba:grid-cols-2 gba:gap-4">
           <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-700">Interval</Label>
+            <Label className="gba:text-sm gba:font-medium gba:text-foreground">Interval</Label>
             <Input
               type="number"
               min={1}
@@ -263,7 +263,7 @@ export const ScheduleFormSegment: React.FC<
             />
           </div>
           <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-700">Holiday Policy</Label>
+            <Label className="gba:text-sm gba:font-medium gba:text-foreground">Holiday Policy</Label>
             <Select value={holidayPolicy} onValueChange={v => onChange({ ...value, holidayPolicy: v })}>
               <FormControl>
                 <SelectTrigger data-testid={`${dataTestId}-holiday-policy-select`}>
@@ -287,7 +287,7 @@ export const ScheduleFormSegment: React.FC<
           <button
             type="button"
             onClick={() => onChange({ ...value, daysOfWeek: {}, daysOfMonth: {}, monthsOfYear: {} })}
-            className="gba:text-sm gba:text-red-600 hover:gba:text-red-800"
+            className="gba:text-sm gba:text-destructive hover:gba:text-destructive/80"
             data-testid={`${dataTestId}-clear-all`}
           >
             Clear All
