@@ -17,17 +17,20 @@ import {
   CaretUpIcon,
   MapPinIcon,
   InfoIcon,
-  ListBulletsIcon,
-  PaperPlaneIcon
+  ListBulletsIcon
 } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import type { JobPosting } from '@/common/data/recruiting/types/jobPostingTypes'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import type { UserInfoProps } from '@/common/BusinessAppContext'
+import { AppAction } from '@/components/app-action'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 interface JobPostingExpandableCardProps {
   jobPosting: JobPosting
   accessToken: string
+  userInfo?: UserInfoProps
+  jobCandidateId?: string
   prefixDataTestId?: string
   defaultExpanded?: boolean
   showExpandButton?: boolean
@@ -40,6 +43,8 @@ interface JobPostingExpandableCardProps {
 export const JobPostingExpandableCard: React.FC<JobPostingExpandableCardProps> = ({
   jobPosting,
   accessToken,
+  userInfo,
+  jobCandidateId,
   prefixDataTestId = 'JobPostingExpandableCard',
   defaultExpanded = false,
   showExpandButton = true,
@@ -50,6 +55,8 @@ export const JobPostingExpandableCard: React.FC<JobPostingExpandableCardProps> =
 }) => {
   const [isExpanded, setIsExpanded] = useState(isExpandedFromUrl ?? defaultExpanded)
   const [activeTab, setActiveTab] = useState(activeTabFromUrl ?? 'overview')
+
+  const hasCandidate = !!jobCandidateId
 
   useEffect(() => {
     if (isExpandedFromUrl !== undefined) {
@@ -164,8 +171,28 @@ export const JobPostingExpandableCard: React.FC<JobPostingExpandableCardProps> =
               </div>
             </div>
 
-            {/* Expand Button */}
-            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
+            {/* Apply Button and Expand Button */}
+            <div className="gba:flex gba:items-center gba:gap-3 gba:flex-shrink-0">
+              {hasCandidate && (
+                <AppAction
+                  variant="create-primary"
+                  contexts={[
+                    {
+                      context: FlowContextName.jobApplicationCreate,
+                      contextData: {
+                        jobPostingId: jobPosting.id,
+                        jobCandidateId: jobCandidateId,
+                        scope: 'personal'
+                      }
+                    }
+                  ]}
+                  accessToken={accessToken}
+                  userInfo={userInfo}
+                  data-testid={formatDataTestId(prefixDataTestId, `apply-button-${jobPosting.id}`)}
+                >
+                  {getTranslationFromI18nKeyAndLabel('recruiting.portal.applyButton', 'Apply Now')}
+                </AppAction>
+              )}
               {isExpanded ? <CaretUpIcon size={20} /> : <CaretDownIcon size={20} />}
             </div>
           </button>
@@ -231,9 +258,6 @@ export const JobPostingExpandableCard: React.FC<JobPostingExpandableCardProps> =
                 <TabsTrigger value="description" startIcon={<ListBulletsIcon size={16} />}>
                   {getTranslationFromI18nKeyAndLabel('recruiting.portal.description', 'Description')}
                 </TabsTrigger>
-                <TabsTrigger value="apply" startIcon={<PaperPlaneIcon size={16} />}>
-                  {getTranslationFromI18nKeyAndLabel('recruiting.portal.apply', 'Apply')}
-                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview">
@@ -297,41 +321,6 @@ export const JobPostingExpandableCard: React.FC<JobPostingExpandableCardProps> =
                       )}
                     </p>
                   </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="apply">
-                <div
-                  data-testid={formatDataTestId(prefixDataTestId, 'apply-tab')}
-                  className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:space-y-4"
-                >
-                  <p className="gba:text-center gba:text-muted-foreground gba:mb-4">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'recruiting.portal.applyDescription',
-                      'Ready to apply for this position? Click below to submit your application.'
-                    )}
-                  </p>
-
-                  <AppActionButton
-                    data-testid={formatDataTestId(`${prefixDataTestId}-apply`, `button-${jobPosting.id}`)}
-                    size="default"
-                    variant="default"
-                    contextsArray={[]}
-                    externalContextData={{ jobPostingId: jobPosting.id }}
-                    prefixDataTestId={`${prefixDataTestId}-apply`}
-                    accessToken={accessToken}
-                    emptyStateBehavior="enable"
-                    deferMainContextRequestsUntilClick
-                  >
-                    {getTranslationFromI18nKeyAndLabel('recruiting.portal.applyButton', 'Apply Now')}
-                  </AppActionButton>
-
-                  <p className="gba:text-sm gba:text-muted-foreground gba:text-center">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'recruiting.portal.applyNote',
-                      'You will be guided through the application process'
-                    )}
-                  </p>
                 </div>
               </TabsContent>
             </Tabs>

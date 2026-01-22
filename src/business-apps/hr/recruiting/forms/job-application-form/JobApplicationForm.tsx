@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react'
+import React, { useEffect, useRef, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -23,19 +23,23 @@ import {
 } from '@newwork/nw-design-system'
 import { RECRUITING_CATALOGS } from '@/common/data/recruiting/constants/recruitingConstants'
 import { EmployeeSelect } from '@/components/employee-select'
+import { JobPostingSelect } from '@/components/job-posting-select'
+import { JobCandidateSelect } from '@/components/job-candidate-select'
+import { useJobPosting } from '@/common/data/recruiting/hooks/useJobPosting'
+import { useJobCandidate } from '@/common/data/recruiting/hooks/useJobCandidate'
 
 const jobApplicationSchema = z.object({
-  id: z.string().optional(),
-  version: z.number().optional(),
-  code: z.string().optional(),
-  applicationDate: z.string().optional(),
-  status: z.string().optional(),
-  notes: z.string().optional(),
-  applicationStatusRef: z.string().optional(),
-  applicationStageRef: z.string().optional(),
-  jobCandidateId: z.string().optional(),
-  jobPostingId: z.string().optional(),
-  reviewedByEmployeeId: z.string().optional(),
+  id: z.string().nullish(),
+  version: z.number().nullish(),
+  code: z.string().nullish(),
+  applicationDate: z.string().nullish(),
+  status: z.string().nullish(),
+  notes: z.string().nullish(),
+  applicationStatusRef: z.string().nullish(),
+  applicationStageRef: z.string().nullish(),
+  jobCandidateId: z.string().min(1, 'Candidate is required'),
+  jobPostingId: z.string().min(1, 'Job Posting is required'),
+  reviewedByEmployeeId: z.string().nullish(),
   additionalProperties: z.any().optional()
 })
 
@@ -47,11 +51,62 @@ const JobApplicationForm: React.FC<JobApplicationFormProps> = ({ accessToken, us
     additionalData?.psi_taskPayload?.psi_initialParameters?.jobApplicationId ||
     undefined
 
+  const scope = useMemo(() => {
+    return (
+      (additionalData as any)?.externalContextData?.scope || // From AppAction (highest priority)
+      additionalData?.scope ||
+      additionalData?.psi_taskPayload?.psi_initialParameters?.scope ||
+      undefined
+    )
+  }, [additionalData])
+  const isPersonalScope = scope === 'personal'
+
+  const jobPostingId = useMemo(() => {
+    return (
+      (additionalData as any)?.externalContextData?.jobPostingId || // From AppAction (highest priority)
+      additionalData?.jobPostingId ||
+      additionalData?.psi_taskPayload?.psi_initialParameters?.jobPostingId ||
+      undefined
+    )
+  }, [additionalData])
+
+  const jobCandidateId = useMemo(() => {
+    return (
+      (additionalData as any)?.externalContextData?.jobCandidateId || // From AppAction (highest priority)
+      additionalData?.jobCandidateId ||
+      additionalData?.psi_taskPayload?.psi_initialParameters?.jobCandidateId ||
+      undefined
+    )
+  }, [additionalData])
+
   const { jobApplication, loading, error } = useJobApplication(accessToken || '', jobApplicationId)
+
+  // Fetch related entities for display in personal scope
+  const { jobPosting } = useJobPosting(accessToken || '', jobPostingId, 'record')
+  const { jobCandidate } = useJobCandidate(accessToken || '', jobCandidateId)
+
+  // Build initial default values
+  const initialDefaultValues = useMemo(() => {
+    const baseValues = mapToFormValues(jobApplication || {}, jobApplicationSchema) as any
+
+    // Pre-fill from context if available
+    if (!jobApplicationId) {
+      const currentDate = new Date().toISOString().split('T')[0]
+      return {
+        ...baseValues,
+        jobPostingId: jobPostingId || baseValues.jobPostingId,
+        jobCandidateId: jobCandidateId || baseValues.jobCandidateId,
+        applicationDate: baseValues.applicationDate || currentDate,
+        applicationStatusRef: baseValues.applicationStatusRef || 'SUBMITTED'
+      }
+    }
+
+    return baseValues
+  }, [jobApplication, jobApplicationId, jobPostingId, jobCandidateId])
 
   const form = useForm({
     resolver: zodResolver(jobApplicationSchema),
-    defaultValues: mapToFormValues(jobApplication || {}, jobApplicationSchema) as any,
+    defaultValues: initialDefaultValues,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
@@ -108,6 +163,68 @@ const JobApplicationForm: React.FC<JobApplicationFormProps> = ({ accessToken, us
       >
         <Form {...form}>
           <div className="gba:space-y-4">
+            {/* Job Posting Selection */}
+            <FormField
+              control={form.control}
+              name="jobPostingId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Job Posting <span className="gba:text-destructive">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    {isPersonalScope ? (
+                      <div className="gba:p-3 gba:border gba:border-border gba:rounded-md gba:bg-muted">
+                        <p className="gba:text-sm gba:font-medium">{jobPosting?.title || 'Loading...'}</p>
+                      </div>
+                    ) : (
+                      <JobPostingSelect
+                        value={field.value || null}
+                        onValueChange={field.onChange}
+                        businessAppContext={{ accessToken, userInfo, additionalData }}
+                        placeholder="Select job posting..."
+                        data-testid={formatDataTestId('job-application-form', 'job-posting-select')}
+                      />
+                    )}
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Job Candidate Selection */}
+            <FormField
+              control={form.control}
+              name="jobCandidateId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Candidate <span className="gba:text-destructive">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    {isPersonalScope ? (
+                      <div className="gba:p-3 gba:border gba:border-border gba:rounded-md gba:bg-muted">
+                        <p className="gba:text-sm gba:font-medium">
+                          {jobCandidate
+                            ? jobCandidate.displayName || `${jobCandidate.firstName} ${jobCandidate.lastName}`
+                            : 'Loading...'}
+                        </p>
+                      </div>
+                    ) : (
+                      <JobCandidateSelect
+                        value={field.value || null}
+                        onValueChange={field.onChange}
+                        accessToken={accessToken || ''}
+                        placeholder="Select candidate..."
+                        data-testid={formatDataTestId('job-application-form', 'job-candidate-select')}
+                      />
+                    )}
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="applicationDate"

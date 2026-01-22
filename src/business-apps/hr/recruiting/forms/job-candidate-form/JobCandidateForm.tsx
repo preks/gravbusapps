@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react'
+import React, { useEffect, useRef, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -10,25 +10,48 @@ import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { ErrorAlert } from '@/components/error-alert'
 import { CatalogSelect } from '@/components/catalog-select'
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, Input } from '@newwork/nw-design-system'
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+  Input,
+  Button,
+  DateInput
+} from '@newwork/nw-design-system'
+import { useEmployeeByUserId } from '@/common/data/employee/hooks/useEmployeeByUserId'
+import { ArrowsClockwise } from '@phosphor-icons/react'
 
 const jobCandidateSchema = z.object({
-  id: z.string().optional(),
-  version: z.number().optional(),
-  code: z.string().optional(),
-  title: z.string().optional(),
+  id: z.string().nullish(),
+  version: z.number().nullish(),
+  code: z.string().nullish(),
+  title: z.string().nullish(),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
-  displayName: z.string().optional(),
-  birthDate: z.string().optional(),
-  jobCandidateStatus: z.string().optional(),
-  academicTitleRef: z.string().optional(),
-  genderRef: z.string().optional(),
-  nationalityRef: z.string().optional(),
-  notes: z.string().optional(),
+  displayName: z.string().nullish(),
+  birthDate: z.string().nullish(),
+  birthName: z.string().nullish(),
+  birthPlace: z.string().nullish(),
+  children: z.number().nullish(),
+  jobCandidateStatus: z.string().nullish(),
+  academicTitleRef: z.string().nullish(),
+  genderRef: z.string().nullish(),
+  nationalityRef: z.string().nullish(),
+  ethnicityRef: z.string().nullish(),
+  maritalStatusRef: z.string().nullish(),
+  disabilityStatusRef: z.string().nullish(),
+  veteranStatusRef: z.string().nullish(),
+  sourceRef: z.string().nullish(),
+  candidateStatusRef: z.string().nullish(),
+  notes: z.string().nullish(),
   // Jsonb fields (simplified for now - full editors can be added later)
   communicationChannels: z.any().optional(),
   addresses: z.any().optional(),
+  educations: z.any().optional(),
+  certificates: z.any().optional(),
   additionalProperties: z.any().optional()
 })
 
@@ -40,16 +63,51 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
     additionalData?.psi_taskPayload?.psi_initialParameters?.jobCandidateId ||
     undefined
 
+  const scope = useMemo(() => {
+    return additionalData?.scope || additionalData?.psi_taskPayload?.psi_initialParameters?.scope || undefined
+  }, [additionalData])
+  const isPersonalScope = scope === 'personal'
+
   const { jobCandidate, loading, error } = useJobCandidate(accessToken || '', jobCandidateId)
+
+  // Extract userId from psi_initialParameters
+  const userId = useMemo(() => {
+    return additionalData?.psi_taskPayload?.psi_initialParameters?.userId || additionalData?.userId || undefined
+  }, [additionalData])
+
+  // Fetch employee data if userId is provided
+  const { employee: employeeData, loading: employeeLoading } = useEmployeeByUserId({
+    accessToken: accessToken || '',
+    userId
+  })
+
+  const hasEmployee = !!employeeData
+
+  // Initialize form with jobCandidate data OR employee data (in personal scope, create mode)
+  // When using employee data, remove id to avoid conflicts
+  const getInitialFormData = useCallback(() => {
+    if (jobCandidate) {
+      return jobCandidate
+    }
+    if (isPersonalScope && !jobCandidateId && employeeData) {
+      // Remove id from employee data for create mode (employee doesn't have version)
+      const employeeWithoutId = Object.fromEntries(Object.entries(employeeData).filter(([key]) => key !== 'id'))
+      return employeeWithoutId
+    }
+    return {}
+  }, [jobCandidate, isPersonalScope, jobCandidateId, employeeData])
 
   const form = useForm({
     resolver: zodResolver(jobCandidateSchema),
-    defaultValues: mapToFormValues(jobCandidate || {}, jobCandidateSchema) as any,
+    defaultValues: mapToFormValues(getInitialFormData(), jobCandidateSchema) as any,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
 
   const jobCandidateRef = useRef(jobCandidate)
+  const employeeDataRef = useRef(employeeData)
+
+  // Sync form when jobCandidate changes (switching between candidates)
   useEffect(() => {
     if (jobCandidateRef.current?.id !== jobCandidate?.id) {
       form.reset(mapToFormValues(jobCandidate || {}, jobCandidateSchema) as any)
@@ -57,18 +115,52 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
     }
   }, [jobCandidate?.id, jobCandidate, form])
 
-  const handleSubmit = useCallback(async (data: any) => {
-    try {
-      const { jobCandidate } = buildJobCandidatePayload(data)
-      return {
-        jobCandidate,
-        changeMode: data.id ? 'UPDATE' : 'INSERT'
-      }
-    } catch (error) {
-      console.error('Error submitting job candidate:', error)
-      throw error
+  // Sync form when employee data loads in personal scope (create mode only)
+  useEffect(() => {
+    if (
+      isPersonalScope &&
+      !jobCandidateId &&
+      !loading &&
+      employeeData &&
+      employeeDataRef.current?.id !== employeeData?.id
+    ) {
+      // Remove id from employee data for create mode (employee doesn't have version)
+      const employeeWithoutId = Object.fromEntries(Object.entries(employeeData).filter(([key]) => key !== 'id'))
+      form.reset(mapToFormValues(employeeWithoutId, jobCandidateSchema) as any)
+      employeeDataRef.current = employeeData
     }
-  }, [])
+  }, [isPersonalScope, employeeData, jobCandidateId, loading, form])
+
+  // Handle reload from employee data
+  const handleReloadFromEmployee = useCallback(() => {
+    if (employeeData) {
+      // Remove id from employee data for create mode (employee doesn't have version)
+      const employeeWithoutId = Object.fromEntries(Object.entries(employeeData).filter(([key]) => key !== 'id'))
+      form.reset(mapToFormValues(employeeWithoutId, jobCandidateSchema) as any)
+    }
+  }, [employeeData, form])
+
+  const handleSubmit = useCallback(
+    async (data: any) => {
+      try {
+        const { jobCandidate } = buildJobCandidatePayload(data)
+
+        // Add userId to the payload if in personal scope and creating new candidate
+        if (isPersonalScope && !data.id && userId) {
+          jobCandidate.userId = userId
+        }
+
+        return {
+          jobCandidate,
+          changeMode: data.id ? 'UPDATE' : 'INSERT'
+        }
+      } catch (error) {
+        console.error('Error submitting job candidate:', error)
+        throw error
+      }
+    },
+    [isPersonalScope, userId]
+  )
 
   const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
   if (!accessToken) {
@@ -101,6 +193,24 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
       >
         <Form {...form}>
           <div className="gba:space-y-4">
+            {/* Reload from Employee Button - Only in personal scope with employee data */}
+            {isPersonalScope && hasEmployee && (
+              <div className="gba:flex gba:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReloadFromEmployee}
+                  disabled={employeeLoading}
+                  data-testid={formatDataTestId('job-candidate-form', 'reload-from-employee-button')}
+                >
+                  <ArrowsClockwise size={16} className="gba:mr-2" />
+                  Reload from Employee
+                </Button>
+              </div>
+            )}
+
+            {/* Personal Information */}
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <FormField
                 control={form.control}
@@ -134,16 +244,12 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <FormField
                 control={form.control}
-                name="email"
+                name="birthDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>Birth Date</FormLabel>
                     <FormControl>
-                      <Input
-                        type="email"
-                        {...field}
-                        data-testid={formatDataTestId('job-candidate-form', 'email-input')}
-                      />
+                      <DateInput {...field} data-testid={formatDataTestId('job-candidate-form', 'birthDate-input')} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -152,12 +258,12 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
 
               <FormField
                 control={form.control}
-                name="phone"
+                name="birthPlace"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone</FormLabel>
+                    <FormLabel>Birth Place</FormLabel>
                     <FormControl>
-                      <Input {...field} data-testid={formatDataTestId('job-candidate-form', 'phone-input')} />
+                      <Input {...field} data-testid={formatDataTestId('job-candidate-form', 'birthPlace-input')} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -167,17 +273,12 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
 
             <FormField
               control={form.control}
-              name="linkedinUrl"
+              name="birthName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>LinkedIn URL</FormLabel>
+                  <FormLabel>Birth Name</FormLabel>
                   <FormControl>
-                    <Input
-                      type="url"
-                      {...field}
-                      placeholder="https://linkedin.com/in/..."
-                      data-testid={formatDataTestId('job-candidate-form', 'linkedin-input')}
-                    />
+                    <Input {...field} data-testid={formatDataTestId('job-candidate-form', 'birthName-input')} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -187,16 +288,18 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <FormField
                 control={form.control}
-                name="resumeUrl"
+                name="genderRef"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Resume URL</FormLabel>
+                    <FormLabel>Gender</FormLabel>
                     <FormControl>
-                      <Input
-                        type="url"
-                        {...field}
-                        placeholder="https://..."
-                        data-testid={formatDataTestId('job-candidate-form', 'resume-input')}
+                      <CatalogSelect
+                        catalogIdentifier="Gender"
+                        value={field.value || ''}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-candidate-form', 'gender-select')}
                       />
                     </FormControl>
                     <FormMessage />
@@ -206,16 +309,18 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
 
               <FormField
                 control={form.control}
-                name="coverLetterUrl"
+                name="nationalityRef"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cover Letter URL</FormLabel>
+                    <FormLabel>Nationality</FormLabel>
                     <FormControl>
-                      <Input
-                        type="url"
-                        {...field}
-                        placeholder="https://..."
-                        data-testid={formatDataTestId('job-candidate-form', 'cover-letter-input')}
+                      <CatalogSelect
+                        catalogIdentifier="Nationality"
+                        value={field.value || ''}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-candidate-form', 'nationality-select')}
                       />
                     </FormControl>
                     <FormMessage />
@@ -227,18 +332,18 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <FormField
                 control={form.control}
-                name="candidateStatusRef"
+                name="maritalStatusRef"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Candidate Status</FormLabel>
+                    <FormLabel>Marital Status</FormLabel>
                     <FormControl>
                       <CatalogSelect
-                        catalogIdentifier="CandidateStatus"
-                        value={field.value || null}
+                        catalogIdentifier="MaritalStatus"
+                        value={field.value || ''}
                         onValueChange={(v: string | string[]) =>
                           field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
                         }
-                        data-testid={formatDataTestId('job-candidate-form', 'status-select')}
+                        data-testid={formatDataTestId('job-candidate-form', 'maritalStatus-select')}
                       />
                     </FormControl>
                     <FormMessage />
@@ -248,18 +353,16 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
 
               <FormField
                 control={form.control}
-                name="sourceRef"
+                name="children"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Source</FormLabel>
+                    <FormLabel>Number of Children</FormLabel>
                     <FormControl>
-                      <CatalogSelect
-                        catalogIdentifier="Source"
-                        value={field.value || null}
-                        onValueChange={(v: string | string[]) =>
-                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
-                        }
-                        data-testid={formatDataTestId('job-candidate-form', 'source-select')}
+                      <Input
+                        type="number"
+                        {...field}
+                        onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
+                        data-testid={formatDataTestId('job-candidate-form', 'children-input')}
                       />
                     </FormControl>
                     <FormMessage />
@@ -277,7 +380,7 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
                   <FormControl>
                     <CatalogSelect
                       catalogIdentifier="AcademicTitle"
-                      value={field.value || null}
+                      value={field.value || ''}
                       onValueChange={(v: string | string[]) => field.onChange(Array.isArray(v) ? v[0] || '' : v || '')}
                       data-testid={formatDataTestId('job-candidate-form', 'academic-title-select')}
                     />
@@ -286,6 +389,132 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
                 </FormItem>
               )}
             />
+
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="ethnicityRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ethnicity</FormLabel>
+                    <FormControl>
+                      <CatalogSelect
+                        catalogIdentifier="Ethnicity"
+                        value={field.value || ''}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-candidate-form', 'ethnicity-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="disabilityStatusRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Disability Status</FormLabel>
+                    <FormControl>
+                      <CatalogSelect
+                        catalogIdentifier="DisabilityStatus"
+                        value={field.value || ''}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-candidate-form', 'disabilityStatus-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="veteranStatusRef"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Veteran Status</FormLabel>
+                  <FormControl>
+                    <CatalogSelect
+                      catalogIdentifier="VeteranStatus"
+                      value={field.value || ''}
+                      onValueChange={(v: string | string[]) => field.onChange(Array.isArray(v) ? v[0] || '' : v || '')}
+                      data-testid={formatDataTestId('job-candidate-form', 'veteranStatus-select')}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Hide candidateStatusRef, sourceRef, and notes in personal scope */}
+            {!isPersonalScope && (
+              <>
+                <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+                  <FormField
+                    control={form.control}
+                    name="candidateStatusRef"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Candidate Status</FormLabel>
+                        <FormControl>
+                          <CatalogSelect
+                            catalogIdentifier="CandidateStatus"
+                            value={field.value || ''}
+                            onValueChange={(v: string | string[]) =>
+                              field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                            }
+                            data-testid={formatDataTestId('job-candidate-form', 'status-select')}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="sourceRef"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Source</FormLabel>
+                        <FormControl>
+                          <CatalogSelect
+                            catalogIdentifier="Source"
+                            value={field.value || ''}
+                            onValueChange={(v: string | string[]) =>
+                              field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                            }
+                            data-testid={formatDataTestId('job-candidate-form', 'source-select')}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Notes</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid={formatDataTestId('job-candidate-form', 'notes-input')} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
           </div>
         </Form>
       </AppActionForm>

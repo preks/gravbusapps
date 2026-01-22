@@ -26,7 +26,8 @@ export const JOB_CANDIDATE_QUERY_CONFIGS: Record<string, string[]> = {
     'birthDate',
     'email', // Deprecated but might still be in backend
     'phone', // Deprecated but might still be in backend
-    'updatedAt'
+    'updatedAt',
+    'applicationCount'
   ],
   record: [
     'code',
@@ -52,7 +53,8 @@ export const JOB_CANDIDATE_QUERY_CONFIGS: Record<string, string[]> = {
     'updatedAt',
     'updatedBy',
     'version',
-    'additionalProperties'
+    'additionalProperties',
+    'applicationCount'
   ]
 }
 
@@ -127,6 +129,16 @@ const buildScalarFields = (fieldSet: Set<string>): string => {
     .join('\n    ')
 }
 
+const buildAggregateFields = (fieldSet: Set<string>): string => {
+  const aggregateFields: string[] = []
+
+  if (fieldSet.has('applicationCount')) {
+    aggregateFields.push('jobApplicationAggregate(where: {isDeleted: {_eq: false}}) { aggregate { count } }')
+  }
+
+  return aggregateFields.join('\n    ')
+}
+
 const buildCatalogReferenceField = (
   fieldSet: Set<string>,
   fieldName: string,
@@ -148,6 +160,7 @@ export const buildJobCandidateFragment = (fields: string[]): string => {
   return `
     ${AUDIT_FIELDS}
     ${buildScalarFields(fieldSet)}
+    ${buildAggregateFields(fieldSet)}
     
     ${buildCatalogReferenceField(fieldSet, 'academicTitle', 'academicTitleRef', JobCandidateFields.academicTitle)}
     

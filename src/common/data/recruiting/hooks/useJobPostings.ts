@@ -64,8 +64,16 @@ export function useJobPostings(
           JobPosting: any[]
           JobPostingAggregate: { aggregate: { count: number } }
         }>(query, { limit, offset, where: whereObj, orderBy: orderByArray })
+
+        // Map aggregate counts to top-level fields
+        const mappedJobPostings = (result.JobPosting || []).map((posting: any) => ({
+          ...posting,
+          applicationCount: posting.jobApplicationAggregate?.aggregate?.count || 0,
+          positionCount: posting.jobPostingPositionAggregate?.aggregate?.count || 0
+        }))
+
         setState({
-          jobPostings: (result.JobPosting || []) as JobPosting[],
+          jobPostings: mappedJobPostings as JobPosting[],
           total: result.JobPostingAggregate?.aggregate?.count || 0,
           loading: false,
           error: null

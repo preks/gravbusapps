@@ -25,6 +25,10 @@ export interface JobPosting extends BaseEntity {
 
   // Entity Reference IDs
   jobRequestId?: string
+
+  // Aggregate counts
+  applicationCount?: number
+  positionCount?: number
 }
 
 /**

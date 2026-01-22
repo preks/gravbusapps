@@ -8,6 +8,9 @@ import { JobPostingExpandableCard } from './components/JobPostingExpandableCard'
 import { RecruitingSearch } from './components/RecruitingSearch'
 import { RecruitingPortalBanner } from './components/RecruitingPortalBanner'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { useJobCandidateByUserId } from '@/common/data/recruiting/hooks/useJobCandidateByUserId'
+import { AppAction } from '@/components/app-action'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 interface RecruitingPortalProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -30,11 +33,22 @@ export const RecruitingPortal: React.FC<RecruitingPortalProps> = ({
     'list'
   )
 
-  // Listen for process completion (job application submission) and refresh data
+  // Check if current user has a job candidate profile
+  const {
+    jobCandidateId,
+    loading: candidateLoading,
+    refetch: refetchCandidate
+  } = useJobCandidateByUserId({
+    accessToken: accessToken || '',
+    userId: userInfo?.id
+  })
+
+  // Listen for process completion (job application/candidate submission) and refresh data
   useProcessCompletion({
     onSuccess: () => {
-      console.log('Process completed successfully, refreshing job posting data')
+      console.log('Process completed successfully, refreshing data')
       refetch()
+      refetchCandidate()
     }
   })
 
@@ -201,6 +215,58 @@ export const RecruitingPortal: React.FC<RecruitingPortalProps> = ({
 
       {/* Content */}
       <div className="gba:w-full gba:max-w-[1440px] gba:mx-auto gba:px-8 gba:py-8 gba:space-y-6">
+        {/* Candidate Profile Section */}
+        <div className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:p-6 gba:flex gba:items-center gba:justify-between gba:gap-4">
+          <div className="gba:flex-1">
+            <h2 className="gba:text-lg gba:font-semibold gba:mb-1">
+              {getTranslationFromI18nKeyAndLabel('recruiting.portal.candidateProfile', 'Your Candidate Profile')}
+            </h2>
+            <p className="gba:text-sm gba:text-muted-foreground">
+              {jobCandidateId
+                ? getTranslationFromI18nKeyAndLabel(
+                    'recruiting.portal.candidateProfileExists',
+                    'Update your profile or apply for open positions'
+                  )
+                : getTranslationFromI18nKeyAndLabel(
+                    'recruiting.portal.candidateProfileMissing',
+                    'Create your candidate profile to apply for job postings'
+                  )}
+            </p>
+          </div>
+          <div className="gba:flex gba:gap-2">
+            {candidateLoading ? (
+              <Spinner size="sm" />
+            ) : jobCandidateId ? (
+              <AppAction
+                variant="update-primary"
+                contexts={[
+                  {
+                    context: FlowContextName.jobCandidateUpdate,
+                    contextData: { jobCandidateId, scope: 'personal', userId: userInfo?.id }
+                  }
+                ]}
+                accessToken={accessToken}
+                data-testid={formatDataTestId(prefixDataTestId, 'update-profile-button')}
+              >
+                {getTranslationFromI18nKeyAndLabel('recruiting.portal.updateProfile', 'Update Profile')}
+              </AppAction>
+            ) : (
+              <AppAction
+                variant="create-primary"
+                contexts={[
+                  {
+                    context: FlowContextName.jobCandidateCreate,
+                    contextData: { scope: 'personal', userId: userInfo?.id }
+                  }
+                ]}
+                accessToken={accessToken}
+                data-testid={formatDataTestId(prefixDataTestId, 'create-profile-button')}
+              >
+                {getTranslationFromI18nKeyAndLabel('recruiting.portal.createProfile', 'Create Profile')}
+              </AppAction>
+            )}
+          </div>
+        </div>
         {/* Search Bar - Only show if multiple postings */}
         {hasMultiplePostings && (
           <>
@@ -227,6 +293,8 @@ export const RecruitingPortal: React.FC<RecruitingPortalProps> = ({
                 key={posting.id}
                 jobPosting={posting}
                 accessToken={accessToken}
+                userInfo={userInfo}
+                jobCandidateId={jobCandidateId || undefined}
                 prefixDataTestId={`${prefixDataTestId}-card`}
                 defaultExpanded={!hasMultiplePostings}
                 showExpandButton={hasMultiplePostings}

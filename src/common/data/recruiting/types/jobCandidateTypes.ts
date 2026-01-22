@@ -132,6 +132,9 @@ export interface JobCandidate extends BaseEntity {
   educations?: CandidateEducation[]
   hobbies?: CandidateHobby[]
   jobHistory?: CandidateJobHistory[]
+
+  // Aggregate counts
+  applicationCount?: number
 }
 
 /**

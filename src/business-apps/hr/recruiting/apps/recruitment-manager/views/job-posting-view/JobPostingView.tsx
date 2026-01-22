@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobPostings } from '@/common/data/recruiting/hooks/useJobPostings'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import { DataDisplay, DataTable, Badge } from '@newwork/nw-design-system'
+import { DataDisplay, DataTable } from '@newwork/nw-design-system'
 import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -107,50 +107,30 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
         meta: { type: 'text' as const }
       },
       {
-        id: 'department',
-        accessorKey: 'department',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.department', 'Department'),
-        cell: info => <div className="gba:text-sm">{(info.getValue() as string) || '-'}</div>,
-        meta: { type: 'text' as const }
+        id: 'applicationCount',
+        accessorKey: 'applicationCount',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.applications', 'Applications'),
+        cell: info => <div className="gba:text-sm gba:text-center">{(info.getValue() as number) || 0}</div>,
+        meta: { type: 'number' as const }
       },
       {
-        id: 'location',
-        accessorKey: 'location',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.location', 'Location'),
-        cell: info => <div className="gba:text-sm">{(info.getValue() as string) || '-'}</div>,
-        meta: { type: 'text' as const }
+        id: 'positionCount',
+        accessorKey: 'positionCount',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.positions', 'Positions'),
+        cell: info => <div className="gba:text-sm gba:text-center">{(info.getValue() as number) || 0}</div>,
+        meta: { type: 'number' as const }
       },
       {
-        id: 'contractType',
-        accessorKey: 'contractType',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.contractType', 'Contract Type'),
+        id: 'createdAt',
+        accessorKey: 'createdAt',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.postedDate', 'Posted Date'),
         cell: info => {
           const value = info.getValue() as string
-          return value ? (
-            <Badge variant="secondary" className="gba:text-xs">
-              {value}
-            </Badge>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
+          if (!value) return <span className="gba:text-sm gba:text-muted-foreground">-</span>
+          const date = new Date(value)
+          return <div className="gba:text-sm">{date.toLocaleDateString()}</div>
         },
-        meta: { type: 'text' as const }
-      },
-      {
-        id: 'remote',
-        accessorKey: 'remote',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.remote', 'Remote'),
-        cell: info => {
-          const value = info.getValue() as string
-          return value ? (
-            <Badge variant="outline" className="gba:text-xs">
-              {value}
-            </Badge>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
-        meta: { type: 'text' as const }
+        meta: { type: 'date' as const }
       }
     ],
     []

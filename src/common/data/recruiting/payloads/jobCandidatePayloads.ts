@@ -56,7 +56,15 @@ export const JobCandidateFormFields = {
 export const buildJobCandidatePayload = (data: Partial<JobCandidate>) => {
   const basePayload = buildPayload(data, JobCandidateFormFields)
 
-  // Ensure jsonb fields are properly serialized
+  // Remove id and version if they don't exist (create mode)
+  // Only include them for update mode
+  if (!data.id) {
+    delete basePayload.id
+    delete basePayload.version
+  }
+
+  // Backend expects jsonb fields as objects, not arrays
+  // Convert empty arrays to empty objects or remove them
   const jsonbFields = [
     'addresses',
     'skills',
@@ -67,12 +75,19 @@ export const buildJobCandidatePayload = (data: Partial<JobCandidate>) => {
     'jobHistory'
   ]
   jsonbFields.forEach(field => {
-    if (basePayload[field]) {
-      // Ensure it's an array
-      const value = basePayload[field]
-      if (!Array.isArray(value)) {
-        basePayload[field] = value ? [value] : []
+    const value = basePayload[field]
+    if (value !== undefined) {
+      // If it's an empty array, convert to empty object
+      if (Array.isArray(value) && value.length === 0) {
+        basePayload[field] = {}
+      } else if (Array.isArray(value)) {
+        // Non-empty arrays stay as-is (backend might support them in some cases)
+        basePayload[field] = value
+      } else if (value === null) {
+        // Remove null values
+        delete basePayload[field]
       }
+      // If it's already an object, leave it as-is
     }
   })
 

@@ -63,29 +63,28 @@ export const RecruitmentManager: React.FC<RecruitmentManagerProps> = context => 
   }
 
   return (
-    <div data-testid="recruitment-manager-app">
-      <PageLayout
-        headerIcon={Briefcase}
-        headerTitle={getTranslationFromI18nKeyAndLabel('recruitmentManager', 'Recruitment Manager')}
-        headerDescription={getTranslationFromI18nKeyAndLabel(
-          'recruitmentManagerDescription',
-          'Manage job requests, postings, candidates, and applications'
-        )}
-        headerSubViews={{
-          value: activeView,
-          onValueChange: handleViewChange,
-          items: viewOptions.map(option => ({
-            value: option.key,
-            label: option.label,
-            icon: option.icon
-          }))
-        }}
-        variant={moduleColor}
-        className="gba:min-h-screen"
-      >
-        {renderViewContent()}
-      </PageLayout>
-    </div>
+    <PageLayout
+      data-testid="recruitment-manager-app"
+      headerIcon={Briefcase}
+      headerTitle={getTranslationFromI18nKeyAndLabel('recruitmentManager', 'Recruitment Manager')}
+      headerDescription={getTranslationFromI18nKeyAndLabel(
+        'recruitmentManagerDescription',
+        'Manage job requests, postings, candidates, and applications'
+      )}
+      headerSubViews={{
+        value: activeView,
+        onValueChange: handleViewChange,
+        items: viewOptions.map(option => ({
+          value: option.key,
+          label: option.label,
+          icon: option.icon
+        }))
+      }}
+      variant={moduleColor}
+      className="gba:min-h-full"
+    >
+      {renderViewContent()}
+    </PageLayout>
   )
 }
 

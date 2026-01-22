@@ -107,13 +107,6 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
   const columns = useMemo<ColumnDef<JobCandidate>[]>(
     () => [
       {
-        id: 'code',
-        accessorKey: 'code',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.code', 'Code'),
-        cell: info => <div className="gba:text-sm">{(info.getValue() as string) || '-'}</div>,
-        meta: { type: 'text' as const }
-      },
-      {
         id: 'candidate',
         accessorFn: row => `${row.firstName} ${row.lastName}`,
         header: getTranslationFromI18nKeyAndLabel('recruiting.candidate', 'Candidate'),
@@ -137,18 +130,11 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
         meta: { type: 'text' as const }
       },
       {
-        id: 'firstName',
-        accessorKey: 'firstName',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.firstName', 'First Name'),
-        cell: info => <div className="gba:text-sm">{(info.getValue() as string) || '-'}</div>,
-        meta: { type: 'text' as const }
-      },
-      {
-        id: 'lastName',
-        accessorKey: 'lastName',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.lastName', 'Last Name'),
-        cell: info => <div className="gba:text-sm">{(info.getValue() as string) || '-'}</div>,
-        meta: { type: 'text' as const }
+        id: 'applicationCount',
+        accessorKey: 'applicationCount',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.applications', 'Applications'),
+        cell: info => <div className="gba:text-sm gba:text-center">{(info.getValue() as number) || 0}</div>,
+        meta: { type: 'number' as const }
       },
       {
         id: 'createdAt',

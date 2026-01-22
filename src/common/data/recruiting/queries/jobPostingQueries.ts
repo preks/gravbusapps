@@ -11,7 +11,7 @@ export interface JobPostingQueryVariables extends BaseQueryVariables {
 
 export const JOB_POSTING_QUERY_CONFIGS: Record<string, string[]> = {
   minimal: ['createdAt', 'id', 'title'],
-  list: ['createdAt', 'id', 'title', 'updatedAt'],
+  list: ['createdAt', 'id', 'title', 'updatedAt', 'applicationCount', 'positionCount'],
   record: [
     'createdAt',
     'createdBy',
@@ -26,7 +26,9 @@ export const JOB_POSTING_QUERY_CONFIGS: Record<string, string[]> = {
     'updatedAt',
     'updatedBy',
     'version',
-    'additionalProperties'
+    'additionalProperties',
+    'applicationCount',
+    'positionCount'
   ]
 }
 
@@ -69,6 +71,20 @@ const buildScalarFields = (fieldSet: Set<string>): string => {
     .join('\n    ')
 }
 
+const buildAggregateFields = (fieldSet: Set<string>): string => {
+  const aggregateFields: string[] = []
+
+  if (fieldSet.has('applicationCount')) {
+    aggregateFields.push('jobApplicationAggregate { aggregate { count } }')
+  }
+
+  if (fieldSet.has('positionCount')) {
+    aggregateFields.push('jobPostingPositionAggregate { aggregate { count } }')
+  }
+
+  return aggregateFields.join('\n    ')
+}
+
 const buildEntityReferenceField = (
   fieldSet: Set<string>,
   fieldName: string,
@@ -89,6 +105,7 @@ export const buildJobPostingFragment = (fields: string[]): string => {
   return `
     ${AUDIT_FIELDS}
     ${buildScalarFields(fieldSet)}
+    ${buildAggregateFields(fieldSet)}
     
     ${buildEntityReferenceField(fieldSet, 'jobRequest', 'jobRequestId', JobPostingFields.jobRequest, 'id\n      name')}
   `
