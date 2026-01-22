@@ -28,6 +28,7 @@ export interface GroupCallInvite {
   callType: CallType
   from: { id: string; odId: string; odName: string; avatarUrl?: string }
   conversationName?: string
+  conversationId?: string // The actual conversation ID for backend tracking
 }
 
 export interface GroupCallUIState {

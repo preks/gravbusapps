@@ -125,6 +125,7 @@ export const useRealtimeKitGroupCall = ({
   const callStateRoomIdRef = useRef<string | null>(null)
   const isInCallRef = useRef<boolean>(false)
   const joinCallConversationIdRef = useRef<string | null>(null)
+  const conversationIdRef = useRef<string | null>(null) // Store actual conversationId (not meetingId)
 
   // Helper to emit WebSocket events
   const emitSocketEvent = useCallback(
@@ -185,6 +186,7 @@ export const useRealtimeKitGroupCall = ({
 
         authTokenRef.current = hostAuthToken
         meetingIdRef.current = meetingId
+        conversationIdRef.current = roomId // Store the actual conversationId
 
         console.log('[RTK] Initializing SDK with auth token...')
 
@@ -364,6 +366,7 @@ export const useRealtimeKitGroupCall = ({
         console.log('[RTK] Call started successfully with SDK')
       } catch (error) {
         console.error('[RTK] Failed to start call:', error)
+        conversationIdRef.current = null
         setCallState(initialCallState)
       }
     },
@@ -524,6 +527,11 @@ export const useRealtimeKitGroupCall = ({
         })
 
         // Update state
+        // Store the conversationId for leaveCall to use
+        if (conversationId) {
+          conversationIdRef.current = conversationId
+        }
+
         // Try to get global startedAt from activeConversationCalls using conversationId
         const callInfo = conversationId ? activeConversationCalls.get(conversationId) : null
         console.log('[RTK] 🔍 Looking for call info in activeConversationCalls:', {
@@ -568,7 +576,7 @@ export const useRealtimeKitGroupCall = ({
 
         // Notify backend that PARTICIPANT joined
         emitSocketEvent('rtk-group-call:joined', {
-          conversationId: roomId,
+          conversationId: conversationIdRef.current || roomId, // Use actual conversationId, fallback to roomId
           meetingId: roomId,
           participant: {
             id: currentUser.id,
@@ -601,6 +609,7 @@ export const useRealtimeKitGroupCall = ({
         console.log('[RTK] Joined call successfully with SDK')
       } catch (error) {
         console.error('[RTK] Failed to join call:', error)
+        conversationIdRef.current = null
         setCallState(initialCallState)
       } finally {
         // Clear conversationId ref after use
@@ -640,10 +649,14 @@ export const useRealtimeKitGroupCall = ({
       return
     }
 
-    const { roomId, callType } = incomingInvite
+    const { roomId, callType, conversationId } = incomingInvite
     setIncomingInvite(null)
-    await joinCall(roomId, callType)
-  }, [incomingInvite, joinCall])
+
+    console.log('[RTK] Accepting invite with conversationId:', { roomId, conversationId, callType })
+
+    // Use joinCallWrapper to properly pass conversationId (as 3rd param, despite type mismatch)
+    await joinCallWrapper(roomId, callType, conversationId as any)
+  }, [incomingInvite, joinCallWrapper])
 
   /**
    * Decline incoming invite
@@ -662,6 +675,7 @@ export const useRealtimeKitGroupCall = ({
 
     console.log('[RTK] Leaving call via SDK...')
     console.log('[RTK] Leave call state:', {
+      conversationId: conversationIdRef.current,
       roomId: callState.roomId,
       meetingIdRef: meetingIdRef.current,
       currentUserId: currentUser?.id
@@ -683,14 +697,15 @@ export const useRealtimeKitGroupCall = ({
     }
 
     // 3. Notify via WebSocket that participant left
-    if (callState.roomId && currentUser) {
+    const conversationId = conversationIdRef.current
+    if (conversationId && callState.roomId && currentUser) {
       const leaveEventData = {
-        conversationId: callState.roomId,
+        conversationId, // Use the actual conversationId, not the meetingId!
         meetingId: meetingIdRef.current || callState.roomId,
         participantId: currentUser.id
       }
-      console.log('[RTK] 📤 Sending rtk-group-call:participant-left:', leaveEventData)
-      emitSocketEvent('rtk-group-call:participant-left', leaveEventData)
+      console.log('[RTK] 📤 Sending rtk-group-call:left:', leaveEventData)
+      emitSocketEvent('rtk-group-call:left', leaveEventData)
     }
 
     // 4. Clean up
@@ -705,6 +720,7 @@ export const useRealtimeKitGroupCall = ({
     clearActiveCallFromStorage()
     authTokenRef.current = null
     meetingIdRef.current = null
+    conversationIdRef.current = null
     setLocalStream(null)
     setRemoteStreams(new Map())
     setParticipants([])
@@ -1422,7 +1438,8 @@ export const useRealtimeKitGroupCall = ({
         roomId: data.meetingId,
         callType: data.callType,
         from: data.from,
-        conversationName: data.conversationId
+        conversationId: data.conversationId, // Store the actual conversationId
+        conversationName: data.conversationId // Keep for backwards compat
       })
     }
 
@@ -1629,6 +1646,30 @@ export const useRealtimeKitGroupCall = ({
       }
     }
   }, []) // Empty array - only on unmount!
+
+  // [DEBUG] Expose functions to console for testing
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      ;(window as any).rtkLeaveCall = leaveCall
+      ;(window as any).rtkToggleMute = toggleMute
+      ;(window as any).rtkToggleVideo = toggleVideo
+      ;(window as any).rtkCallState = callState
+      console.log('[RTK] 🔧 Debug functions exposed to console:', {
+        rtkLeaveCall: 'Leave the current call',
+        rtkToggleMute: 'Toggle audio mute',
+        rtkToggleVideo: 'Toggle video on/off',
+        rtkCallState: 'Current call state'
+      })
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete (window as any).rtkLeaveCall
+        delete (window as any).rtkToggleMute
+        delete (window as any).rtkToggleVideo
+        delete (window as any).rtkCallState
+      }
+    }
+  }, [leaveCall, toggleMute, toggleVideo, callState])
 
   return {
     callState,

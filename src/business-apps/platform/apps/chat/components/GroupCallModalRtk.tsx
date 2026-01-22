@@ -198,6 +198,7 @@ const getScreenShareTrack = (peer: any): MediaStreamTrack | null => {
 export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   callState,
   localStream,
+  remoteStreams,
   participants,
   onEndCall,
   onToggleMute,
@@ -222,13 +223,13 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   const meeting = useRealtimeKitSelector((m: any) => m)
 
   // Subscribe to remote participants from SDK
-  const remotePeers = useRealtimeKitSelector((m: any) => {
+  const remotePeers: GroupCallParticipant[] = useRealtimeKitSelector((m: any): GroupCallParticipant[] => {
     if (!m?.participants?.joined) return []
 
     try {
       const joined = Array.from(m.participants.joined.values())
       // Filter out local participant
-      const peers = joined.filter((p: any) => p.id !== m.self?.id)
+      const peers = joined.filter((p: any) => p.id !== m.self?.id) as GroupCallParticipant[]
 
       // Debug: Log screen share status only when screen share is actually enabled
       peers.forEach((peer: any) => {
@@ -887,7 +888,155 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   const isOpen =
     callState.status === 'connected' || callState.status === 'joining' || callState.status === 'reconnecting'
 
-  if (!isOpen || callState.isMinimized) {
+  // Render minimized view (MS Teams style - shows first participant's video)
+  if (isOpen && callState.isMinimized) {
+    const firstRemotePeer = remotePeers[0]
+    const firstRemoteStream = firstRemotePeer ? remoteStreams.get(firstRemotePeer.id) : null
+
+    // Check if video is actually available and enabled
+    const videoTracks = firstRemoteStream?.getVideoTracks() || []
+    const hasRemoteVideo = videoTracks.length > 0 && videoTracks.some(t => t.enabled && t.readyState === 'live')
+
+    console.log('[RTK Modal] 🔽 Rendering minimized view:', {
+      hasPeer: !!firstRemotePeer,
+      peerId: firstRemotePeer?.id,
+      peerName: firstRemotePeer?.odName,
+      hasStream: !!firstRemoteStream,
+      streamId: firstRemoteStream?.id,
+      hasRemoteVideo,
+      totalVideoTracks: videoTracks.length,
+      videoTracksEnabled: videoTracks.filter(t => t.enabled).length,
+      videoTracksLive: videoTracks.filter(t => t.readyState === 'live').length,
+      totalAudioTracks: firstRemoteStream?.getAudioTracks().length,
+      remotePeersCount: remotePeers.length,
+      remoteStreamsSize: remoteStreams.size,
+      remoteStreamsKeys: Array.from(remoteStreams.keys()),
+      callDuration: callState.duration
+    })
+
+    return createPortal(
+      <div
+        className="gba:fixed gba:bottom-4 gba:right-4 gba:z-[9999] gba:w-80 gba:bg-card gba:rounded-lg gba:shadow-2xl gba:overflow-hidden gba:border"
+        style={{ pointerEvents: 'auto' }}
+        data-testid={`${prefixDataTestId}-minimized`}
+      >
+        {/* Mini video preview - MS Teams style */}
+        <div className="gba:relative gba:aspect-video gba:bg-muted">
+          {hasRemoteVideo && firstRemoteStream ? (
+            <video
+              ref={el => {
+                if (el) {
+                  // Always update srcObject to ensure stream changes are reflected
+                  if (el.srcObject !== firstRemoteStream) {
+                    console.log('[RTK Minimized] 📹 Attaching video stream to minimized view:', {
+                      peerId: firstRemotePeer?.id,
+                      peerName: firstRemotePeer?.odName,
+                      streamId: firstRemoteStream.id,
+                      videoTracks: firstRemoteStream.getVideoTracks().length,
+                      audioTracks: firstRemoteStream.getAudioTracks().length,
+                      videoEnabled: firstRemoteStream
+                        .getVideoTracks()
+                        .map(t => ({ id: t.id, enabled: t.enabled, readyState: t.readyState }))
+                    })
+                    el.srcObject = firstRemoteStream
+                  }
+                  // Ensure video is playing
+                  if (el.paused) {
+                    el.play().catch(err => console.debug('[RTK Minimized] Video play error:', err))
+                  }
+                }
+              }}
+              autoPlay
+              playsInline
+              className="gba:w-full gba:h-full gba:object-cover"
+            />
+          ) : firstRemotePeer ? (
+            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-2">
+              <Avatar className="gba:h-12 gba:w-12">
+                <AvatarFallback className="gba:bg-primary/20">
+                  {firstRemotePeer.odName?.charAt(0).toUpperCase() || '?'}
+                </AvatarFallback>
+              </Avatar>
+              <span className="gba:text-sm gba:text-foreground">{firstRemotePeer.odName}</span>
+            </div>
+          ) : (
+            <span className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground gba:text-xs">
+              {t('groupCall-waitingForParticipants')}
+            </span>
+          )}
+
+          {/* Participant count overlay */}
+          <div className="gba:absolute gba:top-2 gba:left-2 gba:flex gba:items-center gba:gap-1 gba:bg-black/60 gba:px-2 gba:py-1 gba:rounded-full">
+            <Users className="gba:h-3 gba:w-3 gba:text-white" />
+            <span className="gba:text-white gba:text-xs">{remotePeers.length + 1}</span>
+          </div>
+
+          {/* Duration */}
+          <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-black/60 gba:px-2 gba:py-1 gba:rounded-full">
+            <span className="gba:text-white gba:text-xs gba:font-mono">{formatDuration(callState.duration)}</span>
+          </div>
+        </div>
+
+        {/* Mini controls */}
+        <div className="gba:flex gba:items-center gba:justify-between gba:p-2 gba:bg-muted/50">
+          <div className="gba:flex gba:items-center gba:gap-1">
+            <button
+              onClick={onToggleMute}
+              className={`gba:p-2 gba:rounded-full gba:transition-all ${
+                callState.isMuted
+                  ? 'gba:bg-destructive gba:text-destructive-foreground'
+                  : 'gba:bg-secondary gba:text-secondary-foreground hover:gba:bg-accent'
+              }`}
+              title={callState.isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
+              data-testid={`${prefixDataTestId}-minimized-mute-btn`}
+            >
+              {callState.isMuted ? <MicOff className="gba:h-4 gba:w-4" /> : <Mic className="gba:h-4 gba:w-4" />}
+            </button>
+            <button
+              onClick={onToggleVideo}
+              className={`gba:p-2 gba:rounded-full gba:transition-all ${
+                !callState.isVideoEnabled
+                  ? 'gba:bg-destructive gba:text-destructive-foreground'
+                  : 'gba:bg-secondary gba:text-secondary-foreground hover:gba:bg-accent'
+              }`}
+              title={callState.isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
+              data-testid={`${prefixDataTestId}-minimized-video-btn`}
+            >
+              {callState.isVideoEnabled ? (
+                <Video className="gba:h-4 gba:w-4" />
+              ) : (
+                <VideoOff className="gba:h-4 gba:w-4" />
+              )}
+            </button>
+          </div>
+          <div className="gba:flex gba:items-center gba:gap-1">
+            {onToggleMinimize && (
+              <button
+                onClick={onToggleMinimize}
+                className="gba:p-2 gba:rounded-full gba:bg-secondary gba:text-secondary-foreground hover:gba:bg-accent gba:transition-all"
+                title={t('chat-fullscreen')}
+                data-testid={`${prefixDataTestId}-minimized-expand-btn`}
+              >
+                <Maximize2 className="gba:h-4 gba:w-4" />
+              </button>
+            )}
+            <button
+              onClick={onEndCall}
+              className="gba:p-2 gba:rounded-full gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90 gba:transition-all"
+              title={t('groupCall-endCall')}
+              data-testid={`${prefixDataTestId}-minimized-end-btn`}
+            >
+              <PhoneOff className="gba:h-4 gba:w-4" />
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )
+  }
+
+  // Don't render if not open or minimized
+  if (!isOpen) {
     return null
   }
 
