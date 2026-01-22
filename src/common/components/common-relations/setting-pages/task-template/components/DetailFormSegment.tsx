@@ -33,7 +33,7 @@ export const DetailFormSegment: React.FC<DetailFormSegmentProps> = ({
 }) => {
   return (
     <div className="gba:space-y-4">
-      <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">Basic Information</h3>
+      <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">Basic Information</h3>
 
       <div className="gba:grid gba:grid-cols-1 gba:gap-4">
         <FormField

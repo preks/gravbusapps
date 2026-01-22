@@ -37,7 +37,10 @@ const buildContentEntryWhereClause = (params: ContentEntryQueryParams): Record<s
     conditions.role = { _eq: params.role }
   }
 
-  if (params.contentGroupRef) {
+  // Support both single and multiple content groups
+  if (params.contentGroupRefs && params.contentGroupRefs.length > 0) {
+    conditions.contentGroupRef = { _in: params.contentGroupRefs }
+  } else if (params.contentGroupRef) {
     conditions.contentGroupRef = { _eq: params.contentGroupRef }
   }
 

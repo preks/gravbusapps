@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
-import { Button, PageHeader, Alert, AlertDescription } from '@newwork/nw-design-system'
+import { Button, PageLayout, Alert, AlertDescription } from '@newwork/nw-design-system'
+import { CalendarIcon } from '@phosphor-icons/react'
+import { Plus } from 'lucide-react'
 import { TaskTemplateTable, TaskTemplateForm } from './components'
 import { TaskTemplateSettingsProps, BaseTaskTemplate, TaskTemplateFormData } from './types'
-import { Plus, Calendar } from 'lucide-react'
 
 export const TaskTemplateSettings: React.FC<TaskTemplateSettingsProps> = ({
   templates,
@@ -66,19 +67,19 @@ export const TaskTemplateSettings: React.FC<TaskTemplateSettingsProps> = ({
   }
 
   return (
-    <div data-testid={`${prefixDataTestId}-container`}>
-      {/* Page Header */}
-      <PageHeader
-        title={headerTitle}
-        subtitle={headerDescription}
-        avatar={<Calendar />}
-        data-testid={`${prefixDataTestId}-header`}
-        onBack={onBack}
-      />
-
+    <PageLayout
+      headerIcon={CalendarIcon}
+      headerTitle={headerTitle}
+      headerDescription={headerDescription}
+      onBack={onBack}
+      data-testid={`${prefixDataTestId}-container`}
+    >
       {/* Error State */}
       {error && (
-        <Alert className="gba:mb-4 gba:border-red-200 gba:bg-red-50" data-testid={`${prefixDataTestId}-error`}>
+        <Alert
+          className="gba:mb-4 gba:border-destructive-secondary gba:bg-destructive-secondary"
+          data-testid={`${prefixDataTestId}-error`}
+        >
           <AlertDescription>
             {error}
             {onRetry && (
@@ -91,13 +92,7 @@ export const TaskTemplateSettings: React.FC<TaskTemplateSettingsProps> = ({
       )}
 
       {/* Add Button */}
-      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
-        <div>
-          <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900">Task Templates</h2>
-          <p className="gba:text-sm gba:text-gray-600">
-            Create and manage recurring task templates with custom scheduling rules
-          </p>
-        </div>
+      <div className="gba:flex gba:justify-end gba:mb-6">
         <Button onClick={handleAdd} data-testid={`${prefixDataTestId}-add-button`}>
           <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
           Add Template
@@ -133,6 +128,6 @@ export const TaskTemplateSettings: React.FC<TaskTemplateSettingsProps> = ({
         assigneeTypes={assigneeTypes}
         holidayPolicies={holidayPolicies}
       />
-    </div>
+    </PageLayout>
   )
 }

@@ -89,6 +89,41 @@ interface FormValues {
 
 const prefixDataTestId = 'document-popup'
 
+const normalizeSuggestionValue = (value: unknown): string => (value ?? '').toString().trim().toLowerCase()
+
+const buildSuggestionCandidates = (raw: unknown): string[] => {
+  const base = normalizeSuggestionValue(raw)
+  if (!base) return []
+  const parts = (raw ?? '').toString().split(':')
+  const last = parts[parts.length - 1]
+  const set = new Set<string>()
+  set.add(base)
+  if (last) {
+    set.add(normalizeSuggestionValue(last))
+  }
+  return Array.from(set)
+}
+
+const matchesSuggestion = (
+  entry: { label?: unknown; value?: unknown; code?: unknown },
+  suggestion: string
+): boolean => {
+  const suggestionCandidates = buildSuggestionCandidates(suggestion)
+  if (suggestionCandidates.length === 0) return false
+
+  const labelNorm = normalizeSuggestionValue(entry.label)
+  const valueCandidates = buildSuggestionCandidates(entry.value)
+  const codeCandidates = buildSuggestionCandidates(entry.code)
+
+  return suggestionCandidates.some(s => {
+    if (!s) return false
+    if (labelNorm && labelNorm === s) return true
+    if (valueCandidates.some(v => v === s)) return true
+    if (codeCandidates.some(v => v === s)) return true
+    return false
+  })
+}
+
 /**
  * DocumentPopup
  * Fully generic popup for creating/updating/renaming documents across any domain.
@@ -427,9 +462,7 @@ export const DocumentPopup: React.FC<DocumentPopupProps> = ({
 
     const hasGroup = !!form.getValues('documentGroupRef')
     if (!hasGroup && aiSuggestion.group) {
-      const match = documentGroups.find(
-        g => (g?.value || '').toString().trim().toLowerCase() === aiSuggestion.group!.toString().trim().toLowerCase()
-      )
+      const match = documentGroups.find(g => matchesSuggestion(g, aiSuggestion.group!))
       if (match?.id) {
         form.setValue('documentGroupRef', match.id)
       }
@@ -442,9 +475,7 @@ export const DocumentPopup: React.FC<DocumentPopupProps> = ({
 
     const hasType = !!form.getValues('documentTypeRef')
     if (!hasType && aiSuggestion.type) {
-      const matchT = filteredDocumentTypes.find(
-        t => (t?.value || '').toString().trim().toLowerCase() === aiSuggestion.type!.toString().trim().toLowerCase()
-      )
+      const matchT = filteredDocumentTypes.find(t => matchesSuggestion(t, aiSuggestion.type!))
       if (matchT?.id) {
         form.setValue('documentTypeRef', matchT.id, {
           shouldDirty: true,
@@ -467,9 +498,7 @@ export const DocumentPopup: React.FC<DocumentPopupProps> = ({
       return
     }
 
-    const t = filteredDocumentTypes.find(
-      x => (x?.value || '').toString().trim().toLowerCase() === applyTypeAfterGroup.toString().trim().toLowerCase()
-    )
+    const t = filteredDocumentTypes.find(x => matchesSuggestion(x, applyTypeAfterGroup))
     if (t?.id) {
       form.setValue('documentTypeRef', t.id, { shouldDirty: true, shouldValidate: true, shouldTouch: true })
       setAiApplied(true)
@@ -480,9 +509,7 @@ export const DocumentPopup: React.FC<DocumentPopupProps> = ({
   const handleApplyAiSuggestion = useCallback(() => {
     if (!aiSuggestion) return
     if (aiSuggestion.group) {
-      const g = documentGroups.find(
-        x => (x?.value || '').toString().trim().toLowerCase() === aiSuggestion.group!.toString().trim().toLowerCase()
-      )
+      const g = documentGroups.find(x => matchesSuggestion(x, aiSuggestion.group!))
       if (g?.id) {
         form.setValue('documentGroupRef', g.id, {
           shouldDirty: true,
@@ -492,9 +519,7 @@ export const DocumentPopup: React.FC<DocumentPopupProps> = ({
       }
     }
     if (aiSuggestion.type) {
-      const t0 = documentTypes.find(
-        x => (x?.value || '').toString().trim().toLowerCase() === aiSuggestion.type!.toString().trim().toLowerCase()
-      )
+      const t0 = documentTypes.find(x => matchesSuggestion(x, aiSuggestion.type!))
       if (t0?.id) {
         form.setValue('documentTypeRef', t0.id, {
           shouldDirty: true,

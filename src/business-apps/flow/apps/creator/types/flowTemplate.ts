@@ -39,9 +39,11 @@ export interface InputOption {
 }
 
 export interface DataSource {
-  type: 'CATALOG' | 'ENTITY' | 'API'
+  type: 'CATALOG' | 'ENTITY' | 'API' | 'CUSTOM_DATA'
   catalog?: string
   entity?: string
+  namespace?: string
+  key?: string
   valueField?: string
   labelField?: string
 }

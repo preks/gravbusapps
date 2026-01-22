@@ -84,6 +84,17 @@ interface ExpenseRequestsTableProps extends BusinessAppContextProps {
 const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   const { search, onSearchChange, accessToken, isActive = true, filterData: propsFilterData } = props
 
+  const sanitizeUrlParam = (value: string | null, maxLength: number): string => {
+    if (!value) return ''
+    return value.replace(/[<>]/g, '').slice(0, maxLength)
+  }
+
+  const sanitizeIntParam = (value: string | null, fallback: number, minValue: number): number => {
+    const parsed = value ? Number.parseInt(value, 10) : fallback
+    if (Number.isNaN(parsed)) return fallback
+    return Math.max(parsed, minValue)
+  }
+
   const contextProps = useMemo(
     () => ({
       accessToken: props.accessToken
@@ -94,11 +105,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   const [initialParams] = useState(() => {
     const urlParams = new URLSearchParams(globalThis.location.search)
     return {
-      search: urlParams.get('search') || '',
-      page: parseInt(urlParams.get('page') || '1', 10),
-      pageSize: parseInt(urlParams.get('pageSize') || '20', 10),
-      status: urlParams.get('status') || '',
-      department: urlParams.get('department') || ''
+      search: sanitizeUrlParam(urlParams.get('search'), 200),
+      page: sanitizeIntParam(urlParams.get('page'), 1, 1),
+      pageSize: sanitizeIntParam(urlParams.get('pageSize'), 20, 1),
+      status: sanitizeUrlParam(urlParams.get('status'), 50),
+      department: sanitizeUrlParam(urlParams.get('department'), 100)
     }
   })
 
