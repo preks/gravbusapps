@@ -51,6 +51,11 @@ definitions:
       memory: 15360
       type: docker
   caches:
+    npm:
+      key:
+        files:
+          - package-lock.json
+      path: ~/.npm
     nodecustom:
       key:
         files:
@@ -100,15 +105,16 @@ definitions:
           enabled: true
           depth: full
         caches:
+          - npm
           - nodecustom
         script:
           - set -e
           - echo $NEWWORK_NMP_CREDENTIALS | base64 -d > ~/.npmrc
           - apt-get update && apt-get install gettext -y
-          - npm install
+          - npm ci --ignore-scripts=true
           - |
             # Pre-install native dependencies to avoid rebuilds later
-            npm install @rollup/rollup-linux-x64-gnu lightningcss-linux-x64-gnu || true
+            npm install @rollup/rollup-linux-x64-gnu lightningcss-linux-x64-gnu --ignore-scripts=true || true
         artifacts:
           - pipeline/scripts/**
           - envs/**
