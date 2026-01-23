@@ -75,4 +75,5 @@ values-modal-description = Definește o valoare a companiei și descrierea ei.
 
 # Erori
 values-error-cannot-deactivate-active-cycle = Valoarea nu poate fi dezactivată cât timp este folosită într-un ciclu activ.
+cycles-error-no-rating-scales = Este necesară cel puțin o scală de evaluare pentru a crea un ciclu.
 

@@ -75,4 +75,5 @@ values-modal-description = Firmenwert und Beschreibung definieren.
 
 # Fehler
 values-error-cannot-deactivate-active-cycle = Wert kann nicht deaktiviert werden, solange er in einem aktiven Zyklus verwendet wird.
+cycles-error-no-rating-scales = Mindestens eine Bewertungsskala wird für das Erstellen eines Zyklus benötigt.
 

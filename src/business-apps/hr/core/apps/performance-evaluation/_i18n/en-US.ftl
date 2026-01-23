@@ -75,4 +75,5 @@ values-modal-description = Define a company value and its description.
 
 # Errors
 values-error-cannot-deactivate-active-cycle = Cannot deactivate value while it is used in an active cycle.
+cycles-error-no-rating-scales = At least one rating scale is required to create a cycle.
 

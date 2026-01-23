@@ -310,6 +310,14 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
           <Button
             variant="default"
             onClick={() => {
+              if (ratingScales.length === 0) {
+                toast.warning(t('cycles-error-no-rating-scales'), {
+                  position: 'bottom-right',
+                  className: 'gba:text-base',
+                  icon: <WarningIcon size={18} weight="fill" className="gba:text-warning" />
+                })
+                return
+              }
               setEditing(null)
               setIsModalOpen(true)
             }}
