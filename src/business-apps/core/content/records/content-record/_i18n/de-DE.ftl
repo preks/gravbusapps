@@ -15,6 +15,7 @@ answered_by = beantwortet von
 answer = Antwort
 answers = Antworten
 best_answer = Beste Antwort
+accepted_answer = Akzeptierte Antwort
 
 # Comments
 add_comment = Kommentar hinzufügen...

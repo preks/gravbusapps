@@ -13,7 +13,8 @@ import {
   DialogFooter,
   Badge
 } from '@newwork/nw-design-system'
-import { Plus, Edit, Eye, ArrowLeft, Trash2 } from 'lucide-react'
+import { Plus, Edit, Eye, Trash2 } from 'lucide-react'
+import { FlowArrowIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePipelineSettings } from './hooks/usePipelineSettings'
 import { PipelineStagesModal } from './components'
@@ -54,6 +55,7 @@ export interface PipelineSettingsProps {
     conditionCatalog?: string
     version?: string
   }
+  hidePageLayout?: boolean
 }
 
 const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps> = ({
@@ -67,7 +69,8 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
   onRetry,
   onBack,
   catalogConfig,
-  accessToken
+  accessToken,
+  hidePageLayout = false
 }) => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -206,7 +209,7 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
   const renderPipelineCard = (pipeline: EnhancedPipeline) => (
     <Card
       key={pipeline.id}
-      className="gba:relative gba:group gba:border-2 gba:border-gray-200 gba:hover:border-blue-400 gba:transition-all gba:duration-200"
+      className="gba:relative gba:group gba:border-2 gba:border-border gba:hover:border-primary gba:transition-all gba:duration-200"
       data-testid={`${prefixDataTestId}-pipeline-card-${pipeline.id}`}
     >
       {/* Action buttons in top right */}
@@ -233,7 +236,7 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
       <div className="gba:p-4 gba:pr-16">
         <div className="gba:mb-3">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-            <h5 className="gba:text-gray-800 gba:font-medium gba:text-lg gba:leading-tight">{pipeline.value}</h5>
+            <h5 className="gba:text-foreground gba:font-medium gba:text-lg gba:leading-tight">{pipeline.value}</h5>
             {pipeline.isInUse && (
               <Badge variant="info" className="gba:text-xs">
                 In Use
@@ -241,32 +244,32 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
             )}
           </div>
           {pipeline.description && (
-            <p className="gba:text-gray-500 gba:text-sm gba:leading-tight">{pipeline.description}</p>
+            <p className="gba:text-muted-foreground gba:text-sm gba:leading-tight">{pipeline.description}</p>
           )}
         </div>
 
         {/* Statistics */}
         <div className="gba:space-y-2 gba:mb-4">
-          <div className="gba:flex gba:items-center gba:justify-between gba:bg-gray-50 gba:rounded-lg gba:p-2">
+          <div className="gba:flex gba:items-center gba:justify-between gba:bg-muted gba:rounded-lg gba:p-2">
             <div className="gba:flex gba:items-center gba:gap-1">
-              <div className="gba:w-2 gba:h-2 gba:bg-blue-500 gba:rounded-full"></div>
-              <span className="gba:text-xs gba:text-gray-600">Stages</span>
+              <div className="gba:w-2 gba:h-2 gba:bg-primary gba:rounded-full"></div>
+              <span className="gba:text-xs gba:text-muted-foreground">Stages</span>
             </div>
             <span
-              className="gba:text-sm gba:font-semibold gba:text-blue-600"
+              className="gba:text-sm gba:font-semibold gba:text-primary"
               data-testid={`${prefixDataTestId}-pipeline-stage-count-${pipeline.id}`}
             >
               {pipeline.stageCount}
             </span>
           </div>
 
-          <div className="gba:flex gba:items-center gba:justify-between gba:bg-gray-50 gba:rounded-lg gba:p-2">
+          <div className="gba:flex gba:items-center gba:justify-between gba:bg-muted gba:rounded-lg gba:p-2">
             <div className="gba:flex gba:items-center gba:gap-1">
-              <div className="gba:w-2 gba:h-2 gba:bg-orange-500 gba:rounded-full"></div>
-              <span className="gba:text-xs gba:text-gray-600">Conditions</span>
+              <div className="gba:w-2 gba:h-2 gba:bg-warning gba:rounded-full"></div>
+              <span className="gba:text-xs gba:text-muted-foreground">Conditions</span>
             </div>
             <span
-              className="gba:text-sm gba:font-semibold gba:text-orange-600"
+              className="gba:text-sm gba:font-semibold gba:text-warning"
               data-testid={`${prefixDataTestId}-pipeline-condition-count-${pipeline.id}`}
             >
               {pipeline.conditionCount}
@@ -291,81 +294,64 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
   )
 
   if (isLoading) {
+    const loadingContent = (
+      <div className="gba:flex gba:justify-center gba:py-8" data-testid={`${prefixDataTestId}-loading`}>
+        <Spinner size="lg" />
+      </div>
+    )
+
+    if (hidePageLayout) {
+      return loadingContent
+    }
+
     return (
       <PageLayout
-        className={className}
-        headerPhosphorIcon={headerPhosphorIcon}
+        headerIcon={headerPhosphorIcon?.icon || FlowArrowIcon}
         headerTitle={headerTitle}
         headerDescription={headerDescription}
+        className={className}
       >
-        {onBack && (
-          <div className="gba:py-2">
-            <Button variant="ghost" onClick={onBack} data-testid={`${prefixDataTestId}-PipelineSettings-Back`}>
-              <ArrowLeft className="gba:w-4 gba:h-4 gba:mr-2" />
-              Back
-            </Button>
-          </div>
-        )}
-        <div className="gba:flex gba:justify-center gba:py-8">
-          <Spinner size="lg" />
-        </div>
+        {loadingContent}
       </PageLayout>
     )
   }
 
   if (error) {
+    const errorContent = (
+      <Alert variant="destructive" className="gba:mb-4" data-testid={`${prefixDataTestId}-error`}>
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <div>
+            <h4 className="gba:font-medium">Error Loading Pipelines</h4>
+            <p className="gba:text-sm gba:mt-1">{error}</p>
+          </div>
+          <Button size="sm" onClick={onRetry}>
+            Retry
+          </Button>
+        </div>
+      </Alert>
+    )
+
+    if (hidePageLayout) {
+      return errorContent
+    }
+
     return (
       <PageLayout
-        className={className}
-        headerPhosphorIcon={headerPhosphorIcon}
+        headerIcon={headerPhosphorIcon?.icon || FlowArrowIcon}
         headerTitle={headerTitle}
         headerDescription={headerDescription}
+        className={className}
       >
-        {onBack && (
-          <div className="gba:py-2">
-            <Button variant="ghost" onClick={onBack} data-testid={`${prefixDataTestId}-PipelineSettings-Back`}>
-              <ArrowLeft className="gba:w-4 gba:h-4 gba:mr-2" />
-              Back
-            </Button>
-          </div>
-        )}
-        <Alert variant="destructive" className="gba:mb-4">
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <div>
-              <h4 className="gba:font-medium">Error Loading Pipelines</h4>
-              <p className="gba:text-sm gba:mt-1">{error}</p>
-            </div>
-            <Button size="sm" onClick={onRetry}>
-              Retry
-            </Button>
-          </div>
-        </Alert>
+        {errorContent}
       </PageLayout>
     )
   }
 
-  return (
-    <PageLayout
-      className={className}
-      headerPhosphorIcon={headerPhosphorIcon}
-      headerTitle={headerTitle}
-      headerDescription={headerDescription}
-    >
-      {onBack && (
-        <div className="gba:py-2">
-          <Button variant="ghost" onClick={onBack} data-testid={`${prefixDataTestId}-PipelineSettings-Back`}>
-            <ArrowLeft className="gba:w-4 gba:h-4 gba:mr-2" />
-            Back
-          </Button>
-        </div>
-      )}
-      <div className="gba:space-y-6">
-        {/* Header */}
-        <div className="gba:flex gba:justify-between gba:items-center">
-          <div>
-            <h2 className="gba:text-2xl gba:font-bold gba:text-gray-900">{headerTitle}</h2>
-            <p className="gba:text-gray-600 gba:mt-1">{headerDescription}</p>
-          </div>
+  const mainContent = (
+    <>
+      <div className="gba:space-y-6" data-testid={`${prefixDataTestId}-container`}>
+        {/* Add Pipeline Button */}
+        <div className="gba:flex gba:justify-end">
           <Button onClick={handleCreatePipeline} data-testid={`${prefixDataTestId}-add-pipeline-button`}>
             <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
             Add Pipeline
@@ -374,10 +360,12 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
 
         {/* Pipelines Grid */}
         {pipelines.length === 0 ? (
-          <div className="gba:min-h-64 gba:flex gba:items-center gba:justify-center gba:bg-gray-50 gba:rounded-lg gba:p-8">
+          <div className="gba:min-h-64 gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-lg gba:p-8">
             <div className="gba:text-center">
-              <p className="gba:text-gray-500 gba:text-lg gba:mb-4">No pipelines configured yet</p>
-              <p className="gba:text-gray-400 gba:text-sm gba:mb-6">Create your first pipeline to get started</p>
+              <p className="gba:text-muted-foreground gba:text-lg gba:mb-4">No pipelines configured yet</p>
+              <p className="gba:text-muted-foreground gba:text-sm gba:mb-6">
+                Create your first pipeline to get started
+              </p>
               <Button onClick={handleCreatePipeline} data-testid={`${prefixDataTestId}-create-first-pipeline-button`}>
                 <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
                 Create First Pipeline
@@ -514,6 +502,22 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </>
+  )
+
+  if (hidePageLayout) {
+    return mainContent
+  }
+
+  return (
+    <PageLayout
+      headerIcon={headerPhosphorIcon?.icon || FlowArrowIcon}
+      headerTitle={headerTitle}
+      headerDescription={headerDescription}
+      onBack={onBack}
+      className={className}
+    >
+      {mainContent}
     </PageLayout>
   )
 }

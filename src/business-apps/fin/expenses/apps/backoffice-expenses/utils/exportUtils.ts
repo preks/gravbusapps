@@ -93,9 +93,7 @@ const triggerDownload = (blob: Blob, filename: string): void => {
   // Set additional security attributes
   link.setAttribute('rel', 'noopener noreferrer')
 
-  document.body.appendChild(link)
   link.click()
-  link.remove()
   URL.revokeObjectURL(url)
 }
 

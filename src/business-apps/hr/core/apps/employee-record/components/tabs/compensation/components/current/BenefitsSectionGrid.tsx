@@ -67,7 +67,7 @@ const BenefitsSectionGrid: React.FC<BenefitsSectionGridProps> = ({
     <div className="gba:mb-8" data-testid={testId}>
       <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">{sectionTitle}</h3>
       <div
-        className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-4"
+        className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:xl:grid-cols-3 gba:gap-4"
         data-testid={`${testId}-grid`}
       >
         {benefits.map(benefit => (

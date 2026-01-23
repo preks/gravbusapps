@@ -10,14 +10,15 @@ import { useInvestmentTaskStatistics } from '@/common/data/investment/hooks/useI
  * Builds task config when this tab is mounted (lazy loading)
  */
 export const MyTasksTab: React.FC<BusinessAppContextProps> = context => {
-  //  Call hooks at component level (not inside config builder)
+  // Call hooks at component level (not inside config builder)
   const investmentTasksHook = useInvestmentTasks(context)
   const taskStatistics = useInvestmentTaskStatistics(context)
 
-  // Build config with hook results (memoize based on stable references)
+  // Build config with hook results (memoize based on stable primitive values)
+  // Only depend on primitives that actually change, not object references
   const tasksConfig = useMemo(
     () => buildIrmMyTasksConfig(context, investmentTasksHook, taskStatistics),
-    [context.accessToken, context.userInfo, investmentTasksHook, taskStatistics]
+    [context.accessToken, context.userInfo?.employeeDetails?.employeeId, context.userInfo?.id, taskStatistics]
   )
 
   return (
