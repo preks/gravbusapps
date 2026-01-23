@@ -47,6 +47,7 @@
 ## Publishing Flow
 
 ### 1. User Builds Screen with AI
+
 ```
 User types: "Create a lead list screen"
          ↓
@@ -60,6 +61,7 @@ AI Builder shows "5 files changed" banner
 ```
 
 ### 2. User Publishes Screen
+
 ```
 User clicks "Publish to Platform"
          ↓
@@ -71,6 +73,7 @@ AI Builder → FORGE /api/newwork/publish
 ```
 
 ### 3. FORGE Publishes to Platform
+
 ```
 FORGE Backend (Railway):
   1. Gets files from session
@@ -83,6 +86,7 @@ Returns: { success: true, resourceUrl: "/apps/crm/lead-list" }
 ```
 
 ### 4. Screen is Live!
+
 ```
 User navigates to: /apps/crm/lead-list
          ↓
@@ -116,12 +120,14 @@ Screen works immediately!
 ## Components
 
 ### Frontend: AI Builder (gravity-business-apps)
+
 - Location: `src/business-apps/platform/apps/ai-builder/`
 - Published to: NEWWORK platform
 - Runs in: Users' browsers
 - Calls: FORGE Railway API
 
 ### Backend: FORGE `/api/newwork/*` (Railway)
+
 - Location: `forge/packages/api/src/routes/newwork-publish.ts`
 - Runs on: Railway (https://forge-api-production-db58.up.railway.app)
 - Purpose: Handle NEWWORK-specific publishing
@@ -156,6 +162,7 @@ None needed! Everything configured via FORGE.
 ## Monitoring
 
 FORGE logs all NEWWORK publish requests with prefix "NEWWORK:" for easy filtering:
+
 ```
 NEWWORK: Publishing screen to platform { screenPath: '...', resourceUrl: '...' }
 NEWWORK: Found 5 files to publish
@@ -168,6 +175,7 @@ NEWWORK: Publish complete!
 ## Failure Handling
 
 If publish fails:
+
 1. User sees error message in AI Builder
 2. Can download patch file as backup
 3. Can manually run `npm run publish:screen` locally
@@ -185,4 +193,3 @@ If publish fails:
 
 **Architecture designed for**: One-click screen publishing from browser to production
 **Key principle**: Reuse existing infrastructure (FORGE + Azure + Platform)
-

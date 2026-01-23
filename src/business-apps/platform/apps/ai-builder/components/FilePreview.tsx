@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { X, Copy, Check, Search, ChevronUp, ChevronDown } from 'lucide-react'
 import { Button } from '@newwork/nw-design-system'
 import { Input } from '@newwork/nw-design-system'
+import { ENV } from '../config/environment'
 
 interface FilePreviewProps {
   filePath: string
@@ -25,7 +26,7 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
   const loadFile = async () => {
     setLoading(true)
     try {
-      const response = await fetch('https://forge-api-production-db58.up.railway.app/api/tools/execute', {
+      const response = await fetch(`${ENV.AI_SERVICE_API_URL}/api/tools/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

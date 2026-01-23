@@ -1,39 +1,39 @@
-import React, { useState } from 'react';
-import { Button } from '@newwork/nw-design-system';
-import { Alert, AlertDescription } from '@newwork/nw-design-system';
-import { Eye, RefreshCw, ExternalLink, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react'
+import { Button } from '@newwork/nw-design-system'
+import { Alert, AlertDescription } from '@newwork/nw-design-system'
+import { Eye, RefreshCw, ExternalLink, AlertCircle } from 'lucide-react'
 
 interface GeneratedFile {
-  path: string;
-  content: string;
-  changeType: 'create' | 'modify' | 'delete';
+  path: string
+  content: string
+  changeType: 'create' | 'modify' | 'delete'
 }
 
 interface PreviewPanelProps {
-  files: GeneratedFile[];
-  sessionId: string;
+  files: GeneratedFile[]
+  sessionId: string
 }
 
-export const PreviewPanel: React.FC<PreviewPanelProps> = ({ files, sessionId }) => {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export const PreviewPanel: React.FC<PreviewPanelProps> = ({ files }) => {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleStartPreview = async () => {
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
 
     try {
       // TODO: Implement preview functionality
       // For now, show placeholder
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setPreviewUrl('about:blank');
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      setPreviewUrl('about:blank')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start preview');
+      setError(err instanceof Error ? err.message : 'Failed to start preview')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   if (files.length === 0) {
     return (
@@ -42,13 +42,11 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ files, sessionId }) 
           <Eye className="gba:w-12 gba:h-12 gba:mx-auto gba:text-muted-foreground" />
           <div>
             <h3 className="gba:text-lg gba:font-medium gba:text-foreground">No Preview Available</h3>
-            <p className="gba:text-sm gba:text-muted-foreground">
-              Generate files first to see a preview
-            </p>
+            <p className="gba:text-sm gba:text-muted-foreground">Generate files first to see a preview</p>
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -58,12 +56,8 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ files, sessionId }) 
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-2">
             <Eye className="gba:w-5 gba:h-5 gba:text-muted-foreground" />
-            <h3 className="gba:text-sm gba:font-medium gba:text-foreground">
-              Preview Mode
-            </h3>
-            {previewUrl && (
-              <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-success gba:animate-pulse" />
-            )}
+            <h3 className="gba:text-sm gba:font-medium gba:text-foreground">Preview Mode</h3>
+            {previewUrl && <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-success gba:animate-pulse" />}
           </div>
           <div className="gba:flex gba:items-center gba:gap-2">
             {previewUrl && (
@@ -136,9 +130,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ files, sessionId }) 
                 <Eye className="gba:w-8 gba:h-8 gba:text-primary" />
               </div>
               <div>
-                <h3 className="gba:text-lg gba:font-medium gba:text-foreground">
-                  Ready to Preview
-                </h3>
+                <h3 className="gba:text-lg gba:font-medium gba:text-foreground">Ready to Preview</h3>
                 <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">
                   Click "Start Preview" to see your generated screen in action
                 </p>
@@ -154,6 +146,5 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ files, sessionId }) 
         )}
       </div>
     </div>
-  );
-};
-
+  )
+}

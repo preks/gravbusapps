@@ -1,7 +1,6 @@
 import React, { ComponentType } from 'react'
 import { UiCatalogProvider } from '@newwork/gravity-ui-catalog'
 import { BusinessAppContextProps } from './BusinessAppContext'
-import { ScreenErrorBoundary } from './components/ScreenErrorBoundary'
 
 /**
  * Higher-order component that wraps a component with UiCatalogProvider
@@ -43,11 +42,9 @@ export function wrapWithUiCatalog<P extends BusinessAppContextProps>(Component: 
 
     try {
       return (
-        <ScreenErrorBoundary screenName={screenName}>
-          <UiCatalogProvider>
-            <Component {...props} />
-          </UiCatalogProvider>
-        </ScreenErrorBoundary>
+        <UiCatalogProvider>
+          <Component {...props} />
+        </UiCatalogProvider>
       )
     } catch (error) {
       console.error('❌ [wrapWithUiCatalog] Error rendering component:', error)

@@ -1,53 +1,53 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
-import { Badge } from '@newwork/nw-design-system';
-import { FileCode, FolderOpen, File, Plus, Edit, Trash2 } from 'lucide-react';
-import { cn } from '@newwork/nw-design-system';
+import React, { useState } from 'react'
+import { Card, CardContent } from '@newwork/nw-design-system'
+import { Badge } from '@newwork/nw-design-system'
+import { FileCode, FolderOpen, File, Plus, Edit, Trash2 } from 'lucide-react'
+import { cn } from '@newwork/nw-design-system'
 
 interface GeneratedFile {
-  path: string;
-  content: string;
-  changeType: 'create' | 'modify' | 'delete';
+  path: string
+  content: string
+  changeType: 'create' | 'modify' | 'delete'
 }
 
 interface FileTreeViewerProps {
-  files: GeneratedFile[];
-  onFileSelect: (file: GeneratedFile) => void;
+  files: GeneratedFile[]
+  onFileSelect: (file: GeneratedFile) => void
 }
 
 export const FileTreeViewer: React.FC<FileTreeViewerProps> = ({ files, onFileSelect }) => {
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null)
 
   const getChangeTypeColor = (changeType: string) => {
     switch (changeType) {
       case 'create':
-        return 'gba:bg-success gba:text-success-foreground';
+        return 'gba:bg-success gba:text-success-foreground'
       case 'modify':
-        return 'gba:bg-warning gba:text-warning-foreground';
+        return 'gba:bg-warning gba:text-warning-foreground'
       case 'delete':
-        return 'gba:bg-destructive gba:text-destructive-foreground';
+        return 'gba:bg-destructive gba:text-destructive-foreground'
       default:
-        return 'gba:bg-muted gba:text-muted-foreground';
+        return 'gba:bg-muted gba:text-muted-foreground'
     }
-  };
+  }
 
   const getChangeTypeIcon = (changeType: string) => {
     switch (changeType) {
       case 'create':
-        return <Plus className="gba:w-3 gba:h-3" />;
+        return <Plus className="gba:w-3 gba:h-3" />
       case 'modify':
-        return <Edit className="gba:w-3 gba:h-3" />;
+        return <Edit className="gba:w-3 gba:h-3" />
       case 'delete':
-        return <Trash2 className="gba:w-3 gba:h-3" />;
+        return <Trash2 className="gba:w-3 gba:h-3" />
       default:
-        return <File className="gba:w-3 gba:h-3" />;
+        return <File className="gba:w-3 gba:h-3" />
     }
-  };
+  }
 
   const handleFileClick = (file: GeneratedFile) => {
-    setSelectedFile(file.path);
-    onFileSelect(file);
-  };
+    setSelectedFile(file.path)
+    onFileSelect(file)
+  }
 
   if (files.length === 0) {
     return (
@@ -56,13 +56,11 @@ export const FileTreeViewer: React.FC<FileTreeViewerProps> = ({ files, onFileSel
           <FolderOpen className="gba:w-12 gba:h-12 gba:mx-auto gba:text-muted-foreground" />
           <div>
             <h3 className="gba:text-lg gba:font-medium gba:text-foreground">No Files Generated</h3>
-            <p className="gba:text-sm gba:text-muted-foreground">
-              Start a conversation to generate files
-            </p>
+            <p className="gba:text-sm gba:text-muted-foreground">Start a conversation to generate files</p>
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -71,18 +69,16 @@ export const FileTreeViewer: React.FC<FileTreeViewerProps> = ({ files, onFileSel
       <div className="gba:w-1/3 gba:border-r gba:overflow-y-auto gba:bg-muted/30">
         <div className="gba:p-4 gba:space-y-2">
           <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
-            <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">
-              Generated Files ({files.length})
-            </h3>
+            <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Generated Files ({files.length})</h3>
           </div>
           {files.map((file, idx) => (
             <button
               key={idx}
               onClick={() => handleFileClick(file)}
               className={cn(
-                "gba:w-full gba:text-left gba:p-3 gba:rounded-lg gba:transition-colors",
-                "hover:gba:bg-muted gba:border gba:border-transparent",
-                selectedFile === file.path && "gba:bg-primary/10 gba:border-primary"
+                'gba:w-full gba:text-left gba:p-3 gba:rounded-lg gba:transition-colors',
+                'hover:gba:bg-muted gba:border gba:border-transparent',
+                selectedFile === file.path && 'gba:bg-primary/10 gba:border-primary'
               )}
               data-testid={`ai-builder-file-item-${idx}`}
             >
@@ -92,14 +88,12 @@ export const FileTreeViewer: React.FC<FileTreeViewerProps> = ({ files, onFileSel
                   <div className="gba:text-xs gba:font-medium gba:text-foreground gba:truncate">
                     {file.path.split('/').pop()}
                   </div>
-                  <div className="gba:text-[10px] gba:text-muted-foreground gba:truncate gba:mt-0.5">
-                    {file.path}
-                  </div>
+                  <div className="gba:text-[10px] gba:text-muted-foreground gba:truncate gba:mt-0.5">{file.path}</div>
                 </div>
-                <Badge 
+                <Badge
                   variant="secondary"
                   className={cn(
-                    "gba:text-[10px] gba:px-1.5 gba:py-0.5 gba:flex gba:items-center gba:gap-1",
+                    'gba:text-[10px] gba:px-1.5 gba:py-0.5 gba:flex gba:items-center gba:gap-1',
                     getChangeTypeColor(file.changeType)
                   )}
                 >
@@ -117,8 +111,8 @@ export const FileTreeViewer: React.FC<FileTreeViewerProps> = ({ files, onFileSel
         {selectedFile ? (
           <div className="gba:p-6">
             {(() => {
-              const file = files.find(f => f.path === selectedFile);
-              if (!file) return null;
+              const file = files.find(f => f.path === selectedFile)
+              if (!file) return null
 
               return (
                 <div className="gba:space-y-4">
@@ -127,16 +121,11 @@ export const FileTreeViewer: React.FC<FileTreeViewerProps> = ({ files, onFileSel
                       <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">
                         {file.path.split('/').pop()}
                       </h3>
-                      <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                        {file.path}
-                      </p>
+                      <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{file.path}</p>
                     </div>
-                    <Badge 
+                    <Badge
                       variant="secondary"
-                      className={cn(
-                        "gba:flex gba:items-center gba:gap-1.5",
-                        getChangeTypeColor(file.changeType)
-                      )}
+                      className={cn('gba:flex gba:items-center gba:gap-1.5', getChangeTypeColor(file.changeType))}
                     >
                       {getChangeTypeIcon(file.changeType)}
                       {file.changeType.toUpperCase()}
@@ -151,7 +140,7 @@ export const FileTreeViewer: React.FC<FileTreeViewerProps> = ({ files, onFileSel
                     </CardContent>
                   </Card>
                 </div>
-              );
+              )
             })()}
           </div>
         ) : (
@@ -164,6 +153,5 @@ export const FileTreeViewer: React.FC<FileTreeViewerProps> = ({ files, onFileSel
         )}
       </div>
     </div>
-  );
-};
-
+  )
+}

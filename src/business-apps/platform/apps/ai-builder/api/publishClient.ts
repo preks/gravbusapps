@@ -7,7 +7,7 @@
 
 import { ENV } from '../config/environment'
 
-const PUBLISH_API_URL = ENV.PUBLISH_API_URL
+const AI_SERVICE_API_URL = ENV.AI_SERVICE_API_URL
 
 export interface GeneratedFile {
   path: string
@@ -33,12 +33,6 @@ export interface PublishResponse {
 }
 
 /**
- * NOTE: vite.config.ts fix is no longer needed!
- * Forge's base repository was updated on 2025-01-21 to have exports: 'auto'
- * The workaround has been removed - builds now work correctly out of the box
- */
-
-/**
  * Publish generated screen to NEWWORK platform
  *
  * This function:
@@ -49,8 +43,8 @@ export interface PublishResponse {
  */
 export async function publishScreen(request: PublishRequest): Promise<PublishResponse> {
   try {
-    // Make HTTP request to Forge API
-    const response = await fetch(`${PUBLISH_API_URL}/api/publish`, {
+    // Make HTTP request to the publish API
+    const response = await fetch(`${AI_SERVICE_API_URL}/api/publish`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

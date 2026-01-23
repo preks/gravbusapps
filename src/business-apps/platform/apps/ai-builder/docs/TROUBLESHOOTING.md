@@ -29,6 +29,7 @@ pnpm run dev
 ```
 
 You should see:
+
 ```
 🚀 API Server running on http://localhost:3000
 ```
@@ -36,6 +37,7 @@ You should see:
 ### Step 3: Verify FORGE is Working
 
 Open a new terminal:
+
 ```bash
 curl http://localhost:3000/api/health
 ```
@@ -51,7 +53,8 @@ curl http://localhost:3000/api/repos/gravbusapps-main/status
 **If you get 404 or error**: Repository is NOT indexed!
 
 **Fix**: Index the repository:
-1. Open FORGE dashboard: http://localhost:3001/dashboard  
+
+1. Open FORGE dashboard: http://localhost:3001/dashboard
 2. Click "Add Repository"
 3. Enter URL: `https://github.com/preks/gravbusapps`
 4. Branch: `main`
@@ -73,6 +76,7 @@ You should now see the AI responding! 🎉
 **Cause**: FORGE is not running or wrong URL
 
 **Solution**:
+
 ```bash
 # Check if FORGE is running
 lsof -i :3000
@@ -87,6 +91,7 @@ pnpm run dev
 **Cause**: gravbusapps repository not indexed in FORGE
 
 **Solution**:
+
 1. Go to FORGE dashboard: http://localhost:3001/dashboard
 2. Add repository: https://github.com/preks/gravbusapps
 3. Wait for indexing to complete
@@ -97,8 +102,9 @@ pnpm run dev
 
 **Solution**:
 FORGE should already have CORS enabled. If not, check FORGE's `packages/api/src/server.ts` has:
+
 ```typescript
-app.use(cors());
+app.use(cors())
 ```
 
 ### Error: "Repository status: indexing"
@@ -107,6 +113,7 @@ app.use(cors());
 
 **Solution**:
 Wait for indexing to complete. Check status:
+
 ```bash
 curl http://localhost:3000/api/repos/gravbusapps-main/status
 ```
@@ -116,6 +123,7 @@ Look for `"status": "completed"`
 ### Chat Shows Error Message
 
 **Check the error message in chat**. It will tell you:
+
 - If FORGE is not running
 - If repository is not indexed
 - The specific error
@@ -135,27 +143,32 @@ Open browser DevTools (F12) and check Console tab.
 Run this checklist:
 
 ### ✅ Prerequisites
+
 - [ ] Node.js 20+ installed: `node --version`
 - [ ] pnpm installed: `pnpm --version`
 - [ ] Git installed: `git --version`
 
 ### ✅ FORGE Running
+
 - [ ] FORGE started: `cd forge && pnpm run dev`
 - [ ] Health check works: `curl http://localhost:3000/api/health`
 - [ ] Port 3000 is free: `lsof -i :3000`
 
 ### ✅ Repository Indexed
+
 - [ ] Repository added in FORGE dashboard
 - [ ] Indexing completed (status: "completed")
 - [ ] Can query status: `curl http://localhost:3000/api/repos/gravbusapps-main/status`
 
 ### ✅ AI Builder Running
+
 - [ ] Dev server started: `npm run dev`
 - [ ] Can access: http://localhost:3001/apps/platform/ai-builder
 - [ ] No console errors in browser
 - [ ] Chat interface visible
 
 ### ✅ Test End-to-End
+
 - [ ] Type message in chat
 - [ ] AI responds with streaming text
 - [ ] Files are generated
@@ -167,6 +180,7 @@ Run this checklist:
 ### Check FORGE Logs
 
 In the terminal where FORGE is running, check for errors:
+
 - Look for `ERROR` messages
 - Look for connection issues
 - Look for port conflicts
@@ -181,12 +195,14 @@ In the terminal where FORGE is running, check for errors:
 ### Check Environment Variables
 
 Create `.env` in gravity-business-apps root:
+
 ```env
 FORGE_API_URL=http://localhost:3000
 PUBLISH_API_URL=http://localhost:3002
 ```
 
 Then restart dev server:
+
 ```bash
 npm run dev
 ```
@@ -277,4 +293,3 @@ When everything is working:
 
 **Most Common Issue**: FORGE not running!
 **Solution**: `cd forge && pnpm run dev`
-

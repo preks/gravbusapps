@@ -33,6 +33,7 @@ import { GET_EMPLOYEE_LIGHT_BY_ID } from '@/common/data/employee/queries/employe
 import { SessionMetadata, SessionUser } from './types/session'
 import { saveSession, listSessions, deleteSession as deleteSessionAPI } from './api/sessionClient'
 import { loadChatHistory, saveChatHistory } from './api/chatClient'
+import { ENV } from './config/environment'
 
 // Simple markdown renderer for code blocks and inline code
 const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
@@ -218,11 +219,18 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
   )
 }
 
-// API Configuration - EXACT same as FORGE demo
-const API_URL = 'https://forge-api-production-db58.up.railway.app'
-const REPO_ID = '168cd931-0e04-4f64-a496-fcb4af916612'
+const API_URL = ENV.AI_SERVICE_API_URL
 
-// EXACT interfaces from FORGE
+// Fetch app config from service (returns repositoryIds)
+async function fetchAppConfig(): Promise<{ repositoryIds: string[] }> {
+  const response = await fetch(`${API_URL}/api/config`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch app configuration')
+  }
+  return response.json()
+}
+
+// Exact interfaces from the AI service
 interface Message {
   role: 'user' | 'assistant'
   content: string
@@ -253,7 +261,7 @@ interface UniqueFileSummary {
   }>
 }
 
-// EXACT API function from FORGE
+// Exact API function from the AI service
 async function queryCode(
   repoId: string,
   query: string,
@@ -313,10 +321,8 @@ async function getChanges(repoId: string, sessionId: string) {
   return response.json()
 }
 
-// Use FORGE API (on Railway) for publishing - accessible from anywhere!
-const PUBLISH_API_URL = API_URL // Same as FORGE API - publishes via /api/newwork/publish
-
 interface PublishRequest {
+  repositoryId: string
   files: Array<{ path: string; content: string; changeType: string }>
   screenPath: string
   resourceUrl: string
@@ -325,21 +331,20 @@ interface PublishRequest {
 }
 
 async function publishScreen(request: PublishRequest) {
-  // Call NEWWORK-specific publish endpoint on FORGE (Railway)
-  const response = await fetch(`${PUBLISH_API_URL}/api/newwork/publish`, {
+  const response = await fetch(`${API_URL}/api/newwork/publish`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${request.accessToken}`
     },
     body: JSON.stringify({
-      repoId: REPO_ID,
+      repoId: request.repositoryId,
       sessionId: request.sessionId,
       screenPath: request.screenPath,
       resourceUrl: request.resourceUrl,
-      // Azure credentials - FORGE API has these in its environment variables
-      azureStorageAccount: '', // FORGE will use its own env vars
-      azureSasToken: '', // FORGE will use its own env vars
+      // Azure credentials - resolved by the publish service environment
+      azureStorageAccount: '', // Service will use its own env vars
+      azureSasToken: '', // Service will use its own env vars
       azureContainerName: 'screens' // Standard container name
     })
   })
@@ -378,7 +383,12 @@ async function publishScreen(request: PublishRequest) {
 }
 
 export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
-  // EXACT state from FORGE demo
+  // Config state - fetched from service
+  const [repositoryId, setRepositoryId] = useState<string>('')
+  const [configLoading, setConfigLoading] = useState(true)
+  const [configError, setConfigError] = useState<string | null>(null)
+
+  // Exact state from the AI service demo
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -436,6 +446,25 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const toolIdCounter = useRef(0)
+
+  // Fetch app configuration on mount
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        setConfigLoading(true)
+        setConfigError(null)
+        const config = await fetchAppConfig()
+        setRepositoryId(config.repositoryIds[0])
+      } catch (error) {
+        console.error('Failed to load app config:', error)
+        setConfigError('Failed to load configuration. Please refresh the page.')
+      } finally {
+        setConfigLoading(false)
+      }
+    }
+
+    loadConfig()
+  }, [])
 
   // Load all sessions from API (for team visibility)
   useEffect(() => {
@@ -632,7 +661,7 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
       checkForChanges()
 
       // Load chat history
-      loadChatHistory(REPO_ID, sessionId)
+      loadChatHistory(repositoryId, sessionId)
         .then(history => {
           if (history && history.length > 0) {
             console.log(`Loaded ${history.length} messages from chat history`)
@@ -655,7 +684,7 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
       // Debounce to avoid too many saves
       const timeoutId = setTimeout(() => {
         console.log(`Saving ${messages.length} messages to chat history...`)
-        saveChatHistory(REPO_ID, sessionId, messages as any[]).then(success => {
+        saveChatHistory(repositoryId, sessionId, messages as any[]).then(success => {
           if (success) {
             console.log('Chat history saved successfully')
           } else {
@@ -675,10 +704,10 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
       return
     }
 
-    console.log('Fetching changes from FORGE...', { sessionId, repoId: REPO_ID })
+    console.log('Fetching changes from AI service...', { sessionId, repoId: repositoryId })
 
     try {
-      const data = await getChanges(REPO_ID, sessionId)
+      const data = await getChanges(repositoryId, sessionId)
       console.log('Changes received:', data)
 
       // Calculate unique files summary (not counting duplicates)
@@ -779,8 +808,8 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
 
     setIsPublishing(true)
     try {
-      // Get all changes from FORGE (excluding deleted files)
-      const data = await getChanges(REPO_ID, sessionId)
+      // Get all changes from the AI service (excluding deleted files)
+      const data = await getChanges(repositoryId, sessionId)
       const files = (data.changes || [])
         .filter((change: any) => change.changeType !== 'delete')
         .map((change: any) => ({
@@ -796,6 +825,7 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
 
       // Publish to platform
       await publishScreen({
+        repositoryId,
         files,
         screenPath,
         resourceUrl,
@@ -803,9 +833,7 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
         accessToken: context.accessToken
       })
 
-      // Success! Generate the platform URL
-      // Format: https://newwork-dev.newwork.com/platform/apps/SCREEN_PATH
-      const fullUrl = `https://newwork-dev.newwork.com/platform/apps/${screenPath}`
+      const fullUrl = `/${screenPath}`
       setPublishSuccess(fullUrl)
       setShowPublishDialog(false)
 
@@ -858,7 +886,6 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     }
   }
 
-  // EXACT handleSubmit from FORGE demo (line 333-778)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || loading) return
@@ -876,12 +903,6 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       setThinking(true)
       setThinkingContent('')
 
-      // DEBUG: Log what we're sending
-      console.log('=== AI BUILDER REQUEST ===')
-      console.log('Query:', userInput)
-      console.log('Total messages:', messages.length)
-      console.log('Session ID:', sessionId)
-
       // ✅ Backend now handles full conversation history via RAG
       // Frontend just sends recent messages for bandwidth optimization
       // Backend loads full history from database + uses semantic search for best context
@@ -891,13 +912,13 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       console.log('========================')
 
       // Compatibility shim: if no history yet, add a dummy assistant thinking header
-      // This mirrors the state after FORGE streams the first thinking chunk,
+      // This mirrors the state after the AI service streams the first thinking chunk,
       // ensuring Claude disables strict thinking validation for the first turn
       const history =
         messages.length === 0 ? [{ role: 'assistant' as const, content: 'Preparing...' }] : optimizedHistory
 
-      // EXACT same as FORGE line 348 - pass messages state (before setState completes)
-      const stream = await queryCode(REPO_ID, userInput, history, true, buildEnabled, sessionId, llmProvider)
+      // Exact same as AI service line 348 - pass messages state (before setState completes)
+      const stream = await queryCode(repositoryId, userInput, history, true, buildEnabled, sessionId, llmProvider)
       const reader = stream.getReader()
       const decoder = new TextDecoder()
 
@@ -1077,6 +1098,30 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     }
   }
 
+  // Show loading state while fetching config
+  if (configLoading) {
+    return (
+      <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:bg-background">
+        <div className="gba:flex gba:flex-col gba:items-center gba:gap-4">
+          <Loader2 className="gba:h-8 gba:w-8 gba:animate-spin gba:text-primary" />
+          <p className="gba:text-muted-foreground">Loading configuration...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state if config failed to load
+  if (configError || !repositoryId) {
+    return (
+      <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:bg-background">
+        <Alert variant="destructive" className="gba:max-w-md">
+          <AlertCircle className="gba:h-4 gba:w-4" />
+          <AlertDescription>{configError || 'Configuration not available. Please contact support.'}</AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
   // Show session list if no active session
   if (showSessionList) {
     return (
@@ -1120,7 +1165,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         {/* File Explorer Sidebar */}
         {fileExplorerEnabled && showFileExplorer && sessionId && (
           <div className="gba:w-[320px] gba:border-r gba:border-border gba:flex-shrink-0 gba:bg-card/80 gba:backdrop-blur-sm">
-            <FileExplorer repoId={REPO_ID} sessionId={sessionId} onFileClick={path => setSelectedFile(path)} />
+            <FileExplorer repoId={repositoryId} sessionId={sessionId} onFileClick={path => setSelectedFile(path)} />
           </div>
         )}
 
@@ -1332,7 +1377,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => downloadPatch(REPO_ID, sessionId)}
+                      onClick={() => downloadPatch(repositoryId, sessionId)}
                       className="gba:gap-2"
                     >
                       <Download className="gba:w-4 gba:h-4" />
@@ -1758,7 +1803,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
           {selectedFile && (
             <FilePreview
               filePath={selectedFile}
-              repoId={REPO_ID}
+              repoId={repositoryId}
               sessionId={sessionId}
               onClose={() => setSelectedFile(null)}
             />

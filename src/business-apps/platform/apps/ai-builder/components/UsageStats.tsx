@@ -1,26 +1,19 @@
-import React from 'react';
-import { Card, CardContent } from '@newwork/nw-design-system';
-import { Badge } from '@newwork/nw-design-system';
-import { DollarSign, Activity } from 'lucide-react';
-import { cn } from '@newwork/nw-design-system';
+import React from 'react'
+import { DollarSign, Activity } from 'lucide-react'
 
 interface UsageStatsProps {
-  totalInputTokens: number;
-  totalOutputTokens: number;
-  totalCost: number;
+  totalInputTokens: number
+  totalOutputTokens: number
+  totalCost: number
 }
 
-export const UsageStats: React.FC<UsageStatsProps> = ({
-  totalInputTokens,
-  totalOutputTokens,
-  totalCost,
-}) => {
+export const UsageStats: React.FC<UsageStatsProps> = ({ totalInputTokens, totalOutputTokens, totalCost }) => {
   if (totalCost === 0) {
-    return null;
+    return null
   }
 
   return (
-    <div 
+    <div
       className="gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:bg-muted gba:rounded-lg gba:border"
       data-testid="ai-builder-usage-stats"
     >
@@ -37,19 +30,16 @@ export const UsageStats: React.FC<UsageStatsProps> = ({
           </span>
         </div>
       </div>
-      
+
       <div className="gba:h-4 gba:w-px gba:bg-border" />
-      
+
       <div className="gba:flex gba:items-center gba:gap-2">
         <DollarSign className="gba:w-4 gba:h-4 gba:text-success" />
         <div className="gba:text-xs">
           <span className="gba:text-muted-foreground">Cost:</span>
-          <span className="gba:font-mono gba:font-semibold gba:text-success gba:ml-1">
-            ${totalCost.toFixed(4)}
-          </span>
+          <span className="gba:font-mono gba:font-semibold gba:text-success gba:ml-1">${totalCost.toFixed(4)}</span>
         </div>
       </div>
     </div>
-  );
-};
-
+  )
+}

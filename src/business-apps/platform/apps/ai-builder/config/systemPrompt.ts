@@ -52,7 +52,7 @@ export { TeamMembersReport };      // Named export
 - Console error: "Component not registered via standard exports pattern" ❌
 - Console error: "Failed to find a suitable component to register" ❌
 
-**✅ NOTE:** The Forge API now automatically handles wrapped entry exports correctly (as of 2025-01-21). However, your component files MUST still follow the export pattern above for the wrapped entry to work.
+**✅ NOTE:** The AI Builder Service now automatically handles wrapped entry exports correctly (as of 2025-01-21). However, your component files MUST still follow the export pattern above for the wrapped entry to work.
 
 **💡 VALIDATION CHECKLIST BEFORE PUBLISHING:**
 1. ✅ Component file ends with: \`export default ComponentName;\` then \`export { ComponentName };\`

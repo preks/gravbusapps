@@ -1,7 +1,7 @@
 /**
  * Session Management API Client
  *
- * Handles communication with FORGE session endpoints for AI Builder sessions.
+ * Handles communication with the AI builder service session endpoints.
  */
 
 import { SessionMetadata, SessionUser } from '../types/session'
@@ -50,7 +50,7 @@ export interface DeleteSessionResponse {
  * Save or update a session
  */
 export async function saveSession(request: SaveSessionRequest): Promise<SaveSessionResponse> {
-  const response = await fetch(`${ENV.FORGE_API_URL}/api/newwork/sessions`, {
+  const response = await fetch(`${ENV.AI_SERVICE_API_URL}/api/sessions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -72,8 +72,8 @@ export async function saveSession(request: SaveSessionRequest): Promise<SaveSess
  */
 export async function listSessions(userId: string = '', limit: number = 50): Promise<ListSessionsResponse> {
   const url = userId
-    ? `${ENV.FORGE_API_URL}/api/newwork/sessions?userId=${userId}&limit=${limit}`
-    : `${ENV.FORGE_API_URL}/api/newwork/sessions?limit=${limit}`
+    ? `${ENV.AI_SERVICE_API_URL}/api/sessions?userId=${userId}&limit=${limit}`
+    : `${ENV.AI_SERVICE_API_URL}/api/sessions?limit=${limit}`
 
   const response = await fetch(url, {
     method: 'GET',
@@ -95,7 +95,7 @@ export async function listSessions(userId: string = '', limit: number = 50): Pro
  * Get a specific session by ID
  */
 export async function getSession(sessionId: string): Promise<GetSessionResponse> {
-  const response = await fetch(`${ENV.FORGE_API_URL}/api/newwork/sessions/${sessionId}`, {
+  const response = await fetch(`${ENV.AI_SERVICE_API_URL}/api/sessions/${sessionId}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json'
@@ -115,7 +115,7 @@ export async function getSession(sessionId: string): Promise<GetSessionResponse>
  * Delete a session
  */
 export async function deleteSession(sessionId: string): Promise<DeleteSessionResponse> {
-  const response = await fetch(`${ENV.FORGE_API_URL}/api/newwork/sessions/${sessionId}`, {
+  const response = await fetch(`${ENV.AI_SERVICE_API_URL}/api/sessions/${sessionId}`, {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json'
