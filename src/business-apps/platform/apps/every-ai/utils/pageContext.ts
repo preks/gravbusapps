@@ -68,7 +68,10 @@ const OVERVIEW_URL_PATTERNS = [
   { pattern: /\/platform\/irm\/investment-relations\?view=accounts/, entity_name: 'investment_account' },
 
   // IRM investment-management overviews
-  { pattern: /\/platform\/irm\/investment-management\?view=investments/, entity_name: 'investment' }
+  { pattern: /\/platform\/irm\/investment-management\?view=investments/, entity_name: 'investment' },
+
+  // Asset management overviews
+  { pattern: /\/platform\/assets/, entity_name: 'asset' }
 ] as const
 
 /**
