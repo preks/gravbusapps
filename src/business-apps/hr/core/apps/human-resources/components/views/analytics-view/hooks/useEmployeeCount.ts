@@ -46,13 +46,13 @@ export const useEmployeeCount = (accessToken: string) => {
       return
     }
 
+    const cacheKey = `${accessToken}|employeesPerYear|5`
+
     try {
       if (isMounted.current) {
         setLoading(true)
         setError(null)
       }
-
-      const cacheKey = `${accessToken}|employeesPerYear|5`
 
       let promise = employeeCountRequestCache.get(cacheKey)
       if (!promise) {
@@ -99,6 +99,8 @@ export const useEmployeeCount = (accessToken: string) => {
         setError(err instanceof Error ? err : new Error('Failed to fetch employee count'))
       }
     } finally {
+      // Clear in-flight cache entry so future mounts/refetches get fresh data
+      employeeCountRequestCache.delete(cacheKey)
       if (isMounted.current) {
         setLoading(false)
       }
