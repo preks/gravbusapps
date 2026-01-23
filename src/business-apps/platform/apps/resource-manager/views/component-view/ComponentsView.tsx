@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react'
+import React, { useMemo, useState, useCallback } from 'react'
 import {
   DataDisplay,
   DataTable,
@@ -19,10 +19,25 @@ import { useComponentResources } from '@/common/data/resources/hooks/useComponen
 import type { ComponentResource, Component, AzureBlobVersions } from '@/common/data/resources/types/component.types'
 import { ComponentDialog } from './ComponentDialog'
 import { combineBuildAndScreenType } from '../../utils/componentKeyUtils'
-import { useResourceManagerContext } from '../../contexts/ResourceManagerContext'
+import { useAzureData } from '../../contexts/ResourceManagerContext'
+import { env } from '@/common/env/EnvUtils'
 
 interface ComponentsViewProps extends BusinessAppContextProps {
   'data-testid'?: string
+}
+
+// Helper function to check if Azure Storage credentials are configured
+const isAzureConfigured = (): boolean => {
+  const devAccountName = env('NEXT_PUBLIC_AZURE_STORAGE_ACCOUNT_DEV')
+  const devSasToken = env('NEXT_PUBLIC_AZURE_STORAGE_SAS_TOKEN_DEV')
+  const prodAccountName = env('NEXT_PUBLIC_AZURE_STORAGE_ACCOUNT_PROD')
+  const prodSasToken = env('NEXT_PUBLIC_AZURE_STORAGE_SAS_TOKEN_PROD')
+
+  // Azure is configured if at least DEV or PROD credentials are available
+  const hasDevConfig = !!(devAccountName && devSasToken)
+  const hasProdConfig = !!(prodAccountName && prodSasToken)
+
+  return hasDevConfig || hasProdConfig
 }
 
 export const ComponentsView: React.FC<ComponentsViewProps> = ({
@@ -37,8 +52,11 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
   const [dialogMode, setDialogMode] = useState<'create' | 'update'>('create')
   const [selectedComponent, setSelectedComponent] = useState<Component | undefined>()
 
+  // Check if Azure Storage is configured
+  const azureConfigured = useMemo(() => isAzureConfigured(), [])
+
   // Get Azure Storage data from context
-  const { devComponentPathVersions, prodComponentPathVersions } = useResourceManagerContext()
+  const { devComponentPathVersions, prodComponentPathVersions } = useAzureData()
 
   // Fetch components with server-side pagination, sorting, and filtering
   const { components, totalCount, isLoading, refetch } = useComponentResources(context, {
@@ -77,24 +95,6 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
   const { createComponent } = useCreateComponent(context)
   const { updateComponent } = useUpdateComponent(context)
   const { deleteComponent } = useDeleteComponent(context)
-
-  // Track if this is the first fetch to show loading state only initially
-  const isFirstFetch = useRef(true)
-
-  // Trigger refetch when pagination, sorting, or search changes
-  useEffect(() => {
-    refetch(
-      {
-        limit: pagination.pageSize,
-        offset: pagination.pageIndex * pagination.pageSize,
-        searchParameter: searchTerm,
-        sort: sorting.length > 0 ? { field: sorting[0].id, order: sorting[0].desc ? 'DESC' : 'ASC' } : undefined
-      },
-      isFirstFetch.current
-    ) // Only show loading on first fetch
-
-    isFirstFetch.current = false // After first fetch, never show loading state again
-  }, [pagination.pageIndex, pagination.pageSize, sorting, searchTerm, refetch])
 
   // Handlers for component actions
   const handleCreate = useCallback(() => {
@@ -168,6 +168,7 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
   const getRowId = (row: ComponentResource) => row.id || row.screenKey || ''
 
   const getRowCanExpand = (row: ComponentResource) => {
+    if (!azureConfigured) return false
     const prodVersions = row.azureVersions?.prod?.versions || []
     return prodVersions.length > 0
   }
@@ -199,8 +200,8 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
   }
 
   // Define columns for DataTable
-  const columns = useMemo(
-    () => [
+  const columns = useMemo(() => {
+    const baseColumns = [
       {
         id: 'type',
         accessorKey: 'type',
@@ -278,82 +279,91 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
             </code>
           )
         }
-      },
-      {
-        id: 'devVersion',
-        accessorKey: 'devVersion',
-        header: 'DEV',
-        size: 100,
-        enableResizing: false,
-        cell: ({ row }: { row: { original: ComponentResource } }) => {
-          const hasUnversioned = row.original.azureVersions.dev.hasUnversioned
+      }
+    ]
 
-          return (
-            <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
-              {hasUnversioned ? (
-                <Check className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
-              ) : (
-                <X className="gba:w-4 gba:h-4 gba:text-destructive" weight="bold" />
-              )}
-            </div>
-          )
-        }
-      },
-      {
-        id: 'prodVersion',
-        accessorKey: 'prodVersion',
-        header: 'PROD',
-        size: 100,
-        enableResizing: false,
-        cell: ({ row }: { row: { original: ComponentResource } }) => {
-          const prodVersions = row.original.azureVersions.prod?.versions || []
-          const sortedVersions = [...prodVersions].sort((a, b) => parseInt(b) - parseInt(a))
-          const latestVersion = sortedVersions[0]
-          const remainingVersionsCount = sortedVersions.length - 1
+    // Only add DEV and PROD columns if Azure is configured
+    if (azureConfigured) {
+      baseColumns.push(
+        {
+          id: 'devVersion',
+          accessorKey: 'devVersion',
+          header: 'DEV',
+          size: 100,
+          enableResizing: false,
+          cell: ({ row }: { row: { original: ComponentResource } }) => {
+            const hasUnversioned = row.original.azureVersions.dev.hasUnversioned
 
-          // If no versions, show X
-          if (!latestVersion) {
             return (
               <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
-                <X className="gba:w-4 gba:h-4 gba:text-destructive" weight="bold" />
+                {hasUnversioned ? (
+                  <Check className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
+                ) : (
+                  <X className="gba:w-4 gba:h-4 gba:text-destructive" weight="bold" />
+                )}
               </div>
             )
           }
+        },
+        {
+          id: 'prodVersion',
+          accessorKey: 'prodVersion',
+          header: 'PROD',
+          size: 100,
+          enableResizing: false,
+          cell: ({ row }: { row: { original: ComponentResource } }) => {
+            const prodVersions = row.original.azureVersions.prod?.versions || []
+            const sortedVersions = [...prodVersions].sort((a, b) => parseInt(b) - parseInt(a))
+            const latestVersion = sortedVersions[0]
+            const remainingVersionsCount = sortedVersions.length - 1
 
-          return (
-            <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
-              <div className="gba:relative gba:inline-block">
-                <span className="gba:inline-flex gba:items-center gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:border">
-                  {latestVersion}
-                </span>
-                {remainingVersionsCount > 0 && (
-                  <Badge size="xs" variant="default" className="gba:absolute gba:-top-2 gba:-right-2">
-                    +{remainingVersionsCount}
-                  </Badge>
-                )}
+            // If no versions, show X
+            if (!latestVersion) {
+              return (
+                <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
+                  <X className="gba:w-4 gba:h-4 gba:text-destructive" weight="bold" />
+                </div>
+              )
+            }
+
+            return (
+              <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
+                <div className="gba:relative gba:inline-block">
+                  <span className="gba:inline-flex gba:items-center gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:border">
+                    {latestVersion}
+                  </span>
+                  {remainingVersionsCount > 0 && (
+                    <Badge size="xs" variant="default" className="gba:absolute gba:-top-2 gba:-right-2">
+                      +{remainingVersionsCount}
+                    </Badge>
+                  )}
+                </div>
               </div>
-            </div>
-          )
+            )
+          }
         }
-      },
-      {
-        id: 'updatedAt',
-        accessorKey: 'updatedAt',
-        header: 'Updated',
-        size: 110,
-        enableResizing: false,
-        cell: ({ row }: { row: { original: ComponentResource } }) => {
-          const date = row.original.updatedAt || row.original.createdAt
-          return (
-            <span className="gba:text-sm gba:text-muted-foreground">
-              {date ? new Date(date).toLocaleDateString() : '-'}
-            </span>
-          )
-        }
+      )
+    }
+
+    // Add Updated column at the end
+    baseColumns.push({
+      id: 'updatedAt',
+      accessorKey: 'updatedAt',
+      header: 'Updated',
+      size: 110,
+      enableResizing: false,
+      cell: ({ row }: { row: { original: ComponentResource } }) => {
+        const date = row.original.updatedAt || row.original.createdAt
+        return (
+          <span className="gba:text-sm gba:text-muted-foreground">
+            {date ? new Date(date).toLocaleDateString() : '-'}
+          </span>
+        )
       }
-    ],
-    [handleEdit, handleDelete]
-  )
+    })
+
+    return baseColumns
+  }, [azureConfigured, handleEdit, handleDelete])
 
   const sortableColumns = [
     { id: 'name', label: 'Name' },
@@ -363,16 +373,23 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
     { id: 'createdAt', label: 'Created' }
   ]
 
-  const availableColumns = [
-    { id: 'type', label: 'Type' },
-    { id: 'name', label: 'Name' },
-    { id: 'componentPath', label: 'Component Path' },
-    { id: 'devVersion', label: 'DEV' },
-    { id: 'prodVersion', label: 'PROD' },
-    { id: 'updatedAt', label: 'Updated' }
-  ]
+  const availableColumns = useMemo(() => {
+    const cols = [
+      { id: 'type', label: 'Type' },
+      { id: 'name', label: 'Name' },
+      { id: 'componentPath', label: 'Component Path' }
+    ]
 
-  const visibleColumns = availableColumns.map(col => col.id)
+    if (azureConfigured) {
+      cols.push({ id: 'devVersion', label: 'DEV' }, { id: 'prodVersion', label: 'PROD' })
+    }
+
+    cols.push({ id: 'updatedAt', label: 'Updated' })
+
+    return cols
+  }, [azureConfigured])
+
+  const visibleColumns = useMemo(() => availableColumns.map(col => col.id), [availableColumns])
 
   // Actions renderer for DataTable - automatically creates pinned actions column
   const renderActions = useCallback(

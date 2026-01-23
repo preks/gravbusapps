@@ -144,7 +144,10 @@ export class ResourceClient extends RestClient {
       throw new Error(`REST request failed: ${response.status} - ${errorMessage}`)
     }
 
-    return await response.json()
+    if (response.status !== 204) {
+      return (await response.json()) as T
+    }
+    return undefined as T
   }
 
   public async delete<T = any>(path: string, options: RequestOptions = {}, customBaseUrl?: string): Promise<T> {

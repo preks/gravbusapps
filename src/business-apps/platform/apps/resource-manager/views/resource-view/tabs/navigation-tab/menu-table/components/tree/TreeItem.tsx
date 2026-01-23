@@ -9,7 +9,6 @@ interface TreeItemProps {
   children: React.ReactNode
   clone?: boolean
   ghost?: boolean
-  indicator?: boolean
   indentationWidth: number
   handleProps?: any
   wrapperRef?: (node: HTMLLIElement) => void
@@ -17,13 +16,8 @@ interface TreeItemProps {
 }
 
 export const TreeItem = forwardRef<HTMLDivElement, TreeItemProps>(
-  (
-    { children, clone = false, ghost = false, indicator = false, indentationWidth, handleProps, wrapperRef, style },
-    ref
-  ) => {
-    const wrapperClasses = [clone && styles.clone, ghost && styles.ghost, indicator && styles.indicator]
-      .filter(Boolean)
-      .join(' ')
+  ({ children, clone = false, ghost = false, indentationWidth, handleProps, wrapperRef, style }, ref) => {
+    const wrapperClasses = [clone && styles.clone, ghost && styles.ghost].filter(Boolean).join(' ')
 
     return (
       <DragHandleContext.Provider value={handleProps}>

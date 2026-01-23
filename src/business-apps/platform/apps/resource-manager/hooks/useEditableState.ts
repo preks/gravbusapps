@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import React from 'react'
 
 export interface EditableState<T> {
   editedEntries: Map<string, Partial<T>>

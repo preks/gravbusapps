@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
-import { Button, ButtonGroup, Input, Badge, Combobox } from '@newwork/nw-design-system'
+import { Button, Input, Badge, Combobox } from '@newwork/nw-design-system'
 import { CaretDown, CaretRight, Plus, DotsSixVertical } from '@phosphor-icons/react'
-import { Save, X, Trash } from 'lucide-react'
+import { Trash } from 'lucide-react'
 import type { MenuItemDTO } from '@/common/data/resources/types/menuItem.types'
 import { TranslatableField } from '@/components/translatable-field/TranslatableField'
 import { IconSelect } from '@/components/icon-select/IconSelect'
@@ -20,6 +20,8 @@ export interface MenuItemRowProps {
   hasEdits: boolean
   isSaving: boolean
   isDraft: boolean
+  isPendingDelete: boolean
+  isDropTarget?: boolean
   displayName: string
   displayIconDB: string
   displayDescription: string
@@ -47,8 +49,9 @@ export const MenuItemRow: React.FC<MenuItemRowProps> = ({
   isHub,
   entityType,
   hasEdits,
-  isSaving,
   isDraft,
+  isPendingDelete,
+  isDropTarget = false,
   displayName,
   displayIconDB,
   displayDescription,
@@ -59,8 +62,6 @@ export const MenuItemRow: React.FC<MenuItemRowProps> = ({
   dataTestId,
   toggleExpansion,
   handleQuickAdd,
-  handleSaveEntry,
-  handleDiscardEntry,
   handleDelete,
   editableState,
   resourceUrlOptions,
@@ -98,7 +99,9 @@ export const MenuItemRow: React.FC<MenuItemRowProps> = ({
     <div
       className={`gba:flex gba:items-center gba:gap-2 gba:py-2 gba:px-3 gba:hover:bg-muted/50 gba:transition-colors ${
         isHub ? 'gba:bg-muted/30' : ''
-      }`}
+      } ${isPendingDelete ? 'gba:opacity-50 gba:line-through gba:bg-destructive/10' : ''} ${
+        hasEdits && !isPendingDelete ? 'gba:border-l-4 gba:border-l-blue-500' : ''
+      } ${isDropTarget ? 'gba:bg-blue-100 gba:border-2 gba:border-blue-500 gba:border-dashed' : ''}`}
       style={{ paddingLeft: `${depth * 24 + 12}px` }}
     >
       {dragListeners ? (
@@ -149,6 +152,7 @@ export const MenuItemRow: React.FC<MenuItemRowProps> = ({
         onChange={e => editableState.onFieldEdit(itemId, 'code', e.target.value)}
         placeholder="code"
         className="gba:w-32 gba:h-8"
+        disabled={isPendingDelete}
       />
 
       <div className="gba:flex-[0.6] gba:min-w-[150px]">
@@ -160,6 +164,7 @@ export const MenuItemRow: React.FC<MenuItemRowProps> = ({
           onTranslationsChange={translations => editableState.onFieldEdit(itemId, 'nameTranslated', translations)}
           placeholder="Menu item name"
           className="gba:h-8"
+          disabled={isPendingDelete}
         />
       </div>
 
@@ -174,6 +179,7 @@ export const MenuItemRow: React.FC<MenuItemRowProps> = ({
           searchPlaceholder="Search navigations..."
           emptyText="No navigations found"
           className="gba:h-8 gba:w-full gba:truncate"
+          disabled={isPendingDelete}
         />
       </div>
 
@@ -182,6 +188,7 @@ export const MenuItemRow: React.FC<MenuItemRowProps> = ({
         size="sm"
         onClick={() => setDescriptionDialogOpen(true)}
         className="gba:h-8 gba:flex-shrink-0"
+        disabled={isPendingDelete}
       >
         Description
       </Button>
@@ -205,51 +212,25 @@ export const MenuItemRow: React.FC<MenuItemRowProps> = ({
           }}
           className="gba:h-6 gba:w-6 gba:flex-shrink-0"
           title="Add child item"
+          disabled={isPendingDelete}
         >
           <Plus className="gba:h-4 gba:w-4" />
         </Button>
       )}
 
-      <ButtonGroup className="gba:flex-shrink-0">
-        <Button
-          size="iconSm"
-          variant="default"
-          className="gba:h-6"
-          onClick={e => {
-            e.stopPropagation()
-            handleSaveEntry(itemId)
-          }}
-          disabled={!hasEdits || isSaving}
-          title="Save changes"
-        >
-          <Save className="gba:h-4 gba:w-4" />
-        </Button>
-        <Button
-          size="iconSm"
-          variant="secondary"
-          className="gba:h-6"
-          onClick={e => {
-            e.stopPropagation()
-            handleDiscardEntry(itemId)
-          }}
-          disabled={!hasEdits || isSaving}
-          title="Discard changes"
-        >
-          <X className="gba:h-4 gba:w-4" />
-        </Button>
-        <Button
-          size="iconSm"
-          variant="destructive"
-          className="gba:h-6"
-          onClick={e => {
-            e.stopPropagation()
-            handleDelete(itemId)
-          }}
-          title="Delete item"
-        >
-          <Trash className="gba:h-4 gba:w-4" />
-        </Button>
-      </ButtonGroup>
+      <Button
+        size="iconSm"
+        variant="destructive"
+        className="gba:h-6 gba:flex-shrink-0"
+        onClick={e => {
+          e.stopPropagation()
+          handleDelete(itemId)
+        }}
+        title={isPendingDelete ? 'Marked for deletion' : 'Delete item'}
+        disabled={isPendingDelete}
+      >
+        <Trash className="gba:h-4 gba:w-4" />
+      </Button>
     </div>
   )
 }

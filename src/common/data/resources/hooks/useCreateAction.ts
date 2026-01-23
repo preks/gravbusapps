@@ -25,7 +25,7 @@ export const useCreateAction = (context: BusinessAppContextProps): UseCreateActi
       setError(null)
 
       try {
-        const result = await resourceClient.createAction(data)
+        const result = await resourceClient.action.createAction(data)
         return result
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to create action'

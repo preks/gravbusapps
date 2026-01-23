@@ -9,6 +9,7 @@ export interface EditableSelectCellProps {
   disabled?: boolean
   testId: string
   isEdited?: boolean
+  hasError?: boolean
 }
 
 export const EditableSelectCell: React.FC<EditableSelectCellProps> = ({
@@ -18,10 +19,14 @@ export const EditableSelectCell: React.FC<EditableSelectCellProps> = ({
   placeholder = 'Select...',
   disabled = false,
   testId,
-  isEdited = false
+  isEdited = false,
+  hasError = false
 }) => {
-  // Get border class based on edited state
+  // Get border class based on edited state and error state
   const getBorderClass = () => {
+    if (hasError) {
+      return 'gba:border gba:border-destructive'
+    }
     if (isEdited) {
       return 'gba:border gba:border-blue-500'
     }
@@ -32,7 +37,12 @@ export const EditableSelectCell: React.FC<EditableSelectCellProps> = ({
   const commonSelectClassName = `gba:w-full gba:[&&]:h-6 gba:text-xs gba:p-1 gba:bg-transparent gba:focus:bg-white ${getBorderClass()} gba:leading-tight`
 
   return (
-    <div className="gba:w-full" onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}>
+    <div
+      className="gba:w-full"
+      onClick={e => e.stopPropagation()}
+      onMouseDown={e => e.stopPropagation()}
+      aria-invalid={hasError ? 'true' : undefined}
+    >
       <Select value={value || ''} onValueChange={onChange} disabled={disabled}>
         <SelectTrigger size="sm" className={commonSelectClassName} data-testid={testId}>
           <SelectValue placeholder={placeholder} className="gba:text-xs gba:leading-tight" />

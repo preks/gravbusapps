@@ -27,6 +27,7 @@ export const useCreateMenuItem = (context: BusinessAppContextProps): UseCreateMe
 
       try {
         const result = await resourceClient.navigation.createMenuItem(data, isHub)
+
         return result
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to create menu item'

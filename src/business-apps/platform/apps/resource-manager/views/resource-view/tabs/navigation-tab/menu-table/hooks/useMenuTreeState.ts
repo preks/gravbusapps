@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import type { MenuItemDTO } from '@/common/data/resources/types/menuItem.types'
 import type {
   EnrichedMenuItem,
@@ -26,6 +26,8 @@ interface UseMenuTreeStateReturn extends MenuTreeState, ExpansionState {
   flattenTree: (items: EnrichedMenuItem[]) => EnrichedMenuItem[]
   findItemById: (tree: EnrichedMenuItem[], id: string) => EnrichedMenuItem | null
   enrichTree: (items: MenuItemDTO[], parentClass: 'space' | 'hub' | 'menuitem') => EnrichedMenuItem[]
+  movedItemIds: Set<string>
+  setMovedItemIds: React.Dispatch<React.SetStateAction<Set<string>>>
 }
 
 /**
@@ -41,6 +43,9 @@ export function useMenuTreeState(props: UseMenuTreeStateProps): UseMenuTreeState
   // Tree state
   const [sourceTree, setSourceTree] = useState<EnrichedMenuItem[]>([])
   const [targetTree, setTargetTree] = useState<EnrichedMenuItem[]>([])
+
+  // Track which items have been moved via DND (for efficient diff calculation)
+  const [movedItemIds, setMovedItemIds] = useState<Set<string>>(new Set())
 
   // Enrich tree with class and parentClass metadata
   const enrichTree = useCallback(
@@ -92,34 +97,43 @@ export function useMenuTreeState(props: UseMenuTreeStateProps): UseMenuTreeState
     []
   )
 
-  // Update source and target tree when menu items change
+  // Track previous values to detect what changed
+  const prevMenuItemsPropRef = useRef<MenuItemDTO[]>([])
+  const prevDraftMenuItemsRef = useRef<MenuItemDTO[]>([])
+
+  // Update source tree when menu items change FROM SERVER (initial load or refetch)
+  // targetTree must be carefully updated to preserve DND changes while adding new drafts
   useEffect(() => {
-    // Don't reset trees during drag operation
     if (isDragging) return
 
-    // Insert drafts into nested tree structure
+    // Check if menuItemsProp or draftMenuItems actually changed
+    const menuItemsChanged = prevMenuItemsPropRef.current !== menuItemsProp
+    const draftItemsChanged =
+      prevDraftMenuItemsRef.current.length !== draftMenuItems.length ||
+      !prevDraftMenuItemsRef.current.every((d, i) => d.id === draftMenuItems[i]?.id)
+
+    if (!menuItemsChanged && !draftItemsChanged) {
+      // Nothing changed, don't update
+      return
+    }
+
+    prevMenuItemsPropRef.current = menuItemsProp
+    prevDraftMenuItemsRef.current = draftMenuItems
+
     const insertDrafts = (items: MenuItemDTO[]): MenuItemDTO[] => {
       return items.map(item => {
-        // Clone item
         const cloned = { ...item }
 
-        // Recursively process children
         if (cloned.children && cloned.children.length > 0) {
           cloned.children = insertDrafts(cloned.children)
         } else {
           cloned.children = []
         }
 
-        // Add drafts that belong to this item
-        // Based on unified MenuItem concept with class:
-        // - Hubs (level 0): children have hubId pointing to hub
-        // - Menu Items (level 1+): children have parentId pointing to parent
         const itemDrafts = draftMenuItems.filter(draft => {
           if (item.level === 0) {
-            // Hub: children have hubId
             return draft.hubId === item.id && draft.level === 1
           } else {
-            // Menu Item: children have parentId
             return draft.parentId === item.id
           }
         })
@@ -133,17 +147,35 @@ export function useMenuTreeState(props: UseMenuTreeStateProps): UseMenuTreeState
     }
 
     const menuItemsWithDrafts = insertDrafts(menuItemsProp)
-
-    // Add draft hubs (level 0) to root
-    // Hubs have type (USE, CREATE, MANAGE) instead of parent reference
     const draftHubs = draftMenuItems.filter(draft => draft.level === 0)
     const allItemsWithDrafts = [...menuItemsWithDrafts, ...draftHubs]
-
     const enriched = enrichTree(allItemsWithDrafts, 'space')
 
     setSourceTree(enriched)
-    setTargetTree(enriched)
-  }, [draftMenuItems, menuItemsProp, enrichTree, isDragging])
+
+    // Update targetTree only if:
+    // - Initial load (empty targetTree)
+    // - menuItemsProp changed (server refetch) - reset everything
+    // - ONLY draftMenuItems changed - update to include drafts
+    setTargetTree(prev => {
+      if (prev.length === 0) {
+        return enriched
+      }
+
+      if (menuItemsChanged) {
+        // Server data changed (refetch) - reset targetTree
+        return enriched
+      }
+
+      if (draftItemsChanged) {
+        // Only drafts changed - update to include new drafts
+        return enriched
+      }
+
+      // Nothing relevant changed (shouldn't reach here due to early return above)
+      return prev
+    })
+  }, [menuItemsProp, draftMenuItems, enrichTree, isDragging])
 
   // Flatten tree recursively for finding items by ID
   const flattenTree = useCallback((items: EnrichedMenuItem[]): EnrichedMenuItem[] => {
@@ -255,12 +287,14 @@ export function useMenuTreeState(props: UseMenuTreeStateProps): UseMenuTreeState
     allSortableIds,
     expandedItems,
     expandedSpaces,
+    movedItemIds,
 
     // Setters
     setSourceTree,
     setTargetTree,
     setExpandedItems,
     setExpandedSpaces,
+    setMovedItemIds,
 
     // Methods
     toggleExpansion,

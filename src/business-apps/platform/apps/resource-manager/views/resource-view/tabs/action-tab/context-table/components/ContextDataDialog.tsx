@@ -21,10 +21,10 @@ interface ContextDataDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   contextId: string
-  contextName: string
+  contextName?: string
   contextData: ContextDataDTO[]
-  onContextDataChange: (contextData: ContextDataDTO[]) => void
-  isSaving: boolean
+  onSave: (contextData: ContextDataDTO[]) => void
+  isSaving?: boolean
   dataTestId: string
 }
 
@@ -49,8 +49,8 @@ export const ContextDataDialog: React.FC<ContextDataDialogProps> = ({
   contextId,
   contextName,
   contextData,
-  onContextDataChange,
-  isSaving,
+  onSave,
+  isSaving = false,
   dataTestId
 }) => {
   // Local state for editing - only update parent on save
@@ -124,10 +124,10 @@ export const ContextDataDialog: React.FC<ContextDataDialogProps> = ({
     [localContextData]
   )
 
-  const handleSave = useCallback(() => {
-    onContextDataChange(localContextData)
+  const handleApply = useCallback(() => {
+    onSave(localContextData)
     onOpenChange(false)
-  }, [localContextData, onContextDataChange, onOpenChange])
+  }, [localContextData, onSave, onOpenChange])
 
   const handleCancel = useCallback(() => {
     setLocalContextData(contextData) // Reset to original
@@ -228,8 +228,12 @@ export const ContextDataDialog: React.FC<ContextDataDialogProps> = ({
           >
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={isSaving} data-testid={`${dataTestId}-contextData-save-${contextId}`}>
-            Save
+          <Button
+            onClick={handleApply}
+            disabled={isSaving}
+            data-testid={`${dataTestId}-contextData-apply-${contextId}`}
+          >
+            Apply
           </Button>
         </DialogFooter>
       </DialogContent>

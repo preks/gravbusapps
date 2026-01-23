@@ -17,6 +17,7 @@ export interface EditableComboboxCellProps {
   hasMore?: boolean
   searchDebounce?: number
   mode?: 'default' | 'multiple' // Add mode prop
+  hasError?: boolean
 }
 
 export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
@@ -33,7 +34,8 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
   onLoadMore,
   hasMore = false,
   searchDebounce = 300,
-  mode = 'default'
+  mode = 'default',
+  hasError = false
 }) => {
   const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null)
   const [hasOpened, setHasOpened] = useState(false)
@@ -116,8 +118,11 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
     return opts
   }, [options, normalizedValue, multiple])
 
-  // Get border class based on edited state
+  // Get border class based on edited state and error state
   const getBorderClass = () => {
+    if (hasError) {
+      return 'gba:border gba:border-destructive'
+    }
     if (isEdited) {
       return 'gba:border gba:border-blue-500'
     }
@@ -135,7 +140,7 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
   // In multiple mode, remove border/background from the Button wrapper
   // The className is applied to the Button element (see Combobox.tsx line 428-432)
   const commonComboboxClassName = multiple
-    ? `gba:w-full gba:h-6 gba:text-xs gba:p-1 gba:bg-transparent gba:focus:bg-transparent gba:border-0 gba:shadow-none gba:hover:bg-transparent ${isEdited ? 'gba:ring-1 gba:ring-blue-500' : ''}`
+    ? `gba:w-full gba:h-6 gba:text-xs gba:p-1 gba:bg-transparent gba:focus:bg-transparent gba:border-0 gba:shadow-none gba:hover:bg-transparent ${hasError ? 'gba:ring-1 gba:ring-destructive' : isEdited ? 'gba:ring-1 gba:ring-blue-500' : ''}`
     : `gba:w-full gba:h-6 gba:text-xs gba:p-1 gba:bg-transparent gba:focus:bg-white ${getBorderClass()}`
 
   const comboboxProps = multiple
@@ -181,6 +186,7 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
       className={multiple ? 'gba:min-w-[200px]' : 'gba:min-w-[100px]'}
       onClick={e => e.stopPropagation()}
       onMouseDown={e => e.stopPropagation()}
+      aria-invalid={hasError ? 'true' : undefined}
     >
       <Combobox {...comboboxProps} />
     </div>

@@ -11,7 +11,6 @@ import {
 import { arrayMove } from '@dnd-kit/sortable'
 import type { EnrichedMenuItem } from '../types/menuTree.types'
 import { flattenTree, buildTree, getProjection, removeChildrenOf } from '../utils/treeUtils'
-import { calculateDiff } from '../utils/menuTreeDiff'
 
 interface UseMenuTreeDndProps {
   targetTree: EnrichedMenuItem[]
@@ -22,6 +21,7 @@ interface UseMenuTreeDndProps {
   setTargetTree: React.Dispatch<React.SetStateAction<EnrichedMenuItem[]>>
   setExpandedItems: React.Dispatch<React.SetStateAction<Set<string>>>
   setIsDragging: React.Dispatch<React.SetStateAction<boolean>>
+  setMovedItemIds: React.Dispatch<React.SetStateAction<Set<string>>>
   updateMenuItem: (id: string, data: any, isHub: boolean) => Promise<any>
   refetchMenuItems: () => Promise<void>
 }
@@ -46,15 +46,12 @@ interface UseMenuTreeDndReturn {
 export function useMenuTreeDnd(props: UseMenuTreeDndProps): UseMenuTreeDndReturn {
   const {
     targetTree,
-    sourceTree,
     expandedItems,
     indentationWidth = 20,
-    setSourceTree,
     setTargetTree,
     setExpandedItems,
     setIsDragging,
-    updateMenuItem,
-    refetchMenuItems
+    setMovedItemIds
   } = props
 
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -77,22 +74,6 @@ export function useMenuTreeDnd(props: UseMenuTreeDndProps): UseMenuTreeDndReturn
   const flattenedItems = useMemo(() => {
     const flattenedTree = flattenTree(targetTree)
 
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/00afbd5c-2483-4caa-966f-80d58bf9e341', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'useMenuTreeDnd.ts:72',
-        message: 'flattenedItems calculation',
-        data: { flattenedTreeLength: flattenedTree.length, activeId, expandedItemsSize: expandedItems.size },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'run1',
-        hypothesisId: 'H4.1'
-      })
-    }).catch(() => {})
-    // #endregion
-
     // Collect collapsed items
     const collapsedItems = flattenedTree.reduce<string[]>((acc, item) => {
       const isCollapsed = !expandedItems.has(item.id)
@@ -102,26 +83,6 @@ export function useMenuTreeDnd(props: UseMenuTreeDndProps): UseMenuTreeDndReturn
     // Remove children of active item AND collapsed items
     const result = removeChildrenOf(flattenedTree, activeId ? [activeId, ...collapsedItems] : collapsedItems)
 
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/00afbd5c-2483-4caa-966f-80d58bf9e341', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'useMenuTreeDnd.ts:92',
-        message: 'flattenedItems result',
-        data: {
-          resultLength: result.length,
-          collapsedItemsLength: collapsedItems.length,
-          firstFiveIds: result.slice(0, 5).map(i => i.id)
-        },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'run1',
-        hypothesisId: 'H4.1'
-      })
-    }).catch(() => {})
-    // #endregion
-
     return result
   }, [activeId, targetTree, expandedItems])
 
@@ -129,22 +90,6 @@ export function useMenuTreeDnd(props: UseMenuTreeDndProps): UseMenuTreeDndReturn
   const projected = useMemo(() => {
     if (!activeId || !overId) return null
     const proj = getProjection(flattenedItems, activeId, overId, offsetLeft, indentationWidth)
-
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/00afbd5c-2483-4caa-966f-80d58bf9e341', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'useMenuTreeDnd.ts:104',
-        message: 'Projection calculated',
-        data: { activeId, overId, offsetLeft, projection: proj },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'run1',
-        hypothesisId: 'H4.2'
-      })
-    }).catch(() => {})
-    // #endregion
 
     return proj
   }, [activeId, overId, flattenedItems, offsetLeft, indentationWidth])
@@ -229,27 +174,6 @@ export function useMenuTreeDnd(props: UseMenuTreeDndProps): UseMenuTreeDndReturn
     async (event: DragEndEvent) => {
       const { active, over } = event
 
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/00afbd5c-2483-4caa-966f-80d58bf9e341', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'useMenuTreeDnd.ts:173',
-          message: 'handleDragEnd entry',
-          data: {
-            activeId: active.id,
-            overId: over?.id,
-            projectedDepth: projected?.depth,
-            projectedParentId: projected?.parentId
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'run1',
-          hypothesisId: 'H1.2'
-        })
-      }).catch(() => {})
-      // #endregion
-
       // Reset state
       setActiveId(null)
       setOverId(null)
@@ -276,67 +200,30 @@ export function useMenuTreeDnd(props: UseMenuTreeDndProps): UseMenuTreeDndReturn
       }
 
       // If just canceling drag (no drop), restore previous state
-      if (!over || active.id === over.id) {
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/00afbd5c-2483-4caa-966f-80d58bf9e341', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'useMenuTreeDnd.ts:207',
-            message: 'Early return - no over or same',
-            data: { hasOver: !!over, sameId: active.id === over?.id },
-            timestamp: Date.now(),
-            sessionId: 'debug-session',
-            runId: 'run1',
-            hypothesisId: 'H1.2'
-          })
-        }).catch(() => {})
-        // #endregion
+      // BUT: Allow drop if depth changed (even if overId === activeId)
+      if (!over) {
         return
       }
 
       // Check if we have valid projection
       if (!projected) {
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/00afbd5c-2483-4caa-966f-80d58bf9e341', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'useMenuTreeDnd.ts:216',
-            message: 'Early return - no projection',
-            data: {},
-            timestamp: Date.now(),
-            sessionId: 'debug-session',
-            runId: 'run1',
-            hypothesisId: 'H1.2'
-          })
-        }).catch(() => {})
-        // #endregion
         return
       }
 
-      const { depth, parentId } = projected
+      const { depth, visualParentId } = projected
+
+      // Allow drop on self ONLY if depth changed
+      if (active.id === over.id) {
+        const activeItem = flattenedItems.find(item => item.id === active.id)
+        if (!activeItem || depth === activeItem.depth) {
+          return // Cancel: same position, no depth change
+        }
+      }
 
       // Clone flattened items from source tree (to preserve loadedRank)
       const clonedItems = JSON.parse(JSON.stringify(flattenTree(targetTree)))
       const overIndex = clonedItems.findIndex((item: any) => item.id === over.id)
       const activeIndex = clonedItems.findIndex((item: any) => item.id === active.id)
-
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/00afbd5c-2483-4caa-966f-80d58bf9e341', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'useMenuTreeDnd.ts:228',
-          message: 'Before arrayMove',
-          data: { activeIndex, overIndex, activeId: active.id, overId: over.id },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'run1',
-          hypothesisId: 'H1.3'
-        })
-      }).catch(() => {})
-      // #endregion
 
       if (overIndex === -1 || activeIndex === -1) {
         return
@@ -344,97 +231,85 @@ export function useMenuTreeDnd(props: UseMenuTreeDndProps): UseMenuTreeDndReturn
 
       const activeTreeItem = clonedItems[activeIndex]
 
-      // Validation: Hubs cannot become children of menu items
-      if (activeTreeItem.level === 0 && depth > 0) {
+      // Validation: Hubs (level 0) must stay at depth 0
+      // They can be reordered within their space but not moved to other depths
+      if (activeTreeItem.level === 0 && depth !== 0) {
+        console.warn('[DND] Hubs cannot change depth - must stay at level 0')
         return
       }
 
-      // Update depth and parentId on active item
-      clonedItems[activeIndex] = { ...activeTreeItem, depth, parentId }
+      // Validation: Menu items (level > 0) cannot become hubs (depth 0)
+      if (activeTreeItem.level > 0 && depth === 0) {
+        console.warn('[DND] Menu items cannot become hubs')
+        return
+      }
+
+      // Calculate backend fields based on new depth and visual parent
+      // IMPORTANT: Only ONE of (type, hubId, parentId) should be set at a time
+      // - Level 0 (Hub): type = <type>, parentId = undefined, hubId = undefined
+      // - Level 1 (under Hub): parentId = null, hubId = <hub-id>, type = undefined
+      // - Level 2+ (nested): parentId = <parent-id>, hubId = <hub-id>, type = undefined
+
+      let backendParentId: string | null | undefined
+      let backendHubId: string | null | undefined
+      let backendType: string | undefined
+
+      if (depth === 0) {
+        // Hub level - only type is set, clear parent/hub
+        backendParentId = undefined
+        backendHubId = undefined
+        backendType = activeTreeItem.type // Keep existing type
+      } else if (depth === 1) {
+        // Menu item under hub - only hubId is set, parentId must be null, clear type
+        backendParentId = null
+        backendHubId = visualParentId
+        backendType = undefined // Clear type when moving from hub to menu item
+      } else {
+        // Nested menu item (depth 2+) - parentId is set, hubId is NULL, clear type
+        // IMPORTANT: Level 2+ items have hubId: null (not inherited from hub)
+        backendParentId = visualParentId
+        backendHubId = null // Always null for nested items (level 2+)
+        backendType = undefined // Clear type
+      }
+
+      // Update item with new depth, visualParentId, and backend fields
+      clonedItems[activeIndex] = {
+        ...activeTreeItem,
+        depth,
+        visualParentId,
+        parentId: backendParentId,
+        hubId: backendHubId,
+        type: backendType
+      }
 
       // Reorder using arrayMove
       const sortedItems = arrayMove(clonedItems, activeIndex, overIndex)
 
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/00afbd5c-2483-4caa-966f-80d58bf9e341', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'useMenuTreeDnd.ts:248',
-          message: 'After arrayMove',
-          data: {
-            sortedItemsLength: sortedItems.length,
-            firstThree: sortedItems.slice(0, 3).map((i: any) => ({ id: i.id, depth: i.depth, parentId: i.parentId }))
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'run1',
-          hypothesisId: 'H1.3'
-        })
-      }).catch(() => {})
-      // #endregion
-
       // Rebuild tree structure
       const newTargetTree = buildTree(sortedItems)
 
-      // Update targetTree state
+      // Update targetTree state (NO auto-save, just local state change)
       setTargetTree(newTargetTree)
 
-      // Calculate diff between source and target
-      const changes = calculateDiff(sourceTree, newTargetTree, active.id as string)
-
-      console.log('[DND] Changes to save:', changes)
-
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/00afbd5c-2483-4caa-966f-80d58bf9e341', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'useMenuTreeDnd.ts:263',
-          message: 'Changes calculated',
-          data: {
-            changesCount: changes.length,
-            changes: changes.map(c => ({ id: c.id, rank: c.rank, _debug: c._debug }))
-          },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          runId: 'run1',
-          hypothesisId: 'H1.1'
+      // Auto-expand the parent if item was nested under a new parent
+      if (visualParentId && visualParentId !== activeTreeItem.visualParentId) {
+        setExpandedItems(prev => {
+          const next = new Set(prev)
+          next.add(visualParentId)
+          return next
         })
-      }).catch(() => {})
-      // #endregion
-
-      // If no changes, just return
-      if (changes.length === 0) {
-        return
       }
 
-      // Apply batch updates
-      try {
-        await Promise.all(changes.map(change => updateMenuItem(change.id, change, change.level === 0)))
+      // Track that this item was moved for efficient diff calculation
+      setMovedItemIds(prev => {
+        const next = new Set(prev)
+        next.add(active.id as string)
+        return next
+      })
 
-        // On success: Update sourceTree to match targetTree
-        setSourceTree(JSON.parse(JSON.stringify(newTargetTree)))
-
-        // Refetch to ensure consistency
-        await refetchMenuItems()
-      } catch (err) {
-        console.error('[DND] Failed to save changes:', err)
-        // On failure: Revert targetTree to sourceTree
-        setTargetTree(JSON.parse(JSON.stringify(sourceTree)))
-      }
+      console.log('[DND] Tree updated locally (no auto-save). Use Save All to persist changes.')
     },
-    [
-      projected,
-      targetTree,
-      sourceTree,
-      updateMenuItem,
-      refetchMenuItems,
-      setSourceTree,
-      setTargetTree,
-      setExpandedItems,
-      setIsDragging
-    ]
+    [projected, targetTree, setTargetTree, setExpandedItems, setIsDragging, setMovedItemIds]
   )
 
   // Cleanup expand timeout on unmount

@@ -16,7 +16,7 @@ export class NavigationClient {
     params?: GetNavigationsParams,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<{ data: NavigationDTO[]; totalCount: number }> {
-    const endpoint = params?.search || params?.sort ? '/resource-url/search' : '/resource-url'
+    const endpoint = '/resource-url'
 
     const response = await this.resourceClient['get']<
       | NavigationDTO[]
@@ -91,16 +91,28 @@ export class NavigationClient {
     id: string,
     data: Partial<NavigationDTO>,
     options: Omit<RequestOptions, 'body'> = {}
-  ): Promise<NavigationDTO> {
-    return this.resourceClient['put']<NavigationDTO>(
-      `/resource-url/${id}`,
-      data,
-      {
-        ...options,
-        withCredentials: false
-      },
-      this.baseUrl
-    )
+  ): Promise<NavigationDTO | null> {
+    try {
+      const result = await this.resourceClient['put']<NavigationDTO>(
+        `/resource-url/${id}`,
+        data,
+        {
+          ...options,
+          withCredentials: false
+        },
+        this.baseUrl
+      )
+      return result
+    } catch (error) {
+      // If JSON parsing fails due to empty response, fetch the updated navigation
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      if (errorMessage.includes('Unexpected end of JSON input') || errorMessage.includes('Failed to parse response')) {
+        // Backend returned empty response, fetch the updated navigation
+        return await this.getNavigation(id, options)
+      }
+      // Re-throw other errors
+      throw error
+    }
   }
 
   public async deleteNavigation(id: string, options: Omit<RequestOptions, 'body'> = {}): Promise<void> {
@@ -266,11 +278,15 @@ export class NavigationClient {
         rank: data.rank,
         nameTranslated: data.nameTranslated,
         descriptionTranslated: data.descriptionTranslated,
-        resourceUrlId: data.resourceUrlId
+        resourceUrlId: data.resourceUrlId,
+        code: data.code
       }
 
+      // Set type from spaceType (extracted from parentId) or data.type
       if (spaceType) {
         hubData.type = spaceType
+      } else if (data.type) {
+        hubData.type = data.type
       }
 
       const hubResponse = await this.resourceClient['post']<{
@@ -341,7 +357,7 @@ export class NavigationClient {
     data: Partial<MenuItemUpsertRequestDTO>,
     isHub: boolean,
     options: Omit<RequestOptions, 'body'> = {}
-  ): Promise<MenuItemDTO> {
+  ): Promise<MenuItemDTO | undefined> {
     if (isHub) {
       // Update as Hub
       const hubResponse = await this.resourceClient['put']<{
@@ -368,6 +384,9 @@ export class NavigationClient {
         },
         this.baseUrl
       )
+      if (!hubResponse) {
+        return undefined
+      }
       return this.hubToMenuItem(hubResponse, 0)
     } else {
       // Update as Menu Item
@@ -380,6 +399,9 @@ export class NavigationClient {
         },
         this.baseUrl
       )
+      if (!menuItemResponse) {
+        return undefined
+      }
       return this.menuItemToMenuItem(menuItemResponse, menuItemResponse.hubId ? 1 : 0)
     }
   }

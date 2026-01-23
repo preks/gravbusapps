@@ -30,7 +30,7 @@ export const useUpdateAction = (context: BusinessAppContextProps): UseUpdateActi
       setError(null)
 
       try {
-        const result = await resourceClient.updateAction(id, data)
+        const result = await resourceClient.action.updateAction(id, data)
         return result
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to update action'

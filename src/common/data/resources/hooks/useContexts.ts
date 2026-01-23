@@ -10,121 +10,168 @@ interface UseContextsResult {
   isLoading: boolean
   error: string | null
   refetch: () => Promise<void>
+  loadMore: () => Promise<void>
+  hasMore: boolean
+  reset: () => void
 }
 
 export const useContexts = (context: BusinessAppContextProps, params?: GetContextsParams): UseContextsResult => {
   const [contexts, setContexts] = useState<ContextWithActions[]>([])
-  const [totalCount, setTotalCount] = useState<number | null>(null) // null = not loaded yet
+  const [totalCount, setTotalCount] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const resourceClient = useResourceClient(context.accessToken)
   const has401Error = useRef(false)
   const paramsRef = useRef(params)
   const hasLoadedRef = useRef(false)
+  const currentOffsetRef = useRef(0)
+  const lastSearchSortRef = useRef<string>('')
+  const isFetchingRef = useRef(false)
 
   // Update params ref when params change
   useEffect(() => {
     paramsRef.current = params
   }, [params])
 
-  const fetchContexts = useCallback(async () => {
-    if (!context.accessToken) {
-      setError('Access token not available')
-      setIsLoading(false)
-      return
+  // Check if search/sort params changed (requires reset)
+  useEffect(() => {
+    const searchSortKey = `${params?.searchItem || ''}`
+    if (searchSortKey !== lastSearchSortRef.current) {
+      lastSearchSortRef.current = searchSortKey
+      currentOffsetRef.current = 0
+      setContexts([])
     }
+  }, [params?.searchItem])
 
-    // Don't refetch if we have a 401 error
-    if (has401Error.current) {
-      return
-    }
+  const fetchContexts = useCallback(
+    async (append = false) => {
+      // Prevent concurrent requests
+      if (isFetchingRef.current) {
+        return
+      }
 
-    setIsLoading(true)
-    setError(null)
+      if (!context.accessToken) {
+        setError('Access token not available')
+        setIsLoading(false)
+        return
+      }
 
-    try {
-      // Use flow assignments as baseline - they already return contexts with their flows
-      const assignmentsPage = await resourceClient.action.getActionAssignments({
-        returnTotalRecords: true,
-        ...paramsRef.current
-      })
+      if (has401Error.current) {
+        return
+      }
 
-      // Reset 401 error flag on success
-      has401Error.current = false
+      isFetchingRef.current = true
+      setIsLoading(true)
+      setError(null)
 
-      // Transform assignments directly into ContextWithActions[]
-      // Group by context ID to combine all flows for each context
-      const contextActionsMap = new Map<string, ContextWithActions>()
-
-      if (assignmentsPage?.data && Array.isArray(assignmentsPage.data)) {
-        assignmentsPage.data.forEach((assignment: ActionAssignmentDTO) => {
-          if (assignment.context?.id) {
-            const contextId = assignment.context.id
-
-            // Initialize context if not exists
-            if (!contextActionsMap.has(contextId)) {
-              contextActionsMap.set(contextId, {
-                context: assignment.context,
-                actions: []
-              })
-            }
-
-            // Add all flows from this assignment to the context
-            if (assignment.assignments && Array.isArray(assignment.assignments)) {
-              assignment.assignments.forEach(entry => {
-                if (entry.flowItem) {
-                  contextActionsMap.get(contextId)!.actions.push({
-                    action: entry.flowItem,
-                    permission: entry.permission,
-                    rank: entry.rank,
-                    translation: entry.translation
-                  })
-                }
-              })
-            }
-          }
+      try {
+        const { ...restParams } = paramsRef.current || {}
+        const assignmentsPage = await resourceClient.action.getActionAssignments({
+          ...restParams,
+          returnTotalRecords: true,
+          limit: paramsRef.current?.limit ?? 20,
+          offset: append ? currentOffsetRef.current : 0
         })
+
+        has401Error.current = false
+
+        const contextActionsMap = new Map<string, ContextWithActions>()
+
+        if (assignmentsPage?.data && Array.isArray(assignmentsPage.data)) {
+          assignmentsPage.data.forEach((assignment: ActionAssignmentDTO) => {
+            if (assignment.context?.id) {
+              const contextId = assignment.context.id
+
+              if (!contextActionsMap.has(contextId)) {
+                contextActionsMap.set(contextId, {
+                  context: assignment.context,
+                  actions: []
+                })
+              }
+
+              if (assignment.assignments && Array.isArray(assignment.assignments)) {
+                assignment.assignments.forEach(entry => {
+                  if (entry.flowItem) {
+                    contextActionsMap.get(contextId)!.actions.push({
+                      action: entry.flowItem,
+                      permission: entry.permission,
+                      rank: entry.rank,
+                      translation: entry.translation
+                    })
+                  }
+                })
+              }
+            }
+          })
+        }
+
+        const contextsWithActions: ContextWithActions[] = Array.from(contextActionsMap.values())
+
+        // Update offset IMMEDIATELY before setState to prevent race conditions with IntersectionObserver
+        if (append) {
+          currentOffsetRef.current += contextsWithActions.length
+          setContexts(prev => [...prev, ...contextsWithActions])
+        } else {
+          currentOffsetRef.current = contextsWithActions.length
+          setContexts(contextsWithActions)
+        }
+
+        const total = assignmentsPage?.paging?.totalRecords ?? contextsWithActions.length
+        setTotalCount(total)
+        hasLoadedRef.current = true
+      } catch (err: any) {
+        if (err?.response?.status === 401 || err?.status === 401 || (err?.message && err.message.includes('401'))) {
+          has401Error.current = true
+        }
+
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch contexts'
+        setError(errorMessage)
+        console.error('Error fetching contexts:', err)
+
+        if (!append && hasLoadedRef.current) {
+          setContexts([])
+          setTotalCount(0)
+        }
+      } finally {
+        setIsLoading(false)
+        isFetchingRef.current = false
       }
-
-      // Convert map to array
-      const contextsWithActions: ContextWithActions[] = Array.from(contextActionsMap.values())
-
-      setContexts(contextsWithActions)
-      const total = assignmentsPage?.paging?.totalRecords ?? contextsWithActions.length
-      setTotalCount(total)
-      hasLoadedRef.current = true
-    } catch (err: any) {
-      // Check if it's a 401 error
-      if (err?.response?.status === 401 || err?.status === 401 || (err?.message && err.message.includes('401'))) {
-        has401Error.current = true
-      }
-
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch contexts'
-      setError(errorMessage)
-      console.error('Error fetching contexts:', err)
-      // Only set to 0 if we've already loaded before (preserve previous count during retry)
-      if (hasLoadedRef.current) {
-        setContexts([])
-        setTotalCount(0)
-      }
-    } finally {
-      setIsLoading(false)
-    }
-  }, [context.accessToken, resourceClient])
-
-  // Don't load automatically - only when refetch() is called
-  // This enables lazy loading based on active view
+    },
+    [context.accessToken, resourceClient]
+  )
 
   const refetch = useCallback(async () => {
     has401Error.current = false
-    await fetchContexts()
+    currentOffsetRef.current = 0
+    await fetchContexts(false)
   }, [fetchContexts])
+
+  const loadMore = useCallback(async () => {
+    if (contexts.length < (totalCount ?? 0)) {
+      await fetchContexts(true)
+    }
+  }, [fetchContexts, contexts.length, totalCount])
+
+  const reset = useCallback(() => {
+    setContexts([])
+    setTotalCount(null)
+    setError(null)
+    currentOffsetRef.current = 0
+    has401Error.current = false
+    hasLoadedRef.current = false
+    isFetchingRef.current = false
+  }, [])
+
+  const hasMore = contexts.length < (totalCount ?? 0)
 
   return {
     contexts,
-    totalCount: totalCount ?? null, // Return null if not loaded yet (DataDisplay will show loading)
+    totalCount: totalCount ?? 0,
     isLoading,
     error,
-    refetch
+    refetch,
+    loadMore,
+    hasMore,
+    reset
   }
 }

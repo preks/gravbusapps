@@ -4,7 +4,7 @@ import { useResourceClient } from '@/common/network/resources/useResourceClient'
 import type { ContextDTO } from '../types/context.types'
 
 interface UseCreateContextResult {
-  createContext: (data: Omit<ContextDTO, 'id'>) => Promise<ContextDTO | null>
+  createContext: (data: Omit<ContextDTO, 'id'>) => Promise<string | null>
   isLoading: boolean
   error: string | null
 }
@@ -15,7 +15,7 @@ export const useCreateContext = (context: BusinessAppContextProps): UseCreateCon
   const resourceClient = useResourceClient(context.accessToken)
 
   const createContext = useCallback(
-    async (data: Omit<ContextDTO, 'id'>): Promise<ContextDTO | null> => {
+    async (data: Omit<ContextDTO, 'id'>): Promise<string | null> => {
       if (!context.accessToken) {
         setError('Access token not available')
         return null

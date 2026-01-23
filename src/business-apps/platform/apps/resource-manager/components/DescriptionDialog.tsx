@@ -8,7 +8,7 @@ interface DescriptionDialogProps extends BusinessAppContextProps {
   onOpenChange: (open: boolean) => void
   description?: string
   descriptionTranslation?: Record<string, string>
-  onSave: (description: string, translations: Record<string, string>) => Promise<void>
+  onSave: (description: string, translations: Record<string, string>) => void
   'data-testid'?: string
 }
 
@@ -22,7 +22,6 @@ export const DescriptionDialog: React.FC<DescriptionDialogProps> = ({
 }) => {
   const [localDescription, setLocalDescription] = useState(description)
   const [localTranslations, setLocalTranslations] = useState<Record<string, string>>(descriptionTranslation)
-  const [isSaving, setIsSaving] = useState(false)
 
   // Reset form when dialog opens/closes
   useEffect(() => {
@@ -32,16 +31,9 @@ export const DescriptionDialog: React.FC<DescriptionDialogProps> = ({
     }
   }, [open, description, descriptionTranslation])
 
-  const handleSave = useCallback(async () => {
-    setIsSaving(true)
-    try {
-      await onSave(localDescription, localTranslations)
-      onOpenChange(false)
-    } catch (error) {
-      console.error('Error saving description:', error)
-    } finally {
-      setIsSaving(false)
-    }
+  const handleApply = useCallback(() => {
+    onSave(localDescription, localTranslations)
+    onOpenChange(false)
   }, [localDescription, localTranslations, onSave, onOpenChange])
 
   return (
@@ -65,11 +57,11 @@ export const DescriptionDialog: React.FC<DescriptionDialogProps> = ({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={isSaving} data-testid={`${dataTestId}-save-button`}>
-            {isSaving ? 'Saving...' : 'Save'}
+          <Button onClick={handleApply} data-testid={`${dataTestId}-apply-button`}>
+            Apply
           </Button>
         </DialogFooter>
       </DialogContent>

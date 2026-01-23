@@ -4,31 +4,31 @@ import { useResourceClient } from '@/common/network/resources/useResourceClient'
 import { useComponentPaths } from '@/common/data/resources/hooks/useComponentPaths'
 import type { DomainProcess, DomainOption, ProcessOption } from '../types/domainProcess.types'
 
-interface ResourceManagerContextValue {
-  // Raw data from API
-  domainProcesses: DomainProcess[]
-
-  // Transformed data for Comboboxes
+// Split contexts for better performance
+// 1. Static data context (changes rarely)
+interface ResourceDataContextValue {
   domains: DomainOption[]
-
-  // Helper function to get processes for a specific domain (client-side filter)
   getProcessesForDomain: (domain: string) => ProcessOption[]
-
-  // Azure Storage version data (loaded once on init, used by all views)
-  devComponentPathVersions: Map<string, { versions: string[]; hasUnversioned: boolean }>
-  prodComponentPathVersions: Map<string, { versions: string[]; hasUnversioned: boolean }>
-
-  // State
-  isLoading: boolean
-  isLoadingAzure: boolean
-  error: string | null
-
-  // Actions
-  refreshServices: () => Promise<void>
-  refreshAzureData: () => Promise<void>
 }
 
-const ResourceManagerContext = createContext<ResourceManagerContextValue | undefined>(undefined)
+// 2. Azure data context (changes more frequently)
+interface AzureDataContextValue {
+  devComponentPathVersions: Map<string, { versions: string[]; hasUnversioned: boolean }>
+  prodComponentPathVersions: Map<string, { versions: string[]; hasUnversioned: boolean }>
+  isLoadingAzure: boolean
+}
+
+// 3. Actions context (stable functions)
+interface ResourceActionsContextValue {
+  refreshServices: () => Promise<void>
+  refreshAzureData: () => Promise<void>
+  isLoading: boolean
+  error: string | null
+}
+
+const ResourceDataContext = createContext<ResourceDataContextValue | undefined>(undefined)
+const AzureDataContext = createContext<AzureDataContextValue | undefined>(undefined)
+const ResourceActionsContext = createContext<ResourceActionsContextValue | undefined>(undefined)
 
 interface ResourceManagerProviderProps extends BusinessAppContextProps {
   children: React.ReactNode
@@ -121,26 +121,79 @@ export const ResourceManagerProvider: React.FC<ResourceManagerProviderProps> = (
     loadAzureData()
   }, [loadDomainProcesses, loadAzureData])
 
-  const value: ResourceManagerContextValue = {
-    domainProcesses,
-    domains,
-    getProcessesForDomain,
-    devComponentPathVersions,
-    prodComponentPathVersions,
-    isLoading,
-    isLoadingAzure,
-    error,
-    refreshServices,
-    refreshAzureData
-  }
+  // Split context values for optimal performance
+  const dataValue: ResourceDataContextValue = useMemo(
+    () => ({
+      domains,
+      getProcessesForDomain
+    }),
+    [domains, getProcessesForDomain]
+  )
 
-  return <ResourceManagerContext.Provider value={value}>{children}</ResourceManagerContext.Provider>
+  const azureValue: AzureDataContextValue = useMemo(
+    () => ({
+      devComponentPathVersions,
+      prodComponentPathVersions,
+      isLoadingAzure
+    }),
+    [devComponentPathVersions, prodComponentPathVersions, isLoadingAzure]
+  )
+
+  const actionsValue: ResourceActionsContextValue = useMemo(
+    () => ({
+      refreshServices,
+      refreshAzureData,
+      isLoading,
+      error
+    }),
+    [refreshServices, refreshAzureData, isLoading, error]
+  )
+
+  return (
+    <ResourceDataContext.Provider value={dataValue}>
+      <AzureDataContext.Provider value={azureValue}>
+        <ResourceActionsContext.Provider value={actionsValue}>{children}</ResourceActionsContext.Provider>
+      </AzureDataContext.Provider>
+    </ResourceDataContext.Provider>
+  )
 }
 
-export const useResourceManagerContext = (): ResourceManagerContextValue => {
-  const context = useContext(ResourceManagerContext)
+// Individual hooks for each context (consume only what you need)
+export const useResourceData = (): ResourceDataContextValue => {
+  const context = useContext(ResourceDataContext)
   if (context === undefined) {
-    throw new Error('useResourceManagerContext must be used within a ResourceManagerProvider')
+    throw new Error('useResourceData must be used within a ResourceManagerProvider')
   }
   return context
+}
+
+export const useAzureData = (): AzureDataContextValue => {
+  const context = useContext(AzureDataContext)
+  if (context === undefined) {
+    throw new Error('useAzureData must be used within a ResourceManagerProvider')
+  }
+  return context
+}
+
+export const useResourceActions = (): ResourceActionsContextValue => {
+  const context = useContext(ResourceActionsContext)
+  if (context === undefined) {
+    throw new Error('useResourceActions must be used within a ResourceManagerProvider')
+  }
+  return context
+}
+
+// Legacy hook for backward compatibility (combines all contexts)
+export const useResourceManagerContext = () => {
+  const data = useResourceData()
+  const azure = useAzureData()
+  const actions = useResourceActions()
+
+  return {
+    ...data,
+    ...azure,
+    ...actions,
+    // Deprecated fields (for backward compatibility)
+    domainProcesses: [] as DomainProcess[]
+  }
 }

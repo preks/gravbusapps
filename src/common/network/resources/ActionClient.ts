@@ -162,8 +162,9 @@ export class ActionClient {
   public async createContext(
     data: Omit<ContextDTO, 'id'>,
     options: Omit<RequestOptions, 'body'> = {}
-  ): Promise<ContextDTO> {
-    return this.resourceClient['post']<ContextDTO>(
+  ): Promise<string> {
+    // Backend returns only the ID as a string, not the full object
+    return this.resourceClient['post']<string>(
       '/contexts',
       data,
       {
@@ -176,7 +177,7 @@ export class ActionClient {
 
   public async updateContext(
     id: string,
-    data: Partial<ContextDTO>,
+    data: ContextDTO,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<ContextDTO> {
     return this.resourceClient['put']<ContextDTO>(

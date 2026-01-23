@@ -29,7 +29,7 @@ export const useDeleteAction = (context: BusinessAppContextProps): UseDeleteActi
       setError(null)
 
       try {
-        await resourceClient.deleteAction(id)
+        await resourceClient.action.deleteAction(id)
         return true
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to delete action'

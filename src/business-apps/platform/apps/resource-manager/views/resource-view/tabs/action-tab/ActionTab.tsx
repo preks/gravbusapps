@@ -5,7 +5,9 @@ import { useContexts } from '@/common/data/resources/hooks/useContexts'
 import { useUpdateAction } from '@/common/data/resources/hooks/useUpdateAction'
 import { useDeleteAction } from '@/common/data/resources/hooks/useDeleteAction'
 import { useCreateContext } from '@/common/data/resources/hooks/useCreateContext'
+import { useDeleteContext } from '@/common/data/resources/hooks/useDeleteContext'
 import { useUpdateActionAssignment } from '@/common/data/resources/hooks/useUpdateActionAssignment'
+import { useResourceClient } from '@/common/network/resources/useResourceClient'
 import type { ActionWithContexts } from '@/common/data/resources/types/action.types'
 import type { ContextDTO } from '@/common/data/resources/types/context.types'
 import { ActionTable } from './action-table/ActionTable'
@@ -26,8 +28,6 @@ interface ActionTabProps extends BusinessAppContextProps {
   onContextRefetchChange?: (refetch: () => void) => void
   onActionLoadingChange?: (loading: boolean) => void
   onContextLoadingChange?: (loading: boolean) => void
-  dialogOpen?: boolean
-  onDialogOpenChange?: (open: boolean) => void
   contextDialogOpen?: boolean
   onContextDialogOpenChange?: (open: boolean) => void
   isActive?: boolean
@@ -38,6 +38,10 @@ interface ActionTabProps extends BusinessAppContextProps {
 
 const ActionTabComponent: React.FC<ActionTabProps> = ({
   'data-testid': dataTestId = 'action-tab',
+  actionsSearchValue: externalActionsSearchValue,
+  contextsSearchValue: externalContextsSearchValue,
+  onActionsSearchChange,
+  onContextsSearchChange,
   onCountChange,
   onLoadingChange,
   currentView: externalCurrentView,
@@ -60,21 +64,6 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
   // Ref to hold addContext function from ContextTable
   const addContextRef = React.useRef<(() => void) | null>(null)
 
-  // Performance logging (only in dev, limited)
-  const renderCountRef = useRef(0)
-  const prevPropsRef = useRef<{ isActive: boolean; currentView: string }>({ isActive: false, currentView: '' })
-
-  if (process.env.NODE_ENV === 'development') {
-    renderCountRef.current++
-    const currentProps = { isActive, currentView: externalCurrentView ?? '' }
-    const propsChanged =
-      currentProps.isActive !== prevPropsRef.current.isActive ||
-      currentProps.currentView !== prevPropsRef.current.currentView
-
-    if (propsChanged || renderCountRef.current <= 3) {
-      prevPropsRef.current = currentProps
-    }
-  }
   // Get initial view from URL or default to 'items'
   const getInitialView = useCallback(() => {
     if (typeof window === 'undefined') return 'items'
@@ -92,13 +81,20 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
   const [internalCurrentView] = useState<string>(getInitialView())
   const currentView = externalCurrentView ?? internalCurrentView
 
-  // Search state - separate for each sub-view
-  const [actionsSearchValue, setActionsSearchValue] = useState<string>('')
-  const [contextsSearchValue, setContextsSearchValue] = useState<string>('')
+  // Search state - separate for each sub-view (controlled or uncontrolled)
+  const [internalActionsSearchValue, setInternalActionsSearchValue] = useState<string>('')
+  const [internalContextsSearchValue, setInternalContextsSearchValue] = useState<string>('')
+  const actionsSearchValue = externalActionsSearchValue ?? internalActionsSearchValue
+  const contextsSearchValue = externalContextsSearchValue ?? internalContextsSearchValue
+  const setActionsSearchValue = onActionsSearchChange ?? setInternalActionsSearchValue
+  const setContextsSearchValue = onContextsSearchChange ?? setInternalContextsSearchValue
 
   // Pagination state for API-based pagination - separate for each view
   const [actionsPagination, setActionsPagination] = useState({ pageIndex: 0, pageSize: 20 })
   const [contextsPagination, setContextsPagination] = useState({ pageIndex: 0, pageSize: 20 })
+
+  // Sorting state (shared across views) - MUST be declared before useEffects that use it
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([])
 
   // Track what has been loaded to prevent duplicate requests
   const loadedRef = useRef({
@@ -113,9 +109,12 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
     totalCount: actionsTotalCount,
     isLoading: actionsLoading,
     error: actionsError,
-    refetch: refetchActions
+    refetch: refetchActions,
+    loadMore: loadMoreActions,
+    hasMore: hasMoreActions
   } = useActions(context, {
     flowName: actionsSearchValue.trim() || undefined,
+    sort: sorting.length > 0 ? `${sorting[0].desc ? '-' : '+'}${sorting[0].id}` : undefined,
     limit: actionsPagination.pageSize,
     offset: actionsPagination.pageIndex * actionsPagination.pageSize,
     returnTotalRecords: true
@@ -126,9 +125,12 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
     totalCount: contextsTotalCount,
     isLoading: contextsLoading,
     error: contextsError,
-    refetch: refetchContexts
+    refetch: refetchContexts,
+    loadMore: loadMoreContexts,
+    hasMore: hasMoreContexts
   } = useContexts(context, {
-    contextName: contextsSearchValue.trim() || undefined,
+    searchItem: contextsSearchValue.trim() || undefined,
+    sort: sorting.length > 0 ? `${sorting[0].desc ? '-' : '+'}${sorting[0].id}` : undefined,
     limit: contextsPagination.pageSize,
     offset: contextsPagination.pageIndex * contextsPagination.pageSize,
     returnTotalRecords: true
@@ -163,71 +165,27 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
 
   // DO NOT reload when sub-view changes - data is already loaded initially
 
-  // Refetch actions when pagination or search changes (only if actions view is active)
-  const lastActionsParamsRef = useRef({ pageIndex: -1, pageSize: -1, search: '' })
+  // Refetch actions when search or sorting changes (for server-side updates)
   useEffect(() => {
-    if (!isActive || currentView !== 'items' || !loadedRef.current.items) return
-    if (actionsLoading) return // Don't refetch if already loading
-
-    // Only refetch if pagination or search actually changed
-    const paramsChanged =
-      lastActionsParamsRef.current.pageIndex !== actionsPagination.pageIndex ||
-      lastActionsParamsRef.current.pageSize !== actionsPagination.pageSize ||
-      lastActionsParamsRef.current.search !== actionsSearchValue
-
-    if (paramsChanged) {
-      lastActionsParamsRef.current = {
-        pageIndex: actionsPagination.pageIndex,
-        pageSize: actionsPagination.pageSize,
-        search: actionsSearchValue
-      }
+    if (currentView === 'items' && loadedRef.current.initialLoadDone) {
       refetchActions().catch(() => {})
     }
-  }, [
-    isActive,
-    currentView,
-    actionsPagination.pageIndex,
-    actionsPagination.pageSize,
-    actionsSearchValue,
-    actionsLoading,
-    refetchActions
-  ])
+  }, [actionsSearchValue, sorting, currentView, refetchActions])
 
-  // Refetch contexts when pagination or search changes (only if contexts view is active)
-  const lastContextsParamsRef = useRef({ pageIndex: -1, pageSize: -1, search: '' })
+  // Refetch contexts when search or sorting changes (for server-side updates)
   useEffect(() => {
-    if (!isActive || currentView !== 'contexts' || !loadedRef.current.contexts) return
-    if (contextsLoading) return // Don't refetch if already loading
-
-    // Only refetch if pagination or search actually changed
-    const paramsChanged =
-      lastContextsParamsRef.current.pageIndex !== contextsPagination.pageIndex ||
-      lastContextsParamsRef.current.pageSize !== contextsPagination.pageSize ||
-      lastContextsParamsRef.current.search !== contextsSearchValue
-
-    if (paramsChanged) {
-      lastContextsParamsRef.current = {
-        pageIndex: contextsPagination.pageIndex,
-        pageSize: contextsPagination.pageSize,
-        search: contextsSearchValue
-      }
+    if (currentView === 'contexts' && loadedRef.current.initialLoadDone) {
       refetchContexts().catch(() => {})
     }
-  }, [
-    isActive,
-    currentView,
-    contextsPagination.pageIndex,
-    contextsPagination.pageSize,
-    contextsSearchValue,
-    contextsLoading,
-    refetchContexts
-  ])
+  }, [contextsSearchValue, sorting, currentView, refetchContexts])
 
   // CUD hooks
   const { isLoading: isUpdating } = useUpdateAction(context) // Only used for isUpdating state
   const { deleteAction, isLoading: isDeleting } = useDeleteAction(context)
+  const { deleteContext, isLoading: isDeletingContext } = useDeleteContext(context)
   const { createContext } = useCreateContext(context)
   const { createActionAssignment } = useUpdateActionAssignment(context)
+  const resourceClient = useResourceClient(context.accessToken)
 
   // Roles and Features catalogs - loaded at top level (like NavigationTab)
   const {
@@ -315,21 +273,6 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
   const prevLoadingRef = useRef<{ items: boolean; contexts: boolean }>({ items: false, contexts: false })
   const prevActionLoadingRef = useRef<boolean>(false)
   const prevContextLoadingRef = useRef<boolean>(false)
-  const actionRefetchFnRef = useRef<(() => void) | null>(null)
-  const contextRefetchFnRef = useRef<(() => void) | null>(null)
-
-  // Create stable refetch functions
-  const actionRefetchFn = useCallback(() => refetchActions(), [refetchActions])
-  const contextRefetchFn = useCallback(() => refetchContexts(), [refetchContexts])
-
-  // Update refetch function refs when they change
-  useEffect(() => {
-    actionRefetchFnRef.current = actionRefetchFn
-  }, [actionRefetchFn])
-
-  useEffect(() => {
-    contextRefetchFnRef.current = contextRefetchFn
-  }, [contextRefetchFn])
 
   // Batch all parent updates in a single useLayoutEffect to minimize re-renders
   useLayoutEffect(() => {
@@ -374,19 +317,13 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
       }
     }
 
-    // Set refetch functions once (stable references)
-    if (onActionRefetchChange && actionRefetchFnRef.current !== actionRefetchFn) {
-      onActionRefetchChange(() => {
-        actionRefetchFnRef.current?.()
-      })
-      actionRefetchFnRef.current = actionRefetchFn
+    // Set refetch functions (direct callbacks)
+    if (onActionRefetchChange) {
+      onActionRefetchChange(refetchActions)
     }
 
-    if (onContextRefetchChange && contextRefetchFnRef.current !== contextRefetchFn) {
-      onContextRefetchChange(() => {
-        contextRefetchFnRef.current?.()
-      })
-      contextRefetchFnRef.current = contextRefetchFn
+    if (onContextRefetchChange) {
+      onContextRefetchChange(refetchContexts)
     }
   }, [
     actionsTotalCount,
@@ -401,12 +338,9 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
     onContextLoadingChange,
     onActionRefetchChange,
     onContextRefetchChange,
-    actionRefetchFn,
-    contextRefetchFn
+    refetchActions,
+    refetchContexts
   ])
-
-  // Sorting state (shared across views)
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([])
 
   // Handle delete action
   const handleDelete = useCallback(
@@ -451,36 +385,69 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
     }
   }, [onAddContextChange, handleAddContext])
 
+  // Handle delete context
+  const handleDeleteContext = useCallback(
+    async (contextToDelete: any) => {
+      if (!window.confirm(`Are you sure you want to delete context "${contextToDelete.context.contextName}"?`)) {
+        return
+      }
+
+      const success = await deleteContext(contextToDelete.context.id)
+      if (success) {
+        await refetchContexts()
+      }
+    },
+    [deleteContext, refetchContexts]
+  )
+
   // Handle create context
   const handleCreateContext = useCallback(
-    async (contextData: Omit<ContextDTO, 'id'>, actionIds: string[]) => {
+    async (contextData: Omit<ContextDTO, 'id'>, actionIds: string[], permissions?: string[]) => {
       // Create context first
       const createdContext = await createContext(contextData)
       if (!createdContext) {
         return
       }
 
-      // Create action assignment (even if no actions, to ensure context appears in list)
+      // Create action assignment (always, even if no actions, to ensure context appears in list)
+      // Backend returns only the ID as string, so fetch full context object to get contextData IDs
+      const fullContextResponse = await resourceClient.action.getContext(createdContext)
+      if (!fullContextResponse) {
+        return
+      }
+
+      const fullContext: ContextDTO = {
+        id: fullContextResponse.id,
+        contextName: fullContextResponse.contextName,
+        contextData: fullContextResponse.contextData || [],
+        permissionSchema: fullContextResponse.permissionSchema,
+        rank: fullContextResponse.rank ?? 0,
+        version: fullContextResponse.version ?? 0
+      }
+
       await createActionAssignment({
-        context: createdContext,
-        assignments: actionIds
-          .map((actionId, index) => {
-            const action = actions.find(a => a.action.id === actionId)
-            if (!action) return null
-            return {
-              id: `temp-${index}`,
-              flowItem: action.action,
-              permission: 'execute',
-              rank: index
-            }
-          })
-          .filter(Boolean) as any
+        context: fullContext,
+        assignments:
+          actionIds.length > 0
+            ? (actionIds
+                .map((actionId, index) => {
+                  const action = actions.find(a => a.action.id === actionId)
+                  if (!action) return null
+                  return {
+                    id: `temp-${index}`,
+                    flowItem: action.action,
+                    permission: permissions?.[index] || 'execute',
+                    rank: index
+                  }
+                })
+                .filter(Boolean) as any)
+            : []
       })
 
       // Refetch contexts to show the new one
       await refetchContexts()
     },
-    [createContext, createActionAssignment, actions, refetchContexts]
+    [createContext, createActionAssignment, actions, refetchContexts, resourceClient]
   )
 
   return (
@@ -505,6 +472,8 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
           error={actionsError}
           pagination={actionsPagination}
           onPaginationChange={setActionsPagination}
+          loadMore={loadMoreActions}
+          hasMore={hasMoreActions}
           onDelete={handleDelete}
           isUpdating={isUpdating}
           isDeleting={isDeleting}
@@ -526,9 +495,13 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
           error={contextsError}
           pagination={contextsPagination}
           onPaginationChange={setContextsPagination}
+          loadMore={loadMoreContexts}
+          hasMore={hasMoreContexts}
           contextDialogOpen={contextDialogOpen}
           setContextDialogOpen={setContextDialogOpen}
           onCreateContext={handleCreateContext}
+          onDelete={handleDeleteContext}
+          isDeleting={isDeletingContext}
           actions={actions.map(a => ({ action: a.action }))}
           onAddContextRef={addContextRef}
           data-testid={dataTestId}
@@ -554,13 +527,15 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
 // Memoize to prevent unnecessary re-renders when props haven't changed
 export const ActionTab = React.memo(ActionTabComponent, (prevProps, nextProps) => {
   // Only re-render if critical props change
+  // IMPORTANT: Include search values so that hooks recalculate when search changes
   return (
     prevProps.isActive === nextProps.isActive &&
     prevProps.currentView === nextProps.currentView &&
     prevProps.shouldInitialLoad === nextProps.shouldInitialLoad &&
-    prevProps.dialogOpen === nextProps.dialogOpen &&
     prevProps.contextDialogOpen === nextProps.contextDialogOpen &&
     prevProps['data-testid'] === nextProps['data-testid'] &&
-    prevProps.accessToken === nextProps.accessToken
+    prevProps.accessToken === nextProps.accessToken &&
+    prevProps.actionsSearchValue === nextProps.actionsSearchValue &&
+    prevProps.contextsSearchValue === nextProps.contextsSearchValue
   )
 })

@@ -4,17 +4,21 @@ import { useNavigations } from '@/common/data/resources/hooks/useNavigations'
 import { useMenuItems } from '@/common/data/resources/hooks/useMenuItems'
 import { useUpdateNavigation } from '@/common/data/resources/hooks/useUpdateNavigation'
 import { useCreateNavigation } from '@/common/data/resources/hooks/useCreateNavigation'
+import { useDeleteNavigation } from '@/common/data/resources/hooks/useDeleteNavigation'
 import { useRolesCatalog } from '@/common/data/resources/hooks/useRolesCatalog'
 import { useFeaturesCatalog } from '@/common/data/resources/hooks/useFeaturesCatalog'
-import { DescriptionDialog } from '../../../../components/DescriptionDialog'
 import type { GetNavigationsParams } from '@/common/data/resources/types/navigation.types'
 import type { MenuItemDTO } from '@/common/data/resources/types/menuItem.types'
 import { NavigationTable } from './navigation-table/NavigationTable'
 import { MenuTable } from './menu-table/MenuTable'
-import type { NavigationWithMenuItems } from './navigation-table/NavigationTableColumns'
+import type { NavigationWithMenuItems } from './navigation-table/types/NavigationTypes'
 
 interface NavigationTabProps extends BusinessAppContextProps {
   'data-testid'?: string
+  itemsSearchValue?: string
+  menuSearchValue?: string
+  onItemsSearchValueChange?: (value: string) => void
+  onMenuSearchValueChange?: (value: string) => void
   onCountChange?: (count: number) => void
   onLoadingChange?: (isLoading: boolean) => void
   currentView?: string
@@ -26,6 +30,10 @@ interface NavigationTabProps extends BusinessAppContextProps {
   shouldInitialLoad?: boolean
   onAddNavigationChange?: (addNavigation: () => void) => void
   onAddMenuItemChange?: (addMenuItem: () => void) => void
+  onMenuSaveAllChange?: (saveAll: () => Promise<void>) => void
+  onMenuDiscardAllChange?: (discardAll: () => void) => void
+  onMenuHasChangesChange?: (hasChanges: boolean) => void
+  onMenuIsSavingChange?: (isSaving: boolean) => void
 }
 
 const NavigationTabComponent: React.FC<NavigationTabProps> = ({
@@ -33,6 +41,10 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
   onCountChange,
   onLoadingChange,
   currentView: externalCurrentView,
+  itemsSearchValue: externalItemsSearchValue,
+  menuSearchValue: externalMenuSearchValue,
+  onItemsSearchValueChange,
+  onMenuSearchValueChange,
   onViewCountChange,
   onViewLoadingChange,
   onRefetchChange,
@@ -40,27 +52,16 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
   shouldInitialLoad = false,
   onAddNavigationChange,
   onAddMenuItemChange,
+  onMenuSaveAllChange,
+  onMenuDiscardAllChange,
+  onMenuHasChangesChange,
+  onMenuIsSavingChange,
   ...context
 }) => {
   // Refs to hold add functions from tables
   const addNavigationRef = React.useRef<(() => void) | null>(null)
   const addMenuItemRef = React.useRef<(() => void) | null>(null)
 
-  // Performance logging (only in dev, limited)
-  const renderCountRef = useRef(0)
-  const prevPropsRef = useRef<{ isActive: boolean; currentView: string }>({ isActive: false, currentView: '' })
-
-  if (process.env.NODE_ENV === 'development') {
-    renderCountRef.current++
-    const currentProps = { isActive, currentView: externalCurrentView ?? '' }
-    const propsChanged =
-      currentProps.isActive !== prevPropsRef.current.isActive ||
-      currentProps.currentView !== prevPropsRef.current.currentView
-
-    if (propsChanged || renderCountRef.current <= 3) {
-      prevPropsRef.current = currentProps
-    }
-  }
   // Get initial view from URL or default to 'items'
   const getInitialView = useCallback(() => {
     if (typeof window === 'undefined') return 'items'
@@ -76,7 +77,15 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
 
   const [internalCurrentView] = useState<string>(getInitialView())
   const currentView = externalCurrentView ?? internalCurrentView
-  const [searchValue, setSearchValue] = useState<string>('')
+
+  // Separate search states for items and menu
+  const [internalItemsSearchValue, setInternalItemsSearchValue] = useState<string>('')
+  const [internalMenuSearchValue, setInternalMenuSearchValue] = useState<string>('')
+  const itemsSearchValue = externalItemsSearchValue ?? internalItemsSearchValue
+  const menuSearchValue = externalMenuSearchValue ?? internalMenuSearchValue
+  const setItemsSearchValue = onItemsSearchValueChange ?? setInternalItemsSearchValue
+  const setMenuSearchValue = onMenuSearchValueChange ?? setInternalMenuSearchValue
+
   const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([])
 
   // Pagination state for URLs view
@@ -94,19 +103,19 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
     if (currentView !== 'items') return undefined
 
     const params: GetNavigationsParams = {}
-    if (searchValue.trim()) {
-      params.search = searchValue.trim()
+    if (itemsSearchValue.trim()) {
+      params.search = itemsSearchValue.trim()
     }
     if (sorting.length > 0) {
       const sort = sorting[0]
-      params.sort = `${sort.id},${sort.desc ? 'DESC' : 'ASC'}`
+      params.sort = `${sort.desc ? '-' : '+'}${sort.id}`
     }
     // Add pagination parameters
     params.limit = urlsPagination.pageSize
     params.offset = urlsPagination.pageIndex * urlsPagination.pageSize
 
     return params
-  }, [currentView, searchValue, sorting, urlsPagination])
+  }, [currentView, itemsSearchValue, sorting, urlsPagination])
 
   // Always create hooks (data persists when section is hidden)
   const {
@@ -114,7 +123,9 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
     totalCount: navigationsTotalCount,
     isLoading: navigationsLoading,
     error: navigationsError,
-    refetch: refetchNavigations
+    refetch: refetchNavigations,
+    loadMore: loadMoreNavigations,
+    hasMore: hasMoreNavigations
   } = useNavigations(context, navigationParams)
 
   const {
@@ -126,6 +137,7 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
 
   const { updateNavigation, error: updateError } = useUpdateNavigation(context)
   const { createNavigation } = useCreateNavigation(context)
+  const { deleteNavigation, isLoading: isDeleting } = useDeleteNavigation(context)
 
   // Handle add navigation - call the function from NavigationTable via ref
   const handleAddNavigation = useCallback(() => {
@@ -196,12 +208,12 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
     }
   }, [shouldInitialLoad, navigationsLoading, menuItemsLoading, refetchNavigations, refetchMenuItems])
 
-  // Refetch navigations when pagination changes (for server-side pagination)
+  // Refetch navigations when search, pagination, or sorting changes (for server-side pagination)
   useEffect(() => {
     if (currentView === 'items' && loadedRef.current.initialLoadDone) {
       refetchNavigations().catch(() => {})
     }
-  }, [urlsPagination, searchValue, sorting, currentView, refetchNavigations])
+  }, [urlsPagination, itemsSearchValue, sorting, currentView, refetchNavigations, navigationParams])
 
   // DO NOT reload when sub-view changes - data is already loaded initially
 
@@ -276,28 +288,12 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
     onLoadingChange
   ])
 
-  // Description dialog state
-  const [descriptionDialogOpen, setDescriptionDialogOpen] = useState(false)
-  const [descriptionNavigationId, setDescriptionNavigationId] = useState<string | null>(null)
-
   // URL is now managed by parent (ResourceView) via subview parameter
   // No need for updateUrl callback
 
   // Store previous values to avoid unnecessary updates
   const prevCountsRef = useRef<{ items: number; menu: number }>({ items: 0, menu: 0 })
   const prevLoadingRef = useRef<{ items: boolean; menu: boolean }>({ items: false, menu: false })
-  const refetchFnRef = useRef<(() => void) | null>(null)
-
-  // Create stable refetch function
-  const refetchFn = useCallback(() => {
-    refetchNavigations()
-    refetchMenuItems()
-  }, [refetchNavigations, refetchMenuItems])
-
-  // Update refetch function ref when it changes
-  useEffect(() => {
-    refetchFnRef.current = refetchFn
-  }, [refetchFn])
 
   // Batch all parent updates in a single useLayoutEffect to minimize re-renders
   useLayoutEffect(() => {
@@ -326,12 +322,12 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
       }
     }
 
-    // Set refetch function once (stable reference)
-    if (onRefetchChange && refetchFnRef.current !== refetchFn) {
+    // Set refetch function (direct callback)
+    if (onRefetchChange) {
       onRefetchChange(() => {
-        refetchFnRef.current?.()
+        refetchNavigations()
+        refetchMenuItems()
       })
-      refetchFnRef.current = refetchFn
     }
   }, [
     navigations.length,
@@ -341,7 +337,8 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
     onViewCountChange,
     onViewLoadingChange,
     onRefetchChange,
-    refetchFn
+    refetchNavigations,
+    refetchMenuItems
   ])
 
   // Use navigations directly - menuItems and hubs come from the API response
@@ -383,6 +380,21 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
     })
   }, [navigations])
 
+  // Handle delete navigation
+  const handleDelete = useCallback(
+    async (navigation: NavigationWithMenuItems) => {
+      if (!window.confirm(`Are you sure you want to delete navigation "${navigation.name || navigation.code}"?`)) {
+        return
+      }
+
+      const success = await deleteNavigation(navigation.id)
+      if (success) {
+        await refetchNavigations()
+      }
+    },
+    [deleteNavigation, refetchNavigations]
+  )
+
   return (
     <>
       {currentView === 'items' && (
@@ -393,10 +405,14 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
           isLoading={isNavigationsInitialLoading}
           error={error}
           refetchNavigations={refetchNavigations}
-          searchValue={searchValue}
+          loadMore={loadMoreNavigations}
+          hasMore={hasMoreNavigations}
+          searchValue={itemsSearchValue}
           sorting={sorting}
-          onSearchChange={setSearchValue}
+          onSearchChange={setItemsSearchValue}
           onSortingChange={setSorting}
+          onDelete={handleDelete}
+          isDeleting={isDeleting}
           pagination={urlsPagination}
           onPaginationChange={setUrlsPagination}
           roleOptions={roleOptions}
@@ -407,14 +423,13 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
           featuresError={featuresError}
           refetchRoles={refetchRoles}
           refetchFeatures={refetchFeatures}
-          setDescriptionNavigationId={setDescriptionNavigationId}
-          setDescriptionDialogOpen={setDescriptionDialogOpen}
           updateNavigation={updateNavigation}
           createNavigation={createNavigation}
           onAddNavigationRef={addNavigationRef}
           dataTestId={dataTestId}
           onCountChange={onCountChange}
           currentView={currentView}
+          {...context}
         />
       )}
       {currentView === 'menu' && (
@@ -423,30 +438,16 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
           isLoading={isMenuItemsInitialLoading}
           error={error}
           dataTestId={dataTestId}
+          searchValue={menuSearchValue}
+          onSearchChange={setMenuSearchValue}
           onCountChange={onCountChange}
           currentView={currentView}
           refetchMenuItems={refetchMenuItems}
           onAddMenuItemRef={addMenuItemRef}
-          {...context}
-        />
-      )}
-
-      {descriptionNavigationId && (
-        <DescriptionDialog
-          open={descriptionDialogOpen}
-          onOpenChange={setDescriptionDialogOpen}
-          description={enrichedNavigations.find(n => n.id === descriptionNavigationId)?.description_i18n?.['en'] || ''}
-          descriptionTranslation={
-            enrichedNavigations.find(n => n.id === descriptionNavigationId)?.description_i18n || {}
-          }
-          onSave={async (description, translations) => {
-            const navigationId = descriptionNavigationId
-            if (navigationId) {
-              await updateNavigation(navigationId, { description_i18n: translations })
-              await refetchNavigations()
-            }
-          }}
-          data-testid={`${dataTestId}-description-dialog`}
+          onSaveAllChange={onMenuSaveAllChange}
+          onDiscardAllChange={onMenuDiscardAllChange}
+          onHasChangesChange={onMenuHasChangesChange}
+          onIsSavingChange={onMenuIsSavingChange}
           {...context}
         />
       )}
@@ -457,11 +458,14 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
 // Memoize to prevent unnecessary re-renders when props haven't changed
 export const NavigationTab = React.memo(NavigationTabComponent, (prevProps, nextProps) => {
   // Only re-render if critical props change
+  // IMPORTANT: Include search values so that navigationParams useMemo recalculates when search changes
   return (
     prevProps.isActive === nextProps.isActive &&
     prevProps.currentView === nextProps.currentView &&
     prevProps.shouldInitialLoad === nextProps.shouldInitialLoad &&
     prevProps['data-testid'] === nextProps['data-testid'] &&
-    prevProps.accessToken === nextProps.accessToken
+    prevProps.accessToken === nextProps.accessToken &&
+    prevProps.itemsSearchValue === nextProps.itemsSearchValue &&
+    prevProps.menuSearchValue === nextProps.menuSearchValue
   )
 })

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { DragOverlay } from '@dnd-kit/core'
 import { Button, Badge } from '@newwork/nw-design-system'
 import { CaretDown, CaretRight, Plus } from '@phosphor-icons/react'
+import { createTreeModifier } from './utils/dndModifiers'
 import type { MenuItemDTO } from '@/common/data/resources/types/menuItem.types'
 import { parseIconName, EMPTY_ICON_VALUE } from '../../../../../utils/iconUtils'
 import { useEditableState } from '../../../../../hooks/useEditableState'
@@ -17,35 +18,85 @@ import { useMenuTreeDnd } from './hooks/useMenuTreeDnd'
 import { useMenuTreeActions } from './hooks/useMenuTreeActions'
 import { useResourceUrlOptions } from './hooks/useResourceUrlOptions'
 import { useUpdateMenuItem } from '@/common/data/resources/hooks/useUpdateMenuItem'
+import { useMenuTableSaveAll } from './hooks/useMenuTableSaveAll'
 import type { SpaceType } from './types/menuTree.types'
 
 interface MenuTableProps extends BusinessAppContextProps {
   menuItems: MenuItemDTO[]
   isLoading: boolean
   dataTestId: string
+  searchValue?: string
+  onSearchChange?: (value: string) => void
   onCountChange?: (count: number) => void
   currentView: string
   refetchMenuItems: () => Promise<void>
+  onSaveAllChange?: (saveAll: () => Promise<void>) => void
+  onDiscardAllChange?: (discardAll: () => void) => void
+  onHasChangesChange?: (hasChanges: boolean) => void
+  onIsSavingChange?: (isSaving: boolean) => void
 }
 
 export const MenuTable: React.FC<MenuTableProps> = ({
   menuItems: menuItemsProp,
   isLoading,
   dataTestId,
+  searchValue: externalSearchValue,
   onCountChange,
   currentView,
   refetchMenuItems,
+  onSaveAllChange,
+  onDiscardAllChange,
+  onHasChangesChange,
+  onIsSavingChange,
   ...context
 }) => {
   // Local state
   const [localMenuItems, setLocalMenuItems] = useState<MenuItemDTO[]>(menuItemsProp)
   const [draftMenuItems, setDraftMenuItems] = useState<MenuItemDTO[]>([])
   const [isDragging, setIsDragging] = useState(false)
+  const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set())
+  const [internalSearchValue] = useState<string>('')
+  const searchValue = externalSearchValue ?? internalSearchValue
 
-  // Sync local state with prop changes
+  // Filter menu items based on search
+  const filteredMenuItems = useMemo(() => {
+    if (!searchValue.trim()) return menuItemsProp
+
+    const searchLower = searchValue.toLowerCase().trim()
+    const filterItem = (item: MenuItemDTO): boolean => {
+      const matchesSearch =
+        item.name?.toLowerCase().includes(searchLower) ||
+        item.code?.toLowerCase().includes(searchLower) ||
+        item.description?.toLowerCase().includes(searchLower) ||
+        Object.values(item.nameTranslated || {}).some(v => v.toLowerCase().includes(searchLower))
+
+      const childrenMatch = item.children?.some(child => filterItem(child)) || false
+
+      return matchesSearch || childrenMatch
+    }
+
+    const filterTree = (items: MenuItemDTO[]): MenuItemDTO[] => {
+      return items
+        .map(item => {
+          const matches = filterItem(item)
+          if (!matches) return null
+
+          const filteredChildren = item.children ? filterTree(item.children) : undefined
+          return {
+            ...item,
+            children: filteredChildren
+          }
+        })
+        .filter((item): item is MenuItemDTO => item !== null)
+    }
+
+    return filterTree(menuItemsProp)
+  }, [menuItemsProp, searchValue])
+
+  // Sync local state with filtered menu items
   useEffect(() => {
-    setLocalMenuItems(menuItemsProp)
-  }, [menuItemsProp])
+    setLocalMenuItems(filteredMenuItems)
+  }, [filteredMenuItems])
 
   // Tree state hook
   const treeState = useMenuTreeState({
@@ -67,6 +118,7 @@ export const MenuTable: React.FC<MenuTableProps> = ({
     setTargetTree: treeState.setTargetTree,
     setExpandedItems: treeState.setExpandedItems,
     setIsDragging,
+    setMovedItemIds: treeState.setMovedItemIds,
     updateMenuItem,
     refetchMenuItems
   })
@@ -104,8 +156,50 @@ export const MenuTable: React.FC<MenuTableProps> = ({
     editableState,
     setDraftMenuItems,
     refetchMenuItems,
-    setExpandedItems: treeState.setExpandedItems
+    setExpandedItems: treeState.setExpandedItems,
+    setPendingDeletes
   })
+
+  // Save All hook
+  const saveAll = useMenuTableSaveAll({
+    context,
+    sourceTree: treeState.sourceTree,
+    targetTree: treeState.targetTree,
+    editableState,
+    pendingDeletes,
+    movedItemIds: treeState.movedItemIds,
+    setSourceTree: treeState.setSourceTree,
+    setTargetTree: treeState.setTargetTree,
+    setDraftMenuItems,
+    setPendingDeletes,
+    setMovedItemIds: treeState.setMovedItemIds,
+    refetchMenuItems
+  })
+
+  // Expose Save All / Discard All functions to parent
+  useEffect(() => {
+    if (onSaveAllChange) {
+      onSaveAllChange(saveAll.handleSaveAll)
+    }
+  }, [onSaveAllChange, saveAll.handleSaveAll])
+
+  useEffect(() => {
+    if (onDiscardAllChange) {
+      onDiscardAllChange(saveAll.handleDiscardAll)
+    }
+  }, [onDiscardAllChange, saveAll.handleDiscardAll])
+
+  useEffect(() => {
+    if (onHasChangesChange) {
+      onHasChangesChange(saveAll.hasChanges)
+    }
+  }, [onHasChangesChange, saveAll.hasChanges])
+
+  useEffect(() => {
+    if (onIsSavingChange) {
+      onIsSavingChange(saveAll.isSaving)
+    }
+  }, [onIsSavingChange, saveAll.isSaving])
 
   // Menu item renderer (flat, no recursion)
   const renderMenuItem = useCallback(
@@ -126,6 +220,12 @@ export const MenuTable: React.FC<MenuTableProps> = ({
       const hasEdits = editableState.hasEdits(itemId)
       const isSaving = editableState.state.savingEntryId === itemId && editableState.state.isSaving
       const isDraft = itemId.startsWith('draft:')
+      const isPendingDelete = pendingDeletes.has(itemId)
+
+      // Drop target feedback: Only show blue when this item would become the parent
+      const wouldBecomeParent = dnd.projected?.visualParentId === itemId
+      const isDropTarget = wouldBecomeParent && dnd.activeId && dnd.activeId !== itemId
+      const canReceiveDrop = !isHub && dnd.activeId && dnd.flattenedItems.find(i => i.id === dnd.activeId)?.level !== 0
 
       const edits = editableState.state.editedEntries.get(itemId)
       const displayName = (edits?.name as string | undefined) ?? item.name
@@ -149,6 +249,8 @@ export const MenuTable: React.FC<MenuTableProps> = ({
             hasEdits={hasEdits}
             isSaving={isSaving}
             isDraft={isDraft}
+            isPendingDelete={isPendingDelete}
+            isDropTarget={isDropTarget && canReceiveDrop}
             displayName={displayName}
             displayIconDB={displayIconDB}
             displayDescription={displayDescription}
@@ -174,6 +276,7 @@ export const MenuTable: React.FC<MenuTableProps> = ({
       treeState.expandedItems,
       dnd.flattenedItems,
       dnd.activeId,
+      dnd.overId,
       dnd.projected,
       treeState.toggleExpansion,
       editableState,
@@ -181,7 +284,8 @@ export const MenuTable: React.FC<MenuTableProps> = ({
       actions,
       resourceUrlOptions,
       handleNavigationSearch,
-      navigationsLoading
+      navigationsLoading,
+      pendingDeletes
     ]
   )
 
@@ -280,30 +384,6 @@ export const MenuTable: React.FC<MenuTableProps> = ({
                     // Use projected depth if this is the active item
                     const finalDepth = item.id === dnd.activeId && dnd.projected ? dnd.projected.depth : depth
 
-                    // #region agent log
-                    if (typeof fetch !== 'undefined' && item.id === dnd.activeId) {
-                      fetch('http://127.0.0.1:7244/ingest/00afbd5c-2483-4caa-966f-80d58bf9e341', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          location: 'MenuTable.tsx:295',
-                          message: 'Render active item with depth',
-                          data: {
-                            itemId: item.id,
-                            depth,
-                            projectedDepth: dnd.projected?.depth,
-                            finalDepth,
-                            indentationWidth: finalDepth * 20
-                          },
-                          timestamp: Date.now(),
-                          sessionId: 'debug-session',
-                          runId: 'run1',
-                          hypothesisId: 'H3.1,H3.2'
-                        })
-                      }).catch(() => {})
-                    }
-                    // #endregion
-
                     return (
                       <SortableTreeItem
                         key={item.id}
@@ -364,7 +444,10 @@ export const MenuTable: React.FC<MenuTableProps> = ({
 
       {/* DragOverlay for the dragged item */}
       {createPortal(
-        <DragOverlay dropAnimation={{ duration: 200, easing: 'ease' }}>
+        <DragOverlay
+          dropAnimation={null}
+          modifiers={[createTreeModifier(dnd.projected, dnd.activeItem?.level === 0, dnd.activeItem?.depth ?? 0, 24)]}
+        >
           {dnd.activeItem && (
             <TreeItem
               id={dnd.activeItem.id}

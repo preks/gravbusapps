@@ -29,7 +29,7 @@ export const MenuItemDescriptionDialog: React.FC<MenuItemDescriptionDialogProps>
     }
   }, [open, description, descriptionTranslation])
 
-  const handleSave = useCallback(() => {
+  const handleApply = useCallback(() => {
     onSave(localDescription, localTranslations)
     onOpenChange(false)
   }, [localDescription, localTranslations, onSave, onOpenChange])
@@ -58,8 +58,8 @@ export const MenuItemDescriptionDialog: React.FC<MenuItemDescriptionDialogProps>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} data-testid={`${dataTestId}-save-button`}>
-            Save
+          <Button onClick={handleApply} data-testid={`${dataTestId}-apply-button`}>
+            Apply
           </Button>
         </DialogFooter>
       </DialogContent>

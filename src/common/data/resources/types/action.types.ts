@@ -38,6 +38,7 @@ export interface ActionPage {
 // Query Parameters
 export interface GetActionsParams {
   flowName?: string
+  sort?: string
   limit?: number
   offset?: number
   returnTotalRecords?: boolean

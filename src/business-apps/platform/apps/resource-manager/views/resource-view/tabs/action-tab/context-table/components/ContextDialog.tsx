@@ -100,10 +100,18 @@ export const ContextDialog: React.FC<ContextDialogProps> = ({
 
     setIsSubmitting(true)
     try {
-      const contextDataToSubmit: Omit<ContextDTO, 'id'> = {
+      const contextDataToSubmit: Omit<ContextDTO, 'id' | 'rank' | 'version'> & {
+        contextData: Array<Omit<ContextDataDTO, 'id'>>
+      } = {
         contextName: contextName.trim(),
         permissionSchema: permissionSchema.trim() || undefined,
-        contextData: contextData.filter(data => data.contextDataName.trim() !== '')
+        contextData: contextData
+          .filter(data => data.contextDataName.trim() !== '')
+          .map(data => ({
+            contextDataName: data.contextDataName,
+            contextDataType: data.contextDataType,
+            mainContext: data.mainContext ?? false
+          }))
       }
 
       await onSubmit(contextDataToSubmit, selectedActionIds)

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { Component } from '../types/component.types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useResourceClient } from '@/common/network/resources/useResourceClient'
@@ -37,31 +37,45 @@ export const useComponentResources = (
 ): UseComponentResourcesResult => {
   const [components, setComponents] = useState<Component[]>([])
   const [totalCount, setTotalCount] = useState(0)
-  const [isInitialLoading, setIsInitialLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const resourceClient = useResourceClient(context.accessToken)
 
+  // Memoize params to prevent infinite loops
+  const memoizedParams = useMemo(
+    () => params,
+    [
+      params?.limit,
+      params?.offset,
+      params?.searchParameter,
+      params?.sort?.field,
+      params?.sort?.order,
+      params?.filter?.appId,
+      params?.filter?.screenKey,
+      params?.filter?.builderType
+    ]
+  )
+
   const fetchComponents = useCallback(
-    async (fetchParams?: UseComponentResourcesParams, isInitial = false) => {
+    async (fetchParams?: UseComponentResourcesParams, showLoading = true) => {
       if (!context.accessToken) {
         setError('No access token available')
-        setIsInitialLoading(false)
+        setIsLoading(false)
         return
       }
 
-      // Only show loading state on initial load
-      if (isInitial) {
-        setIsInitialLoading(true)
+      if (showLoading) {
+        setIsLoading(true)
       }
       setError(null)
 
       try {
-        // Use provided params or defaults
-        const limit = fetchParams?.limit ?? params?.limit ?? 20
-        const offset = fetchParams?.offset ?? params?.offset ?? 0
-        const searchParameter = fetchParams?.searchParameter ?? params?.searchParameter
-        const filter = fetchParams?.filter ?? params?.filter
-        const sort = fetchParams?.sort ?? params?.sort
+        // Use provided params or memoized params
+        const limit = fetchParams?.limit ?? memoizedParams?.limit ?? 20
+        const offset = fetchParams?.offset ?? memoizedParams?.offset ?? 0
+        const searchParameter = fetchParams?.searchParameter ?? memoizedParams?.searchParameter
+        const filter = fetchParams?.filter ?? memoizedParams?.filter
+        const sort = fetchParams?.sort ?? memoizedParams?.sort
 
         // Build request params according to OpenAPI spec
         const requestParams: {
@@ -116,15 +130,20 @@ export const useComponentResources = (
         setComponents([])
         setTotalCount(0)
       } finally {
-        setIsInitialLoading(false)
+        setIsLoading(false)
       }
     },
-    [context.accessToken, params, resourceClient]
+    [context.accessToken, memoizedParams, resourceClient]
   )
 
+  // Auto-fetch when params change
+  useEffect(() => {
+    fetchComponents(undefined, true)
+  }, [fetchComponents])
+
   const refetch = useCallback(
-    async (fetchParams?: UseComponentResourcesParams, isInitial = false) => {
-      await fetchComponents(fetchParams, isInitial)
+    async (fetchParams?: UseComponentResourcesParams, showLoading = false) => {
+      await fetchComponents(fetchParams, showLoading)
     },
     [fetchComponents]
   )
@@ -132,7 +151,7 @@ export const useComponentResources = (
   return {
     components,
     totalCount,
-    isLoading: isInitialLoading,
+    isLoading,
     error,
     refetch
   }

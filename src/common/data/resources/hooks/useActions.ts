@@ -9,95 +9,143 @@ interface UseActionsResult {
   isLoading: boolean
   error: string | null
   refetch: () => Promise<void>
+  loadMore: () => Promise<void>
+  hasMore: boolean
+  reset: () => void
 }
 
 export const useActions = (context: BusinessAppContextProps, params?: GetActionsParams): UseActionsResult => {
   const [actions, setActions] = useState<ActionWithContexts[]>([])
-  const [totalCount, setTotalCount] = useState<number | null>(null) // null = not loaded yet
+  const [totalCount, setTotalCount] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const resourceClient = useResourceClient(context.accessToken)
   const has401Error = useRef(false)
   const paramsRef = useRef(params)
   const hasLoadedRef = useRef(false)
+  const currentOffsetRef = useRef(0)
+  const lastSearchSortRef = useRef<string>('')
+  const isFetchingRef = useRef(false)
 
   // Update params ref when params change
   useEffect(() => {
     paramsRef.current = params
   }, [params])
 
-  const fetchActions = useCallback(async () => {
-    if (!context.accessToken) {
-      setError('Access token not available')
-      setIsLoading(false)
-      return
+  // Check if search/sort params changed (requires reset)
+  useEffect(() => {
+    const searchSortKey = `${params?.flowName || ''}-${params?.sort || ''}`
+    if (searchSortKey !== lastSearchSortRef.current) {
+      lastSearchSortRef.current = searchSortKey
+      currentOffsetRef.current = 0
+      setActions([])
     }
+  }, [params?.flowName, params?.sort])
 
-    // Don't refetch if we have a 401 error
-    if (has401Error.current) {
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      // Always set returnTotalRecords=true and ensure limit/offset are included
-      const actionParams: GetActionsParams = {
-        ...paramsRef.current,
-        returnTotalRecords: true,
-        limit: paramsRef.current?.limit ?? 20,
-        offset: paramsRef.current?.offset ?? 0
+  const fetchActions = useCallback(
+    async (append = false) => {
+      // Prevent concurrent requests
+      if (isFetchingRef.current) {
+        return
       }
 
-      // Fetch actions only (contexts are managed in context sub-view)
-      const actionsPage = await resourceClient.action.getActions(actionParams)
-
-      // Reset 401 error flag on success
-      has401Error.current = false
-
-      // Combine actions with empty contexts (contexts are managed separately in context sub-view)
-      const actionsWithContexts: ActionWithContexts[] = (actionsPage?.data || []).map((action: ActionDTO) => ({
-        action,
-        contexts: []
-      }))
-
-      setActions(actionsWithContexts)
-      const total = actionsPage?.paging?.totalRecords ?? 0
-      setTotalCount(total)
-      hasLoadedRef.current = true
-    } catch (err: any) {
-      // Check if it's a 401 error
-      if (err?.response?.status === 401 || err?.status === 401 || (err?.message && err.message.includes('401'))) {
-        has401Error.current = true
+      if (!context.accessToken) {
+        setError('Access token not available')
+        setIsLoading(false)
+        return
       }
 
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch actions'
-      setError(errorMessage)
-      console.error('Error fetching actions:', err)
-      // Only set to 0 if we've already loaded before (preserve previous count during retry)
-      if (hasLoadedRef.current) {
-        setActions([])
-        setTotalCount(0)
+      if (has401Error.current) {
+        return
       }
-    } finally {
-      setIsLoading(false)
-    }
-  }, [context.accessToken, resourceClient])
 
-  // Don't load automatically - only when refetch() is called
-  // This enables lazy loading based on active view
+      isFetchingRef.current = true
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const { ...restParams } = paramsRef.current || {}
+        const actionParams: GetActionsParams = {
+          ...restParams,
+          returnTotalRecords: true,
+          limit: paramsRef.current?.limit ?? 20,
+          offset: append ? currentOffsetRef.current : 0
+        }
+
+        const actionsPage = await resourceClient.action.getActions(actionParams)
+        has401Error.current = false
+
+        const actionsWithContexts: ActionWithContexts[] = (actionsPage?.data || []).map((action: ActionDTO) => ({
+          action,
+          contexts: []
+        }))
+
+        const total = actionsPage?.paging?.totalRecords ?? 0
+
+        // Update offset IMMEDIATELY before setState to prevent race conditions with IntersectionObserver
+        if (append) {
+          currentOffsetRef.current += actionsWithContexts.length
+          setActions(prev => [...prev, ...actionsWithContexts])
+        } else {
+          currentOffsetRef.current = actionsWithContexts.length
+          setActions(actionsWithContexts)
+        }
+
+        setTotalCount(total)
+        hasLoadedRef.current = true
+      } catch (err: any) {
+        if (err?.response?.status === 401 || err?.status === 401 || (err?.message && err.message.includes('401'))) {
+          has401Error.current = true
+        }
+
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch actions'
+        setError(errorMessage)
+        console.error('Error fetching actions:', err)
+
+        if (!append && hasLoadedRef.current) {
+          setActions([])
+          setTotalCount(0)
+        }
+      } finally {
+        setIsLoading(false)
+        isFetchingRef.current = false
+      }
+    },
+    [context.accessToken, resourceClient]
+  )
 
   const refetch = useCallback(async () => {
     has401Error.current = false
-    await fetchActions()
+    currentOffsetRef.current = 0
+    await fetchActions(false)
   }, [fetchActions])
+
+  const loadMore = useCallback(async () => {
+    if (actions.length < (totalCount ?? 0)) {
+      await fetchActions(true)
+    }
+  }, [fetchActions, actions.length, totalCount])
+
+  const reset = useCallback(() => {
+    setActions([])
+    setTotalCount(null)
+    setError(null)
+    currentOffsetRef.current = 0
+    has401Error.current = false
+    hasLoadedRef.current = false
+    isFetchingRef.current = false
+  }, [])
+
+  const hasMore = actions.length < (totalCount ?? 0)
 
   return {
     actions,
-    totalCount: totalCount ?? null, // Return null if not loaded yet (DataDisplay will show loading)
+    totalCount: totalCount ?? 0,
     isLoading,
     error,
-    refetch
+    refetch,
+    loadMore,
+    hasMore,
+    reset
   }
 }

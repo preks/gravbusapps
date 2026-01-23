@@ -43,4 +43,8 @@ export interface MenuItemUpsertRequestDTO {
   children?: MenuItemUpsertRequestDTO[]
   createdAt?: string
   updatedAt?: string
+  // Hub-specific: type (only for level 0 / hubs)
+  type?: 'USE' | 'CREATE' | 'MANAGE'
+  code?: string
+  codeTranslated?: Record<string, string>
 }

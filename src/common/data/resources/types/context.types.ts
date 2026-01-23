@@ -38,7 +38,8 @@ export interface ContextPage {
 
 // Query Parameters
 export interface GetContextsParams {
-  contextName?: string
+  searchItem?: string
+  sort?: string
   limit?: number
   offset?: number
   returnTotalRecords?: boolean

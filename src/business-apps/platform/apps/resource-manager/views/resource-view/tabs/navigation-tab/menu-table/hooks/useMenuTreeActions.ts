@@ -3,7 +3,6 @@ import type { MenuItemDTO } from '@/common/data/resources/types/menuItem.types'
 import type { UseEditableStateResult } from '../../../../../../hooks/useEditableState'
 import { useCreateMenuItem } from '@/common/data/resources/hooks/useCreateMenuItem'
 import { useUpdateMenuItem } from '@/common/data/resources/hooks/useUpdateMenuItem'
-import { useDeleteMenuItem } from '@/common/data/resources/hooks/useDeleteMenuItem'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EMPTY_ICON_VALUE } from '../../../../../../utils/iconUtils'
 import type { EnrichedMenuItem } from '../types/menuTree.types'
@@ -15,6 +14,7 @@ interface UseMenuTreeActionsProps {
   setDraftMenuItems: React.Dispatch<React.SetStateAction<MenuItemDTO[]>>
   refetchMenuItems: () => Promise<void>
   setExpandedItems: React.Dispatch<React.SetStateAction<Set<string>>>
+  setPendingDeletes: React.Dispatch<React.SetStateAction<Set<string>>>
 }
 
 interface UseMenuTreeActionsReturn {
@@ -28,11 +28,18 @@ interface UseMenuTreeActionsReturn {
  * Hook for menu tree CRUD actions
  */
 export function useMenuTreeActions(props: UseMenuTreeActionsProps): UseMenuTreeActionsReturn {
-  const { context, allMenuItemsFlat, editableState, setDraftMenuItems, refetchMenuItems, setExpandedItems } = props
+  const {
+    context,
+    allMenuItemsFlat,
+    editableState,
+    setDraftMenuItems,
+    refetchMenuItems,
+    setExpandedItems,
+    setPendingDeletes
+  } = props
 
   const { createMenuItem } = useCreateMenuItem(context)
   const { updateMenuItem } = useUpdateMenuItem(context)
-  const { deleteMenuItem } = useDeleteMenuItem(context)
 
   // Quick add child
   const handleQuickAdd = useCallback(
@@ -48,6 +55,8 @@ export function useMenuTreeActions(props: UseMenuTreeActionsProps): UseMenuTreeA
 
       if (parentIsSpace) {
         // Adding a hub to a space
+        // IMPORTANT: Hubs MUST have a type (USE, CREATE, or MANAGE)
+        const hubType = (parentItem.type as 'USE' | 'CREATE' | 'MANAGE') || 'USE' // Default to USE if missing
         newDraft = {
           id: draftId,
           name: '',
@@ -60,11 +69,12 @@ export function useMenuTreeActions(props: UseMenuTreeActionsProps): UseMenuTreeA
           level: 0, // Hub level
           parentId: undefined,
           hubId: undefined,
-          type: parentItem.type as 'USE' | 'CREATE' | 'MANAGE' | undefined,
+          type: hubType,
           children: []
         }
       } else if (parentIsHub) {
-        // Adding a menu item to a hub
+        // Adding a menu item to a hub (level 1)
+        // IMPORTANT: Level 1 items have parentId = null, hubId = hub-id, type = undefined
         newDraft = {
           id: draftId,
           name: '',
@@ -74,14 +84,15 @@ export function useMenuTreeActions(props: UseMenuTreeActionsProps): UseMenuTreeA
           icon: EMPTY_ICON_VALUE,
           rank: 0,
           code: '',
-          level: 1, // First level menu item
-          parentId: undefined,
-          hubId: parentItem.id,
-          type: parentItem.type as 'USE' | 'CREATE' | 'MANAGE' | undefined,
+          level: 1, // Menu item level
+          parentId: null, // Level 1 items have null parentId
+          hubId: parentItem.id, // hubId points to the hub
+          type: undefined, // Menu items don't have type
           children: []
         }
       } else if (parentIsMenuItem) {
-        // Adding a menu item to another menu item
+        // Adding a child menu item to a menu item (level 2+)
+        // IMPORTANT: Level 2+ items have parentId set, hubId = null, type = undefined
         newDraft = {
           id: draftId,
           name: '',
@@ -91,14 +102,14 @@ export function useMenuTreeActions(props: UseMenuTreeActionsProps): UseMenuTreeA
           icon: EMPTY_ICON_VALUE,
           rank: 0,
           code: '',
-          level: parentLevel + 1,
+          level: (parentLevel ?? 0) + 1, // Increase level by 1
           parentId: parentItem.id,
-          hubId: parentItem.hubId,
-          type: parentItem.type as 'USE' | 'CREATE' | 'MANAGE' | undefined,
+          hubId: null, // Level 2+ items have null hubId
+          type: undefined, // Menu items don't have type
           children: []
         }
       } else {
-        // Fallback - should not happen
+        console.warn('[QuickAdd] Unknown parent type, cannot add child')
         return
       }
 
@@ -125,6 +136,8 @@ export function useMenuTreeActions(props: UseMenuTreeActionsProps): UseMenuTreeA
           draftEntryIds: newDrafts
         }
       })
+
+      console.log('[QuickAdd] Draft created:', { draftId, parentId: parentItem.id, level: newDraft.level })
     },
     [editableState, setDraftMenuItems, setExpandedItems]
   )
@@ -194,21 +207,17 @@ export function useMenuTreeActions(props: UseMenuTreeActionsProps): UseMenuTreeA
     [editableState, setDraftMenuItems]
   )
 
-  // Delete item
+  // Delete item - now just marks for deletion, doesn't actually delete
   const handleDelete = useCallback(
-    async (itemId: string) => {
-      const item = allMenuItemsFlat.find(m => m.id === itemId)
-      if (!item) return
-
-      const isHub = item.level === 0
-      try {
-        await deleteMenuItem(itemId, isHub)
-        await refetchMenuItems()
-      } catch {
-        // Error handled
-      }
+    (itemId: string) => {
+      setPendingDeletes(prev => {
+        const newSet = new Set(prev)
+        newSet.add(itemId)
+        return newSet
+      })
+      console.log(`[DELETE] Marked item ${itemId} for deletion. Use Save All to persist.`)
     },
-    [allMenuItemsFlat, deleteMenuItem, refetchMenuItems]
+    [setPendingDeletes]
   )
 
   return {

@@ -4,7 +4,11 @@ import { useResourceClient } from '@/common/network/resources/useResourceClient'
 import type { MenuItemDTO, MenuItemUpsertRequestDTO } from '../types/menuItem.types'
 
 interface UseUpdateMenuItemResult {
-  updateMenuItem: (id: string, data: Partial<MenuItemUpsertRequestDTO>, isHub: boolean) => Promise<MenuItemDTO>
+  updateMenuItem: (
+    id: string,
+    data: Partial<MenuItemUpsertRequestDTO>,
+    isHub: boolean
+  ) => Promise<MenuItemDTO | undefined>
   isUpdating: boolean
   error: string | null
 }
@@ -15,7 +19,7 @@ export const useUpdateMenuItem = (context: BusinessAppContextProps): UseUpdateMe
   const resourceClient = useResourceClient(context.accessToken)
 
   const updateMenuItem = useCallback(
-    async (id: string, data: Partial<MenuItemUpsertRequestDTO>, isHub: boolean): Promise<MenuItemDTO> => {
+    async (id: string, data: Partial<MenuItemUpsertRequestDTO>, isHub: boolean): Promise<MenuItemDTO | undefined> => {
       if (!context.accessToken) {
         const err = 'Access token not available'
         setError(err)

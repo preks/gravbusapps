@@ -9,6 +9,7 @@ export interface NavigationDTO {
   roles?: string[]
   features?: string[]
   name_i18n?: Record<string, string>
+  description?: string
   description_i18n?: Record<string, string>
   isSearchable?: boolean
   menuItems?: MenuItemDTO[]

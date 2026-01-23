@@ -26,7 +26,7 @@ import {
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Component } from '@/common/data/resources/types/component.types'
-import { useResourceManagerContext } from '../../contexts/ResourceManagerContext'
+import { useResourceData, useResourceActions } from '../../contexts/ResourceManagerContext'
 import {
   urlPathToScreenKey,
   screenKeyToUrlPath,
@@ -96,7 +96,8 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Get domain/process data from context
-  const { domains, getProcessesForDomain, isLoading: isLoadingServices } = useResourceManagerContext()
+  const { domains, getProcessesForDomain } = useResourceData()
+  const { isLoading: isLoadingServices } = useResourceActions()
 
   // Initialize form
   const form = useForm<ComponentFormData>({

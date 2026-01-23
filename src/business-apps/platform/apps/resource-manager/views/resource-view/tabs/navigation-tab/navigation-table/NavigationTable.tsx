@@ -1,22 +1,28 @@
-import React, { useCallback, useMemo, useState, useEffect } from 'react'
-import { DataTable, Button, ButtonGroup } from '@newwork/nw-design-system'
-import type { ExpandedState, Row } from '@tanstack/react-table'
+import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Spinner } from '@newwork/nw-design-system'
+import { ChevronUp, ChevronDown } from 'lucide-react'
 import { useEditableState } from '../../../../../hooks/useEditableState'
 import type { NavigationDTO } from '@/common/data/resources/types/navigation.types'
-import { createNavigationTableColumns, type NavigationWithMenuItems } from './NavigationTableColumns'
-import { Save, X } from 'lucide-react'
+import type { NavigationWithMenuItems } from './types/NavigationTypes'
+import { NavigationTableRow } from './components/NavigationTableRow'
+import { DescriptionDialog } from '../../../../../components/DescriptionDialog'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-interface NavigationTableProps {
+interface NavigationTableProps extends BusinessAppContextProps {
   enrichedNavigations: NavigationWithMenuItems[]
   navigations: NavigationDTO[]
   totalCount: number
   isLoading: boolean
   error: string | null
   refetchNavigations: () => Promise<void>
+  loadMore: () => Promise<void>
+  hasMore: boolean
   searchValue: string
   sorting: Array<{ id: string; desc: boolean }>
   onSearchChange: (value: string) => void
   onSortingChange: (sorting: Array<{ id: string; desc: boolean }>) => void
+  onDelete: (navigation: NavigationWithMenuItems) => void
+  isDeleting: boolean
   roleOptions: Array<{ id: string; name: string }>
   featureOptions: Array<{ id: string; name: string }>
   rolesLoading: boolean
@@ -25,8 +31,6 @@ interface NavigationTableProps {
   featuresError: string | null
   refetchRoles: () => Promise<void>
   refetchFeatures: () => Promise<void>
-  setDescriptionNavigationId: (id: string | null) => void
-  setDescriptionDialogOpen: (open: boolean) => void
   updateNavigation: (id: string, data: Partial<NavigationDTO>) => Promise<void>
   createNavigation: (data: Partial<NavigationDTO>) => Promise<void>
   pagination: { pageIndex: number; pageSize: number }
@@ -41,11 +45,15 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
   enrichedNavigations,
   totalCount,
   isLoading,
+  error,
   refetchNavigations,
+  loadMore,
+  hasMore,
   searchValue,
   sorting,
-  onSearchChange,
   onSortingChange,
+  onDelete,
+  isDeleting,
   roleOptions,
   featureOptions,
   rolesLoading,
@@ -54,24 +62,23 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
   featuresError,
   refetchRoles,
   refetchFeatures,
-  setDescriptionNavigationId,
-  setDescriptionDialogOpen,
   updateNavigation,
   createNavigation,
-  pagination,
-  onPaginationChange,
   dataTestId,
   onCountChange,
   currentView,
-  onAddNavigationRef
+  onAddNavigationRef,
+  ...context
 }) => {
-  const [expanded, setExpanded] = useState<ExpandedState>({})
-  const [openedComboboxes, setOpenedComboboxes] = useState<Set<string>>(new Set())
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [descriptionDialogOpen, setDescriptionDialogOpen] = useState(false)
+  const [descriptionNavigationId, setDescriptionNavigationId] = useState<string | null>(null)
 
   // Draft navigations state (managed locally)
   const [draftNavigations, setDraftNavigations] = useState<NavigationWithMenuItems[]>([])
 
   // Merge draft navigations with regular navigations (drafts at the top)
+  // No client-side sorting - sorting is server-side
   const allEnrichedNavigations = useMemo(() => {
     return [...draftNavigations, ...enrichedNavigations]
   }, [draftNavigations, enrichedNavigations])
@@ -85,6 +92,7 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
         name: item.name,
         url: item.url,
         name_i18n: item.name_i18n || {},
+        description: item.description || '',
         description_i18n: item.description_i18n || {},
         roles: item.roles || [],
         features: item.features || [],
@@ -154,10 +162,23 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
           if (edits.name !== undefined) updateData.name = edits.name as string
           if (edits.url !== undefined) updateData.url = edits.url as string
           if (edits.name_i18n !== undefined) updateData.name_i18n = edits.name_i18n as Record<string, string>
+          if (edits.description !== undefined) updateData.description = edits.description as string
           if (edits.description_i18n !== undefined)
             updateData.description_i18n = edits.description_i18n as Record<string, string>
-          if (edits.roles !== undefined) updateData.roles = edits.roles as string[]
-          if (edits.features !== undefined) updateData.features = edits.features as string[]
+          if (edits.roles !== undefined) {
+            // Map role IDs to names for API
+            updateData.roles = (edits.roles as string[]).map(roleId => {
+              const role = roleOptions.find(r => r.id === roleId)
+              return { name: role?.name || roleId }
+            })
+          }
+          if (edits.features !== undefined) {
+            // Map feature IDs to names for API
+            updateData.features = (edits.features as string[]).map(featureId => {
+              const feature = featureOptions.find(f => f.id === featureId)
+              return { name: feature?.name || featureId }
+            })
+          }
           if (edits.isSearchable !== undefined) updateData.isSearchable = edits.isSearchable as boolean
 
           await createNavigation(updateData)
@@ -180,10 +201,23 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
           if (edits.name !== undefined) updateData.name = edits.name as string
           if (edits.url !== undefined) updateData.url = edits.url as string
           if (edits.name_i18n !== undefined) updateData.name_i18n = edits.name_i18n as Record<string, string>
+          if (edits.description !== undefined) updateData.description = edits.description as string
           if (edits.description_i18n !== undefined)
             updateData.description_i18n = edits.description_i18n as Record<string, string>
-          if (edits.roles !== undefined) updateData.roles = edits.roles as string[]
-          if (edits.features !== undefined) updateData.features = edits.features as string[]
+          if (edits.roles !== undefined) {
+            // Map role IDs to names for API
+            updateData.roles = (edits.roles as string[]).map(roleId => {
+              const role = roleOptions.find(r => r.id === roleId)
+              return { name: role?.name || roleId }
+            })
+          }
+          if (edits.features !== undefined) {
+            // Map feature IDs to names for API
+            updateData.features = (edits.features as string[]).map(featureId => {
+              const feature = featureOptions.find(f => f.id === featureId)
+              return { name: feature?.name || featureId }
+            })
+          }
           if (edits.isSearchable !== undefined) updateData.isSearchable = edits.isSearchable as boolean
 
           await updateNavigation(navigationId, updateData)
@@ -196,7 +230,7 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
         editableState.setSaving(navigationId, false)
       }
     },
-    [editableState, updateNavigation, createNavigation, refetchNavigations]
+    [editableState, updateNavigation, createNavigation, refetchNavigations, roleOptions, featureOptions]
   )
 
   // Handle discard entry
@@ -212,135 +246,59 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
     [editableState]
   )
 
-  const columns = useMemo(
-    () =>
-      createNavigationTableColumns({
-        dataTestId,
-        navigationEntries,
-        editableState,
-        roleOptions,
-        featureOptions,
-        rolesLoading,
-        featuresLoading,
-        rolesError,
-        featuresError,
-        refetchRoles,
-        refetchFeatures,
-        openedComboboxes,
-        setOpenedComboboxes,
-        setDescriptionNavigationId,
-        setDescriptionDialogOpen,
-        handleSaveEntry,
-        isUpdating: false
-      }).filter(col => col.id !== 'table-actions'),
-    [
-      dataTestId,
-      navigationEntries,
-      editableState,
-      roleOptions,
-      featureOptions,
-      rolesLoading,
-      featuresLoading,
-      rolesError,
-      featuresError,
-      refetchRoles,
-      refetchFeatures,
-      openedComboboxes,
-      setOpenedComboboxes,
-      setDescriptionNavigationId,
-      setDescriptionDialogOpen,
-      handleSaveEntry
-    ]
-  )
-
-  const renderActions = useCallback(
-    (row: any) => {
-      const navigationId = row.original.id || ''
-      const hasEdits = editableState.hasEdits(navigationId)
-      const isSaving = editableState.state.savingEntryId === navigationId && editableState.state.isSaving
-
-      return (
-        <ButtonGroup onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} className="gba:h-6">
-          <Button
-            size="iconSm"
-            variant="secondary"
-            className="gba:h-6"
-            onClick={e => {
-              e.stopPropagation()
-              handleSaveEntry(navigationId)
-            }}
-            disabled={!hasEdits || isSaving}
-            data-testid={`${dataTestId}-save-navigation-${navigationId}`}
-            title="Save changes"
-          >
-            <Save className="gba:h-4 gba:w-4" />
-          </Button>
-          <Button
-            size="iconSm"
-            variant="secondary"
-            className="gba:h-6"
-            onClick={e => {
-              e.stopPropagation()
-              handleDiscardEntry(navigationId)
-            }}
-            disabled={!hasEdits || isSaving}
-            data-testid={`${dataTestId}-discard-navigation-${navigationId}`}
-            title="Discard changes"
-          >
-            <X className="gba:h-4 gba:w-4" />
-          </Button>
-        </ButtonGroup>
-      )
-    },
-    [editableState, handleSaveEntry, handleDiscardEntry, dataTestId]
-  )
-
-  const getRowCanExpand = useCallback((row: NavigationWithMenuItems) => {
-    const allMenuItems = row.allMenuItems || [...(row.hubs || []), ...(row.menuItems || [])]
-    return allMenuItems.length > 0
+  // Toggle expansion
+  const handleToggleExpansion = useCallback((navId: string) => {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(navId)) {
+        next.delete(navId)
+      } else {
+        next.add(navId)
+      }
+      return next
+    })
   }, [])
 
-  const renderExpandedRow = useCallback(
-    (row: Row<NavigationWithMenuItems>) => {
-      const nav = row.original
-      const allMenuItems = nav.allMenuItems || [...(nav.hubs || []), ...(nav.menuItems || [])]
+  // Handle column sort
+  const handleSort = useCallback(
+    (columnId: string) => {
+      const existingSort = sorting.find(s => s.id === columnId)
+      if (existingSort) {
+        // Toggle desc/asc or remove
+        if (existingSort.desc) {
+          onSortingChange([{ id: columnId, desc: false }])
+        } else {
+          onSortingChange([])
+        }
+      } else {
+        onSortingChange([{ id: columnId, desc: true }])
+      }
+    },
+    [sorting, onSortingChange]
+  )
 
-      if (allMenuItems.length === 0) {
+  // Get sort icon for column (matching DataTable design)
+  const getSortIcon = useCallback(
+    (columnId: string) => {
+      const sort = sorting.find(s => s.id === columnId)
+      if (!sort) {
+        // Unsorted: show both icons stacked with low opacity
         return (
-          <div className="gba:bg-muted/30 gba:p-4 gba:rounded-md" data-testid={`${dataTestId}-expanded-${nav.id}`}>
-            <p className="gba:text-sm gba:text-muted-foreground">No menu items assigned</p>
+          <div className="gba:w-4 gba:h-4 gba:opacity-30 gba:relative gba:shrink-0">
+            <ChevronUp className="gba:h-4 gba:w-4 gba:absolute" size={16} />
+            <ChevronDown className="gba:h-4 gba:w-4 gba:absolute gba:translate-y-1" size={16} />
           </div>
         )
       }
-
-      return (
-        <div className="gba:bg-muted/30 gba:p-4 gba:rounded-md" data-testid={`${dataTestId}-expanded-${nav.id}`}>
-          <h4 className="gba:font-semibold gba:mb-3 gba:text-sm">Menu Items for {nav.name}</h4>
-          <div className="gba:space-y-2">
-            {allMenuItems.map(item => (
-              <div
-                key={item.id}
-                className="gba:flex gba:items-center gba:gap-2 gba:py-2 gba:px-3 gba:bg-background gba:rounded gba:border"
-              >
-                <span className="gba:font-medium gba:text-sm">{item.name}</span>
-                {item.code && (
-                  <code className="gba:text-xs gba:bg-muted gba:px-2 gba:py-1 gba:rounded">{item.code}</code>
-                )}
-                {item.type && (
-                  <span className="gba:text-xs gba:px-2 gba:py-0.5 gba:bg-muted gba:rounded">{item.type}</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+      // Sorted: show single icon with full opacity and primary color
+      return sort.desc ? (
+        <ChevronDown className="gba:h-4 gba:w-4 gba:opacity-100 gba:text-primary gba:shrink-0" size={16} />
+      ) : (
+        <ChevronUp className="gba:h-4 gba:w-4 gba:opacity-100 gba:text-primary gba:shrink-0" size={16} />
       )
     },
-    [dataTestId]
+    [sorting]
   )
-
-  const safeData = useMemo(() => {
-    return allEnrichedNavigations.filter(item => item.id)
-  }, [allEnrichedNavigations])
 
   useEffect(() => {
     if (onCountChange && currentView === 'items') {
@@ -348,46 +306,205 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
     }
   }, [totalCount, currentView, onCountChange])
 
-  if (!columns.length || safeData.some(item => !item.id)) {
-    return null
+  // Infinite scroll setup
+  const loadMoreRef = useRef<HTMLTableRowElement>(null)
+  const isLoadingRef = useRef(isLoading)
+  const hasMoreRef = useRef(hasMore)
+
+  // Sync refs with current state
+  useEffect(() => {
+    isLoadingRef.current = isLoading
+    hasMoreRef.current = hasMore
+  }, [isLoading, hasMore])
+
+  useEffect(() => {
+    if (!loadMoreRef.current) return
+
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && !isLoadingRef.current && hasMoreRef.current) {
+          loadMore()
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    observer.observe(loadMoreRef.current)
+    return () => observer.disconnect()
+  }, [loadMore])
+
+  if (isLoading && allEnrichedNavigations.length === 0) {
+    return (
+      <div className="gba:p-6 gba:flex gba:justify-center">
+        <Spinner size="md" />
+      </div>
+    )
   }
 
-  const getRowId = useCallback((row: NavigationWithMenuItems) => {
-    return row.id || `fallback-${Math.random()}`
-  }, [])
+  if (error) {
+    return (
+      <div className="gba:p-6">
+        <p className="gba:text-destructive">{error}</p>
+      </div>
+    )
+  }
 
   return (
-    <DataTable<NavigationWithMenuItems>
-      key={`urls-view-${safeData.length}`}
-      variant="compact"
-      data={safeData}
-      columns={columns}
-      actions={renderActions}
-      getRowId={getRowId}
-      loading={isLoading}
-      error={error || undefined}
-      totalCount={totalCount}
-      enablePagination
-      pagination={pagination}
-      onPaginationChange={onPaginationChange}
-      rowsPerPageOptions={[10, 20, 50, 100]}
-      enableSorting
-      enableSelection={false}
-      sorting={sorting}
-      onSortingChange={onSortingChange}
-      globalFilter={searchValue}
-      onGlobalFilterChange={onSearchChange}
-      enableGlobalFilter
-      enableExpansion
-      expanded={expanded}
-      onExpandedChange={setExpanded}
-      getRowCanExpand={getRowCanExpand}
-      renderExpandedRow={renderExpandedRow}
-      tableLayout="fixed"
-      enableResizing={true}
-      enableColumnPinning
-      emptyMessage="No URL resources found"
-      data-testid={`${dataTestId}-urls-table`}
-    />
+    <>
+      <div className="gba:flex gba:flex-col gba:h-full gba:overflow-auto gba:border gba:rounded-lg">
+        <Table className="gba:table-fixed gba:w-full">
+          <TableHeader>
+            <TableRow>
+              <TableHead
+                style={{ width: '180px' }}
+                onClick={() => handleSort('code')}
+                className="gba:select-none gba:cursor-pointer gba:px-2"
+              >
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  Code
+                  {getSortIcon('code')}
+                </div>
+              </TableHead>
+              <TableHead
+                style={{ width: '250px' }}
+                onClick={() => handleSort('name')}
+                className="gba:select-none gba:cursor-pointer gba:px-2"
+              >
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  Name
+                  {getSortIcon('name')}
+                </div>
+              </TableHead>
+              <TableHead
+                style={{ width: '300px' }}
+                onClick={() => handleSort('url')}
+                className="gba:select-none gba:cursor-pointer gba:px-2"
+              >
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  URL
+                  {getSortIcon('url')}
+                </div>
+              </TableHead>
+              <TableHead style={{ width: '120px' }} className="gba:px-2">
+                Description
+              </TableHead>
+              <TableHead className="gba:text-center gba:px-2" style={{ width: '100px' }}>
+                Searchable
+              </TableHead>
+              <TableHead style={{ width: '350px' }} className="gba:px-2">
+                Roles
+              </TableHead>
+              <TableHead style={{ width: '350px' }} className="gba:px-2">
+                Features
+              </TableHead>
+              <TableHead className="gba:sticky gba:right-0 gba:bg-muted gba:z-10 gba:px-2 gba:w-28"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {allEnrichedNavigations.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="gba:text-center gba:py-8 gba:text-muted-foreground gba:px-2">
+                  {searchValue ? 'No navigations found matching your search.' : 'No URL resources found'}
+                </TableCell>
+              </TableRow>
+            ) : (
+              allEnrichedNavigations.map(nav => {
+                const allMenuItems = nav.allMenuItems || [...(nav.hubs || []), ...(nav.menuItems || [])]
+                const isExpanded = expanded.has(nav.id)
+
+                return (
+                  <React.Fragment key={nav.id}>
+                    <NavigationTableRow
+                      navigation={nav}
+                      editableState={editableState}
+                      onFieldEdit={editableState.onFieldEdit}
+                      onSaveEntry={handleSaveEntry}
+                      onDiscardEntry={handleDiscardEntry}
+                      onDelete={onDelete}
+                      onToggleExpansion={handleToggleExpansion}
+                      isExpanded={isExpanded}
+                      isDeleting={isDeleting}
+                      setDescriptionNavigationId={setDescriptionNavigationId}
+                      setDescriptionDialogOpen={setDescriptionDialogOpen}
+                      roleOptions={roleOptions}
+                      featureOptions={featureOptions}
+                      rolesLoading={rolesLoading}
+                      featuresLoading={featuresLoading}
+                      rolesError={rolesError}
+                      featuresError={featuresError}
+                      refetchRoles={refetchRoles}
+                      refetchFeatures={refetchFeatures}
+                      dataTestId={dataTestId}
+                    />
+                    {isExpanded && allMenuItems.length > 0 && (
+                      <TableRow>
+                        <TableCell colSpan={10} className="gba:bg-muted/30 gba:p-4">
+                          <h4 className="gba:font-semibold gba:mb-3 gba:text-sm">Menu Items for {nav.name}</h4>
+                          <div className="gba:space-y-2">
+                            {allMenuItems.map(item => (
+                              <div
+                                key={item.id}
+                                className="gba:flex gba:items-center gba:gap-2 gba:py-2 gba:px-3 gba:bg-background gba:rounded gba:border"
+                              >
+                                <span className="gba:font-medium gba:text-sm">{item.name}</span>
+                                {item.code && (
+                                  <code className="gba:text-xs gba:bg-muted gba:px-2 gba:py-1 gba:rounded">
+                                    {item.code}
+                                  </code>
+                                )}
+                                {item.type && (
+                                  <span className="gba:text-xs gba:px-2 gba:py-0.5 gba:bg-muted gba:rounded">
+                                    {item.type}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
+                )
+              })
+            )}
+            {/* Infinite Scroll Loader */}
+            {hasMore && (
+              <TableRow ref={loadMoreRef}>
+                <TableCell colSpan={8} className="gba:text-center gba:py-4 gba:px-2">
+                  {isLoading ? (
+                    <Spinner size="sm" />
+                  ) : (
+                    <span className="gba:text-sm gba:text-muted-foreground">Loading more...</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Status Info */}
+      {allEnrichedNavigations.length > 0 && (
+        <div className="gba:px-4 gba:py-3 gba:border-t gba:text-sm gba:text-muted-foreground">
+          Showing {allEnrichedNavigations.length} of {totalCount} navigations
+        </div>
+      )}
+
+      {/* Description Dialog */}
+      {descriptionNavigationId && (
+        <DescriptionDialog
+          open={descriptionDialogOpen}
+          onOpenChange={setDescriptionDialogOpen}
+          description={navigationEntries.find(n => n.id === descriptionNavigationId)?.description || ''}
+          descriptionTranslation={navigationEntries.find(n => n.id === descriptionNavigationId)?.description_i18n || {}}
+          onSave={(description, translations) => {
+            editableState.onFieldEdit(descriptionNavigationId, 'description', description)
+            editableState.onFieldEdit(descriptionNavigationId, 'description_i18n', translations)
+          }}
+          data-testid={`${dataTestId}-description-dialog`}
+          {...context}
+        />
+      )}
+    </>
   )
 }

@@ -1,33 +1,38 @@
-import React, { useCallback, useMemo, useState, useEffect } from 'react'
+import React, { useCallback, useMemo, useState, useEffect, useRef } from 'react'
 import {
-  DataTable,
-  Button,
   Table,
   TableHeader,
   TableBody,
   TableRow,
   TableHead,
   TableCell,
-  Badge
+  Button,
+  Spinner
 } from '@newwork/nw-design-system'
+import { ChevronUp, ChevronDown } from 'lucide-react'
 import { DndContext, closestCenter, DragEndEvent, useSensors, useSensor, PointerSensor } from '@dnd-kit/core'
 import { useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Trash, Plus } from '@phosphor-icons/react'
-import type { ExpandedState, Row } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { ContextWithActions, ContextDTO } from '@/common/data/resources/types/context.types'
+import type { ContextWithActions, ContextDTO, ContextDataDTO } from '@/common/data/resources/types/context.types'
 import { ContextDialog } from './components/ContextDialog'
+import { ContextDataDialog } from './components/ContextDataDialog'
+import { AddActionDialog } from './components/AddActionDialog'
 import { EditableSelectCell } from '@/components/editable-cell'
 import { useEditableState } from '../../../../../hooks/useEditableState'
+import { useUpdateActionAssignment } from '@/common/data/resources/hooks/useUpdateActionAssignment'
+import { useUpdateContext } from '@/common/data/resources/hooks/useUpdateContext'
 import type { ActionDTO } from '@/common/data/resources/types/action.types'
-import { createContextTableColumns } from './ContextTableColumns'
+import { ContextTableRow } from './components/ContextTableRow'
 
 interface ContextTableProps extends BusinessAppContextProps {
   contexts: ContextWithActions[]
   totalCount: number
   isLoading: boolean
   error: string | null
+  loadMore: () => Promise<void>
+  hasMore: boolean
   searchValue: string
   sorting: Array<{ id: string; desc: boolean }>
   onSearchChange: (value: string) => void
@@ -36,7 +41,9 @@ interface ContextTableProps extends BusinessAppContextProps {
   onPaginationChange: (pagination: { pageIndex: number; pageSize: number }) => void
   contextDialogOpen: boolean
   setContextDialogOpen: (open: boolean) => void
-  onCreateContext: (contextData: Omit<ContextDTO, 'id'>, actionIds: string[]) => Promise<void>
+  onCreateContext: (contextData: Omit<ContextDTO, 'id'>, actionIds: string[], permissions?: string[]) => Promise<void>
+  onDelete: (context: ContextWithActions) => void
+  isDeleting: boolean
   actions: Array<{ action: ActionDTO }>
   onAddContextRef?: React.MutableRefObject<(() => void) | null>
   'data-testid'?: string
@@ -47,34 +54,59 @@ export const ContextTable: React.FC<ContextTableProps> = ({
   totalCount,
   isLoading,
   error,
+  loadMore,
+  hasMore,
   searchValue,
   sorting,
-  onSearchChange,
   onSortingChange,
-  pagination,
-  onPaginationChange,
   contextDialogOpen,
   setContextDialogOpen,
   onCreateContext,
+  onDelete,
+  isDeleting,
   actions,
   onAddContextRef,
   'data-testid': dataTestId = 'context-table',
   ...context
 }) => {
-  const [expanded, setExpanded] = useState<ExpandedState>({})
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [contextDataDialogOpen, setContextDataDialogOpen] = useState<string | null>(null)
+  const [addActionDialogOpen, setAddActionDialogOpen] = useState<string | null>(null)
 
   // Draft contexts state (managed locally)
   const [draftContexts, setDraftContexts] = useState<ContextWithActions[]>([])
 
+  // Draft actions state - Map<contextId, Array<{action: ActionDTO, permission: string}>>
+  const [draftActions, setDraftActions] = useState<Map<string, Array<{ action: ActionDTO; permission: string }>>>(
+    new Map()
+  )
+
   // Merge draft contexts with regular contexts (drafts at the top)
   const allContexts = useMemo(() => {
-    return [...draftContexts, ...contexts]
-  }, [draftContexts, contexts])
+    return [...draftContexts, ...contexts].map(contextItem => {
+      const draftActionsForContext = draftActions.get(contextItem.context.id)
+      if (draftActionsForContext && draftActionsForContext.length > 0) {
+        return {
+          ...contextItem,
+          actions: [
+            ...contextItem.actions,
+            ...draftActionsForContext.map(da => ({
+              action: da.action,
+              permission: da.permission,
+              rank: (contextItem.actions?.length || 0) + draftActionsForContext.indexOf(da)
+            }))
+          ]
+        }
+      }
+      return contextItem
+    })
+  }, [draftContexts, contexts, draftActions])
 
   // Editable state for contexts
   const contextEntries = useMemo(() => allContexts.map(item => item.context), [allContexts])
   const editableState = useEditableState<ContextDTO>(contextEntries)
+  const { createActionAssignment } = useUpdateActionAssignment(context)
+  const { updateContext } = useUpdateContext(context)
 
   // Handle add context - create draft row
   const handleAddContext = useCallback(() => {
@@ -111,94 +143,265 @@ export const ContextTable: React.FC<ContextTableProps> = ({
     }
   }, [onAddContextRef, handleAddContext])
 
-  // Filter and sort data
-  const safeData = useMemo(() => {
-    if (!Array.isArray(allContexts)) return []
-    let filtered = allContexts
-      .filter(item => item?.context?.id)
-      .map(item => ({
-        ...item,
-        id: item.context.id
-      }))
-
-    // Apply search filter
-    if (searchValue.trim()) {
-      const searchLower = searchValue.toLowerCase()
-      filtered = filtered.filter(
-        item =>
-          item.context.contextName?.toLowerCase().includes(searchLower) ||
-          item.context.contextData?.some(data => data.contextDataName?.toLowerCase().includes(searchLower))
-      )
-    }
-
-    // Apply sorting
-    if (sorting.length > 0) {
-      const sort = sorting[0]
-      filtered = [...filtered].sort((a, b) => {
-        let aValue: any
-        let bValue: any
-
-        if (sort.id === 'contextName') {
-          aValue = a.context.contextName || ''
-          bValue = b.context.contextName || ''
-        } else {
-          return 0
-        }
-
-        const aStr = String(aValue).toLowerCase()
-        const bStr = String(bValue).toLowerCase()
-        const comparison = aStr.localeCompare(bStr)
-        return sort.desc ? -comparison : comparison
-      })
-    }
-
-    return filtered
-  }, [allContexts, searchValue, sorting])
-
-  // Paginate data
-  const paginatedData = useMemo(() => {
-    const startIndex = pagination.pageIndex * pagination.pageSize
-    const endIndex = startIndex + pagination.pageSize
-    return safeData.slice(startIndex, endIndex)
-  }, [safeData, pagination.pageIndex, pagination.pageSize])
-
-  // Removed unused getRowId
-
-  const tableKey = useMemo(() => {
-    const hasData = safeData.length > 0
-    const isLoaded = !isLoading && hasData
-    return `context-table-${isLoaded ? 'loaded' : 'loading'}-${hasData ? safeData.length : 0}`
-  }, [safeData.length, isLoading])
-
-  const columns = useMemo(
-    () =>
-      createContextTableColumns({
-        dataTestId,
-        contextEntries,
-        editableState,
-        contextDataDialogOpen,
-        setContextDataDialogOpen
-      }),
-    [dataTestId, contextEntries, editableState, contextDataDialogOpen, setContextDataDialogOpen]
-  )
-
-  const getRowCanExpand = useCallback(() => {
-    return true // Always allow expansion to manage actions
+  // Toggle expansion
+  const handleToggleExpansion = useCallback((contextId: string) => {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(contextId)) {
+        next.delete(contextId)
+      } else {
+        next.add(contextId)
+      }
+      return next
+    })
   }, [])
 
-  // Helper function to get badge variant for flowType
-  const getFlowTypeBadgeVariant = (flowType?: string): 'default' | 'secondary' | 'outline' | 'info' => {
-    switch (flowType) {
-      case 'ACTION':
-        return 'info'
-      case 'NAVIGATION':
-        return 'secondary'
-      case 'REPORT':
-        return 'outline'
-      default:
-        return 'default'
-    }
-  }
+  // Handle save entry
+  const handleSaveEntry = useCallback(
+    async (contextId: string) => {
+      const edits = editableState.state.editedEntries.get(contextId)
+      if (!edits || Object.keys(edits).length === 0) return
+
+      editableState.setSaving(contextId, true)
+      try {
+        const isDraft = editableState.isDraft(contextId)
+
+        if (isDraft) {
+          // Create new context via API - Build full ContextDTO from draft + edits
+          const draftContext = draftContexts.find(d => d.context.id === contextId)?.context
+          if (!draftContext) {
+            editableState.setSaving(contextId, false)
+            return
+          }
+
+          // Get draft actions for this context
+          const draftActionsForContext = draftActions.get(contextId) || []
+          const actionIds = draftActionsForContext.map(da => da.action.id)
+
+          // Merge draft context with edits to create full ContextDTO (without id, rank, version)
+          // Remove all IDs from contextData (including temp IDs) and exclude id, rank, version from payload
+          const contextData = ((edits.contextData as ContextDataDTO[]) ?? draftContext.contextData ?? [])
+            .filter(data => data.contextDataName && data.contextDataType) // Only include valid entries
+            .map(data => ({
+              contextDataName: data.contextDataName,
+              contextDataType: data.contextDataType,
+              mainContext: data.mainContext ?? false
+            }))
+
+          const fullContextData: Omit<ContextDTO, 'id' | 'rank' | 'version'> & {
+            contextData: Array<Omit<ContextDataDTO, 'id'>>
+          } = {
+            contextName: (edits.contextName as string) ?? draftContext.contextName ?? '',
+            contextData: contextData,
+            permissionSchema: (edits.permissionSchema as string) ?? draftContext.permissionSchema
+          }
+
+          // Create context first, then create assignment with draft actions
+          await onCreateContext(
+            fullContextData,
+            actionIds,
+            draftActionsForContext.map(da => da.permission)
+          )
+
+          // Remove draft from local state
+          setDraftContexts(prev => prev.filter(d => d.context.id !== contextId))
+          setDraftActions(prev => {
+            const newMap = new Map(prev)
+            newMap.delete(contextId)
+            return newMap
+          })
+          editableState.setState(prev => {
+            const newEdited = new Map(prev.editedEntries)
+            newEdited.delete(contextId)
+            const newDrafts = new Set(prev.draftEntryIds)
+            newDrafts.delete(contextId)
+            return { ...prev, editedEntries: newEdited, draftEntryIds: newDrafts }
+          })
+        } else {
+          // Update existing context - Build full ContextDTO from original + edits
+          const originalContext = allContexts.find(c => c.context.id === contextId)?.context
+          if (!originalContext) {
+            editableState.setSaving(contextId, false)
+            return
+          }
+
+          // Merge original context with edits to create full ContextDTO
+          // Remove temp IDs from contextData, exclude rank from payload
+          const contextData = ((edits.contextData as ContextDataDTO[]) ?? originalContext.contextData ?? [])
+            .filter(data => data.contextDataName && data.contextDataType) // Only include valid entries
+            .map(data => {
+              // Keep real IDs, remove temp IDs
+              const result: any = {
+                contextDataName: data.contextDataName,
+                contextDataType: data.contextDataType,
+                mainContext: data.mainContext ?? false
+              }
+              // Only include id if it's not a temp ID
+              if (data.id && !data.id.startsWith('temp-')) {
+                result.id = data.id
+              }
+              return result
+            }) as ContextDataDTO[]
+
+          const fullContextData: Omit<ContextDTO, 'rank'> = {
+            id: originalContext.id,
+            contextName: (edits.contextName as string) ?? originalContext.contextName,
+            contextData: contextData,
+            permissionSchema: (edits.permissionSchema as string) ?? originalContext.permissionSchema,
+            version: originalContext.version ?? 0
+          }
+
+          const result = await updateContext(contextId, fullContextData)
+          if (result) {
+            // Get draft actions for this context
+            const draftActionsForContext = draftActions.get(contextId) || []
+
+            // If there are draft actions, create/update assignment
+            if (draftActionsForContext.length > 0) {
+              const context = allContexts.find(c => c.context.id === contextId)
+              if (context) {
+                // Build full context object with updated data
+                const fullContext: ContextDTO = {
+                  id: result.id,
+                  contextName: result.contextName,
+                  contextData: result.contextData || [],
+                  permissionSchema: result.permissionSchema,
+                  rank: result.rank ?? 0,
+                  version: result.version ?? 0
+                }
+
+                // Create assignment with existing actions + draft actions
+                const allAssignments = [
+                  ...(context.actions || []).map(a => ({
+                    id: `temp-${Date.now()}-existing-${a.action.id}`,
+                    flowItem: a.action,
+                    permission: a.permission || 'execute',
+                    rank: a.rank || 0
+                  })),
+                  ...draftActionsForContext.map((da, index) => ({
+                    id: `temp-${Date.now()}-new-${index}`,
+                    flowItem: da.action,
+                    permission: da.permission,
+                    rank: (context.actions?.length || 0) + index
+                  }))
+                ]
+
+                await createActionAssignment({
+                  context: fullContext,
+                  assignments: allAssignments
+                })
+              }
+
+              // Remove draft actions after saving
+              setDraftActions(prev => {
+                const newMap = new Map(prev)
+                newMap.delete(contextId)
+                return newMap
+              })
+            }
+
+            editableState.onDiscardEntry(contextId)
+            // Reload contexts to get updated data
+            await loadMore()
+          }
+        }
+      } catch {
+        // Error handled
+      } finally {
+        editableState.setSaving(contextId, false)
+      }
+    },
+    [
+      editableState,
+      onCreateContext,
+      setDraftContexts,
+      allContexts,
+      updateContext,
+      loadMore,
+      draftActions,
+      createActionAssignment
+    ]
+  )
+
+  // Handle discard entry
+  const handleDiscardEntry = useCallback(
+    (contextId: string) => {
+      const isDraft = editableState.isDraft(contextId)
+      if (isDraft) {
+        // Remove draft from local state
+        setDraftContexts(prev => prev.filter(d => d.context.id !== contextId))
+      }
+      // Remove draft actions for this context
+      setDraftActions(prev => {
+        const newMap = new Map(prev)
+        newMap.delete(contextId)
+        return newMap
+      })
+      editableState.onDiscardEntry(contextId)
+    },
+    [editableState, setDraftContexts]
+  )
+
+  // Server-side filtering via searchValue prop - no client-side filtering needed
+  const filteredData = useMemo(() => {
+    // Only filter out items without an ID if necessary, otherwise directly use allContexts
+    return allContexts.filter(item => item?.context?.id)
+  }, [allContexts])
+
+  // Handle column sort
+  const handleSort = useCallback(
+    (columnId: string) => {
+      const existingSort = sorting.find(s => s.id === columnId)
+      if (existingSort) {
+        // Toggle desc/asc or remove
+        if (existingSort.desc) {
+          onSortingChange([{ id: columnId, desc: false }])
+        } else {
+          onSortingChange([])
+        }
+      } else {
+        onSortingChange([{ id: columnId, desc: true }])
+      }
+    },
+    [sorting, onSortingChange]
+  )
+
+  // Get sort icon for column
+  const getSortIcon = useCallback(
+    (columnId: string) => {
+      const sort = sorting.find(s => s.id === columnId)
+      if (!sort) return null
+      return sort.desc ? <ChevronDown className="gba:h-4 gba:w-4" /> : <ChevronUp className="gba:h-4 gba:w-4" />
+    },
+    [sorting]
+  )
+
+  // Infinite scroll setup
+  const loadMoreRef = useRef<HTMLTableRowElement>(null)
+  const isLoadingRef = useRef(isLoading)
+  const hasMoreRef = useRef(hasMore)
+
+  // Sync refs with current state
+  useEffect(() => {
+    isLoadingRef.current = isLoading
+    hasMoreRef.current = hasMore
+  }, [isLoading, hasMore])
+
+  useEffect(() => {
+    if (!loadMoreRef.current) return
+
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && !isLoadingRef.current && hasMoreRef.current) {
+          loadMore()
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    observer.observe(loadMoreRef.current)
+    return () => observer.disconnect()
+  }, [loadMore])
 
   // Sortable Row Component for Actions
   const SortableActionRow: React.FC<{
@@ -218,26 +421,28 @@ export const ContextTable: React.FC<ContextTableProps> = ({
       opacity: isDragging ? 0.5 : 1
     }
 
+    const subtitle = (() => {
+      if (actionItem.action.flowType === 'ACTION') {
+        return actionItem.action.processName || ''
+      }
+      const parts: string[] = []
+      if (actionItem.action.targetDesktop) parts.push(actionItem.action.targetDesktop)
+      if (actionItem.action.targetMobile) parts.push(actionItem.action.targetMobile)
+      return parts.join(' | ')
+    })()
+
     return (
       <TableRow ref={setNodeRef} style={style} className="gba:[&>td]:py-1 gba:[&>td]:px-2">
         <TableCell {...attributes} {...listeners} className="gba:cursor-grab gba:active:cursor-grabbing gba:w-[40px]">
           <span className="gba:text-xs gba:text-muted-foreground">⋮⋮</span>
         </TableCell>
         <TableCell>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:font-medium gba:text-sm">{actionItem.action.flowName}</span>
-            {actionItem.action.flowType && (
-              <Badge variant={getFlowTypeBadgeVariant(actionItem.action.flowType)} size="sm">
-                {actionItem.action.flowType}
-              </Badge>
-            )}
+          <div className="gba:flex gba:flex-col">
+            <span className="gba:font-semibold">{actionItem.action.flowName}</span>
+            {subtitle && <span className="gba:text-sm gba:text-muted-foreground">{subtitle}</span>}
           </div>
         </TableCell>
-        <TableCell>
-          <code className="gba:text-xs gba:bg-muted gba:px-2 gba:py-1 gba:rounded">
-            {actionItem.action.processName}
-          </code>
-        </TableCell>
+        <TableCell>{actionItem.action.flowType}</TableCell>
         <TableCell>
           <EditableSelectCell
             value={actionItem.permission || ''}
@@ -274,16 +479,57 @@ export const ContextTable: React.FC<ContextTableProps> = ({
     )
   }
 
+  // Handle add actions to context (adds to draft, doesn't save yet)
+  const handleAddActions = useCallback(
+    (contextId: string, actionPermissions: Map<string, string>) => {
+      const context = allContexts.find(c => c.context.id === contextId)
+      if (!context) return
+
+      // Get existing action IDs (both from context and draft)
+      const existingActionIds = new Set(context.actions?.map(a => a.action.id) || [])
+
+      const newDraftActions: Array<{ action: ActionDTO; permission: string }> = []
+
+      actionPermissions.forEach((permission, actionId) => {
+        // Skip if action already exists
+        if (existingActionIds.has(actionId)) {
+          return
+        }
+
+        const action = actions.find(a => a.action.id === actionId)
+        if (action) {
+          newDraftActions.push({
+            action: action.action,
+            permission
+          })
+        }
+      })
+
+      if (newDraftActions.length > 0) {
+        setDraftActions(prev => {
+          const newMap = new Map(prev)
+          const existing = newMap.get(contextId) || []
+          // Also check for duplicates in existing draft actions
+          const existingDraftIds = new Set(existing.map(da => da.action.id))
+          const uniqueNewActions = newDraftActions.filter(da => !existingDraftIds.has(da.action.id))
+          newMap.set(contextId, [...existing, ...uniqueNewActions])
+          return newMap
+        })
+      }
+    },
+    [actions, allContexts]
+  )
+
   // Expanded Row Component with Drag & Drop
   const ExpandedActionsRow: React.FC<{
     item: ContextWithActions
     contextId: string
   }> = ({ item, contextId }) => {
-    const contextWithActions = contexts.find(c => c.context.id === contextId)
+    const contextWithActions = allContexts.find(c => c.context.id === contextId)
     const [localActions, setLocalActions] = useState(contextWithActions?.actions || [])
     const isSaving = editableState.state.savingEntryId === contextId && editableState.state.isSaving
 
-    // Update local actions when context changes
+    // Update local actions when context changes (including draft actions)
     useEffect(() => {
       if (contextWithActions?.actions) {
         setLocalActions(contextWithActions.actions)
@@ -310,8 +556,6 @@ export const ContextTable: React.FC<ContextTableProps> = ({
         if (oldIndex !== -1 && newIndex !== -1) {
           const newActions = arrayMove(localActions, oldIndex, newIndex)
           setLocalActions(newActions)
-          // TODO: Update rank/order via ActionAssignment API
-          // TODO: Save via updateActionAssignment
         }
       },
       [localActions]
@@ -319,16 +563,14 @@ export const ContextTable: React.FC<ContextTableProps> = ({
 
     const handleRemoveAction = useCallback(
       async (actionId: string) => {
-        // TODO: Remove action from assignment via ActionAssignment API
         const newActions = localActions.filter(a => a.action.id !== actionId)
         setLocalActions(newActions)
       },
-      [localActions, contextId]
+      [localActions]
     )
 
     const handlePermissionChange = useCallback(
       (actionId: string, permission: string) => {
-        // TODO: Update permission via ActionAssignment API
         const newActions = localActions.map(a =>
           a.action.id === actionId ? { ...a, permission: permission || undefined } : a
         )
@@ -338,20 +580,16 @@ export const ContextTable: React.FC<ContextTableProps> = ({
     )
 
     return (
-      <div
-        className="gba:bg-muted/30 gba:p-4 gba:rounded-md"
-        data-testid={`${dataTestId}-expanded-context-${item.context.id}`}
-      >
-        <h4 className="gba:font-semibold gba:mb-3 gba:text-sm">Actions for {item.context.contextName}</h4>
+      <div className="gba-w-full" data-testid={`${dataTestId}-expanded-context-${item.context.id}`}>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <Table>
             <TableHeader>
               <TableRow className="gba:[&>th]:py-1 gba:[&>th]:px-2">
                 <TableHead className="gba:w-[40px]"></TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Process</TableHead>
+                <TableHead>Actions</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Permission</TableHead>
-                <TableHead className="gba:w-[100px]">Actions</TableHead>
+                <TableHead className="gba:w-[100px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -381,7 +619,7 @@ export const ContextTable: React.FC<ContextTableProps> = ({
             size="sm"
             variant="outline"
             onClick={() => {
-              // TODO: Open dialog to select and add action
+              setAddActionDialogOpen(contextId)
             }}
             disabled={isSaving}
             data-testid={`${dataTestId}-add-action-${contextId}`}
@@ -394,65 +632,108 @@ export const ContextTable: React.FC<ContextTableProps> = ({
     )
   }
 
-  const renderExpandedRow = useCallback((row: Row<ContextWithActions & { id: string }>) => {
-    const item = row.original
-    const contextId = item.context.id
-
-    return <ExpandedActionsRow item={item} contextId={contextId} />
-  }, [])
-
-  if (!columns || columns.length === 0) return null
-
-  const hasValidData = safeData.length === 0 || safeData.every(item => item?.context?.id)
-
-  if (!hasValidData && safeData.length > 0) {
+  if (isLoading && filteredData.length === 0) {
     return (
-      <div className="gba:p-6">
-        <p className="gba:text-destructive">Error: Some context resources have invalid data structure.</p>
+      <div className="gba:p-6 gba:flex gba:justify-center">
+        <Spinner size="md" />
       </div>
     )
   }
 
-  if (isLoading && safeData.length === 0) {
+  if (error) {
     return (
       <div className="gba:p-6">
-        <p className="gba:text-muted-foreground">Loading context resources...</p>
+        <p className="gba:text-destructive">{error}</p>
       </div>
     )
   }
 
   return (
     <>
-      <DataTable<ContextWithActions & { id: string }>
-        key={tableKey}
-        variant="compact"
-        data={paginatedData}
-        columns={columns}
-        loading={isLoading}
-        error={error || undefined}
-        totalCount={totalCount}
-        enablePagination
-        pagination={pagination}
-        onPaginationChange={onPaginationChange}
-        rowsPerPageOptions={[10, 20, 50, 100]}
-        enableSorting
-        enableSelection={false}
-        sorting={sorting}
-        onSortingChange={onSortingChange}
-        globalFilter={searchValue}
-        onGlobalFilterChange={onSearchChange}
-        enableGlobalFilter
-        enableExpansion
-        expanded={expanded}
-        onExpandedChange={setExpanded}
-        getRowCanExpand={getRowCanExpand}
-        renderExpandedRow={renderExpandedRow}
-        tableLayout="fixed"
-        enableResizing={true}
-        enableColumnPinning
-        emptyMessage="No Context resources found"
-        data-testid={`${dataTestId}-contexts-view`}
-      />
+      <div className="gba:flex gba:flex-col gba:h-full gba:overflow-auto gba:border gba:rounded-lg">
+        <Table className="gba:table-fixed gba:w-full">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="gba:w-8 gba:px-2"></TableHead>
+              <TableHead
+                style={{ width: '250px' }}
+                onClick={() => handleSort('contextName')}
+                className="gba:select-none gba:cursor-pointer gba:px-2"
+              >
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  Context Name
+                  {getSortIcon('contextName')}
+                </div>
+              </TableHead>
+              <TableHead style={{ width: '200px' }} className="gba:px-2">
+                Permission Schema
+              </TableHead>
+              <TableHead className="gba:text-center gba:px-2" style={{ width: '100px' }}>
+                Actions
+              </TableHead>
+              <TableHead style={{ width: '200px' }} className="gba:px-2">
+                Context Data
+              </TableHead>
+              <TableHead className="gba:sticky gba:right-0 gba:bg-muted gba:z-10 gba:px-2 gba:w-28"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredData.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="gba:text-center gba:py-8 gba:text-muted-foreground gba:px-2">
+                  {searchValue ? 'No contexts found matching your search.' : 'No Context resources found'}
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredData.map(contextItem => (
+                <React.Fragment key={contextItem.context.id}>
+                  <ContextTableRow
+                    context={contextItem}
+                    editableState={editableState}
+                    onFieldEdit={editableState.onFieldEdit}
+                    onSaveEntry={handleSaveEntry}
+                    onDiscardEntry={handleDiscardEntry}
+                    onDelete={onDelete}
+                    onToggleExpansion={handleToggleExpansion}
+                    isExpanded={expanded.has(contextItem.context.id)}
+                    isDeleting={isDeleting}
+                    setContextDataDialogOpen={setContextDataDialogOpen}
+                    dataTestId={dataTestId}
+                    {...context}
+                  />
+                  {expanded.has(contextItem.context.id) && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="gba:bg-muted/30 gba:p-4">
+                        <ExpandedActionsRow item={contextItem} contextId={contextItem.context.id} />
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </React.Fragment>
+              ))
+            )}
+            {/* Infinite Scroll Loader */}
+            {hasMore && (
+              <TableRow ref={loadMoreRef}>
+                <TableCell colSpan={5} className="gba:text-center gba:py-4 gba:px-2">
+                  {isLoading ? (
+                    <Spinner size="sm" />
+                  ) : (
+                    <span className="gba:text-sm gba:text-muted-foreground">Loading more...</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Status Info */}
+      {filteredData.length > 0 && (
+        <div className="gba:px-4 gba:py-3 gba:border-t gba:text-sm gba:text-muted-foreground">
+          Showing {filteredData.length} of {totalCount} contexts
+        </div>
+      )}
+
       {contextDialogOpen && (
         <ContextDialog
           open={contextDialogOpen}
@@ -461,6 +742,48 @@ export const ContextTable: React.FC<ContextTableProps> = ({
           actions={actions.map(a => a.action) || []}
           mode="create"
           data-testid={`${dataTestId}-context-dialog`}
+          {...context}
+        />
+      )}
+
+      {contextDataDialogOpen && (
+        <ContextDataDialog
+          open={true}
+          onOpenChange={open => !open && setContextDataDialogOpen(null)}
+          contextId={contextDataDialogOpen}
+          contextName={allContexts.find(c => c.context.id === contextDataDialogOpen)?.context.contextName}
+          contextData={
+            (editableState.getFieldValue(contextDataDialogOpen, 'contextData') as ContextDataDTO[]) ||
+            allContexts.find(c => c.context.id === contextDataDialogOpen)?.context.contextData ||
+            []
+          }
+          onSave={async contextData => {
+            if (contextDataDialogOpen) {
+              editableState.onFieldEdit(contextDataDialogOpen, 'contextData', contextData)
+              setContextDataDialogOpen(null)
+            }
+          }}
+          isSaving={editableState.state.savingEntryId === contextDataDialogOpen && editableState.state.isSaving}
+          data-testid={`${dataTestId}-context-data-dialog`}
+        />
+      )}
+
+      {addActionDialogOpen && (
+        <AddActionDialog
+          open={true}
+          onOpenChange={open => !open && setAddActionDialogOpen(null)}
+          onAddActions={async actionPermissions => {
+            if (addActionDialogOpen) {
+              await handleAddActions(addActionDialogOpen, actionPermissions)
+              setAddActionDialogOpen(null)
+            }
+          }}
+          existingActionIds={(() => {
+            const context = allContexts.find(c => c.context.id === addActionDialogOpen)
+            if (!context) return []
+            return context.actions?.map(a => a.action.id) || []
+          })()}
+          data-testid={`${dataTestId}-add-action-dialog`}
           {...context}
         />
       )}

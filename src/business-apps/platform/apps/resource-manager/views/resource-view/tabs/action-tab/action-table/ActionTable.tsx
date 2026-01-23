@@ -1,5 +1,6 @@
-import React, { useCallback, useMemo, useState } from 'react'
-import { DataTable } from '@newwork/nw-design-system'
+import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react'
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Spinner } from '@newwork/nw-design-system'
+import { ChevronUp, ChevronDown } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useUpdateAction } from '@/common/data/resources/hooks/useUpdateAction'
 import { useCreateAction } from '@/common/data/resources/hooks/useCreateAction'
@@ -8,10 +9,8 @@ import { DescriptionDialog } from '../../../../../components/DescriptionDialog'
 import { useEditableState } from '../../../../../hooks/useEditableState'
 import type { ActionDTO } from '@/common/data/resources/types/action.types'
 import { useComponents } from '@/common/data/resources/hooks/useComponents'
-import { createActionTableColumns } from './ActionTableColumns'
-import { useResourceManagerContext } from '../../../../../contexts/ResourceManagerContext'
-import { Button, ButtonGroup } from '@newwork/nw-design-system'
-import { Save, X, Trash } from 'lucide-react'
+import { useResourceData } from '../../../../../contexts/ResourceManagerContext'
+import { ActionTableRow } from './components/ActionTableRow'
 
 interface ActionTableProps extends BusinessAppContextProps {
   actions: ActionWithContexts[]
@@ -19,6 +18,8 @@ interface ActionTableProps extends BusinessAppContextProps {
   isLoading: boolean
   error: string | null
   refetchActions: () => Promise<void>
+  loadMore: () => Promise<void>
+  hasMore: boolean
   searchValue: string
   sorting: Array<{ id: string; desc: boolean }>
   onSearchChange: (value: string) => void
@@ -44,14 +45,12 @@ export const ActionTable: React.FC<ActionTableProps> = ({
   actions,
   totalCount,
   isLoading,
-  error,
   refetchActions,
+  loadMore,
+  hasMore,
   searchValue,
   sorting,
-  onSearchChange,
   onSortingChange,
-  pagination,
-  onPaginationChange,
   roleOptions,
   featureOptions,
   rolesLoading,
@@ -70,6 +69,11 @@ export const ActionTable: React.FC<ActionTableProps> = ({
   // Draft actions state (managed locally)
   const [draftActions, setDraftActions] = useState<ActionWithContexts[]>([])
 
+  // Validation errors state
+  const [validationErrors, setValidationErrors] = useState<
+    Map<string, { roles?: boolean; features?: boolean; builderType?: boolean }>
+  >(new Map())
+
   // Merge draft actions with regular actions (drafts at the top)
   const allActions = useMemo(() => {
     return [...draftActions, ...actions]
@@ -79,7 +83,7 @@ export const ActionTable: React.FC<ActionTableProps> = ({
   const actionEntries = useMemo(() => allActions.map(item => item.action), [allActions])
 
   // Get domain/process data from context
-  const { domains, getProcessesForDomain } = useResourceManagerContext()
+  const { domains, getProcessesForDomain } = useResourceData()
 
   // Create action hook
   const { createAction } = useCreateAction(context)
@@ -92,37 +96,18 @@ export const ActionTable: React.FC<ActionTableProps> = ({
   } = useComponents(context)
 
   // Convert screen resources to combobox options (using form key from screenComponents.key)
-  // Also include any values from actions that are not in screenResources
+  // EditableComboboxCell allows custom values, so we only need screenResources as options
   const screenComponentOptions = useMemo(() => {
-    const options = screenResources.map(resource => {
-      const formKey = resource.screenComponents?.key || ''
-      return {
-        id: formKey,
-        name: formKey || resource.screenKey || ''
-      }
-    })
-
-    // Add any targetDesktop/targetMobile values from actions that are not in screenResources
-    const actionValues = new Set<string>()
-    actions.forEach(item => {
-      if (item.action.targetDesktop) actionValues.add(item.action.targetDesktop)
-      if (item.action.targetMobile) actionValues.add(item.action.targetMobile)
-    })
-
-    actionValues.forEach(value => {
-      if (!options.find(opt => opt.id === value)) {
-        options.push({ id: value, name: value })
-      }
-    })
-
-    return options.sort((a, b) => a.name.localeCompare(b.name))
-  }, [screenResources, actions])
-
-  // Search function for screen components
-  const searchScreenComponents = useCallback(() => {
-    // The EditableComboboxCell will handle filtering internally
-    // This is just a placeholder for the onSearch prop
-  }, [])
+    return screenResources
+      .map(resource => {
+        const formKey = resource.screenComponents?.key || ''
+        return {
+          id: formKey,
+          name: formKey || resource.screenKey || ''
+        }
+      })
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [screenResources])
 
   const editableState = useEditableState<ActionDTO>(actionEntries)
   const { updateAction } = useUpdateAction(context)
@@ -143,7 +128,8 @@ export const ActionTable: React.FC<ActionTableProps> = ({
         domain: '',
         targetDesktop: '',
         targetMobile: '',
-        description: ''
+        description: '',
+        builderType: 'NATIVE_SCREEN'
       } as ActionDTO,
       roleContexts: [],
       featureContexts: []
@@ -178,13 +164,65 @@ export const ActionTable: React.FC<ActionTableProps> = ({
       const edits = editableState.state.editedEntries.get(actionId)
       if (!edits || Object.keys(edits).length === 0) return
 
+      // Validate roles, features, and builderType
+      // Use getFieldValue to get current values (from edits or original action)
+      const roles = editableState.getFieldValue(actionId, 'roles') as string[] | undefined
+      const features = editableState.getFieldValue(actionId, 'features') as string[] | undefined
+      const builderType = editableState.getFieldValue(actionId, 'builderType') as string | undefined
+      const errors: { roles?: boolean; features?: boolean; builderType?: boolean } = {}
+
+      if (!roles || roles.length === 0) {
+        errors.roles = true
+      }
+      if (!features || features.length === 0) {
+        errors.features = true
+      }
+      if (!builderType || builderType.trim() === '') {
+        errors.builderType = true
+      }
+
+      if (Object.keys(errors).length > 0) {
+        setValidationErrors(prev => new Map(prev).set(actionId, errors))
+        editableState.setSaving(actionId, false)
+        return
+      }
+
+      // Clear validation errors if validation passes
+      setValidationErrors(prev => {
+        const newMap = new Map(prev)
+        newMap.delete(actionId)
+        return newMap
+      })
+
       editableState.setSaving(actionId, true)
       try {
         const isDraft = editableState.isDraft(actionId)
 
         if (isDraft) {
-          // Create new action via API
-          const result = await createAction(edits)
+          // Create new action: Transform edits and map role/feature IDs to names
+          const transformedEdits: any = { ...edits }
+          if (edits.roles !== undefined && Array.isArray(edits.roles)) {
+            transformedEdits.roles = edits.roles.map((roleId: string) => {
+              const role = roleOptions.find(r => r.id === roleId)
+              return role?.name || roleId
+            })
+          }
+          if (edits.features !== undefined && Array.isArray(edits.features)) {
+            transformedEdits.features = edits.features.map((featureId: string) => {
+              const feature = featureOptions.find(f => f.id === featureId)
+              return feature?.name || featureId
+            })
+          }
+
+          // Ensure builderType is in payload (from edits or original action)
+          if (transformedEdits.builderType === undefined) {
+            const originalAction = allActions.find(a => a.action.id === actionId)
+            if (originalAction?.action.builderType) {
+              transformedEdits.builderType = originalAction.action.builderType
+            }
+          }
+
+          const result = await createAction(transformedEdits)
           if (result) {
             // Remove draft from local state
             setDraftActions(prev => prev.filter(d => d.action.id !== actionId))
@@ -195,13 +233,65 @@ export const ActionTable: React.FC<ActionTableProps> = ({
               newDrafts.delete(actionId)
               return { ...prev, editedEntries: newEdited, draftEntryIds: newDrafts }
             })
+            // Clear validation errors on successful save
+            setValidationErrors(prev => {
+              const newMap = new Map(prev)
+              newMap.delete(actionId)
+              return newMap
+            })
             await refetchActions()
           }
         } else {
-          // Update existing action
-          const result = await updateAction(actionId, edits)
+          // Update existing action: Merge all fields from original action with edits
+          const originalAction = allActions.find(a => a.action.id === actionId)
+          if (!originalAction) {
+            editableState.setSaving(actionId, false)
+            return
+          }
+
+          // Start with all fields from original action
+          const fullActionData: Partial<ActionDTO> = { ...originalAction.action }
+
+          // Apply edits on top
+          Object.keys(edits).forEach(key => {
+            const field = key as keyof ActionDTO
+            const editedValue = edits[field]
+            if (editedValue !== undefined) {
+              fullActionData[field] = editedValue as any
+            }
+          })
+
+          // Transform roles: Map IDs to names
+          if (fullActionData.roles !== undefined && Array.isArray(fullActionData.roles)) {
+            fullActionData.roles = fullActionData.roles.map((roleId: string) => {
+              const role = roleOptions.find(r => r.id === roleId)
+              return role?.name || roleId
+            })
+          }
+
+          // Transform features: Map IDs to names
+          if (fullActionData.features !== undefined && Array.isArray(fullActionData.features)) {
+            fullActionData.features = fullActionData.features.map((featureId: string) => {
+              const feature = featureOptions.find(f => f.id === featureId)
+              return feature?.name || featureId
+            })
+          }
+
+          // Ensure id and version are included
+          fullActionData.id = originalAction.action.id
+          if (originalAction.action.version !== undefined) {
+            fullActionData.version = originalAction.action.version
+          }
+
+          const result = await updateAction(actionId, fullActionData)
           if (result) {
             editableState.onDiscardEntry(actionId)
+            // Clear validation errors on successful save
+            setValidationErrors(prev => {
+              const newMap = new Map(prev)
+              newMap.delete(actionId)
+              return newMap
+            })
             await refetchActions()
           }
         }
@@ -211,7 +301,16 @@ export const ActionTable: React.FC<ActionTableProps> = ({
         editableState.setSaving(actionId, false)
       }
     },
-    [editableState, updateAction, createAction, refetchActions, setDraftActions]
+    [
+      editableState,
+      updateAction,
+      createAction,
+      refetchActions,
+      setDraftActions,
+      roleOptions,
+      featureOptions,
+      allActions
+    ]
   )
 
   // Handle discard entry
@@ -223,223 +322,257 @@ export const ActionTable: React.FC<ActionTableProps> = ({
         setDraftActions(prev => prev.filter(d => d.action.id !== actionId))
       }
       editableState.onDiscardEntry(actionId)
+      // Clear validation errors on discard
+      setValidationErrors(prev => {
+        const newMap = new Map(prev)
+        newMap.delete(actionId)
+        return newMap
+      })
     },
     [editableState, setDraftActions]
   )
 
-  // Render actions for DataTable actions prop
-  const renderActions = useCallback(
-    (row: any) => {
-      const actionId = row.original.action.id
-      const hasEdits = editableState.hasEdits(actionId)
-      const isSaving = editableState.state.savingEntryId === actionId && editableState.state.isSaving
+  // Server-side filtering via searchValue prop - no client-side filtering needed
+  const filteredData = allActions.filter(item => item?.action?.id)
 
-      return (
-        <ButtonGroup onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} className="gba:h-6">
-          <Button
-            size="iconSm"
-            variant="secondary"
-            className="gba:h-6"
-            onClick={e => {
-              e.stopPropagation()
-              handleSaveEntry(actionId)
-            }}
-            disabled={!hasEdits || isSaving || isUpdating || isDeleting}
-            data-testid={`${dataTestId}-save-action-${actionId}`}
-            title="Save changes"
-          >
-            <Save className="gba:h-4 gba:w-4" />
-          </Button>
-          <Button
-            size="iconSm"
-            variant="secondary"
-            className="gba:h-6"
-            onClick={e => {
-              e.stopPropagation()
-              handleDiscardEntry(actionId)
-            }}
-            disabled={!hasEdits || isSaving || isUpdating || isDeleting}
-            data-testid={`${dataTestId}-discard-action-${actionId}`}
-            title="Discard changes"
-          >
-            <X className="gba:h-4 gba:w-4" />
-          </Button>
-          <Button
-            size="iconSm"
-            variant="secondary"
-            className="gba:h-6"
-            onClick={e => {
-              e.stopPropagation()
-              onDelete(row.original)
-            }}
-            disabled={isUpdating || isDeleting}
-            data-testid={`${dataTestId}-delete-action-${actionId}`}
-            title="Delete"
-          >
-            <Trash className="gba:h-4 gba:w-4" />
-          </Button>
-        </ButtonGroup>
+  // Handle column sort
+  const handleSort = useCallback(
+    (columnId: string) => {
+      const existingSort = sorting.find(s => s.id === columnId)
+      if (existingSort) {
+        // Toggle desc/asc or remove
+        if (existingSort.desc) {
+          onSortingChange([{ id: columnId, desc: false }])
+        } else {
+          onSortingChange([])
+        }
+      } else {
+        onSortingChange([{ id: columnId, desc: true }])
+      }
+    },
+    [sorting, onSortingChange]
+  )
+
+  // Get sort icon for column
+  const getSortIcon = useCallback(
+    (columnId: string) => {
+      const sort = sorting.find(s => s.id === columnId)
+      if (!sort) {
+        // Unsorted: show both icons stacked with low opacity
+        return (
+          <div className="gba:w-4 gba:h-4 gba:opacity-30 gba:relative gba:shrink-0">
+            <ChevronUp className="gba:h-4 gba:w-4 gba:absolute" size={16} />
+            <ChevronDown className="gba:h-4 gba:w-4 gba:absolute gba:translate-y-1" size={16} />
+          </div>
+        )
+      }
+      // Sorted: show single icon with full opacity and primary color
+      return sort.desc ? (
+        <ChevronDown className="gba:h-4 gba:w-4 gba:opacity-100 gba:text-primary gba:shrink-0" size={16} />
+      ) : (
+        <ChevronUp className="gba:h-4 gba:w-4 gba:opacity-100 gba:text-primary gba:shrink-0" size={16} />
       )
     },
-    [editableState, handleSaveEntry, handleDiscardEntry, isUpdating, isDeleting, onDelete, dataTestId]
+    [sorting]
   )
 
-  // Filter and sort data
-  const safeData = useMemo(() => {
-    if (!Array.isArray(allActions)) return []
-    let filtered = allActions
-      .filter(item => item?.action?.id)
-      .map(item => ({
-        ...item,
-        id: item.action.id
-      }))
+  // Infinite scroll setup
+  const loadMoreRef = useRef<HTMLTableRowElement>(null)
+  const isLoadingRef = useRef(isLoading)
+  const hasMoreRef = useRef(hasMore)
 
-    // Apply search filter (DataTable handles sorting via enableSorting)
-    if (searchValue.trim()) {
-      const searchLower = searchValue.toLowerCase()
-      filtered = filtered.filter(
-        item =>
-          item.action.flowName?.toLowerCase().includes(searchLower) ||
-          item.action.processName?.toLowerCase().includes(searchLower) ||
-          item.action.flowType?.toLowerCase().includes(searchLower) ||
-          item.action.domain?.toLowerCase().includes(searchLower) ||
-          item.action.targetDesktop?.toLowerCase().includes(searchLower) ||
-          item.action.targetMobile?.toLowerCase().includes(searchLower)
-      )
-    }
+  // Sync refs with current state
+  useEffect(() => {
+    isLoadingRef.current = isLoading
+    hasMoreRef.current = hasMore
+  }, [isLoading, hasMore])
 
-    // Note: Sorting is handled by DataTable via enableSorting prop
-    return filtered
-  }, [allActions, searchValue])
+  useEffect(() => {
+    if (!loadMoreRef.current) return
 
-  // Use filtered data directly (API handles pagination)
-  const paginatedData = useMemo(() => {
-    return safeData
-  }, [safeData])
-
-  const tableKey = useMemo(() => {
-    const hasData = safeData.length > 0
-    const isLoaded = !isLoading && hasData
-    return `action-table-${isLoaded ? 'loaded' : 'loading'}-${hasData ? safeData.length : 0}`
-  }, [safeData.length, isLoading])
-
-  // Create columns using the column definitions
-  const columns = useMemo(
-    () =>
-      createActionTableColumns({
-        dataTestId,
-        actionEntries,
-        editableState,
-        onDelete,
-        handleSaveEntry,
-        isUpdating,
-        isDeleting,
-        setDescriptionActionId,
-        setDescriptionDialogOpen,
-        domains,
-        getProcessesForDomain,
-        screenComponentOptions,
-        screenResourcesLoading,
-        screenResourcesLength: screenResources.length,
-        refetchScreenResources,
-        searchScreenComponents,
-        roleOptions,
-        featureOptions,
-        rolesLoading,
-        featuresLoading,
-        rolesError,
-        featuresError,
-        refetchRoles,
-        refetchFeatures
-      }).filter(col => col.id !== 'table-actions'),
-    [
-      dataTestId,
-      actionEntries,
-      editableState,
-      onDelete,
-      handleSaveEntry,
-      isUpdating,
-      isDeleting,
-      setDescriptionActionId,
-      setDescriptionDialogOpen,
-      domains,
-      getProcessesForDomain,
-      screenComponentOptions,
-      screenResourcesLoading,
-      screenResources.length,
-      refetchScreenResources,
-      searchScreenComponents,
-      roleOptions,
-      featureOptions,
-      rolesLoading,
-      featuresLoading,
-      rolesError,
-      featuresError,
-      refetchRoles,
-      refetchFeatures
-    ]
-  )
-
-  if (!columns || columns.length === 0) return null
-
-  const hasValidData = safeData.length === 0 || safeData.every(item => item?.action?.id)
-
-  if (!hasValidData && safeData.length > 0) {
-    return (
-      <div className="gba:p-6">
-        <p className="gba:text-destructive">Error: Some action resources have invalid data structure.</p>
-      </div>
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && !isLoadingRef.current && hasMoreRef.current) {
+          loadMore()
+        }
+      },
+      { threshold: 0.1 }
     )
-  }
 
-  if (isLoading && safeData.length === 0) {
+    observer.observe(loadMoreRef.current)
+    return () => observer.disconnect()
+  }, [loadMore, actions.length])
+
+  if (isLoading && filteredData.length === 0) {
     return (
-      <div className="gba:p-6">
-        <p className="gba:text-muted-foreground">Loading action resources...</p>
+      <div className="gba:p-6 gba:flex gba:justify-center">
+        <Spinner size="md" />
       </div>
     )
   }
 
   return (
     <>
-      <DataTable<ActionWithContexts & { id: string }>
-        key={tableKey}
-        variant="compact"
-        data={paginatedData}
-        columns={columns as any}
-        actions={renderActions}
-        loading={isLoading}
-        error={error || undefined}
-        totalCount={totalCount}
-        enablePagination
-        pagination={pagination}
-        onPaginationChange={onPaginationChange}
-        rowsPerPageOptions={[10, 20, 50, 100]}
-        enableSorting
-        enableSelection={false}
-        sorting={sorting}
-        onSortingChange={onSortingChange}
-        globalFilter={searchValue}
-        onGlobalFilterChange={onSearchChange}
-        enableGlobalFilter
-        tableLayout="fixed"
-        enableResizing={true}
-        enableColumnPinning
-        emptyMessage="No Action resources found"
-        data-testid={`${dataTestId}-actions-view`}
-      />
+      <div className="gba:flex gba:flex-col gba:h-full gba:overflow-auto gba:border gba:rounded-lg">
+        <Table className="gba:table-fixed gba:w-full">
+          <TableHeader>
+            <TableRow>
+              <TableHead
+                style={{ width: '300px' }}
+                onClick={() => handleSort('flowName')}
+                className="gba:select-none gba:cursor-pointer gba:px-2"
+              >
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  Name
+                  {getSortIcon('flowName')}
+                </div>
+              </TableHead>
+              <TableHead style={{ width: '120px' }} className="gba:px-2">
+                Description
+              </TableHead>
+              <TableHead
+                style={{ width: '216px' }}
+                onClick={() => handleSort('domain')}
+                className="gba:select-none gba:cursor-pointer gba:px-2"
+              >
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  Service
+                  {getSortIcon('domain')}
+                </div>
+              </TableHead>
+              <TableHead
+                style={{ width: '216px' }}
+                onClick={() => handleSort('processName')}
+                className="gba:select-none gba:cursor-pointer gba:px-2"
+              >
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  Process Name
+                  {getSortIcon('processName')}
+                </div>
+              </TableHead>
+              <TableHead
+                style={{ width: '120px' }}
+                onClick={() => handleSort('flowType')}
+                className="gba:select-none gba:cursor-pointer gba:px-2"
+              >
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  Flow Type
+                  {getSortIcon('flowType')}
+                </div>
+              </TableHead>
+              <TableHead
+                style={{ width: '216px' }}
+                onClick={() => handleSort('targetDesktop')}
+                className="gba:select-none gba:cursor-pointer gba:px-2"
+              >
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  Target Desktop
+                  {getSortIcon('targetDesktop')}
+                </div>
+              </TableHead>
+              <TableHead
+                style={{ width: '216px' }}
+                onClick={() => handleSort('targetMobile')}
+                className="gba:select-none gba:cursor-pointer gba:px-2"
+              >
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  Target Mobile
+                  {getSortIcon('targetMobile')}
+                </div>
+              </TableHead>
+              <TableHead className="gba:text-center gba:px-2" style={{ width: '100px' }}>
+                Searchable
+              </TableHead>
+              <TableHead style={{ width: '350px' }} className="gba:px-2">
+                Roles
+              </TableHead>
+              <TableHead style={{ width: '350px' }} className="gba:px-2">
+                Features
+              </TableHead>
+              <TableHead
+                style={{ width: '150px' }}
+                onClick={() => handleSort('builderType')}
+                className="gba:select-none gba:cursor-pointer gba:px-2"
+              >
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  Builder Type
+                  {getSortIcon('builderType')}
+                </div>
+              </TableHead>
+              <TableHead className="gba:sticky gba:right-0 gba:bg-muted gba:z-10 gba:px-2 gba:w-28"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredData.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={12} className="gba:text-center gba:py-8 gba:text-muted-foreground">
+                  {searchValue ? 'No actions found matching your search.' : 'No Action resources found'}
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredData.map(action => (
+                <ActionTableRow
+                  key={action.action.id}
+                  action={action}
+                  editableState={editableState}
+                  onFieldEdit={editableState.onFieldEdit}
+                  onSaveEntry={handleSaveEntry}
+                  onDiscardEntry={handleDiscardEntry}
+                  onDelete={onDelete}
+                  isUpdating={isUpdating}
+                  isDeleting={isDeleting}
+                  setDescriptionActionId={setDescriptionActionId}
+                  setDescriptionDialogOpen={setDescriptionDialogOpen}
+                  domains={domains}
+                  getProcessesForDomain={getProcessesForDomain}
+                  screenComponentOptions={screenComponentOptions}
+                  screenResourcesLoading={screenResourcesLoading}
+                  refetchScreenResources={refetchScreenResources}
+                  roleOptions={roleOptions}
+                  featureOptions={featureOptions}
+                  rolesLoading={rolesLoading}
+                  featuresLoading={featuresLoading}
+                  rolesError={rolesError}
+                  featuresError={featuresError}
+                  refetchRoles={refetchRoles}
+                  refetchFeatures={refetchFeatures}
+                  dataTestId={dataTestId}
+                  validationErrors={validationErrors}
+                  {...context}
+                />
+              ))
+            )}
+            {/* Infinite Scroll Loader */}
+            {hasMore && (
+              <TableRow ref={loadMoreRef}>
+                <TableCell colSpan={12} className="gba:text-center gba:py-4">
+                  {isLoading ? (
+                    <Spinner size="sm" />
+                  ) : (
+                    <span className="gba:text-sm gba:text-muted-foreground">Loading more...</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Status Info */}
+      {filteredData.length > 0 && (
+        <div className="gba:px-4 gba:py-3 gba:border-t gba:text-sm gba:text-muted-foreground">
+          Showing {filteredData.length} of {totalCount} actions
+        </div>
+      )}
+
       {descriptionActionId && (
         <DescriptionDialog
           open={descriptionDialogOpen}
           onOpenChange={setDescriptionDialogOpen}
           description={actionEntries.find(a => a.id === descriptionActionId)?.description || ''}
           descriptionTranslation={{}}
-          onSave={async description => {
-            const actionId = descriptionActionId
-            await handleSaveEntry(actionId)
-            // Also save description separately if needed
-            await updateAction(actionId, { description })
-            await refetchActions()
+          onSave={description => {
+            editableState.onFieldEdit(descriptionActionId, 'description', description)
           }}
           data-testid={`${dataTestId}-description-dialog`}
           {...context}

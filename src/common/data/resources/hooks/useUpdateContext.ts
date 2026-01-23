@@ -4,7 +4,7 @@ import { useResourceClient } from '@/common/network/resources/useResourceClient'
 import type { ContextDTO } from '../types/context.types'
 
 interface UseUpdateContextResult {
-  updateContext: (id: string, data: Partial<ContextDTO>) => Promise<ContextDTO | null>
+  updateContext: (id: string, data: ContextDTO) => Promise<ContextDTO | null>
   isLoading: boolean
   error: string | null
 }
@@ -15,7 +15,7 @@ export const useUpdateContext = (context: BusinessAppContextProps): UseUpdateCon
   const resourceClient = useResourceClient(context.accessToken)
 
   const updateContext = useCallback(
-    async (id: string, data: Partial<ContextDTO>): Promise<ContextDTO | null> => {
+    async (id: string, data: ContextDTO): Promise<ContextDTO | null> => {
       if (!context.accessToken) {
         setError('Access token not available')
         return null
