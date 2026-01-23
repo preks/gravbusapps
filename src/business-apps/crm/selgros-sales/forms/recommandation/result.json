@@ -1,0 +1,1856 @@
+{
+  "menu_items": [
+    "Caviar Beluga Royal",
+    "Caviar Osettra",
+    "Ceviche din Red Snapper cu mar acrisor",
+    "Ton crocant cu sos de citrice",
+    "Salata de Ton",
+    "Carpaccio de Hamachi",
+    "Carpaccio din Lup de Mare",
+    "Tartar de Ton Blue Fin cu Caviar",
+    "Carpaccio de Ton Blue Fin",
+    "Tartar de Vita by Akos",
+    "Carpaccio de Somon cu trufe",
+    "Carpaccio de Vita cu trufe",
+    "Tartar de Vita cu wasabi, yuzu kosho, piper sichuan, cartof crocant si galbenus de ou confiat",
+    "Tartar de Somon picant cu hash brown crocant",
+    "Carpaccio de Creveti Rosii de Sicilia"
+  ],
+  "products_by_category": {
+    "Canned Seafood": [
+      {
+        "id": "8d831aa3-25cd-543e-96c1-122062d625f5",
+        "articol": "1015323",
+        "name": "VIGILANTE SCOICI SARAM.115G",
+        "category": "Canned Seafood",
+        "quantity": 1,
+        "score": 0.62786638477311,
+        "price_eur": 2.89
+      },
+      {
+        "id": "87047d92-c132-5d8e-96b6-4bdf20416360",
+        "articol": "1105686",
+        "name": "DEF.COCK.CREVETI SAR.180G",
+        "category": "Canned Seafood",
+        "quantity": 5,
+        "score": 0.6234222741414722,
+        "price_eur": 3.89
+      }
+    ],
+    "Canned Fish": [
+      {
+        "id": "451de6ac-8ff8-50d9-b5cb-381e89b990ae",
+        "articol": "1024132",
+        "name": "CALVO TON SOS ROSII160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6265340499074928,
+        "price_eur": 1.19
+      },
+      {
+        "id": "4c5d6e2c-cd35-551b-9e9b-e5b1a24b1e07",
+        "articol": "1047240",
+        "name": "VIG.SCOICI SOS MA.PIC.115G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6245345326865568,
+        "price_eur": 1.89
+      },
+      {
+        "id": "f91382ab-a1fb-5e1f-a3d7-5d9ed7dad02f",
+        "articol": "1015196",
+        "name": "VIGILANTE CALAMAR.CERN.3X80G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6232391218232336,
+        "price_eur": 2.59
+      },
+      {
+        "id": "d8cf9aab-5d7b-573f-94c2-b17b45a80568",
+        "articol": "1105376",
+        "name": "GAROM TON BUC.ULEI 1705G",
+        "category": "Canned Fish",
+        "quantity": 5,
+        "score": 0.6226307410778681,
+        "price_eur": 3.29
+      },
+      {
+        "id": "82f54fd4-7218-5456-b436-3c2ae2b57f65",
+        "articol": "168833",
+        "name": "GIANA TON MAR.SUC PRO.160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6222815180724076,
+        "price_eur": 1.59
+      },
+      {
+        "id": "79158119-6cfa-55a6-a32e-9519a43857af",
+        "articol": "1081310",
+        "name": "BALTIC C.MACROU S.TO.240G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6221326367872143,
+        "price_eur": 2.99
+      },
+      {
+        "id": "0a4009be-e92f-5781-9109-6b84e244f177",
+        "articol": "267145",
+        "name": "CALVO TON BUC.ULEI MA.3X65G",
+        "category": "Canned Fish",
+        "quantity": 2,
+        "score": 0.6220654236862777,
+        "price_eur": 1.49
+      },
+      {
+        "id": "e19219a2-8bd2-5ff4-bef8-43029a3083f6",
+        "articol": "371766",
+        "name": "TGE COCKTAIL FRUCTE 4200G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6219451698712144,
+        "price_eur": 10.59
+      },
+      {
+        "id": "46bf6091-4750-5bfd-b838-2e06d48cbd58",
+        "articol": "1014501",
+        "name": "EVA TON MARUNTIT UL.VEG.160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.621866753820999,
+        "price_eur": 1.29
+      },
+      {
+        "id": "d3a50216-68c0-5c71-925a-84a8d2e74e29",
+        "articol": "1055552",
+        "name": "BALTIC C.FI.SARDINA S.T.190G",
+        "category": "Canned Fish",
+        "quantity": 2,
+        "score": 0.6214621799247578,
+        "price_eur": 2.39
+      },
+      {
+        "id": "94b5da27-0a9e-5b22-822b-e5a17147002d",
+        "articol": "1004841",
+        "name": "VIGILANTE TON BUC.UL.FL.SO.1KG",
+        "category": "Canned Fish",
+        "quantity": 10,
+        "score": 0.6209954345124723,
+        "price_eur": 2.39
+      },
+      {
+        "id": "fbd6aa6e-087b-5fc9-bee4-7169c737c55a",
+        "articol": "1055469",
+        "name": "BALTIC C.FI.SARDINA ULEI 190G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.62087418083367,
+        "price_eur": 0.59
+      },
+      {
+        "id": "0da4e9d3-baac-5a22-8cb9-5cba17a67411",
+        "articol": "1062443",
+        "name": "CALVO TON BU.UL.MAS160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6208222740941357,
+        "price_eur": 0.39
+      },
+      {
+        "id": "fb8cab21-5e80-58f8-b71c-96ba74a7c5fb",
+        "articol": "1047119",
+        "name": "RIO M.TON BUC.SOS NAT.160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6208094580429253,
+        "price_eur": 0.89
+      },
+      {
+        "id": "cfa4ca49-27af-5661-9b09-0d0d0f353fa8",
+        "articol": "599787",
+        "name": "RIO M.SALATA SIC.TON 160G",
+        "category": "Canned Fish",
+        "quantity": 3,
+        "score": 0.6205621408858659,
+        "price_eur": 2.49
+      },
+      {
+        "id": "c4a5ad22-2707-5deb-8033-ea4b8e25c226",
+        "articol": "1062442",
+        "name": "CALVO TON BU.UL.VEG160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6203819571619844,
+        "price_eur": 0.59
+      },
+      {
+        "id": "db325797-9ba1-5ae0-adf0-8c71b1824169",
+        "articol": "1060914",
+        "name": "MONTE BANATO SCOICI 400G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6199088227003501,
+        "price_eur": 3.39
+      },
+      {
+        "id": "620855db-73e8-5c5c-bbd4-7e6fc7a9a8f4",
+        "articol": "1087742",
+        "name": "RIO MARE SAL.TON POR.3X160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6197349439390887,
+        "price_eur": 2.99
+      },
+      {
+        "id": "edacb704-628e-5e89-8a85-cf35cb6421e9",
+        "articol": "530328",
+        "name": "RIO M.SAL.TON COUS-COUS 160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6197086064956877,
+        "price_eur": 2.39
+      },
+      {
+        "id": "58923341-7599-5d13-82f2-433969798ca1",
+        "articol": "1033619",
+        "name": "HOME G.CIUP.INTREGI3550G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6196955889083625,
+        "price_eur": 10.39
+      },
+      {
+        "id": "630e19b3-cbaf-5e0f-8e23-37cf4472ce34",
+        "articol": "1061609",
+        "name": "SIBLOU TON BUCATI APA1880G",
+        "category": "Canned Fish",
+        "quantity": 5,
+        "score": 0.619660039440884,
+        "price_eur": 9.19
+      },
+      {
+        "id": "1e47ad53-5fe1-5fdd-bf6c-3483459711bf",
+        "articol": "1034081",
+        "name": "GAROM TON BUC.IN SUC PR.160G",
+        "category": "Canned Fish",
+        "quantity": 2,
+        "score": 0.6194496490832895,
+        "price_eur": 1.49
+      },
+      {
+        "id": "31af2931-ae39-5d47-8f96-adcca8b63595",
+        "articol": "1084907",
+        "name": "MERVE HERING SOS TOM.170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6193692484282234,
+        "price_eur": 2.79
+      },
+      {
+        "id": "4cb91c95-b68b-5032-a377-1b012e18dc70",
+        "articol": "1040346",
+        "name": "GAROM TON MAR.SUC PRO.160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6193095723353224,
+        "price_eur": 1.49
+      },
+      {
+        "id": "32017a9a-3291-527e-adbc-aacc0ab8554a",
+        "articol": "1060073",
+        "name": "HEL.MAS.VER.CU AR.935G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6193043471779763,
+        "price_eur": 5.99
+      },
+      {
+        "id": "fd2a302f-14c2-5c44-8edc-bc03cf96cab2",
+        "articol": "1014560",
+        "name": "SIBLOU SARDINA UL.V125G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6192115277171474,
+        "price_eur": 0.19
+      },
+      {
+        "id": "08537f65-f83a-55f0-b84a-11f87e8c034e",
+        "articol": "286707",
+        "name": "NAV.P.CARAS IN SOS TOMAT160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6189845043881876,
+        "price_eur": 1.99
+      },
+      {
+        "id": "293712e2-6b07-5a73-bbe2-08926e416bf4",
+        "articol": "1024169",
+        "name": "CALVO SALATA CALIF+TON150G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6187616526063198,
+        "price_eur": 0.49
+      },
+      {
+        "id": "17ec9f05-4e08-535e-a87e-dc42b9691f25",
+        "articol": "567303",
+        "name": "RIO M.SAL.TON+PORU.160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6185233737656982,
+        "price_eur": 1.89
+      },
+      {
+        "id": "89439229-b196-57c8-bd16-644667d254e0",
+        "articol": "1081304",
+        "name": "BALTIC C.MACROU UL.240G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6183969685451453,
+        "price_eur": 2.49
+      },
+      {
+        "id": "66e204a3-2dd7-57ff-8650-aa87b9f457a2",
+        "articol": "1056226",
+        "name": "LOTKA TON BUCATI SP 160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6181808265199586,
+        "price_eur": 2.49
+      },
+      {
+        "id": "c3f1fb40-4436-5825-ba17-f9369972e8c4",
+        "articol": "1004892",
+        "name": "VIGILANTE CALAMAR.UL.VEG115G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6181091914764341,
+        "price_eur": 0.49
+      },
+      {
+        "id": "a932babf-1e90-5a3b-a6ff-28f02cca53a4",
+        "articol": "1030504",
+        "name": "HIPP TAI+PESTE MARE+BROCC 220G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6179647292496571,
+        "price_eur": 1.59
+      },
+      {
+        "id": "bafd9797-8a25-5ceb-9fc5-152d4c02ff67",
+        "articol": "1003850",
+        "name": "BALTIC CLUB SARDINA UL.240G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.617829452333268,
+        "price_eur": 2.89
+      },
+      {
+        "id": "5077ba4d-e156-5da4-97fd-b32fc0b22163",
+        "articol": "1098568",
+        "name": "GAROM TON MARUNTIT IN ULEI160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6178070635053852,
+        "price_eur": 2.49
+      },
+      {
+        "id": "59654538-129a-5606-bcc8-ae4a9587b7f7",
+        "articol": "1039528",
+        "name": "SIBLOU TON BUC.ULEI185G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6177664237920888,
+        "price_eur": 2.89
+      },
+      {
+        "id": "b2263612-25d4-57df-a5c0-b2e66c838bad",
+        "articol": "1013810",
+        "name": "FRANZ J.CALAMAR USTUROI UL.80G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6177318240376063,
+        "price_eur": 0.29
+      },
+      {
+        "id": "0361697d-0887-572e-937f-d861ef7c9e79",
+        "articol": "629853",
+        "name": "RIO M.TON SUC NAT.160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6176971597361788,
+        "price_eur": 0.49
+      },
+      {
+        "id": "46f8939e-9e1e-5f94-a369-244cd87980b4",
+        "articol": "1047047",
+        "name": "RIO M.TON BUC.UL.FL.S.160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6176707058814922,
+        "price_eur": 0.29
+      },
+      {
+        "id": "4853f592-9837-57da-a760-9ed0b7c53de0",
+        "articol": "1062398",
+        "name": "KING.O SARD.BALT.TO110G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6175048363712516,
+        "price_eur": 0.39
+      },
+      {
+        "id": "8535fdde-95ce-5ecb-a4a2-96927c792a39",
+        "articol": "829999",
+        "name": "CALVO TON BUC.UL.FL.S 3X65G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6172896072452048,
+        "price_eur": 1.49
+      },
+      {
+        "id": "636776ba-e76b-5c8b-8c11-5cb140ee31be",
+        "articol": "785743",
+        "name": "RIO.M.SAL.TON+LINTE 160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6171340882998455,
+        "price_eur": 1.19
+      },
+      {
+        "id": "dce7ec5a-4a4b-5bb6-b155-fa430270c493",
+        "articol": "1062339",
+        "name": "SIBLOU TON MAR.ULEI170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.617099971719967,
+        "price_eur": 1.89
+      },
+      {
+        "id": "6d3124c7-764f-5a31-a494-bad3c4ddbf29",
+        "articol": "1055394",
+        "name": "BALTIC C.HERING S.TOMAT 240G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6170964325084743,
+        "price_eur": 2.19
+      },
+      {
+        "id": "b4d48880-ca16-5a70-a4b7-0923949b4343",
+        "articol": "1035916",
+        "name": "SIBLOU TON BUC.UL.MAS.185G",
+        "category": "Canned Fish",
+        "quantity": 3,
+        "score": 0.6170485206141618,
+        "price_eur": 1.39
+      },
+      {
+        "id": "522ec6bf-d9ee-504d-baed-a3aa60154408",
+        "articol": "1029195",
+        "name": "ROSA TON UL.MASL.3X80G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6170250189700401,
+        "price_eur": 1.89
+      },
+      {
+        "id": "41ab9ca4-4c26-5ce6-aa81-01b14afdfb6e",
+        "articol": "1066922",
+        "name": "CALVO TON SAND.+JALAP.142G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6168658265807515,
+        "price_eur": 0.39
+      },
+      {
+        "id": "b37b60a9-cfd1-542d-acf4-c571ab84e566",
+        "articol": "1081311",
+        "name": "BALTIC C.SPROT AF.UL.240G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6168424939159685,
+        "price_eur": 2.39
+      },
+      {
+        "id": "25e1ae45-5781-5d8e-b841-c43d4e3c41eb",
+        "articol": "834956",
+        "name": "RIO M.SAL.TON A.TEX.3X160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6168399564144781,
+        "price_eur": 2.19
+      },
+      {
+        "id": "aa206265-6761-5cb4-898e-5190f280e40c",
+        "articol": "1001101",
+        "name": "RIO M.TON SUC NA.3X160G PA.",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6166978510155131,
+        "price_eur": 1.79
+      },
+      {
+        "id": "27f5f7a5-12bd-57b5-b080-8cee89588a84",
+        "articol": "1026173",
+        "name": "BALTIC C.SPROT AF.UL.250G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6165994864997105,
+        "price_eur": 0.59
+      },
+      {
+        "id": "55424f5d-382e-5fb4-bc5c-2370fabd364e",
+        "articol": "593169",
+        "name": "RIO M.TON UL.MASL. 3x80G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6165309602845352,
+        "price_eur": 0.29
+      },
+      {
+        "id": "1d71de06-cd74-50bb-ab83-25b42fac4551",
+        "articol": "1024300",
+        "name": "CALVO SALATA MEDIT+TON 150G",
+        "category": "Canned Fish",
+        "quantity": 2,
+        "score": 0.6164750030532484,
+        "price_eur": 2.19
+      },
+      {
+        "id": "43bce4ba-6d45-5b6e-bce7-6b0d48567480",
+        "articol": "874022",
+        "name": "LA MO.SPA.CERN.SEPIE500G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6160393905897998,
+        "price_eur": 3.99
+      },
+      {
+        "id": "3860346c-3990-5f8c-bd3c-b0f71f83d4ed",
+        "articol": "1031788",
+        "name": "GAROM TON MAR.ULEI 1705G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.61599733399995,
+        "price_eur": 5.59
+      },
+      {
+        "id": "ab1e141d-5d05-55bf-bbe7-1af9be152650",
+        "articol": "602690",
+        "name": "RIO M. TON UL.MASL.160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.615894198928459,
+        "price_eur": 1.19
+      },
+      {
+        "id": "f803b131-2bdc-5473-971e-e83df36dd1a3",
+        "articol": "1084964",
+        "name": "MERVE HERING ULEI AROM170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6158249549155436,
+        "price_eur": 1.29
+      },
+      {
+        "id": "8c996ec2-ca56-5a31-b092-65cc9df359a5",
+        "articol": "1062380",
+        "name": "LOSOS MACROU FI.S.R.175G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6155341538028244,
+        "price_eur": 1.99
+      },
+      {
+        "id": "16310b18-424d-5bef-9b1a-51730134da7a",
+        "articol": "322933",
+        "name": "RIO M.TON SUC PROP.3X80G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6155268685935766,
+        "price_eur": 1.99
+      },
+      {
+        "id": "081bf690-90cb-5484-b22c-f8398bd68631",
+        "articol": "1064392",
+        "name": "KING O.FICAT DE COD 121G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6154756212183996,
+        "price_eur": 0.49
+      },
+      {
+        "id": "841735e8-ca40-5621-ab06-dc538378d6fa",
+        "articol": "1051063",
+        "name": "N.P.FL.MACROU VIN&ROZM.180G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6153792523437706,
+        "price_eur": 0.99
+      },
+      {
+        "id": "a649486e-6c31-594b-a568-5bdc3490b0c5",
+        "articol": "34997",
+        "name": "GIANA TON BUCATI ULEI 160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6151442662307421,
+        "price_eur": 1.19
+      },
+      {
+        "id": "894fea13-57be-5f5d-aaad-3d4c673721d6",
+        "articol": "1019648",
+        "name": "LOTKA TON BUC.UL.MAS.160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6150842373458812,
+        "price_eur": 2.79
+      },
+      {
+        "id": "690c7343-395e-5f26-a88a-61d29e0e3610",
+        "articol": "453315",
+        "name": "RIO M.TON ULEI M.CHI.120G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6149863314791215,
+        "price_eur": 1.99
+      },
+      {
+        "id": "1c523318-bb5e-57a5-bc0c-69e1b6c17301",
+        "articol": "1033613",
+        "name": "HOME G.SOMON FILE 170G",
+        "category": "Canned Fish",
+        "quantity": 5,
+        "score": 0.6149093053026968,
+        "price_eur": 1.79
+      },
+      {
+        "id": "59d01616-fb16-5f88-82e7-886b6cae03ec",
+        "articol": "293282",
+        "name": "EVA SARDINE SOS TOMAT100G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6148509105263856,
+        "price_eur": 1.39
+      },
+      {
+        "id": "8e991d4d-b28f-56b0-9c40-f9081d6fac37",
+        "articol": "1087763",
+        "name": "RIO M.SAL.TON A.MEX.3X160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6147887209616573,
+        "price_eur": 3.89
+      },
+      {
+        "id": "b7a5d66f-53fa-5a14-aeab-eaefbb620ba0",
+        "articol": "1062387",
+        "name": "LOSOS HERING SO.TOM175G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6147498053811215,
+        "price_eur": 0.79
+      },
+      {
+        "id": "30e6d8ee-83d7-58bd-b7ab-9d0dd4751a4f",
+        "articol": "119547",
+        "name": "EVA SARDINE ULEI VEG.100G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6146975253386525,
+        "price_eur": 0.29
+      },
+      {
+        "id": "7df020aa-3b4f-519e-8712-d7b3ca89dd6b",
+        "articol": "1033602",
+        "name": "GIANA SARDINE SOS TOMAT 125G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6146765076745767,
+        "price_eur": 1.49
+      },
+      {
+        "id": "f8c94ae8-614a-5195-be87-68f31ffe3516",
+        "articol": "505816",
+        "name": "RIO M.TON UL.MAS.L&P 3X65G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6144349967770751,
+        "price_eur": 2.99
+      },
+      {
+        "id": "d0cfa600-1fb7-50b8-898b-d9d0f3a37891",
+        "articol": "1092113",
+        "name": "BALTIC CLUB FL.MACROU.S.TO190G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6143197027789798,
+        "price_eur": 2.99
+      },
+      {
+        "id": "4d457346-da94-5e94-94e7-8d158af82683",
+        "articol": "461785",
+        "name": "RIO M.TON UL.M.CHIL.3X65G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6141809548920196,
+        "price_eur": 2.99
+      },
+      {
+        "id": "4313695e-c38a-5b52-ba7f-cfae9cdbee60",
+        "articol": "1038244",
+        "name": "N.P.TON MARUNTIT ULEI 160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6141628990670995,
+        "price_eur": 0.59
+      },
+      {
+        "id": "324bb650-aa3d-588a-b943-8725a9be0c5b",
+        "articol": "1095856",
+        "name": "SCANDIA SUNCULITA   300G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6141124576754088,
+        "price_eur": 2.89
+      },
+      {
+        "id": "c0ce3b38-dd77-5092-99f6-71aa948d5559",
+        "articol": "924548",
+        "name": "NAV.P.MACR.SOS TOMAT200G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6140570647306899,
+        "price_eur": 1.79
+      },
+      {
+        "id": "e5109538-cfc9-5488-a5e5-0a7b9a7a7d7d",
+        "articol": "918156",
+        "name": "NAV.P.MACR.SOS TOMAT180G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.614032992270083,
+        "price_eur": 0.49
+      },
+      {
+        "id": "43a9e39f-7a6d-5898-88c4-0f7e49df772b",
+        "articol": "1022614",
+        "name": "RIO M.SAL.TON CO.3X160G PA.",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6139901767024499,
+        "price_eur": 1.49
+      },
+      {
+        "id": "e1f07925-9c08-5178-a92d-c618803c25c4",
+        "articol": "1055378",
+        "name": "BALTIC C.HERING ULEI    240G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.613958406776987,
+        "price_eur": 2.99
+      },
+      {
+        "id": "e2bfa684-f9ab-5b5d-937e-9cccbd667dca",
+        "articol": "1098883",
+        "name": "KN.MARIN.PESTE700G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.613954279742103,
+        "price_eur": 5.49
+      },
+      {
+        "id": "3ce5d233-1c1b-5079-a430-549062a9166a",
+        "articol": "498350",
+        "name": "RIO M.SAL.TON AM.MEX160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.613930002491564,
+        "price_eur": 1.99
+      },
+      {
+        "id": "055f3505-ba68-5dd9-9594-7c6c64031c27",
+        "articol": "1062379",
+        "name": "LOSOS MACROU FI.UL.170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6139218664005065,
+        "price_eur": 1.59
+      },
+      {
+        "id": "02a8b1b7-156d-5811-b88f-627835c7fe64",
+        "articol": "457866",
+        "name": "NAV.P.MACR.SOS T.PIC160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6138181143650018,
+        "price_eur": 1.39
+      },
+      {
+        "id": "68231e59-0d4e-545d-92b1-be2eb4370d04",
+        "articol": "1024217",
+        "name": "CALVO SALATA MEXIC.TON 150G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6137983854125266,
+        "price_eur": 2.19
+      },
+      {
+        "id": "62879814-b4e4-5e09-a69b-ff6041ea2d1c",
+        "articol": "693909",
+        "name": "RIO M.TON ULEI MAS.4X80G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6137929963720978,
+        "price_eur": 1.89
+      },
+      {
+        "id": "8c1aff77-f493-5827-a32f-3a8f0ed073c1",
+        "articol": "1062399",
+        "name": "KING.O.SARD.BALT.UL110G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6137693014463207,
+        "price_eur": 0.49
+      },
+      {
+        "id": "93e92278-89c2-5334-b72d-5e56ff9559ab",
+        "articol": "1001014",
+        "name": "RIO M.TON UL.MAS.3X160G PA.",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6136788782309134,
+        "price_eur": 1.79
+      },
+      {
+        "id": "58d3fe35-0dbd-5d93-b00a-ebb090617991",
+        "articol": "1035906",
+        "name": "GIANA TON MAR.IN ULEI 170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6134736109498206,
+        "price_eur": 1.79
+      },
+      {
+        "id": "ec394d2a-707c-55f5-98cc-4db097259d68",
+        "articol": "914098",
+        "name": "KING O.FIL.MACROU SOS T160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6133660080786765,
+        "price_eur": 1.39
+      },
+      {
+        "id": "d6bcc928-5054-5c94-a9db-3d1d9f76f203",
+        "articol": "871945",
+        "name": "RIO M.TON UL.LAM&PIP.3X80G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6133013492146461,
+        "price_eur": 1.49
+      },
+      {
+        "id": "48f66254-6381-5f22-a59f-e50f4b4938a3",
+        "articol": "885318",
+        "name": "NAV.P.SARD.SOS TOMAT360G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6132696358320583,
+        "price_eur": 1.39
+      },
+      {
+        "id": "9355c44d-3585-5c72-bc62-d936ae778995",
+        "articol": "1062967",
+        "name": "DEFISH FICAT COD AFUM.120G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6132102645684732,
+        "price_eur": 0.99
+      },
+      {
+        "id": "d9191db8-ebcb-526d-bc4b-ff961506d7d6",
+        "articol": "1052561",
+        "name": "TAP.TON BUC.IN ULEI 160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.613193005466453,
+        "price_eur": 0.29
+      },
+      {
+        "id": "503eec51-91b2-573a-9f93-118879dd9387",
+        "articol": "1016028",
+        "name": "RIO M.TON UL.MASLINE 80G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6131341298732755,
+        "price_eur": 0.19
+      },
+      {
+        "id": "807442af-ebe2-5b5e-af8b-b4358b2f8a9d",
+        "articol": "1019150",
+        "name": "DEFISH FICAT DE COD 115G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6131323808742943,
+        "price_eur": 1.19
+      },
+      {
+        "id": "2bc990be-779e-5c00-b6ab-ab440cc4a465",
+        "articol": "1055887",
+        "name": "ETH.MASL.NE.INT.EX.JUM.4,3KG",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6129898123146607,
+        "price_eur": 3.99
+      },
+      {
+        "id": "c72dfec8-6a5e-5abd-a0ca-b69359b2f43e",
+        "articol": "1056051",
+        "name": "GAROM FILE MACROU ULEI 170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.612970950027773,
+        "price_eur": 0.39
+      },
+      {
+        "id": "72d2b999-ed88-5ac5-bbf8-82b1fac095c3",
+        "articol": "1056185",
+        "name": "LOTKA TON BUC.UL.FL.S160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6128167285227403,
+        "price_eur": 1.49
+      },
+      {
+        "id": "b98f03fe-4b67-518d-86ae-d33fbce2605e",
+        "articol": "599379",
+        "name": "HOME G.PASTRAV FL.T.170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6127596030722419,
+        "price_eur": 0.49
+      },
+      {
+        "id": "971b197e-09b8-5f3a-81cd-a92aa81859b3",
+        "articol": "1054198",
+        "name": "NAV.P.SARD.IN ULEI 120G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.612678928718575,
+        "price_eur": 1.59
+      },
+      {
+        "id": "0c6febcf-5f23-57ab-b8b2-e673d67455f8",
+        "articol": "546320",
+        "name": "RIO MARE SALATA TEXANA 160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6124347861464057,
+        "price_eur": 2.89
+      },
+      {
+        "id": "1c922651-20e7-5373-9d08-8e45650dadd7",
+        "articol": "1054103",
+        "name": "NAV.P.SARD.SOS TOMAT 120G",
+        "category": "Canned Fish",
+        "quantity": 2,
+        "score": 0.612303290621414,
+        "price_eur": 1.99
+      },
+      {
+        "id": "7613e287-0c11-5115-8a3a-0959aff32725",
+        "articol": "1088058",
+        "name": "LOTKA TON FILE SUC PR.200G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6122850454191762,
+        "price_eur": 1.19
+      },
+      {
+        "id": "d19fd373-a3be-5961-9af0-a948423d31c3",
+        "articol": "966741",
+        "name": "SIBLOU TON SOLID APA 200G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6120027299531953,
+        "price_eur": 1.99
+      },
+      {
+        "id": "cfb76083-d111-5ee0-a862-838e0c4abed7",
+        "articol": "1036330",
+        "name": "J.W.GU.LIG.TON MEDI.220G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.612002052091419,
+        "price_eur": 2.39
+      },
+      {
+        "id": "b1777c4b-2ebd-5728-a762-e82131c995f0",
+        "articol": "1105399",
+        "name": "GAROM FILE MACROU SOS TO170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6115652561277052,
+        "price_eur": 2.59
+      },
+      {
+        "id": "482f7503-e10f-5a44-a6da-8ebb127a4c7b",
+        "articol": "1005252",
+        "name": "RIO M.PATE TON+LAMAIE115G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6115513928785951,
+        "price_eur": 0.99
+      },
+      {
+        "id": "cb14a9bd-505a-5074-9749-2d1a3499a7fc",
+        "articol": "1011719",
+        "name": "LOSOS FILE HERING SOS MU.170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6114889383447198,
+        "price_eur": 0.99
+      },
+      {
+        "id": "4c7e4abd-f7b8-5554-9587-32c781e20a66",
+        "articol": "935035",
+        "name": "RIO M.TON UL.M.FI.D`OL.3X65G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6113822104007403,
+        "price_eur": 0.29
+      },
+      {
+        "id": "701b25dc-8be6-57b1-96b1-bd9791cc196b",
+        "articol": "6347",
+        "name": "DEL MONTE  COCKTAIL FRUCTE IN",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6112685107101377,
+        "price_eur": 1.89
+      },
+      {
+        "id": "ecc86ee7-59c6-5f58-8e6c-243ebec550f1",
+        "articol": "1081867",
+        "name": "LOSOS HERING FI.UL.170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6111548464054118,
+        "price_eur": 1.79
+      },
+      {
+        "id": "4584d1dc-eb81-56a6-871a-e5ff31c065c2",
+        "articol": "1024501",
+        "name": "MISTER TON UL.FL.SO3X80G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6110896389614892,
+        "price_eur": 1.39
+      },
+      {
+        "id": "446d8083-a841-56ad-9c33-08d566a45b79",
+        "articol": "830589",
+        "name": "RIO M.SAL.TON+QUINOA 160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6109409073462219,
+        "price_eur": 1.89
+      },
+      {
+        "id": "c40db213-6959-59fa-8f43-f32cd310820f",
+        "articol": "1081866",
+        "name": "LOSOS HERING FI.S.T175G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6107881884336158,
+        "price_eur": 0.49
+      },
+      {
+        "id": "20350075-6b57-5630-ab2d-780182a2b76a",
+        "articol": "65119",
+        "name": "KING.O.MACROU ULEI 160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6104353752185475,
+        "price_eur": 1.59
+      },
+      {
+        "id": "9d973697-878c-5a2e-a10e-b125a7b61813",
+        "articol": "1050899",
+        "name": "N.P.FL.MACROU SOS MUST.180G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6104310944886269,
+        "price_eur": 0.29
+      },
+      {
+        "id": "8072e996-f8ac-582f-9a5c-b4c7ee6b1352",
+        "articol": "1033614",
+        "name": "HOME G.SAL.TON MEDIT.160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6103846678172653,
+        "price_eur": 1.59
+      },
+      {
+        "id": "e561f16a-fa0b-5448-befc-24facf37dd5e",
+        "articol": "1077929",
+        "name": "EVA FILE HERING S.T.170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.610105881770812,
+        "price_eur": 1.39
+      },
+      {
+        "id": "3ef05014-1d49-5e81-aac0-e3bebfbc21ff",
+        "articol": "1062377",
+        "name": "LOSOS SPROT SOS.TO.175G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6099966789485143,
+        "price_eur": 1.29
+      },
+      {
+        "id": "919e398f-b5f7-5446-960c-da3a29196b48",
+        "articol": "1062388",
+        "name": "LOSOS HERING ULEI  170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6098216911745831,
+        "price_eur": 2.89
+      },
+      {
+        "id": "dfbd81e2-e557-51f6-9f86-3630701c0cb6",
+        "articol": "1011976",
+        "name": "LOSOS FL.HERING SOS TO.P.170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6095958313057023,
+        "price_eur": 0.19
+      },
+      {
+        "id": "f06d0251-1d5b-58f8-ad2b-0660edecbf0a",
+        "articol": "1077927",
+        "name": "EVA FILE MACR.UL.V170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6093637925383026,
+        "price_eur": 1.99
+      },
+      {
+        "id": "fe543249-f5df-5ebd-90d4-c715f6a39839",
+        "articol": "1031025",
+        "name": "DE FISH SPROT AF.UL.150G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6092381018683611,
+        "price_eur": 0.49
+      },
+      {
+        "id": "8eeedc71-6e68-5657-9b30-8863aa4853d0",
+        "articol": "1062376",
+        "name": "LOSOS SPROT SOS PIC175G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6092098638322898,
+        "price_eur": 2.39
+      },
+      {
+        "id": "258cab82-6c18-5e01-b165-83d33cdf8d2b",
+        "articol": "1011947",
+        "name": "LOSOS FILE HERING SOS PA.170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6091322076755809,
+        "price_eur": 1.79
+      },
+      {
+        "id": "0b9529c3-c6cc-5c17-bbe5-73763fdad04c",
+        "articol": "1088024",
+        "name": "LOTKA TON FILE UL.MAS.200G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.608955292667496,
+        "price_eur": 1.39
+      },
+      {
+        "id": "afc3dc05-7574-53e1-9ac5-7d603ab1c1ca",
+        "articol": "1036401",
+        "name": "J.W.GUST.LIG.TON IT.220G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6089214793697316,
+        "price_eur": 1.99
+      },
+      {
+        "id": "5b18d2ad-d279-5818-af65-7561a24885cc",
+        "articol": "1105467",
+        "name": "GAROM FILE HERING ULEI170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6089052210592345,
+        "price_eur": 1.99
+      },
+      {
+        "id": "cc31e987-2d77-5f30-9186-becd67fc4701",
+        "articol": "635124",
+        "name": "RIO M.TON MASLINE L&P120G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6087979829850004,
+        "price_eur": 0.39
+      },
+      {
+        "id": "134e4f97-1287-52a6-8a26-f55e6214cc49",
+        "articol": "1087718",
+        "name": "LOSOS SPROT ULEI  170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6087795139143461,
+        "price_eur": 0.39
+      },
+      {
+        "id": "be54cfdc-4927-55bb-9f6b-bf8fcc9faf56",
+        "articol": "959120",
+        "name": "NAV.P.MACRO.ULEI VEG200G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.608371071598506,
+        "price_eur": 2.19
+      },
+      {
+        "id": "704e1eda-ae0c-544f-98a6-6c8593df5b5d",
+        "articol": "1093480",
+        "name": "NEMO FL.HERING SOS RO.170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6081356745240895,
+        "price_eur": 2.89
+      },
+      {
+        "id": "861b1c3b-ffce-572f-be8d-5a791b3cf98e",
+        "articol": "626635",
+        "name": "FRANZ J.TON STEAK UL.2X80G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6077623389139701,
+        "price_eur": 1.19
+      },
+      {
+        "id": "b5704dab-dd05-584f-a79e-c162bb498252",
+        "articol": "1033574",
+        "name": "GIANA SARDINE IN ULEI 125G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6072209147338957,
+        "price_eur": 1.79
+      },
+      {
+        "id": "3397d9e4-ffbf-5b1b-afee-b2a944e50e56",
+        "articol": "1018733",
+        "name": "GAROM ANANAS FELII 565G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6068755371957967,
+        "price_eur": 4.59
+      },
+      {
+        "id": "7b20e616-f900-5ea3-98fe-505350718fc6",
+        "articol": "1031752",
+        "name": "FRANZ J.FL.MACROU TA170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6067901576706545,
+        "price_eur": 2.79
+      },
+      {
+        "id": "6f4d04d5-9a57-5585-bedf-7c3f35b33ee3",
+        "articol": "45788",
+        "name": "DOLE ANANAS BUCATI 227G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.606766851032467,
+        "price_eur": 0.59
+      },
+      {
+        "id": "416d196f-a41f-5fd5-a13c-36d6705e92f8",
+        "articol": "1031723",
+        "name": "FRANZ J.FL.MACROU AF170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6067044350124063,
+        "price_eur": 2.49
+      },
+      {
+        "id": "a1ecd1cb-b375-5d36-bed0-81c46a1d9008",
+        "articol": "317050",
+        "name": "DEL MONTE ANANAS BUC.560G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6065181729189101,
+        "price_eur": 4.89
+      },
+      {
+        "id": "403c8c5c-5e62-5316-8e7d-1c35c998a3d3",
+        "articol": "1040101",
+        "name": "FRANZ J.CALAMAR UL.80G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6064450463157445,
+        "price_eur": 0.39
+      },
+      {
+        "id": "20f02b52-9ff5-58c8-a48d-ea3da991fd39",
+        "articol": "1062378",
+        "name": "LOSOS SPROT AF.ULEI170G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6064322952847111,
+        "price_eur": 1.89
+      },
+      {
+        "id": "b4b2d491-80d7-54a6-9543-bfc8aa452dc8",
+        "articol": "1033615",
+        "name": "HOME G.SAL.TON MEX.160G",
+        "category": "Canned Fish",
+        "quantity": 1,
+        "score": 0.6055345403834311,
+        "price_eur": 0.59
+      }
+    ],
+    "Pickled Vegetables": [
+      {
+        "id": "df9a030b-0127-5d2a-8b83-4ec9ca4105e8",
+        "articol": "346",
+        "name": "CITRES USTUROI MARIN290G",
+        "category": "Pickled Vegetables",
+        "quantity": 1,
+        "score": 0.6172353001532085,
+        "price_eur": 3.79
+      },
+      {
+        "id": "f09edaed-8225-5b03-8c78-a85f358fc2be",
+        "articol": "1079102",
+        "name": "AROVIT ARDEI COPTI OTET 690G",
+        "category": "Pickled Vegetables",
+        "quantity": 2,
+        "score": 0.6139282519845216,
+        "price_eur": 5.39
+      },
+      {
+        "id": "8903eadc-7d91-545a-a257-898f7101c9c3",
+        "articol": "1054984",
+        "name": "TPS ARDEI KAPIA OTET 690G",
+        "category": "Pickled Vegetables",
+        "quantity": 1,
+        "score": 0.6104874423039052,
+        "price_eur": 2.99
+      },
+      {
+        "id": "f69b0dab-9015-5c1c-b1bf-5ddf349bc968",
+        "articol": "1099708",
+        "name": "TURAN GOGOSARI IN OTET 640G",
+        "category": "Pickled Vegetables",
+        "quantity": 1,
+        "score": 0.6095401864881898,
+        "price_eur": 3.49
+      },
+      {
+        "id": "bfa5df1c-5bfe-5346-a86a-faf245f1320c",
+        "articol": "1022483",
+        "name": "CITRES FR.CAPERE IN OTET 290G",
+        "category": "Pickled Vegetables",
+        "quantity": 2,
+        "score": 0.60891913942752,
+        "price_eur": 2.59
+      },
+      {
+        "id": "7750d859-e9f0-5139-bd2e-3dca055a0688",
+        "articol": "719405",
+        "name": "TGE GOGOSARI IN OTET 650G",
+        "category": "Pickled Vegetables",
+        "quantity": 1,
+        "score": 0.6089170576016157,
+        "price_eur": 2.49
+      },
+      {
+        "id": "758c5f82-6153-5bbb-87ae-76836abcd558",
+        "articol": "1049291",
+        "name": "NATURAVIT GOGOSARI680G",
+        "category": "Pickled Vegetables",
+        "quantity": 1,
+        "score": 0.6068764437091169,
+        "price_eur": 3.89
+      },
+      {
+        "id": "6918f823-f60f-5188-a281-5667a4deddc0",
+        "articol": "915476",
+        "name": "DARINNE ARDEI CAPIA500ML",
+        "category": "Pickled Vegetables",
+        "quantity": 1,
+        "score": 0.6058454291202013,
+        "price_eur": 4.99
+      },
+      {
+        "id": "6cc9d743-11cd-5058-bff2-61a0316a7814",
+        "articol": "113507",
+        "name": "DISPAC CAPERE IN OTET 200G",
+        "category": "Pickled Vegetables",
+        "quantity": 2,
+        "score": 0.6054352703558608,
+        "price_eur": 1.19
+      },
+      {
+        "id": "e08d8698-45ec-5bd5-b654-634ce6913d3b",
+        "articol": "335883",
+        "name": "D'ALE G.FOI VARZA M.1600G",
+        "category": "Pickled Vegetables",
+        "quantity": 1,
+        "score": 0.6053735488752888,
+        "price_eur": 3.89
+      },
+      {
+        "id": "711ea0be-4106-5387-bc2d-043bdc8b25a3",
+        "articol": "1086456",
+        "name": "TPS GOGOSARI OTET 650G",
+        "category": "Pickled Vegetables",
+        "quantity": 1,
+        "score": 0.6053040604747432,
+        "price_eur": 6.59
+      }
+    ],
+    "Salt": [
+      {
+        "id": "5a676e05-a870-510b-8970-996becf80efe",
+        "articol": "1085537",
+        "name": "CIO SARE DE MARE 150G",
+        "category": "Salt",
+        "quantity": 2,
+        "score": 0.6109832029909176,
+        "price_eur": 0.49
+      },
+      {
+        "id": "60002044-95d5-5ac4-9174-22a923b48c82",
+        "articol": "1097758",
+        "name": "D`ALE GURII RASN.SARE HI.200G",
+        "category": "Salt",
+        "quantity": 1,
+        "score": 0.6095723326563085,
+        "price_eur": 0.49
+      },
+      {
+        "id": "72bc7404-742f-5f8b-ae7f-aa866da01b9b",
+        "articol": "1013500",
+        "name": "KAMIS RASNITA SARE MARE90G 1+1",
+        "category": "Salt",
+        "quantity": 1,
+        "score": 0.6089283273772234,
+        "price_eur": 0.89
+      },
+      {
+        "id": "bce0e7f0-b20d-546a-b0c1-ebf8ef0d6159",
+        "articol": "1078665",
+        "name": "KORONIS SARE GRUNJOASA1KG",
+        "category": "Salt",
+        "quantity": 2,
+        "score": 0.6087747960734542,
+        "price_eur": 3.99
+      }
+    ],
+    "Pate": [
+      {
+        "id": "5b0c366f-2f1d-542e-ab64-5d1c3d2e6b8c",
+        "articol": "1087886",
+        "name": "SCAN.PATE BUCEGI PUI 120G",
+        "category": "Pate",
+        "quantity": 1,
+        "score": 0.610928523422346,
+        "price_eur": 1.59
+      },
+      {
+        "id": "09a0e281-4dcd-50b5-ad8d-1a5498852d6a",
+        "articol": "1035152",
+        "name": "BUCEGI PATE PORC+UNT 120G",
+        "category": "Pate",
+        "quantity": 1,
+        "score": 0.6096623900061928,
+        "price_eur": 1.19
+      },
+      {
+        "id": "1e02615c-a2a4-5102-be30-4109068f9eff",
+        "articol": "822038",
+        "name": "BUCEGI JUN.PATE CURC100G",
+        "category": "Pate",
+        "quantity": 1,
+        "score": 0.6087389321797603,
+        "price_eur": 1.59
+      },
+      {
+        "id": "bcfe8194-2936-5e7f-acf7-0dabcec21330",
+        "articol": "1002539",
+        "name": "SCAN.PATE BUCEGI PO300G",
+        "category": "Pate",
+        "quantity": 1,
+        "score": 0.6082385818978777,
+        "price_eur": 3.59
+      },
+      {
+        "id": "34e4fe51-dc66-5fc9-9412-5b06882d9d11",
+        "articol": "18546",
+        "name": "RIO M.PATE TON MORCOVI 100G",
+        "category": "Pate",
+        "quantity": 1,
+        "score": 0.6080775824415342,
+        "price_eur": 1.79
+      },
+      {
+        "id": "7eefb6f1-07ea-595d-b4ab-f31728632315",
+        "articol": "1027876",
+        "name": "SCAN.SIBIU PATE PORC 140G",
+        "category": "Pate",
+        "quantity": 1,
+        "score": 0.6073300136580743,
+        "price_eur": 1.89
+      },
+      {
+        "id": "ec89aabe-b9bf-543c-836d-07499ec5c1b0",
+        "articol": "171648",
+        "name": "BUCEGI JUN.PATE PORC100G",
+        "category": "Pate",
+        "quantity": 1,
+        "score": 0.6071102923131754,
+        "price_eur": 1.29
+      },
+      {
+        "id": "455df496-458f-5ec3-a283-9ae0ee30cb2e",
+        "articol": "1014546",
+        "name": "SCAN.PATE BUCEGI PO200G",
+        "category": "Pate",
+        "quantity": 1,
+        "score": 0.6064007185017967,
+        "price_eur": 1.39
+      },
+      {
+        "id": "97e69fc9-2a87-567d-a7a9-c4c5da4b5857",
+        "articol": "959882",
+        "name": "SADU PATEU FICAT PORC 200G",
+        "category": "Pate",
+        "quantity": 1,
+        "score": 0.6062750004548668,
+        "price_eur": 1.39
+      },
+      {
+        "id": "baa5f26e-f65d-529e-ad3b-f53b9b685f15",
+        "articol": "1044764",
+        "name": "SCAN.SIBIU PATE PUI 140G",
+        "category": "Pate",
+        "quantity": 1,
+        "score": 0.6059350605895545,
+        "price_eur": 1.49
+      },
+      {
+        "id": "e9b62fdd-e356-54ac-b9fc-e009de39988b",
+        "articol": "1068935",
+        "name": "SCAN.SIBIU PATE GASCA 140G",
+        "category": "Pate",
+        "quantity": 1,
+        "score": 0.6056528132996304,
+        "price_eur": 1.29
+      },
+      {
+        "id": "1dc947a8-52b4-5ce8-aaba-dc8b4b7d2b5e",
+        "articol": "553811",
+        "name": "ARDEALUL PATE CU CA.200G",
+        "category": "Pate",
+        "quantity": 1,
+        "score": 0.6056437471768961,
+        "price_eur": 2.59
+      },
+      {
+        "id": "2b4af0d9-4ffc-5601-ae49-ab353892b021",
+        "articol": "1062255",
+        "name": "SCAN.PATE BUCEGI PO120G",
+        "category": "Pate",
+        "quantity": 1,
+        "score": 0.6052559582013822,
+        "price_eur": 1.29
+      }
+    ],
+    "Canned Tuna": [
+      {
+        "id": "6e512066-905c-5a8c-9cca-f5cc3dbbcf3d",
+        "articol": "1077924",
+        "name": "SIBLOU TON BUCATI UL1880G",
+        "category": "Canned Tuna",
+        "quantity": 1,
+        "score": 0.6098008805290311,
+        "price_eur": 15.79
+      },
+      {
+        "id": "a62de139-d55b-56d3-ae5f-ec3e9422f0fb",
+        "articol": "894528",
+        "name": "GIANA TON BUC.SUC PR.1705G",
+        "category": "Canned Tuna",
+        "quantity": 1,
+        "score": 0.6095478009477032,
+        "price_eur": 12.99
+      },
+      {
+        "id": "29a328e3-1127-5bda-bb83-59fef9143a93",
+        "articol": "814910",
+        "name": "GIANA TON BUC.ULEI 1000G",
+        "category": "Canned Tuna",
+        "quantity": 1,
+        "score": 0.6094063862914478,
+        "price_eur": 4.29
+      },
+      {
+        "id": "d8a36adb-1739-5077-a12d-63c9e4812f82",
+        "articol": "1054493",
+        "name": "BARILLA SOS CU TON 400G",
+        "category": "Canned Tuna",
+        "quantity": 1,
+        "score": 0.6086603728601697,
+        "price_eur": 2.79
+      },
+      {
+        "id": "151d9725-b210-5282-a5a1-e92fe357fcab",
+        "articol": "1031022",
+        "name": "SIBLOU TON BUC.APA  185G",
+        "category": "Canned Tuna",
+        "quantity": 1,
+        "score": 0.6065634103236278,
+        "price_eur": 2.19
+      },
+      {
+        "id": "dab88d02-d484-58fc-b71e-4c3da0d907a4",
+        "articol": "83972",
+        "name": "RIO M.TON SUC NAT.4X80G",
+        "category": "Canned Tuna",
+        "quantity": 1,
+        "score": 0.6064003977064851,
+        "price_eur": 4.19
+      },
+      {
+        "id": "4c2eb07e-c1ee-5aa5-afd7-5e159df7de73",
+        "articol": "1054009",
+        "name": "TA.TON BUC.SUC PROP.160G",
+        "category": "Canned Tuna",
+        "quantity": 1,
+        "score": 0.6053515435127731,
+        "price_eur": 1.99
+      }
+    ],
+    "Canned Meat": [
+      {
+        "id": "6a004982-6f18-5e72-a8fc-4543e96d4cb8",
+        "articol": "1028365",
+        "name": "BUCEGI TOCANITA VITA 300G",
+        "category": "Canned Meat",
+        "quantity": 1,
+        "score": 0.6095403852710612,
+        "price_eur": 2.49
+      },
+      {
+        "id": "ebd0b63e-3287-5354-a675-c2a504779118",
+        "articol": "1063630",
+        "name": "BUCEGI CARNE VITA 65% 300G",
+        "category": "Canned Meat",
+        "quantity": 1,
+        "score": 0.6088875628181788,
+        "price_eur": 4.39
+      },
+      {
+        "id": "9ca039da-4f30-5d1f-92ec-f7bb8ae9b806",
+        "articol": "1002538",
+        "name": "SCAN.PA.BUCEGI PUI 200G",
+        "category": "Canned Meat",
+        "quantity": 1,
+        "score": 0.6084012066791548,
+        "price_eur": 2.19
+      },
+      {
+        "id": "9d27d092-e137-5a6f-9674-49c872d0987f",
+        "articol": "1028211",
+        "name": "BUCEGI TOCANITA PORC 300G",
+        "category": "Canned Meat",
+        "quantity": 1,
+        "score": 0.6072167952105815,
+        "price_eur": 3.49
+      },
+      {
+        "id": "b1d78468-68cf-5f3e-a998-e9f95ca553e4",
+        "articol": "1076531",
+        "name": "SCAN. CIORBA VACUTA 400G",
+        "category": "Canned Meat",
+        "quantity": 1,
+        "score": 0.6054479181507554,
+        "price_eur": 3.99
+      }
+    ],
+    "Pickled Cucumbers": [
+      {
+        "id": "c44cb7cf-8f31-5873-9004-c4713e6c7d61",
+        "articol": "404754",
+        "name": "TGE CASTRAVETI OTET 9.7KG",
+        "category": "Pickled Cucumbers",
+        "quantity": 1,
+        "score": 0.609368902381393,
+        "price_eur": 15.29
+      },
+      {
+        "id": "d8e6d600-355a-57dc-8332-4c06d4b70052",
+        "articol": "1079433",
+        "name": "TURAN CASTRAVETI 1-4CM 350G",
+        "category": "Pickled Cucumbers",
+        "quantity": 1,
+        "score": 0.6081389586695864,
+        "price_eur": 2.29
+      },
+      {
+        "id": "a0f8f160-aa6b-58d9-8e59-b81f89de18e1",
+        "articol": "335013",
+        "name": "TGE CASTRAV.OTET 6-9CM 5000G",
+        "category": "Pickled Cucumbers",
+        "quantity": 1,
+        "score": 0.6079137542281159,
+        "price_eur": 15.79
+      },
+      {
+        "id": "3188c6d8-5b85-5b03-98e6-a1cdc65aeee1",
+        "articol": "404747",
+        "name": "TGE CASTRAVETI 75/80 9.7KG",
+        "category": "Pickled Cucumbers",
+        "quantity": 1,
+        "score": 0.6071525640711841,
+        "price_eur": 15.39
+      },
+      {
+        "id": "cb27701d-1460-5758-b3aa-7131558f932e",
+        "articol": "1029463",
+        "name": "CONSERV.CASTRAV.MURATI 680G",
+        "category": "Pickled Cucumbers",
+        "quantity": 1,
+        "score": 0.6067632872447034,
+        "price_eur": 2.59
+      }
+    ],
+    "Olives": [
+      {
+        "id": "3e388b1a-d9d9-52a9-8109-b915b6c5e61e",
+        "articol": "1030066",
+        "name": "QUEEN MASL.NEGRE F.SAMBURI340G",
+        "category": "Olives",
+        "quantity": 1,
+        "score": 0.6083963650720126,
+        "price_eur": 2.89
+      },
+      {
+        "id": "2df01ebb-d3d4-59e4-bfc2-dae9f7bcd677",
+        "articol": "1000384",
+        "name": "FAR.MASL.VERZI FARA SAMB.350G",
+        "category": "Olives",
+        "quantity": 1,
+        "score": 0.6062740305427907,
+        "price_eur": 3.59
+      }
+    ],
+    "Spices": [
+      {
+        "id": "cfb74f96-1eff-5b43-a520-9fb1f83b3d2c",
+        "articol": "1084691",
+        "name": "CIO NUCSOARA INTREAGA 15G",
+        "category": "Spices",
+        "quantity": 1,
+        "score": 0.6083058721651358,
+        "price_eur": 0.19
+      }
+    ],
+    "Canned Sardines": [
+      {
+        "id": "c83a4f73-0dd1-5555-acc7-e7d05a984862",
+        "articol": "1003849",
+        "name": "BALTIC CLUB SARD.S.T.240G",
+        "category": "Canned Sardines",
+        "quantity": 1,
+        "score": 0.6079199872321076,
+        "price_eur": 1.99
+      }
+    ],
+    "Canned Mushrooms": [
+      {
+        "id": "a9d69cbf-0a54-50d5-b9e2-96ac06388098",
+        "articol": "1054485",
+        "name": "D`ALE GURII CIUPERCI TA.400G",
+        "category": "Canned Mushrooms",
+        "quantity": 2,
+        "score": 0.6068642105340621,
+        "price_eur": 1.19
+      },
+      {
+        "id": "d3b69785-9a8e-52d6-ac80-8860d15c652e",
+        "articol": "1012165",
+        "name": "D`ALE GURII CIUPERCI TA.280G",
+        "category": "Canned Mushrooms",
+        "quantity": 2,
+        "score": 0.6053900112912937,
+        "price_eur": 0.39
+      },
+      {
+        "id": "5bcb8a6a-0387-5252-8e3e-48a0e671d90d",
+        "articol": "1069591",
+        "name": "MERVE CIUPERCI TAI.314G",
+        "category": "Canned Mushrooms",
+        "quantity": 1,
+        "score": 0.605132190863313,
+        "price_eur": 1.19
+      }
+    ],
+    "Vinegar": [
+      {
+        "id": "deae17b7-6d1c-5041-968e-77a43c9279ec",
+        "articol": "1093746",
+        "name": "PONTI OTET ROSU 500ML",
+        "category": "Vinegar",
+        "quantity": 1,
+        "score": 0.6067179905617918,
+        "price_eur": 1.59
+      }
+    ],
+    "Canned Mackerel": [
+      {
+        "id": "d1d69fdf-cecc-5b69-8201-5db7ff78654d",
+        "articol": "1032421",
+        "name": "NEMO FL.MACROU S.RO.170G",
+        "category": "Canned Mackerel",
+        "quantity": 1,
+        "score": 0.6060097517675583,
+        "price_eur": 1.79
+      },
+      {
+        "id": "9430b94b-be62-5e07-bef6-63426d09b0b6",
+        "articol": "1092091",
+        "name": "BALTIC CLUB FL.MACROU.UL.190G",
+        "category": "Canned Mackerel",
+        "quantity": 1,
+        "score": 0.6051897015501849,
+        "price_eur": 0.29
+      }
+    ],
+    "Sushi Products": [
+      {
+        "id": "e2ce9164-f0cb-5fcb-9852-23ead6861509",
+        "articol": "1055193",
+        "name": "ZLATEA HALVA CACAO 380G",
+        "category": "Sushi Products",
+        "quantity": 1,
+        "score": 0.6052093876721865,
+        "price_eur": 3.29
+      }
+    ]
+  },
+  "total_menu_items": 15,
+  "total_products": 200,
+  "session_id": "7c3d1891-1411-4407-8249-e393a4819234",
+  "spreadsheet_id": "d4e2df86-1d85-4363-9c1b-bb28844f92af",
+  "spreadsheet_url": "https://newwork-dev.newwork.com/platform/apps/platform/apps/spreadsheet-apps?appId=d4e2df86-1d85-4363-9c1b-bb28844f92af"
+}

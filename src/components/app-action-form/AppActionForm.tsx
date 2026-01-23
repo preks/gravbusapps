@@ -42,6 +42,8 @@ export interface AppActionFormProps {
   // Wizard-specific props
   wizardSteps?: WizardStep<any>[]
   allowStepJumping?: boolean
+  wizardFormClassName?: string
+  isWizardNextDisabled?: boolean
   // Pre-submission handler (e.g., for file uploads)
   handlePreSubmit?: (formData: any) => Promise<any>
   isSubmitDisabled?: boolean
@@ -209,6 +211,8 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   formType = 'form',
   wizardSteps,
   allowStepJumping = true,
+  wizardFormClassName,
+  isWizardNextDisabled = false,
   handlePreSubmit,
   isSubmitDisabled = false,
   onProcessCompletion
@@ -356,25 +360,31 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
     const { isFirstStep, isLastStep, nextStep, previousStep } = useWizard()
 
     return (
-      <FormNavigation
-        showCancelButton={showCancelButton}
-        showBackButton={!isFirstStep}
-        showNextButton={!isLastStep}
-        showSubmitButton={isLastStep}
-        onCancel={handleCancel}
-        onBack={previousStep}
-        onNext={() => {
-          nextStep()
-        }}
-        onSubmit={undefined} // Will be handled by WizardForm onSubmit
-        cancelButtonText={cancelButtonText}
-        submitButtonText={submitButtonText || getSuccessMessage(processType, t).replace('Successfully ', '')}
-        isLoading={loading || form?.formState?.isSubmitting}
-        submitButtonVariant={submitButtonVariant}
-        dataTestId={dataTestId}
-        submitButtonDataTestId={submitButtonTestId}
-        cancelButtonDataTestId={cancelButtonTestId}
-      />
+      <>
+        <FormNavigation
+          showCancelButton={showCancelButton}
+          showBackButton={!isFirstStep}
+          showNextButton={!isLastStep}
+          showSubmitButton={isLastStep && !customActions}
+          onCancel={handleCancel}
+          onBack={previousStep}
+          onNext={() => {
+            nextStep()
+          }}
+          onSubmit={undefined} // Will be handled by WizardForm onSubmit
+          cancelButtonText={cancelButtonText}
+          submitButtonText={submitButtonText || getSuccessMessage(processType, t).replace('Successfully ', '')}
+          isLoading={loading || form?.formState?.isSubmitting}
+          isNextDisabled={isWizardNextDisabled || loading || form?.formState?.isSubmitting}
+          submitButtonVariant={submitButtonVariant}
+          dataTestId={dataTestId}
+          submitButtonDataTestId={submitButtonTestId}
+          cancelButtonDataTestId={cancelButtonTestId}
+        />
+        {isLastStep && customActions && (
+          <div className="gba:flex gba:items-center gba:justify-end gba:gap-2 gba:mt-4">{customActions}</div>
+        )}
+      </>
     )
   }
 
@@ -395,17 +405,23 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
     // Wizard form
     if (formType === 'wizard' && wizardSteps && form) {
       return (
-        <WizardForm
-          form={form}
-          steps={wizardSteps}
-          onSubmit={handleSubmit}
-          showStepIndicator={true}
-          allowStepJumping={allowStepJumping}
-          className="gba:w-full"
-          {...(schema ? { schema: schema as any } : {})}
-        >
-          <WizardNavigation />
-        </WizardForm>
+        <div className="gba:flex gba:flex-col gba:h-full gba:w-full gba:min-h-0">
+          <WizardForm
+            form={form}
+            steps={wizardSteps}
+            onSubmit={handleSubmit}
+            showStepIndicator={true}
+            allowStepJumping={allowStepJumping}
+            className={
+              wizardFormClassName
+                ? `gba:w-full gba:flex-1 gba:flex gba:flex-col gba:min-h-0 ${wizardFormClassName}`
+                : 'gba:w-full gba:flex-1 gba:flex gba:flex-col gba:min-h-0'
+            }
+            {...(schema ? { schema: schema as any } : {})}
+          >
+            <WizardNavigation />
+          </WizardForm>
+        </div>
       )
     }
 
@@ -463,14 +479,14 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   }
 
   return (
-    <div className="gba:p-6 gba:h-full gba:flex gba:flex-col" data-testid={dataTestId}>
+    <div className="gba:p-6 gba:h-full gba:flex gba:flex-col gba:overflow-hidden gba:min-h-0" data-testid={dataTestId}>
       {message?.type === 'error' && (
-        <Alert variant="destructive" className="gba:mb-4" data-testid={`${dataTestId}-message`}>
+        <Alert variant="destructive" className="gba:mb-4 gba:shrink-0" data-testid={`${dataTestId}-message`}>
           {message.message}
         </Alert>
       )}
 
-      {renderFormContent()}
+      <div className="gba:flex-1 gba:overflow-y-auto gba:min-h-0 gba:w-full">{renderFormContent()}</div>
     </div>
   )
 }
