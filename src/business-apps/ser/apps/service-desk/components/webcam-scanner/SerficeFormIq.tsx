@@ -23,15 +23,15 @@ const generateDocumentNumber = () => {
   // Format: 351000088 (fixed 351 prefix + 6 digits)
   const prefix = '351'
 
-  // Prefer cryptographically strong randomness when available
-  let n: number
-  if (globalThis.crypto && typeof globalThis.crypto.getRandomValues === 'function') {
-    const arr = new Uint32Array(1)
-    globalThis.crypto.getRandomValues(arr)
-    n = Number(arr[0] % 1_000_000)
-  } else {
-    n = Math.floor(Math.random() * 1_000_000)
+  // Use a cryptographically secure RNG ONLY. Fail fast if unavailable.
+  const webcrypto: Crypto | undefined = (globalThis as any).crypto ?? (globalThis as any).msCrypto
+  if (!webcrypto || typeof webcrypto.getRandomValues !== 'function') {
+    throw new Error('Secure RNG unavailable; cannot generate document number')
   }
+
+  const arr = new Uint32Array(1)
+  webcrypto.getRandomValues(arr)
+  const n = Number(arr[0] % 1_000_000)
 
   const suffix = String(n).padStart(6, '0')
   return `${prefix}${suffix}`

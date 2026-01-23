@@ -67,8 +67,8 @@ export const WarrantyServiceRequestForm: React.FC<WarrantyServiceRequestFormProp
 
       try {
         const payload = {
-          ...(values || {}),
-          ...(formData || {}),
+          ...values,
+          ...formData,
           clientId: '0408531617',
           stepAssignments: { step_0: contextProps.userInfo.id },
           step_0_assignmentMode: 'ASSIGN',
