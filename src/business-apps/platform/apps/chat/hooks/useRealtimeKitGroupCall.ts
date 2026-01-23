@@ -26,6 +26,7 @@ import type {
 } from './useGroupCall'
 import type { GroupCallParticipant, VideoQuality } from '../services/groupWebrtcClient'
 import { RTKVirtualBackground } from '../services/rtkVirtualBackground'
+import { rtkDebug } from '../utils/rtkDebug'
 
 // Quality to RID mapping for simulcast
 // RIDs should be ordered alphabetically where 'a' = highest quality
@@ -193,13 +194,13 @@ export const useRealtimeKitGroupCall = ({
       conversationName?: string
     ): Promise<void> => {
       if (!currentUser || !apiClient || !wsClient) {
-        console.error('[RTK] Cannot start call: missing requirements')
+        rtkDebug.error('[RTK] Cannot start call: missing requirements')
         return
       }
 
       try {
-        console.log('[RTK] Starting Realtime Kit group call with SDK...')
-        console.log('[RTK] Current user (HOST):', {
+        rtkDebug.log('[RTK] Starting Realtime Kit group call with SDK...')
+        rtkDebug.log('[RTK] Current user (HOST):', {
           id: currentUser.id,
           odId: currentUser.odId,
           odName: currentUser.odName,
@@ -211,7 +212,7 @@ export const useRealtimeKitGroupCall = ({
         // The ref is updated when we leave a call, so it's more reliable
         const wasIdleBeforeStart = callState.status === 'idle' || wasIdleRef.current
 
-        console.log('[RTK] Checking idle state before starting call:', {
+        rtkDebug.log('[RTK] Checking idle state before starting call:', {
           callStateStatus: callState.status,
           wasIdleRef: wasIdleRef.current,
           wasIdleBeforeStart
@@ -223,7 +224,7 @@ export const useRealtimeKitGroupCall = ({
         setCallState(prev => ({ ...prev, status: 'joining' }))
 
         // 1. Create meeting via backend and get auth token (sending host display name and meeting name)
-        console.log('[RTK] Sending to createMeeting:', {
+        rtkDebug.log('[RTK] Sending to createMeeting:', {
           conversationId: roomId,
           callType,
           displayName: currentUser.odName,
@@ -245,12 +246,12 @@ export const useRealtimeKitGroupCall = ({
         meetingIdRef.current = meetingId
         conversationIdRef.current = roomId // Store the actual conversationId
 
-        console.log('[RTK] Initializing SDK with auth token and simulcast configuration...')
+        rtkDebug.log('[RTK] Initializing SDK with auth token and simulcast configuration...')
 
         // 2. Initialize Cloudflare SDK with auth token and simulcast configuration
         // Simulcast enables sending 3 quality streams simultaneously (high/medium/low)
         // The SFU will automatically forward the appropriate quality to each receiver
-        console.log('[RTK] 📡 Configuring simulcast with 3 quality layers:', {
+        rtkDebug.log('[RTK] 📡 Configuring simulcast with 3 quality layers:', {
           high: 'RID=a, 1280x720 @ 2.5Mbps',
           medium: 'RID=b, 640x360 @ 1Mbps',
           low: 'RID=c, 320x180 @ 500Kbps'
@@ -269,11 +270,11 @@ export const useRealtimeKitGroupCall = ({
             }
           }
         }).catch((err: any) => {
-          console.error('[RTK] SDK initialization failed:', err)
+          rtkDebug.error('[RTK] SDK initialization failed:', err)
           throw new Error(`SDK init failed: ${err.message}`)
         })
 
-        console.log('[RTK] SDK initialized, checking meeting object...', {
+        rtkDebug.log('[RTK] SDK initialized, checking meeting object...', {
           hasInitializedMeeting: !!initializedMeeting,
           hasMeetingHook: !!meeting
         })
@@ -286,7 +287,7 @@ export const useRealtimeKitGroupCall = ({
           throw new Error('Meeting object not available after initialization')
         }
 
-        console.log('[RTK] Meeting object ready')
+        rtkDebug.log('[RTK] Meeting object ready')
 
         // ⚠️ CRITICAL: Configure video middleware BEFORE joining/enabling video
         // This MUST be called before video is enabled to allow background effects to work.
@@ -299,34 +300,34 @@ export const useRealtimeKitGroupCall = ({
             await meetingToUse.self.setVideoMiddlewareGlobalConfig({
               disablePerFrameCanvasRendering: true
             })
-            console.log('[RTK] ✅ Video middleware configured globally (disablePerFrameCanvasRendering)')
+            rtkDebug.log('[RTK] ✅ Video middleware configured globally (disablePerFrameCanvasRendering)')
           } catch (err) {
-            console.warn('[RTK] ⚠️ Failed to configure video middleware:', err)
+            rtkDebug.warn('[RTK] ⚠️ Failed to configure video middleware:', err)
           }
         }
 
-        console.log('[RTK] Joining meeting via SDK...', { meetingId })
+        rtkDebug.log('[RTK] Joining meeting via SDK...', { meetingId })
 
         // 3. Join the meeting (connects to Cloudflare SFU)
         await meetingToUse.join()
 
         // ⚠️ CRITICAL: Wait for actual Session connection (roomJoined: true)
-        console.log('[RTK] Waiting for Session connection...')
+        rtkDebug.log('[RTK] Waiting for Session connection...')
         const sessionTimeout = 10000 // 10 seconds max
         const startTime = Date.now()
 
         while (!meetingToUse.self?.roomJoined && Date.now() - startTime < sessionTimeout) {
-          console.log('[RTK] Waiting for roomJoined... (elapsed:', Date.now() - startTime, 'ms)')
+          rtkDebug.log('[RTK] Waiting for roomJoined... (elapsed:', Date.now() - startTime, 'ms)')
           await new Promise(resolve => setTimeout(resolve, 500))
         }
 
         if (meetingToUse.self?.roomJoined) {
-          console.log('[RTK] ✅ Successfully joined Session!', {
+          rtkDebug.log('[RTK] ✅ Successfully joined Session!', {
             elapsed: Date.now() - startTime,
             roomState: meetingToUse.self?.roomState
           })
         } else {
-          console.error('[RTK] ❌ Failed to join Session - timeout after', sessionTimeout, 'ms')
+          rtkDebug.error('[RTK] ❌ Failed to join Session - timeout after', sessionTimeout, 'ms')
           throw new Error('Failed to join Cloudflare Session - connection timeout')
         }
 
@@ -341,7 +342,7 @@ export const useRealtimeKitGroupCall = ({
         const isAlreadyInCall = conversationIdRef.current === roomId && callState.roomId === meetingId
         const isExistingMeeting = existingParticipantsCount > 1 || hasActiveCallForConversation || isAlreadyInCall
 
-        console.log('[RTK] SDK joined successfully (HOST)', {
+        rtkDebug.log('[RTK] SDK joined successfully (HOST)', {
           meetingId,
           selfId: meetingToUse.self?.id,
           selfUserId: meetingToUse.self?.userId,
@@ -356,29 +357,29 @@ export const useRealtimeKitGroupCall = ({
         // 4. Listen for disconnect events (to debug why roomJoined flips to false)
         if (typeof meetingToUse.self?.on === 'function') {
           meetingToUse.self.on('roomLeft', (event: any) => {
-            console.error('[RTK] ❌ roomLeft event fired!', {
+            rtkDebug.error('[RTK] ❌ roomLeft event fired!', {
               state: event?.state,
               reason: event?.reason,
               message: event?.message,
               fullEvent: event
             })
           })
-          console.log('[RTK] Listening for roomLeft events...')
+          rtkDebug.log('[RTK] Listening for roomLeft events...')
         }
 
         // 5. Enable media tracks (publishes to Cloudflare SFU)
-        console.log('[RTK] Enabling audio/video tracks...')
+        rtkDebug.log('[RTK] Enabling audio/video tracks...')
         try {
           await meetingToUse.self?.enableAudio()
-          console.log('[RTK] ✅ Audio enabled and published to SFU')
+          rtkDebug.log('[RTK] ✅ Audio enabled and published to SFU')
         } catch (err) {
-          console.error('[RTK] Failed to enable audio:', err)
+          rtkDebug.error('[RTK] Failed to enable audio:', err)
         }
 
         if (callType === 'video') {
           try {
             await meetingToUse.self?.enableVideo()
-            console.log('[RTK] ✅ Video enabled and published to SFU')
+            rtkDebug.log('[RTK] ✅ Video enabled and published to SFU')
 
             // Log publisher-side simulcast information (HOST)
             // Wait a bit for track to be ready, then check stats
@@ -389,7 +390,7 @@ export const useRealtimeKitGroupCall = ({
                   const settings = videoTrack.getSettings?.()
                   const capabilities = videoTrack.getCapabilities?.()
 
-                  console.log('[RTK] 📤 PUBLISHER (HOST): Video track enabled with simulcast:', {
+                  rtkDebug.log('[RTK] 📤 PUBLISHER (HOST): Video track enabled with simulcast:', {
                     trackId: videoTrack.id,
                     trackLabel: videoTrack.label,
                     trackSettings: settings
@@ -416,24 +417,24 @@ export const useRealtimeKitGroupCall = ({
                     // Access RTCRtpSender stats if available via core SDK
                     const coreClient = meetingToUse as any
                     if (coreClient.self?._mediaManager || coreClient.self?.mediaManager) {
-                      console.log('[RTK] 📊 Attempting to get publisher WebRTC stats for simulcast verification...')
+                      rtkDebug.log('[RTK] 📊 Attempting to get publisher WebRTC stats for simulcast verification...')
                       // Note: Actual stats access depends on SDK internals
                     }
                   } catch (statsErr) {
-                    console.debug('[RTK] Publisher stats check (optional):', statsErr)
+                    rtkDebug.debug('[RTK] Publisher stats check (optional):', statsErr)
                   }
                 }
               } catch (err) {
-                console.warn('[RTK] Could not log publisher simulcast info:', err)
+                rtkDebug.warn('[RTK] Could not log publisher simulcast info:', err)
               }
             }, 2000) // Wait 2s for track to be ready
           } catch (err) {
-            console.error('[RTK] Failed to enable video:', err)
+            rtkDebug.error('[RTK] Failed to enable video:', err)
           }
         }
 
         // 6. Local media will be automatically set by the useEffect watching SDK tracks
-        console.log('[RTK] Local tracks will be set by useEffect:', {
+        rtkDebug.log('[RTK] Local tracks will be set by useEffect:', {
           hasAudio: !!meetingToUse.self?.audioTrack,
           hasVideo: !!meetingToUse.self?.videoTrack
         })
@@ -479,7 +480,7 @@ export const useRealtimeKitGroupCall = ({
         const shouldSendStartEvent =
           wasIdleBeforeStart && !isAlreadyInCallForThisConversation && participantsToInvite.length > 0
 
-        console.log('[RTK] 📨 Start event decision:', {
+        rtkDebug.log('[RTK] 📨 Start event decision:', {
           wasIdleBeforeStart,
           currentCallStateStatus: callState.status,
           isAlreadyInCallForThisConversation,
@@ -495,7 +496,7 @@ export const useRealtimeKitGroupCall = ({
 
         if (shouldSendStartEvent) {
           // Send invites via WebSocket
-          console.log('[RTK] Sending rtk-group-call:start event with participants (starting new call):', {
+          rtkDebug.log('[RTK] Sending rtk-group-call:start event with participants (starting new call):', {
             conversationId: roomId,
             meetingId,
             callType,
@@ -521,7 +522,7 @@ export const useRealtimeKitGroupCall = ({
             participants: participantsToInvite
           })
         } else {
-          console.log('[RTK] Skipping rtk-group-call:start event:', {
+          rtkDebug.log('[RTK] Skipping rtk-group-call:start event:', {
             conversationId: roomId,
             meetingId,
             existingParticipantsCount,
@@ -563,7 +564,7 @@ export const useRealtimeKitGroupCall = ({
           const duration = Math.floor((currentTime - startTime) / 1000)
           if (duration % 5 === 0) {
             // Log every 5 seconds
-            console.log('[RTK] ⏱️ Duration timer tick (HOST):', {
+            rtkDebug.log('[RTK] ⏱️ Duration timer tick (HOST):', {
               duration,
               startTime,
               currentTime,
@@ -578,9 +579,9 @@ export const useRealtimeKitGroupCall = ({
 
         onCallStarted?.(meetingId, participantsToInvite)
 
-        console.log('[RTK] Call started successfully with SDK')
+        rtkDebug.log('[RTK] Call started successfully with SDK')
       } catch (error) {
-        console.error('[RTK] Failed to start call:', error)
+        rtkDebug.error('[RTK] Failed to start call:', error)
         conversationIdRef.current = null
         setCallState(initialCallState)
       }
@@ -597,7 +598,7 @@ export const useRealtimeKitGroupCall = ({
   const joinCall = useCallback(
     async (roomId: string, callType: CallType): Promise<void> => {
       if (!currentUser || !apiClient) {
-        console.error('[RTK] Cannot join call: missing requirements')
+        rtkDebug.error('[RTK] Cannot join call: missing requirements')
         return
       }
 
@@ -613,8 +614,8 @@ export const useRealtimeKitGroupCall = ({
       }
 
       try {
-        console.log('[RTK] Joining Realtime Kit group call with SDK...', { roomId, conversationId })
-        console.log('[RTK] Current user (PARTICIPANT):', {
+        rtkDebug.log('[RTK] Joining Realtime Kit group call with SDK...', { roomId, conversationId })
+        rtkDebug.log('[RTK] Current user (PARTICIPANT):', {
           id: currentUser.id,
           odId: currentUser.odId,
           odName: currentUser.odName,
@@ -624,8 +625,8 @@ export const useRealtimeKitGroupCall = ({
         setCallState(prev => ({ ...prev, status: 'joining' }))
 
         // 1. Get auth token for this meeting
-        console.log('[RTK] Calling addParticipant API with meetingId:', roomId)
-        console.log('[RTK] Sending to addParticipant:', {
+        rtkDebug.log('[RTK] Calling addParticipant API with meetingId:', roomId)
+        rtkDebug.log('[RTK] Sending to addParticipant:', {
           meetingId: roomId,
           userId: undefined,
           role: 'participant',
@@ -641,18 +642,18 @@ export const useRealtimeKitGroupCall = ({
           undefined, // firstName (could parse from odName if needed)
           undefined // lastName
         )
-        console.log('[RTK] addParticipant response:', participantResponse)
+        rtkDebug.log('[RTK] addParticipant response:', participantResponse)
         const { authToken } = participantResponse.data
 
         authTokenRef.current = authToken
         meetingIdRef.current = roomId
 
-        console.log('[RTK] Initializing SDK with auth token and simulcast configuration...')
+        rtkDebug.log('[RTK] Initializing SDK with auth token and simulcast configuration...')
 
         // 2. Initialize Cloudflare SDK with auth token and simulcast configuration
         // Simulcast enables sending 3 quality streams simultaneously (high/medium/low)
         // The SFU will automatically forward the appropriate quality to each receiver
-        console.log('[RTK] 📡 Configuring simulcast with 3 quality layers:', {
+        rtkDebug.log('[RTK] 📡 Configuring simulcast with 3 quality layers:', {
           high: 'RID=a, 1280x720 @ 2.5Mbps',
           medium: 'RID=b, 640x360 @ 1Mbps',
           low: 'RID=c, 320x180 @ 500Kbps'
@@ -672,7 +673,7 @@ export const useRealtimeKitGroupCall = ({
           }
         })
 
-        console.log('[RTK] SDK initialized, checking meeting object...')
+        rtkDebug.log('[RTK] SDK initialized, checking meeting object...')
 
         // Wait for meeting object to be available
         // initMeeting might return the meeting or update the hook's meeting state
@@ -682,7 +683,7 @@ export const useRealtimeKitGroupCall = ({
           throw new Error('Meeting object not available after initialization')
         }
 
-        console.log('[RTK] Meeting object ready')
+        rtkDebug.log('[RTK] Meeting object ready')
 
         // ⚠️ CRITICAL: Configure video middleware BEFORE joining/enabling video
         // This MUST be called before video is enabled to allow background effects to work.
@@ -693,18 +694,18 @@ export const useRealtimeKitGroupCall = ({
             await meetingToUse.self.setVideoMiddlewareGlobalConfig({
               disablePerFrameCanvasRendering: true
             })
-            console.log('[RTK] ✅ Video middleware configured globally (disablePerFrameCanvasRendering)')
+            rtkDebug.log('[RTK] ✅ Video middleware configured globally (disablePerFrameCanvasRendering)')
           } catch (err) {
-            console.warn('[RTK] ⚠️ Failed to configure video middleware:', err)
+            rtkDebug.warn('[RTK] ⚠️ Failed to configure video middleware:', err)
           }
         }
 
-        console.log('[RTK] Joining meeting via SDK...', { meetingId: roomId })
+        rtkDebug.log('[RTK] Joining meeting via SDK...', { meetingId: roomId })
 
         // 3. Join the meeting (connects to Cloudflare SFU)
         await meetingToUse.join()
 
-        console.log('[RTK] SDK joined successfully (PARTICIPANT)', {
+        rtkDebug.log('[RTK] SDK joined successfully (PARTICIPANT)', {
           meetingId: roomId,
           selfId: meetingToUse.self?.id,
           selfUserId: meetingToUse.self?.userId,
@@ -714,51 +715,51 @@ export const useRealtimeKitGroupCall = ({
         })
 
         // ⚠️ CRITICAL: Wait for actual Session connection (roomJoined: true)
-        console.log('[RTK] Waiting for Session connection...')
+        rtkDebug.log('[RTK] Waiting for Session connection...')
         const sessionTimeout = 10000 // 10 seconds max
         const startTime = Date.now()
 
         while (!meetingToUse.self?.roomJoined && Date.now() - startTime < sessionTimeout) {
-          console.log('[RTK] Waiting for roomJoined... (elapsed:', Date.now() - startTime, 'ms)')
+          rtkDebug.log('[RTK] Waiting for roomJoined... (elapsed:', Date.now() - startTime, 'ms)')
           await new Promise(resolve => setTimeout(resolve, 500))
         }
 
         if (meetingToUse.self?.roomJoined) {
-          console.log('[RTK] ✅ Successfully joined Session!', {
+          rtkDebug.log('[RTK] ✅ Successfully joined Session!', {
             elapsed: Date.now() - startTime,
             roomState: meetingToUse.self?.roomState
           })
         } else {
-          console.error('[RTK] ❌ Failed to join Session - timeout after', sessionTimeout, 'ms')
+          rtkDebug.error('[RTK] ❌ Failed to join Session - timeout after', sessionTimeout, 'ms')
           throw new Error('Failed to join Cloudflare Session - connection timeout')
         }
 
         // 4. Listen for disconnect events (to debug why roomJoined flips to false)
         if (typeof meetingToUse.self?.on === 'function') {
           meetingToUse.self.on('roomLeft', (event: any) => {
-            console.error('[RTK] ❌ roomLeft event fired!', {
+            rtkDebug.error('[RTK] ❌ roomLeft event fired!', {
               state: event?.state,
               reason: event?.reason,
               message: event?.message,
               fullEvent: event
             })
           })
-          console.log('[RTK] Listening for roomLeft events...')
+          rtkDebug.log('[RTK] Listening for roomLeft events...')
         }
 
         // 5. Enable media tracks (publishes to Cloudflare SFU)
-        console.log('[RTK] Enabling audio/video tracks...')
+        rtkDebug.log('[RTK] Enabling audio/video tracks...')
         try {
           await meetingToUse.self?.enableAudio()
-          console.log('[RTK] ✅ Audio enabled and published to SFU')
+          rtkDebug.log('[RTK] ✅ Audio enabled and published to SFU')
         } catch (err) {
-          console.error('[RTK] Failed to enable audio:', err)
+          rtkDebug.error('[RTK] Failed to enable audio:', err)
         }
 
         if (callType === 'video') {
           try {
             await meetingToUse.self?.enableVideo()
-            console.log('[RTK] ✅ Video enabled and published to SFU')
+            rtkDebug.log('[RTK] ✅ Video enabled and published to SFU')
 
             // Log publisher-side simulcast information (PARTICIPANT)
             setTimeout(async () => {
@@ -768,7 +769,7 @@ export const useRealtimeKitGroupCall = ({
                   const settings = videoTrack.getSettings?.()
                   const capabilities = videoTrack.getCapabilities?.()
 
-                  console.log('[RTK] 📤 PUBLISHER (PARTICIPANT): Video track enabled with simulcast:', {
+                  rtkDebug.log('[RTK] 📤 PUBLISHER (PARTICIPANT): Video track enabled with simulcast:', {
                     trackId: videoTrack.id,
                     trackLabel: videoTrack.label,
                     trackSettings: settings
@@ -791,16 +792,16 @@ export const useRealtimeKitGroupCall = ({
                   })
                 }
               } catch (err) {
-                console.warn('[RTK] Could not log publisher simulcast info:', err)
+                rtkDebug.warn('[RTK] Could not log publisher simulcast info:', err)
               }
             }, 2000)
           } catch (err) {
-            console.error('[RTK] Failed to enable video:', err)
+            rtkDebug.error('[RTK] Failed to enable video:', err)
           }
         }
 
         // 6. Local media will be automatically set by the useEffect watching SDK tracks
-        console.log('[RTK] Local tracks will be set by useEffect:', {
+        rtkDebug.log('[RTK] Local tracks will be set by useEffect:', {
           hasAudio: !!meetingToUse.self?.audioTrack,
           hasVideo: !!meetingToUse.self?.videoTrack
         })
@@ -813,7 +814,7 @@ export const useRealtimeKitGroupCall = ({
 
         // Try to get global startedAt from activeConversationCalls using conversationId
         const callInfo = conversationId ? activeConversationCalls.get(conversationId) : null
-        console.log('[RTK] 🔍 Looking for call info in activeConversationCalls:', {
+        rtkDebug.log('[RTK] 🔍 Looking for call info in activeConversationCalls:', {
           conversationId,
           roomId,
           hasConversationId: !!conversationId,
@@ -825,7 +826,7 @@ export const useRealtimeKitGroupCall = ({
 
         const globalStartTime = callInfo?.startedAt ? new Date(callInfo.startedAt).getTime() : Date.now()
         startTimeRef.current = globalStartTime
-        console.log('[RTK] ⏱️ Join call timer setup:', {
+        rtkDebug.log('[RTK] ⏱️ Join call timer setup:', {
           roomId,
           conversationId,
           hasCallInfo: !!callInfo,
@@ -872,7 +873,7 @@ export const useRealtimeKitGroupCall = ({
           const duration = Math.floor((currentTime - startTime) / 1000)
           if (duration % 5 === 0) {
             // Log every 5 seconds
-            console.log('[RTK] ⏱️ Duration timer tick (PARTICIPANT):', {
+            rtkDebug.log('[RTK] ⏱️ Duration timer tick (PARTICIPANT):', {
               duration,
               startTime,
               currentTime,
@@ -885,9 +886,9 @@ export const useRealtimeKitGroupCall = ({
           }))
         }, 1000)
 
-        console.log('[RTK] Joined call successfully with SDK')
+        rtkDebug.log('[RTK] Joined call successfully with SDK')
       } catch (error) {
-        console.error('[RTK] Failed to join call:', error)
+        rtkDebug.error('[RTK] Failed to join call:', error)
         conversationIdRef.current = null
         setCallState(initialCallState)
       } finally {
@@ -937,7 +938,7 @@ export const useRealtimeKitGroupCall = ({
 
     setIncomingInvite(null)
 
-    console.log('[RTK] Accepting invite with conversationId:', { roomId, conversationId, callType, conversationName })
+    rtkDebug.log('[RTK] Accepting invite with conversationId:', { roomId, conversationId, callType, conversationName })
 
     // Use joinCallWrapper to properly pass conversationId (as 3rd param, despite type mismatch)
     await joinCallWrapper(roomId, callType, conversationId as any)
@@ -958,8 +959,8 @@ export const useRealtimeKitGroupCall = ({
       return
     }
 
-    console.log('[RTK] Leaving call via SDK...')
-    console.log('[RTK] Leave call state:', {
+    rtkDebug.log('[RTK] Leaving call via SDK...')
+    rtkDebug.log('[RTK] Leave call state:', {
       conversationId: conversationIdRef.current,
       roomId: callState.roomId,
       meetingIdRef: meetingIdRef.current,
@@ -970,10 +971,10 @@ export const useRealtimeKitGroupCall = ({
       // 1. Leave via Cloudflare SDK
       if (meeting && meeting.self?.roomJoined) {
         await meeting.leave()
-        console.log('[RTK] SDK leave successful')
+        rtkDebug.log('[RTK] SDK leave successful')
       }
     } catch (error) {
-      console.error('[RTK] Error leaving via SDK:', error)
+      rtkDebug.error('[RTK] Error leaving via SDK:', error)
     }
 
     // 2. Stop local stream tracks
@@ -986,7 +987,7 @@ export const useRealtimeKitGroupCall = ({
       const monitors = (window as any).rtkQualityMonitors as Map<string, NodeJS.Timeout>
       monitors.forEach((interval, peerId) => {
         clearInterval(interval)
-        console.log('[RTK] Cleaned up quality monitor for peer:', peerId)
+        rtkDebug.log('[RTK] Cleaned up quality monitor for peer:', peerId)
       })
       monitors.clear()
     }
@@ -999,7 +1000,7 @@ export const useRealtimeKitGroupCall = ({
         meetingId: meetingIdRef.current || callState.roomId,
         participantId: currentUser.id
       }
-      console.log('[RTK] 📤 Sending rtk-group-call:left:', leaveEventData)
+      rtkDebug.log('[RTK] 📤 Sending rtk-group-call:left:', leaveEventData)
       emitSocketEvent('rtk-group-call:left', leaveEventData)
     }
 
@@ -1032,7 +1033,7 @@ export const useRealtimeKitGroupCall = ({
 
     onCallEnded?.(roomId, duration)
 
-    console.log('[RTK] Left call')
+    rtkDebug.log('[RTK] Left call')
   }, [callState, localStream, meeting, emitSocketEvent, onCallEnded, currentUser])
 
   /**
@@ -1040,21 +1041,21 @@ export const useRealtimeKitGroupCall = ({
    * Simple approach: Let SDK manage state, just call enable/disable
    */
   const toggleMute = useCallback((): boolean => {
-    console.log('[RTK] 🎤 toggleMute called!', {
+    rtkDebug.log('[RTK] 🎤 toggleMute called!', {
       hasMeeting: !!meeting,
       hasSelf: !!meeting?.self,
       currentIsMuted: callState.isMuted
     })
 
     if (!meeting?.self) {
-      console.log('[RTK] ⚠️ toggleMute: No meeting.self, returning early')
+      rtkDebug.log('[RTK] ⚠️ toggleMute: No meeting.self, returning early')
       return callState.isMuted
     }
 
     const currentEnabled = meeting.self.audioEnabled ?? false
     const newMuted = currentEnabled // if audio is enabled, we're muting (newMuted = true)
 
-    console.log('[RTK] Toggling audio:', currentEnabled ? 'disable' : 'enable', {
+    rtkDebug.log('[RTK] Toggling audio:', currentEnabled ? 'disable' : 'enable', {
       sdkAudioEnabled: meeting.self.audioEnabled,
       stateIsMuted: callState.isMuted,
       willBeMuted: newMuted
@@ -1075,21 +1076,21 @@ export const useRealtimeKitGroupCall = ({
    * Simple approach: Let SDK manage state, just call enable/disable
    */
   const toggleVideo = useCallback((): boolean => {
-    console.log('[RTK] 📹 toggleVideo called!', {
+    rtkDebug.log('[RTK] 📹 toggleVideo called!', {
       hasMeeting: !!meeting,
       hasSelf: !!meeting?.self,
       currentIsVideoEnabled: callState.isVideoEnabled
     })
 
     if (!meeting?.self) {
-      console.log('[RTK] ⚠️ toggleVideo: No meeting.self, returning early')
+      rtkDebug.log('[RTK] ⚠️ toggleVideo: No meeting.self, returning early')
       return callState.isVideoEnabled
     }
 
     const currentEnabled = meeting.self.videoEnabled ?? false
     const newEnabled = !currentEnabled
 
-    console.log('[RTK] Toggling video:', currentEnabled ? 'disable' : 'enable', {
+    rtkDebug.log('[RTK] Toggling video:', currentEnabled ? 'disable' : 'enable', {
       sdkVideoEnabled: meeting.self.videoEnabled,
       stateVideoEnabled: callState.isVideoEnabled,
       willEnable: newEnabled
@@ -1115,7 +1116,7 @@ export const useRealtimeKitGroupCall = ({
    */
   const toggleScreenShare = useCallback(async (): Promise<boolean> => {
     if (!meeting?.self) {
-      console.error('[RTK] Cannot toggle screen share: meeting.self not available')
+      rtkDebug.error('[RTK] Cannot toggle screen share: meeting.self not available')
       return false
     }
 
@@ -1126,14 +1127,14 @@ export const useRealtimeKitGroupCall = ({
         // Stop screen sharing
         await meeting.self.disableScreenShare()
         setCallState(prev => ({ ...prev, isScreenSharing: false }))
-        console.log('[RTK] ✅ Screen share stopped via SDK')
+        rtkDebug.log('[RTK] ✅ Screen share stopped via SDK')
         return false
       } else {
         // Start screen sharing
         // Check browser support
         if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
           const error = new Error('Screen sharing is not supported in this browser')
-          console.error('[RTK] Screen share error:', error.message)
+          rtkDebug.error('[RTK] Screen share error:', error.message)
           throw error
         }
 
@@ -1219,7 +1220,7 @@ export const useRealtimeKitGroupCall = ({
 
         const screenShareEnabled = meeting.self?.screenShareEnabled
 
-        console.log('[RTK] ✅ Screen share started via SDK', {
+        rtkDebug.log('[RTK] ✅ Screen share started via SDK', {
           screenShareEnabled,
           screenShareTracksCount: screenShareTracks.length,
           screenShareTrackIds: screenShareTracks.map(t => t.id),
@@ -1241,7 +1242,7 @@ export const useRealtimeKitGroupCall = ({
         })
 
         if (screenShareTracks.length === 0) {
-          console.warn('[RTK] ⚠️ Screen share enabled but no tracks available yet - may need more time', {
+          rtkDebug.warn('[RTK] ⚠️ Screen share enabled but no tracks available yet - may need more time', {
             screenShareTracksRaw,
             screenShareTracksRawType: typeof screenShareTracksRaw,
             screenShareTracksRawIsMap: screenShareTracksRaw instanceof Map,
@@ -1256,7 +1257,7 @@ export const useRealtimeKitGroupCall = ({
         return true
       }
     } catch (error: any) {
-      console.error('[RTK] ❌ Failed to toggle screen share:', error)
+      rtkDebug.error('[RTK] ❌ Failed to toggle screen share:', error)
 
       // Reset state on error
       setCallState(prev => ({ ...prev, isScreenSharing: false }))
@@ -1264,11 +1265,11 @@ export const useRealtimeKitGroupCall = ({
       // Provide user-friendly error messages
       const errorMessage = error?.message || 'Unknown error'
       if (errorMessage.includes('Permission denied') || errorMessage.includes('NotAllowedError')) {
-        console.error('[RTK] Screen share permission denied by user')
+        rtkDebug.error('[RTK] Screen share permission denied by user')
       } else if (errorMessage.includes('NotSupportedError') || errorMessage.includes('not supported')) {
-        console.error('[RTK] Screen sharing not supported in this browser')
+        rtkDebug.error('[RTK] Screen sharing not supported in this browser')
       } else if (errorMessage.includes('NotFoundError') || errorMessage.includes('No screen')) {
-        console.error('[RTK] No screen or window available for sharing')
+        rtkDebug.error('[RTK] No screen or window available for sharing')
       }
 
       return false
@@ -1293,7 +1294,7 @@ export const useRealtimeKitGroupCall = ({
   const setVideoQuality = useCallback(
     async (quality: VideoQuality): Promise<void> => {
       const preferredRid = QUALITY_TO_RID[quality]
-      console.log('[RTK] Setting video quality preference to:', quality, {
+      rtkDebug.log('[RTK] Setting video quality preference to:', quality, {
         preferredRid,
         note: 'Attempting to configure subscriber-side preferredRid'
       })
@@ -1322,7 +1323,7 @@ export const useRealtimeKitGroupCall = ({
               priorityOrdering: 'asciibetical',
               ridNotAvailable: 'asciibetical'
             })
-            console.log('[RTK] ✅ Configured subscriber preferredRid:', preferredRid)
+            rtkDebug.log('[RTK] ✅ Configured subscriber preferredRid:', preferredRid)
           } else if (coreClient.participants?.joined) {
             // Try to configure for each remote participant's video consumers
             const joined = coreClient.participants.joined as any
@@ -1335,18 +1336,18 @@ export const useRealtimeKitGroupCall = ({
                 // This is highly experimental and may not work
                 const peerInternal = peer as any
                 if (peerInternal._consumerId || peerInternal.consumerId) {
-                  console.log('[RTK] Attempting to configure preferredRid for peer:', peer.id)
+                  rtkDebug.log('[RTK] Attempting to configure preferredRid for peer:', peer.id)
                   // Note: This would require core SDK methods that may not be exposed
                 }
               }
             }
           }
         } catch (err) {
-          console.warn(
+          rtkDebug.warn(
             "[RTK] ⚠️ Could not configure subscriber preferredRid (expected if React SDK doesn't expose this):",
             err
           )
-          console.log('[RTK] SFU will automatically select quality based on network conditions')
+          rtkDebug.log('[RTK] SFU will automatically select quality based on network conditions')
         }
       }
     },
@@ -1366,10 +1367,10 @@ export const useRealtimeKitGroupCall = ({
   const toggleBackground = useCallback(async () => {
     const newValue = !callState.backgroundEnabled
 
-    console.log('[RTK] 🎨 Toggling background effect:', { enabled: newValue, hasMeeting: !!meeting })
+    rtkDebug.log('[RTK] 🎨 Toggling background effect:', { enabled: newValue, hasMeeting: !!meeting })
 
     if (!meeting?.self) {
-      console.warn('[RTK] ⚠️ Meeting not available')
+      rtkDebug.warn('[RTK] ⚠️ Meeting not available')
       return
     }
 
@@ -1387,12 +1388,12 @@ export const useRealtimeKitGroupCall = ({
         // Apply background with NewWork preset image
         await virtualBackgroundRef.current.enableBackground(meeting)
 
-        console.log('[RTK] ✅ Background effect enabled')
+        rtkDebug.log('[RTK] ✅ Background effect enabled')
       } else {
         // Disable background effect
         if (virtualBackgroundRef.current) {
           virtualBackgroundRef.current.disable(meeting)
-          console.log('[RTK] ⏸️ Background effect disabled')
+          rtkDebug.log('[RTK] ⏸️ Background effect disabled')
         }
       }
 
@@ -1404,7 +1405,7 @@ export const useRealtimeKitGroupCall = ({
         // Ignore
       }
     } catch (error) {
-      console.error('[RTK] ❌ Failed to toggle background effect:', error)
+      rtkDebug.error('[RTK] ❌ Failed to toggle background effect:', error)
       // Reset state on error
       setCallState(prev => ({ ...prev, backgroundEnabled: false }))
     }
@@ -1419,7 +1420,7 @@ export const useRealtimeKitGroupCall = ({
         return
       }
 
-      console.log('[RTK] Inviting participants to call')
+      rtkDebug.log('[RTK] Inviting participants to call')
 
       emitSocketEvent('rtk-group-call:start', {
         conversationId: callState.roomId,
@@ -1441,7 +1442,7 @@ export const useRealtimeKitGroupCall = ({
    * Reconnect participant (not applicable for Realtime Kit)
    */
   const reconnectParticipant = useCallback(async (): Promise<void> => {
-    console.log('[RTK] Reconnect not needed for Realtime Kit')
+    rtkDebug.log('[RTK] Reconnect not needed for Realtime Kit')
   }, [])
 
   /**
@@ -1461,17 +1462,17 @@ export const useRealtimeKitGroupCall = ({
    */
   const logSimulcastInfo = useCallback(async () => {
     if (!meeting || callState.status !== 'connected') {
-      console.log('[RTK] 📊 Simulcast Info: Not in active call')
+      rtkDebug.log('[RTK] 📊 Simulcast Info: Not in active call')
       return
     }
 
-    console.log('[RTK] 📊 ========== SIMULCAST STATUS REPORT ==========')
+    rtkDebug.log('[RTK] 📊 ========== SIMULCAST STATUS REPORT ==========')
 
     // Publisher info (what we're sending)
     const selfVideoTrack = meeting.self?.videoTrack
     if (selfVideoTrack) {
       const settings = selfVideoTrack.getSettings?.()
-      console.log('[RTK] 📤 PUBLISHER (YOU):', {
+      rtkDebug.log('[RTK] 📤 PUBLISHER (YOU):', {
         trackId: selfVideoTrack.id,
         trackLabel: selfVideoTrack.label,
         sendingResolution: settings ? `${settings.width}x${settings.height} @ ${settings.frameRate}fps` : 'unknown',
@@ -1483,7 +1484,7 @@ export const useRealtimeKitGroupCall = ({
         }))
       })
     } else {
-      console.log('[RTK] 📤 PUBLISHER (YOU): Video not enabled')
+      rtkDebug.log('[RTK] 📤 PUBLISHER (YOU): Video not enabled')
     }
 
     // Subscriber info (what we're receiving from each peer)
@@ -1494,7 +1495,7 @@ export const useRealtimeKitGroupCall = ({
 
       const remotePeers = allParticipants.filter((p: any) => p.id !== meeting.self?.id)
 
-      console.log('[RTK] 📥 SUBSCRIBERS (Receiving from):', {
+      rtkDebug.log('[RTK] 📥 SUBSCRIBERS (Receiving from):', {
         totalRemotePeers: remotePeers.length,
         peers: remotePeers.map((peer: any) => {
           const track = peer.videoTrack
@@ -1520,7 +1521,7 @@ export const useRealtimeKitGroupCall = ({
       })
     }
 
-    console.log('[RTK] 📊 ==============================================')
+    rtkDebug.log('[RTK] 📊 ==============================================')
   }, [meeting, callState.status, participants])
 
   // Log simulcast info periodically when in call (every 30 seconds)
@@ -1553,7 +1554,7 @@ export const useRealtimeKitGroupCall = ({
     const videoTrack = meeting.self.videoTrack
     const audioTrack = meeting.self.audioTrack
 
-    console.log('[RTK] SDK tracks changed, recreating localStream:', {
+    rtkDebug.log('[RTK] SDK tracks changed, recreating localStream:', {
       hasVideo: !!videoTrack,
       hasAudio: !!audioTrack,
       videoEnabled: meeting.self.videoEnabled,
@@ -1573,7 +1574,7 @@ export const useRealtimeKitGroupCall = ({
       return
     }
 
-    console.log('[RTK] Setting up participant event listeners...')
+    rtkDebug.log('[RTK] Setting up participant event listeners...')
 
     // Helper to update participant list
     const updateParticipantList = () => {
@@ -1581,7 +1582,7 @@ export const useRealtimeKitGroupCall = ({
         const joinedParticipants = meeting.participants?.joined
 
         if (!joinedParticipants) {
-          console.log('[RTK] No participants.joined object available')
+          rtkDebug.log('[RTK] No participants.joined object available')
           return
         }
 
@@ -1593,7 +1594,7 @@ export const useRealtimeKitGroupCall = ({
 
         const remotePeers = allParticipants.filter((p: any) => p.id !== meeting.self?.id)
 
-        console.log(`[RTK] Found ${remotePeers.length} remote participants`, {
+        rtkDebug.log(`[RTK] Found ${remotePeers.length} remote participants`, {
           totalParticipants: allParticipants.length,
           selfId: meeting.self?.id,
           selfRoomJoined: meeting.self?.roomJoined,
@@ -1630,7 +1631,7 @@ export const useRealtimeKitGroupCall = ({
               k.toLowerCase().includes('display')
           )
 
-          console.log('[RTK] Processing remote peer:', {
+          rtkDebug.log('[RTK] Processing remote peer:', {
             id: peer.id,
             name: peer.name,
             displayName: peer.displayName,
@@ -1680,7 +1681,7 @@ export const useRealtimeKitGroupCall = ({
               else if (pixels >= 50000) estimatedQuality = 'low' // ~320x240 or lower
             }
 
-            console.log('[RTK] 📥 SUBSCRIBER: Receiving video from peer:', {
+            rtkDebug.log('[RTK] 📥 SUBSCRIBER: Receiving video from peer:', {
               peerId: peer.id,
               peerName: peer.name || peer.displayName,
               videoTrackId: peer.videoTrack.id,
@@ -1747,7 +1748,7 @@ export const useRealtimeKitGroupCall = ({
                     // Find the video receiver stats
                     const videoStats = statsArray.find((s: any) => s.kind === 'video' || s.type === 'inbound-rtp')
 
-                    console.log('[RTK] 📊 SUBSCRIBER WebRTC Stats for peer:', peer.id, {
+                    rtkDebug.log('[RTK] 📊 SUBSCRIBER WebRTC Stats for peer:', peer.id, {
                       peerName: peer.name || peer.displayName,
                       allStats: statsArray,
                       videoStats: videoStats,
@@ -1766,7 +1767,7 @@ export const useRealtimeKitGroupCall = ({
                     if (receiver && typeof receiver.getStats === 'function') {
                       const stats = await receiver.getStats()
                       const statsEntries = Array.from(stats.entries()) as Array<[string, RTCStats]>
-                      console.log('[RTK] 📊 SUBSCRIBER WebRTC Stats (via receiver) for peer:', peer.id, {
+                      rtkDebug.log('[RTK] 📊 SUBSCRIBER WebRTC Stats (via receiver) for peer:', peer.id, {
                         stats: statsEntries.map(([id, stat]) => {
                           const statAny = stat as any
                           return {
@@ -1785,7 +1786,7 @@ export const useRealtimeKitGroupCall = ({
                 }
               } catch (err) {
                 // Stats might not be accessible - that's okay
-                console.debug('[RTK] Could not get WebRTC stats for received track (expected):', err)
+                rtkDebug.debug('[RTK] Could not get WebRTC stats for received track (expected):', err)
               }
             }, 3000) // Wait 3s for track to be fully established
 
@@ -1806,7 +1807,7 @@ export const useRealtimeKitGroupCall = ({
                   else if (pixels >= 300000) quality = 'medium'
                   else if (pixels >= 50000) quality = 'low'
 
-                  console.log('[RTK] 📥 SUBSCRIBER Quality Monitor - Peer:', peer.id, {
+                  rtkDebug.log('[RTK] 📥 SUBSCRIBER Quality Monitor - Peer:', peer.id, {
                     peerName: peer.name || peer.displayName,
                     currentQuality: quality,
                     resolution: `${settings.width}x${settings.height}`,
@@ -1834,7 +1835,7 @@ export const useRealtimeKitGroupCall = ({
             const existingAudioTrack = existingStream?.getAudioTracks()[0]
             const audioTrackChanged = existingAudioTrack?.id !== peer.audioTrack.id
 
-            console.log('[RTK] 🔊 [REMOTE AUDIO DEBUG] Added audio track to stream for peer:', peer.id, {
+            rtkDebug.log('[RTK] 🔊 [REMOTE AUDIO DEBUG] Added audio track to stream for peer:', peer.id, {
               audioTrackId: peer.audioTrack.id,
               audioTrackLabel: peer.audioTrack.label,
               audioTrackEnabled: peer.audioTrack.enabled,
@@ -1851,7 +1852,7 @@ export const useRealtimeKitGroupCall = ({
             const existingStream = remoteStreams.get(peer.id)
             const hadAudioTrack = !!existingStream?.getAudioTracks()[0]
 
-            console.log('[RTK] 🔊 [REMOTE AUDIO DEBUG] ⚠️ No audio track available for peer:', peer.id, {
+            rtkDebug.log('[RTK] 🔊 [REMOTE AUDIO DEBUG] ⚠️ No audio track available for peer:', peer.id, {
               hadAudioTrack,
               existingAudioTrackId: existingStream?.getAudioTracks()[0]?.id,
               peerVideoEnabled: peer.videoEnabled,
@@ -1861,7 +1862,7 @@ export const useRealtimeKitGroupCall = ({
           }
 
           const streamTracks = stream.getTracks()
-          console.log('[RTK] Stream created for peer:', peer.id, {
+          rtkDebug.log('[RTK] Stream created for peer:', peer.id, {
             totalTracks: streamTracks.length,
             videoTracks: streamTracks.filter(t => t.kind === 'video').length,
             audioTracks: streamTracks.filter(t => t.kind === 'audio').length,
@@ -1894,22 +1895,22 @@ export const useRealtimeKitGroupCall = ({
           ])
         }
       } catch (error) {
-        console.error('[RTK] Error updating remote participants:', error)
+        rtkDebug.error('[RTK] Error updating remote participants:', error)
       }
     }
 
     // Listen for participant join events
     const handleParticipantJoined = (participant: any) => {
-      console.log('[RTK] Participant joined event:', participant.id, participant.name)
+      rtkDebug.log('[RTK] Participant joined event:', participant.id, participant.name)
 
       // Listen to track changes for this new participant
       if (participant && typeof participant.on === 'function') {
         participant.on('trackPublished', () => {
-          console.log('[RTK] Remote participant track published:', participant.id)
+          rtkDebug.log('[RTK] Remote participant track published:', participant.id)
           updateParticipantList()
         })
         participant.on('trackUnpublished', () => {
-          console.log('[RTK] Remote participant track unpublished:', participant.id)
+          rtkDebug.log('[RTK] Remote participant track unpublished:', participant.id)
           updateParticipantList()
         })
       }
@@ -1918,7 +1919,7 @@ export const useRealtimeKitGroupCall = ({
     }
 
     const handleParticipantLeft = (participant: any) => {
-      console.log('[RTK] Participant left event:', participant.id, participant.name)
+      rtkDebug.log('[RTK] Participant left event:', participant.id, participant.name)
       updateParticipantList()
     }
 
@@ -1927,7 +1928,7 @@ export const useRealtimeKitGroupCall = ({
     if (typeof joined.on === 'function') {
       joined.on('participantJoined', handleParticipantJoined)
       joined.on('participantLeft', handleParticipantLeft)
-      console.log('[RTK] Event listeners attached')
+      rtkDebug.log('[RTK] Event listeners attached')
     }
 
     // Also attach track listeners to existing participants
@@ -1935,11 +1936,11 @@ export const useRealtimeKitGroupCall = ({
       joined.forEach((participant: any) => {
         if (participant.id !== meeting.self?.id && typeof participant.on === 'function') {
           participant.on('trackPublished', () => {
-            console.log('[RTK] Remote participant track published:', participant.id)
+            rtkDebug.log('[RTK] Remote participant track published:', participant.id)
             updateParticipantList()
           })
           participant.on('trackUnpublished', () => {
-            console.log('[RTK] Remote participant track unpublished:', participant.id)
+            rtkDebug.log('[RTK] Remote participant track unpublished:', participant.id)
             updateParticipantList()
           })
         }
@@ -1953,7 +1954,7 @@ export const useRealtimeKitGroupCall = ({
 
       const { audioEnabled } = event
 
-      console.log('[RTK] 🎤 audioUpdate event fired:', {
+      rtkDebug.log('[RTK] 🎤 audioUpdate event fired:', {
         audioEnabled,
         sdkAudioEnabled: meeting.self.audioEnabled,
         currentStateIsMuted: callState.isMuted
@@ -1969,7 +1970,7 @@ export const useRealtimeKitGroupCall = ({
 
       const { videoEnabled } = event
 
-      console.log('[RTK] 📹 videoUpdate event fired:', {
+      rtkDebug.log('[RTK] 📹 videoUpdate event fired:', {
         videoEnabled,
         sdkVideoEnabled: meeting.self.videoEnabled,
         currentStateVideoEnabled: callState.isVideoEnabled
@@ -2003,7 +2004,7 @@ export const useRealtimeKitGroupCall = ({
         }
       }
 
-      console.log('[RTK] 📺 Screen share update event:', {
+      rtkDebug.log('[RTK] 📺 Screen share update event:', {
         screenShareEnabled: event?.screenShareEnabled,
         screenShareTracksCount: tracks.length,
         screenShareTrackIds: tracks.map(t => t.id),
@@ -2027,7 +2028,7 @@ export const useRealtimeKitGroupCall = ({
       self.on('audioUpdate', handleAudioUpdate)
       self.on('videoUpdate', handleVideoUpdate)
       self.on('screenShareUpdate', handleScreenShareUpdate)
-      console.log('[RTK] Audio, video, and screen share event listeners attached')
+      rtkDebug.log('[RTK] Audio, video, and screen share event listeners attached')
     }
 
     // Initial update
@@ -2070,12 +2071,12 @@ export const useRealtimeKitGroupCall = ({
     const hasActiveMiddleware = virtualBackgroundRef.current !== null
 
     if (hasActiveMiddleware) {
-      console.log('[RTK] 🎨 Background effect already active, skipping auto-apply')
+      rtkDebug.log('[RTK] 🎨 Background effect already active, skipping auto-apply')
       return
     }
 
     // Apply background effect automatically when enabled
-    console.log('[RTK] 🎨 Auto-applying background effect (enabled by default or user preference)')
+    rtkDebug.log('[RTK] 🎨 Auto-applying background effect (enabled by default or user preference)')
 
     const applyBackground = async () => {
       try {
@@ -2084,7 +2085,7 @@ export const useRealtimeKitGroupCall = ({
         }
         await virtualBackgroundRef.current.initialize(meeting)
         await virtualBackgroundRef.current.enableBackground(meeting)
-        console.log('[RTK] ✅ Background effect auto-applied successfully')
+        rtkDebug.log('[RTK] ✅ Background effect auto-applied successfully')
 
         // Ensure localStorage reflects the enabled state
         try {
@@ -2093,7 +2094,7 @@ export const useRealtimeKitGroupCall = ({
           // Ignore storage errors
         }
       } catch (error) {
-        console.error('[RTK] ❌ Failed to auto-apply background effect:', error)
+        rtkDebug.error('[RTK] ❌ Failed to auto-apply background effect:', error)
         // Disable the state if auto-apply fails
         setCallState(prev => ({ ...prev, backgroundEnabled: false }))
         try {
@@ -2121,14 +2122,14 @@ export const useRealtimeKitGroupCall = ({
       conversationName?: string
       from: { id: string; odId: string; odName: string; avatarUrl?: string }
     }) => {
-      console.log('[RTK] Received group call invite', data)
+      rtkDebug.log('[RTK] Received group call invite', data)
 
       // ⚠️ CRITICAL: Ignore invite if already in this call (prevents double-join)
       // Check meetingIdRef (synchronous) instead of callState (async)
       // BUT: Allow invite if call state is idle (even if refs have stale values)
       const isInActiveCall = callState.status !== 'idle' && meetingIdRef.current === data.meetingId
       if (isInActiveCall) {
-        console.log('[RTK] Ignoring invite - already in this call', {
+        rtkDebug.log('[RTK] Ignoring invite - already in this call', {
           currentMeetingId: meetingIdRef.current,
           inviteMeetingId: data.meetingId,
           callStatus: callState.status
@@ -2140,7 +2141,7 @@ export const useRealtimeKitGroupCall = ({
       // BUT: Allow invite if call state is idle (refs might be stale after call ends)
       const isInAnyActiveCall = callState.status !== 'idle' && callStateRoomIdRef.current
       if (isInAnyActiveCall) {
-        console.log('[RTK] Ignoring invite - already in another call', {
+        rtkDebug.log('[RTK] Ignoring invite - already in another call', {
           currentRoomId: callStateRoomIdRef.current,
           callStatus: callState.status
         })
@@ -2149,11 +2150,11 @@ export const useRealtimeKitGroupCall = ({
 
       // Ignore if this is our own invite
       if (data.from.id === currentUser?.id) {
-        console.log('[RTK] Ignoring invite - from self')
+        rtkDebug.log('[RTK] Ignoring invite - from self')
         return
       }
 
-      console.log('[RTK] Accepting invite - call is idle', {
+      rtkDebug.log('[RTK] Accepting invite - call is idle', {
         meetingId: data.meetingId,
         conversationId: data.conversationId,
         callStatus: callState.status,
@@ -2171,7 +2172,7 @@ export const useRealtimeKitGroupCall = ({
     }
 
     const handleCallEnded = (data: { meetingId: string; conversationId: string }) => {
-      console.log('[RTK] Call ended by host', data)
+      rtkDebug.log('[RTK] Call ended by host', data)
 
       if (callStateRoomIdRef.current === data.meetingId) {
         leaveCall()
@@ -2187,7 +2188,7 @@ export const useRealtimeKitGroupCall = ({
       startedAt?: Date | string
       conversationName?: string // Meeting title from backend
     }) => {
-      console.log('[RTK] 📞 Conversation call started/updated:', {
+      rtkDebug.log('[RTK] 📞 Conversation call started/updated:', {
         conversationId: data.conversationId,
         roomId: data.roomId,
         participantCount: data.participantIds.length,
@@ -2229,7 +2230,7 @@ export const useRealtimeKitGroupCall = ({
 
       if (shouldUpdate) {
         setCurrentCallConversationName(data.conversationName)
-        console.log('[RTK] ✅ Updated conversation name from conversation:call-started:', {
+        rtkDebug.log('[RTK] ✅ Updated conversation name from conversation:call-started:', {
           conversationName: data.conversationName,
           roomId: data.roomId,
           conversationId: data.conversationId,
@@ -2243,7 +2244,7 @@ export const useRealtimeKitGroupCall = ({
           joinCallConversationIdRef: joinCallConversationIdRef.current
         })
       } else if (data.conversationName) {
-        console.log('[RTK] ⚠️ Skipped updating conversation name (not related to this conversation):', {
+        rtkDebug.log('[RTK] ⚠️ Skipped updating conversation name (not related to this conversation):', {
           conversationName: data.conversationName,
           roomId: data.roomId,
           conversationId: data.conversationId,
@@ -2273,7 +2274,7 @@ export const useRealtimeKitGroupCall = ({
       const currentRoomId = callStateRoomIdRef.current
       const currentlyInCall = isInCallRef.current
 
-      console.log('[RTK] ⏱️ Timer sync check:', {
+      rtkDebug.log('[RTK] ⏱️ Timer sync check:', {
         dataRoomId: data.roomId,
         currentRoomId,
         matches: data.roomId === currentRoomId,
@@ -2289,7 +2290,7 @@ export const useRealtimeKitGroupCall = ({
         const globalStartTime = new Date(data.startedAt).getTime()
         // Only update if we don't have a start time yet or if backend time is earlier
         if (!startTimeRef.current || globalStartTime < startTimeRef.current) {
-          console.log('[RTK] ⏱️ ✅ Syncing to global call timer:', {
+          rtkDebug.log('[RTK] ⏱️ ✅ Syncing to global call timer:', {
             previousStartTime: startTimeRef.current,
             globalStartTime,
             diff: startTimeRef.current ? (startTimeRef.current - globalStartTime) / 1000 : 0,
@@ -2297,13 +2298,13 @@ export const useRealtimeKitGroupCall = ({
           })
           startTimeRef.current = globalStartTime
         } else {
-          console.log('[RTK] ⏱️ ⏭️ Skipping timer sync (already have earlier time):', {
+          rtkDebug.log('[RTK] ⏱️ ⏭️ Skipping timer sync (already have earlier time):', {
             currentStartTime: startTimeRef.current,
             globalStartTime
           })
         }
       } else if (data.startedAt && data.roomId !== currentRoomId && currentlyInCall) {
-        console.log('[RTK] ⏱️ ⚠️ Timer sync skipped - different roomId:', {
+        rtkDebug.log('[RTK] ⏱️ ⚠️ Timer sync skipped - different roomId:', {
           eventRoomId: data.roomId,
           currentRoomId
         })
@@ -2311,7 +2312,7 @@ export const useRealtimeKitGroupCall = ({
     }
 
     const handleConversationCallEnded = (data: { conversationId: string; roomId: string }) => {
-      console.log('[RTK] 📴 Conversation call ended:', data)
+      rtkDebug.log('[RTK] 📴 Conversation call ended:', data)
 
       setActiveConversationCalls(prev => {
         const newMap = new Map(prev)
@@ -2320,7 +2321,7 @@ export const useRealtimeKitGroupCall = ({
       })
     }
 
-    console.log('[RTK] 🎧 Registering WebSocket listeners for:', {
+    rtkDebug.log('[RTK] 🎧 Registering WebSocket listeners for:', {
       hasSocket: !!socket,
       socketId: socket.id
     })
@@ -2330,7 +2331,7 @@ export const useRealtimeKitGroupCall = ({
     socket.on('conversation:call-started', handleConversationCallStarted)
     socket.on('conversation:call-ended', handleConversationCallEnded)
 
-    console.log('[RTK] ✅ All WebSocket listeners registered')
+    rtkDebug.log('[RTK] ✅ All WebSocket listeners registered')
 
     return () => {
       socket.off('rtk-group-call:invite', handleInvite)
@@ -2353,7 +2354,7 @@ export const useRealtimeKitGroupCall = ({
         const globalStartTime = new Date(callInfo.startedAt).getTime()
         // Only update if we don't have a start time yet or if backend time is earlier
         if (!startTimeRef.current || globalStartTime < startTimeRef.current) {
-          console.log('[RTK] ⏱️ 🔄 Syncing timer from activeConversationCalls:', {
+          rtkDebug.log('[RTK] ⏱️ 🔄 Syncing timer from activeConversationCalls:', {
             conversationId,
             roomId: callState.roomId,
             previousStartTime: startTimeRef.current,
@@ -2380,7 +2381,7 @@ export const useRealtimeKitGroupCall = ({
         const globalStartTime = new Date(callInfo.startedAt).getTime()
         // Only update if we don't have a start time yet or if backend time is earlier
         if (!startTimeRef.current || globalStartTime < startTimeRef.current) {
-          console.log('[RTK] ⏱️ 🔄 Syncing timer from activeConversationCalls update:', {
+          rtkDebug.log('[RTK] ⏱️ 🔄 Syncing timer from activeConversationCalls update:', {
             conversationId,
             roomId: callState.roomId,
             previousStartTime: startTimeRef.current,
@@ -2401,7 +2402,7 @@ export const useRealtimeKitGroupCall = ({
   // to prevent premature cleanup when they change during normal operation
   useEffect(() => {
     return () => {
-      console.log('[RTK] Component unmounting - final cleanup', {
+      rtkDebug.log('[RTK] Component unmounting - final cleanup', {
         hasTimer: !!durationTimerRef.current,
         hasMeeting: !!meeting,
         meetingId: meetingIdRef.current
@@ -2419,7 +2420,7 @@ export const useRealtimeKitGroupCall = ({
 
       // Leave meeting if still connected
       if (meeting && meeting.self?.roomJoined) {
-        meeting.leave().catch((err: any) => console.error('[RTK] Final cleanup leave error:', err))
+        meeting.leave().catch((err: any) => rtkDebug.error('[RTK] Final cleanup leave error:', err))
       }
     }
   }, []) // Empty array - only on unmount!
@@ -2432,7 +2433,7 @@ export const useRealtimeKitGroupCall = ({
       ;(window as any).rtkToggleVideo = toggleVideo
       ;(window as any).rtkCallState = callState
       ;(window as any).rtkLogSimulcastInfo = logSimulcastInfo
-      console.log('[RTK] 🔧 Debug functions exposed to console:', {
+      rtkDebug.log('[RTK] 🔧 Debug functions exposed to console:', {
         rtkLeaveCall: 'Leave the current call',
         rtkToggleMute: 'Toggle audio mute',
         rtkToggleVideo: 'Toggle video on/off',

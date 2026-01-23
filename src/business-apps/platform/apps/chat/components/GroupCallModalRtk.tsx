@@ -35,6 +35,7 @@ import type { GroupCallParticipant, VideoQuality } from '../services/groupWebrtc
 import type { GroupCallUIState, PendingInvite } from '../hooks/useGroupCall'
 import type { CallParticipant } from '../services/webrtcClient'
 import { useChatTranslation } from '../contexts/TranslationContext'
+import { rtkDebug } from '../utils/rtkDebug'
 
 interface AvailableParticipant {
   id: string
@@ -170,7 +171,7 @@ const getScreenShareTrack = (peer: any): MediaStreamTrack | null => {
   // First check screenShareTracks - handle various collection types
   const screenShareTracks = extractTracksFromCollection(peer.screenShareTracks)
   if (screenShareTracks.length > 0) {
-    console.log(`[RTK Modal] Found screen share track in screenShareTracks for peer ${peer.name || peer.id}:`, {
+    rtkDebug.log(`[RTK Modal] Found screen share track in screenShareTracks for peer ${peer.name || peer.id}:`, {
       trackId: screenShareTracks[0].id,
       trackLabel: screenShareTracks[0].label,
       trackKind: screenShareTracks[0].kind
@@ -180,7 +181,7 @@ const getScreenShareTrack = (peer: any): MediaStreamTrack | null => {
 
   // Then check if videoTrack is actually a screen share
   if (peer.videoTrack && isVideoTrackScreenShare(peer.videoTrack)) {
-    console.log(`[RTK Modal] Found screen share track in videoTrack for peer ${peer.name || peer.id}:`, {
+    rtkDebug.log(`[RTK Modal] Found screen share track in videoTrack for peer ${peer.name || peer.id}:`, {
       trackId: peer.videoTrack.id,
       trackLabel: peer.videoTrack.label,
       trackKind: peer.videoTrack.kind
@@ -190,7 +191,7 @@ const getScreenShareTrack = (peer: any): MediaStreamTrack | null => {
 
   // Debug: Log what we found
   if (peer.screenShareEnabled) {
-    console.warn(`[RTK Modal] Peer ${peer.name || peer.id} has screenShareEnabled=true but no track found:`, {
+    rtkDebug.warn(`[RTK Modal] Peer ${peer.name || peer.id} has screenShareEnabled=true but no track found:`, {
       screenShareEnabled: peer.screenShareEnabled,
       screenShareTracks: peer.screenShareTracks,
       screenShareTracksType: typeof peer.screenShareTracks,
@@ -247,7 +248,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
       // Debug: Log screen share status only when screen share is actually enabled
       peers.forEach((peer: any) => {
         if (peer.screenShareEnabled) {
-          console.log(`[RTK Modal] Remote peer ${peer.name || peer.id} screen share ACTIVE:`, {
+          rtkDebug.log(`[RTK Modal] Remote peer ${peer.name || peer.id} screen share ACTIVE:`, {
             screenShareEnabled: peer.screenShareEnabled,
             screenShareTracks: peer.screenShareTracks,
             screenShareTracksType: typeof peer.screenShareTracks,
@@ -269,7 +270,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
     // Extract tracks from various possible structures
     const screenShareTracks = extractTracksFromCollection(m.self.screenShareTracks)
     if (screenShareTracks.length > 0) {
-      console.log('[RTK Modal] 📺 Local screen share tracks found:', {
+      rtkDebug.log('[RTK Modal] 📺 Local screen share tracks found:', {
         count: screenShareTracks.length,
         trackIds: screenShareTracks.map(t => t.id),
         trackLabels: screenShareTracks.map(t => t.label),
@@ -290,7 +291,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
     return null
   })
 
-  console.log('[RTK Modal] Remote peers count:', remotePeers?.length || 0)
+  rtkDebug.log('[RTK Modal] Remote peers count:', remotePeers?.length || 0)
 
   // Auto-play local video stream (fallback if meeting.self.videoTrack not available)
   useEffect(() => {
@@ -358,7 +359,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
       )
 
       const extractedScreenShareTracks = extractTracksFromCollection(peer.screenShareTracks)
-      console.log(`[RTK Modal] Checking peer ${peer.name || peer.id}:`, {
+      rtkDebug.log(`[RTK Modal] Checking peer ${peer.name || peer.id}:`, {
         hasVideoElement: !!videoElement,
         hasVideoTrack: !!peer.videoTrack,
         hasAudioTrack: !!peer.audioTrack,
@@ -396,7 +397,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
 
         videoElement.srcObject = stream
         attachedPeersRef.current.add(peer.id)
-        console.log(`[RTK Modal] ✅ Attached stream for peer ${peer.name || peer.id}`, {
+        rtkDebug.log(`[RTK Modal] ✅ Attached stream for peer ${peer.name || peer.id}`, {
           hasVideo: !!cameraVideoTrack,
           hasAudio: !!peer.audioTrack,
           videoTrackIsScreenShare: isVideoTrackScreenShare(peer.videoTrack)
@@ -425,7 +426,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
 
         // Update stream if ANY track changed
         if (videoTrackChanged || audioTrackChanged) {
-          console.log(`[RTK Modal] 🔄 Track changed for peer ${peer.name || peer.id}`, {
+          rtkDebug.log(`[RTK Modal] 🔄 Track changed for peer ${peer.name || peer.id}`, {
             videoChanged: videoTrackChanged,
             audioChanged: audioTrackChanged,
             oldVideoId: currentVideoTrack?.id,
@@ -475,10 +476,10 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
               videoElement.muted = false
 
               videoElement.play().catch(err => {
-                console.warn(`[RTK Modal] Could not auto-play peer ${peer.name || peer.id}:`, err)
+                rtkDebug.warn(`[RTK Modal] Could not auto-play peer ${peer.name || peer.id}:`, err)
               })
 
-              console.log(`[RTK Modal] ✅ Updated stream for peer ${peer.name || peer.id}`, {
+              rtkDebug.log(`[RTK Modal] ✅ Updated stream for peer ${peer.name || peer.id}`, {
                 hasVideo: !!cameraVideoTrack,
                 hasAudio: !!peer.audioTrack,
                 videoElementMuted: videoElement.muted,
@@ -502,7 +503,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
        * This section just logs screen share status for debugging.
        */
       if (hasScreenShare && primaryScreenShareTrack) {
-        console.log(`[RTK Modal] 📺 Screen share detected for peer ${peer.name || peer.id}:`, {
+        rtkDebug.log(`[RTK Modal] 📺 Screen share detected for peer ${peer.name || peer.id}:`, {
           trackId: primaryScreenShareTrack.id,
           trackLabel: primaryScreenShareTrack.label,
           trackEnabled: primaryScreenShareTrack.enabled,
@@ -519,7 +520,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
       } else if (peer.screenShareEnabled && !hasScreenShare) {
         // Screen share is enabled but track not found - potential issue
         const extractedTracks = extractTracksFromCollection(peer.screenShareTracks)
-        console.warn(`[RTK Modal] ⚠️ Screen share enabled for peer ${peer.name || peer.id} but no track found:`, {
+        rtkDebug.warn(`[RTK Modal] ⚠️ Screen share enabled for peer ${peer.name || peer.id} but no track found:`, {
           screenShareEnabled: peer.screenShareEnabled,
           extractedTracksCount: extractedTracks.length,
           extractedTracks: extractedTracks.map(t => ({ id: t.id, label: t.label, kind: t.kind })),
@@ -549,7 +550,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
     attachedPeersRef.current.forEach(peerId => {
       if (!currentPeerIds.has(peerId)) {
         attachedPeersRef.current.delete(peerId)
-        console.log(`[RTK Modal] Removed peer ${peerId} from attached set`)
+        rtkDebug.log(`[RTK Modal] Removed peer ${peerId} from attached set`)
 
         // Clean up any pending track update timers for this peer
         const timer = trackUpdateTimersRef.current.get(peerId)
@@ -587,7 +588,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
       const screenShareTrack = getScreenShareTrack(peer)
       const hasScreenShareEnabled = peer.screenShareEnabled === true
 
-      console.log(`[RTK Modal] Checking peer ${peer.name || peer.id} for screen share:`, {
+      rtkDebug.log(`[RTK Modal] Checking peer ${peer.name || peer.id} for screen share:`, {
         hasScreenShareTrack: !!screenShareTrack,
         screenShareEnabled: hasScreenShareEnabled,
         screenShareTracks: peer.screenShareTracks,
@@ -604,7 +605,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
         })
       } else if (hasScreenShareEnabled) {
         // Screen share is enabled but track not found yet - might be initializing
-        console.warn(`[RTK Modal] Peer ${peer.name || peer.id} has screenShareEnabled=true but no track found`)
+        rtkDebug.warn(`[RTK Modal] Peer ${peer.name || peer.id} has screenShareEnabled=true but no track found`)
       }
     })
 
@@ -619,7 +620,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
       })
     }
 
-    console.log(
+    rtkDebug.log(
       `[RTK Modal] Found ${shares.length} screen shares:`,
       shares.map(s => ({
         peerId: s.peerId,
@@ -739,7 +740,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
       })
     })
 
-    console.log(`[RTK Modal] Grid items built:`, {
+    rtkDebug.log(`[RTK Modal] Grid items built:`, {
       totalItems: items.length,
       screenShares: items.filter(i => i.type === 'screen-share').length,
       focusedScreenShare: focusedScreenShare?.peerId,
@@ -770,7 +771,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
     const hasFocusedScreenShare = !!focusedScreenShare
     const screenShareCount = allScreenShares.length
 
-    console.log('[RTK Modal] Grid layout calculation:', {
+    rtkDebug.log('[RTK Modal] Grid layout calculation:', {
       itemCount,
       hasFocusedScreenShare,
       screenShareCount,
@@ -849,7 +850,9 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
         setTimeout(() => {
           videoEl.srcObject = stream
           videoEl.muted = false
-          videoEl.play().catch(err => console.warn(`[RTK Modal] Could not auto-play screen share ${item.peerId}:`, err))
+          videoEl
+            .play()
+            .catch(err => rtkDebug.warn(`[RTK Modal] Could not auto-play screen share ${item.peerId}:`, err))
         }, 10)
       }
     })
@@ -878,7 +881,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
         setTimeout(() => {
           videoEl.srcObject = stream
           videoEl.muted = item.isLocal
-          videoEl.play().catch(err => console.warn(`[RTK Modal] Could not auto-play video ${item.peerId}:`, err))
+          videoEl.play().catch(err => rtkDebug.warn(`[RTK Modal] Could not auto-play video ${item.peerId}:`, err))
         }, 10)
       }
     })
@@ -893,7 +896,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
       expandedScreenShareVideoRef.current.srcObject = expandedScreenShare.stream
       expandedScreenShareVideoRef.current.muted = false
       expandedScreenShareVideoRef.current.play().catch(err => {
-        console.warn('[RTK Modal] Could not auto-play expanded screen share:', err)
+        rtkDebug.warn('[RTK Modal] Could not auto-play expanded screen share:', err)
       })
     }
   }, [expandedScreenShare])
@@ -910,7 +913,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
     const videoTracks = firstRemoteStream?.getVideoTracks() || []
     const hasRemoteVideo = videoTracks.length > 0 && videoTracks.some(t => t.enabled && t.readyState === 'live')
 
-    console.log('[RTK Modal] 🔽 Rendering minimized view:', {
+    rtkDebug.log('[RTK Modal] 🔽 Rendering minimized view:', {
       hasPeer: !!firstRemotePeer,
       peerId: firstRemotePeer?.id,
       peerName: firstRemotePeer?.odName,
@@ -941,7 +944,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                 if (el) {
                   // Always update srcObject to ensure stream changes are reflected
                   if (el.srcObject !== firstRemoteStream) {
-                    console.log('[RTK Minimized] 📹 Attaching video stream to minimized view:', {
+                    rtkDebug.log('[RTK Minimized] 📹 Attaching video stream to minimized view:', {
                       peerId: firstRemotePeer?.id,
                       peerName: firstRemotePeer?.odName,
                       streamId: firstRemoteStream.id,
@@ -955,7 +958,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                   }
                   // Ensure video is playing
                   if (el.paused) {
-                    el.play().catch(err => console.debug('[RTK Minimized] Video play error:', err))
+                    el.play().catch(err => rtkDebug.debug('[RTK Minimized] Video play error:', err))
                   }
                 }
               }}

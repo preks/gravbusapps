@@ -7,6 +7,7 @@ import { useConversations } from './useConversations'
 import { useMessages } from './useMessages'
 import { useTypingIndicator } from './useTypingIndicator'
 import { usePresence, type PresenceState } from './usePresence'
+import { rtkDebug } from '../utils/rtkDebug'
 
 // Shared WebSocket client to prevent duplicate connections
 // Multiple Chat instances (e.g., forceMount tabs) will share ONE WebSocket
@@ -686,12 +687,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleConversationCallEnded = (data: { conversationId: string; roomId: string }) => {
-      console.log('[CHAT CLIENT] 📴 Received conversation:call-ended:', data)
+      rtkDebug.log('[CHAT CLIENT] 📴 Received conversation:call-ended:', data)
       setActiveCalls(prev => {
-        console.log('[CHAT CLIENT] ActiveCalls BEFORE remove:', prev)
+        rtkDebug.log('[CHAT CLIENT] ActiveCalls BEFORE remove:', prev)
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [data.conversationId]: _removed, ...rest } = prev
-        console.log('[CHAT CLIENT] ActiveCalls AFTER remove:', rest)
+        rtkDebug.log('[CHAT CLIENT] ActiveCalls AFTER remove:', rest)
         return rest
       })
       conversationsHookRef.current?.updateConversation?.(data.conversationId, {

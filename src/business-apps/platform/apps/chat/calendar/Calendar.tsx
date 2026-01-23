@@ -17,6 +17,7 @@ import { RealtimeKitApiClient } from '../services/realtimeKitApiClient'
 import { useChatClient } from '../hooks/useChatClient'
 import { CalendarEvent, Meeting, CreateMeetingData, InvitationStatus } from './types'
 import type { CallParticipant } from '../services/webrtcClient'
+import { rtkDebug } from '../utils/rtkDebug'
 
 interface CalendarProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -510,7 +511,7 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
       })
     }
 
-    console.log('[Calendar] Collected participants for call:', {
+    rtkDebug.log('[Calendar] Collected participants for call:', {
       meetingId: enrichedSelectedEvent.id,
       meetingTitle: enrichedSelectedEvent.title,
       totalParticipants: enrichedSelectedEvent.participants?.length || 0,
@@ -530,7 +531,7 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
     // accidentally sharing calls with chat conversations or other meetings
     const conversationId = enrichedSelectedEvent.id
 
-    console.log('[Calendar] Starting call for meeting:', {
+    rtkDebug.log('[Calendar] Starting call for meeting:', {
       meetingId: enrichedSelectedEvent.id,
       meetingTitle: enrichedSelectedEvent.title,
       conversationId: enrichedSelectedEvent.conversationId, // For reference only
@@ -554,7 +555,7 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
           const [currentConvId, currentCall] = currentCallEntry
           // If we found a call for this conversationId, we're already in the right call
           if (currentConvId === conversationId) {
-            console.log('[Calendar] Already in a call for this meeting, ignoring duplicate start request:', {
+            rtkDebug.log('[Calendar] Already in a call for this meeting, ignoring duplicate start request:', {
               conversationId,
               currentRoomId: groupCallState.roomId,
               currentCallRoomId: currentCall.roomId
@@ -567,7 +568,7 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
       // Check if there's already an active call for this meeting (started by someone else)
       const existingCall = activeConversationCalls?.get(conversationId)
 
-      console.log('[Calendar] Checking for existing call:', {
+      rtkDebug.log('[Calendar] Checking for existing call:', {
         conversationId,
         existingCall: existingCall
           ? {
@@ -583,7 +584,7 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
 
       if (existingCall && existingCall.roomId) {
         // Join the existing call
-        console.log('[Calendar] Joining existing RealtimeKit call for meeting:', {
+        rtkDebug.log('[Calendar] Joining existing RealtimeKit call for meeting:', {
           conversationId,
           roomId: existingCall.roomId,
           callType: existingCall.callType
@@ -597,7 +598,7 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
         // Check again after the delay
         const existingCallAfterDelay = activeConversationCalls?.get(conversationId)
         if (existingCallAfterDelay && existingCallAfterDelay.roomId) {
-          console.log('[Calendar] Found existing call after delay, joining:', {
+          rtkDebug.log('[Calendar] Found existing call after delay, joining:', {
             conversationId,
             roomId: existingCallAfterDelay.roomId
           })
@@ -608,7 +609,7 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
         // Start a new group call with the meeting ID as conversationId
         // Backend will return existing meeting if one exists for this conversationId
         // Even if no other participants yet, we can start the call (they can join via invite)
-        console.log('[Calendar] Starting new RealtimeKit group call for meeting:', {
+        rtkDebug.log('[Calendar] Starting new RealtimeKit group call for meeting:', {
           conversationId,
           meetingTitle: enrichedSelectedEvent.title,
           participantCount: callParticipants.length,

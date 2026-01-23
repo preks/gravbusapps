@@ -6,6 +6,7 @@
 import RealtimeKitVideoBackgroundTransformer from '@cloudflare/realtimekit-virtual-background'
 import type { RealtimeKitMeeting, VideoMiddleware } from '@cloudflare/realtimekit-react'
 import backgroundPoster from '../assets/background-poster.jpg'
+import { rtkDebug } from '../utils/rtkDebug'
 
 export class RTKVirtualBackground {
   private transformer: RealtimeKitVideoBackgroundTransformer | null = null
@@ -15,11 +16,11 @@ export class RTKVirtualBackground {
   async initialize(meeting: RealtimeKitMeeting): Promise<void> {
     if (this.isInitialized) return
 
-    console.log('[RTK Virtual Background] 🎨 Initializing transformer...')
+    rtkDebug.log('[RTK Virtual Background] 🎨 Initializing transformer...')
 
     // Check browser support
     if (!RealtimeKitVideoBackgroundTransformer.isSupported()) {
-      console.warn('[RTK Virtual Background] ⚠️ Not supported in this browser')
+      rtkDebug.warn('[RTK Virtual Background] ⚠️ Not supported in this browser')
       throw new Error('Virtual background not supported in this browser')
     }
 
@@ -36,7 +37,7 @@ export class RTKVirtualBackground {
     })
 
     this.isInitialized = true
-    console.log('[RTK Virtual Background] ✅ Transformer initialized')
+    rtkDebug.log('[RTK Virtual Background] ✅ Transformer initialized')
   }
 
   async enableBackground(meeting: RealtimeKitMeeting, imageUrl?: string): Promise<void> {
@@ -52,13 +53,13 @@ export class RTKVirtualBackground {
 
     // Create and apply background middleware
     const backgroundUrl = imageUrl || backgroundPoster
-    console.log('[RTK Virtual Background] 🖼️ Applying background:', backgroundUrl)
+    rtkDebug.log('[RTK Virtual Background] 🖼️ Applying background:', backgroundUrl)
 
     this.currentMiddleware = await this.transformer.createStaticBackgroundVideoMiddleware(backgroundUrl)
 
     if (meeting.self?.addVideoMiddleware) {
       meeting.self.addVideoMiddleware(this.currentMiddleware)
-      console.log('[RTK Virtual Background] ✅ Background applied')
+      rtkDebug.log('[RTK Virtual Background] ✅ Background applied')
     }
   }
 
@@ -74,13 +75,13 @@ export class RTKVirtualBackground {
     }
 
     // Create and apply blur middleware
-    console.log('[RTK Virtual Background] 💨 Applying blur with strength:', blurStrength)
+    rtkDebug.log('[RTK Virtual Background] 💨 Applying blur with strength:', blurStrength)
 
     this.currentMiddleware = await this.transformer.createBackgroundBlurVideoMiddleware(blurStrength)
 
     if (meeting.self?.addVideoMiddleware) {
       meeting.self.addVideoMiddleware(this.currentMiddleware)
-      console.log('[RTK Virtual Background] ✅ Blur applied')
+      rtkDebug.log('[RTK Virtual Background] ✅ Blur applied')
     }
   }
 
@@ -88,7 +89,7 @@ export class RTKVirtualBackground {
     if (this.currentMiddleware && meeting.self?.removeVideoMiddleware) {
       meeting.self.removeVideoMiddleware(this.currentMiddleware)
       this.currentMiddleware = null
-      console.log('[RTK Virtual Background] ⏸️ Background removed')
+      rtkDebug.log('[RTK Virtual Background] ⏸️ Background removed')
     }
   }
 
@@ -96,7 +97,7 @@ export class RTKVirtualBackground {
     this.disable(meeting)
     this.transformer = null
     this.isInitialized = false
-    console.log('[RTK Virtual Background] 🗑️ Destroyed')
+    rtkDebug.log('[RTK Virtual Background] 🗑️ Destroyed')
   }
 
   isSupported(): boolean {

@@ -31,6 +31,7 @@ import type { Conversation, User, MessageEntityReference } from './types'
 import type { CallParticipant } from './services/webrtcClient'
 import { env } from '@/common/env/EnvUtils'
 import { TranslationProvider, useChatTranslation } from './contexts/TranslationContext'
+import { rtkDebug } from './utils/rtkDebug'
 
 type ViewMode = 'full' | 'compact' | 'mobile'
 
@@ -504,7 +505,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       const existingCall = activeCalls[activeConversation.id]
       const shouldJoinExisting = isJoiningExisting || !!existingCall
 
-      console.log('[CHAT] handleGroupCall check:', {
+      rtkDebug.log('[CHAT] handleGroupCall check:', {
         conversationId: activeConversation.id,
         existingCall,
         activeCalls,
@@ -514,10 +515,10 @@ const ChatInner: React.FC<ChatProps> = memo(
       if (shouldJoinExisting) {
         // Join the existing call using the roomId (meetingId) from activeCalls
         if (!existingCall?.roomId) {
-          console.error('[CHAT] Cannot join - no roomId in existingCall!')
+          rtkDebug.error('[CHAT] Cannot join - no roomId in existingCall!')
           return
         }
-        console.log(
+        rtkDebug.log(
           '[CHAT] Joining existing call with roomId:',
           existingCall.roomId,
           'conversationId:',
