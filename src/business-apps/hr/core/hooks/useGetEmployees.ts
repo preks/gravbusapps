@@ -50,14 +50,12 @@ const EMPLOYEES_PER_PAGE = 20
 // Helpers
 function parseMatrixTeams(matrixTeamsValue: unknown): string[] {
   if (Array.isArray(matrixTeamsValue)) {
-    return (matrixTeamsValue as unknown[]).filter((v: unknown) => typeof v === 'string') as string[]
+    return matrixTeamsValue.filter((v): v is string => typeof v === 'string')
   }
   if (typeof matrixTeamsValue === 'string') {
     try {
       const parsed = JSON.parse(matrixTeamsValue)
-      return Array.isArray(parsed)
-        ? ((parsed as unknown[]).filter((v: unknown) => typeof v === 'string') as string[])
-        : []
+      return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : []
     } catch {
       return matrixTeamsValue ? [matrixTeamsValue] : []
     }

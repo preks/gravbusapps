@@ -47,7 +47,10 @@ export const useProbationRate = (accessToken: string) => {
 
       // Fetch counts from dataset query 'probationRateData'
       const resp = await datasetClient.executeQuery('probationRateData', QueryType.DATASET, {})
-      const rows: DatasetRow[] = Array.isArray(resp?.data) ? (resp!.data as DatasetRow[]) : []
+      let rows: DatasetRow[] = []
+      if (Array.isArray(resp?.data)) {
+        rows = resp.data
+      }
       const totalRow = rows.find(r => (r.category || '').toString().toLowerCase() === 'total active employees')
       const probRow = rows.find(r => (r.category || '').toString().toLowerCase() === 'employees in probation')
       const total = Number(totalRow?.value ?? Number.NaN)
