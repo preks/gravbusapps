@@ -28,6 +28,7 @@ import {
   ClockCounterClockwiseIcon,
   TextAlignLeftIcon,
   FileTextIcon,
+  DotsThreeVerticalIcon,
   Icon as PhosphorIcon
 } from '@phosphor-icons/react'
 import { Activity, ActivityDocument } from './types'
@@ -40,6 +41,8 @@ import {
 } from './utils'
 import dayjs from 'dayjs'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 interface ActivityDetailSheetProps {
   activity: Activity | null
@@ -47,6 +50,8 @@ interface ActivityDetailSheetProps {
   onOpenChange: (open: boolean) => void
   buildReferenceUrl?: (entityType: string, entityId: string) => string
   'data-testid'?: string
+  accessToken?: string
+  flowContext?: FlowContextName
 }
 
 const DATA_TEST_ID_PREFIX = 'ActivityDetailSheet'
@@ -83,15 +88,35 @@ export const ActivityDetailSheet: React.FC<ActivityDetailSheetProps> = ({
   open,
   onOpenChange,
   buildReferenceUrl,
-  'data-testid': dataTestId
+  'data-testid': dataTestId,
+  accessToken,
+  flowContext
 }) => {
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title="Activity Details">
       <SheetContent className="gba:!w-[500px] gba:sm:!w-[500px] gba:!max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
         <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
-          <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
+          <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left gba:mb-3">
             {activity?.title || 'Activity Details'}
           </SheetTitle>
+          {accessToken && flowContext && activity && (
+            <div className="gba:flex gba:justify-end">
+              <AppAction
+                contexts={[{ context: flowContext, contextData: { activityId: activity.id } }]}
+                accessToken={accessToken}
+                mode="button"
+                buttonSize="sm"
+                buttonVariant="outline"
+                emptyState="enable"
+                lazyLoad
+                prefixDataTestId={`${dataTestId || DATA_TEST_ID_PREFIX}-actions`}
+                data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-actions-button`}
+              >
+                <DotsThreeVerticalIcon size={16} className="gba:mr-2" />
+                Actions
+              </AppAction>
+            </div>
+          )}
         </SheetHeader>
         <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
           {activity ? (

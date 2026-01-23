@@ -55,6 +55,7 @@ export interface PipelineSettingsProps {
     conditionCatalog?: string
     version?: string
   }
+  hidePageLayout?: boolean
 }
 
 const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps> = ({
@@ -68,7 +69,8 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
   onRetry,
   onBack,
   catalogConfig,
-  accessToken
+  accessToken,
+  hidePageLayout = false
 }) => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
@@ -292,6 +294,16 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
   )
 
   if (isLoading) {
+    const loadingContent = (
+      <div className="gba:flex gba:justify-center gba:py-8" data-testid={`${prefixDataTestId}-loading`}>
+        <Spinner size="lg" />
+      </div>
+    )
+
+    if (hidePageLayout) {
+      return loadingContent
+    }
+
     return (
       <PageLayout
         headerIcon={headerPhosphorIcon?.icon || FlowArrowIcon}
@@ -299,14 +311,30 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
         headerDescription={headerDescription}
         className={className}
       >
-        <div className="gba:flex gba:justify-center gba:py-8" data-testid={`${prefixDataTestId}-loading`}>
-          <Spinner size="lg" />
-        </div>
+        {loadingContent}
       </PageLayout>
     )
   }
 
   if (error) {
+    const errorContent = (
+      <Alert variant="destructive" className="gba:mb-4" data-testid={`${prefixDataTestId}-error`}>
+        <div className="gba:flex gba:items-center gba:justify-between">
+          <div>
+            <h4 className="gba:font-medium">Error Loading Pipelines</h4>
+            <p className="gba:text-sm gba:mt-1">{error}</p>
+          </div>
+          <Button size="sm" onClick={onRetry}>
+            Retry
+          </Button>
+        </div>
+      </Alert>
+    )
+
+    if (hidePageLayout) {
+      return errorContent
+    }
+
     return (
       <PageLayout
         headerIcon={headerPhosphorIcon?.icon || FlowArrowIcon}
@@ -314,29 +342,13 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
         headerDescription={headerDescription}
         className={className}
       >
-        <Alert variant="destructive" className="gba:mb-4" data-testid={`${prefixDataTestId}-error`}>
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <div>
-              <h4 className="gba:font-medium">Error Loading Pipelines</h4>
-              <p className="gba:text-sm gba:mt-1">{error}</p>
-            </div>
-            <Button size="sm" onClick={onRetry}>
-              Retry
-            </Button>
-          </div>
-        </Alert>
+        {errorContent}
       </PageLayout>
     )
   }
 
-  return (
-    <PageLayout
-      headerIcon={headerPhosphorIcon?.icon || FlowArrowIcon}
-      headerTitle={headerTitle}
-      headerDescription={headerDescription}
-      onBack={onBack}
-      className={className}
-    >
+  const mainContent = (
+    <>
       <div className="gba:space-y-6" data-testid={`${prefixDataTestId}-container`}>
         {/* Add Pipeline Button */}
         <div className="gba:flex gba:justify-end">
@@ -490,6 +502,22 @@ const PipelineSettings: React.FC<PipelineSettingsProps & BusinessAppContextProps
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </>
+  )
+
+  if (hidePageLayout) {
+    return mainContent
+  }
+
+  return (
+    <PageLayout
+      headerIcon={headerPhosphorIcon?.icon || FlowArrowIcon}
+      headerTitle={headerTitle}
+      headerDescription={headerDescription}
+      onBack={onBack}
+      className={className}
+    >
+      {mainContent}
     </PageLayout>
   )
 }

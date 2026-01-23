@@ -65,7 +65,10 @@ const AvailableBenefitLayout: React.FC<AvailableBenefitLayoutProps> = ({
       </div>
 
       {/* Right side: Action buttons stacked */}
-      <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-32" data-testid={`benefit-actions-${benefit.code}`}>
+      <div
+        className="gba:flex gba:flex-col gba:gap-1 gba:shrink-0 gba:w-auto gba:min-w-32"
+        data-testid={`benefit-actions-${benefit.code}`}
+      >
         {onViewDetails && (
           <Button
             variant="outline"
@@ -74,7 +77,7 @@ const AvailableBenefitLayout: React.FC<AvailableBenefitLayoutProps> = ({
             className="gba:w-full"
             data-testid={`benefit-catalog-details-button-${benefit.code}`}
           >
-            {t('benefit-view-details')}
+            <span className="gba:truncate">{t('benefit-view-details')}</span>
           </Button>
         )}
         <AppAction
@@ -96,7 +99,9 @@ const AvailableBenefitLayout: React.FC<AvailableBenefitLayoutProps> = ({
           accessToken={accessToken}
           className="gba:w-full gba:font-semibold"
         >
-          {benefit.isPending ? t('benefit-status-pending') : t('benefit-request-button')}
+          <span className="gba:truncate">
+            {benefit.isPending ? t('benefit-status-pending') : t('benefit-request-button')}
+          </span>
         </AppAction>
       </div>
     </div>

@@ -75,7 +75,10 @@ const ActiveBenefitLayout: React.FC<ActiveBenefitLayoutProps> = ({
       </BenefitInfoSection>
 
       {/* Right side: Action buttons stacked */}
-      <div className="gba:flex gba:flex-col gba:gap-1 gba:min-w-32" data-testid={`benefit-actions-${benefit.code}`}>
+      <div
+        className="gba:flex gba:flex-col gba:gap-1 gba:shrink-0 gba:w-auto gba:min-w-32"
+        data-testid={`benefit-actions-${benefit.code}`}
+      >
         {onViewDetails && (
           <Button
             variant="outline"
@@ -84,7 +87,7 @@ const ActiveBenefitLayout: React.FC<ActiveBenefitLayoutProps> = ({
             className="gba:w-full"
             data-testid={`benefit-catalog-details-button-${benefit.code}`}
           >
-            {t('benefit-view-details')}
+            <span className="gba:truncate">{t('benefit-view-details')}</span>
           </Button>
         )}
         {/* Show deactivate button (active or disabled) */}
@@ -97,7 +100,7 @@ const ActiveBenefitLayout: React.FC<ActiveBenefitLayoutProps> = ({
             className="gba:w-full gba:opacity-50 gba:cursor-not-allowed"
             data-testid={`benefit-catalog-deactivate-button-disabled-${benefit.code}`}
           >
-            {t('benefit-deactivate-button')}
+            <span className="gba:truncate">{t('benefit-deactivate-button')}</span>
           </Button>
         ) : (
           /* Show active deactivate button when benefit can still be deactivated */
@@ -120,7 +123,7 @@ const ActiveBenefitLayout: React.FC<ActiveBenefitLayoutProps> = ({
             accessToken={accessToken}
             className="gba:w-full gba:text-destructive hover:gba:bg-destructive hover:gba:text-destructive-foreground"
           >
-            {t('benefit-deactivate-button')}
+            <span className="gba:truncate">{t('benefit-deactivate-button')}</span>
           </AppAction>
         )}
       </div>
