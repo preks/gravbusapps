@@ -24,6 +24,7 @@ export function useJobPostings(
 ): UseJobPostingsResult {
   const graphqlClient = useGraphQLClient(accessToken)
   const stableVariables = useMemo(() => variables, [JSON.stringify(variables)])
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
   const [state, setState] = useState<Omit<UseJobPostingsResult, 'refetch'>>({
     jobPostings: [],
     total: 0,
@@ -38,7 +39,12 @@ export function useJobPostings(
         setState(prev => ({ ...prev, loading: false }))
         return
       }
-      setState(prev => ({ ...prev, loading: true, error: null }))
+      // Only set loading to true on initial load, not on subsequent searches
+      if (isInitialLoad) {
+        setState(prev => ({ ...prev, loading: true, error: null }))
+      } else {
+        setState(prev => ({ ...prev, error: null }))
+      }
       try {
         const fields: string[] =
           typeof config === 'string' ? JOB_POSTING_QUERY_CONFIGS[config] || JOB_POSTING_QUERY_CONFIGS.list : config
@@ -78,13 +84,14 @@ export function useJobPostings(
           loading: false,
           error: null
         })
+        setIsInitialLoad(false)
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to fetch job postings'
         console.error('Error fetching job postings:', error)
         setState({ jobPostings: [], total: 0, loading: false, error: errorMessage })
       }
     },
-    [accessToken, graphqlClient, config, stableVariables]
+    [accessToken, graphqlClient, config, stableVariables, isInitialLoad]
   )
 
   useEffect(() => {

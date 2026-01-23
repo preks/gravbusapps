@@ -133,6 +133,9 @@ export interface JobCandidate extends BaseEntity {
   hobbies?: CandidateHobby[]
   jobHistory?: CandidateJobHistory[]
 
+  // Relations
+  jobCandidateDocument?: import('./jobCandidateDocumentTypes').JobCandidateDocument[]
+
   // Aggregate counts
   applicationCount?: number
 }

@@ -56,7 +56,16 @@ export const JOB_POSTING_DESCRIPTORS: Descriptor[] = [
   { key: 'content', searchPaths: ['content'], sortPath: 'content', type: 'text' },
   {
     key: 'jobRequest',
-    searchPaths: ['jobRequest.name'],
+    searchPaths: [
+      'jobRequest.name',
+      'jobRequest.code',
+      'jobRequest.organizationalUnit.name',
+      'jobRequest.company.name',
+      'jobRequest.siteLocation.name',
+      'jobRequest.costCenter.name',
+      'jobRequest.jobProfile.name',
+      'jobRequest.jobPosition.name'
+    ],
     sortPath: 'jobRequest.name',
     type: 'text'
   }

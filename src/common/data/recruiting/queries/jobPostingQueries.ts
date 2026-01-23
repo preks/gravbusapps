@@ -107,6 +107,6 @@ export const buildJobPostingFragment = (fields: string[]): string => {
     ${buildScalarFields(fieldSet)}
     ${buildAggregateFields(fieldSet)}
     
-    ${buildEntityReferenceField(fieldSet, 'jobRequest', 'jobRequestId', JobPostingFields.jobRequest, 'id\n      name')}
+    ${buildEntityReferenceField(fieldSet, 'jobRequest', 'jobRequestId', JobPostingFields.jobRequest, 'id\n      name\n      code\n      description\n      plannedHireDate\n      plannedExitDate\n      contractTypeRef\n      contractType {\n        id\n        code\n        value\n        translations {\n          localeCode\n          value\n        }\n      }\n      employmentTypeRef\n      employmentType {\n        id\n        code\n        value\n        translations {\n          localeCode\n          value\n        }\n      }\n      jobExperienceLevelRef\n      jobExperienceLevel {\n        id\n        code\n        value\n        translations {\n          localeCode\n          value\n        }\n      }\n      organizationalUnitId\n      organizationalUnit {\n        id\n        name\n      }\n      companyId\n      company {\n        id\n        name\n      }\n      costCenterId\n      costCenter {\n        id\n        name\n      }\n      siteLocationId\n      siteLocation {\n        id\n        name\n      }\n      jobProfileId\n      jobProfile {\n        id\n        name\n      }\n      jobPositionId\n      jobPosition {\n        id\n        name\n      }')}
   `
 }

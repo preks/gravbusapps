@@ -41,7 +41,8 @@ export const JOB_APPLICATION_QUERY_CONFIGS: Record<string, string[]> = {
     'updatedBy',
     'version',
     'additionalProperties'
-  ]
+  ],
+  'interview-form': ['id', 'version', 'applicationDate', 'jobCandidate', 'jobCandidateId', 'jobPosting', 'jobPostingId']
 }
 
 const buildScalarFields = (fieldSet: Set<string>): string => {
@@ -118,6 +119,27 @@ const buildEntityReferenceField = (
 
 export const buildJobApplicationFragment = (fields: string[]): string => {
   const fieldSet = new Set(fields)
+
+  // Detect if this is the interview-form config by checking for its characteristic fields
+  // interview-form has: id, version, applicationDate, jobCandidate, jobCandidateId, jobPosting, jobPostingId
+  // and notably does NOT have: updatedAt, createdAt, etc.
+  const isInterviewForm =
+    fieldSet.has('jobCandidate') &&
+    fieldSet.has('jobPosting') &&
+    fieldSet.has('version') &&
+    !fieldSet.has('updatedAt') &&
+    !fieldSet.has('createdAt')
+
+  // Determine fragment for jobCandidate
+  const jobCandidateFragment = isInterviewForm
+    ? 'id\n      code\n      firstName\n      lastName\n      displayName\n      userId\n      additionalProperties'
+    : 'id\n      code\n      firstName\n      lastName'
+
+  // Determine fragment for jobPosting
+  const jobPostingFragment = isInterviewForm
+    ? 'id\n      title\n      jobRequestId\n      jobRequest {\n        id\n        name\n        jobPositionId\n        jobPosition {\n          id\n          name\n        }\n      }'
+    : 'id\n      title'
+
   return `
     ${AUDIT_FIELDS}
     ${buildScalarFields(fieldSet)}
@@ -126,9 +148,9 @@ export const buildJobApplicationFragment = (fields: string[]): string => {
     
     ${buildCatalogReferenceField(fieldSet, 'jobApplicationStage', 'jobApplicationStageRef', JobApplicationFields.jobApplicationStage)}
     
-    ${buildEntityReferenceField(fieldSet, 'jobCandidate', 'jobCandidateId', JobApplicationFields.jobCandidate, 'id\n      code\n      firstName\n      lastName')}
+    ${buildEntityReferenceField(fieldSet, 'jobCandidate', 'jobCandidateId', JobApplicationFields.jobCandidate, jobCandidateFragment)}
     
-    ${buildEntityReferenceField(fieldSet, 'jobPosting', 'jobPostingId', JobApplicationFields.jobPosting, 'id\n      title')}
+    ${buildEntityReferenceField(fieldSet, 'jobPosting', 'jobPostingId', JobApplicationFields.jobPosting, jobPostingFragment)}
     
     ${buildEntityReferenceField(fieldSet, 'jobPostingPublication', 'jobPostingPublicationId', JobApplicationFields.jobPostingPublication, 'id\n      url')}
     

@@ -16,13 +16,36 @@ export const JobApplicationInterviewFormFields = {
   additionalProperties: 'additionalProperties'
 } as const
 
-export const buildJobApplicationInterviewPayload = (data: Partial<JobApplicationInterview>) => {
+export interface JobInterviewParticipant {
+  employeeId?: string
+  jobCandidateId?: string
+  userId?: string
+}
+
+export interface BuildJobApplicationInterviewPayloadOptions extends Partial<JobApplicationInterview> {
+  jobInterviewParticipants?: JobInterviewParticipant[]
+}
+
+export const buildJobApplicationInterviewPayload = (data: BuildJobApplicationInterviewPayloadOptions) => {
   const basePayload = buildPayload(data, JobApplicationInterviewFormFields)
+
+  const participantsPayload =
+    data.jobInterviewParticipants && data.jobInterviewParticipants.length > 0
+      ? {
+          changeMode: 'REPLACE' as const,
+          participants: data.jobInterviewParticipants.map(p => ({
+            employeeId: p.employeeId,
+            jobCandidateId: p.jobCandidateId,
+            userId: p.userId
+          }))
+        }
+      : undefined
 
   return {
     jobApplicationInterview: {
       ...basePayload,
       jobApplicationId: data.jobApplicationId || ''
-    }
+    },
+    jobInterviewParticipants: participantsPayload
   }
 }

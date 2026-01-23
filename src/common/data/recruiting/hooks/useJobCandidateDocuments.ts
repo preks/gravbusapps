@@ -1,7 +1,7 @@
 /**
  * JobCandidateDocuments hook - list of documents for a candidate
  */
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   buildJobCandidateDocumentFragment,
@@ -9,7 +9,7 @@ import {
   type JobCandidateDocumentQueryVariables
 } from '../queries/jobCandidateDocumentQueries'
 import { type JobCandidateDocument } from '../types/jobCandidateDocumentTypes'
-import { buildWhereCondition, buildOrderByClause, type OrderBy } from '@/common/network/graphql/queryHelpers'
+import { buildWhere, buildOrderBy, type SortInput } from '@/common/network/graphql/queryHelpers'
 import { JOB_CANDIDATE_DOCUMENT_DESCRIPTORS } from '../types/jobCandidateDocumentTypes'
 
 export interface UseJobCandidateDocumentsResult {
@@ -24,7 +24,7 @@ export interface UseJobCandidateDocumentsParams extends Partial<JobCandidateDocu
   search?: string
   limit?: number
   offset?: number
-  orderBy?: OrderBy[]
+  orderBy?: SortInput[]
 }
 
 export function useJobCandidateDocuments(
@@ -40,6 +40,9 @@ export function useJobCandidateDocuments(
     loading: true,
     error: null
   })
+
+  // Memoize params to prevent infinite loops
+  const stableParams = useMemo(() => params, [JSON.stringify(params)])
 
   const fetchDocuments = useCallback(async () => {
     if (!accessToken) {
@@ -57,20 +60,32 @@ export function useJobCandidateDocuments(
 
       const fragment = buildJobCandidateDocumentFragment(fields)
 
-      const whereCondition = buildWhereCondition(params, JOB_CANDIDATE_DOCUMENT_DESCRIPTORS)
-      const orderByClause = buildOrderByClause(params.orderBy || [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
+      const whereObj = buildWhere({
+        variables: stableParams,
+        descriptors: JOB_CANDIDATE_DOCUMENT_DESCRIPTORS,
+        isDeleted: true
+      })
+
+      const orderByInput =
+        stableParams.orderBy && stableParams.orderBy.length > 0
+          ? stableParams.orderBy
+          : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' as const }]
+      const orderByArray = buildOrderBy(orderByInput, JOB_CANDIDATE_DOCUMENT_DESCRIPTORS)
+
+      const limit = stableParams.limit || 20
+      const offset = stableParams.offset || 0
 
       const query = `
-        query GetJobCandidateDocuments($limit: Int, $offset: Int) {
+        query GetJobCandidateDocuments($limit: Int, $offset: Int, $where: JobCandidateDocumentBoolExp, $orderBy: [JobCandidateDocumentOrderBy!]) {
           JobCandidateDocument(
-            where: ${whereCondition}
+            where: $where
             limit: $limit
             offset: $offset
-            order_by: ${orderByClause}
+            orderBy: $orderBy
           ) {
             ${fragment}
           }
-          JobCandidateDocumentAggregate(where: ${whereCondition}) {
+          JobCandidateDocumentAggregate(where: $where) {
             aggregate {
               count
             }
@@ -82,8 +97,10 @@ export function useJobCandidateDocuments(
         JobCandidateDocument: any[]
         JobCandidateDocumentAggregate: { aggregate: { count: number } }
       }>(query, {
-        limit: params.limit || 20,
-        offset: params.offset || 0
+        limit,
+        offset,
+        where: whereObj,
+        orderBy: orderByArray
       })
 
       const documents = result.JobCandidateDocument as JobCandidateDocument[]
@@ -95,7 +112,7 @@ export function useJobCandidateDocuments(
       console.error('Error fetching candidate documents:', error)
       setState({ documents: [], total: 0, loading: false, error: errorMessage })
     }
-  }, [accessToken, graphqlClient, config, params])
+  }, [accessToken, graphqlClient, config, stableParams])
 
   useEffect(() => {
     fetchDocuments()

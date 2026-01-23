@@ -153,8 +153,8 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
         meta: { type: 'text' as const }
       },
       {
-        id: 'experienceLevel',
-        accessorKey: 'experienceLevel',
+        id: 'jobExperienceLevel',
+        accessorKey: 'jobExperienceLevel',
         header: getTranslationFromI18nKeyAndLabel('recruiting.experienceLevel', 'Experience Level'),
         cell: info => {
           const value = info.getValue() as any
@@ -167,6 +167,20 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
           )
         },
         meta: { type: 'text' as const }
+      },
+      {
+        id: 'plannedHireDate',
+        accessorKey: 'plannedHireDate',
+        header: getTranslationFromI18nKeyAndLabel('recruiting.plannedHireDate', 'Planned Hire Date'),
+        cell: info => {
+          const value = info.getValue() as string
+          return value ? (
+            <div className="gba:text-sm">{new Date(value).toLocaleDateString()}</div>
+          ) : (
+            <span className="gba:text-sm gba:text-muted-foreground">-</span>
+          )
+        },
+        meta: { type: 'date' as const }
       },
       {
         id: 'plannedExitDate',

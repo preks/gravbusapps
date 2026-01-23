@@ -4,6 +4,7 @@
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { JobCandidateFields } from '../types/jobCandidateTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
+import { buildJobCandidateDocumentFragment, JOB_CANDIDATE_DOCUMENT_QUERY_CONFIGS } from './jobCandidateDocumentQueries'
 
 export interface JobCandidateQueryVariables extends BaseQueryVariables {
   jobCandidateStatus?: string
@@ -34,18 +35,47 @@ export const JOB_CANDIDATE_QUERY_CONFIGS: Record<string, string[]> = {
     'createdAt',
     'createdBy',
     'id',
-    // Basic name fields (likely in backend)
+    // Name fields
+    'title',
     'firstName',
     'lastName',
-    // Personal information (basic fields)
+    'birthName',
+    'preferredName',
+    'fullName',
+    'displayName',
+    // Personal information
+    'birthPlace',
     'birthDate',
-    // Catalog references that existed before
+    'picture',
+    'pictureThumbnail',
+    'severelyDisabilityDegree',
+    'notes',
+    'children',
+    // Catalog references
     'academicTitle',
     'academicTitleRef',
+    'ethnicity',
+    'ethnicityRef',
     'gender',
     'genderRef',
+    'language',
+    'languageRef',
+    'maritalStatus',
+    'maritalStatusRef',
     'nationality',
     'nationalityRef',
+    'salutation',
+    'salutationRef',
+    'schoolQualification',
+    'schoolQualificationRef',
+    // Jsonb fields
+    'addresses',
+    'skills',
+    'certificates',
+    'communicationChannels',
+    'educations',
+    'hobbies',
+    'jobHistory',
     // Old deprecated fields (might still be in backend)
     'email',
     'phone',
@@ -54,7 +84,9 @@ export const JOB_CANDIDATE_QUERY_CONFIGS: Record<string, string[]> = {
     'updatedBy',
     'version',
     'additionalProperties',
-    'applicationCount'
+    'applicationCount',
+    // Relations
+    'jobCandidateDocument'
   ]
 }
 
@@ -155,8 +187,21 @@ const buildCatalogReferenceField = (
     `
 }
 
+const buildArrayRelationField = (fieldSet: Set<string>, fieldName: string, relationFragment: string): string => {
+  if (!fieldSet.has(fieldName)) {
+    return ''
+  }
+  return `
+    ${fieldName}(where: {isDeleted: {_eq: false}}, orderBy: {createdAt: DESC_NULLS_LAST}) {
+      ${relationFragment}
+    }
+  `
+}
+
 export const buildJobCandidateFragment = (fields: string[]): string => {
   const fieldSet = new Set(fields)
+  const documentFragment = buildJobCandidateDocumentFragment(JOB_CANDIDATE_DOCUMENT_QUERY_CONFIGS.list)
+
   return `
     ${AUDIT_FIELDS}
     ${buildScalarFields(fieldSet)}
@@ -177,5 +222,7 @@ export const buildJobCandidateFragment = (fields: string[]): string => {
     ${buildCatalogReferenceField(fieldSet, 'salutation', 'salutationRef', JobCandidateFields.salutation)}
     
     ${buildCatalogReferenceField(fieldSet, 'schoolQualification', 'schoolQualificationRef', JobCandidateFields.schoolQualification)}
+    
+    ${buildArrayRelationField(fieldSet, 'jobCandidateDocument', documentFragment)}
   `
 }

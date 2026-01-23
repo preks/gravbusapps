@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useMemo } from 'react'
+import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -19,10 +19,13 @@ import {
   FormMessage,
   Input,
   Button,
-  DateInput
+  DateInput,
+  Textarea
 } from '@newwork/nw-design-system'
 import { useEmployeeByUserId } from '@/common/data/employee/hooks/useEmployeeByUserId'
 import { ArrowsClockwise } from '@phosphor-icons/react'
+import { JobCandidateDocumentUpload, type DocumentUploadItem } from './components/JobCandidateDocumentUpload'
+import { fileClient } from '@/common/network/files/FileClient'
 
 const jobCandidateSchema = z.object({
   id: z.string().nullish(),
@@ -31,17 +34,22 @@ const jobCandidateSchema = z.object({
   title: z.string().nullish(),
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
+  preferredName: z.string().nullish(),
   displayName: z.string().nullish(),
   birthDate: z.string().nullish(),
   birthName: z.string().nullish(),
   birthPlace: z.string().nullish(),
   children: z.number().nullish(),
+  severelyDisabilityDegree: z.number().nullish(),
   jobCandidateStatus: z.string().nullish(),
   academicTitleRef: z.string().nullish(),
   genderRef: z.string().nullish(),
   nationalityRef: z.string().nullish(),
   ethnicityRef: z.string().nullish(),
   maritalStatusRef: z.string().nullish(),
+  salutationRef: z.string().nullish(),
+  languageRef: z.string().nullish(),
+  schoolQualificationRef: z.string().nullish(),
   disabilityStatusRef: z.string().nullish(),
   veteranStatusRef: z.string().nullish(),
   sourceRef: z.string().nullish(),
@@ -82,6 +90,16 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
   })
 
   const hasEmployee = !!employeeData
+
+  // Document upload state
+  const [documents, setDocuments] = useState<DocumentUploadItem[]>([])
+
+  // Initialize FileClient with access token
+  React.useEffect(() => {
+    if (accessToken) {
+      fileClient.setAccessToken(accessToken)
+    }
+  }, [accessToken])
 
   // Initialize form with jobCandidate data OR employee data (in personal scope, create mode)
   // When using employee data, remove id to avoid conflicts
@@ -140,6 +158,45 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
     }
   }, [employeeData, form])
 
+  // Pre-submit handler: Upload files and prepare document payloads
+  const handlePreSubmit = useCallback(
+    async (formData: any) => {
+      if (!accessToken) {
+        return formData
+      }
+
+      // Upload all document files
+      const documentsWithFileInfo = await Promise.all(
+        documents
+          .filter(doc => doc.file)
+          .map(async doc => {
+            try {
+              const uploadResponse = await fileClient.uploadFile(
+                doc.file!,
+                { accessScope: 'tenant' },
+                { appName: 'recruiting', folderPath: '/job-candidates/documents' },
+                'fileContent'
+              )
+
+              return {
+                ...doc,
+                fileInfo: uploadResponse.fileInfo
+              }
+            } catch (error) {
+              console.error('Error uploading document:', error)
+              throw new Error(`Failed to upload document: ${doc.name || doc.file?.name}`)
+            }
+          })
+      )
+
+      return {
+        ...formData,
+        documents: documentsWithFileInfo
+      }
+    },
+    [documents, accessToken]
+  )
+
   const handleSubmit = useCallback(
     async (data: any) => {
       try {
@@ -150,10 +207,28 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
           jobCandidate.userId = userId
         }
 
-        return {
+        // Prepare document payloads if documents were uploaded
+        const jobCandidateDocuments =
+          data.documents?.map((doc: any) => ({
+            name: doc.name || doc.file?.name || 'Unnamed Document',
+            description: doc.description || '',
+            documentGroupRef: doc.documentGroupRef || '',
+            documentTypeRef: doc.documentTypeRef || '',
+            fileInfo: doc.fileInfo,
+            folder: false
+          })) || []
+
+        const result: any = {
           jobCandidate,
           changeMode: data.id ? 'UPDATE' : 'INSERT'
         }
+
+        // Add documents to payload if any were uploaded
+        if (jobCandidateDocuments.length > 0) {
+          result.jobCandidateDocuments = jobCandidateDocuments
+        }
+
+        return result
       } catch (error) {
         console.error('Error submitting job candidate:', error)
         throw error
@@ -187,6 +262,7 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
         formData={form.getValues()}
         form={form}
         schema={jobCandidateSchema}
+        handlePreSubmit={handlePreSubmit}
         data-testid={formatDataTestId('job-candidate-form', 'Form')}
         submitButtonText={jobCandidate?.id ? 'Update Job Candidate' : 'Create Job Candidate'}
         isSubmitDisabled={loading}
@@ -240,6 +316,20 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="preferredName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Preferred First Name</FormLabel>
+                  <FormControl>
+                    <Input {...field} data-testid={formatDataTestId('job-candidate-form', 'preferredName-input')} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <FormField
@@ -507,7 +597,11 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
                     <FormItem>
                       <FormLabel>Notes</FormLabel>
                       <FormControl>
-                        <Input {...field} data-testid={formatDataTestId('job-candidate-form', 'notes-input')} />
+                        <Textarea
+                          {...field}
+                          className="gba:min-h-[80px]"
+                          data-testid={formatDataTestId('job-candidate-form', 'notes-input')}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -515,6 +609,16 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
                 />
               </>
             )}
+
+            {/* Document Upload Section */}
+            <div className="gba:mt-6">
+              <JobCandidateDocumentUpload
+                documents={documents}
+                onChange={setDocuments}
+                accessToken={accessToken}
+                prefixDataTestId={formatDataTestId('job-candidate-form', 'documents')}
+              />
+            </div>
           </div>
         </Form>
       </AppActionForm>
