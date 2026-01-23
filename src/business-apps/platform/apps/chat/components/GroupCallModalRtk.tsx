@@ -7,7 +7,7 @@
  * Phase 2: Full SDK integration with remote video/audio rendering
  */
 
-import React, { useEffect, useRef, useState, useMemo } from 'react'
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRealtimeKitSelector } from '@cloudflare/realtimekit-react'
 import {
@@ -24,6 +24,7 @@ import {
   Video,
   VideoOff,
   PhoneOff,
+  Phone,
   Users,
   Minimize2,
   Monitor,
@@ -32,7 +33,11 @@ import {
   Image,
   ChevronLeft,
   ChevronRight,
-  ZoomIn
+  ZoomIn,
+  Hand,
+  Search,
+  X,
+  MoreVertical
 } from 'lucide-react'
 import type { GroupCallParticipant, VideoQuality } from '../services/groupWebrtcClient'
 import type { GroupCallUIState, PendingInvite } from '../hooks/useGroupCall'
@@ -60,6 +65,8 @@ interface GroupCallModalRtkProps {
   onSetVideoQuality?: (quality: VideoQuality) => void
   onToggleMinimize?: () => void
   onToggleBackground?: () => void
+  onToggleRaiseHand?: () => void
+  onSendReaction?: (emoji: string) => void
   backgroundEnabled?: boolean
   prefixDataTestId?: string
   availableParticipants?: AvailableParticipant[]
@@ -91,6 +98,288 @@ const getInitials = (name: string): string => {
     return parts[0].charAt(0).toUpperCase()
   }
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+}
+
+// Participants Panel Component
+interface ParticipantsPanelProps {
+  meeting: any
+  isOpen: boolean
+  onClose: () => void
+  prefixDataTestId?: string
+  availableParticipants?: AvailableParticipant[]
+  pendingInvites?: Map<string, PendingInvite>
+  onInviteParticipant?: (participant: CallParticipant) => void
+}
+
+const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
+  meeting,
+  isOpen,
+  onClose,
+  prefixDataTestId = 'rtk-group-call',
+  availableParticipants = [],
+  pendingInvites,
+  onInviteParticipant
+}) => {
+  const t = useChatTranslation()
+  const [searchQuery, setSearchQuery] = useState('')
+
+  // Get active call participants from SDK
+  const activeParticipants = useRealtimeKitSelector((m: any) => {
+    const participants: any[] = []
+
+    // Add local user first
+    if (m?.self) {
+      participants.push(m.self)
+    }
+
+    // Add remote participants
+    if (m?.participants?.joined) {
+      try {
+        const remote = Array.from(m.participants.joined.values())
+        participants.push(...remote)
+      } catch {
+        // Ignore
+      }
+    }
+
+    return participants
+  })
+
+  // Get IDs of participants currently in call
+  // Extract all possible ID variations and names for matching
+  const activeParticipantIds = new Set<string>()
+  const activeParticipantNames = new Set<string>()
+
+  activeParticipants.forEach((p: any) => {
+    // Add all possible ID fields
+    if (p.id) activeParticipantIds.add(p.id)
+    if (p.participantId) activeParticipantIds.add(p.participantId)
+    if (p.odId) activeParticipantIds.add(p.odId)
+    if (p.userId) activeParticipantIds.add(p.userId)
+    // Also add name for fallback matching
+    if (p.name) activeParticipantNames.add(p.name.toLowerCase())
+  })
+
+  // Get pending invite IDs
+  const pendingInviteIds = new Set(pendingInvites ? Array.from(pendingInvites.keys()) : [])
+
+  // Separate available participants into not-in-call
+  // Match by ID or name (fallback)
+  const notInCallParticipants = availableParticipants.filter(p => {
+    // Check if any of the participant's IDs are in the active call
+    const isInCall =
+      activeParticipantIds.has(p.odId) ||
+      activeParticipantIds.has(p.id) ||
+      activeParticipantNames.has(p.odName.toLowerCase())
+
+    const isPending = pendingInviteIds.has(p.odId) || pendingInviteIds.has(p.id)
+
+    return !isInCall && !isPending
+  })
+
+  // Filter by search query
+  const filteredActiveParticipants = activeParticipants.filter((p: any) =>
+    p.name?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const filteredNotInCallParticipants = notInCallParticipants.filter(p =>
+    p.odName?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const filteredPendingInvites = pendingInvites
+    ? Array.from(pendingInvites.values()).filter(invite =>
+        invite.odName?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : []
+
+  const totalCount = activeParticipants.length + notInCallParticipants.length + (pendingInvites?.size || 0)
+
+  // Debug logging
+  useEffect(() => {
+    if (isOpen) {
+      console.log(
+        '[ParticipantsPanel] Active participants:',
+        activeParticipants.map(p => ({ id: p.id, name: p.name }))
+      )
+      console.log(
+        '[ParticipantsPanel] Available participants:',
+        availableParticipants.map(p => ({ odId: p.odId, odName: p.odName }))
+      )
+      console.log(
+        '[ParticipantsPanel] Not in call:',
+        notInCallParticipants.map(p => ({ odId: p.odId, odName: p.odName }))
+      )
+      console.log('[ParticipantsPanel] Active IDs:', Array.from(activeParticipantIds))
+    }
+  }, [isOpen, activeParticipants, availableParticipants, notInCallParticipants, activeParticipantIds])
+
+  if (!isOpen) return null
+
+  return (
+    <div className="gba:flex gba:flex-col gba:h-full" data-testid={`${prefixDataTestId}-participants-panel`}>
+      {/* Header */}
+      <div className="gba:p-4 gba:border-b gba:flex-shrink-0">
+        <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+          <h3 className="gba:font-semibold gba:text-lg">
+            {t('groupCall-participants') || 'Participants'} ({totalCount})
+          </h3>
+          <button
+            onClick={onClose}
+            className="gba:p-1 hover:gba:bg-muted gba:rounded gba:transition-colors"
+            aria-label="Close"
+            data-testid={`${prefixDataTestId}-participants-panel-close`}
+          >
+            <X className="gba:h-5 gba:w-5" />
+          </button>
+        </div>
+
+        {/* Search Input */}
+        <div className="gba:relative">
+          <Search className="gba:absolute gba:left-3 gba:top-2.5 gba:h-4 gba:w-4 gba:text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search participants..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="gba:w-full gba:pl-10 gba:pr-3 gba:py-2 gba:rounded gba:border gba:bg-background"
+            data-testid={`${prefixDataTestId}-participants-search`}
+          />
+        </div>
+      </div>
+
+      {/* Participants List */}
+      <div className="gba:overflow-y-auto gba:flex-1">
+        {/* No Results */}
+        {filteredActiveParticipants.length === 0 &&
+        filteredPendingInvites.length === 0 &&
+        filteredNotInCallParticipants.length === 0 ? (
+          <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
+            {searchQuery ? 'No participants found' : t('groupCall-noParticipants') || 'No participants'}
+          </div>
+        ) : (
+          <>
+            {/* Section 1: In Call */}
+            {filteredActiveParticipants.length > 0 && (
+              <div>
+                <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:sticky gba:top-0">
+                  In Call ({filteredActiveParticipants.length})
+                </div>
+                {filteredActiveParticipants.map((participant: any) => (
+                  <div
+                    key={participant.id}
+                    className="gba:p-3 gba:flex gba:items-center gba:justify-between hover:gba:bg-muted/50 gba:border-b gba:transition-colors"
+                    data-testid={`${prefixDataTestId}-participant-active-${participant.id}`}
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:min-w-0">
+                      <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
+                        <AvatarFallback className="gba:text-xs">
+                          {getInitials(participant.name || 'Unknown')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="gba:flex-1 gba:min-w-0">
+                        <p className="gba:text-sm gba:font-medium gba:truncate">
+                          {participant.name || 'Unknown'}
+                          {participant.id === meeting?.self?.id && ' (You)'}
+                        </p>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
+                          {participant.audioEnabled ? (
+                            <Mic className="gba:h-3 gba:w-3 gba:text-success" />
+                          ) : (
+                            <MicOff className="gba:h-3 gba:w-3 gba:text-destructive" />
+                          )}
+                          {participant.videoEnabled ? (
+                            <Video className="gba:h-3 gba:w-3 gba:text-success" />
+                          ) : (
+                            <VideoOff className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
+                          )}
+                          {participant.handRaised && (
+                            <Hand className="gba:h-3 gba:w-3 gba:text-warning gba:animate-pulse" />
+                          )}
+                          {participant.screenShareEnabled && <Monitor className="gba:h-3 gba:w-3 gba:text-primary" />}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      className="gba:p-1 hover:gba:bg-muted gba:rounded gba:flex-shrink-0 gba:transition-colors"
+                      aria-label="More actions"
+                      data-testid={`${prefixDataTestId}-participant-menu-${participant.id}`}
+                    >
+                      <MoreVertical className="gba:h-4 gba:w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Section 2: Invited (Pending) */}
+            {filteredPendingInvites.length > 0 && (
+              <div>
+                <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase">
+                  Invited ({filteredPendingInvites.length})
+                </div>
+                {filteredPendingInvites.map((invite: PendingInvite) => (
+                  <div
+                    key={invite.odId}
+                    className="gba:p-3 gba:flex gba:items-center gba:gap-3 hover:gba:bg-muted/50 gba:border-b gba:transition-colors"
+                    data-testid={`${prefixDataTestId}-participant-invited-${invite.odId}`}
+                  >
+                    <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0 gba:opacity-60">
+                      <AvatarFallback className="gba:text-xs">{getInitials(invite.odName || 'Unknown')}</AvatarFallback>
+                    </Avatar>
+                    <div className="gba:flex-1 gba:min-w-0">
+                      <p className="gba:text-sm gba:font-medium gba:truncate gba:text-muted-foreground">
+                        {invite.odName || 'Unknown'}
+                      </p>
+                      <p className="gba:text-xs gba:text-muted-foreground">Ringing...</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Section 3: Available (Not in Call) */}
+            {filteredNotInCallParticipants.length > 0 && (
+              <div>
+                <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase">
+                  Available ({filteredNotInCallParticipants.length})
+                </div>
+                {filteredNotInCallParticipants.map(participant => (
+                  <div
+                    key={participant.odId}
+                    className="gba:p-3 gba:flex gba:items-center gba:justify-between hover:gba:bg-muted/50 gba:border-b gba:transition-colors"
+                    data-testid={`${prefixDataTestId}-participant-available-${participant.odId}`}
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:min-w-0">
+                      <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
+                        <AvatarFallback className="gba:text-xs">
+                          {getInitials(participant.odName || 'Unknown')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="gba:flex-1 gba:min-w-0">
+                        <p className="gba:text-sm gba:font-medium gba:truncate">{participant.odName || 'Unknown'}</p>
+                        <p className="gba:text-xs gba:text-muted-foreground">Not in call</p>
+                      </div>
+                    </div>
+                    {onInviteParticipant && (
+                      <button
+                        onClick={() => onInviteParticipant(participant)}
+                        className="gba:px-3 gba:py-1.5 gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90 gba:rounded gba:flex gba:items-center gba:gap-2 gba:text-xs gba:font-medium gba:transition-colors gba:flex-shrink-0"
+                        aria-label={`Invite ${participant.odName}`}
+                        data-testid={`${prefixDataTestId}-invite-btn-${participant.odId}`}
+                      >
+                        <Phone className="gba:h-3 gba:w-3" />
+                        Invite
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
 }
 
 // Helper to detect if a video track is a screen share
@@ -231,12 +520,17 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   localStream,
   remoteStreams,
   participants,
+  pendingInvites,
+  availableParticipants,
   onEndCall,
   onToggleMute,
   onToggleVideo,
   onToggleScreenShare,
   onToggleMinimize,
   onToggleBackground,
+  onToggleRaiseHand,
+  onSendReaction,
+  onInviteParticipant,
   prefixDataTestId = 'rtk-group-call',
   conversationName
 }) => {
@@ -251,18 +545,40 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
     stream: MediaStream
   } | null>(null)
   const [currentPage, setCurrentPage] = useState(0)
+  const [showParticipantsPanel, setShowParticipantsPanel] = useState(false)
+  const [activeReactions, setActiveReactions] = useState<
+    Array<{
+      id: string
+      emoji: string
+      participantId: string
+      timestamp: number
+    }>
+  >([])
+
+  // Show reaction animation
+  const showReactionAnimation = useCallback((emoji: string, participantId: string) => {
+    const reactionId = `${participantId}-${Date.now()}`
+
+    setActiveReactions(prev => [...prev, { id: reactionId, emoji, participantId, timestamp: Date.now() }])
+
+    // Remove after 3 seconds
+    setTimeout(() => {
+      setActiveReactions(prev => prev.filter(r => r.id !== reactionId))
+    }, 3000)
+  }, [])
 
   // Debug: Log when expanded screen share changes
   useEffect(() => {
     if (expandedScreenShare) {
-      rtkDebug.log(`[RTK Modal] 🔍 Expanded screen share state changed:`, {
+      rtkDebug.log(`[RTK Modal] 🔍 Expanded screen share state changed (fullscreen overlay will render):`, {
         peerId: expandedScreenShare.peerId,
         peerName: expandedScreenShare.peerName,
         streamId: expandedScreenShare.stream.id,
-        trackCount: expandedScreenShare.stream.getTracks().length
+        trackCount: expandedScreenShare.stream.getTracks().length,
+        dialogWillBeHidden: true
       })
     } else {
-      rtkDebug.log(`[RTK Modal] 🔍 Expanded screen share closed`)
+      rtkDebug.log(`[RTK Modal] 🔍 Expanded screen share closed (dialog will reappear)`)
     }
   }, [expandedScreenShare])
 
@@ -346,6 +662,35 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   })
 
   rtkDebug.log('[RTK Modal] Remote peers count:', remotePeers?.length || 0)
+
+  // Listen for reactions from other participants
+  useEffect(() => {
+    if (!meeting?.participants?.joined) return
+
+    const handleReaction = (event: any) => {
+      rtkDebug.log('[RTK Modal] 😊 Reaction received:', event)
+      showReactionAnimation(event.emoji, event.participantId)
+    }
+
+    const joined = meeting.participants.joined as any
+    if (joined && typeof joined.forEach === 'function') {
+      joined.forEach((participant: any) => {
+        if (participant.id !== meeting.self?.id && typeof participant.on === 'function') {
+          participant.on('reactionReceived', handleReaction)
+        }
+      })
+    }
+
+    return () => {
+      if (joined && typeof joined.forEach === 'function') {
+        joined.forEach((participant: any) => {
+          if (participant.id !== meeting.self?.id && typeof participant.off === 'function') {
+            participant.off('reactionReceived', handleReaction)
+          }
+        })
+      }
+    }
+  }, [meeting, showReactionAnimation])
 
   // Auto-play local video stream (fallback if meeting.self.videoTrack not available)
   useEffect(() => {
@@ -1229,9 +1574,9 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   return (
     <>
       {createPortal(
-        <Dialog open={isOpen} onOpenChange={() => {}}>
+        <Dialog open={isOpen && !expandedScreenShare} onOpenChange={() => {}}>
           <DialogContent
-            className="gba:max-w-6xl gba:h-[80vh] gba:p-0 gba:overflow-hidden gba:flex gba:flex-col"
+            className="gba:max-w-6xl gba:h-[80vh] gba:p-0 gba:overflow-hidden gba:flex"
             data-testid={`${prefixDataTestId}-modal`}
           >
             <DialogTitle className="gba:sr-only">{conversationName || t('chat-groupCall') || 'Group Call'}</DialogTitle>
@@ -1239,7 +1584,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
               {callState.callType === 'video' ? t('chat-videoCall') : t('chat-audioCall')} with {remotePeers.length + 1}{' '}
               {remotePeers.length + 1 === 1 ? 'participant' : 'participants'}
             </DialogDescription>
-            <div className="gba:flex gba:flex-col gba:h-full gba:bg-background gba:min-h-0">
+            <div className="gba:flex gba:flex-col gba:h-full gba:bg-background gba:min-h-0 gba:flex-1">
               {/* Header */}
               <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-b gba:bg-muted/30 gba:flex-shrink-0">
                 <div className="gba:flex gba:items-center gba:gap-4">
@@ -1273,6 +1618,19 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                 </div>
 
                 <div className="gba:flex gba:items-center gba:gap-2">
+                  {/* Participants panel toggle */}
+                  <button
+                    onClick={() => setShowParticipantsPanel(prev => !prev)}
+                    className={`gba:p-2 gba:rounded-lg gba:transition-colors ${
+                      showParticipantsPanel ? 'gba:bg-accent' : 'hover:gba:bg-accent'
+                    }`}
+                    data-testid={`${prefixDataTestId}-participants-btn`}
+                    aria-label="Participants"
+                    title="Participants"
+                  >
+                    <Users className="gba:w-5 gba:h-5" />
+                  </button>
+
                   {onToggleMinimize && (
                     <button
                       onClick={onToggleMinimize}
@@ -1616,6 +1974,41 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                         <Image className="gba:w-5 gba:h-5" />
                       </button>
                     )}
+
+                    {/* Raise hand button - TODO: Requires @cloudflare/realtimekit-ui-addons package */}
+                    {false && onToggleRaiseHand && (
+                      <button
+                        onClick={onToggleRaiseHand}
+                        className={`gba:p-3 gba:rounded-full gba:transition-all ${
+                          callState.handRaised
+                            ? 'gba:bg-warning gba:text-warning-foreground hover:gba:bg-warning/90'
+                            : 'gba:bg-accent hover:gba:bg-accent/90'
+                        }`}
+                        data-testid={`${prefixDataTestId}-raise-hand-btn`}
+                        aria-label={callState.handRaised ? 'Lower hand' : 'Raise hand'}
+                        title={callState.handRaised ? 'Lower hand' : 'Raise hand'}
+                      >
+                        <Hand className="gba:w-5 gba:h-5" />
+                      </button>
+                    )}
+
+                    {/* Reaction buttons - TODO: Requires @cloudflare/realtimekit-ui-addons package */}
+                    {false && onSendReaction && (
+                      <>
+                        {['👍', '❤️', '😂', '👏', '🎉'].map(emoji => (
+                          <button
+                            key={emoji}
+                            onClick={() => onSendReaction?.(emoji)}
+                            className="gba:p-2 gba:rounded-full hover:gba:bg-accent gba:transition-all gba:text-xl"
+                            title={`Send ${emoji}`}
+                            data-testid={`${prefixDataTestId}-reaction-${emoji}`}
+                            aria-label={`Send ${emoji} reaction`}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </>
+                    )}
                   </div>
 
                   {/* Separator */}
@@ -1635,6 +2028,21 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Participants Panel - Sidebar */}
+            {showParticipantsPanel && (
+              <div className="gba:w-80 gba:bg-card gba:shadow-lg gba:flex gba:flex-col gba:border-l gba:h-full gba:flex-shrink-0">
+                <ParticipantsPanel
+                  meeting={meeting}
+                  isOpen={showParticipantsPanel}
+                  onClose={() => setShowParticipantsPanel(false)}
+                  prefixDataTestId={prefixDataTestId}
+                  availableParticipants={availableParticipants}
+                  pendingInvites={pendingInvites}
+                  onInviteParticipant={onInviteParticipant}
+                />
+              </div>
+            )}
           </DialogContent>
         </Dialog>,
         document.body
@@ -1644,9 +2052,14 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
       {expandedScreenShare &&
         createPortal(
           <div
-            className="gba:fixed gba:inset-0 gba:z-[9999] gba:bg-black gba:flex gba:items-center gba:justify-center gba:cursor-pointer"
-            onClick={() => {
-              rtkDebug.log(`[RTK Modal] 🔍 Closing expanded screen share via overlay click`)
+            className="gba:fixed gba:inset-0 gba:bg-black gba:flex gba:items-center gba:justify-center gba:cursor-pointer"
+            style={{ zIndex: 999999 }}
+            onClick={e => {
+              rtkDebug.log(`[RTK Modal] 🔍 Closing expanded screen share via overlay click`, {
+                targetTag: (e.target as HTMLElement)?.tagName,
+                targetClass: (e.target as HTMLElement)?.className,
+                currentTargetTag: (e.currentTarget as HTMLElement)?.tagName
+              })
               setExpandedScreenShare(null)
             }}
             data-testid={`${prefixDataTestId}-expanded-screenshare-overlay`}
@@ -1683,6 +2096,43 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
               muted
               className="gba:max-w-full gba:max-h-full gba:object-contain gba:pointer-events-none"
             />
+          </div>,
+          document.body
+        )}
+
+      {/* Floating reaction animations */}
+      {activeReactions.length > 0 &&
+        createPortal(
+          <div className="gba:fixed gba:inset-0 gba:pointer-events-none gba:z-[99999]">
+            {activeReactions.map(reaction => (
+              <div
+                key={reaction.id}
+                className="gba:absolute gba:text-5xl gba:animate-reaction-float"
+                style={{
+                  left: `${Math.random() * 80 + 10}%`,
+                  bottom: '10%',
+                  animation: 'reaction-float 3s ease-out forwards'
+                }}
+              >
+                {reaction.emoji}
+              </div>
+            ))}
+            <style>{`
+              @keyframes reaction-float {
+                0% {
+                  opacity: 1;
+                  transform: translateY(0) scale(1);
+                }
+                50% {
+                  opacity: 1;
+                  transform: translateY(-100px) scale(1.2);
+                }
+                100% {
+                  opacity: 0;
+                  transform: translateY(-200px) scale(1.5);
+                }
+              }
+            `}</style>
           </div>,
           document.body
         )}

@@ -44,6 +44,7 @@ export interface GroupCallUIState {
   isMinimized: boolean
   videoQuality: VideoQuality
   backgroundEnabled: boolean
+  handRaised: boolean // Whether local user has hand raised
   startTime: number | null
   duration: number
   callImplementation: 'mesh' | 'realtime-kit' | '1-on-1' // Track which implementation is used
@@ -92,6 +93,8 @@ export interface UseGroupCallReturn {
   setVideoQuality: (quality: VideoQuality) => Promise<void>
   toggleMinimize: () => void
   toggleBackground: () => void
+  toggleRaiseHand?: () => Promise<boolean>
+  sendReaction?: (emoji: string) => Promise<void>
   inviteToCall: (participants: CallParticipant[], conversationName?: string) => void
   reconnectParticipant: (participantId: string) => Promise<void>
   // Debugging
@@ -157,6 +160,7 @@ const initialCallState: GroupCallUIState = {
   isMinimized: false,
   videoQuality: getSavedVideoQuality(),
   backgroundEnabled: getSavedBackgroundEnabled(),
+  handRaised: false,
   startTime: null,
   duration: 0
 }
@@ -307,6 +311,7 @@ export const useGroupCall = ({
         isMinimized: false, // Chat is handling it now
         videoQuality: storedData.callState.videoQuality,
         backgroundEnabled: storedData.callState.backgroundEnabled,
+        handRaised: false,
         startTime: storedData.callState.startTime,
         duration: storedData.callState.duration,
         callImplementation: storedData.callState.callImplementation || 'mesh'
@@ -367,6 +372,7 @@ export const useGroupCall = ({
           isMinimized: false, // Chat is handling it now
           videoQuality: storedData.callState.videoQuality,
           backgroundEnabled: storedData.callState.backgroundEnabled,
+          handRaised: false,
           startTime: storedData.callState.startTime,
           duration: storedData.callState.duration,
           callImplementation: storedData.callState.callImplementation || 'mesh'

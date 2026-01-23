@@ -389,6 +389,8 @@ const ChatInner: React.FC<ChatProps> = memo(
       setVideoQuality: setGroupVideoQuality,
       toggleMinimize: toggleGroupMinimize,
       toggleBackground: toggleGroupBackground,
+      toggleRaiseHand: toggleGroupRaiseHand,
+      sendReaction: sendGroupReaction,
       inviteToCall: inviteToGroupCall,
       reconnectParticipant: reconnectGroupParticipant,
       getConnectionDiagnostics: getGroupConnectionDiagnostics,
@@ -1795,6 +1797,8 @@ const ChatInner: React.FC<ChatProps> = memo(
                 onSetVideoQuality={setGroupVideoQuality}
                 onToggleMinimize={toggleGroupMinimize}
                 onToggleBackground={toggleGroupBackground}
+                onToggleRaiseHand={toggleGroupRaiseHand}
+                onSendReaction={sendGroupReaction}
                 backgroundEnabled={groupCallState.backgroundEnabled}
                 prefixDataTestId={`${prefixDataTestId}-rtk-group-call`}
                 availableParticipants={availableParticipantsForCall}

@@ -118,6 +118,7 @@ const initialCallState: GroupCallUIState = {
   isMinimized: false,
   videoQuality: getSavedVideoQuality(),
   backgroundEnabled: getSavedBackgroundEnabled(), // Default true on first use, respect preference after
+  handRaised: false,
   startTime: null,
   duration: 0
 }
@@ -460,6 +461,7 @@ export const useRealtimeKitGroupCall = ({
           isMinimized: false,
           videoQuality: getSavedVideoQuality(),
           backgroundEnabled: getSavedBackgroundEnabled(), // Default true on first use, respect preference after
+          handRaised: false,
           startTime: Date.now(),
           duration: 0
         })
@@ -1424,6 +1426,56 @@ export const useRealtimeKitGroupCall = ({
   }, [callState.backgroundEnabled, meeting])
 
   /**
+   * Toggle raise hand
+   */
+  const toggleRaiseHand = useCallback(async (): Promise<boolean> => {
+    if (!meeting?.self) {
+      rtkDebug.warn('[RTK] ⚠️ Cannot toggle raise hand: meeting.self not available')
+      return callState.handRaised
+    }
+
+    try {
+      const self = meeting.self as any
+      const isCurrentlyRaised = self.handRaised || false
+
+      if (isCurrentlyRaised) {
+        await self.lowerHand()
+        rtkDebug.log('[RTK] ✋ Hand lowered')
+      } else {
+        await self.raiseHand()
+        rtkDebug.log('[RTK] ✋ Hand raised')
+      }
+
+      // Return the new state (optimistic update)
+      return !isCurrentlyRaised
+    } catch (error) {
+      rtkDebug.error('[RTK] ❌ Failed to toggle raise hand:', error)
+      return callState.handRaised
+    }
+  }, [meeting, callState.handRaised])
+
+  /**
+   * Send a reaction emoji
+   */
+  const sendReaction = useCallback(
+    async (emoji: string): Promise<void> => {
+      if (!meeting?.self) {
+        rtkDebug.warn('[RTK] ⚠️ Cannot send reaction: meeting.self not available')
+        return
+      }
+
+      try {
+        const self = meeting.self as any
+        await self.sendReaction(emoji)
+        rtkDebug.log('[RTK] 😊 Reaction sent:', emoji)
+      } catch (error) {
+        rtkDebug.error('[RTK] ❌ Failed to send reaction:', error)
+      }
+    },
+    [meeting]
+  )
+
+  /**
    * Invite additional participants mid-call
    */
   const inviteToCall = useCallback(
@@ -2034,13 +2086,30 @@ export const useRealtimeKitGroupCall = ({
       }
     }
 
+    const handleHandUpdate = (event: any) => {
+      if (!meeting?.self) return
+
+      const { handRaised } = event
+      const self = meeting.self as any
+
+      rtkDebug.log('[RTK] ✋ handUpdate event fired:', {
+        handRaised,
+        sdkHandRaised: self.handRaised,
+        currentStateHandRaised: callState.handRaised
+      })
+
+      // Update our state to match SDK state
+      setCallState(prev => ({ ...prev, handRaised }))
+    }
+
     // Attach event listeners if SDK supports them
     const self = meeting.self as any
     if (self && typeof self.on === 'function') {
       self.on('audioUpdate', handleAudioUpdate)
       self.on('videoUpdate', handleVideoUpdate)
       self.on('screenShareUpdate', handleScreenShareUpdate)
-      rtkDebug.log('[RTK] Audio, video, and screen share event listeners attached')
+      self.on('handUpdate', handleHandUpdate)
+      rtkDebug.log('[RTK] Audio, video, screen share, and hand raise event listeners attached')
     }
 
     // Initial update
@@ -2060,6 +2129,7 @@ export const useRealtimeKitGroupCall = ({
           self.off('audioUpdate', handleAudioUpdate)
           self.off('videoUpdate', handleVideoUpdate)
           self.off('screenShareUpdate', handleScreenShareUpdate)
+          self.off('handUpdate', handleHandUpdate)
         } catch {
           // Ignore - SDK will handle cleanup
         }
@@ -2486,6 +2556,8 @@ export const useRealtimeKitGroupCall = ({
     setVideoQuality,
     toggleMinimize,
     toggleBackground,
+    toggleRaiseHand,
+    sendReaction,
     inviteToCall,
     reconnectParticipant,
     getConnectionDiagnostics,
