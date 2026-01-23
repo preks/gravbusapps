@@ -1,5 +1,5 @@
 // Customer Task hooks - list and search operations for customer tasks
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -199,12 +199,23 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
     [graphqlClient]
   )
 
-  return {
-    fetchCustomerTasks,
-    fetchCustomerTasksByAccountId,
-    fetchCustomerTasksByContactId,
-    fetchCustomerTasksByLeadId,
-    fetchCustomerTasksByOpportunityId,
-    fetchCustomerTaskById
-  }
+  // Memoize return object to provide stable reference for consumers
+  return useMemo(
+    () => ({
+      fetchCustomerTasks,
+      fetchCustomerTasksByAccountId,
+      fetchCustomerTasksByContactId,
+      fetchCustomerTasksByLeadId,
+      fetchCustomerTasksByOpportunityId,
+      fetchCustomerTaskById
+    }),
+    [
+      fetchCustomerTasks,
+      fetchCustomerTasksByAccountId,
+      fetchCustomerTasksByContactId,
+      fetchCustomerTasksByLeadId,
+      fetchCustomerTasksByOpportunityId,
+      fetchCustomerTaskById
+    ]
+  )
 }

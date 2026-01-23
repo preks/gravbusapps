@@ -28,6 +28,7 @@ import {
   ClockCounterClockwiseIcon,
   TextAlignLeftIcon,
   FileTextIcon,
+  DotsThreeVerticalIcon,
   Icon as PhosphorIcon
 } from '@phosphor-icons/react'
 import { Activity, ActivityDocument } from './types'
@@ -40,6 +41,8 @@ import {
 } from './utils'
 import dayjs from 'dayjs'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 interface ActivityDetailSheetProps {
   activity: Activity | null
@@ -47,6 +50,8 @@ interface ActivityDetailSheetProps {
   onOpenChange: (open: boolean) => void
   buildReferenceUrl?: (entityType: string, entityId: string) => string
   'data-testid'?: string
+  accessToken?: string
+  flowContext?: FlowContextName
 }
 
 const DATA_TEST_ID_PREFIX = 'ActivityDetailSheet'
@@ -83,15 +88,35 @@ export const ActivityDetailSheet: React.FC<ActivityDetailSheetProps> = ({
   open,
   onOpenChange,
   buildReferenceUrl,
-  'data-testid': dataTestId
+  'data-testid': dataTestId,
+  accessToken,
+  flowContext
 }) => {
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title="Activity Details">
       <SheetContent className="gba:!w-[500px] gba:sm:!w-[500px] gba:!max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
         <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
-          <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left">
+          <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left gba:mb-3">
             {activity?.title || 'Activity Details'}
           </SheetTitle>
+          {accessToken && flowContext && activity && (
+            <div className="gba:flex gba:justify-end">
+              <AppAction
+                contexts={[{ context: flowContext, contextData: { activityId: activity.id } }]}
+                accessToken={accessToken}
+                mode="button"
+                buttonSize="sm"
+                buttonVariant="outline"
+                emptyState="enable"
+                lazyLoad
+                prefixDataTestId={`${dataTestId || DATA_TEST_ID_PREFIX}-actions`}
+                data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-actions-button`}
+              >
+                <DotsThreeVerticalIcon size={16} className="gba:mr-2" />
+                Actions
+              </AppAction>
+            </div>
+          )}
         </SheetHeader>
         <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
           {activity ? (
@@ -188,15 +213,18 @@ const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent"
+                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent gba:min-w-0 gba:max-w-full"
                       onClick={handleReferenceClick}
                       data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-reference-link`}
                     >
-                      <Badge variant={getReferenceTypeBadgeVariant(referenceType.toLowerCase()) as any}>
+                      <Badge
+                        variant={getReferenceTypeBadgeVariant(referenceType.toLowerCase()) as any}
+                        className="gba:shrink-0"
+                      >
                         {referenceType}
                       </Badge>
-                      <span className="gba:text-sm gba:font-medium">{referenceName}</span>
-                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
+                      <span className="gba:text-sm gba:font-medium gba:truncate">{referenceName}</span>
+                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground gba:shrink-0" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>View {referenceType.toLowerCase()} record</TooltipContent>
@@ -213,11 +241,11 @@ const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent"
+                      className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer hover:gba:bg-accent gba:rounded gba:p-1 gba:-m-1 gba:transition-colors gba:border-0 gba:bg-transparent gba:min-w-0 gba:max-w-full"
                       onClick={handleOwnerClick}
                       data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-owner-link`}
                     >
-                      <Avatar size="sm" className="gba:size-6">
+                      <Avatar size="sm" className="gba:size-6 gba:shrink-0">
                         {activity.ownerEmployee.pictureThumbnail && (
                           <AvatarImage
                             src={`data:image/gif;base64,${activity.ownerEmployee.pictureThumbnail}`}
@@ -231,12 +259,12 @@ const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
                           {getInitials(activity.ownerEmployee.firstName || '', activity.ownerEmployee.lastName || '')}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="gba:text-sm gba:font-medium">
+                      <span className="gba:text-sm gba:font-medium gba:truncate">
                         {activity.ownerEmployee.displayName ||
                           `${activity.ownerEmployee.firstName || ''} ${activity.ownerEmployee.lastName || ''}`.trim() ||
                           'Unknown'}
                       </span>
-                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
+                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground gba:shrink-0" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>View employee profile</TooltipContent>

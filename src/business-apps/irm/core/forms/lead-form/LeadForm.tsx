@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentLead } from '@/common/data/investment/hooks/useInvestmentLead'
 import { LeadLayout, leadSchema } from '@/common/components/common-relations/form-layouts/lead-layout'
+import { useLeadAccountAutocomplete } from '@/common/components/common-relations/form-layouts/lead-layout/hooks/useLeadAccountAutocomplete'
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { type InvestmentLead, buildInvestmentLeadPayload } from '@/common/data/investment/types/investmentLeadTypes'
@@ -32,6 +33,7 @@ import {
 } from '@/common/data/investment/constants/investmentCatalogs'
 import { ErrorAlert } from '@/components/error-alert'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
 
 type LeadFormProps = BusinessAppContextProps
 
@@ -51,6 +53,9 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
   // Fetch lead data using declarative hook
   const { lead, loading, error } = useInvestmentLead(accessToken || '', leadId)
 
+  // Account search hook
+  const { fetchInvestmentAccounts } = useGetInvestmentAccounts({ accessToken, userInfo, additionalData })
+
   // ALL HOOKS MUST BE CALLED BEFORE EARLY RETURN (Rules of Hooks)
   // Create form instance - resolver will be updated dynamically
   const form = useForm({
@@ -58,6 +63,22 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   }) as any
+
+  // Account autocomplete hook (shared between CRM and IRM)
+  const {
+    accountSearchOptions,
+    accountSearchLoading,
+    autoFilledFields,
+    expandCompanySection,
+    handleAccountSearch,
+    handleAccountSelect,
+    handleFieldChange,
+    setAutoFilledFields,
+    setExpandCompanySection
+  } = useLeadAccountAutocomplete({
+    form,
+    fetchAccounts: fetchInvestmentAccounts
+  })
 
   // Investment Types Hook - provides hierarchy and field definitions
   const businessAppContext = { accessToken, userInfo, additionalData }
@@ -233,9 +254,32 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
     updateDynamicFieldsFromLead
   ])
 
+  // Track when country is auto-selected by CatalogSelect (bidirectional from region)
+  useEffect(() => {
+    const subscription = form.watch((value: any, { name }: any) => {
+      // When countryRef changes and regionRef is auto-filled, mark countryRef as auto-filled too
+      if (name === 'countryRef' && value.countryRef && autoFilledFields.has('regionRef')) {
+        setAutoFilledFields(prev => {
+          if (!prev.has('countryRef')) {
+            const next = new Set(prev)
+            next.add('countryRef')
+            return next
+          }
+          return prev
+        })
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [form, autoFilledFields])
+
   // Handle form submission - returns payload for AppActionForm (like CRM LeadForm, but with dynamic fields)
   const handleSubmit = useCallback(
     async (data: any) => {
+      // Clear auto-filled fields marking on submit
+      setAutoFilledFields(new Set())
+      // Reset company section expansion
+      setExpandCompanySection(false)
+
       try {
         // Extract dynamic prospect fields and merge with form data
         const prospectFields = extractProspectFieldsFromFormValues(data, formFieldsDefinition)
@@ -266,7 +310,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
         throw error
       }
     },
-    [formFieldsDefinition, getPathByType]
+    [formFieldsDefinition, getPathByType, setAutoFilledFields, setExpandCompanySection]
   )
 
   // Handle form cancellation
@@ -319,6 +363,13 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
           companySizeCatalogIdentifier={COMPANY_SIZE}
           annualRevenueCatalogIdentifier={ANNUAL_REVENUE}
           loading={!isFormReady}
+          accountSearchOptions={accountSearchOptions}
+          onAccountSearch={handleAccountSearch}
+          onAccountSelect={handleAccountSelect}
+          accountSearchLoading={accountSearchLoading}
+          autoFilledFields={autoFilledFields}
+          expandCompanySection={expandCompanySection}
+          onFieldChange={handleFieldChange}
           customSegments={[
             {
               id: 'investment-prospect',

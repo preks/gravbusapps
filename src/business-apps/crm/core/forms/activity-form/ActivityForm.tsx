@@ -66,8 +66,8 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     resolver: zodResolver(activitySchema),
     defaultValues: {
       ...mapToFormValues(activity || {}, activitySchema),
-      // Include occurredAt from context if provided (e.g., from calendar quick action)
-      ...(occurredAt && !isUpdateMode ? { occurredAt } : {})
+      // Include occurredAt from context if provided (e.g., from calendar quick action or drag & drop)
+      ...(occurredAt ? { occurredAt } : {})
     } as any,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
@@ -168,6 +168,11 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
       form.reset(mapToFormValues(activity || {}, activitySchema) as any)
       activityRef.current = activity
 
+      // Re-apply override occurredAt from drag & drop or context (after DB data loads)
+      if (occurredAt && activity) {
+        form.setValue('occurredAt', occurredAt)
+      }
+
       // Hydrate first found entity
       const entity = [
         { type: 'account' as const, id: activity?.accountId },
@@ -180,7 +185,7 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
         hydrateEntityById(entity.type, entity.id)
       }
     }
-  }, [activity?.id, activity, form, hydrateEntityById])
+  }, [activity?.id, activity, form, hydrateEntityById, occurredAt])
 
   useEffect(() => {
     if (accessToken && !activityId) {

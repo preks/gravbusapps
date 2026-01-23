@@ -1,7 +1,7 @@
 import React from 'react'
 import { DndContext, closestCenter, DragOverlay } from '@dnd-kit/core'
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
-import { Button, Input, Card, Badge, Alert, AlertDescription } from '@newwork/nw-design-system'
+import { Button, Input, Card, Badge, Alert, AlertDescription, EmptyState } from '@newwork/nw-design-system'
 import { PlusIcon, TrashIcon, CheckIcon, XIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FieldGroup, FieldDefinition } from '../types'
@@ -67,7 +67,7 @@ export const FormFieldsEditor: React.FC<FormFieldsEditorProps> = ({
   const activeField = getActiveField(normalizedFieldGroups, selectedGroupIndex)
 
   return (
-    <div className="gba:space-y-4" data-testid={prefixDataTestId}>
+    <div className="gba:space-y-6" data-testid={prefixDataTestId}>
       {/* Inheritance Notice */}
       {isInherited && inheritedFrom && (
         <Alert data-testid={`${prefixDataTestId}-inheritance-notice`}>
@@ -77,31 +77,41 @@ export const FormFieldsEditor: React.FC<FormFieldsEditorProps> = ({
         </Alert>
       )}
 
-      {/* Group Tabs */}
-      <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap" data-testid={`${prefixDataTestId}-group-tabs`}>
-        {normalizedFieldGroups.map((group, index) => (
-          <div key={group.groupId} className="gba:flex gba:items-center gba:gap-1">
-            <Badge
-              variant={selectedGroupIndex === index ? 'default' : 'outline'}
-              className="gba:cursor-pointer gba:px-3 gba:py-1"
-              onClick={() => setSelectedGroupIndex(index)}
-              data-testid={`${prefixDataTestId}-group-tab-${index}`}
-            >
-              {group.groupLabel} ({group.fields?.length || 0})
-            </Badge>
-            {!isInherited && normalizedFieldGroups.length > 1 && (
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => handleDeleteGroup(index)}
-                data-testid={`${prefixDataTestId}-delete-group-${index}`}
+      {/* Group Tabs and Add Group Button */}
+      <div
+        className="gba:flex gba:items-center gba:justify-between gba:gap-4"
+        data-testid={`${prefixDataTestId}-group-header`}
+      >
+        {/* Group Tabs */}
+        <div
+          className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap"
+          data-testid={`${prefixDataTestId}-group-tabs`}
+        >
+          {normalizedFieldGroups.map((group, index) => (
+            <div key={group.groupId} className="gba:flex gba:items-center gba:gap-1">
+              <Badge
+                variant={selectedGroupIndex === index ? 'default' : 'outline'}
+                className="gba:cursor-pointer gba:px-3 gba:py-1"
+                onClick={() => setSelectedGroupIndex(index)}
+                data-testid={`${prefixDataTestId}-group-tab-${index}`}
               >
-                <TrashIcon />
-              </Button>
-            )}
-          </div>
-        ))}
+                {group.groupLabel} ({group.fields?.length || 0})
+              </Badge>
+              {!isInherited && normalizedFieldGroups.length > 1 && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => handleDeleteGroup(index)}
+                  data-testid={`${prefixDataTestId}-delete-group-${index}`}
+                >
+                  <TrashIcon />
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
 
+        {/* Add Group Button */}
         {isAddingGroup ? (
           <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${prefixDataTestId}-add-group-form`}>
             <Input
@@ -109,7 +119,7 @@ export const FormFieldsEditor: React.FC<FormFieldsEditorProps> = ({
               onChange={e => setNewGroupLabel(e.target.value)}
               placeholder="Group name"
               data-testid={`${prefixDataTestId}-new-group-input`}
-              className="gba:w-36"
+              className="gba:w-48"
             />
             <Button size="icon" onClick={handleAddGroup} data-testid={`${prefixDataTestId}-confirm-group`}>
               <CheckIcon />
@@ -124,36 +134,36 @@ export const FormFieldsEditor: React.FC<FormFieldsEditorProps> = ({
             </Button>
           </div>
         ) : (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setIsAddingGroup(true)}
-            data-testid={`${prefixDataTestId}-add-group-button`}
-          >
-            <PlusIcon /> Add Group
+          <Button onClick={() => setIsAddingGroup(true)} data-testid={`${prefixDataTestId}-add-group-button`}>
+            <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+            Add Group
           </Button>
         )}
       </div>
 
       {/* Fields Grid */}
-      {currentGroup && (
+      {currentGroup ? (
         <Card className="gba:p-6" data-testid={`${prefixDataTestId}-fields-container`}>
-          <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
+          <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
             <h3 className="gba:text-lg gba:font-semibold gba:m-0">{currentGroup.groupLabel}</h3>
             <div className="gba:flex gba:gap-2">
               <Button onClick={handleAddField} data-testid={`${prefixDataTestId}-add-field-button`}>
-                <PlusIcon /> Add Field
+                <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+                Add Field
               </Button>
               {!isInherited && (
                 <Button variant="outline" onClick={handleAddNewRow} data-testid={`${prefixDataTestId}-add-row-button`}>
-                  <PlusIcon /> New Row
+                  <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+                  New Row
                 </Button>
               )}
             </div>
           </div>
 
           {currentGroup.fields.length === 0 ? (
-            <Alert data-testid={`${prefixDataTestId}-no-fields`}>No fields yet. Click "Add Field" to create one.</Alert>
+            <div data-testid={`${prefixDataTestId}-no-fields`}>
+              <EmptyState title="No fields configured yet" description='Click "Add Field" to create your first field' />
+            </div>
           ) : (
             <DndContext
               sensors={sensors}
@@ -190,6 +200,13 @@ export const FormFieldsEditor: React.FC<FormFieldsEditorProps> = ({
             </DndContext>
           )}
         </Card>
+      ) : (
+        <div data-testid={`${prefixDataTestId}-no-group`}>
+          <EmptyState
+            title="No field group selected"
+            description='Click "Add Group" to create your first field group'
+          />
+        </div>
       )}
 
       {/* Field Editor Dialog */}

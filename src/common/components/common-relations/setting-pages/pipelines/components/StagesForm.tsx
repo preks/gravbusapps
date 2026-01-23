@@ -79,7 +79,7 @@ const DraggableStageCard: React.FC<{
     <Card
       ref={setNodeRef}
       style={style}
-      className={`gba:relative gba:group gba:border-2 gba:border-gray-200 gba:hover:border-blue-400 gba:transition-all gba:duration-200 gba:w-64 ${isDragging ? 'gba:opacity-50' : ''}`}
+      className={`gba:relative gba:group gba:border-2 gba:border-border gba:hover:border-primary gba:transition-all gba:duration-200 gba:w-72 ${isDragging ? 'gba:opacity-50' : ''}`}
       data-testid={`${prefixDataTestId}-stage-card-${stage.id}`}
     >
       {/* Action buttons in top right */}
@@ -103,19 +103,19 @@ const DraggableStageCard: React.FC<{
         </Button>
       </div>
 
-      <div className="gba:p-4 gba:pr-16">
+      <div className="gba:p-4">
         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
           <div
             {...attributes}
             {...listeners}
-            className="gba:cursor-grab gba:text-gray-400 gba:hover:text-gray-600 gba:p-1 gba:flex-shrink-0 gba:select-none"
+            className="gba:cursor-grab gba:text-muted-foreground gba:hover:text-foreground gba:p-1 gba:flex-shrink-0 gba:select-none"
             style={{ touchAction: 'none' }}
           >
             <GripVertical className="gba:w-4 gba:h-4" />
           </div>
           <div className="gba:flex-1 gba:min-w-0">
             <div className="gba:flex gba:items-center gba:gap-2">
-              <h5 className="gba:text-gray-800 gba:font-medium gba:text-sm gba:leading-tight gba:truncate">
+              <h5 className="gba:text-foreground gba:font-medium gba:text-sm gba:leading-tight gba:truncate">
                 {stage.value}
               </h5>
               <Badge variant={stageConfig.variant} className="gba:text-xs gba:px-1.5 gba:py-0.5">
@@ -127,13 +127,13 @@ const DraggableStageCard: React.FC<{
 
         {/* Conditions Count */}
         <div className="gba:mt-auto">
-          <div className="gba:flex gba:items-center gba:justify-between gba:bg-gray-50 gba:rounded-lg gba:p-2">
+          <div className="gba:flex gba:items-center gba:justify-between gba:bg-muted gba:rounded-lg gba:p-2">
             <div className="gba:flex gba:items-center gba:gap-1">
-              <div className="gba:w-2 gba:h-2 gba:bg-orange-500 gba:rounded-full"></div>
-              <span className="gba:text-xs gba:text-gray-600">Conditions</span>
+              <div className="gba:w-2 gba:h-2 gba:bg-warning gba:rounded-full"></div>
+              <span className="gba:text-xs gba:text-muted-foreground">Conditions</span>
             </div>
             <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-sm gba:font-semibold gba:text-orange-600">{conditionCount}</span>
+              <span className="gba:text-sm gba:font-semibold gba:text-warning">{conditionCount}</span>
               <Button
                 variant="ghost"
                 size="icon"
@@ -468,7 +468,7 @@ const StagesForm: React.FC<StagesFormProps> = ({
 
   if (error) {
     return (
-      <Alert variant="destructive" className="gba:border-red-200 gba:bg-red-50">
+      <Alert variant="destructive" className="gba:border-destructive-secondary gba:bg-destructive-secondary">
         <AlertDescription>
           {error}
           <Button variant="outline" size="sm" onClick={fetchStages} className="gba:ml-2">
@@ -495,8 +495,8 @@ const StagesForm: React.FC<StagesFormProps> = ({
         </div>
 
         {stages.length === 0 ? (
-          <div className="gba:min-h-32 gba:flex gba:items-center gba:justify-center gba:bg-gray-50 gba:rounded-lg gba:p-8">
-            <p className="gba:text-gray-500 gba:text-center">
+          <div className="gba:min-h-32 gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-lg gba:p-8">
+            <p className="gba:text-muted-foreground gba:text-center">
               No stages defined for this pipeline yet.
               <br />
               Click "Add Stage" to create the first one.
@@ -524,7 +524,7 @@ const StagesForm: React.FC<StagesFormProps> = ({
 
                     {index < stages.length - 1 && (
                       <div className="gba:flex gba:items-center gba:px-2 gba:flex-shrink-0 gba:mt-8">
-                        <ArrowRight className="gba:w-5 gba:h-5 gba:text-gray-400" />
+                        <ArrowRight className="gba:w-5 gba:h-5 gba:text-muted-foreground" />
                       </div>
                     )}
                   </React.Fragment>

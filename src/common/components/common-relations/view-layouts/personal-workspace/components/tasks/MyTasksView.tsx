@@ -343,6 +343,8 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
         buildReferenceUrl={config.buildReferenceUrl}
         data-testid={`${dataTestId}-detail-sheet`}
         businessAppContext={{ accessToken, userInfo } as BusinessAppContextProps}
+        accessToken={accessToken}
+        flowContext={config.flowContexts.entityContext}
       />
     </div>
   )
