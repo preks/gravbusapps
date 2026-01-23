@@ -13,6 +13,7 @@ import { useFormContext, useFieldArray } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { PiPlus, PiMinus } from 'react-icons/pi'
 import { LEGAL_FORM, INDUSTRY_CLASS, COUNTRY, COUNTRY_REGION } from '@/common/constants/commonCatalogs'
+import { getAutoFilledClassName } from '../utils/autoFilledClassName'
 import translations from './_i18n'
 
 interface LeadCompanySegmentProps {
@@ -21,6 +22,9 @@ interface LeadCompanySegmentProps {
   annualRevenueCatalogIdentifier?: string // e.g., "RevenueSize:v1" (CRM) or "AccountAnnualRevenueBand:v1" (IRM)
   // Custom fields
   customFields?: React.ReactNode
+  // Auto-filled fields tracking
+  autoFilledFields?: Set<string>
+  onFieldChange?: (fieldName: string) => void
 }
 
 /**
@@ -43,7 +47,9 @@ interface LeadCompanySegmentProps {
 const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
   companySizeCatalogIdentifier,
   annualRevenueCatalogIdentifier,
-  customFields
+  customFields,
+  autoFilledFields = new Set(),
+  onFieldChange
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
@@ -79,8 +85,12 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
                 <CatalogSelect
                   catalogIdentifier={LEGAL_FORM}
                   value={field.value || ''}
-                  onValueChange={v => field.onChange(v)}
+                  onValueChange={v => {
+                    field.onChange(v)
+                    if (onFieldChange) onFieldChange('legalFormRef')
+                  }}
                   data-testid="lead-segment-legal-form"
+                  className={getAutoFilledClassName('legalFormRef', autoFilledFields)}
                 />
               </FormControl>
               <FormMessage />
@@ -98,8 +108,12 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
                 <CatalogSelect
                   catalogIdentifier={INDUSTRY_CLASS}
                   value={field.value || ''}
-                  onValueChange={v => field.onChange(v)}
+                  onValueChange={v => {
+                    field.onChange(v)
+                    if (onFieldChange) onFieldChange('industryClassRef')
+                  }}
                   data-testid="lead-segment-industry"
+                  className={getAutoFilledClassName('industryClassRef', autoFilledFields)}
                 />
               </FormControl>
               <FormMessage />
@@ -116,7 +130,16 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
           <FormItem>
             <FormLabel>{t('lead-segment-website')}</FormLabel>
             <FormControl>
-              <Input placeholder={t('lead-segment-placeholder-enter')} data-testid="lead-segment-website" {...field} />
+              <Input
+                placeholder={t('lead-segment-placeholder-enter')}
+                data-testid="lead-segment-website"
+                {...field}
+                onChange={e => {
+                  field.onChange(e)
+                  if (onFieldChange) onFieldChange('companyWebsite')
+                }}
+                className={getAutoFilledClassName('companyWebsite', autoFilledFields)}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -136,6 +159,11 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
                 placeholder={t('lead-segment-placeholder-enter')}
                 data-testid="lead-segment-company-email"
                 {...field}
+                onChange={e => {
+                  field.onChange(e)
+                  if (onFieldChange) onFieldChange('companyEmail')
+                }}
+                className={getAutoFilledClassName('companyEmail', autoFilledFields)}
               />
             </FormControl>
             <FormMessage />
@@ -156,6 +184,11 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
                 placeholder={t('lead-segment-placeholder-enter')}
                 data-testid="lead-segment-company-phone"
                 {...field}
+                onChange={e => {
+                  field.onChange(e)
+                  if (onFieldChange) onFieldChange('companyPhone')
+                }}
+                className={getAutoFilledClassName('companyPhone', autoFilledFields)}
               />
             </FormControl>
             <FormMessage />
@@ -174,8 +207,12 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
               <CatalogSelect
                 catalogIdentifier={companySizeCatalogIdentifier}
                 value={field.value || ''}
-                onValueChange={v => field.onChange(v)}
+                onValueChange={v => {
+                  field.onChange(v)
+                  if (onFieldChange) onFieldChange('companySizeRef')
+                }}
                 data-testid="lead-segment-number-of-employees"
+                className={getAutoFilledClassName('companySizeRef', autoFilledFields)}
               />
             </FormControl>
             <FormMessage />
@@ -194,8 +231,12 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
               <CatalogSelect
                 catalogIdentifier={annualRevenueCatalogIdentifier}
                 value={field.value || ''}
-                onValueChange={v => field.onChange(v)}
+                onValueChange={v => {
+                  field.onChange(v)
+                  if (onFieldChange) onFieldChange('accountAnnualRevenueBandRef')
+                }}
                 data-testid="lead-segment-annual-revenue"
+                className={getAutoFilledClassName('accountAnnualRevenueBandRef', autoFilledFields)}
               />
             </FormControl>
             <FormMessage />
@@ -236,10 +277,14 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
                         placeholder={t('lead-segment-address-line', { number: lineIndex + 1 })}
                         data-testid={`lead-segment-address-line-${lineIndex + 1}`}
                         value={addressLineField.value || ''}
-                        onChange={e => addressLineField.onChange(e.target.value)}
+                        onChange={e => {
+                          addressLineField.onChange(e.target.value)
+                          if (onFieldChange) onFieldChange('addressLine.lines')
+                        }}
                         onBlur={addressLineField.onBlur}
                         name={addressLineField.name}
                         ref={addressLineField.ref}
+                        className={getAutoFilledClassName('addressLine.lines', autoFilledFields)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -275,10 +320,14 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
                     placeholder={t('lead-segment-placeholder-enter')}
                     data-testid="lead-segment-postal-code"
                     value={field.value || ''}
-                    onChange={e => field.onChange(e.target.value)}
+                    onChange={e => {
+                      field.onChange(e.target.value)
+                      if (onFieldChange) onFieldChange('postalCode')
+                    }}
                     onBlur={field.onBlur}
                     name={field.name}
                     ref={field.ref}
+                    className={getAutoFilledClassName('postalCode', autoFilledFields)}
                   />
                 </FormControl>
                 <FormMessage />
@@ -297,10 +346,14 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
                     placeholder={t('lead-segment-placeholder-enter')}
                     data-testid="lead-segment-locality"
                     value={field.value || ''}
-                    onChange={e => field.onChange(e.target.value)}
+                    onChange={e => {
+                      field.onChange(e.target.value)
+                      if (onFieldChange) onFieldChange('locality')
+                    }}
                     onBlur={field.onBlur}
                     name={field.name}
                     ref={field.ref}
+                    className={getAutoFilledClassName('locality', autoFilledFields)}
                   />
                 </FormControl>
                 <FormMessage />
@@ -322,8 +375,12 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
                     catalogIdentifier={COUNTRY}
                     childField="regionRef"
                     value={field.value || ''}
-                    onValueChange={v => field.onChange(v)}
+                    onValueChange={v => {
+                      field.onChange(v)
+                      if (onFieldChange) onFieldChange('countryRef')
+                    }}
                     data-testid="lead-segment-country"
+                    className={getAutoFilledClassName('countryRef', autoFilledFields)}
                   />
                 </FormControl>
                 <FormMessage />
@@ -342,8 +399,12 @@ const LeadCompanySegment: React.FC<LeadCompanySegmentProps> = ({
                     catalogIdentifier={COUNTRY_REGION}
                     parentField="countryRef"
                     value={field.value || ''}
-                    onValueChange={v => field.onChange(v)}
+                    onValueChange={v => {
+                      field.onChange(v)
+                      if (onFieldChange) onFieldChange('regionRef')
+                    }}
                     data-testid="lead-segment-region"
+                    className={getAutoFilledClassName('regionRef', autoFilledFields)}
                   />
                 </FormControl>
                 <FormMessage />

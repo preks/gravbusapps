@@ -602,7 +602,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
       }
 
       return (
-        <div className="gba:w-full gba:max-w-full gba:overflow-hidden">
+        <div className={`gba:w-full gba:max-w-full gba:overflow-hidden ${className || ''}`}>
           <Combobox
             key={stableKey}
             {...baseProps}
@@ -618,7 +618,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     if (mode === 'multiple') {
       const multipleValue: string[] = Array.isArray(effectiveValue) ? effectiveValue : []
       return (
-        <div className="gba:w-full gba:max-w-full gba:overflow-hidden">
+        <div className={`gba:w-full gba:max-w-full gba:overflow-hidden ${className || ''}`}>
           <Combobox
             key={stableKey}
             {...baseProps}
@@ -632,7 +632,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
 
     const defaultValue: string = Array.isArray(effectiveValue) ? effectiveValue[0] || '' : effectiveValue || ''
     return (
-      <div className="gba:w-full gba:max-w-full gba:overflow-hidden">
+      <div className={`gba:w-full gba:max-w-full gba:overflow-hidden ${className || ''}`}>
         <Combobox
           key={stableKey}
           {...baseProps}
@@ -655,7 +655,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
       disabled={wiredDisabled}
       allowClear={allowClear}
     >
-      <SelectTrigger className={className ?? 'gba:w-full gba:max-w-full'} data-testid={testId} {...props}>
+      <SelectTrigger className={`gba:w-full gba:max-w-full ${className || ''}`} data-testid={testId} {...props}>
         <SelectValue placeholder="Select..." className="gba:max-w-full gba:overflow-hidden">
           {renderSelectValueContent()}
         </SelectValue>
