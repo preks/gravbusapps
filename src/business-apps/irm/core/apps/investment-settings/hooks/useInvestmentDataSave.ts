@@ -134,7 +134,14 @@ export const useInvestmentDataSave = ({
     setError(null)
 
     try {
-      const catalogIdentifier = targetLevel === 'group' ? 'InvestmentGroup' : 'InvestmentType'
+      let catalogIdentifier: string
+      if (targetLevel === 'group') {
+        catalogIdentifier = 'InvestmentGroup'
+      } else if (targetLevel === 'type') {
+        catalogIdentifier = 'InvestmentType'
+      } else {
+        catalogIdentifier = 'InvestmentLiquidFundType'
+      }
       const version = 'v1'
 
       const catalogObjectValue = buildCatalogObjectValue(selectedEntry, configuration, isInherited)
@@ -156,7 +163,15 @@ export const useInvestmentDataSave = ({
 
       const data = await fetchCatalogData()
 
-      const entries = targetLevel === 'group' ? data.investmentGroups : data.investmentTypes
+      let entries: any[]
+      if (targetLevel === 'group') {
+        entries = data.investmentGroups
+      } else if (targetLevel === 'type') {
+        entries = data.investmentTypes
+      } else {
+        entries = data.investmentLiquidFundTypes
+      }
+
       const updatedEntry = entries.find((e: any) => e.id === selectedEntry.id)
 
       if (updatedEntry) {

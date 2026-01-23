@@ -10,6 +10,7 @@ import { UserIcon, TargetIcon, BuildingsIcon, ChartLineUpIcon } from '@phosphor-
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MyTasksTab } from '../components/MyTasksTab'
 import { MyActivitiesTab } from '../components/MyActivitiesTab'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 /**
  * CRM-specific configuration for Personal Workspace
@@ -132,6 +133,21 @@ const buildCrmWorkspaceConfig = (
       default: 'Tasks'
     }
   },
+
+  // Activity and Task configuration for detail sheets in Overview tab
+  myActivitiesConfig: {
+    flowContexts: {
+      entityContext: FlowContextName.customerActivityEntity,
+      createContext: FlowContextName.customerActivityCreate
+    }
+  } as any,
+
+  myTasksConfig: {
+    flowContexts: {
+      entityContext: FlowContextName.customerTaskEntity,
+      createContext: FlowContextName.customerTaskCreate
+    }
+  } as any,
 
   // Tab wrapper components (for lazy loading)
   MyActivitiesComponent: MyActivitiesTab,

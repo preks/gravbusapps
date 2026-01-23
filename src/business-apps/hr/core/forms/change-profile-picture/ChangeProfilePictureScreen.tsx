@@ -130,6 +130,7 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
       // window.dispatchEvent(new Event('com.newwork.user.profilePicture.updated'));
 
       return {
+        event: 'pse_submit',
         employeeId,
         employeePictureChange
       }
@@ -143,7 +144,7 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
       processType="update"
       formData={{}}
       onSubmit={data => data}
-      submitEventType={undefined as any}
+      submitEventType="pse_submit"
       cancelEventType="pse_abort"
       businessAppContext={{ accessToken, userInfo, additionalData }}
       validateForm={validateForm}

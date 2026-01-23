@@ -323,6 +323,8 @@ function ConfigActivityLayout<TActivity extends Activity = Activity, TQueryVaria
         }}
         businessAppContext={context}
         data-testid={`${dataTestId}-detail-sheet`}
+        accessToken={context.accessToken}
+        flowContext={config.rowActionsContextArray?.[0]}
       />
     </div>
   )
