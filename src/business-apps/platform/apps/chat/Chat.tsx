@@ -163,7 +163,9 @@ const ChatInner: React.FC<ChatProps> = memo(
     }, [accessToken, realtimeKitBaseUrl])
 
     // Feature flag for Realtime Kit group calls
-    const useRealtimeKitForGroupCalls = env('NEXT_PUBLIC_ENABLE_REALTIME_KIT_GROUP_CALLS') === 'true'
+    // Default: Use RealtimeKit (no env var needed)
+    // Set NEXT_PUBLIC_ENABLE_REALTIME_KIT_GROUP_CALLS=false to use old mesh implementation
+    const useRealtimeKitForGroupCalls = env('NEXT_PUBLIC_ENABLE_REALTIME_KIT_GROUP_CALLS') !== 'false'
 
     const {
       isConnected,
@@ -352,7 +354,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     })
 
     // Group Call functionality - Conditionally use Realtime Kit or Mesh topology
-    // Use Realtime Kit for group calls if feature flag is enabled
+    // Default: Use RealtimeKit. Set NEXT_PUBLIC_ENABLE_REALTIME_KIT_GROUP_CALLS=false to use old mesh implementation
     const meshGroupCall = useGroupCall({
       wsClient: wsClient || null,
       apiClient: apiClient || null,
