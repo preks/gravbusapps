@@ -262,6 +262,8 @@ groupCall-mute = Dezactivează sunetul
 groupCall-turnOnVideo = Pornește camera
 groupCall-turnOffVideo = Oprește camera
 groupCall-endCall = Termină apelul
+groupCall-enableBackground = Activează fundal personalizat
+groupCall-disableBackground = Dezactivează fundal personalizat
 
 # Notifications
 notifications-title = Notificări

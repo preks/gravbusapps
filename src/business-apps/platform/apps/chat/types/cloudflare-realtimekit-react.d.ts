@@ -7,6 +7,9 @@
 declare module '@cloudflare/realtimekit-react' {
   import { ReactNode } from 'react'
 
+  // Video middleware function type
+  export type VideoMiddleware = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => void
+
   export interface RealtimeKitMeeting {
     self?: {
       id?: string
@@ -29,6 +32,9 @@ declare module '@cloudflare/realtimekit-react' {
       enableScreenShare: () => Promise<void>
       disableScreenShare: () => Promise<void>
       setName: (name: string) => Promise<void>
+      addVideoMiddleware?: (middleware: VideoMiddleware) => void
+      removeVideoMiddleware?: (middleware?: VideoMiddleware) => void
+      setVideoMiddlewareGlobalConfig?: (config: { disablePerFrameCanvasRendering?: boolean }) => Promise<void>
       on?: (event: string, handler: (data: any) => void) => void
       off?: (event: string, handler?: (data: any) => void) => void
     }
@@ -82,4 +88,28 @@ declare module '@cloudflare/realtimekit-react' {
   }
 
   export const RealtimeKitProvider: React.FC<RealtimeKitProviderProps>
+}
+
+declare module '@cloudflare/realtimekit-virtual-background' {
+  import { RealtimeKitMeeting, VideoMiddleware } from '@cloudflare/realtimekit-react'
+
+  export interface SegmentationConfig {
+    model?: 'meet' | 'mlkit'
+    backend?: 'wasmSimd'
+    inputResolution?: '256x256' | '256x144'
+    pipeline?: 'webgl2' | 'canvas2dCpu'
+    targetFps?: number
+  }
+
+  export interface TransformerInitOptions {
+    meeting: RealtimeKitMeeting
+    segmentationConfig?: SegmentationConfig
+  }
+
+  export default class RealtimeKitVideoBackgroundTransformer {
+    static isSupported(): boolean
+    static init(options: TransformerInitOptions): Promise<RealtimeKitVideoBackgroundTransformer>
+    createStaticBackgroundVideoMiddleware(imageUrl: string): Promise<VideoMiddleware>
+    createBackgroundBlurVideoMiddleware(blurStrength?: number): Promise<VideoMiddleware>
+  }
 }

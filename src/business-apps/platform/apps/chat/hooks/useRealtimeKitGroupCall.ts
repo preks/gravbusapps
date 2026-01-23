@@ -20,6 +20,7 @@ import type {
   UseGroupCallReturn
 } from './useGroupCall'
 import type { GroupCallParticipant, VideoQuality } from '../services/groupWebrtcClient'
+import { RTKVirtualBackground } from '../services/rtkVirtualBackground'
 
 export interface UseRealtimeKitGroupCallOptions {
   wsClient: ChatWebSocketClient | null
@@ -52,9 +53,10 @@ const getSavedVideoQuality = (): VideoQuality => {
 const getSavedBackgroundEnabled = (): boolean => {
   try {
     const saved = localStorage.getItem(PREF_BACKGROUND_ENABLED_KEY)
-    return saved === 'true'
+    // Default to true if never set (first time), otherwise respect user preference
+    return saved === null ? true : saved === 'true'
   } catch {
-    return false
+    return true // Default to enabled
   }
 }
 
@@ -93,7 +95,7 @@ const initialCallState: GroupCallUIState = {
   isScreenSharing: false,
   isMinimized: false,
   videoQuality: getSavedVideoQuality(),
-  backgroundEnabled: getSavedBackgroundEnabled(),
+  backgroundEnabled: getSavedBackgroundEnabled(), // Default true on first use, respect preference after
   startTime: null,
   duration: 0
 }
@@ -126,6 +128,7 @@ export const useRealtimeKitGroupCall = ({
   const isInCallRef = useRef<boolean>(false)
   const joinCallConversationIdRef = useRef<string | null>(null)
   const conversationIdRef = useRef<string | null>(null) // Store actual conversationId (not meetingId)
+  const virtualBackgroundRef = useRef<RTKVirtualBackground | null>(null) // Virtual background service
 
   // Helper to emit WebSocket events
   const emitSocketEvent = useCallback(
@@ -216,6 +219,23 @@ export const useRealtimeKitGroupCall = ({
         }
 
         console.log('[RTK] Meeting object ready')
+
+        // ⚠️ CRITICAL: Configure video middleware BEFORE joining/enabling video
+        // This MUST be called before video is enabled to allow background effects to work.
+        // If video is already enabled when this is called, the video pipeline has already
+        // been initialized in automatic rendering mode and cannot be switched to middleware mode.
+        // This is why background effects worked for late joiners (who called this before their
+        // video started) but not for initiators (who enabled video first then tried to configure).
+        if (meetingToUse.self?.setVideoMiddlewareGlobalConfig) {
+          try {
+            await meetingToUse.self.setVideoMiddlewareGlobalConfig({
+              disablePerFrameCanvasRendering: true
+            })
+            console.log('[RTK] ✅ Video middleware configured globally (disablePerFrameCanvasRendering)')
+          } catch (err) {
+            console.warn('[RTK] ⚠️ Failed to configure video middleware:', err)
+          }
+        }
 
         console.log('[RTK] Joining meeting via SDK...', { meetingId })
 
@@ -308,7 +328,7 @@ export const useRealtimeKitGroupCall = ({
           isScreenSharing: false,
           isMinimized: false,
           videoQuality: getSavedVideoQuality(),
-          backgroundEnabled: getSavedBackgroundEnabled(),
+          backgroundEnabled: getSavedBackgroundEnabled(), // Default true on first use, respect preference after
           startTime: Date.now(),
           duration: 0
         })
@@ -454,6 +474,21 @@ export const useRealtimeKitGroupCall = ({
         }
 
         console.log('[RTK] Meeting object ready')
+
+        // ⚠️ CRITICAL: Configure video middleware BEFORE joining/enabling video
+        // This MUST be called before video is enabled to allow background effects to work.
+        // If video is already enabled when this is called, the video pipeline has already
+        // been initialized in automatic rendering mode and cannot be switched to middleware mode.
+        if (meetingToUse.self?.setVideoMiddlewareGlobalConfig) {
+          try {
+            await meetingToUse.self.setVideoMiddlewareGlobalConfig({
+              disablePerFrameCanvasRendering: true
+            })
+            console.log('[RTK] ✅ Video middleware configured globally (disablePerFrameCanvasRendering)')
+          } catch (err) {
+            console.warn('[RTK] ⚠️ Failed to configure video middleware:', err)
+          }
+        }
 
         console.log('[RTK] Joining meeting via SDK...', { meetingId: roomId })
 
@@ -708,7 +743,13 @@ export const useRealtimeKitGroupCall = ({
       emitSocketEvent('rtk-group-call:left', leaveEventData)
     }
 
-    // 4. Clean up
+    // 4. Clean up virtual background
+    if (virtualBackgroundRef.current) {
+      virtualBackgroundRef.current.destroy(meeting!)
+      virtualBackgroundRef.current = null
+    }
+
+    // 5. Clean up state
     const duration = callState.duration
     const roomId = callState.roomId
 
@@ -991,19 +1032,54 @@ export const useRealtimeKitGroupCall = ({
   }, [])
 
   /**
-   * Toggle background effects
+   * Toggle background effects using official Cloudflare virtual background package
    */
-  const toggleBackground = useCallback(() => {
-    setCallState(prev => {
-      const newValue = !prev.backgroundEnabled
+  const toggleBackground = useCallback(async () => {
+    const newValue = !callState.backgroundEnabled
+
+    console.log('[RTK] 🎨 Toggling background effect:', { enabled: newValue, hasMeeting: !!meeting })
+
+    if (!meeting?.self) {
+      console.warn('[RTK] ⚠️ Meeting not available')
+      return
+    }
+
+    try {
+      if (newValue) {
+        // Enable background effect
+        if (!virtualBackgroundRef.current) {
+          virtualBackgroundRef.current = new RTKVirtualBackground()
+        }
+
+        // Initialize transformer if not already initialized
+        // This MUST be done before adding any middleware
+        await virtualBackgroundRef.current.initialize(meeting)
+
+        // Apply background with NewWork preset image
+        await virtualBackgroundRef.current.enableBackground(meeting)
+
+        console.log('[RTK] ✅ Background effect enabled')
+      } else {
+        // Disable background effect
+        if (virtualBackgroundRef.current) {
+          virtualBackgroundRef.current.disable(meeting)
+          console.log('[RTK] ⏸️ Background effect disabled')
+        }
+      }
+
+      // Update state and save preference
+      setCallState(prev => ({ ...prev, backgroundEnabled: newValue }))
       try {
         localStorage.setItem(PREF_BACKGROUND_ENABLED_KEY, newValue.toString())
       } catch {
         // Ignore
       }
-      return { ...prev, backgroundEnabled: newValue }
-    })
-  }, [])
+    } catch (error) {
+      console.error('[RTK] ❌ Failed to toggle background effect:', error)
+      // Reset state on error
+      setCallState(prev => ({ ...prev, backgroundEnabled: false }))
+    }
+  }, [callState.backgroundEnabled, meeting])
 
   /**
    * Invite additional participants mid-call
@@ -1400,6 +1476,59 @@ export const useRealtimeKitGroupCall = ({
       }
     }
   }, [meeting, callState.status, localStream, currentUser])
+
+  // Auto-apply background effect on call connect if enabled
+  useEffect(() => {
+    // Only run when call becomes connected AND video is enabled AND background is enabled in state
+    if (
+      callState.status !== 'connected' ||
+      !callState.isVideoEnabled ||
+      !callState.backgroundEnabled ||
+      !meeting?.self?.videoTrack
+    ) {
+      return
+    }
+
+    // Check if background is already applied (to avoid re-applying)
+    const hasActiveMiddleware = virtualBackgroundRef.current !== null
+
+    if (hasActiveMiddleware) {
+      console.log('[RTK] 🎨 Background effect already active, skipping auto-apply')
+      return
+    }
+
+    // Apply background effect automatically when enabled
+    console.log('[RTK] 🎨 Auto-applying background effect (enabled by default or user preference)')
+
+    const applyBackground = async () => {
+      try {
+        if (!virtualBackgroundRef.current) {
+          virtualBackgroundRef.current = new RTKVirtualBackground()
+        }
+        await virtualBackgroundRef.current.initialize(meeting)
+        await virtualBackgroundRef.current.enableBackground(meeting)
+        console.log('[RTK] ✅ Background effect auto-applied successfully')
+
+        // Ensure localStorage reflects the enabled state
+        try {
+          localStorage.setItem(PREF_BACKGROUND_ENABLED_KEY, 'true')
+        } catch {
+          // Ignore storage errors
+        }
+      } catch (error) {
+        console.error('[RTK] ❌ Failed to auto-apply background effect:', error)
+        // Disable the state if auto-apply fails
+        setCallState(prev => ({ ...prev, backgroundEnabled: false }))
+        try {
+          localStorage.setItem(PREF_BACKGROUND_ENABLED_KEY, 'false')
+        } catch {
+          // Ignore storage errors
+        }
+      }
+    }
+
+    applyBackground()
+  }, [callState.status, callState.isVideoEnabled, callState.backgroundEnabled, meeting?.self?.videoTrack])
 
   // Listen for incoming invites
   useEffect(() => {

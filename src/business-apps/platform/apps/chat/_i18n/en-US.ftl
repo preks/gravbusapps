@@ -262,6 +262,8 @@ groupCall-mute = Mute
 groupCall-turnOnVideo = Turn on camera
 groupCall-turnOffVideo = Turn off camera
 groupCall-endCall = End call
+groupCall-enableBackground = Enable background effect
+groupCall-disableBackground = Disable background effect
 
 # Notifications
 notifications-title = Notifications

@@ -18,7 +18,19 @@ import {
   Avatar,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Users, Minimize2, Monitor, Shrink, Maximize2 } from 'lucide-react'
+import {
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  PhoneOff,
+  Users,
+  Minimize2,
+  Monitor,
+  Shrink,
+  Maximize2,
+  Image
+} from 'lucide-react'
 import type { GroupCallParticipant, VideoQuality } from '../services/groupWebrtcClient'
 import type { GroupCallUIState, PendingInvite } from '../hooks/useGroupCall'
 import type { CallParticipant } from '../services/webrtcClient'
@@ -205,6 +217,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   onToggleVideo,
   onToggleScreenShare,
   onToggleMinimize,
+  onToggleBackground,
   prefixDataTestId = 'rtk-group-call',
   conversationName
 }) => {
@@ -1301,6 +1314,31 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                 }
               >
                 <Monitor className="gba:w-6 gba:h-6" />
+              </button>
+            )}
+
+            {/* Background effect button */}
+            {onToggleBackground && callState.callType === 'video' && (
+              <button
+                onClick={onToggleBackground}
+                className={`gba:p-4 gba:rounded-full gba:transition-colors ${
+                  callState.backgroundEnabled
+                    ? 'gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90'
+                    : 'gba:bg-accent hover:gba:bg-accent/80'
+                }`}
+                data-testid={`${prefixDataTestId}-background-btn`}
+                aria-label={
+                  callState.backgroundEnabled
+                    ? t('groupCall-disableBackground') || 'Disable background'
+                    : t('groupCall-enableBackground') || 'Enable background'
+                }
+                title={
+                  callState.backgroundEnabled
+                    ? t('groupCall-disableBackground') || 'Disable background'
+                    : t('groupCall-enableBackground') || 'Enable background'
+                }
+              >
+                <Image className="gba:w-6 gba:h-6" />
               </button>
             )}
 
