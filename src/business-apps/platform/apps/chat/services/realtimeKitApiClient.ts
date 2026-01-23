@@ -51,14 +51,16 @@ export class RealtimeKitApiClient {
     callType: 'audio' | 'video' = 'video',
     displayName?: string,
     firstName?: string,
-    lastName?: string
+    lastName?: string,
+    meetingName?: string
   ): Promise<CreateMeetingResponse> {
     const response = await this.client.post<CreateMeetingResponse>('/meetings', {
       conversationId,
       callType,
       displayName,
       firstName,
-      lastName
+      lastName,
+      meetingName
     })
     return response.data
   }

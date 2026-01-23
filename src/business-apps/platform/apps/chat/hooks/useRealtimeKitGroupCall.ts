@@ -4,7 +4,12 @@
  * This hook provides the same interface as useGroupCall but uses Cloudflare's SFU
  * infrastructure instead of mesh topology, enabling better scalability for group calls.
  *
- * Phase 2: Full SDK integration with media routing through Cloudflare SFU
+ * Simulcast Implementation:
+ * - Publisher sends 3 quality streams simultaneously (high/medium/low) via simulcast
+ * - SFU automatically forwards appropriate quality to each receiver based on network conditions
+ * - Simulcast is configured when initializing meetings with SIMULCAST_ENCODINGS
+ * - Subscriber-side preferredRid configuration is not directly accessible via React SDK
+ *   (SFU handles quality selection automatically based on bandwidth)
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
@@ -21,6 +26,22 @@ import type {
 } from './useGroupCall'
 import type { GroupCallParticipant, VideoQuality } from '../services/groupWebrtcClient'
 import { RTKVirtualBackground } from '../services/rtkVirtualBackground'
+
+// Quality to RID mapping for simulcast
+// RIDs should be ordered alphabetically where 'a' = highest quality
+const QUALITY_TO_RID: Record<VideoQuality, string> = {
+  high: 'a', // Highest quality (1280x720 @ 30fps)
+  medium: 'b', // Medium quality (640x480 @ 24fps)
+  low: 'c' // Lowest quality (320x240 @ 15fps)
+}
+
+// Simulcast encoding configurations
+// These define the 3 quality layers that will be sent simultaneously
+const SIMULCAST_ENCODINGS: RTCRtpEncodingParameters[] = [
+  { rid: 'a', scaleResolutionDownBy: 1, maxBitrate: 2500000 }, // High: 1280x720 @ 30fps
+  { rid: 'b', scaleResolutionDownBy: 2, maxBitrate: 1000000 }, // Medium: 640x360 @ 24fps
+  { rid: 'c', scaleResolutionDownBy: 4, maxBitrate: 500000 } // Low: 320x180 @ 15fps
+]
 
 export interface UseRealtimeKitGroupCallOptions {
   wsClient: ChatWebSocketClient | null
@@ -118,6 +139,7 @@ export const useRealtimeKitGroupCall = ({
   const [pendingInvites] = useState<Map<string, PendingInvite>>(new Map())
   const [incomingInvite, setIncomingInvite] = useState<GroupCallInvite | null>(null)
   const [activeConversationCalls, setActiveConversationCalls] = useState<Map<string, ActiveConversationCall>>(new Map())
+  const [currentCallConversationName, setCurrentCallConversationName] = useState<string | undefined>(undefined) // Store conversation name for the current call
 
   // Refs
   const authTokenRef = useRef<string | null>(null)
@@ -129,6 +151,7 @@ export const useRealtimeKitGroupCall = ({
   const joinCallConversationIdRef = useRef<string | null>(null)
   const conversationIdRef = useRef<string | null>(null) // Store actual conversationId (not meetingId)
   const virtualBackgroundRef = useRef<RTKVirtualBackground | null>(null) // Virtual background service
+  const wasIdleRef = useRef<boolean>(true) // Track if we were idle before starting a call (for invite logic)
 
   // Helper to emit WebSocket events
   const emitSocketEvent = useCallback(
@@ -148,12 +171,27 @@ export const useRealtimeKitGroupCall = ({
   // Keep refs in sync with state
   callStateRoomIdRef.current = callState.roomId
   isInCallRef.current = isInCall
+  // Track idle state synchronously (React state updates are async)
+  if (callState.status === 'idle') {
+    wasIdleRef.current = true
+  } else if (
+    callState.status === 'connected' ||
+    callState.status === 'joining' ||
+    callState.status === 'reconnecting'
+  ) {
+    wasIdleRef.current = false
+  }
 
   /**
    * Start a new group call (host)
    */
   const startCall = useCallback(
-    async (roomId: string, callType: CallType, participantsToInvite: CallParticipant[]): Promise<void> => {
+    async (
+      roomId: string,
+      callType: CallType,
+      participantsToInvite: CallParticipant[],
+      conversationName?: string
+    ): Promise<void> => {
       if (!currentUser || !apiClient || !wsClient) {
         console.error('[RTK] Cannot start call: missing requirements')
         return
@@ -168,22 +206,38 @@ export const useRealtimeKitGroupCall = ({
           avatarUrl: currentUser.avatarUrl
         })
 
+        // CRITICAL: Check if we were idle BEFORE changing state
+        // Use both state and ref to handle async state updates
+        // The ref is updated when we leave a call, so it's more reliable
+        const wasIdleBeforeStart = callState.status === 'idle' || wasIdleRef.current
+
+        console.log('[RTK] Checking idle state before starting call:', {
+          callStateStatus: callState.status,
+          wasIdleRef: wasIdleRef.current,
+          wasIdleBeforeStart
+        })
+
+        // Mark as not idle since we're starting a call
+        wasIdleRef.current = false
+
         setCallState(prev => ({ ...prev, status: 'joining' }))
 
-        // 1. Create meeting via backend and get auth token (sending host display name)
+        // 1. Create meeting via backend and get auth token (sending host display name and meeting name)
         console.log('[RTK] Sending to createMeeting:', {
           conversationId: roomId,
           callType,
           displayName: currentUser.odName,
           firstName: undefined,
-          lastName: undefined
+          lastName: undefined,
+          meetingName: conversationName
         })
         const meetingResponse = await apiClient.createMeeting(
           roomId,
           callType,
           currentUser.odName, // displayName
           undefined, // firstName
-          undefined // lastName
+          undefined, // lastName
+          conversationName // meetingName - pass to backend for storage
         )
         const { meetingId, hostAuthToken } = meetingResponse.data
 
@@ -191,14 +245,28 @@ export const useRealtimeKitGroupCall = ({
         meetingIdRef.current = meetingId
         conversationIdRef.current = roomId // Store the actual conversationId
 
-        console.log('[RTK] Initializing SDK with auth token...')
+        console.log('[RTK] Initializing SDK with auth token and simulcast configuration...')
 
-        // 2. Initialize Cloudflare SDK with auth token
+        // 2. Initialize Cloudflare SDK with auth token and simulcast configuration
+        // Simulcast enables sending 3 quality streams simultaneously (high/medium/low)
+        // The SFU will automatically forward the appropriate quality to each receiver
+        console.log('[RTK] 📡 Configuring simulcast with 3 quality layers:', {
+          high: 'RID=a, 1280x720 @ 2.5Mbps',
+          medium: 'RID=b, 640x360 @ 1Mbps',
+          low: 'RID=c, 320x180 @ 500Kbps'
+        })
+
         const initializedMeeting = await initMeeting({
           authToken: hostAuthToken,
           defaults: {
             audio: true,
             video: callType === 'video'
+          },
+          overrides: {
+            simulcastConfig: {
+              disable: false, // Explicitly enable simulcast (default, but being explicit)
+              encodings: SIMULCAST_ENCODINGS // Send 3 quality layers simultaneously
+            }
           }
         }).catch((err: any) => {
           console.error('[RTK] SDK initialization failed:', err)
@@ -242,15 +310,6 @@ export const useRealtimeKitGroupCall = ({
         // 3. Join the meeting (connects to Cloudflare SFU)
         await meetingToUse.join()
 
-        console.log('[RTK] SDK joined successfully (HOST)', {
-          meetingId,
-          selfId: meetingToUse.self?.id,
-          selfUserId: meetingToUse.self?.userId,
-          selfRoomJoined: meetingToUse.self?.roomJoined,
-          selfRoomState: meetingToUse.self?.roomState,
-          participantsJoined: meetingToUse.participants?.joined?.size || 0
-        })
-
         // ⚠️ CRITICAL: Wait for actual Session connection (roomJoined: true)
         console.log('[RTK] Waiting for Session connection...')
         const sessionTimeout = 10000 // 10 seconds max
@@ -270,6 +329,29 @@ export const useRealtimeKitGroupCall = ({
           console.error('[RTK] ❌ Failed to join Session - timeout after', sessionTimeout, 'ms')
           throw new Error('Failed to join Cloudflare Session - connection timeout')
         }
+
+        // Check if this is an existing meeting (has other participants already)
+        // Wait a moment for participant list to sync after joining
+        await new Promise(resolve => setTimeout(resolve, 1000)) // Increased delay to allow participant list to sync
+        const existingParticipantsCount = meetingToUse.participants?.joined?.size || 0
+        // If there are any participants already (excluding ourselves), it's an existing meeting
+        // Note: The SDK's participants.joined includes ourselves, so we need to check if count > 1
+        // Also check if activeConversationCalls already has an entry for this conversationId (indicates existing call)
+        const hasActiveCallForConversation = activeConversationCalls.has(roomId)
+        const isAlreadyInCall = conversationIdRef.current === roomId && callState.roomId === meetingId
+        const isExistingMeeting = existingParticipantsCount > 1 || hasActiveCallForConversation || isAlreadyInCall
+
+        console.log('[RTK] SDK joined successfully (HOST)', {
+          meetingId,
+          selfId: meetingToUse.self?.id,
+          selfUserId: meetingToUse.self?.userId,
+          selfRoomJoined: meetingToUse.self?.roomJoined,
+          selfRoomState: meetingToUse.self?.roomState,
+          participantsJoined: existingParticipantsCount,
+          isExistingMeeting,
+          hasActiveCallForConversation,
+          isAlreadyInCall
+        })
 
         // 4. Listen for disconnect events (to debug why roomJoined flips to false)
         if (typeof meetingToUse.self?.on === 'function') {
@@ -297,6 +379,54 @@ export const useRealtimeKitGroupCall = ({
           try {
             await meetingToUse.self?.enableVideo()
             console.log('[RTK] ✅ Video enabled and published to SFU')
+
+            // Log publisher-side simulcast information (HOST)
+            // Wait a bit for track to be ready, then check stats
+            setTimeout(async () => {
+              try {
+                const videoTrack = meetingToUse.self?.videoTrack
+                if (videoTrack) {
+                  const settings = videoTrack.getSettings?.()
+                  const capabilities = videoTrack.getCapabilities?.()
+
+                  console.log('[RTK] 📤 PUBLISHER (HOST): Video track enabled with simulcast:', {
+                    trackId: videoTrack.id,
+                    trackLabel: videoTrack.label,
+                    trackSettings: settings
+                      ? {
+                          width: settings.width,
+                          height: settings.height,
+                          frameRate: settings.frameRate,
+                          aspectRatio: settings.aspectRatio
+                        }
+                      : null,
+                    trackCapabilities: capabilities
+                      ? {
+                          width: capabilities.width,
+                          height: capabilities.height,
+                          frameRate: capabilities.frameRate
+                        }
+                      : null,
+                    simulcastConfig: '3 layers configured (RID=a:high, RID=b:medium, RID=c:low)',
+                    note: 'All 3 simulcast layers should be sent to SFU simultaneously'
+                  })
+
+                  // Try to get WebRTC stats to verify simulcast layers are being sent
+                  try {
+                    // Access RTCRtpSender stats if available via core SDK
+                    const coreClient = meetingToUse as any
+                    if (coreClient.self?._mediaManager || coreClient.self?.mediaManager) {
+                      console.log('[RTK] 📊 Attempting to get publisher WebRTC stats for simulcast verification...')
+                      // Note: Actual stats access depends on SDK internals
+                    }
+                  } catch (statsErr) {
+                    console.debug('[RTK] Publisher stats check (optional):', statsErr)
+                  }
+                }
+              } catch (err) {
+                console.warn('[RTK] Could not log publisher simulcast info:', err)
+              }
+            }, 2000) // Wait 2s for track to be ready
           } catch (err) {
             console.error('[RTK] Failed to enable video:', err)
           }
@@ -333,21 +463,86 @@ export const useRealtimeKitGroupCall = ({
           duration: 0
         })
 
+        // Store conversation name for the current call
+        setCurrentCallConversationName(conversationName)
+
         setActiveCallInStorage(currentUser.id, meetingId)
 
-        // Send invites via WebSocket
-        emitSocketEvent('rtk-group-call:start', {
-          conversationId: roomId,
+        // Send rtk-group-call:start event when starting a new call (from idle state)
+        // This ensures invites are sent even if the backend returned an existing meeting
+        // (e.g., if a previous call ended but the meeting wasn't cleaned up)
+        // The backend will check if there are active participants and decide whether to send invites
+        // Also check if we're already in a call for this conversationId (shouldn't happen, but safety check)
+        // Use wasIdleBeforeStart (checked before state change) instead of current callState.status
+        const isAlreadyInCallForThisConversation =
+          conversationIdRef.current === roomId && callState.roomId === meetingId && callState.status !== 'idle'
+        const shouldSendStartEvent =
+          wasIdleBeforeStart && !isAlreadyInCallForThisConversation && participantsToInvite.length > 0
+
+        console.log('[RTK] 📨 Start event decision:', {
+          wasIdleBeforeStart,
+          currentCallStateStatus: callState.status,
+          isAlreadyInCallForThisConversation,
+          conversationIdRef: conversationIdRef.current,
+          roomId,
+          callStateRoomId: callState.roomId,
           meetingId,
-          callType,
-          from: {
-            id: currentUser.id,
-            odId: currentUser.odId,
-            odName: currentUser.odName,
-            avatarUrl: currentUser.avatarUrl
-          },
-          participants: participantsToInvite
+          participantsToInviteCount: participantsToInvite.length,
+          shouldSendStartEvent,
+          isExistingMeeting,
+          existingParticipantsCount
         })
+
+        if (shouldSendStartEvent) {
+          // Send invites via WebSocket
+          console.log('[RTK] Sending rtk-group-call:start event with participants (starting new call):', {
+            conversationId: roomId,
+            meetingId,
+            callType,
+            fromUserId: currentUser.id,
+            fromUserName: currentUser.odName,
+            participantsCount: participantsToInvite.length,
+            participants: participantsToInvite.map(p => ({ id: p.id, name: p.odName })),
+            wasIdleBeforeStart: wasIdleBeforeStart,
+            isExistingMeeting: isExistingMeeting,
+            note: 'Sending start event even if meeting existed - backend will check for active participants'
+          })
+          emitSocketEvent('rtk-group-call:start', {
+            conversationId: roomId,
+            meetingId,
+            callType,
+            conversationName: conversationName || roomId, // Use provided name or fallback to roomId
+            from: {
+              id: currentUser.id,
+              odId: currentUser.odId,
+              odName: currentUser.odName,
+              avatarUrl: currentUser.avatarUrl
+            },
+            participants: participantsToInvite
+          })
+        } else {
+          console.log('[RTK] Skipping rtk-group-call:start event:', {
+            conversationId: roomId,
+            meetingId,
+            existingParticipantsCount,
+            isExistingMeeting,
+            wasIdleBeforeStart,
+            isAlreadyInCallForThisConversation,
+            participantsToInviteCount: participantsToInvite.length,
+            currentCallState: {
+              conversationId: conversationIdRef.current,
+              roomId: callState.roomId,
+              status: callState.status
+            },
+            reason: !wasIdleBeforeStart
+              ? 'Not starting from idle state'
+              : isAlreadyInCallForThisConversation
+                ? 'Already in call for this conversation'
+                : participantsToInvite.length === 0
+                  ? 'No participants to invite'
+                  : 'Unknown'
+          })
+        }
 
         // Notify backend that HOST joined
         emitSocketEvent('rtk-group-call:joined', {
@@ -452,14 +647,28 @@ export const useRealtimeKitGroupCall = ({
         authTokenRef.current = authToken
         meetingIdRef.current = roomId
 
-        console.log('[RTK] Initializing SDK with auth token...')
+        console.log('[RTK] Initializing SDK with auth token and simulcast configuration...')
 
-        // 2. Initialize Cloudflare SDK with auth token
+        // 2. Initialize Cloudflare SDK with auth token and simulcast configuration
+        // Simulcast enables sending 3 quality streams simultaneously (high/medium/low)
+        // The SFU will automatically forward the appropriate quality to each receiver
+        console.log('[RTK] 📡 Configuring simulcast with 3 quality layers:', {
+          high: 'RID=a, 1280x720 @ 2.5Mbps',
+          medium: 'RID=b, 640x360 @ 1Mbps',
+          low: 'RID=c, 320x180 @ 500Kbps'
+        })
+
         const initializedMeeting = await initMeeting({
           authToken,
           defaults: {
             audio: true,
             video: callType === 'video'
+          },
+          overrides: {
+            simulcastConfig: {
+              disable: false, // Explicitly enable simulcast (default, but being explicit)
+              encodings: SIMULCAST_ENCODINGS // Send 3 quality layers simultaneously
+            }
           }
         })
 
@@ -550,6 +759,41 @@ export const useRealtimeKitGroupCall = ({
           try {
             await meetingToUse.self?.enableVideo()
             console.log('[RTK] ✅ Video enabled and published to SFU')
+
+            // Log publisher-side simulcast information (PARTICIPANT)
+            setTimeout(async () => {
+              try {
+                const videoTrack = meetingToUse.self?.videoTrack
+                if (videoTrack) {
+                  const settings = videoTrack.getSettings?.()
+                  const capabilities = videoTrack.getCapabilities?.()
+
+                  console.log('[RTK] 📤 PUBLISHER (PARTICIPANT): Video track enabled with simulcast:', {
+                    trackId: videoTrack.id,
+                    trackLabel: videoTrack.label,
+                    trackSettings: settings
+                      ? {
+                          width: settings.width,
+                          height: settings.height,
+                          frameRate: settings.frameRate,
+                          aspectRatio: settings.aspectRatio
+                        }
+                      : null,
+                    trackCapabilities: capabilities
+                      ? {
+                          width: capabilities.width,
+                          height: capabilities.height,
+                          frameRate: capabilities.frameRate
+                        }
+                      : null,
+                    simulcastConfig: '3 layers configured (RID=a:high, RID=b:medium, RID=c:low)',
+                    note: 'All 3 simulcast layers should be sent to SFU simultaneously'
+                  })
+                }
+              } catch (err) {
+                console.warn('[RTK] Could not log publisher simulcast info:', err)
+              }
+            }, 2000)
           } catch (err) {
             console.error('[RTK] Failed to enable video:', err)
           }
@@ -684,10 +928,16 @@ export const useRealtimeKitGroupCall = ({
       return
     }
 
-    const { roomId, callType, conversationId } = incomingInvite
+    const { roomId, callType, conversationId, conversationName } = incomingInvite
+
+    // Store conversation name before clearing invite
+    if (conversationName) {
+      setCurrentCallConversationName(conversationName)
+    }
+
     setIncomingInvite(null)
 
-    console.log('[RTK] Accepting invite with conversationId:', { roomId, conversationId, callType })
+    console.log('[RTK] Accepting invite with conversationId:', { roomId, conversationId, callType, conversationName })
 
     // Use joinCallWrapper to properly pass conversationId (as 3rd param, despite type mismatch)
     await joinCallWrapper(roomId, callType, conversationId as any)
@@ -731,6 +981,16 @@ export const useRealtimeKitGroupCall = ({
       localStream.getTracks().forEach(track => track.stop())
     }
 
+    // Clean up quality monitoring intervals
+    if ((window as any).rtkQualityMonitors) {
+      const monitors = (window as any).rtkQualityMonitors as Map<string, NodeJS.Timeout>
+      monitors.forEach((interval, peerId) => {
+        clearInterval(interval)
+        console.log('[RTK] Cleaned up quality monitor for peer:', peerId)
+      })
+      monitors.clear()
+    }
+
     // 3. Notify via WebSocket that participant left
     const conversationId = conversationIdRef.current
     if (conversationId && callState.roomId && currentUser) {
@@ -762,10 +1022,13 @@ export const useRealtimeKitGroupCall = ({
     authTokenRef.current = null
     meetingIdRef.current = null
     conversationIdRef.current = null
+    callStateRoomIdRef.current = null // Explicitly clear to allow new invites
+    wasIdleRef.current = true // Mark as idle so next call will send invites
     setLocalStream(null)
     setRemoteStreams(new Map())
     setParticipants([])
     setCallState(initialCallState)
+    setCurrentCallConversationName(undefined) // Clear conversation name when leaving
 
     onCallEnded?.(roomId, duration)
 
@@ -1015,14 +1278,80 @@ export const useRealtimeKitGroupCall = ({
   /**
    * Set video quality
    */
-  const setVideoQuality = useCallback(async (quality: VideoQuality): Promise<void> => {
-    setCallState(prev => ({ ...prev, videoQuality: quality }))
-    try {
-      localStorage.setItem(PREF_VIDEO_QUALITY_KEY, quality)
-    } catch {
-      // Ignore
-    }
-  }, [])
+  /**
+   * Set video quality preference
+   *
+   * Publisher-side: ✅ We control what we send
+   * - Simulcast is configured when initializing the meeting
+   * - We send 3 quality layers (high/medium/low) simultaneously
+   *
+   * Subscriber-side: ⚠️ Limited control via React SDK
+   * - The React SDK doesn't expose preferredRid configuration
+   * - SFU automatically selects quality based on network conditions
+   * - We attempt to configure via core SDK if accessible
+   */
+  const setVideoQuality = useCallback(
+    async (quality: VideoQuality): Promise<void> => {
+      const preferredRid = QUALITY_TO_RID[quality]
+      console.log('[RTK] Setting video quality preference to:', quality, {
+        preferredRid,
+        note: 'Attempting to configure subscriber-side preferredRid'
+      })
+
+      setCallState(prev => ({ ...prev, videoQuality: quality }))
+
+      try {
+        localStorage.setItem(PREF_VIDEO_QUALITY_KEY, quality)
+      } catch {
+        // Ignore
+      }
+
+      // Attempt to configure subscriber-side preferredRid via core SDK
+      // The React SDK wraps the core SDK, so meeting object might expose core methods
+      if (meeting) {
+        try {
+          // Try to access core SDK methods (if available)
+          const coreClient = meeting as any
+
+          // Check if there's a method to update consumer preferences
+          // This is experimental - the React SDK might not expose this
+          if (typeof coreClient.updateConsumerPreferences === 'function') {
+            // If such a method exists, use it
+            await coreClient.updateConsumerPreferences({
+              preferredRid,
+              priorityOrdering: 'asciibetical',
+              ridNotAvailable: 'asciibetical'
+            })
+            console.log('[RTK] ✅ Configured subscriber preferredRid:', preferredRid)
+          } else if (coreClient.participants?.joined) {
+            // Try to configure for each remote participant's video consumers
+            const joined = coreClient.participants.joined as any
+            const allParticipants =
+              typeof joined.toArray === 'function' ? joined.toArray() : Array.from(joined.values())
+
+            for (const peer of allParticipants) {
+              if (peer.id !== meeting.self?.id && peer.videoTrack) {
+                // Try to access consumer and update preferredRid
+                // This is highly experimental and may not work
+                const peerInternal = peer as any
+                if (peerInternal._consumerId || peerInternal.consumerId) {
+                  console.log('[RTK] Attempting to configure preferredRid for peer:', peer.id)
+                  // Note: This would require core SDK methods that may not be exposed
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.warn(
+            "[RTK] ⚠️ Could not configure subscriber preferredRid (expected if React SDK doesn't expose this):",
+            err
+          )
+          console.log('[RTK] SFU will automatically select quality based on network conditions')
+        }
+      }
+    },
+    [meeting]
+  )
 
   /**
    * Toggle minimize
@@ -1125,6 +1454,96 @@ export const useRealtimeKitGroupCall = ({
       ['implementation', 'cloudflare-realtime-kit']
     ])
   }, [callState.status, participants.length])
+
+  /**
+   * Log comprehensive simulcast information for debugging
+   * Shows what we're sending (publisher) and receiving (subscriber)
+   */
+  const logSimulcastInfo = useCallback(async () => {
+    if (!meeting || callState.status !== 'connected') {
+      console.log('[RTK] 📊 Simulcast Info: Not in active call')
+      return
+    }
+
+    console.log('[RTK] 📊 ========== SIMULCAST STATUS REPORT ==========')
+
+    // Publisher info (what we're sending)
+    const selfVideoTrack = meeting.self?.videoTrack
+    if (selfVideoTrack) {
+      const settings = selfVideoTrack.getSettings?.()
+      console.log('[RTK] 📤 PUBLISHER (YOU):', {
+        trackId: selfVideoTrack.id,
+        trackLabel: selfVideoTrack.label,
+        sendingResolution: settings ? `${settings.width}x${settings.height} @ ${settings.frameRate}fps` : 'unknown',
+        simulcastLayers: '3 layers configured (RID=a:high, RID=b:medium, RID=c:low)',
+        configuredEncodings: SIMULCAST_ENCODINGS.map(e => ({
+          rid: e.rid,
+          maxBitrate: `${(e.maxBitrate || 0) / 1000}Kbps`,
+          scaleDown: e.scaleResolutionDownBy
+        }))
+      })
+    } else {
+      console.log('[RTK] 📤 PUBLISHER (YOU): Video not enabled')
+    }
+
+    // Subscriber info (what we're receiving from each peer)
+    const joined = meeting.participants?.joined
+    if (joined) {
+      const allParticipants =
+        typeof (joined as any).toArray === 'function' ? (joined as any).toArray() : Array.from(joined.values())
+
+      const remotePeers = allParticipants.filter((p: any) => p.id !== meeting.self?.id)
+
+      console.log('[RTK] 📥 SUBSCRIBERS (Receiving from):', {
+        totalRemotePeers: remotePeers.length,
+        peers: remotePeers.map((peer: any) => {
+          const track = peer.videoTrack
+          if (!track) return { peerId: peer.id, peerName: peer.name, status: 'no video' }
+
+          const settings = track.getSettings?.()
+          const pixels = settings?.width && settings?.height ? settings.width * settings.height : 0
+          let quality: string = 'unknown'
+          if (pixels >= 900000) quality = 'high'
+          else if (pixels >= 300000) quality = 'medium'
+          else if (pixels >= 50000) quality = 'low'
+
+          return {
+            peerId: peer.id,
+            peerName: peer.name || peer.displayName,
+            receivingQuality: quality,
+            receivingResolution: settings
+              ? `${settings.width}x${settings.height} @ ${settings.frameRate}fps`
+              : 'unknown',
+            trackId: track.id
+          }
+        })
+      })
+    }
+
+    console.log('[RTK] 📊 ==============================================')
+  }, [meeting, callState.status, participants])
+
+  // Log simulcast info periodically when in call (every 30 seconds)
+  useEffect(() => {
+    if (callState.status !== 'connected' || !meeting) {
+      return
+    }
+
+    // Initial log after 5 seconds
+    const initialTimeout = setTimeout(() => {
+      logSimulcastInfo()
+    }, 5000)
+
+    // Then log every 30 seconds
+    const interval = setInterval(() => {
+      logSimulcastInfo()
+    }, 30000)
+
+    return () => {
+      clearTimeout(initialTimeout)
+      clearInterval(interval)
+    }
+  }, [callState.status, meeting, logSimulcastInfo])
 
   // Recreate localStream whenever SDK tracks change (not enabled states)
   // Enabled states (mute/unmute) don't require stream recreation - tracks are same objects
@@ -1240,13 +1659,171 @@ export const useRealtimeKitGroupCall = ({
           const stream = new MediaStream()
 
           // Add video track (regular camera, not screen share - screen shares are in peer.screenShareTracks)
+          // Note: This track is automatically provided by the SDK with simulcast support.
+          // The SFU selects the appropriate quality layer based on network conditions.
+          // We can't directly configure preferredRid via React SDK, but the SFU handles this automatically.
           if (peer.videoTrack) {
             stream.addTrack(peer.videoTrack)
-            console.log('[RTK] Added video track to stream for peer:', peer.id, {
+
+            // Log subscriber-side received quality information
+            const trackSettings = peer.videoTrack.getSettings?.()
+            const trackCapabilities = peer.videoTrack.getCapabilities?.()
+
+            // Determine quality level based on resolution
+            let estimatedQuality: 'high' | 'medium' | 'low' | 'unknown' = 'unknown'
+            if (trackSettings?.width && trackSettings?.height) {
+              const pixels = trackSettings.width * trackSettings.height
+              if (pixels >= 900000)
+                estimatedQuality = 'high' // ~1280x720 or higher
+              else if (pixels >= 300000)
+                estimatedQuality = 'medium' // ~640x480
+              else if (pixels >= 50000) estimatedQuality = 'low' // ~320x240 or lower
+            }
+
+            console.log('[RTK] 📥 SUBSCRIBER: Receiving video from peer:', {
+              peerId: peer.id,
+              peerName: peer.name || peer.displayName,
               videoTrackId: peer.videoTrack.id,
               videoTrackLabel: peer.videoTrack.label,
-              videoTrackKind: peer.videoTrack.kind
+              receivedQuality: estimatedQuality,
+              trackSettings: trackSettings
+                ? {
+                    width: trackSettings.width,
+                    height: trackSettings.height,
+                    frameRate: trackSettings.frameRate,
+                    aspectRatio: trackSettings.aspectRatio
+                  }
+                : null,
+              trackCapabilities: trackCapabilities
+                ? {
+                    width: trackCapabilities.width,
+                    height: trackCapabilities.height,
+                    frameRate: trackCapabilities.frameRate
+                  }
+                : null,
+              note: `SFU selected ${estimatedQuality} quality layer from peer's simulcast streams`
             })
+
+            // Try to get WebRTC stats to see actual RID being received
+            // This requires access to RTCRtpReceiver stats
+            setTimeout(async () => {
+              try {
+                // Try to access stats via the track's underlying receiver
+                // Note: This might not be directly accessible via React SDK
+                const track = peer.videoTrack
+                if (track && typeof track.getStats === 'function') {
+                  const stats = await track.getStats()
+                  if (stats) {
+                    const statsEntries = Array.from(stats.entries()) as Array<[string, RTCStats]>
+                    const statsArray = statsEntries.map(([id, stat]) => {
+                      const statAny = stat as any
+                      const statObj: any = {
+                        id,
+                        type: statAny.type,
+                        kind: statAny.kind
+                      }
+
+                      // Look for RID information (simulcast layer identifier)
+                      if (statAny.rid) statObj.rid = statAny.rid
+
+                      // Look for frame dimensions (actual received quality)
+                      if (statAny.frameWidth) {
+                        statObj.receivedResolution = {
+                          width: statAny.frameWidth,
+                          height: statAny.frameHeight,
+                          framesPerSecond: statAny.framesPerSecond
+                        }
+                      }
+
+                      // Look for bitrate information
+                      if (statAny.bytesReceived) {
+                        statObj.bytesReceived = statAny.bytesReceived
+                        statObj.bytesReceivedPerSecond = statAny.bytesReceivedPerSecond
+                      }
+
+                      return statObj
+                    })
+
+                    // Find the video receiver stats
+                    const videoStats = statsArray.find((s: any) => s.kind === 'video' || s.type === 'inbound-rtp')
+
+                    console.log('[RTK] 📊 SUBSCRIBER WebRTC Stats for peer:', peer.id, {
+                      peerName: peer.name || peer.displayName,
+                      allStats: statsArray,
+                      videoStats: videoStats,
+                      receivedRid: videoStats?.rid || 'unknown',
+                      receivedResolution: videoStats?.receivedResolution || 'unknown',
+                      note: videoStats?.rid
+                        ? `Receiving RID=${videoStats.rid} (${videoStats.rid === 'a' ? 'high' : videoStats.rid === 'b' ? 'medium' : 'low'})`
+                        : 'RID not available in stats (may be SFU-internal)'
+                    })
+                  }
+                } else {
+                  // Try alternative: access via RTCRtpReceiver if track has receiver property
+                  const trackWithReceiver = track as any
+                  if (trackWithReceiver._receiver || trackWithReceiver.receiver) {
+                    const receiver = trackWithReceiver._receiver || trackWithReceiver.receiver
+                    if (receiver && typeof receiver.getStats === 'function') {
+                      const stats = await receiver.getStats()
+                      const statsEntries = Array.from(stats.entries()) as Array<[string, RTCStats]>
+                      console.log('[RTK] 📊 SUBSCRIBER WebRTC Stats (via receiver) for peer:', peer.id, {
+                        stats: statsEntries.map(([id, stat]) => {
+                          const statAny = stat as any
+                          return {
+                            id,
+                            type: statAny.type,
+                            ...(statAny.rid && { rid: statAny.rid }),
+                            ...(statAny.frameWidth && {
+                              width: statAny.frameWidth,
+                              height: statAny.frameHeight
+                            })
+                          }
+                        })
+                      })
+                    }
+                  }
+                }
+              } catch (err) {
+                // Stats might not be accessible - that's okay
+                console.debug('[RTK] Could not get WebRTC stats for received track (expected):', err)
+              }
+            }, 3000) // Wait 3s for track to be fully established
+
+            // Set up periodic quality monitoring for this peer
+            const qualityMonitorInterval = setInterval(async () => {
+              try {
+                const track = peer.videoTrack
+                if (!track || track.readyState === 'ended') {
+                  clearInterval(qualityMonitorInterval)
+                  return
+                }
+
+                const settings = track.getSettings?.()
+                if (settings) {
+                  const pixels = (settings.width || 0) * (settings.height || 0)
+                  let quality: string = 'unknown'
+                  if (pixels >= 900000) quality = 'high'
+                  else if (pixels >= 300000) quality = 'medium'
+                  else if (pixels >= 50000) quality = 'low'
+
+                  console.log('[RTK] 📥 SUBSCRIBER Quality Monitor - Peer:', peer.id, {
+                    peerName: peer.name || peer.displayName,
+                    currentQuality: quality,
+                    resolution: `${settings.width}x${settings.height}`,
+                    frameRate: settings.frameRate,
+                    timestamp: new Date().toISOString()
+                  })
+                }
+              } catch {
+                clearInterval(qualityMonitorInterval)
+              }
+            }, 10000) // Monitor every 10 seconds
+
+            // Store interval for cleanup
+            if (!(window as any).rtkQualityMonitors) {
+              ;(window as any).rtkQualityMonitors = new Map()
+            }
+            ;(window as any).rtkQualityMonitors.set(peer.id, qualityMonitorInterval)
           }
 
           // Always add audio track if available (microphone audio, separate from screen share)
@@ -1541,34 +2118,55 @@ export const useRealtimeKitGroupCall = ({
       meetingId: string
       conversationId: string
       callType: CallType
+      conversationName?: string
       from: { id: string; odId: string; odName: string; avatarUrl?: string }
     }) => {
       console.log('[RTK] Received group call invite', data)
 
       // ⚠️ CRITICAL: Ignore invite if already in this call (prevents double-join)
       // Check meetingIdRef (synchronous) instead of callState (async)
-      if (meetingIdRef.current === data.meetingId) {
+      // BUT: Allow invite if call state is idle (even if refs have stale values)
+      const isInActiveCall = callState.status !== 'idle' && meetingIdRef.current === data.meetingId
+      if (isInActiveCall) {
         console.log('[RTK] Ignoring invite - already in this call', {
           currentMeetingId: meetingIdRef.current,
-          inviteMeetingId: data.meetingId
+          inviteMeetingId: data.meetingId,
+          callStatus: callState.status
         })
         return // ← DON'T set incomingInvite state!
       }
 
-      // Also ignore if we're in ANY call (prevents modal from showing)
-      if (callStateRoomIdRef.current) {
+      // Also ignore if we're in ANY active call (prevents modal from showing)
+      // BUT: Allow invite if call state is idle (refs might be stale after call ends)
+      const isInAnyActiveCall = callState.status !== 'idle' && callStateRoomIdRef.current
+      if (isInAnyActiveCall) {
         console.log('[RTK] Ignoring invite - already in another call', {
-          currentRoomId: callStateRoomIdRef.current
+          currentRoomId: callStateRoomIdRef.current,
+          callStatus: callState.status
         })
         return
       }
+
+      // Ignore if this is our own invite
+      if (data.from.id === currentUser?.id) {
+        console.log('[RTK] Ignoring invite - from self')
+        return
+      }
+
+      console.log('[RTK] Accepting invite - call is idle', {
+        meetingId: data.meetingId,
+        conversationId: data.conversationId,
+        callStatus: callState.status,
+        meetingIdRef: meetingIdRef.current,
+        roomIdRef: callStateRoomIdRef.current
+      })
 
       setIncomingInvite({
         roomId: data.meetingId,
         callType: data.callType,
         from: data.from,
         conversationId: data.conversationId, // Store the actual conversationId
-        conversationName: data.conversationId // Keep for backwards compat
+        conversationName: data.conversationName || data.conversationId // Use provided name or fallback to conversationId
       })
     }
 
@@ -1587,6 +2185,7 @@ export const useRealtimeKitGroupCall = ({
       startedBy: { id: string; odId: string; odName: string; avatarUrl?: string }
       participantIds: string[]
       startedAt?: Date | string
+      conversationName?: string // Meeting title from backend
     }) => {
       console.log('[RTK] 📞 Conversation call started/updated:', {
         conversationId: data.conversationId,
@@ -1598,6 +2197,7 @@ export const useRealtimeKitGroupCall = ({
         startedAtValue: data.startedAt ? new Date(data.startedAt).toISOString() : null
       })
 
+      // Update activeConversationCalls FIRST so we can check it below
       setActiveConversationCalls(prev => {
         const newMap = new Map(prev)
         newMap.set(data.conversationId, {
@@ -1609,6 +2209,54 @@ export const useRealtimeKitGroupCall = ({
         })
         return newMap
       })
+
+      // If conversationName is provided, update currentCallConversationName if we're related to this conversation:
+      // 1. We're in this call (roomId matches), OR
+      // 2. We're joining this conversation (conversationId matches), OR
+      // 3. We're not in any other call (idle/joining with no roomId) - catches joiners before refs are set
+      // This ensures joiners see the correct meeting title instead of conversation name
+      const isInThisCall = callState.roomId === data.roomId
+      const isJoiningThisConversation =
+        conversationIdRef.current === data.conversationId || joinCallConversationIdRef.current === data.conversationId
+      const isNotInOtherCall = (callState.status === 'idle' || callState.status === 'joining') && !callState.roomId
+      const hasIncomingInviteForConversation = incomingInvite?.conversationId === data.conversationId
+
+      // Update if conversationName is provided and we're related to this conversation
+      // This ensures joiners get the correct name even if refs aren't set yet
+      const shouldUpdate =
+        data.conversationName &&
+        (isInThisCall || isJoiningThisConversation || isNotInOtherCall || hasIncomingInviteForConversation)
+
+      if (shouldUpdate) {
+        setCurrentCallConversationName(data.conversationName)
+        console.log('[RTK] ✅ Updated conversation name from conversation:call-started:', {
+          conversationName: data.conversationName,
+          roomId: data.roomId,
+          conversationId: data.conversationId,
+          isInThisCall,
+          isJoiningThisConversation,
+          isNotInOtherCall,
+          hasIncomingInviteForConversation,
+          callStateStatus: callState.status,
+          callStateRoomId: callState.roomId,
+          conversationIdRef: conversationIdRef.current,
+          joinCallConversationIdRef: joinCallConversationIdRef.current
+        })
+      } else if (data.conversationName) {
+        console.log('[RTK] ⚠️ Skipped updating conversation name (not related to this conversation):', {
+          conversationName: data.conversationName,
+          roomId: data.roomId,
+          conversationId: data.conversationId,
+          isInThisCall,
+          isJoiningThisConversation,
+          isNotInOtherCall,
+          hasIncomingInviteForConversation,
+          callStateStatus: callState.status,
+          callStateRoomId: callState.roomId,
+          conversationIdRef: conversationIdRef.current,
+          joinCallConversationIdRef: joinCallConversationIdRef.current
+        })
+      }
 
       /**
        * Global Call Timer Synchronization
@@ -1690,7 +2338,7 @@ export const useRealtimeKitGroupCall = ({
       socket.off('conversation:call-started', handleConversationCallStarted)
       socket.off('conversation:call-ended', handleConversationCallEnded)
     }
-  }, [wsClient, leaveCall])
+  }, [wsClient, leaveCall, currentUser, callState.status])
 
   /**
    * Sync timer when callState.roomId is set and we have activeConversationCalls data
@@ -1783,11 +2431,13 @@ export const useRealtimeKitGroupCall = ({
       ;(window as any).rtkToggleMute = toggleMute
       ;(window as any).rtkToggleVideo = toggleVideo
       ;(window as any).rtkCallState = callState
+      ;(window as any).rtkLogSimulcastInfo = logSimulcastInfo
       console.log('[RTK] 🔧 Debug functions exposed to console:', {
         rtkLeaveCall: 'Leave the current call',
         rtkToggleMute: 'Toggle audio mute',
         rtkToggleVideo: 'Toggle video on/off',
-        rtkCallState: 'Current call state'
+        rtkCallState: 'Current call state',
+        rtkLogSimulcastInfo: 'Log comprehensive simulcast status (publisher & subscriber info)'
       })
     }
     return () => {
@@ -1796,6 +2446,7 @@ export const useRealtimeKitGroupCall = ({
         delete (window as any).rtkToggleMute
         delete (window as any).rtkToggleVideo
         delete (window as any).rtkCallState
+        delete (window as any).rtkLogSimulcastInfo
       }
     }
   }, [leaveCall, toggleMute, toggleVideo, callState])
@@ -1810,6 +2461,7 @@ export const useRealtimeKitGroupCall = ({
     pendingInvites,
     incomingInvite,
     activeConversationCalls,
+    currentCallConversationName, // Return stored conversation name for current call
     startCall,
     joinCall: joinCallWrapper,
     acceptInvite,

@@ -74,6 +74,7 @@ export interface UseGroupCallReturn {
   pendingInvites: Map<string, PendingInvite> // Participants who have been invited but haven't joined yet
   incomingInvite: GroupCallInvite | null
   activeConversationCalls: Map<string, ActiveConversationCall> // roomId -> call info
+  currentCallConversationName?: string // Conversation name for the current active call
   startCall: (
     roomId: string,
     callType: CallType,

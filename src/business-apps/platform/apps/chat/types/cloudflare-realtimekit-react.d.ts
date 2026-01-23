@@ -69,6 +69,14 @@ declare module '@cloudflare/realtimekit-react' {
       audio?: boolean
       video?: boolean
     }
+    overrides?: {
+      simulcastConfig?: {
+        disable?: boolean
+        encodings?: RTCRtpEncodingParameters[]
+      }
+      disableSimulcast?: boolean
+      forceRelay?: boolean
+    }
   }
 
   export function useRealtimeKitClient(): [
