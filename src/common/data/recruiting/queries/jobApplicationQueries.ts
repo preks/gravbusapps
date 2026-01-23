@@ -4,6 +4,9 @@
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { JobApplicationFields } from '../types/jobApplicationTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
+import { buildJobCandidateDocumentFragment, JOB_CANDIDATE_DOCUMENT_QUERY_CONFIGS } from './jobCandidateDocumentQueries'
+import { buildJobInterviewFragment, JOB_INTERVIEW_QUERY_CONFIGS } from './jobInterviewQueries'
+import { buildJobOfferFragment, JOB_OFFER_QUERY_CONFIGS } from './jobOfferQueries'
 
 export interface JobApplicationQueryVariables extends BaseQueryVariables {
   jobApplicationPipelineRef?: string
@@ -40,7 +43,10 @@ export const JOB_APPLICATION_QUERY_CONFIGS: Record<string, string[]> = {
     'updatedAt',
     'updatedBy',
     'version',
-    'additionalProperties'
+    'additionalProperties',
+    'jobApplicationDocuments',
+    'jobInterviews',
+    'jobOffers'
   ],
   'interview-form': ['id', 'version', 'applicationDate', 'jobCandidate', 'jobCandidateId', 'jobPosting', 'jobPostingId']
 }
@@ -117,6 +123,17 @@ const buildEntityReferenceField = (
     `
 }
 
+const buildArrayRelationField = (fieldSet: Set<string>, fieldName: string, relationFragment: string): string => {
+  if (!fieldSet.has(fieldName)) {
+    return ''
+  }
+  return `
+    ${fieldName}(where: {isDeleted: {_eq: false}}, orderBy: {createdAt: DESC_NULLS_LAST}) {
+      ${relationFragment}
+    }
+  `
+}
+
 export const buildJobApplicationFragment = (fields: string[]): string => {
   const fieldSet = new Set(fields)
 
@@ -140,6 +157,10 @@ export const buildJobApplicationFragment = (fields: string[]): string => {
     ? 'id\n      title\n      jobRequestId\n      jobRequest {\n        id\n        name\n        jobPositionId\n        jobPosition {\n          id\n          name\n        }\n      }'
     : 'id\n      title'
 
+  const documentFragment = buildJobCandidateDocumentFragment(JOB_CANDIDATE_DOCUMENT_QUERY_CONFIGS.list)
+  const interviewFragment = buildJobInterviewFragment(JOB_INTERVIEW_QUERY_CONFIGS.list)
+  const offerFragment = buildJobOfferFragment(JOB_OFFER_QUERY_CONFIGS.list)
+
   return `
     ${AUDIT_FIELDS}
     ${buildScalarFields(fieldSet)}
@@ -155,5 +176,11 @@ export const buildJobApplicationFragment = (fields: string[]): string => {
     ${buildEntityReferenceField(fieldSet, 'jobPostingPublication', 'jobPostingPublicationId', JobApplicationFields.jobPostingPublication, 'id\n      url')}
     
     ${buildEntityReferenceField(fieldSet, 'referrerEmployee', 'referrerEmployeeId', JobApplicationFields.referrerEmployee, 'id\n      firstName\n      lastName')}
+    
+    ${buildArrayRelationField(fieldSet, 'jobApplicationDocuments', documentFragment)}
+    
+    ${buildArrayRelationField(fieldSet, 'jobInterviews', interviewFragment)}
+    
+    ${buildArrayRelationField(fieldSet, 'jobOffers', offerFragment)}
   `
 }

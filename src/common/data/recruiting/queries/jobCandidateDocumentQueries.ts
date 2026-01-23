@@ -4,6 +4,7 @@
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { JobCandidateDocumentFields } from '../types/jobCandidateDocumentTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
+import { buildJobOfferFragment, JOB_OFFER_QUERY_CONFIGS } from './jobOfferQueries'
 
 export interface JobCandidateDocumentQueryVariables extends BaseQueryVariables {
   jobCandidateId?: string
@@ -55,7 +56,8 @@ export const JOB_CANDIDATE_DOCUMENT_QUERY_CONFIGS: Record<string, string[]> = {
     'updatedAt',
     'updatedBy',
     'version',
-    'additionalProperties'
+    'additionalProperties',
+    'jobOffers'
   ]
 }
 
@@ -136,8 +138,21 @@ const buildEntityReferenceField = (
     `
 }
 
+const buildArrayRelationField = (fieldSet: Set<string>, fieldName: string, relationFragment: string): string => {
+  if (!fieldSet.has(fieldName)) {
+    return ''
+  }
+  return `
+    ${fieldName}(where: {isDeleted: {_eq: false}}, orderBy: {createdAt: DESC_NULLS_LAST}) {
+      ${relationFragment}
+    }
+  `
+}
+
 export const buildJobCandidateDocumentFragment = (fields: string[]): string => {
   const fieldSet = new Set(fields)
+  const offerFragment = buildJobOfferFragment(JOB_OFFER_QUERY_CONFIGS.list)
+
   return `
     ${AUDIT_FIELDS}
     ${buildScalarFields(fieldSet)}
@@ -147,5 +162,7 @@ export const buildJobCandidateDocumentFragment = (fields: string[]): string => {
     ${buildCatalogReferenceField(fieldSet, 'documentType', 'documentTypeRef', JobCandidateDocumentFields.documentType)}
     
     ${buildEntityReferenceField(fieldSet, 'jobCandidate', 'jobCandidateId', JobCandidateDocumentFields.jobCandidate, 'id\n      firstName\n      lastName')}
+    
+    ${buildArrayRelationField(fieldSet, 'jobOffers', offerFragment)}
   `
 }

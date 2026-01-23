@@ -94,6 +94,10 @@ export interface JobRequest extends BaseEntity {
   jobProfileId?: string
   jobPositionId?: string
   requesterEmployeeId?: string
+
+  // Plural Relations (arrays)
+  jobPostings?: import('./jobPostingTypes').JobPosting[]
+  jobRequestPositions?: import('./jobPostingPositionTypes').JobPostingPosition[]
 }
 
 /**
@@ -139,7 +143,11 @@ export const JobRequestFields = {
   siteLocationId: 'siteLocationId',
   jobProfileId: 'jobProfileId',
   jobPositionId: 'jobPositionId',
-  requesterEmployeeId: 'requesterEmployeeId'
+  requesterEmployeeId: 'requesterEmployeeId',
+
+  // Plural Relations
+  jobPostings: 'jobPostings',
+  jobRequestPositions: 'jobRequestPositions'
 } as const
 
 /**

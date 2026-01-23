@@ -4,6 +4,10 @@
 import { AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
 import { JobInterviewFields } from '../types/jobInterviewTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
+import {
+  buildJobInterviewParticipantFragment,
+  JOB_INTERVIEW_PARTICIPANT_QUERY_CONFIGS
+} from './jobInterviewParticipantQueries'
 
 export interface JobInterviewQueryVariables extends BaseQueryVariables {
   jobApplicationId?: string
@@ -25,7 +29,8 @@ export const JOB_INTERVIEW_QUERY_CONFIGS: Record<string, string[]> = {
     'updatedAt',
     'updatedBy',
     'version',
-    'additionalProperties'
+    'additionalProperties',
+    'jobInterviewParticipants'
   ]
 }
 
@@ -83,12 +88,27 @@ const buildEntityReferenceField = (
   `
 }
 
+const buildArrayRelationField = (fieldSet: Set<string>, fieldName: string, relationFragment: string): string => {
+  if (!fieldSet.has(fieldName)) {
+    return ''
+  }
+  return `
+    ${fieldName}(where: {isDeleted: {_eq: false}}, orderBy: {createdAt: DESC_NULLS_LAST}) {
+      ${relationFragment}
+    }
+  `
+}
+
 export const buildJobInterviewFragment = (fields: string[]): string => {
   const fieldSet = new Set(fields)
+  const participantFragment = buildJobInterviewParticipantFragment(JOB_INTERVIEW_PARTICIPANT_QUERY_CONFIGS.list)
+
   return `
     ${AUDIT_FIELDS}
     ${buildScalarFields(fieldSet)}
     
-    ${buildEntityReferenceField(fieldSet, 'jobApplication', 'jobApplicationId', JobInterviewFields.jobApplication, 'id\n      applicationDate')}
+    ${buildEntityReferenceField(fieldSet, 'jobApplication', 'jobApplicationId', JobInterviewFields.jobApplication, 'id\n      applicationDate\n      jobCandidate {\n        id\n        firstName\n        lastName\n      }')}
+    
+    ${buildArrayRelationField(fieldSet, 'jobInterviewParticipants', participantFragment)}
   `
 }

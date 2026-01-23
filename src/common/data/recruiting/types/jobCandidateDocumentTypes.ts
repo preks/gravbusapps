@@ -31,6 +31,9 @@ export interface JobCandidateDocument extends BaseEntity {
 
   // Entity Reference IDs (Id fields)
   jobCandidateId?: string
+
+  // Plural Relations (arrays)
+  jobOffers?: import('./jobOfferTypes').JobOffer[]
 }
 
 /**
@@ -62,7 +65,10 @@ export const JobCandidateDocumentFields = {
   jobCandidate: 'jobCandidate',
 
   // Entity IDs
-  jobCandidateId: 'jobCandidateId'
+  jobCandidateId: 'jobCandidateId',
+
+  // Plural Relations
+  jobOffers: 'jobOffers'
 } as const
 
 /**

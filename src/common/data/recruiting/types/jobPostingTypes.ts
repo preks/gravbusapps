@@ -26,6 +26,11 @@ export interface JobPosting extends BaseEntity {
   // Entity Reference IDs
   jobRequestId?: string
 
+  // Plural Relations (arrays)
+  jobApplications?: import('./jobApplicationTypes').JobApplication[]
+  jobPostingPositions?: import('./jobPostingPositionTypes').JobPostingPosition[]
+  jobPostingPublications?: import('./jobPostingPublicationTypes').JobPostingPublication[]
+
   // Aggregate counts
   applicationCount?: number
   positionCount?: number
@@ -44,7 +49,12 @@ export const JobPostingFields = {
 
   // Entity references
   jobRequest: 'jobRequest',
-  jobRequestId: 'jobRequestId'
+  jobRequestId: 'jobRequestId',
+
+  // Plural Relations
+  jobApplications: 'jobApplications',
+  jobPostingPositions: 'jobPostingPositions',
+  jobPostingPublications: 'jobPostingPublications'
 } as const
 
 /**

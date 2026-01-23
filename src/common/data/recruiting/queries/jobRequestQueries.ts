@@ -6,6 +6,8 @@
 import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
 import { JobRequestFields } from '../types/jobRequestTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
+import { buildJobPostingFragment, JOB_POSTING_QUERY_CONFIGS } from './jobPostingQueries'
+import { buildJobPostingPositionFragment, JOB_POSTING_POSITION_QUERY_CONFIGS } from './jobPostingPositionQueries'
 
 /**
  * JobRequest Query Variables
@@ -96,7 +98,9 @@ export const JOB_REQUEST_QUERY_CONFIGS: Record<string, string[]> = {
     'updatedAt',
     'updatedBy',
     'version',
-    'additionalProperties'
+    'additionalProperties',
+    'jobPostings',
+    'jobRequestPositions'
   ]
 }
 
@@ -193,10 +197,26 @@ const buildEntityReferenceField = (
 }
 
 /**
+ * Build array relation field fragment
+ */
+const buildArrayRelationField = (fieldSet: Set<string>, fieldName: string, relationFragment: string): string => {
+  if (!fieldSet.has(fieldName)) {
+    return ''
+  }
+  return `
+    ${fieldName}(where: {isDeleted: {_eq: false}}, orderBy: {createdAt: DESC_NULLS_LAST}) {
+      ${relationFragment}
+    }
+  `
+}
+
+/**
  * Build JobRequest Query Fragment from field array
  */
 export const buildJobRequestFragment = (fields: string[]): string => {
   const fieldSet = new Set(fields)
+  const postingFragment = buildJobPostingFragment(JOB_POSTING_QUERY_CONFIGS.list)
+  const positionFragment = buildJobPostingPositionFragment(JOB_POSTING_POSITION_QUERY_CONFIGS.list)
 
   return `
     ${AUDIT_FIELDS}
@@ -221,5 +241,9 @@ export const buildJobRequestFragment = (fields: string[]): string => {
     ${buildEntityReferenceField(fieldSet, 'jobPosition', 'jobPositionId', JobRequestFields.jobPosition, 'id\n      name')}
     
     ${buildEntityReferenceField(fieldSet, 'requesterEmployee', 'requesterEmployeeId', JobRequestFields.requesterEmployee, 'id\n      firstName\n      lastName')}
+    
+    ${buildArrayRelationField(fieldSet, 'jobPostings', postingFragment)}
+    
+    ${buildArrayRelationField(fieldSet, 'jobRequestPositions', positionFragment)}
   `
 }

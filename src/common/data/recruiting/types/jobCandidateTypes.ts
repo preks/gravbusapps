@@ -133,8 +133,10 @@ export interface JobCandidate extends BaseEntity {
   hobbies?: CandidateHobby[]
   jobHistory?: CandidateJobHistory[]
 
-  // Relations
-  jobCandidateDocument?: import('./jobCandidateDocumentTypes').JobCandidateDocument[]
+  // Plural Relations (arrays)
+  jobCandidateDocuments?: import('./jobCandidateDocumentTypes').JobCandidateDocument[]
+  jobApplications?: import('./jobApplicationTypes').JobApplication[]
+  jobInterviewParticipants?: import('./jobInterviewParticipantTypes').JobInterviewParticipant[]
 
   // Aggregate counts
   applicationCount?: number
@@ -196,7 +198,12 @@ export const JobCandidateFields = {
   communicationChannels: 'communicationChannels',
   educations: 'educations',
   hobbies: 'hobbies',
-  jobHistory: 'jobHistory'
+  jobHistory: 'jobHistory',
+
+  // Plural Relations
+  jobCandidateDocuments: 'jobCandidateDocuments',
+  jobApplications: 'jobApplications',
+  jobInterviewParticipants: 'jobInterviewParticipants'
 } as const
 
 /**

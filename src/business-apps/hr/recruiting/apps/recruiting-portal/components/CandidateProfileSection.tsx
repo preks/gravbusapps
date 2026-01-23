@@ -33,7 +33,7 @@ export const CandidateProfileSection: React.FC<CandidateProfileSectionProps> = (
   )
 
   // Get documents from relation
-  const documents = jobCandidate?.jobCandidateDocument || []
+  const documents = jobCandidate?.jobCandidateDocuments || []
 
   // Handle picture loading
   useEffect(() => {

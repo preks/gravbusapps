@@ -4,6 +4,7 @@
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { JobPostingPublicationFields } from '../types/jobPostingPublicationTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
+import { buildJobApplicationFragment, JOB_APPLICATION_QUERY_CONFIGS } from './jobApplicationQueries'
 
 export interface JobPostingPublicationQueryVariables extends BaseQueryVariables {
   jobPostingId?: string
@@ -34,7 +35,8 @@ export const JOB_POSTING_PUBLICATION_QUERY_CONFIGS: Record<string, string[]> = {
     'updatedAt',
     'updatedBy',
     'version',
-    'additionalProperties'
+    'additionalProperties',
+    'jobApplications'
   ]
 }
 
@@ -105,8 +107,21 @@ const buildEntityReferenceField = (
     `
 }
 
+const buildArrayRelationField = (fieldSet: Set<string>, fieldName: string, relationFragment: string): string => {
+  if (!fieldSet.has(fieldName)) {
+    return ''
+  }
+  return `
+    ${fieldName}(where: {isDeleted: {_eq: false}}, orderBy: {createdAt: DESC_NULLS_LAST}) {
+      ${relationFragment}
+    }
+  `
+}
+
 export const buildJobPostingPublicationFragment = (fields: string[]): string => {
   const fieldSet = new Set(fields)
+  const applicationFragment = buildJobApplicationFragment(JOB_APPLICATION_QUERY_CONFIGS.list)
+
   return `
     ${AUDIT_FIELDS}
     ${buildScalarFields(fieldSet)}
@@ -114,5 +129,7 @@ export const buildJobPostingPublicationFragment = (fields: string[]): string => 
     ${buildCatalogReferenceField(fieldSet, 'jobPostingChannel', 'jobPostingChannelRef', JobPostingPublicationFields.jobPostingChannel)}
     
     ${buildEntityReferenceField(fieldSet, 'jobPosting', 'jobPostingId', JobPostingPublicationFields.jobPosting, 'id\n      title')}
+    
+    ${buildArrayRelationField(fieldSet, 'jobApplications', applicationFragment)}
   `
 }

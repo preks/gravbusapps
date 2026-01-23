@@ -5,6 +5,11 @@ import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFrag
 import { JobCandidateFields } from '../types/jobCandidateTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 import { buildJobCandidateDocumentFragment, JOB_CANDIDATE_DOCUMENT_QUERY_CONFIGS } from './jobCandidateDocumentQueries'
+import { buildJobApplicationFragment, JOB_APPLICATION_QUERY_CONFIGS } from './jobApplicationQueries'
+import {
+  buildJobInterviewParticipantFragment,
+  JOB_INTERVIEW_PARTICIPANT_QUERY_CONFIGS
+} from './jobInterviewParticipantQueries'
 
 export interface JobCandidateQueryVariables extends BaseQueryVariables {
   jobCandidateStatus?: string
@@ -28,7 +33,8 @@ export const JOB_CANDIDATE_QUERY_CONFIGS: Record<string, string[]> = {
     'email', // Deprecated but might still be in backend
     'phone', // Deprecated but might still be in backend
     'updatedAt',
-    'applicationCount'
+    'applicationCount',
+    'jobApplications'
   ],
   record: [
     'code',
@@ -85,8 +91,10 @@ export const JOB_CANDIDATE_QUERY_CONFIGS: Record<string, string[]> = {
     'version',
     'additionalProperties',
     'applicationCount',
-    // Relations
-    'jobCandidateDocument'
+    // Plural Relations
+    'jobCandidateDocuments',
+    'jobApplications',
+    'jobInterviewParticipants'
   ]
 }
 
@@ -165,7 +173,7 @@ const buildAggregateFields = (fieldSet: Set<string>): string => {
   const aggregateFields: string[] = []
 
   if (fieldSet.has('applicationCount')) {
-    aggregateFields.push('jobApplicationAggregate(where: {isDeleted: {_eq: false}}) { aggregate { count } }')
+    aggregateFields.push('jobApplicationsAggregate(where: {isDeleted: {_eq: false}}) { aggregate { count } }')
   }
 
   return aggregateFields.join('\n    ')
@@ -201,6 +209,8 @@ const buildArrayRelationField = (fieldSet: Set<string>, fieldName: string, relat
 export const buildJobCandidateFragment = (fields: string[]): string => {
   const fieldSet = new Set(fields)
   const documentFragment = buildJobCandidateDocumentFragment(JOB_CANDIDATE_DOCUMENT_QUERY_CONFIGS.list)
+  const applicationFragment = buildJobApplicationFragment(JOB_APPLICATION_QUERY_CONFIGS.list)
+  const participantFragment = buildJobInterviewParticipantFragment(JOB_INTERVIEW_PARTICIPANT_QUERY_CONFIGS.list)
 
   return `
     ${AUDIT_FIELDS}
@@ -223,6 +233,10 @@ export const buildJobCandidateFragment = (fields: string[]): string => {
     
     ${buildCatalogReferenceField(fieldSet, 'schoolQualification', 'schoolQualificationRef', JobCandidateFields.schoolQualification)}
     
-    ${buildArrayRelationField(fieldSet, 'jobCandidateDocument', documentFragment)}
+    ${buildArrayRelationField(fieldSet, 'jobCandidateDocuments', documentFragment)}
+    
+    ${buildArrayRelationField(fieldSet, 'jobApplications', applicationFragment)}
+    
+    ${buildArrayRelationField(fieldSet, 'jobInterviewParticipants', participantFragment)}
   `
 }

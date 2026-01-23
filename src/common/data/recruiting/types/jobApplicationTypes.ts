@@ -32,6 +32,11 @@ export interface JobApplication extends BaseEntity {
   jobPostingPublicationId?: string
   referrerEmployeeId?: string
   referredBy?: string // user id of external referrer
+
+  // Plural Relations (arrays)
+  jobApplicationDocuments?: import('./jobCandidateDocumentTypes').JobCandidateDocument[]
+  jobInterviews?: import('./jobInterviewTypes').JobInterview[]
+  jobOffers?: import('./jobOfferTypes').JobOffer[]
 }
 
 /**
@@ -60,7 +65,12 @@ export const JobApplicationFields = {
   jobPostingId: 'jobPostingId',
   jobPostingPublicationId: 'jobPostingPublicationId',
   referrerEmployeeId: 'referrerEmployeeId',
-  referredBy: 'referredBy'
+  referredBy: 'referredBy',
+
+  // Plural Relations
+  jobApplicationDocuments: 'jobApplicationDocuments',
+  jobInterviews: 'jobInterviews',
+  jobOffers: 'jobOffers'
 } as const
 
 /**
