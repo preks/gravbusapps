@@ -11,24 +11,11 @@ import {
   AvatarImage,
   AvatarFallback,
   Sheet,
-  SheetContent
+  SheetContent,
+  Badge
 } from '@newwork/nw-design-system'
 import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 
-// Status type → Tailwind classes mapping (matching Plans table)
-const ADV_STATUS_CLASSES: Record<string, string> = {
-  success: 'gba:bg-success gba:text-success-foreground',
-  warning: 'gba:bg-warning gba:text-warning-foreground',
-  info: 'gba:bg-info gba:text-info-foreground',
-  destructive: 'gba:bg-destructive gba:text-destructive-foreground',
-  offline: 'gba:bg-offline gba:text-offline-foreground',
-  draft: 'gba:bg-muted gba:text-muted-foreground',
-  completed: 'gba:bg-success gba:text-success-foreground',
-  waiting: 'gba:bg-info gba:text-info-foreground',
-  task: 'gba:bg-warning gba:text-warning-foreground',
-  error: 'gba:bg-destructive gba:text-destructive-foreground',
-  preparing: 'gba:bg-muted gba:text-muted-foreground'
-}
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -415,9 +402,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                                 ? `data:image/gif;base64,${record.expensePlan.employee.pictureThumbnail}`
                                 : undefined
                             }
-                            alt={record.expensePlan?.employee?.fullName}
+                            alt={record.expensePlan?.employee?.fullName || record.expensePlan?.employee?.displayName}
                           />
-                          <AvatarFallback>{record.expensePlan?.employee?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                          <AvatarFallback>
+                            {record.expensePlan?.employee?.displayName?.charAt(0) ||
+                              record.expensePlan?.employee?.fullName?.charAt(0) ||
+                              'U'}
+                          </AvatarFallback>
                         </Avatar>
                         <span className="gba:font-medium gba:text-sm">
                           {(() => {
@@ -452,16 +443,14 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                     </TableCell>
                     <TableCell className="gba:pr-6 gba:w-[20%]">
                       {(() => {
-                        const status = getAdvancePaymentStatusDisplay(record.status)
+                        const statusConfig = getAdvancePaymentStatusDisplay(record.status)
                         return (
-                          <span
-                            className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
-                              ADV_STATUS_CLASSES[String(status.type).toLowerCase()] || ADV_STATUS_CLASSES.draft
-                            }`}
-                            data-testid={`status-pill-${String(status.type).toLowerCase()}`}
+                          <Badge
+                            variant={statusConfig.badgeVariant}
+                            data-testid={`status-pill-${record.status.toLowerCase()}`}
                           >
-                            {status.label}
-                          </span>
+                            {statusConfig.label}
+                          </Badge>
                         )
                       })()}
                     </TableCell>
