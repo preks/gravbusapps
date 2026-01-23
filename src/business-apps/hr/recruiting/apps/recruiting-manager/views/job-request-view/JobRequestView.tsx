@@ -142,10 +142,11 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
         header: getTranslationFromI18nKeyAndLabel('recruiting.contractType', 'Contract Type'),
         cell: info => {
           const value = info.getValue() as any
-          return value?.value ? (
-            <Badge variant="secondary" className="gba:text-xs">
-              {value.value}
-            </Badge>
+          const contractTypeValue = value?.value
+          return contractTypeValue ? (
+            <span className="gba:text-sm gba:truncate gba:block" title={contractTypeValue}>
+              {contractTypeValue}
+            </span>
           ) : (
             <span className="gba:text-sm gba:text-muted-foreground">-</span>
           )
@@ -158,10 +159,11 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
         header: getTranslationFromI18nKeyAndLabel('recruiting.experienceLevel', 'Experience Level'),
         cell: info => {
           const value = info.getValue() as any
-          return value?.value ? (
-            <Badge variant="outline" className="gba:text-xs">
-              {value.value}
-            </Badge>
+          const experienceLevelValue = value?.value
+          return experienceLevelValue ? (
+            <span className="gba:text-sm gba:truncate gba:block" title={experienceLevelValue}>
+              {experienceLevelValue}
+            </span>
           ) : (
             <span className="gba:text-sm gba:text-muted-foreground">-</span>
           )
