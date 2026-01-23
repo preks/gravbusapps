@@ -31,7 +31,8 @@ import {
   Maximize2,
   Image,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ZoomIn
 } from 'lucide-react'
 import type { GroupCallParticipant, VideoQuality } from '../services/groupWebrtcClient'
 import type { GroupCallUIState, PendingInvite } from '../hooks/useGroupCall'
@@ -250,6 +251,20 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
     stream: MediaStream
   } | null>(null)
   const [currentPage, setCurrentPage] = useState(0)
+
+  // Debug: Log when expanded screen share changes
+  useEffect(() => {
+    if (expandedScreenShare) {
+      rtkDebug.log(`[RTK Modal] 🔍 Expanded screen share state changed:`, {
+        peerId: expandedScreenShare.peerId,
+        peerName: expandedScreenShare.peerName,
+        streamId: expandedScreenShare.stream.id,
+        trackCount: expandedScreenShare.stream.getTracks().length
+      })
+    } else {
+      rtkDebug.log(`[RTK Modal] 🔍 Expanded screen share closed`)
+    }
+  }, [expandedScreenShare])
 
   // Pagination config: max participants per page
   const PARTICIPANTS_PER_PAGE = 9
@@ -853,20 +868,20 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
     }
 
     if (hasFocusedScreenShare) {
-      // With focused screen share: make it 2x2, others fill remaining space
-      // Adjust based on total items to ensure good layout
+      // With focused screen share: optimize grid to minimize empty space
+      // Screen share takes 2x2, participants fill remaining cells efficiently
       if (itemCount <= 5) {
-        // 1 focused (2x2) + up to 4 others = 3x3 grid
+        // 1 focused (2x2=4 cells) + 4 others = 8 cells → 3x3 grid (9 cells, 1 empty)
         return { cols: 3, rows: 3, focusedSpan: { col: 2, row: 2 } }
-      } else if (itemCount <= 8) {
-        // 1 focused (2x2) + up to 7 others = 4x3 grid
+      } else if (itemCount <= 7) {
+        // 1 focused (2x2=4 cells) + 6 others = 10 cells → 4x3 grid (12 cells, 2 empty)
         return { cols: 4, rows: 3, focusedSpan: { col: 2, row: 2 } }
-      } else if (itemCount <= 12) {
-        // 1 focused (2x2) + up to 11 others = 4x4 grid
-        return { cols: 4, rows: 4, focusedSpan: { col: 2, row: 2 } }
+      } else if (itemCount <= 9) {
+        // 1 focused (2x2=4 cells) + 8 others = 12 cells → 4x3 grid (12 cells, perfect!)
+        return { cols: 4, rows: 3, focusedSpan: { col: 2, row: 2 } }
       } else {
-        // Many items: 5x4 grid with focused 2x2
-        return { cols: 5, rows: 4, focusedSpan: { col: 2, row: 2 } }
+        // Many items: 4x4 grid with focused 2x2 (16 cells total)
+        return { cols: 4, rows: 4, focusedSpan: { col: 2, row: 2 } }
       }
     } else {
       // No focused screen share: standard grid (max 9 items per page = 3x3)
@@ -1211,419 +1226,448 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
     return null
   }
 
-  return createPortal(
-    <Dialog open={isOpen} onOpenChange={() => {}}>
-      <DialogContent
-        className="gba:max-w-6xl gba:h-[80vh] gba:p-0 gba:overflow-hidden gba:flex gba:flex-col"
-        data-testid={`${prefixDataTestId}-modal`}
-      >
-        <DialogTitle className="gba:sr-only">{conversationName || t('chat-groupCall') || 'Group Call'}</DialogTitle>
-        <DialogDescription className="gba:sr-only">
-          {callState.callType === 'video' ? t('chat-videoCall') : t('chat-audioCall')} with {remotePeers.length + 1}{' '}
-          {remotePeers.length + 1 === 1 ? 'participant' : 'participants'}
-        </DialogDescription>
-        <div className="gba:flex gba:flex-col gba:h-full gba:bg-background gba:min-h-0">
-          {/* Header */}
-          <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-b gba:bg-muted/30 gba:flex-shrink-0">
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:p-2 gba:rounded-lg gba:bg-primary/10">
-                <Users className="gba:w-5 gba:h-5 gba:text-primary" />
-              </div>
-              <div>
-                <h3 className="gba:font-semibold gba:text-lg">
-                  {conversationName || t('groupCall-title') || 'Group Call'}
-                </h3>
-                <div className="gba:flex gba:items-center gba:gap-3 gba:text-sm gba:text-muted-foreground">
-                  <span className="gba:flex gba:items-center gba:gap-1">
-                    <span className="gba:font-mono gba:font-medium">{formatDuration(callState.duration)}</span>
-                  </span>
-                  <span>•</span>
-                  <span className="gba:flex gba:items-center gba:gap-1">
-                    <Users className="gba:w-4 gba:h-4" />
-                    <span className="gba:font-medium">{remotePeers.length + 1}</span>
-                    <span>{t('groupCall-participants') || 'participants'}</span>
-                  </span>
-                  {callState.callType === 'audio' && (
-                    <>
-                      <span>•</span>
-                      <span className="gba:text-xs gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-muted">
-                        {t('groupCall-audioOnly')}
+  return (
+    <>
+      {createPortal(
+        <Dialog open={isOpen} onOpenChange={() => {}}>
+          <DialogContent
+            className="gba:max-w-6xl gba:h-[80vh] gba:p-0 gba:overflow-hidden gba:flex gba:flex-col"
+            data-testid={`${prefixDataTestId}-modal`}
+          >
+            <DialogTitle className="gba:sr-only">{conversationName || t('chat-groupCall') || 'Group Call'}</DialogTitle>
+            <DialogDescription className="gba:sr-only">
+              {callState.callType === 'video' ? t('chat-videoCall') : t('chat-audioCall')} with {remotePeers.length + 1}{' '}
+              {remotePeers.length + 1 === 1 ? 'participant' : 'participants'}
+            </DialogDescription>
+            <div className="gba:flex gba:flex-col gba:h-full gba:bg-background gba:min-h-0">
+              {/* Header */}
+              <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-b gba:bg-muted/30 gba:flex-shrink-0">
+                <div className="gba:flex gba:items-center gba:gap-4">
+                  <div className="gba:p-2 gba:rounded-lg gba:bg-primary/10">
+                    <Users className="gba:w-5 gba:h-5 gba:text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="gba:font-semibold gba:text-lg">
+                      {conversationName || t('groupCall-title') || 'Group Call'}
+                    </h3>
+                    <div className="gba:flex gba:items-center gba:gap-3 gba:text-sm gba:text-muted-foreground">
+                      <span className="gba:flex gba:items-center gba:gap-1">
+                        <span className="gba:font-mono gba:font-medium">{formatDuration(callState.duration)}</span>
                       </span>
-                    </>
+                      <span>•</span>
+                      <span className="gba:flex gba:items-center gba:gap-1">
+                        <Users className="gba:w-4 gba:h-4" />
+                        <span className="gba:font-medium">{remotePeers.length + 1}</span>
+                        <span>{t('groupCall-participants') || 'participants'}</span>
+                      </span>
+                      {callState.callType === 'audio' && (
+                        <>
+                          <span>•</span>
+                          <span className="gba:text-xs gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-muted">
+                            {t('groupCall-audioOnly')}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  {onToggleMinimize && (
+                    <button
+                      onClick={onToggleMinimize}
+                      className="gba:p-2 gba:rounded-lg hover:gba:bg-accent gba:transition-colors"
+                      data-testid={`${prefixDataTestId}-minimize-btn`}
+                      aria-label={t('groupCall-minimize')}
+                      title={t('groupCall-minimize')}
+                    >
+                      <Minimize2 className="gba:w-5 gba:h-5" />
+                    </button>
                   )}
                 </div>
               </div>
-            </div>
 
-            <div className="gba:flex gba:items-center gba:gap-2">
-              {onToggleMinimize && (
-                <button
-                  onClick={onToggleMinimize}
-                  className="gba:p-2 gba:rounded-lg hover:gba:bg-accent gba:transition-colors"
-                  data-testid={`${prefixDataTestId}-minimize-btn`}
-                  aria-label={t('groupCall-minimize')}
-                  title={t('groupCall-minimize')}
-                >
-                  <Minimize2 className="gba:w-5 gba:h-5" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Main Content Area - Unified Grid Layout */}
-          <div className="gba:flex gba:flex-col gba:flex-1 gba:p-4 gba:bg-muted/30 gba:gap-4 gba:min-h-0 gba:overflow-y-auto">
-            {gridItems.length === 0 ? (
-              <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:rounded-lg gba:bg-muted gba:text-muted-foreground">
-                <div className="gba:text-center">
-                  <Users className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-2" />
-                  <p>{t('groupCall-waitingForParticipants')}</p>
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* Participant Grid */}
-                <div
-                  className="gba:flex-1 gba:grid gba:gap-3 gba:min-h-0"
-                  style={{
-                    gridTemplateColumns: `repeat(${gridLayout.cols}, 1fr)`,
-                    gridTemplateRows: `repeat(${gridLayout.rows}, 1fr)`
-                  }}
-                >
-                  {paginatedGridItems.items.map(item => {
-                    const isFocused = item.isFocusedScreenShare
-                    const gridColumn = isFocused ? `span ${gridLayout.focusedSpan.col}` : 'span 1'
-                    const gridRow = isFocused ? `span ${gridLayout.focusedSpan.row}` : 'span 1'
-
-                    return (
-                      <div
-                        key={item.id}
-                        className={`gba:relative gba:rounded-lg gba:overflow-hidden gba:flex gba:items-center gba:justify-center ${
-                          isFocused
-                            ? 'gba:bg-black gba:ring-2 gba:ring-primary gba:ring-offset-2'
-                            : item.type === 'screen-share'
-                              ? 'gba:bg-black'
-                              : 'gba:bg-muted'
-                        }`}
-                        style={{ gridColumn, gridRow }}
-                        data-testid={`${prefixDataTestId}-grid-item-${item.id}`}
-                      >
-                        {item.type === 'screen-share' && item.screenShareTrack ? (
-                          // Screen Share Tile
-                          <>
-                            <video
-                              ref={el => {
-                                if (el) {
-                                  screenShareVideoRefs.current.set(item.peerId, el)
-                                } else {
-                                  screenShareVideoRefs.current.delete(item.peerId)
-                                }
-                              }}
-                              autoPlay
-                              playsInline
-                              muted
-                              onLoadedMetadata={e => {
-                                const videoEl = e.currentTarget
-                                rtkDebug.log(`[RTK Modal] 📺 Video metadata loaded for ${item.peerId}:`, {
-                                  videoWidth: videoEl.videoWidth,
-                                  videoHeight: videoEl.videoHeight,
-                                  duration: videoEl.duration
-                                })
-                              }}
-                              onLoadedData={e => {
-                                const videoEl = e.currentTarget
-                                rtkDebug.log(`[RTK Modal] 📺 Video data loaded for ${item.peerId}:`, {
-                                  readyState: videoEl.readyState,
-                                  currentTime: videoEl.currentTime
-                                })
-                              }}
-                              onError={e => {
-                                rtkDebug.error(`[RTK Modal] ❌ Video error for ${item.peerId}:`, e)
-                              }}
-                              className="gba:w-full gba:h-full gba:object-contain gba:bg-black"
-                              data-testid={`${prefixDataTestId}-screenshare-${item.peerId}`}
-                              onClick={() => {
-                                // Click to focus/unfocus this screen share
-                                if (isFocused && allScreenShares.length > 1) {
-                                  // Unfocus: focus on next screen share
-                                  const currentIndex = allScreenShares.findIndex(s => s.peerId === item.peerId)
-                                  const nextIndex = (currentIndex + 1) % allScreenShares.length
-                                  setFocusedScreenShareId(allScreenShares[nextIndex].peerId)
-                                } else if (!isFocused) {
-                                  // Focus this screen share
-                                  setFocusedScreenShareId(item.peerId)
-                                } else {
-                                  // Click focused screen share to expand to fullscreen
-                                  const stream = new MediaStream()
-                                  stream.addTrack(item.screenShareTrack!)
-                                  setExpandedScreenShare({
-                                    peerId: item.peerId,
-                                    peerName: item.peerName,
-                                    stream
-                                  })
-                                }
-                              }}
-                            />
-
-                            {/* Screen share overlay */}
-                            <div
-                              className={`gba:absolute gba:top-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:flex gba:items-center gba:gap-1 ${
-                                isFocused
-                                  ? 'gba:bg-primary gba:text-primary-foreground'
-                                  : 'gba:bg-black/70 gba:text-white'
-                              }`}
-                            >
-                              <Monitor className="gba:w-3 gba:h-3" />
-                              <span className="gba:font-medium">
-                                {item.peerName} {item.isLocal ? '(You)' : ''}
-                              </span>
-                              {isFocused && allScreenShares.length > 1 && (
-                                <span className="gba:ml-1 gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-primary-foreground/20 gba:text-primary-foreground gba:text-[10px] gba:font-bold">
-                                  FOCUSED
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Focus button for non-focused screen shares */}
-                            {!isFocused && allScreenShares.length > 1 && (
-                              <button
-                                onClick={e => {
-                                  e.stopPropagation()
-                                  setFocusedScreenShareId(item.peerId)
-                                }}
-                                className="gba:absolute gba:top-2 gba:right-2 gba:p-2 gba:rounded-lg gba:bg-primary/90 hover:gba:bg-primary gba:text-primary-foreground gba:transition-colors gba:shadow-lg"
-                                title="Focus this screen share"
-                                data-testid={`${prefixDataTestId}-focus-screenshare-${item.peerId}`}
-                              >
-                                <Maximize2 className="gba:w-4 gba:h-4" />
-                              </button>
-                            )}
-                          </>
-                        ) : item.hasVideoTrack || item.hasAudioTrack ? (
-                          // Video Tile (or hidden video element for audio-only playback)
-                          <>
-                            <video
-                              ref={
-                                item.isLocal
-                                  ? localVideoRef
-                                  : el => {
-                                      if (el) {
-                                        remoteVideoRefs.current.set(item.peerId, el)
-                                      } else {
-                                        remoteVideoRefs.current.delete(item.peerId)
-                                      }
-                                    }
-                              }
-                              autoPlay
-                              playsInline
-                              muted={item.isLocal}
-                              className={item.hasVideoTrack ? 'gba:w-full gba:h-full gba:object-cover' : 'gba:hidden'}
-                              data-testid={`${prefixDataTestId}-video-${item.peerId}`}
-                            />
-
-                            {/* Show avatar when no video but has audio */}
-                            {!item.hasVideoTrack && item.hasAudioTrack && (
-                              <Avatar className="gba:w-24 gba:h-24">
-                                <AvatarFallback className="gba:text-2xl">{getInitials(item.peerName)}</AvatarFallback>
-                              </Avatar>
-                            )}
-
-                            {/* Name overlay */}
-                            <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm">
-                              {item.peerName} {item.isLocal ? '(You)' : ''} {item.isMuted && '🔇'}
-                            </div>
-                          </>
-                        ) : (
-                          // Avatar Tile (no video, no audio)
-                          <>
-                            <Avatar className="gba:w-24 gba:h-24">
-                              <AvatarFallback className="gba:text-2xl">{getInitials(item.peerName)}</AvatarFallback>
-                            </Avatar>
-
-                            {/* Name overlay */}
-                            <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm">
-                              {item.peerName} {item.isLocal ? '(You)' : ''} {item.isMuted && '🔇'}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {/* Pagination Controls */}
-                {paginatedGridItems.totalPages > 1 && (
-                  <div className="gba:flex gba:items-center gba:justify-center gba:gap-4 gba:py-2 gba:flex-shrink-0">
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
-                      disabled={currentPage === 0}
-                      className="gba:p-2 gba:rounded-lg hover:gba:bg-accent disabled:gba:opacity-50 disabled:gba:cursor-not-allowed gba:transition-colors"
-                      data-testid={`${prefixDataTestId}-prev-page-btn`}
-                      aria-label="Previous page"
+              {/* Main Content Area - Unified Grid Layout */}
+              <div className="gba:flex gba:flex-col gba:flex-1 gba:p-4 gba:bg-muted/30 gba:gap-4 gba:min-h-0 gba:overflow-y-auto">
+                {gridItems.length === 0 ? (
+                  <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:rounded-lg gba:bg-muted gba:text-muted-foreground">
+                    <div className="gba:text-center">
+                      <Users className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-2" />
+                      <p>{t('groupCall-waitingForParticipants')}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Participant Grid */}
+                    <div
+                      className="gba:flex-1 gba:grid gba:gap-3 gba:min-h-0"
+                      style={{
+                        gridTemplateColumns: `repeat(${gridLayout.cols}, 1fr)`,
+                        gridTemplateRows: `repeat(${gridLayout.rows}, 1fr)`
+                      }}
                     >
-                      <ChevronLeft className="gba:w-5 gba:h-5" />
-                    </button>
+                      {paginatedGridItems.items.map(item => {
+                        const isFocused = item.isFocusedScreenShare
+                        const gridColumn = isFocused ? `span ${gridLayout.focusedSpan.col}` : 'span 1'
+                        const gridRow = isFocused ? `span ${gridLayout.focusedSpan.row}` : 'span 1'
 
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <span className="gba:text-sm gba:text-muted-foreground">
-                        Page {currentPage + 1} of {paginatedGridItems.totalPages}
-                      </span>
-                      <span className="gba:text-xs gba:text-muted-foreground gba:px-2 gba:py-1 gba:rounded gba:bg-muted/50">
-                        {paginatedGridItems.totalItems} participants
-                      </span>
+                        return (
+                          <div
+                            key={item.id}
+                            className={`gba:relative gba:rounded-lg gba:overflow-hidden gba:flex gba:items-center gba:justify-center ${
+                              isFocused
+                                ? 'gba:bg-black gba:ring-2 gba:ring-primary gba:ring-offset-2'
+                                : item.type === 'screen-share'
+                                  ? 'gba:bg-black'
+                                  : 'gba:bg-muted'
+                            }`}
+                            style={{ gridColumn, gridRow }}
+                            data-testid={`${prefixDataTestId}-grid-item-${item.id}`}
+                          >
+                            {item.type === 'screen-share' && item.screenShareTrack ? (
+                              // Screen Share Tile
+                              <>
+                                <video
+                                  ref={el => {
+                                    if (el) {
+                                      screenShareVideoRefs.current.set(item.peerId, el)
+                                    } else {
+                                      screenShareVideoRefs.current.delete(item.peerId)
+                                    }
+                                  }}
+                                  autoPlay
+                                  playsInline
+                                  muted
+                                  onLoadedMetadata={e => {
+                                    const videoEl = e.currentTarget
+                                    rtkDebug.log(`[RTK Modal] 📺 Video metadata loaded for ${item.peerId}:`, {
+                                      videoWidth: videoEl.videoWidth,
+                                      videoHeight: videoEl.videoHeight,
+                                      duration: videoEl.duration
+                                    })
+                                  }}
+                                  onLoadedData={e => {
+                                    const videoEl = e.currentTarget
+                                    rtkDebug.log(`[RTK Modal] 📺 Video data loaded for ${item.peerId}:`, {
+                                      readyState: videoEl.readyState,
+                                      currentTime: videoEl.currentTime
+                                    })
+                                  }}
+                                  onError={e => {
+                                    rtkDebug.error(`[RTK Modal] ❌ Video error for ${item.peerId}:`, e)
+                                  }}
+                                  className={`gba:w-full gba:h-full gba:object-contain gba:bg-black ${
+                                    isFocused ? 'gba:cursor-zoom-in' : 'gba:cursor-pointer'
+                                  }`}
+                                  title={isFocused ? 'Click to expand fullscreen' : 'Click to focus this screen share'}
+                                  data-testid={`${prefixDataTestId}-screenshare-${item.peerId}`}
+                                  onClick={() => {
+                                    rtkDebug.log(`[RTK Modal] 🖱️ Screen share clicked:`, {
+                                      peerId: item.peerId,
+                                      peerName: item.peerName,
+                                      isFocused,
+                                      hasTrack: !!item.screenShareTrack
+                                    })
+
+                                    if (isFocused) {
+                                      // Click focused screen share → expand to fullscreen
+                                      rtkDebug.log(`[RTK Modal] 🔍 Expanding to fullscreen...`)
+                                      const stream = new MediaStream()
+                                      stream.addTrack(item.screenShareTrack!)
+                                      setExpandedScreenShare({
+                                        peerId: item.peerId,
+                                        peerName: item.peerName,
+                                        stream
+                                      })
+                                    } else {
+                                      // Click unfocused screen share → make it focused
+                                      rtkDebug.log(`[RTK Modal] 🎯 Focusing screen share...`)
+                                      setFocusedScreenShareId(item.peerId)
+                                    }
+                                  }}
+                                />
+
+                                {/* Screen share overlay */}
+                                <div
+                                  className={`gba:absolute gba:top-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:flex gba:items-center gba:gap-1 ${
+                                    isFocused
+                                      ? 'gba:bg-primary gba:text-primary-foreground'
+                                      : 'gba:bg-black/70 gba:text-white'
+                                  }`}
+                                >
+                                  <Monitor className="gba:w-3 gba:h-3" />
+                                  <span className="gba:font-medium">
+                                    {item.peerName} {item.isLocal ? '(You)' : ''}
+                                  </span>
+                                </div>
+
+                                {/* Expand hint for focused screen share */}
+                                {isFocused && (
+                                  <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:opacity-0 hover:gba:opacity-100 gba:transition-opacity gba:bg-black/40 gba:pointer-events-none">
+                                    <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-black/80 gba:text-white gba:text-sm gba:flex gba:items-center gba:gap-2">
+                                      <Maximize2 className="gba:w-4 gba:h-4" />
+                                      <span>Click to expand fullscreen</span>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Focus button for non-focused screen shares */}
+                                {!isFocused && allScreenShares.length > 1 && (
+                                  <button
+                                    onClick={e => {
+                                      e.stopPropagation()
+                                      rtkDebug.log(`[RTK Modal] 🎯 Focus button clicked for ${item.peerId}`)
+                                      setFocusedScreenShareId(item.peerId)
+                                    }}
+                                    className="gba:absolute gba:top-2 gba:right-2 gba:p-2 gba:rounded-lg gba:bg-primary/90 hover:gba:bg-primary gba:text-primary-foreground gba:transition-colors gba:shadow-lg"
+                                    title="Make larger"
+                                    data-testid={`${prefixDataTestId}-focus-screenshare-${item.peerId}`}
+                                  >
+                                    <ZoomIn className="gba:w-4 gba:h-4" />
+                                  </button>
+                                )}
+                              </>
+                            ) : item.hasVideoTrack || item.hasAudioTrack ? (
+                              // Video Tile (or hidden video element for audio-only playback)
+                              <>
+                                <video
+                                  ref={
+                                    item.isLocal
+                                      ? localVideoRef
+                                      : el => {
+                                          if (el) {
+                                            remoteVideoRefs.current.set(item.peerId, el)
+                                          } else {
+                                            remoteVideoRefs.current.delete(item.peerId)
+                                          }
+                                        }
+                                  }
+                                  autoPlay
+                                  playsInline
+                                  muted={item.isLocal}
+                                  className={
+                                    item.hasVideoTrack ? 'gba:w-full gba:h-full gba:object-cover' : 'gba:hidden'
+                                  }
+                                  data-testid={`${prefixDataTestId}-video-${item.peerId}`}
+                                />
+
+                                {/* Show avatar when no video but has audio */}
+                                {!item.hasVideoTrack && item.hasAudioTrack && (
+                                  <Avatar className="gba:w-24 gba:h-24">
+                                    <AvatarFallback className="gba:text-2xl">
+                                      {getInitials(item.peerName)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                )}
+
+                                {/* Name overlay */}
+                                <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm">
+                                  {item.peerName} {item.isLocal ? '(You)' : ''} {item.isMuted && '🔇'}
+                                </div>
+                              </>
+                            ) : (
+                              // Avatar Tile (no video, no audio)
+                              <>
+                                <Avatar className="gba:w-24 gba:h-24">
+                                  <AvatarFallback className="gba:text-2xl">{getInitials(item.peerName)}</AvatarFallback>
+                                </Avatar>
+
+                                {/* Name overlay */}
+                                <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm">
+                                  {item.peerName} {item.isLocal ? '(You)' : ''} {item.isMuted && '🔇'}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
 
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(paginatedGridItems.totalPages - 1, prev + 1))}
-                      disabled={currentPage >= paginatedGridItems.totalPages - 1}
-                      className="gba:p-2 gba:rounded-lg hover:gba:bg-accent disabled:gba:opacity-50 disabled:gba:cursor-not-allowed gba:transition-colors"
-                      data-testid={`${prefixDataTestId}-next-page-btn`}
-                      aria-label="Next page"
-                    >
-                      <ChevronRight className="gba:w-5 gba:h-5" />
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+                    {/* Pagination Controls */}
+                    {paginatedGridItems.totalPages > 1 && (
+                      <div className="gba:flex gba:items-center gba:justify-center gba:gap-4 gba:py-2 gba:flex-shrink-0">
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                          disabled={currentPage === 0}
+                          className="gba:p-2 gba:rounded-lg hover:gba:bg-accent disabled:gba:opacity-50 disabled:gba:cursor-not-allowed gba:transition-colors"
+                          data-testid={`${prefixDataTestId}-prev-page-btn`}
+                          aria-label="Previous page"
+                        >
+                          <ChevronLeft className="gba:w-5 gba:h-5" />
+                        </button>
 
-          {/* Footer - Command Bar */}
-          <div className="gba:border-t gba:bg-background gba:flex-shrink-0">
-            <div className="gba:flex gba:items-center gba:justify-center gba:px-6 gba:py-3 gba:gap-6">
-              {/* Left: Media Controls Group */}
-              <div className="gba:flex gba:items-center gba:gap-3">
-                {/* Mute button */}
-                <button
-                  onClick={onToggleMute}
-                  className={`gba:p-3 gba:rounded-full gba:transition-all ${
-                    callState.isMuted
-                      ? 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
-                      : 'gba:bg-accent hover:gba:bg-accent/90'
-                  }`}
-                  data-testid={`${prefixDataTestId}-mute-btn`}
-                  aria-label={callState.isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
-                  title={callState.isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
-                >
-                  {callState.isMuted ? <MicOff className="gba:w-5 gba:h-5" /> : <Mic className="gba:w-5 gba:h-5" />}
-                </button>
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <span className="gba:text-sm gba:text-muted-foreground">
+                            Page {currentPage + 1} of {paginatedGridItems.totalPages}
+                          </span>
+                          <span className="gba:text-xs gba:text-muted-foreground gba:px-2 gba:py-1 gba:rounded gba:bg-muted/50">
+                            {paginatedGridItems.totalItems} participants
+                          </span>
+                        </div>
 
-                {/* Video toggle button */}
-                {callState.callType === 'video' && (
-                  <button
-                    onClick={onToggleVideo}
-                    className={`gba:p-3 gba:rounded-full gba:transition-all ${
-                      !callState.isVideoEnabled
-                        ? 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
-                        : 'gba:bg-accent hover:gba:bg-accent/90'
-                    }`}
-                    data-testid={`${prefixDataTestId}-video-btn`}
-                    aria-label={callState.isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
-                    title={callState.isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
-                  >
-                    {callState.isVideoEnabled ? (
-                      <Video className="gba:w-5 gba:h-5" />
-                    ) : (
-                      <VideoOff className="gba:w-5 gba:h-5" />
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(paginatedGridItems.totalPages - 1, prev + 1))}
+                          disabled={currentPage >= paginatedGridItems.totalPages - 1}
+                          className="gba:p-2 gba:rounded-lg hover:gba:bg-accent disabled:gba:opacity-50 disabled:gba:cursor-not-allowed gba:transition-colors"
+                          data-testid={`${prefixDataTestId}-next-page-btn`}
+                          aria-label="Next page"
+                        >
+                          <ChevronRight className="gba:w-5 gba:h-5" />
+                        </button>
+                      </div>
                     )}
-                  </button>
+                  </>
                 )}
               </div>
 
-              {/* Separator */}
-              <div className="gba:h-8 gba:w-px gba:bg-border/50" />
+              {/* Footer - Command Bar */}
+              <div className="gba:border-t gba:bg-background gba:flex-shrink-0">
+                <div className="gba:flex gba:items-center gba:justify-center gba:px-6 gba:py-3 gba:gap-6">
+                  {/* Left: Media Controls Group */}
+                  <div className="gba:flex gba:items-center gba:gap-3">
+                    {/* Mute button */}
+                    <button
+                      onClick={onToggleMute}
+                      className={`gba:p-3 gba:rounded-full gba:transition-all ${
+                        callState.isMuted
+                          ? 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
+                          : 'gba:bg-accent hover:gba:bg-accent/90'
+                      }`}
+                      data-testid={`${prefixDataTestId}-mute-btn`}
+                      aria-label={callState.isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
+                      title={callState.isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
+                    >
+                      {callState.isMuted ? <MicOff className="gba:w-5 gba:h-5" /> : <Mic className="gba:w-5 gba:h-5" />}
+                    </button>
 
-              {/* Center: Sharing & Effects Controls Group */}
-              <div className="gba:flex gba:items-center gba:gap-3">
-                {/* Screen share button */}
-                {onToggleScreenShare && (
-                  <button
-                    onClick={onToggleScreenShare}
-                    className={`gba:p-3 gba:rounded-full gba:transition-all ${
-                      callState.isScreenSharing
-                        ? 'gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90'
-                        : 'gba:bg-accent hover:gba:bg-accent/90'
-                    }`}
-                    data-testid={`${prefixDataTestId}-screen-share-btn`}
-                    aria-label={
-                      callState.isScreenSharing
-                        ? t('chat-stopSharing') || 'Stop sharing'
-                        : t('chat-shareScreen') || 'Share screen'
-                    }
-                    title={
-                      callState.isScreenSharing
-                        ? t('chat-stopSharing') || 'Stop sharing'
-                        : t('chat-shareScreen') || 'Share screen'
-                    }
-                  >
-                    <Monitor className="gba:w-5 gba:h-5" />
-                  </button>
-                )}
+                    {/* Video toggle button */}
+                    {callState.callType === 'video' && (
+                      <button
+                        onClick={onToggleVideo}
+                        className={`gba:p-3 gba:rounded-full gba:transition-all ${
+                          !callState.isVideoEnabled
+                            ? 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
+                            : 'gba:bg-accent hover:gba:bg-accent/90'
+                        }`}
+                        data-testid={`${prefixDataTestId}-video-btn`}
+                        aria-label={callState.isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
+                        title={callState.isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
+                      >
+                        {callState.isVideoEnabled ? (
+                          <Video className="gba:w-5 gba:h-5" />
+                        ) : (
+                          <VideoOff className="gba:w-5 gba:h-5" />
+                        )}
+                      </button>
+                    )}
+                  </div>
 
-                {/* Background effect button */}
-                {onToggleBackground && callState.callType === 'video' && (
+                  {/* Separator */}
+                  <div className="gba:h-8 gba:w-px gba:bg-border/50" />
+
+                  {/* Center: Sharing & Effects Controls Group */}
+                  <div className="gba:flex gba:items-center gba:gap-3">
+                    {/* Screen share button */}
+                    {onToggleScreenShare && (
+                      <button
+                        onClick={onToggleScreenShare}
+                        className={`gba:p-3 gba:rounded-full gba:transition-all ${
+                          callState.isScreenSharing
+                            ? 'gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90'
+                            : 'gba:bg-accent hover:gba:bg-accent/90'
+                        }`}
+                        data-testid={`${prefixDataTestId}-screen-share-btn`}
+                        aria-label={
+                          callState.isScreenSharing
+                            ? t('chat-stopSharing') || 'Stop sharing'
+                            : t('chat-shareScreen') || 'Share screen'
+                        }
+                        title={
+                          callState.isScreenSharing
+                            ? t('chat-stopSharing') || 'Stop sharing'
+                            : t('chat-shareScreen') || 'Share screen'
+                        }
+                      >
+                        <Monitor className="gba:w-5 gba:h-5" />
+                      </button>
+                    )}
+
+                    {/* Background effect button */}
+                    {onToggleBackground && callState.callType === 'video' && (
+                      <button
+                        onClick={onToggleBackground}
+                        className={`gba:p-3 gba:rounded-full gba:transition-all ${
+                          callState.backgroundEnabled
+                            ? 'gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90'
+                            : 'gba:bg-accent hover:gba:bg-accent/90'
+                        }`}
+                        data-testid={`${prefixDataTestId}-background-btn`}
+                        aria-label={
+                          callState.backgroundEnabled
+                            ? t('groupCall-disableBackground') || 'Disable background'
+                            : t('groupCall-enableBackground') || 'Enable background'
+                        }
+                        title={
+                          callState.backgroundEnabled
+                            ? t('groupCall-disableBackground') || 'Disable background'
+                            : t('groupCall-enableBackground') || 'Enable background'
+                        }
+                      >
+                        <Image className="gba:w-5 gba:h-5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Separator */}
+                  <div className="gba:h-8 gba:w-px gba:bg-border/50" />
+
+                  {/* Right: End Call Button */}
                   <button
-                    onClick={onToggleBackground}
-                    className={`gba:p-3 gba:rounded-full gba:transition-all ${
-                      callState.backgroundEnabled
-                        ? 'gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90'
-                        : 'gba:bg-accent hover:gba:bg-accent/90'
-                    }`}
-                    data-testid={`${prefixDataTestId}-background-btn`}
-                    aria-label={
-                      callState.backgroundEnabled
-                        ? t('groupCall-disableBackground') || 'Disable background'
-                        : t('groupCall-enableBackground') || 'Enable background'
-                    }
-                    title={
-                      callState.backgroundEnabled
-                        ? t('groupCall-disableBackground') || 'Disable background'
-                        : t('groupCall-enableBackground') || 'Enable background'
-                    }
+                    onClick={onEndCall}
+                    className="gba:px-6 gba:py-3 gba:rounded-full gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90 gba:transition-all gba:font-semibold gba:flex gba:items-center gba:gap-2"
+                    data-testid={`${prefixDataTestId}-end-btn`}
+                    aria-label={t('groupCall-endCall')}
+                    title={t('groupCall-endCall')}
                   >
-                    <Image className="gba:w-5 gba:h-5" />
+                    <PhoneOff className="gba:w-4 gba:h-4" />
+                    <span className="gba:text-sm">{t('groupCall-endCall') || 'End call'}</span>
                   </button>
-                )}
+                </div>
               </div>
-
-              {/* Separator */}
-              <div className="gba:h-8 gba:w-px gba:bg-border/50" />
-
-              {/* Right: End Call Button */}
-              <button
-                onClick={onEndCall}
-                className="gba:px-6 gba:py-3 gba:rounded-full gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90 gba:transition-all gba:font-semibold gba:flex gba:items-center gba:gap-2"
-                data-testid={`${prefixDataTestId}-end-btn`}
-                aria-label={t('groupCall-endCall')}
-                title={t('groupCall-endCall')}
-              >
-                <PhoneOff className="gba:w-4 gba:h-4" />
-                <span className="gba:text-sm">{t('groupCall-endCall') || 'End call'}</span>
-              </button>
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>,
+        document.body
+      )}
 
-        {/* Expanded screen share overlay (fullscreen view) */}
-        {expandedScreenShare && (
+      {/* Expanded screen share overlay (fullscreen view) - SEPARATE PORTAL for true fullscreen */}
+      {expandedScreenShare &&
+        createPortal(
           <div
-            className="gba:fixed gba:inset-0 gba:z-50 gba:bg-black gba:flex gba:items-center gba:justify-center gba:cursor-pointer"
-            onClick={() => setExpandedScreenShare(null)}
+            className="gba:fixed gba:inset-0 gba:z-[9999] gba:bg-black gba:flex gba:items-center gba:justify-center gba:cursor-pointer"
+            onClick={() => {
+              rtkDebug.log(`[RTK Modal] 🔍 Closing expanded screen share via overlay click`)
+              setExpandedScreenShare(null)
+            }}
+            data-testid={`${prefixDataTestId}-expanded-screenshare-overlay`}
           >
             {/* Close button */}
             <button
               className="gba:absolute gba:top-4 gba:right-4 gba:p-3 gba:rounded-full gba:bg-white/10 hover:gba:bg-white/20 gba:text-white gba:transition-colors gba:z-10"
               onClick={e => {
                 e.stopPropagation()
+                rtkDebug.log(`[RTK Modal] 🔍 Close button clicked`)
                 setExpandedScreenShare(null)
               }}
-              title="Close"
+              title="Close (or click anywhere)"
               aria-label="Close expanded screen share"
+              data-testid={`${prefixDataTestId}-close-expanded-btn`}
             >
               <Shrink className="gba:h-6 gba:w-6" />
             </button>
 
             {/* Participant name */}
-            <div className="gba:absolute gba:top-4 gba:left-4 gba:bg-black/60 gba:text-white gba:px-4 gba:py-2 gba:rounded-lg gba:flex gba:items-center gba:gap-2">
+            <div className="gba:absolute gba:top-4 gba:left-4 gba:bg-black/60 gba:text-white gba:px-4 gba:py-2 gba:rounded-lg gba:flex gba:items-center gba:gap-2 gba:pointer-events-none">
               <Monitor className="gba:h-4 gba:w-4" />
               <span>
                 {t('chat-screenShare', { name: expandedScreenShare.peerName }) ||
@@ -1637,12 +1681,11 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
               autoPlay
               playsInline
               muted
-              className="gba:max-w-full gba:max-h-full gba:object-contain"
+              className="gba:max-w-full gba:max-h-full gba:object-contain gba:pointer-events-none"
             />
-          </div>
+          </div>,
+          document.body
         )}
-      </DialogContent>
-    </Dialog>,
-    document.body
+    </>
   )
 }

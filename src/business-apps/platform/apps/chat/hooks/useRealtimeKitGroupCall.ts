@@ -964,11 +964,23 @@ export const useRealtimeKitGroupCall = ({
       conversationId: conversationIdRef.current,
       roomId: callState.roomId,
       meetingIdRef: meetingIdRef.current,
-      currentUserId: currentUser?.id
+      currentUserId: currentUser?.id,
+      isScreenSharing: callState.isScreenSharing
     })
 
     try {
-      // 1. Leave via Cloudflare SDK
+      // 1. Stop screen sharing if active (must happen before leaving)
+      if (callState.isScreenSharing && meeting?.self) {
+        rtkDebug.log('[RTK] 🖥️ Stopping screen share before leaving...')
+        try {
+          await meeting.self.disableScreenShare()
+          rtkDebug.log('[RTK] ✅ Screen share stopped before leaving')
+        } catch (error) {
+          rtkDebug.error('[RTK] ⚠️ Error stopping screen share:', error)
+        }
+      }
+
+      // 2. Leave via Cloudflare SDK
       if (meeting && meeting.self?.roomJoined) {
         await meeting.leave()
         rtkDebug.log('[RTK] SDK leave successful')
@@ -977,7 +989,7 @@ export const useRealtimeKitGroupCall = ({
       rtkDebug.error('[RTK] Error leaving via SDK:', error)
     }
 
-    // 2. Stop local stream tracks
+    // 3. Stop local stream tracks
     if (localStream) {
       localStream.getTracks().forEach(track => track.stop())
     }
@@ -992,7 +1004,7 @@ export const useRealtimeKitGroupCall = ({
       monitors.clear()
     }
 
-    // 3. Notify via WebSocket that participant left
+    // 4. Notify via WebSocket that participant left
     const conversationId = conversationIdRef.current
     if (conversationId && callState.roomId && currentUser) {
       const leaveEventData = {
@@ -1004,13 +1016,13 @@ export const useRealtimeKitGroupCall = ({
       emitSocketEvent('rtk-group-call:left', leaveEventData)
     }
 
-    // 4. Clean up virtual background
+    // 5. Clean up virtual background
     if (virtualBackgroundRef.current) {
       virtualBackgroundRef.current.destroy(meeting!)
       virtualBackgroundRef.current = null
     }
 
-    // 5. Clean up state
+    // 6. Clean up state
     const duration = callState.duration
     const roomId = callState.roomId
 
