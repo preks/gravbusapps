@@ -126,8 +126,8 @@
 
 #### 2. **Raise Hand** ✋
 
-- **Status**: ⚠️ **REQUIRES UI KIT ADDONS** - Needs `@cloudflare/realtimekit-ui-addons` package
-- **Note**: SDK doesn't have native `raiseHand()` methods, requires separate addon integration
+- **Status**: ✅ **IMPLEMENTED** (January 23, 2026 - Custom WebSocket Implementation)
+- **Implementation**: Custom WebSocket events instead of SDK addons
 - **What It Does**: Participants signal they want to speak
 - **SDK Support**: ✅ Available via UI Kit Addons
 - **Package**: `@dytesdk/react-ui-kit-addons`
@@ -147,8 +147,8 @@
 
 #### 3. **Reactions/Emojis** 😊👍🎉
 
-- **Status**: ⚠️ **REQUIRES UI KIT ADDONS** - Needs `@cloudflare/realtimekit-ui-addons` package
-- **Note**: SDK doesn't have native `sendReaction()` methods, requires separate addon integration
+- **Status**: ✅ **IMPLEMENTED** (January 23, 2026 - Custom WebSocket Implementation)
+- **Implementation**: Custom WebSocket events with floating animations
 - **What It Does**: Quick emoji reactions during calls
 - **SDK Support**: ✅ Available via Reactions Manager
 - **Package**: `@dytesdk/react-ui-kit-addons`

@@ -42,8 +42,18 @@ import {
 import type { GroupCallParticipant, VideoQuality } from '../services/groupWebrtcClient'
 import type { GroupCallUIState, PendingInvite } from '../hooks/useGroupCall'
 import type { CallParticipant } from '../services/webrtcClient'
+import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import { useChatTranslation } from '../contexts/TranslationContext'
 import { rtkDebug } from '../utils/rtkDebug'
+
+// RealtimeKit peer type with SDK-specific properties
+interface RealtimeKitPeer extends GroupCallParticipant {
+  name?: string // RealtimeKit uses 'name' instead of 'odName'
+  audioTrack?: MediaStreamTrack
+  videoTrack?: MediaStreamTrack
+  screenShareEnabled?: boolean
+  screenShareTracks?: any
+}
 
 interface AvailableParticipant {
   id: string
@@ -76,6 +86,7 @@ interface GroupCallModalRtkProps {
   accessToken?: string
   currentUserId?: string | null
   conversationName?: string
+  wsClient?: ChatWebSocketClient | null
 }
 
 // Format duration as MM:SS or HH:MM:SS
@@ -109,6 +120,9 @@ interface ParticipantsPanelProps {
   availableParticipants?: AvailableParticipant[]
   pendingInvites?: Map<string, PendingInvite>
   onInviteParticipant?: (participant: CallParticipant) => void
+  remoteHandsRaised?: Record<string, boolean> // Map of participantId -> handRaised
+  localHandRaised?: boolean // Local user's hand raised state
+  localUserId?: string // Current user's ID to check against
 }
 
 const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
@@ -118,10 +132,22 @@ const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   prefixDataTestId = 'rtk-group-call',
   availableParticipants = [],
   pendingInvites,
-  onInviteParticipant
+  onInviteParticipant,
+  remoteHandsRaised = {},
+  localHandRaised = false,
+  localUserId
 }) => {
   const t = useChatTranslation()
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Helper to check if a participant has their hand raised
+  const isHandRaised = (participantId: string) => {
+    if (participantId === localUserId) {
+      return localHandRaised
+    }
+    // Check if this ID exists in remoteHandsRaised (could be userId, customParticipantId, or peer.id)
+    return remoteHandsRaised[participantId] || false
+  }
 
   // Get active call participants from SDK
   const activeParticipants = useRealtimeKitSelector((m: any) => {
@@ -193,25 +219,6 @@ const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
     : []
 
   const totalCount = activeParticipants.length + notInCallParticipants.length + (pendingInvites?.size || 0)
-
-  // Debug logging
-  useEffect(() => {
-    if (isOpen) {
-      console.log(
-        '[ParticipantsPanel] Active participants:',
-        activeParticipants.map(p => ({ id: p.id, name: p.name }))
-      )
-      console.log(
-        '[ParticipantsPanel] Available participants:',
-        availableParticipants.map(p => ({ odId: p.odId, odName: p.odName }))
-      )
-      console.log(
-        '[ParticipantsPanel] Not in call:',
-        notInCallParticipants.map(p => ({ odId: p.odId, odName: p.odName }))
-      )
-      console.log('[ParticipantsPanel] Active IDs:', Array.from(activeParticipantIds))
-    }
-  }, [isOpen, activeParticipants, availableParticipants, notInCallParticipants, activeParticipantIds])
 
   if (!isOpen) return null
 
@@ -292,7 +299,9 @@ const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                           ) : (
                             <VideoOff className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
                           )}
-                          {participant.handRaised && (
+                          {(isHandRaised(participant.userId) ||
+                            isHandRaised(participant.customParticipantId) ||
+                            isHandRaised(participant.id)) && (
                             <Hand className="gba:h-3 gba:w-3 gba:text-warning gba:animate-pulse" />
                           )}
                           {participant.screenShareEnabled && <Monitor className="gba:h-3 gba:w-3 gba:text-primary" />}
@@ -518,7 +527,8 @@ const getScreenShareTrack = (peer: any): MediaStreamTrack | null => {
 export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   callState,
   localStream,
-  remoteStreams,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  remoteStreams, // Unused in RTK - streams built from peer tracks
   participants,
   pendingInvites,
   availableParticipants,
@@ -532,7 +542,8 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   onSendReaction,
   onInviteParticipant,
   prefixDataTestId = 'rtk-group-call',
-  conversationName
+  conversationName,
+  wsClient
 }) => {
   const t = useChatTranslation()
   const localVideoRef = useRef<HTMLVideoElement>(null)
@@ -544,6 +555,35 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
     peerName: string
     stream: MediaStream
   } | null>(null)
+
+  // Get the meeting object to access self.userId
+  const meeting = useRealtimeKitSelector((m: any) => m)
+
+  // Helper to check if a participant has their hand raised
+  // NOTE: We check BOTH userId (SDK) and customParticipantId (our DB) because:
+  // - WebSocket events use customParticipantId (from our user database)
+  // - SDK assigns its own userId (different from our DB ID)
+  // - Both IDs must be checked to match participants across systems
+  const isParticipantHandRaised = useCallback(
+    (participantUserId: string | undefined, participantCustomId: string | undefined) => {
+      if (!participantUserId && !participantCustomId) return false
+
+      // Check if it's the local user
+      if (participantUserId === meeting?.self?.userId) {
+        return callState.handRaised
+      }
+
+      // Check remote participants - try BOTH userId and customParticipantId
+      const isRaisedByUserId = participantUserId ? callState.remoteHandsRaised?.[participantUserId] || false : false
+      const isRaisedByCustomId = participantCustomId
+        ? callState.remoteHandsRaised?.[participantCustomId] || false
+        : false
+      const isRaised = isRaisedByUserId || isRaisedByCustomId
+
+      return isRaised
+    },
+    [callState.handRaised, callState.remoteHandsRaised, meeting?.self?.userId]
+  )
   const [currentPage, setCurrentPage] = useState(0)
   const [showParticipantsPanel, setShowParticipantsPanel] = useState(false)
   const [activeReactions, setActiveReactions] = useState<
@@ -567,26 +607,8 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
     }, 3000)
   }, [])
 
-  // Debug: Log when expanded screen share changes
-  useEffect(() => {
-    if (expandedScreenShare) {
-      rtkDebug.log(`[RTK Modal] 🔍 Expanded screen share state changed (fullscreen overlay will render):`, {
-        peerId: expandedScreenShare.peerId,
-        peerName: expandedScreenShare.peerName,
-        streamId: expandedScreenShare.stream.id,
-        trackCount: expandedScreenShare.stream.getTracks().length,
-        dialogWillBeHidden: true
-      })
-    } else {
-      rtkDebug.log(`[RTK Modal] 🔍 Expanded screen share closed (dialog will reappear)`)
-    }
-  }, [expandedScreenShare])
-
   // Pagination config: max participants per page
   const PARTICIPANTS_PER_PAGE = 9
-
-  // Get meeting object from SDK to access local tracks
-  const meeting = useRealtimeKitSelector((m: any) => m)
 
   // Subscribe to remote participants from SDK
   const remotePeers: GroupCallParticipant[] = useRealtimeKitSelector((m: any): GroupCallParticipant[] => {
@@ -662,35 +684,38 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   })
 
   rtkDebug.log('[RTK Modal] Remote peers count:', remotePeers?.length || 0)
+  rtkDebug.log('[RTK Modal] Button props:', {
+    hasRaiseHandHandler: !!onToggleRaiseHand,
+    hasReactionHandler: !!onSendReaction,
+    handRaised: callState.handRaised
+  })
 
-  // Listen for reactions from other participants
+  // Listen for reactions via WebSocket
   useEffect(() => {
-    if (!meeting?.participants?.joined) return
+    rtkDebug.log('[RTK Modal] Reactions useEffect triggered', {
+      hasWsClient: !!wsClient,
+      hasSocket: !!wsClient?.getSocket()
+    })
 
-    const handleReaction = (event: any) => {
-      rtkDebug.log('[RTK Modal] 😊 Reaction received:', event)
-      showReactionAnimation(event.emoji, event.participantId)
+    const socket = wsClient?.getSocket()
+    if (!socket) {
+      rtkDebug.warn('[RTK Modal] ⚠️ No socket available for reactions')
+      return
     }
 
-    const joined = meeting.participants.joined as any
-    if (joined && typeof joined.forEach === 'function') {
-      joined.forEach((participant: any) => {
-        if (participant.id !== meeting.self?.id && typeof participant.on === 'function') {
-          participant.on('reactionReceived', handleReaction)
-        }
-      })
+    const handleReaction = (data: { participantId: string; participantName: string; emoji: string }) => {
+      rtkDebug.log('[RTK Modal] 😊 Reaction received via WebSocket:', data)
+      showReactionAnimation(data.emoji, data.participantId)
     }
+
+    socket.on('group-call:reaction-received', handleReaction)
+    rtkDebug.log('[RTK Modal] ✅ WebSocket listener attached for reactions')
 
     return () => {
-      if (joined && typeof joined.forEach === 'function') {
-        joined.forEach((participant: any) => {
-          if (participant.id !== meeting.self?.id && typeof participant.off === 'function') {
-            participant.off('reactionReceived', handleReaction)
-          }
-        })
-      }
+      socket.off('group-call:reaction-received', handleReaction)
+      rtkDebug.log('[RTK Modal] WebSocket listener removed for reactions')
     }
-  }, [meeting, showReactionAnimation])
+  }, [wsClient, showReactionAnimation])
 
   // Auto-play local video stream (fallback if meeting.self.videoTrack not available)
   useEffect(() => {
@@ -1055,6 +1080,8 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
       type: 'video' | 'screen-share' | 'avatar'
       peerId: string
       peerName: string
+      userId?: string // SDK userId - for checking hand-raised state
+      customParticipantId?: string // Our DB user ID - for checking hand-raised state
       videoTrack?: MediaStreamTrack
       audioTrack?: MediaStreamTrack
       screenShareTrack?: MediaStreamTrack
@@ -1093,6 +1120,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
       type: localHasVideo ? 'video' : 'avatar',
       peerId: 'local',
       peerName: participants[0]?.odName || 'You',
+      userId: meeting?.self?.userId, // For checking hand-raised state
       videoTrack: localVideoTrack,
       audioTrack: localAudioTrack,
       hasVideoTrack: localHasVideo, // For rendering decision
@@ -1129,6 +1157,8 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
         type: hasVideo ? 'video' : 'avatar',
         peerId: peer.id,
         peerName: peer.name || peer.displayName || peer.customParticipantId || 'Unknown',
+        userId: peer.userId, // SDK userId - for checking hand-raised state
+        customParticipantId: peer.customParticipantId, // Our DB user ID - for checking hand-raised state
         videoTrack: cameraVideoTrack,
         audioTrack: peer.audioTrack,
         hasVideoTrack: hasVideo, // For rendering decision
@@ -1147,6 +1177,8 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
         id: i.id,
         type: i.type,
         peerId: i.peerId,
+        userId: i.userId, // SDK userId
+        customParticipantId: i.customParticipantId, // Our DB user ID
         peerName: i.peerName,
         isFocused: i.isFocusedScreenShare
       }))
@@ -1276,12 +1308,17 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
         const stream = new MediaStream()
         stream.addTrack(track)
 
-        // Only update if track changed
+        // Only update if track changed AND element has valid stream
         const currentStream = videoEl.srcObject as MediaStream
         const currentTrack = currentStream?.getVideoTracks()[0]
-        if (currentTrack?.id === track.id && track.readyState === 'live') {
+        if (currentStream && currentTrack?.id === track.id && track.readyState === 'live') {
           rtkDebug.log(`[RTK Modal] Screen share track already attached and live for ${item.peerId}`)
           return // Same track and still live, no need to update
+        }
+
+        // If srcObject is null (after unmount/remount), always re-attach
+        if (!currentStream) {
+          rtkDebug.log(`[RTK Modal] 📺 No current stream - re-attaching after Dialog remount`)
         }
 
         rtkDebug.log(`[RTK Modal] 📺 Attaching screen share track:`, {
@@ -1389,119 +1426,227 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   // Expanded screen share video ref (for fullscreen overlay)
   const expandedScreenShareVideoRef = useRef<HTMLVideoElement>(null)
 
-  // Update expanded screen share video element
+  // Minimized view refs - for PiP-style window
+  const pipVideoRef = useRef<HTMLVideoElement>(null)
+  const pipAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
+
+  // Set expanded video stream - simplified to match old implementation
   useEffect(() => {
-    if (expandedScreenShareVideoRef.current && expandedScreenShare?.stream) {
-      const videoEl = expandedScreenShareVideoRef.current
-      const tracks = expandedScreenShare.stream.getVideoTracks()
-
-      if (tracks.length === 0 || tracks[0].readyState === 'ended') {
-        rtkDebug.warn('[RTK Modal] Expanded screen share has no valid tracks')
-        return
-      }
-
-      videoEl.srcObject = expandedScreenShare.stream
-      videoEl.muted = true // Must be muted for autoplay
-
-      const playPromise = videoEl.play()
-      if (playPromise !== undefined) {
-        playPromise.catch(err => {
-          rtkDebug.warn('[RTK Modal] Could not auto-play expanded screen share:', err)
-          // Retry after short delay
-          setTimeout(() => {
-            videoEl.play().catch(e => rtkDebug.error('[RTK Modal] Retry play failed:', e))
-          }, 100)
-        })
-      }
+    if (expandedScreenShare && expandedScreenShareVideoRef.current) {
+      expandedScreenShareVideoRef.current.srcObject = expandedScreenShare.stream
+      expandedScreenShareVideoRef.current.play().catch(err => console.debug('Expanded video play error:', err))
     }
   }, [expandedScreenShare])
+
+  // Auto-close expanded screen share if the peer stops sharing
+  useEffect(() => {
+    if (!expandedScreenShare) return
+
+    // Check if the expanded screen share still exists in grid items
+    const stillExists = gridItems.some(
+      item => item.type === 'screen-share' && item.peerId === expandedScreenShare.peerId && item.screenShareTrack
+    )
+
+    if (!stillExists) {
+      setExpandedScreenShare(null)
+    }
+  }, [expandedScreenShare, gridItems])
+
+  // Handle ESC key to close fullscreen
+  useEffect(() => {
+    if (!expandedScreenShare) return
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setExpandedScreenShare(null)
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [expandedScreenShare])
+
+  // Get first remote peer for minimized view
+  const firstRemotePeer = useMemo(() => {
+    return remotePeers[0] || null
+  }, [remotePeers])
+
+  // Track audio track IDs to trigger effect when they change
+  const remoteAudioTrackIds = useMemo(() => {
+    return remotePeers.map(p => (p as RealtimeKitPeer).audioTrack?.id || null).join(',')
+  }, [remotePeers])
+
+  // Build stream from peer's tracks (RealtimeKit doesn't use remoteStreams Map)
+  const buildStreamFromPeer = useCallback((peer: RealtimeKitPeer | null): MediaStream | null => {
+    if (!peer) return null
+
+    const stream = new MediaStream()
+
+    if (peer.audioTrack) {
+      stream.addTrack(peer.audioTrack)
+    }
+
+    if (peer.videoTrack) {
+      stream.addTrack(peer.videoTrack)
+    }
+
+    return stream.getTracks().length > 0 ? stream : null
+  }, [])
+
+  // Set remote stream on PiP video when minimized (show person speaking, not self)
+  useEffect(() => {
+    if (callState.isMinimized && pipVideoRef.current && firstRemotePeer) {
+      const rtkPeer = firstRemotePeer as RealtimeKitPeer
+      const stream = buildStreamFromPeer(rtkPeer)
+      const peerName = rtkPeer.name || rtkPeer.odName
+      if (stream) {
+        console.log('[Minimized] Setting video stream for peer:', peerName, {
+          hasVideoTracks: stream.getVideoTracks().length,
+          hasAudioTracks: stream.getAudioTracks().length,
+          videoTrackEnabled: stream.getVideoTracks()[0]?.enabled
+        })
+        pipVideoRef.current.srcObject = stream
+        pipVideoRef.current.play().catch(err => console.debug('PiP video play error:', err))
+      } else {
+        // Clear video when no tracks available
+        if (pipVideoRef.current.srcObject) {
+          pipVideoRef.current.srcObject = null
+        }
+      }
+    }
+  }, [callState.isMinimized, firstRemotePeer, (firstRemotePeer as RealtimeKitPeer)?.videoTrack, buildStreamFromPeer])
+
+  // Play all remote audio streams when minimized (so user can hear all participants)
+  useEffect(() => {
+    if (!callState.isMinimized) {
+      // Clean up audio elements when not minimized
+      console.log('[Minimized] Cleaning up audio elements, count:', pipAudioRefs.current.size)
+      pipAudioRefs.current.forEach(audio => {
+        audio.pause()
+        audio.srcObject = null
+      })
+      pipAudioRefs.current.clear()
+      return
+    }
+
+    console.log('[Minimized] Setting up audio for remote peers:', {
+      remotePeersCount: remotePeers.length,
+      remotePeerIds: remotePeers.map(p => p.id),
+      existingAudioCount: pipAudioRefs.current.size
+    })
+
+    // Create or update audio elements for each remote peer
+    remotePeers.forEach(peer => {
+      const rtkPeer = peer as RealtimeKitPeer
+      const peerName = rtkPeer.name || rtkPeer.odName
+      const stream = buildStreamFromPeer(rtkPeer)
+      if (stream && stream.getAudioTracks().length > 0) {
+        const existingAudio = pipAudioRefs.current.get(peer.id)
+
+        if (!existingAudio) {
+          // Create new audio element
+          console.log('[Minimized] Creating audio element for peer:', peerName, {
+            hasAudioTracks: stream.getAudioTracks().length,
+            audioTracksInfo: stream.getAudioTracks().map(t => ({
+              id: t.id,
+              enabled: t.enabled,
+              readyState: t.readyState
+            }))
+          })
+          const audio = document.createElement('audio')
+          audio.autoplay = true
+          audio.srcObject = stream
+          audio
+            .play()
+            .then(() => console.log('[Minimized] Audio playing for:', peerName))
+            .catch(err => console.error('[Minimized] Audio play error for', peerName, ':', err))
+          pipAudioRefs.current.set(peer.id, audio)
+        } else {
+          // Update existing audio element with new stream
+          const oldStream = existingAudio.srcObject as MediaStream
+          const oldTrackId = oldStream?.getAudioTracks()[0]?.id
+          const newTrackId = stream.getAudioTracks()[0]?.id
+
+          if (oldTrackId !== newTrackId) {
+            console.log('[Minimized] Updating audio stream for peer:', peerName, {
+              oldTrackId,
+              newTrackId
+            })
+            existingAudio.srcObject = stream
+            existingAudio.play().catch(err => console.error('[Minimized] Audio play error for', peerName, ':', err))
+          }
+        }
+      } else if (pipAudioRefs.current.has(peer.id)) {
+        // Peer has no audio tracks, remove the audio element
+        console.log('[Minimized] Removing audio for peer (no tracks):', peerName)
+        const audio = pipAudioRefs.current.get(peer.id)!
+        audio.pause()
+        audio.srcObject = null
+        pipAudioRefs.current.delete(peer.id)
+      }
+    })
+
+    // Clean up removed peers
+    const currentPeerIds = new Set(remotePeers.map(p => p.id))
+    pipAudioRefs.current.forEach((audio, peerId) => {
+      if (!currentPeerIds.has(peerId)) {
+        console.log('[Minimized] Removing audio for peer (left call):', peerId)
+        audio.pause()
+        audio.srcObject = null
+        pipAudioRefs.current.delete(peerId)
+      }
+    })
+  }, [callState.isMinimized, remotePeers, remoteAudioTrackIds, buildStreamFromPeer])
 
   const isOpen =
     callState.status === 'connected' || callState.status === 'joining' || callState.status === 'reconnecting'
 
-  // Render minimized view (MS Teams style - shows first participant's video)
+  // Render minimized view - floating PiP-style window
   if (isOpen && callState.isMinimized) {
-    const firstRemotePeer = remotePeers[0]
-    const firstRemoteStream = firstRemotePeer ? remoteStreams.get(firstRemotePeer.id) : null
+    const rtkFirstPeer = firstRemotePeer as RealtimeKitPeer | null
+    const firstRemoteStream = rtkFirstPeer ? buildStreamFromPeer(rtkFirstPeer) : null
+    const hasRemoteVideo = firstRemoteStream?.getVideoTracks().some(t => t.enabled)
 
-    // Check if video is actually available and enabled
-    const videoTracks = firstRemoteStream?.getVideoTracks() || []
-    const hasRemoteVideo = videoTracks.length > 0 && videoTracks.some(t => t.enabled && t.readyState === 'live')
-
-    rtkDebug.log('[RTK Modal] 🔽 Rendering minimized view:', {
-      hasPeer: !!firstRemotePeer,
-      peerId: firstRemotePeer?.id,
-      peerName: firstRemotePeer?.odName,
-      hasStream: !!firstRemoteStream,
-      streamId: firstRemoteStream?.id,
-      hasRemoteVideo,
-      totalVideoTracks: videoTracks.length,
-      videoTracksEnabled: videoTracks.filter(t => t.enabled).length,
-      videoTracksLive: videoTracks.filter(t => t.readyState === 'live').length,
-      totalAudioTracks: firstRemoteStream?.getAudioTracks().length,
-      remotePeersCount: remotePeers.length,
-      remoteStreamsSize: remoteStreams.size,
-      remoteStreamsKeys: Array.from(remoteStreams.keys()),
-      callDuration: callState.duration
-    })
-
-    return createPortal(
+    const minimizedContent = (
       <div
-        className="gba:fixed gba:bottom-4 gba:right-4 gba:z-[9999] gba:w-80 gba:bg-card gba:rounded-lg gba:shadow-2xl gba:overflow-hidden gba:border"
-        style={{ pointerEvents: 'auto' }}
+        className="gba:fixed gba:bottom-4 gba:right-4 gba:z-50 gba:w-80 gba:bg-card gba:rounded-lg gba:shadow-2xl gba:overflow-hidden gba:border"
         data-testid={`${prefixDataTestId}-minimized`}
       >
-        {/* Mini video preview - MS Teams style */}
+        {/* Mini video preview - shows remote participant */}
         <div className="gba:relative gba:aspect-video gba:bg-muted">
-          {hasRemoteVideo && firstRemoteStream ? (
-            <video
-              ref={el => {
-                if (el) {
-                  // Always update srcObject to ensure stream changes are reflected
-                  if (el.srcObject !== firstRemoteStream) {
-                    rtkDebug.log('[RTK Minimized] 📹 Attaching video stream to minimized view:', {
-                      peerId: firstRemotePeer?.id,
-                      peerName: firstRemotePeer?.odName,
-                      streamId: firstRemoteStream.id,
-                      videoTracks: firstRemoteStream.getVideoTracks().length,
-                      audioTracks: firstRemoteStream.getAudioTracks().length,
-                      videoEnabled: firstRemoteStream
-                        .getVideoTracks()
-                        .map(t => ({ id: t.id, enabled: t.enabled, readyState: t.readyState }))
-                    })
-                    el.srcObject = firstRemoteStream
-                  }
-                  // Ensure video is playing
-                  if (el.paused) {
-                    el.play().catch(err => rtkDebug.debug('[RTK Minimized] Video play error:', err))
-                  }
-                }
-              }}
-              autoPlay
-              playsInline
-              className="gba:w-full gba:h-full gba:object-cover"
-            />
-          ) : firstRemotePeer ? (
-            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-2">
-              <Avatar className="gba:h-12 gba:w-12">
-                <AvatarFallback className="gba:bg-primary/20">
-                  {firstRemotePeer.odName?.charAt(0).toUpperCase() || '?'}
-                </AvatarFallback>
-              </Avatar>
-              <span className="gba:text-sm gba:text-foreground">{firstRemotePeer.odName}</span>
-            </div>
+          {hasRemoteVideo ? (
+            <video ref={pipVideoRef} autoPlay playsInline muted className="gba:w-full gba:h-full gba:object-cover" />
           ) : (
-            <span className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground gba:text-xs">
-              {t('groupCall-waitingForParticipants')}
-            </span>
+            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-2">
+              {rtkFirstPeer ? (
+                <>
+                  <Avatar className="gba:h-12 gba:w-12">
+                    <AvatarFallback className="gba:bg-primary/20">
+                      {getInitials(rtkFirstPeer.name || rtkFirstPeer.odName || '')}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="gba:text-sm gba:text-foreground">{rtkFirstPeer.name || rtkFirstPeer.odName}</span>
+                </>
+              ) : (
+                <span className="gba:text-muted-foreground gba:text-xs">
+                  {t('groupCall-waitingForParticipants') || 'Waiting for participants...'}
+                </span>
+              )}
+            </div>
           )}
-
+          {/* Participant name overlay */}
+          {rtkFirstPeer && hasRemoteVideo && (
+            <div className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:bg-gradient-to-t gba:from-black/60 gba:to-transparent gba:p-2">
+              <span className="gba:text-white gba:text-xs gba:truncate">
+                {rtkFirstPeer.name || rtkFirstPeer.odName}
+              </span>
+            </div>
+          )}
           {/* Participant count overlay */}
           <div className="gba:absolute gba:top-2 gba:left-2 gba:flex gba:items-center gba:gap-1 gba:bg-black/60 gba:px-2 gba:py-1 gba:rounded-full">
             <Users className="gba:h-3 gba:w-3 gba:text-white" />
             <span className="gba:text-white gba:text-xs">{remotePeers.length + 1}</span>
           </div>
-
           {/* Duration */}
           <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-black/60 gba:px-2 gba:py-1 gba:rounded-full">
             <span className="gba:text-white gba:text-xs gba:font-mono">{formatDuration(callState.duration)}</span>
@@ -1561,9 +1706,19 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
             </button>
           </div>
         </div>
-      </div>,
-      document.body
+      </div>
     )
+
+    // Render minimized view as portal to a dedicated container
+    // This prevents conflicts with other portals and the vanilla DOM renderer
+    let portalContainer = document.getElementById('rtk-group-call-minimized-portal')
+    if (!portalContainer) {
+      portalContainer = document.createElement('div')
+      portalContainer.id = 'rtk-group-call-minimized-portal'
+      portalContainer.style.cssText = 'position: fixed; z-index: 9999;'
+      document.body.appendChild(portalContainer)
+    }
+    return createPortal(minimizedContent, portalContainer)
   }
 
   // Don't render if not open or minimized
@@ -1574,7 +1729,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   return (
     <>
       {createPortal(
-        <Dialog open={isOpen && !expandedScreenShare} onOpenChange={() => {}}>
+        <Dialog open={isOpen} onOpenChange={() => {}}>
           <DialogContent
             className="gba:max-w-6xl gba:h-[80vh] gba:p-0 gba:overflow-hidden gba:flex"
             data-testid={`${prefixDataTestId}-modal`}
@@ -1720,6 +1875,12 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                                   title={isFocused ? 'Click to expand fullscreen' : 'Click to focus this screen share'}
                                   data-testid={`${prefixDataTestId}-screenshare-${item.peerId}`}
                                   onClick={() => {
+                                    // Don't handle clicks if already expanded
+                                    if (expandedScreenShare?.peerId === item.peerId) {
+                                      rtkDebug.log(`[RTK Modal] ⏭️ Ignoring click - already expanded`)
+                                      return
+                                    }
+
                                     rtkDebug.log(`[RTK Modal] 🖱️ Screen share clicked:`, {
                                       peerId: item.peerId,
                                       peerName: item.peerName,
@@ -1822,6 +1983,36 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                                 <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm">
                                   {item.peerName} {item.isLocal ? '(You)' : ''} {item.isMuted && '🔇'}
                                 </div>
+
+                                {/* Raised hand indicator */}
+                                {isParticipantHandRaised(item.userId, item.customParticipantId) && (
+                                  <div className="gba:absolute gba:top-2 gba:right-2 gba:px-2 gba:py-1 gba:rounded-full gba:bg-warning gba:text-warning-foreground gba:shadow-lg gba:animate-pulse">
+                                    <Hand className="gba:h-5 gba:w-5" />
+                                  </div>
+                                )}
+
+                                {/* Reactions from this participant */}
+                                {activeReactions
+                                  .filter(
+                                    r =>
+                                      r.participantId === item.peerId ||
+                                      r.participantId === item.userId ||
+                                      r.participantId === item.customParticipantId
+                                  )
+                                  .map(reaction => (
+                                    <div
+                                      key={reaction.id}
+                                      className="gba:absolute gba:text-4xl gba:pointer-events-none"
+                                      style={{
+                                        left: '50%',
+                                        bottom: '20%',
+                                        transform: 'translateX(-50%)',
+                                        animation: 'reaction-float-up 3s ease-out forwards'
+                                      }}
+                                    >
+                                      {reaction.emoji}
+                                    </div>
+                                  ))}
                               </>
                             ) : (
                               // Avatar Tile (no video, no audio)
@@ -1834,12 +2025,60 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                                 <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm">
                                   {item.peerName} {item.isLocal ? '(You)' : ''} {item.isMuted && '🔇'}
                                 </div>
+
+                                {/* Raised hand indicator */}
+                                {isParticipantHandRaised(item.userId, item.customParticipantId) && (
+                                  <div className="gba:absolute gba:top-2 gba:right-2 gba:px-2 gba:py-1 gba:rounded-full gba:bg-warning gba:text-warning-foreground gba:shadow-lg gba:animate-pulse">
+                                    <Hand className="gba:h-5 gba:w-5" />
+                                  </div>
+                                )}
+
+                                {/* Reactions from this participant */}
+                                {activeReactions
+                                  .filter(
+                                    r =>
+                                      r.participantId === item.peerId ||
+                                      r.participantId === item.userId ||
+                                      r.participantId === item.customParticipantId
+                                  )
+                                  .map(reaction => (
+                                    <div
+                                      key={reaction.id}
+                                      className="gba:absolute gba:text-4xl gba:pointer-events-none"
+                                      style={{
+                                        left: '50%',
+                                        bottom: '20%',
+                                        transform: 'translateX(-50%)',
+                                        animation: 'reaction-float-up 3s ease-out forwards'
+                                      }}
+                                    >
+                                      {reaction.emoji}
+                                    </div>
+                                  ))}
                               </>
                             )}
                           </div>
                         )
                       })}
                     </div>
+
+                    {/* CSS for reaction animations */}
+                    <style>{`
+                      @keyframes reaction-float-up {
+                        0% {
+                          opacity: 1;
+                          transform: translate(-50%, 0) scale(1);
+                        }
+                        50% {
+                          opacity: 1;
+                          transform: translate(-50%, -80px) scale(1.3);
+                        }
+                        100% {
+                          opacity: 0;
+                          transform: translate(-50%, -150px) scale(1.5);
+                        }
+                      }
+                    `}</style>
 
                     {/* Pagination Controls */}
                     {paginatedGridItems.totalPages > 1 && (
@@ -1975,10 +2214,13 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                       </button>
                     )}
 
-                    {/* Raise hand button - TODO: Requires @cloudflare/realtimekit-ui-addons package */}
-                    {false && onToggleRaiseHand && (
+                    {/* Raise hand button */}
+                    {onToggleRaiseHand && (
                       <button
-                        onClick={onToggleRaiseHand}
+                        onClick={() => {
+                          rtkDebug.log('[RTK Modal] 🖐️ Raise hand button clicked!')
+                          onToggleRaiseHand()
+                        }}
                         className={`gba:p-3 gba:rounded-full gba:transition-all ${
                           callState.handRaised
                             ? 'gba:bg-warning gba:text-warning-foreground hover:gba:bg-warning/90'
@@ -1992,13 +2234,16 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                       </button>
                     )}
 
-                    {/* Reaction buttons - TODO: Requires @cloudflare/realtimekit-ui-addons package */}
-                    {false && onSendReaction && (
+                    {/* Reaction buttons */}
+                    {onSendReaction && (
                       <>
                         {['👍', '❤️', '😂', '👏', '🎉'].map(emoji => (
                           <button
                             key={emoji}
-                            onClick={() => onSendReaction?.(emoji)}
+                            onClick={() => {
+                              rtkDebug.log(`[RTK Modal] 😊 Reaction button clicked: ${emoji}`)
+                              onSendReaction?.(emoji)
+                            }}
                             className="gba:p-2 gba:rounded-full hover:gba:bg-accent gba:transition-all gba:text-xl"
                             title={`Send ${emoji}`}
                             data-testid={`${prefixDataTestId}-reaction-${emoji}`}
@@ -2040,102 +2285,58 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                   availableParticipants={availableParticipants}
                   pendingInvites={pendingInvites}
                   onInviteParticipant={onInviteParticipant}
+                  remoteHandsRaised={callState.remoteHandsRaised}
+                  localHandRaised={callState.handRaised}
+                  localUserId={meeting?.self?.userId}
                 />
+              </div>
+            )}
+
+            {/* Expanded stream overlay - rendered inside Dialog like old implementation */}
+            {expandedScreenShare && (
+              <div
+                className="gba:fixed gba:inset-0 gba:z-50 gba:bg-black gba:flex gba:items-center gba:justify-center gba:cursor-pointer"
+                onClick={() => setExpandedScreenShare(null)}
+              >
+                {/* Close button */}
+                <button
+                  className="gba:absolute gba:top-4 gba:right-4 gba:p-3 gba:rounded-full gba:bg-white/10 hover:gba:bg-white/20 gba:text-white gba:transition-colors gba:z-10"
+                  onClick={e => {
+                    e.stopPropagation()
+                    setExpandedScreenShare(null)
+                  }}
+                  title="Close"
+                >
+                  <Shrink className="gba:h-6 gba:w-6" />
+                </button>
+
+                {/* Participant name */}
+                <div className="gba:absolute gba:top-4 gba:left-4 gba:bg-black/60 gba:text-white gba:px-4 gba:py-2 gba:rounded-lg gba:flex gba:items-center gba:gap-2">
+                  <Monitor className="gba:h-4 gba:w-4" />
+                  <span>
+                    {t('chat-screenShare', { name: expandedScreenShare.peerName }) ||
+                      `${expandedScreenShare.peerName} is sharing their screen`}
+                  </span>
+                </div>
+
+                {/* Video element - object-contain to preserve aspect ratio */}
+                <video
+                  ref={expandedScreenShareVideoRef}
+                  autoPlay
+                  playsInline
+                  className="gba:max-w-full gba:max-h-full gba:object-contain"
+                />
+
+                {/* Click hint */}
+                <div className="gba:absolute gba:bottom-4 gba:left-1/2 gba:-translate-x-1/2 gba:text-white/60 gba:text-sm">
+                  {t('call-clickToClose')}
+                </div>
               </div>
             )}
           </DialogContent>
         </Dialog>,
         document.body
       )}
-
-      {/* Expanded screen share overlay (fullscreen view) - SEPARATE PORTAL for true fullscreen */}
-      {expandedScreenShare &&
-        createPortal(
-          <div
-            className="gba:fixed gba:inset-0 gba:bg-black gba:flex gba:items-center gba:justify-center gba:cursor-pointer"
-            style={{ zIndex: 999999 }}
-            onClick={e => {
-              rtkDebug.log(`[RTK Modal] 🔍 Closing expanded screen share via overlay click`, {
-                targetTag: (e.target as HTMLElement)?.tagName,
-                targetClass: (e.target as HTMLElement)?.className,
-                currentTargetTag: (e.currentTarget as HTMLElement)?.tagName
-              })
-              setExpandedScreenShare(null)
-            }}
-            data-testid={`${prefixDataTestId}-expanded-screenshare-overlay`}
-          >
-            {/* Close button */}
-            <button
-              className="gba:absolute gba:top-4 gba:right-4 gba:p-3 gba:rounded-full gba:bg-white/10 hover:gba:bg-white/20 gba:text-white gba:transition-colors gba:z-10"
-              onClick={e => {
-                e.stopPropagation()
-                rtkDebug.log(`[RTK Modal] 🔍 Close button clicked`)
-                setExpandedScreenShare(null)
-              }}
-              title="Close (or click anywhere)"
-              aria-label="Close expanded screen share"
-              data-testid={`${prefixDataTestId}-close-expanded-btn`}
-            >
-              <Shrink className="gba:h-6 gba:w-6" />
-            </button>
-
-            {/* Participant name */}
-            <div className="gba:absolute gba:top-4 gba:left-4 gba:bg-black/60 gba:text-white gba:px-4 gba:py-2 gba:rounded-lg gba:flex gba:items-center gba:gap-2 gba:pointer-events-none">
-              <Monitor className="gba:h-4 gba:w-4" />
-              <span>
-                {t('chat-screenShare', { name: expandedScreenShare.peerName }) ||
-                  `${expandedScreenShare.peerName} is sharing their screen`}
-              </span>
-            </div>
-
-            {/* Video element - object-contain to preserve aspect ratio */}
-            <video
-              ref={expandedScreenShareVideoRef}
-              autoPlay
-              playsInline
-              muted
-              className="gba:max-w-full gba:max-h-full gba:object-contain gba:pointer-events-none"
-            />
-          </div>,
-          document.body
-        )}
-
-      {/* Floating reaction animations */}
-      {activeReactions.length > 0 &&
-        createPortal(
-          <div className="gba:fixed gba:inset-0 gba:pointer-events-none gba:z-[99999]">
-            {activeReactions.map(reaction => (
-              <div
-                key={reaction.id}
-                className="gba:absolute gba:text-5xl gba:animate-reaction-float"
-                style={{
-                  left: `${Math.random() * 80 + 10}%`,
-                  bottom: '10%',
-                  animation: 'reaction-float 3s ease-out forwards'
-                }}
-              >
-                {reaction.emoji}
-              </div>
-            ))}
-            <style>{`
-              @keyframes reaction-float {
-                0% {
-                  opacity: 1;
-                  transform: translateY(0) scale(1);
-                }
-                50% {
-                  opacity: 1;
-                  transform: translateY(-100px) scale(1.2);
-                }
-                100% {
-                  opacity: 0;
-                  transform: translateY(-200px) scale(1.5);
-                }
-              }
-            `}</style>
-          </div>,
-          document.body
-        )}
     </>
   )
 }

@@ -45,6 +45,7 @@ export interface GroupCallUIState {
   videoQuality: VideoQuality
   backgroundEnabled: boolean
   handRaised: boolean // Whether local user has hand raised
+  remoteHandsRaised: Record<string, boolean> // Map of participantId -> handRaised for remote participants
   startTime: number | null
   duration: number
   callImplementation: 'mesh' | 'realtime-kit' | '1-on-1' // Track which implementation is used
@@ -161,6 +162,7 @@ const initialCallState: GroupCallUIState = {
   videoQuality: getSavedVideoQuality(),
   backgroundEnabled: getSavedBackgroundEnabled(),
   handRaised: false,
+  remoteHandsRaised: {},
   startTime: null,
   duration: 0
 }
@@ -312,6 +314,7 @@ export const useGroupCall = ({
         videoQuality: storedData.callState.videoQuality,
         backgroundEnabled: storedData.callState.backgroundEnabled,
         handRaised: false,
+        remoteHandsRaised: {},
         startTime: storedData.callState.startTime,
         duration: storedData.callState.duration,
         callImplementation: storedData.callState.callImplementation || 'mesh'
@@ -373,6 +376,7 @@ export const useGroupCall = ({
           videoQuality: storedData.callState.videoQuality,
           backgroundEnabled: storedData.callState.backgroundEnabled,
           handRaised: false,
+          remoteHandsRaised: {},
           startTime: storedData.callState.startTime,
           duration: storedData.callState.duration,
           callImplementation: storedData.callState.callImplementation || 'mesh'

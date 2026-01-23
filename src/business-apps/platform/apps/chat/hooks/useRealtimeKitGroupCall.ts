@@ -119,6 +119,7 @@ const initialCallState: GroupCallUIState = {
   videoQuality: getSavedVideoQuality(),
   backgroundEnabled: getSavedBackgroundEnabled(), // Default true on first use, respect preference after
   handRaised: false,
+  remoteHandsRaised: {}, // Map of participantId -> handRaised for remote participants
   startTime: null,
   duration: 0
 }
@@ -462,6 +463,7 @@ export const useRealtimeKitGroupCall = ({
           videoQuality: getSavedVideoQuality(),
           backgroundEnabled: getSavedBackgroundEnabled(), // Default true on first use, respect preference after
           handRaised: false,
+          remoteHandsRaised: {},
           startTime: Date.now(),
           duration: 0
         })
@@ -1429,50 +1431,87 @@ export const useRealtimeKitGroupCall = ({
    * Toggle raise hand
    */
   const toggleRaiseHand = useCallback(async (): Promise<boolean> => {
-    if (!meeting?.self) {
-      rtkDebug.warn('[RTK] ⚠️ Cannot toggle raise hand: meeting.self not available')
+    rtkDebug.log('[RTK] 🖐️ toggleRaiseHand called', {
+      roomId: callState.roomId,
+      userId: currentUser?.id,
+      currentHandRaised: callState.handRaised
+    })
+
+    if (!callState.roomId || !currentUser) {
+      rtkDebug.warn('[RTK] ⚠️ Cannot toggle raise hand: missing roomId or currentUser', {
+        hasRoomId: !!callState.roomId,
+        hasCurrentUser: !!currentUser
+      })
       return callState.handRaised
     }
 
     try {
-      const self = meeting.self as any
-      const isCurrentlyRaised = self.handRaised || false
+      const newHandRaisedState = !callState.handRaised
 
-      if (isCurrentlyRaised) {
-        await self.lowerHand()
-        rtkDebug.log('[RTK] ✋ Hand lowered')
-      } else {
-        await self.raiseHand()
-        rtkDebug.log('[RTK] ✋ Hand raised')
-      }
+      rtkDebug.log('[RTK] ✋ Emitting raise-hand WebSocket event', {
+        roomId: callState.roomId,
+        participantId: currentUser.id,
+        handRaised: newHandRaisedState
+      })
 
-      // Return the new state (optimistic update)
-      return !isCurrentlyRaised
+      // Send WebSocket event to broadcast raise hand state
+      emitSocketEvent('group-call:raise-hand', {
+        roomId: callState.roomId,
+        participantId: currentUser.id,
+        handRaised: newHandRaisedState
+      })
+
+      rtkDebug.log(`[RTK] ✋ Hand ${newHandRaisedState ? 'raised' : 'lowered'} - event sent`)
+
+      // Return the new state (optimistic update - will be confirmed by WebSocket event)
+      return newHandRaisedState
     } catch (error) {
       rtkDebug.error('[RTK] ❌ Failed to toggle raise hand:', error)
       return callState.handRaised
     }
-  }, [meeting, callState.handRaised])
+  }, [callState.roomId, callState.handRaised, currentUser, emitSocketEvent])
 
   /**
    * Send a reaction emoji
    */
   const sendReaction = useCallback(
     async (emoji: string): Promise<void> => {
-      if (!meeting?.self) {
-        rtkDebug.warn('[RTK] ⚠️ Cannot send reaction: meeting.self not available')
+      rtkDebug.log('[RTK] 😊 sendReaction called', {
+        emoji,
+        roomId: callState.roomId,
+        userId: currentUser?.id
+      })
+
+      if (!callState.roomId || !currentUser) {
+        rtkDebug.warn('[RTK] ⚠️ Cannot send reaction: missing roomId or currentUser', {
+          hasRoomId: !!callState.roomId,
+          hasCurrentUser: !!currentUser
+        })
         return
       }
 
       try {
-        const self = meeting.self as any
-        await self.sendReaction(emoji)
+        rtkDebug.log('[RTK] 😊 Emitting send-reaction WebSocket event', {
+          roomId: callState.roomId,
+          participantId: currentUser.id,
+          participantName: currentUser.odName,
+          emoji
+        })
+
+        // Send WebSocket event to broadcast reaction
+        emitSocketEvent('group-call:send-reaction', {
+          roomId: callState.roomId,
+          participantId: currentUser.id,
+          participantName: currentUser.odName,
+          emoji
+        })
+
         rtkDebug.log('[RTK] 😊 Reaction sent:', emoji)
       } catch (error) {
         rtkDebug.error('[RTK] ❌ Failed to send reaction:', error)
       }
     },
-    [meeting]
+    [callState.roomId, currentUser, emitSocketEvent]
   )
 
   /**
@@ -1985,6 +2024,14 @@ export const useRealtimeKitGroupCall = ({
     const handleParticipantLeft = (participant: any) => {
       rtkDebug.log('[RTK] Participant left event:', participant.id, participant.name)
       updateParticipantList()
+
+      // Clean up hand-raised state for this participant
+      setCallState(prev => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { [participant.userId || participant.customParticipantId || participant.id]: _removed, ...rest } =
+          prev.remoteHandsRaised
+        return { ...prev, remoteHandsRaised: rest }
+      })
     }
 
     // Attach event listeners if SDK supports them
@@ -2086,30 +2133,13 @@ export const useRealtimeKitGroupCall = ({
       }
     }
 
-    const handleHandUpdate = (event: any) => {
-      if (!meeting?.self) return
-
-      const { handRaised } = event
-      const self = meeting.self as any
-
-      rtkDebug.log('[RTK] ✋ handUpdate event fired:', {
-        handRaised,
-        sdkHandRaised: self.handRaised,
-        currentStateHandRaised: callState.handRaised
-      })
-
-      // Update our state to match SDK state
-      setCallState(prev => ({ ...prev, handRaised }))
-    }
-
     // Attach event listeners if SDK supports them
     const self = meeting.self as any
     if (self && typeof self.on === 'function') {
       self.on('audioUpdate', handleAudioUpdate)
       self.on('videoUpdate', handleVideoUpdate)
       self.on('screenShareUpdate', handleScreenShareUpdate)
-      self.on('handUpdate', handleHandUpdate)
-      rtkDebug.log('[RTK] Audio, video, screen share, and hand raise event listeners attached')
+      rtkDebug.log('[RTK] Audio, video, and screen share event listeners attached')
     }
 
     // Initial update
@@ -2129,13 +2159,64 @@ export const useRealtimeKitGroupCall = ({
           self.off('audioUpdate', handleAudioUpdate)
           self.off('videoUpdate', handleVideoUpdate)
           self.off('screenShareUpdate', handleScreenShareUpdate)
-          self.off('handUpdate', handleHandUpdate)
         } catch {
           // Ignore - SDK will handle cleanup
         }
       }
     }
   }, [meeting, callState.status, localStream, currentUser])
+
+  // WebSocket event listeners for raise hand and reactions
+  useEffect(() => {
+    rtkDebug.log('[RTK] Raise hand useEffect triggered', {
+      hasSocket: !!wsClient?.getSocket(),
+      roomId: callState.roomId,
+      userId: currentUser?.id
+    })
+
+    const socket = wsClient?.getSocket()
+    if (!socket || !callState.roomId || !currentUser) {
+      rtkDebug.warn('[RTK] ⚠️ Cannot attach raise hand listener', {
+        hasSocket: !!socket,
+        hasRoomId: !!callState.roomId,
+        hasCurrentUser: !!currentUser
+      })
+      return
+    }
+
+    // Handle raise hand state updates
+    const handleHandUpdate = (data: { participantId: string; handRaised: boolean }) => {
+      rtkDebug.log('[RTK] ✋ Received hand-update event:', data)
+
+      if (data.participantId === currentUser.id) {
+        // Update local user's hand state
+        rtkDebug.log('[RTK] ✋ Updating own hand raise state:', data.handRaised)
+        setCallState(prev => ({ ...prev, handRaised: data.handRaised }))
+      } else {
+        // Update remote participant's hand state
+        rtkDebug.log('[RTK] ✋ Updating remote participant hand state:', {
+          participantId: data.participantId,
+          handRaised: data.handRaised
+        })
+        setCallState(prev => ({
+          ...prev,
+          remoteHandsRaised: {
+            ...prev.remoteHandsRaised,
+            [data.participantId]: data.handRaised
+          }
+        }))
+      }
+    }
+
+    // Listen for events
+    socket.on('group-call:hand-update', handleHandUpdate)
+    rtkDebug.log('[RTK] ✅ WebSocket listener attached for raise hand')
+
+    return () => {
+      socket.off('group-call:hand-update', handleHandUpdate)
+      rtkDebug.log('[RTK] WebSocket listener removed for raise hand')
+    }
+  }, [wsClient, callState.roomId, currentUser])
 
   // Auto-apply background effect on call connect if enabled
   useEffect(() => {

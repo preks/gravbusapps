@@ -1808,6 +1808,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                 accessToken={accessToken}
                 currentUserId={currentUser?.id || null}
                 conversationName={activeConversation?.name}
+                wsClient={wsClient}
               />
             </RealtimeKitProvider>
           ) : (
