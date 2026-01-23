@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Button, Spinner, RecordLayout, Badge, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
-import { UsersIcon, TrendUpIcon, FileTextIcon, BankIcon, RobotIcon } from '@phosphor-icons/react'
+import {
+  UsersIcon,
+  TrendUpIcon,
+  FileTextIcon,
+  BankIcon,
+  RobotIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  CalendarIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -97,17 +106,17 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
           {
             label: 'Email',
             value: getEmailChannel(accountData?.communicationChannels)?.value || accountData?.email || 'Not set',
-            icon: TrendUpIcon
+            icon: EnvelopeIcon
           },
           {
             label: 'Phone',
             value: getPhoneChannel(accountData?.communicationChannels)?.value || 'Not set',
-            icon: TrendUpIcon
+            icon: PhoneIcon
           },
           {
             label: 'Founded',
             value: accountData?.foundationDate ? new Date(accountData.foundationDate).toLocaleDateString() : 'Not set',
-            icon: TrendUpIcon
+            icon: CalendarIcon
           },
           {
             label: 'Owner',
