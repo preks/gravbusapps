@@ -5,6 +5,8 @@ import { createConductorWorkflowEngine } from '../../services'
 import type { FlowTemplate, WorkflowEngine } from '../../types'
 import { transformTemplate } from '../../utils/templateTransformUtils'
 import { WarrantyServiceRequestForm } from './components/WarrantyServiceRequestForm'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 export interface WarrantyServiceProps extends BusinessAppContextProps {
   workflowEngine?: WorkflowEngine
@@ -16,14 +18,17 @@ export const WarrantyService: React.FC<WarrantyServiceProps> = ({ workflowEngine
   const accessToken = contextProps.accessToken
   const userInfo = contextProps.userInfo
 
+  const isWarrantyServiceEnabled = useFeature(Feature.Preview.Enabled.Key)
+
   // Guard against render loops / dynamic loader re-renders.
   // We only want to fetch the template once per (templateId, accessToken) unless forced via "Retry".
   const loadedKeyRef = useRef<string | null>(null)
 
+  // Normalize engine type to the local WorkflowEngine interface to avoid mismatched interface variants
   const activeWorkflowEngine = useMemo<WorkflowEngine>(() => {
-    if (workflowEngine) return workflowEngine
-    // Avoid dependency loops: only re-create when auth/user changes (not on every render).
-    return createConductorWorkflowEngine({ accessToken, userInfo })
+    const engine = workflowEngine ?? createConductorWorkflowEngine({ accessToken, userInfo })
+    // Cast through unknown to reconcile differing declaration sources of WorkflowEngine
+    return engine as unknown as WorkflowEngine
   }, [workflowEngine, accessToken, userInfo?.id])
 
   const [isLoading, setIsLoading] = useState<boolean>(true)
@@ -31,42 +36,45 @@ export const WarrantyService: React.FC<WarrantyServiceProps> = ({ workflowEngine
   const [flowTemplate, setFlowTemplate] = useState<FlowTemplate | null>(null)
   const [createdFlowId, setCreatedFlowId] = useState<string | null>(null)
 
-  const loadTemplate = useCallback(async (force?: boolean): Promise<void> => {
-    if (!accessToken) {
-      setIsLoading(false)
-      setError('Access token missing. Please sign in again.')
-      return
-    }
-
-    const key = `${TEMPLATE_ID}:${accessToken}`
-    if (!force && loadedKeyRef.current === key) {
-      return
-    }
-
-    try {
-      setIsLoading(true)
-      setError(null)
-
-      const engineWithTemplates = activeWorkflowEngine as WorkflowEngine & {
-        getTemplateById?: (templateId: string) => Promise<any>
-      }
-
-      if (typeof engineWithTemplates.getTemplateById !== 'function') {
-        setError('Workflow engine does not support loading templates.')
+  const loadTemplate = useCallback(
+    async (force?: boolean): Promise<void> => {
+      if (!accessToken) {
+        setIsLoading(false)
+        setError('Access token missing. Please sign in again.')
         return
       }
 
-      const template = await engineWithTemplates.getTemplateById(TEMPLATE_ID)
-      const transformed = transformTemplate(template)
-      setFlowTemplate(transformed)
-      loadedKeyRef.current = key
-    } catch (e) {
-      console.error('[WarrantyService] Failed to load template', e)
-      setError('Failed to load the warranty service template.')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [activeWorkflowEngine, accessToken])
+      const key = `${TEMPLATE_ID}:${accessToken}`
+      if (!force && loadedKeyRef.current === key) {
+        return
+      }
+
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        const engineWithTemplates = activeWorkflowEngine as WorkflowEngine & {
+          getTemplateById?: (templateId: string) => Promise<any>
+        }
+
+        if (typeof engineWithTemplates.getTemplateById !== 'function') {
+          setError('Workflow engine does not support loading templates.')
+          return
+        }
+
+        const template = await engineWithTemplates.getTemplateById(TEMPLATE_ID)
+        const transformed = transformTemplate(template)
+        setFlowTemplate(transformed)
+        loadedKeyRef.current = key
+      } catch (e) {
+        console.error('[WarrantyService] Failed to load template', e)
+        setError('Failed to load the warranty service template.')
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [activeWorkflowEngine, accessToken]
+  )
 
   useEffect(() => {
     loadTemplate(false)
@@ -79,6 +87,16 @@ export const WarrantyService: React.FC<WarrantyServiceProps> = ({ workflowEngine
   const handleRestart = useCallback(() => {
     setCreatedFlowId(null)
   }, [])
+
+  if (!isWarrantyServiceEnabled) {
+    return (
+      <div data-testid="warranty-service-container" className="gba:p-4 gba:bg-background">
+        <Alert variant="default" className="gba:max-w-md gba:mx-auto">
+          <h4 className="gba:font-semibold">Warranty Service is not enabled</h4>
+        </Alert>
+      </div>
+    )
+  }
 
   return (
     <div data-testid="warranty-service-container" className="gba:p-4 gba:bg-background">
@@ -145,4 +163,3 @@ export const WarrantyService: React.FC<WarrantyServiceProps> = ({ workflowEngine
     </div>
   )
 }
-
