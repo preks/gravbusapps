@@ -4,9 +4,9 @@ import type { JobApplication } from './jobApplicationTypes'
 import { JobInterviewStatus } from './enums'
 
 /**
- * JobApplicationInterview Type (also known as JobInterview)
+ * JobInterview Type (also known as JobInterview)
  */
-export interface JobApplicationInterview extends BaseEntity {
+export interface JobInterview extends BaseEntity {
   id?: string
   scheduledAt?: string
   duration?: number
@@ -24,9 +24,9 @@ export interface JobApplicationInterview extends BaseEntity {
 }
 
 /**
- * JobApplicationInterview Fields
+ * JobInterview Fields
  */
-export const JobApplicationInterviewFields = {
+export const JobInterviewFields = {
   id: 'id',
   scheduledAt: 'scheduledAt',
   duration: 'duration',
@@ -42,9 +42,9 @@ export const JobApplicationInterviewFields = {
 } as const
 
 /**
- * JobApplicationInterview Descriptors
+ * JobInterview Descriptors
  */
-export const JOB_APPLICATION_INTERVIEW_DESCRIPTORS: Descriptor[] = [
+export const JOB_INTERVIEW_DESCRIPTORS: Descriptor[] = [
   ...BASE_ENTITY_DESCRIPTORS,
   { key: 'scheduledAt', searchPaths: ['scheduledAt'], sortPath: 'scheduledAt', type: 'date' },
   { key: 'duration', searchPaths: ['duration'], sortPath: 'duration', type: 'number' },

@@ -48,11 +48,11 @@ export enum FlowContextName {
   jobApplicationUpdate = 'jobApplicationUpdate',
   jobApplicationDelete = 'jobApplicationDelete',
 
-  /// Job Application Interviews
-  jobApplicationInterviewEntity = 'jobApplicationInterviewEntity',
-  jobApplicationInterviewCreate = 'jobApplicationInterviewCreate',
-  jobApplicationInterviewUpdate = 'jobApplicationInterviewUpdate',
-  jobApplicationInterviewDelete = 'jobApplicationInterviewDelete',
+  /// Job Interviews
+  jobInterviewEntity = 'jobInterviewEntity',
+  jobInterviewCreate = 'jobInterviewCreate',
+  jobInterviewUpdate = 'jobInterviewUpdate',
+  jobInterviewDelete = 'jobInterviewDelete',
 
   /// Job Offers
   jobOfferEntity = 'jobOfferEntity',

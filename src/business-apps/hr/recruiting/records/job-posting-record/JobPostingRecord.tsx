@@ -152,7 +152,7 @@ const JobPostingRecord: React.FC<BusinessAppContextProps> = ({ additionalData = 
   const jobPostingId = additionalData.jobPostingId || new URLSearchParams(window.location.search).get('jobPostingId')
 
   const handleBack = () => {
-    const url = buildPlatformUrl('/platform/hr/recruiting/recruitment-manager', {
+    const url = buildPlatformUrl('/platform/hr/recruiting/recruiting-manager', {
       view: 'job-postings'
     })
     navigateTo(url)

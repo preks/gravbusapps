@@ -3,10 +3,10 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Alert, Spinner } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form'
 import { DeleteLayout } from '@/components/delete-layout'
-import { useJobApplicationInterview } from '@/common/data/recruiting/hooks/useJobApplicationInterview'
+import { useJobInterview } from '@/common/data/recruiting/hooks/useJobInterview'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-export interface JobApplicationInterviewDeletePopupProps extends BusinessAppContextProps {
+export interface JobInterviewDeletePopupProps extends BusinessAppContextProps {
   onClose: () => void
 
   onSuccess?: () => void
@@ -15,41 +15,37 @@ export interface JobApplicationInterviewDeletePopupProps extends BusinessAppCont
   'data-testid'?: string
 }
 
-export const JobApplicationInterviewDeletePopup: React.FC<JobApplicationInterviewDeletePopupProps> = ({
+export const JobInterviewDeletePopup: React.FC<JobInterviewDeletePopupProps> = ({
   onClose,
   accessToken,
   additionalData,
   onSuccess,
-  'data-testid': dataTestId = 'job-application-interview-delete-popup'
+  'data-testid': dataTestId = 'job-interview-delete-popup'
 }) => {
-  const jobApplicationInterviewId =
-    additionalData?.jobApplicationInterviewId ||
+  const jobInterviewId =
     additionalData?.jobInterviewId ||
-    additionalData?.psi_taskPayload?.psi_initialParameters?.jobApplicationInterviewId ||
+    additionalData?.jobInterviewId ||
+    additionalData?.psi_taskPayload?.psi_initialParameters?.jobInterviewId ||
     additionalData?.psi_taskPayload?.psi_initialParameters?.jobInterviewId ||
     additionalData?.id
 
-  const { jobApplicationInterview, loading, error } = useJobApplicationInterview(
-    accessToken || '',
-    jobApplicationInterviewId,
-    'record'
-  )
+  const { jobInterview, loading, error } = useJobInterview(accessToken || '', jobInterviewId, 'record')
 
   const handleSubmit = async () => {
-    if (!jobApplicationInterview || !jobApplicationInterview.id) {
+    if (!jobInterview || !jobInterview.id) {
       throw new Error(
         getTranslationFromI18nKeyAndLabel(
-          'recruiting.jobApplicationInterview.delete.error.noData',
-          'Job application interview data not loaded'
+          'recruiting.jobInterview.delete.error.noData',
+          'Job interview data not loaded'
         )
       )
     }
 
     return {
-      jobApplicationInterview: {
-        id: jobApplicationInterview.id,
-        ...(jobApplicationInterview.version !== undefined && jobApplicationInterview.version !== null
-          ? { version: jobApplicationInterview.version }
+      jobInterview: {
+        id: jobInterview.id,
+        ...(jobInterview.version !== undefined && jobInterview.version !== null
+          ? { version: jobInterview.version }
           : {}),
         isDeleted: true
       }
@@ -63,13 +59,13 @@ export const JobApplicationInterviewDeletePopup: React.FC<JobApplicationIntervie
     onClose()
   }
 
-  if (!jobApplicationInterviewId) {
+  if (!jobInterviewId) {
     return (
       <div className="gba:p-6">
         <Alert variant="destructive" data-testid={`${dataTestId}-missing-id`}>
           {getTranslationFromI18nKeyAndLabel(
-            'recruiting.jobApplicationInterview.delete.missingId',
-            'Job application interview ID not found. Cannot delete job application interview.'
+            'recruiting.jobInterview.delete.missingId',
+            'Job interview ID not found. Cannot delete job interview.'
           )}
         </Alert>
       </div>
@@ -81,10 +77,7 @@ export const JobApplicationInterviewDeletePopup: React.FC<JobApplicationIntervie
       <div className="gba:flex gba:items-center gba:justify-center gba:py-8" data-testid={`${dataTestId}-loading`}>
         <Spinner size="lg" />
         <span className="gba:ml-2">
-          {getTranslationFromI18nKeyAndLabel(
-            'recruiting.jobApplicationInterview.delete.loading',
-            'Loading job application interview...'
-          )}
+          {getTranslationFromI18nKeyAndLabel('recruiting.jobInterview.delete.loading', 'Loading job interview...')}
         </span>
       </div>
     )
@@ -95,22 +88,22 @@ export const JobApplicationInterviewDeletePopup: React.FC<JobApplicationIntervie
       <div className="gba:p-6">
         <Alert variant="destructive" data-testid={`${dataTestId}-error`}>
           {getTranslationFromI18nKeyAndLabel(
-            'recruiting.jobApplicationInterview.delete.error',
-            'Failed to load job application interview. Please try again.'
+            'recruiting.jobInterview.delete.error',
+            'Failed to load job interview. Please try again.'
           )}
         </Alert>
       </div>
     )
   }
 
-  if (!jobApplicationInterview) {
+  if (!jobInterview) {
     return null
   }
 
-  const interviewTitle = jobApplicationInterview.scheduledAt
-    ? new Date(jobApplicationInterview.scheduledAt).toLocaleString()
-    : getTranslationFromI18nKeyAndLabel('recruiting.jobApplicationInterview.unnamed', 'Unnamed Interview')
-  const itemType = getTranslationFromI18nKeyAndLabel('recruiting.jobApplicationInterview', 'Job Application Interview')
+  const interviewTitle = jobInterview.scheduledAt
+    ? new Date(jobInterview.scheduledAt).toLocaleString()
+    : getTranslationFromI18nKeyAndLabel('recruiting.jobInterview.unnamed', 'Unnamed Interview')
+  const itemType = getTranslationFromI18nKeyAndLabel('recruiting.jobInterview', 'Job Interview')
 
   return (
     <AppActionForm
@@ -129,4 +122,4 @@ export const JobApplicationInterviewDeletePopup: React.FC<JobApplicationIntervie
   )
 }
 
-export default JobApplicationInterviewDeletePopup
+export default JobInterviewDeletePopup

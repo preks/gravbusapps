@@ -3,13 +3,13 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Alert, Spinner } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form'
 import { DeleteLayout } from '@/components/delete-layout'
-import { useJobApplicationInterview } from '@/common/data/recruiting/hooks/useJobApplicationInterview'
+import { useJobInterview } from '@/common/data/recruiting/hooks/useJobInterview'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { JobInterviewStatus } from '@/common/data/recruiting/types/enums'
 import { createCalendarApiClient } from '@/business-apps/platform/apps/chat/calendar/calendarApiClient'
 import { env } from '@/common/env/EnvUtils'
 
-export interface JobApplicationInterviewCancelPopupProps extends BusinessAppContextProps {
+export interface JobInterviewCancelPopupProps extends BusinessAppContextProps {
   onClose: () => void
 
   onSuccess?: () => void
@@ -18,25 +18,21 @@ export interface JobApplicationInterviewCancelPopupProps extends BusinessAppCont
   'data-testid'?: string
 }
 
-export const JobApplicationInterviewCancelPopup: React.FC<JobApplicationInterviewCancelPopupProps> = ({
+export const JobInterviewCancelPopup: React.FC<JobInterviewCancelPopupProps> = ({
   onClose,
   accessToken,
   additionalData,
   onSuccess,
-  'data-testid': dataTestId = 'job-application-interview-cancel-popup'
+  'data-testid': dataTestId = 'job-interview-cancel-popup'
 }) => {
-  const jobApplicationInterviewId =
-    additionalData?.jobApplicationInterviewId ||
+  const jobInterviewId =
     additionalData?.jobInterviewId ||
-    additionalData?.psi_taskPayload?.psi_initialParameters?.jobApplicationInterviewId ||
+    additionalData?.jobInterviewId ||
+    additionalData?.psi_taskPayload?.psi_initialParameters?.jobInterviewId ||
     additionalData?.psi_taskPayload?.psi_initialParameters?.jobInterviewId ||
     additionalData?.id
 
-  const { jobApplicationInterview, loading, error } = useJobApplicationInterview(
-    accessToken || '',
-    jobApplicationInterviewId,
-    'record'
-  )
+  const { jobInterview, loading, error } = useJobInterview(accessToken || '', jobInterviewId, 'record')
 
   const getChatApiUrl = useCallback((): string => {
     let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
@@ -56,40 +52,40 @@ export const JobApplicationInterviewCancelPopup: React.FC<JobApplicationIntervie
   }, [])
 
   const handlePreSubmit = useCallback(async () => {
-    if (!jobApplicationInterview?.meetingLink) {
+    if (!jobInterview?.meetingLink) {
       return
     }
 
     try {
       const apiUrl = getChatApiUrl()
       const calendarClient = createCalendarApiClient(apiUrl, accessToken || '')
-      await calendarClient.cancelMeeting(jobApplicationInterview.meetingLink)
+      await calendarClient.cancelMeeting(jobInterview.meetingLink)
     } catch (error) {
       console.error('Error cancelling chat meeting:', error)
     }
-  }, [jobApplicationInterview?.meetingLink, accessToken, getChatApiUrl])
+  }, [jobInterview?.meetingLink, accessToken, getChatApiUrl])
 
   const handleSubmit = useCallback(async () => {
-    if (!jobApplicationInterview || !jobApplicationInterview.id) {
+    if (!jobInterview || !jobInterview.id) {
       throw new Error(
         getTranslationFromI18nKeyAndLabel(
-          'recruiting.jobApplicationInterview.cancel.error.noData',
-          'Job application interview data not loaded'
+          'recruiting.jobInterview.cancel.error.noData',
+          'Job interview data not loaded'
         )
       )
     }
 
     return {
-      jobApplicationInterview: {
-        id: jobApplicationInterview.id,
-        ...(jobApplicationInterview.version !== undefined && jobApplicationInterview.version !== null
-          ? { version: jobApplicationInterview.version }
+      jobInterview: {
+        id: jobInterview.id,
+        ...(jobInterview.version !== undefined && jobInterview.version !== null
+          ? { version: jobInterview.version }
           : {}),
         jobInterviewStatus: JobInterviewStatus.CANCELLED
       },
       changeMode: 'UPDATE' as const
     }
-  }, [jobApplicationInterview])
+  }, [jobInterview])
 
   const handleProcessCompletion = () => {
     if (onSuccess) {
@@ -98,13 +94,13 @@ export const JobApplicationInterviewCancelPopup: React.FC<JobApplicationIntervie
     onClose()
   }
 
-  if (!jobApplicationInterviewId) {
+  if (!jobInterviewId) {
     return (
       <div className="gba:p-6">
         <Alert variant="destructive" data-testid={`${dataTestId}-missing-id`}>
           {getTranslationFromI18nKeyAndLabel(
-            'recruiting.jobApplicationInterview.cancel.missingId',
-            'Job application interview ID not found. Cannot cancel job application interview.'
+            'recruiting.jobInterview.cancel.missingId',
+            'Job interview ID not found. Cannot cancel job interview.'
           )}
         </Alert>
       </div>
@@ -116,10 +112,7 @@ export const JobApplicationInterviewCancelPopup: React.FC<JobApplicationIntervie
       <div className="gba:flex gba:items-center gba:justify-center gba:py-8" data-testid={`${dataTestId}-loading`}>
         <Spinner size="lg" />
         <span className="gba:ml-2">
-          {getTranslationFromI18nKeyAndLabel(
-            'recruiting.jobApplicationInterview.cancel.loading',
-            'Loading job application interview...'
-          )}
+          {getTranslationFromI18nKeyAndLabel('recruiting.jobInterview.cancel.loading', 'Loading job interview...')}
         </span>
       </div>
     )
@@ -130,22 +123,22 @@ export const JobApplicationInterviewCancelPopup: React.FC<JobApplicationIntervie
       <div className="gba:p-6">
         <Alert variant="destructive" data-testid={`${dataTestId}-error`}>
           {getTranslationFromI18nKeyAndLabel(
-            'recruiting.jobApplicationInterview.cancel.error',
-            'Failed to load job application interview. Please try again.'
+            'recruiting.jobInterview.cancel.error',
+            'Failed to load job interview. Please try again.'
           )}
         </Alert>
       </div>
     )
   }
 
-  if (!jobApplicationInterview) {
+  if (!jobInterview) {
     return null
   }
 
-  const interviewTitle = jobApplicationInterview.scheduledAt
-    ? new Date(jobApplicationInterview.scheduledAt).toLocaleString()
-    : getTranslationFromI18nKeyAndLabel('recruiting.jobApplicationInterview.unnamed', 'Unnamed Interview')
-  const itemType = getTranslationFromI18nKeyAndLabel('recruiting.jobApplicationInterview', 'Job Application Interview')
+  const interviewTitle = jobInterview.scheduledAt
+    ? new Date(jobInterview.scheduledAt).toLocaleString()
+    : getTranslationFromI18nKeyAndLabel('recruiting.jobInterview.unnamed', 'Unnamed Interview')
+  const itemType = getTranslationFromI18nKeyAndLabel('recruiting.jobInterview', 'Job Interview')
 
   return (
     <AppActionForm
@@ -165,4 +158,4 @@ export const JobApplicationInterviewCancelPopup: React.FC<JobApplicationIntervie
   )
 }
 
-export default JobApplicationInterviewCancelPopup
+export default JobInterviewCancelPopup

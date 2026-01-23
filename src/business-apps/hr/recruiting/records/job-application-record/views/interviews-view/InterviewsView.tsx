@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useJobApplicationInterviews } from '@/common/data/recruiting/hooks/useJobApplicationInterviews'
+import { useJobInterviews } from '@/common/data/recruiting/hooks/useJobInterviews'
 import { DataDisplay, DataTable } from '@newwork/nw-design-system'
 import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import type { JobApplicationInterview } from '@/common/data/recruiting/types/jobApplicationInterviewTypes'
+import type { JobInterview } from '@/common/data/recruiting/types/jobInterviewTypes'
 
 interface InterviewsViewProps extends BusinessAppContextProps {
   jobApplicationId: string
@@ -21,7 +21,7 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId
   })
 
   // Fetch interviews filtered by this job application
-  const { jobApplicationInterviews, total, loading, error } = useJobApplicationInterviews(
+  const { jobInterviews, total, loading, error } = useJobInterviews(
     accessToken,
     {
       search,
@@ -44,12 +44,12 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId
         variant="table-row"
         contexts={[
           {
-            context: FlowContextName.jobApplicationInterviewEntity,
-            contextData: { jobApplicationInterviewId: row.original.id }
+            context: FlowContextName.jobInterviewEntity,
+            contextData: { jobInterviewId: row.original.id }
           }
         ]}
         shareContext={{
-          entityType: 'jobApplicationInterview',
+          entityType: 'jobInterview',
           entityId: row.original.id,
           entityName: row.original.scheduledAt
             ? `Interview on ${new Date(row.original.scheduledAt).toLocaleDateString()}`
@@ -65,7 +65,7 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId
   )
 
   // Columns
-  const columns = useMemo<ColumnDef<JobApplicationInterview>[]>(
+  const columns = useMemo<ColumnDef<JobInterview>[]>(
     () => [
       {
         id: 'scheduledAt',
@@ -112,7 +112,7 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId
   return (
     <div
       className="gba:col-span-1 gba:sm:col-span-12 gba:md:col-span-12 gba:lg:col-span-12"
-      data-testid="job-application-interviews-view"
+      data-testid="job-interviews-view"
     >
       <DataDisplay
         titleSections={[
@@ -131,8 +131,8 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId
         onSearchChange={setSearch}
         toolbarDensity="default"
       >
-        <DataTable<JobApplicationInterview>
-          data={jobApplicationInterviews}
+        <DataTable<JobInterview>
+          data={jobInterviews}
           columns={columns}
           loading={loading}
           error={error || undefined}
@@ -155,7 +155,7 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId
             'No interviews found for this application'
           )}
           actions={rowActions}
-          data-testid="job-application-interviews-list"
+          data-testid="job-interviews-list"
         />
       </DataDisplay>
     </div>

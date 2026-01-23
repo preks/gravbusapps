@@ -4,12 +4,12 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { AppActionForm } from '@/components/app-action-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useJobApplicationInterview } from '@/common/data/recruiting/hooks/useJobApplicationInterview'
+import { useJobInterview } from '@/common/data/recruiting/hooks/useJobInterview'
 import { useJobApplication } from '@/common/data/recruiting/hooks/useJobApplication'
 import {
-  buildJobApplicationInterviewPayload,
+  buildJobInterviewPayload,
   type JobInterviewParticipant
-} from '@/common/data/recruiting/payloads/jobApplicationInterviewPayloads'
+} from '@/common/data/recruiting/payloads/jobInterviewPayloads'
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { ErrorAlert } from '@/components/error-alert'
@@ -64,9 +64,9 @@ type JobInterviewFormProps = BusinessAppContextProps
 const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additionalData }) => {
   const interviewId =
     additionalData?.interviewId ||
-    additionalData?.jobApplicationInterviewId ||
+    additionalData?.jobInterviewId ||
     additionalData?.psi_taskPayload?.psi_initialParameters?.interviewId ||
-    additionalData?.psi_taskPayload?.psi_initialParameters?.jobApplicationInterviewId ||
+    additionalData?.psi_taskPayload?.psi_initialParameters?.jobInterviewId ||
     undefined
 
   const initialJobApplicationId =
@@ -75,13 +75,13 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
     undefined
 
   const {
-    jobApplicationInterview,
+    jobInterview,
     loading: interviewLoading,
     error: interviewError
-  } = useJobApplicationInterview(accessToken || '', interviewId)
+  } = useJobInterview(accessToken || '', interviewId)
 
   const [selectedJobApplicationId, setSelectedJobApplicationId] = useState<string | null>(
-    initialJobApplicationId || jobApplicationInterview?.jobApplicationId || null
+    initialJobApplicationId || jobInterview?.jobApplicationId || null
   )
 
   const { jobApplication, loading: applicationLoading } = useJobApplication(
@@ -94,9 +94,9 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
     resolver: zodResolver(jobInterviewSchema),
     defaultValues: mapToFormValues(
       {
-        ...(jobApplicationInterview || {}),
-        jobApplicationId: selectedJobApplicationId || jobApplicationInterview?.jobApplicationId || '',
-        meetingType: jobApplicationInterview?.meetingLink ? 'everyone' : 'external'
+        ...(jobInterview || {}),
+        jobApplicationId: selectedJobApplicationId || jobInterview?.jobApplicationId || '',
+        meetingType: jobInterview?.meetingLink ? 'everyone' : 'external'
       },
       jobInterviewSchema
     ) as JobInterviewFormValues,
@@ -112,27 +112,27 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
 
   const currentUserId = additionalData?.userInfo?.id || additionalData?.userInfo?.employeeDetails?.employeeId
 
-  const interviewRef = useRef(jobApplicationInterview)
+  const interviewRef = useRef(jobInterview)
   useEffect(() => {
-    if (interviewRef.current?.id !== jobApplicationInterview?.id) {
+    if (interviewRef.current?.id !== jobInterview?.id) {
       const defaultValues = {
-        ...(jobApplicationInterview || {}),
-        jobApplicationId: selectedJobApplicationId || jobApplicationInterview?.jobApplicationId || '',
-        meetingType: jobApplicationInterview?.meetingLink ? 'everyone' : 'external'
+        ...(jobInterview || {}),
+        jobApplicationId: selectedJobApplicationId || jobInterview?.jobApplicationId || '',
+        meetingType: jobInterview?.meetingLink ? 'everyone' : 'external'
       }
       form.reset(mapToFormValues(defaultValues, jobInterviewSchema) as JobInterviewFormValues)
 
-      if (jobApplicationInterview?.scheduledAt && jobApplicationInterview?.duration) {
-        const startTime = new Date(jobApplicationInterview.scheduledAt)
-        const endTime = new Date(startTime.getTime() + jobApplicationInterview.duration * 60 * 1000)
+      if (jobInterview?.scheduledAt && jobInterview?.duration) {
+        const startTime = new Date(jobInterview.scheduledAt)
+        const endTime = new Date(startTime.getTime() + jobInterview.duration * 60 * 1000)
         setDateRange([startTime.toISOString(), endTime.toISOString()])
       } else {
         setDateRange(null)
       }
 
-      interviewRef.current = jobApplicationInterview
+      interviewRef.current = jobInterview
     }
-  }, [jobApplicationInterview?.id, jobApplicationInterview, selectedJobApplicationId, form])
+  }, [jobInterview?.id, jobInterview, selectedJobApplicationId, form])
 
   useEffect(() => {
     if (selectedJobApplicationId && jobApplication?.jobCandidate?.id) {
@@ -265,7 +265,7 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
           }
         }
 
-        if (jobApplicationInterview?.meetingLink && jobApplicationInterview.id) {
+        if (jobInterview?.meetingLink && jobInterview.id) {
           const updateData: UpdateMeetingData = {
             title: meetingTitle,
             startTime: startTime.toISOString(),
@@ -274,7 +274,7 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
             addParticipantIds: participantIds,
             notifyParticipants: true
           }
-          const updatedMeeting = await calendarClient.updateMeeting(jobApplicationInterview.meetingLink, updateData)
+          const updatedMeeting = await calendarClient.updateMeeting(jobInterview.meetingLink, updateData)
           return {
             ...data,
             meetingLink: updatedMeeting.id,
@@ -308,7 +308,7 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
       meetingType,
       participants,
       jobApplication,
-      jobApplicationInterview,
+      jobInterview,
       accessToken,
       getChatApiUrl,
       selectedEmployees,
@@ -320,13 +320,13 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
     async (data: JobInterviewFormValues) => {
       try {
         const processedData = await handlePreSubmit(data)
-        const { jobApplicationInterview: payload, jobInterviewParticipants } = buildJobApplicationInterviewPayload({
+        const { jobInterview: payload, jobInterviewParticipants } = buildJobInterviewPayload({
           ...processedData,
           jobInterviewStatus: JobInterviewStatus.SCHEDULED,
           jobInterviewParticipants: participants
         })
         return {
-          jobApplicationInterview: payload,
+          jobInterview: payload,
           jobInterviewParticipants,
           changeMode: data.id ? 'UPDATE' : 'INSERT'
         }
@@ -350,7 +350,7 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
     return <ErrorAlert errors={errors} prefixDataTestId="job-interview-form" />
   }
 
-  const processType = jobApplicationInterview?.id ? 'update' : 'create'
+  const processType = jobInterview?.id ? 'update' : 'create'
 
   const candidateName = jobApplication?.jobCandidate
     ? `${jobApplication.jobCandidate.firstName || ''} ${jobApplication.jobCandidate.lastName || ''}`.trim() ||
@@ -370,7 +370,7 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
       form={form}
       schema={jobInterviewSchema}
       data-testid={formatDataTestId('job-interview-form', 'Form')}
-      submitButtonText={jobApplicationInterview?.id ? 'Update Interview' : 'Schedule Interview'}
+      submitButtonText={jobInterview?.id ? 'Update Interview' : 'Schedule Interview'}
       isSubmitDisabled={interviewLoading || applicationLoading}
     >
       <Form {...form}>

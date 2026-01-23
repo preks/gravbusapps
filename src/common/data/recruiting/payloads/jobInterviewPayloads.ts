@@ -1,10 +1,10 @@
 /**
- * JobApplicationInterview Payload Builders (JobInterview)
+ * JobInterview Payload Builders (JobInterview)
  */
 import { buildPayload } from '@/common/data/common/utils/payloadBuilder'
-import type { JobApplicationInterview } from '../types/jobApplicationInterviewTypes'
+import type { JobInterview } from '../types/jobInterviewTypes'
 
-export const JobApplicationInterviewFormFields = {
+export const JobInterviewFormFields = {
   id: 'id',
   version: 'version',
   scheduledAt: 'scheduledAt',
@@ -22,12 +22,12 @@ export interface JobInterviewParticipant {
   userId?: string
 }
 
-export interface BuildJobApplicationInterviewPayloadOptions extends Partial<JobApplicationInterview> {
+export interface BuildJobInterviewPayloadOptions extends Partial<JobInterview> {
   jobInterviewParticipants?: JobInterviewParticipant[]
 }
 
-export const buildJobApplicationInterviewPayload = (data: BuildJobApplicationInterviewPayloadOptions) => {
-  const basePayload = buildPayload(data, JobApplicationInterviewFormFields)
+export const buildJobInterviewPayload = (data: BuildJobInterviewPayloadOptions) => {
+  const basePayload = buildPayload(data, JobInterviewFormFields)
 
   const participantsPayload =
     data.jobInterviewParticipants && data.jobInterviewParticipants.length > 0
@@ -42,7 +42,7 @@ export const buildJobApplicationInterviewPayload = (data: BuildJobApplicationInt
       : undefined
 
   return {
-    jobApplicationInterview: {
+    jobInterview: {
       ...basePayload,
       jobApplicationId: data.jobApplicationId || ''
     },

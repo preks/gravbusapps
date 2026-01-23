@@ -8,11 +8,11 @@ import { JobRequestView } from './views/job-request-view/JobRequestView'
 import { JobPostingView } from './views/job-posting-view/JobPostingView'
 import { JobCandidateView } from './views/job-candidate-view/JobCandidateView'
 
-export type RecruitmentManagerProps = BusinessAppContextProps
+export type RecruitingManagerProps = BusinessAppContextProps
 
 const moduleColor = MODULE_COLORS.HR
 
-export const RecruitmentManager: React.FC<RecruitmentManagerProps> = context => {
+export const RecruitingManager: React.FC<RecruitingManagerProps> = context => {
   const viewOptions = [
     {
       key: 'job-requests',
@@ -64,11 +64,11 @@ export const RecruitmentManager: React.FC<RecruitmentManagerProps> = context => 
 
   return (
     <PageLayout
-      data-testid="recruitment-manager-app"
+      data-testid="recruiting-manager-app"
       headerIcon={Briefcase}
-      headerTitle={getTranslationFromI18nKeyAndLabel('recruitmentManager', 'Recruitment Manager')}
+      headerTitle={getTranslationFromI18nKeyAndLabel('RecruitingManager', 'Recruiting Manager')}
       headerDescription={getTranslationFromI18nKeyAndLabel(
-        'recruitmentManagerDescription',
+        'RecruitingManagerDescription',
         'Manage job requests, postings, candidates, and applications'
       )}
       headerSubViews={{
@@ -88,4 +88,4 @@ export const RecruitmentManager: React.FC<RecruitmentManagerProps> = context => 
   )
 }
 
-export default RecruitmentManager
+export default RecruitingManager

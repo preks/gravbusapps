@@ -1,7 +1,7 @@
 import { type BaseEntity, BASE_ENTITY_DESCRIPTORS } from '@/common/network/graphql/commonTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 import type { JobApplication } from './jobApplicationTypes'
-import type { JobApplicationInterview } from './jobApplicationInterviewTypes'
+import type { JobInterview } from './jobInterviewTypes'
 import { JobApplicationRating } from './enums'
 
 /**
@@ -26,7 +26,7 @@ export interface JobApplicationFeedback extends BaseEntity {
 
   // Entity References (objects)
   jobApplication?: JobApplication
-  jobInterview?: JobApplicationInterview
+  jobInterview?: JobInterview
   creatorEmployee?: Employee
 
   // Entity Reference IDs (Id fields)

@@ -1,16 +1,16 @@
 /**
- * JobApplicationInterview Queries (JobInterview)
+ * JobInterview Queries (JobInterview)
  */
 import { AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
-import { JobApplicationInterviewFields } from '../types/jobApplicationInterviewTypes'
+import { JobInterviewFields } from '../types/jobInterviewTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 
-export interface JobApplicationInterviewQueryVariables extends BaseQueryVariables {
+export interface JobInterviewQueryVariables extends BaseQueryVariables {
   jobApplicationId?: string
   jobInterviewStatus?: string
 }
 
-export const JOB_APPLICATION_INTERVIEW_QUERY_CONFIGS: Record<string, string[]> = {
+export const JOB_INTERVIEW_QUERY_CONFIGS: Record<string, string[]> = {
   minimal: ['createdAt', 'id', 'scheduledAt'],
   list: ['createdAt', 'id', 'scheduledAt', 'duration', 'location', 'jobApplication', 'jobApplicationId', 'updatedAt'],
   record: [
@@ -45,12 +45,12 @@ const buildScalarFields = (fieldSet: Set<string>): string => {
   const scalarFields = [
     { key: 'id', value: 'id' },
     { key: 'version', value: 'version' },
-    { key: 'scheduledAt', value: JobApplicationInterviewFields.scheduledAt },
-    { key: 'duration', value: JobApplicationInterviewFields.duration },
-    { key: 'location', value: JobApplicationInterviewFields.location },
-    { key: 'meetingLink', value: JobApplicationInterviewFields.meetingLink },
-    { key: 'jobInterviewStatus', value: JobApplicationInterviewFields.jobInterviewStatus },
-    { key: 'jobApplicationId', value: JobApplicationInterviewFields.jobApplicationId },
+    { key: 'scheduledAt', value: JobInterviewFields.scheduledAt },
+    { key: 'duration', value: JobInterviewFields.duration },
+    { key: 'location', value: JobInterviewFields.location },
+    { key: 'meetingLink', value: JobInterviewFields.meetingLink },
+    { key: 'jobInterviewStatus', value: JobInterviewFields.jobInterviewStatus },
+    { key: 'jobApplicationId', value: JobInterviewFields.jobApplicationId },
     { key: 'createdAt', value: 'createdAt' },
     { key: 'createdBy', value: 'createdBy' },
     { key: 'updatedAt', value: 'updatedAt' },
@@ -79,16 +79,16 @@ const buildEntityReferenceField = (
   const hasObject = fieldSet.has(fieldName)
   return `
     ${hasObject ? `${fieldKey} { ${refFragment} }` : ''}
-    ${JobApplicationInterviewFields[fieldRefName as keyof typeof JobApplicationInterviewFields]}
+    ${JobInterviewFields[fieldRefName as keyof typeof JobInterviewFields]}
   `
 }
 
-export const buildJobApplicationInterviewFragment = (fields: string[]): string => {
+export const buildJobInterviewFragment = (fields: string[]): string => {
   const fieldSet = new Set(fields)
   return `
     ${AUDIT_FIELDS}
     ${buildScalarFields(fieldSet)}
     
-    ${buildEntityReferenceField(fieldSet, 'jobApplication', 'jobApplicationId', JobApplicationInterviewFields.jobApplication, 'id\n      applicationDate')}
+    ${buildEntityReferenceField(fieldSet, 'jobApplication', 'jobApplicationId', JobInterviewFields.jobApplication, 'id\n      applicationDate')}
   `
 }

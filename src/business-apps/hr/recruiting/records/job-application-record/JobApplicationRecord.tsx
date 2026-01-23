@@ -203,7 +203,7 @@ const JobApplicationRecord: React.FC<BusinessAppContextProps> = ({ additionalDat
 
   const handleBack = () => {
     // Navigate back based on context - could be from candidate or posting
-    const url = buildPlatformUrl('/platform/hr/recruiting/recruitment-manager', {
+    const url = buildPlatformUrl('/platform/hr/recruiting/recruiting-manager', {
       view: 'job-postings'
     })
     navigateTo(url)
