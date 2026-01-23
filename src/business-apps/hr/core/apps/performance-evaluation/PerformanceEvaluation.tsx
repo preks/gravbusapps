@@ -13,9 +13,10 @@ import {
   CardHeader,
   CardTitle,
   CardContent,
-  useTranslation
+  useTranslation,
+  toast
 } from '@newwork/nw-design-system'
-import { CalendarBlank, ListChecks, PencilSimple, Plus } from '@phosphor-icons/react'
+import { CalendarBlank, ListChecks, PencilSimple, Plus, Warning as WarningIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import translations from './_i18n'
@@ -284,6 +285,17 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
   }
 
   const handleDeactivateValue = (id: string) => {
+    // Guard: prevent deactivation if value is used in any active cycle
+    const usedInActiveCycle = cycles.some(c => c.status === 'Active' && (c.valueIds ?? []).includes(id))
+    if (usedInActiveCycle) {
+      // Inform the user and abort
+      toast.warning(t('values-error-cannot-deactivate-active-cycle'), {
+        position: 'bottom-right',
+        className: 'gba:text-base',
+        icon: <WarningIcon size={18} weight="fill" className="gba:text-warning" />
+      })
+      return
+    }
     setValuesStore(prev => prev.map(v => (v.id === id ? { ...v, active: false } : v)))
   }
 

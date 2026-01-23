@@ -73,3 +73,6 @@ values-modal-title-add = Wert hinzufügen
 values-modal-title-edit = Wert bearbeiten
 values-modal-description = Firmenwert und Beschreibung definieren.
 
+# Fehler
+values-error-cannot-deactivate-active-cycle = Wert kann nicht deaktiviert werden, solange er in einem aktiven Zyklus verwendet wird.
+

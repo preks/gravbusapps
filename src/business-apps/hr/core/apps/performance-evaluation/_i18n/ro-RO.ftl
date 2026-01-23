@@ -73,3 +73,6 @@ values-modal-title-add = Adaugă valoare
 values-modal-title-edit = Editează valoarea
 values-modal-description = Definește o valoare a companiei și descrierea ei.
 
+# Erori
+values-error-cannot-deactivate-active-cycle = Valoarea nu poate fi dezactivată cât timp este folosită într-un ciclu activ.
+
