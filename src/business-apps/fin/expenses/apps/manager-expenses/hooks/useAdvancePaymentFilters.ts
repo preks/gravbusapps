@@ -150,7 +150,6 @@ export const useAdvancePaymentFilters = ({
     ExpenseStatus.ASSIGNED,
     ExpenseStatus.PENDING,
     ExpenseStatus.APPROVED,
-    ExpenseStatus.RETURNED,
     ExpenseStatus.REJECTED,
     ExpenseStatus.VERIFIED,
     ExpenseStatus.BOOKED,
@@ -160,14 +159,30 @@ export const useAdvancePaymentFilters = ({
     ExpenseStatus.TRANSFERRED
   ]
 
+  // Helper function to format status display name with brackets (matching personal expenses pattern)
+  const getStatusDisplayName = useCallback((status: string): string => {
+    const statusConfig = getAdvancePaymentStatusDisplay(status)
+    // Only show backend status in parentheses if the label is different from the status
+    if (statusConfig.label.toLowerCase() === status.toLowerCase()) {
+      return statusConfig.label
+    } else {
+      // Format backend status with only first letter uppercase and translate it
+      const formattedStatus = status.charAt(0) + status.slice(1).toLowerCase()
+      const translatedStatus = getTranslationFromI18nKeyAndLabel(
+        `lowcoder:expense_statuses.${status.toLowerCase()}`,
+        formattedStatus
+      )
+      return `${statusConfig.label} (${translatedStatus})`
+    }
+  }, [])
+
   // Create a mapping of filter IDs to their display labels
   const filterLabelMap = useMemo(() => {
     const map: Record<string, string> = {}
 
-    // Add status filters - use the getAdvancePaymentStatusDisplay function for consistent translated labels
+    // Add status filters with brackets
     for (const status of availableFilterStatuses) {
-      const display = getAdvancePaymentStatusDisplay(status)
-      map[status] = display.label
+      map[status] = getStatusDisplayName(status)
     }
 
     // Add currency filters from dynamic data (safe access)
@@ -177,7 +192,7 @@ export const useAdvancePaymentFilters = ({
     }
 
     return map
-  }, [availableFilterStatuses, dynamicCurrencies])
+  }, [availableFilterStatuses, dynamicCurrencies, getStatusDisplayName])
 
   // Create filter groups for the DataFilter component
   // NOTE: Only returning status group - currency group is built by the tab from overview data
