@@ -9,12 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
   IconAvatar,
-  HeaderSlot,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription
+  HeaderSlot
 } from '@newwork/nw-design-system'
 import { UserIcon, FileTextIcon, FlagIcon, RobotIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -26,12 +21,9 @@ import { useCustomerActivities } from '@/common/data/customer/hooks/useCustomerA
 import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import { useFeature } from '@/common/hooks/useFeature'
-import { Feature } from '@/common/types/constants/FeatureHub'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
-import { RecommandationForm } from '@/business-apps/crm/selgros-sales/forms/recommandation/RecommandationForm'
 import { useAiSummary } from './hooks/useAiSummary'
 import { StatusProgression } from './components/StatusProgression'
 import { HomeView } from './views/home-view/HomeView'
@@ -79,8 +71,6 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
 
   // AI Summary hook - must be called before any conditional returns
   const aiSummaryHook = useAiSummary(leadId, props.accessToken)
-  const previewFeatureFlag = useFeature(Feature.Preview.Enabled.Key)
-  const isPreviewEnabled = previewFeatureFlag !== false
 
   // Data fetching hooks for sections
   const { fetchCustomerActivitiesByLeadId } = useCustomerActivities(props)
@@ -94,7 +84,6 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
   const [approvals, setApprovals] = useState<any[]>([])
   const [sectionsLoading, setSectionsLoading] = useState(true)
   const [sectionsError, setSectionsError] = useState<string | null>(null)
-  const [isRecommandationDialogOpen, setRecommandationDialogOpen] = useState(false)
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value)
@@ -283,26 +272,13 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
     ]
 
     return (
-      <div className="gba:flex gba:items-center gba:gap-2">
-        <AiActions
-          actions={actions}
-          dataTestId={`lead-update-button-${leadId}`}
-          buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')}
-        />
-        {isPreviewEnabled && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setRecommandationDialogOpen(true)}
-            data-testid="lead-record-recommandation-button"
-          >
-            <FileTextIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-            {getTranslationFromI18nKeyAndLabel('crm.recommandation.open', 'Generate Recommendations')}
-          </Button>
-        )}
-      </div>
+      <AiActions
+        actions={actions}
+        dataTestId={`lead-update-button-${leadId}`}
+        buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')}
+      />
     )
-  }, [aiSummaryHook, isPreviewEnabled, leadId, setRecommandationDialogOpen])
+  }, [aiSummaryHook, leadId])
 
   // Calculate leadName early for use in headerActionButton
   const leadName =
@@ -540,35 +516,6 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
         defaultView={subViewsConfig.defaultValue}
         onViewChange={subViewsConfig.onValueChange}
       />
-      <Dialog open={isRecommandationDialogOpen} onOpenChange={setRecommandationDialogOpen}>
-        <DialogContent className="gba:w-full gba:max-w-7xl gba:max-h-screen gba:flex gba:flex-col gba:overflow-hidden">
-          <DialogHeader className="gba:shrink-0">
-            <DialogTitle>
-              {getTranslationFromI18nKeyAndLabel('crm.recommandation.title', 'Product Recommendations')}
-            </DialogTitle>
-            <DialogDescription>
-              {getTranslationFromI18nKeyAndLabel(
-                'crm.recommandation.subtitle',
-                'Select products to include in a recommendation document for this lead.'
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="gba:flex-1 gba:overflow-y-auto gba:min-h-0 gba:w-full">
-            <RecommandationForm
-              accessToken={props.accessToken}
-              userInfo={props.userInfo}
-              additionalData={{
-                ...(props.additionalData || {}),
-                clientName: leadName,
-                clientType: leadData?.leadStatus?.value || undefined
-              }}
-              onSuccess={() => setRecommandationDialogOpen(false)}
-              onCancel={() => setRecommandationDialogOpen(false)}
-              showHeader={false}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

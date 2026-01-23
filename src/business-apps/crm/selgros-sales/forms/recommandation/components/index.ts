@@ -1,6 +1,0 @@
-export { AlternativesModal } from './AlternativesModal'
-export { SimilarIngredientsSidebar } from './SimilarIngredientsSidebar'
-export { RecommendedProductsStep } from './RecommendedProductsStep'
-export { AllAvailableProductsStep } from './AllAvailableProductsStep'
-export { FinalListStep } from './FinalListStep'
-export { MenuUploadStep } from './MenuUploadStep'
