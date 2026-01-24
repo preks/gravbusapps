@@ -2,10 +2,6 @@
  * SpreadsheetApiService
  *
  * Connects to the document-service backend API for spreadsheet app management.
- * This replaces the file-based storage with proper REST API calls.
- *
- * Backend: https://newwork-dev.newwork.com/document/api/v1 (dev)
- *          http://localhost:3002/api/v1 (local, if VITE_DOCUMENT_SERVICE_URL is set)
  */
 
 import type {
@@ -24,34 +20,9 @@ import type {
   LockFileInput,
   PublishInput
 } from '../../shared/types/versioning'
-import { env } from '@/common/env/EnvUtils'
+import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
-// Get the API URL from environment or default to dev environment
-const getApiUrl = (): string => {
-  const envUrl =
-    typeof import.meta !== 'undefined' && import.meta.env?.VITE_DOCUMENT_SERVICE_URL
-      ? import.meta.env.VITE_DOCUMENT_SERVICE_URL
-      : undefined
-  const host = typeof window !== 'undefined' ? window.location.hostname : undefined
-  const isLocalHost = host === 'localhost' || host === '127.0.0.1'
-
-  // Only allow local overrides when running on localhost
-  if (isLocalHost) {
-    return envUrl || 'https://newwork-dev.newwork.com/document/api/v1'
-  }
-
-  // Try to get base URL from environment and construct document-service URL
-  const baseUrl = env('NEXT_PUBLIC_BASE_URL')
-  if (baseUrl) {
-    const trimmed = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-    return `${trimmed}/document/api/v1`
-  }
-
-  // Default to dev environment
-  return 'https://newwork-dev.newwork.com/document/api/v1'
-}
-
-const API_URL = getApiUrl()
+const API_URL = getDocumentServiceApiUrl()
 
 const isSpreadsheetAppsDebugEnabled = (): boolean => {
   try {

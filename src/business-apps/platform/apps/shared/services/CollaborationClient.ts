@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client'
-import { env } from '@/common/env/EnvUtils'
+import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
 // Client version for tracking
 const CLIENT_VERSION = '1'
@@ -453,40 +453,7 @@ export class CollaborationClient {
  * Automatically determines the WebSocket URL from the document service URL
  */
 export function createCollaborationClient(options?: CollaborationWebSocketOptions): CollaborationClient {
-  // Get API URL from environment or determine from context
-  let apiUrl: string | undefined
-
-  const envUrl =
-    typeof import.meta !== 'undefined' && import.meta.env?.VITE_DOCUMENT_SERVICE_URL
-      ? import.meta.env.VITE_DOCUMENT_SERVICE_URL
-      : undefined
-  const host = typeof window !== 'undefined' ? window.location.hostname : undefined
-  const isLocalHost = host === 'localhost' || host === '127.0.0.1'
-
-  // Only allow local overrides when running on localhost
-  if (isLocalHost && envUrl) {
-    apiUrl = envUrl
-  }
-
-  // If platform is running on localhost, connect to DEV environment
-  // This handles the case where UI is loaded from CDN but platform is running locally
-  if (!apiUrl && isLocalHost) {
-    apiUrl = 'https://newwork-dev.newwork.com/document/api/v1'
-  }
-
-  if (!apiUrl) {
-    // Try to get base URL from environment and construct document-service URL
-    const baseUrl = env('NEXT_PUBLIC_BASE_URL')
-    if (baseUrl) {
-      const trimmed = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
-      apiUrl = `${trimmed}/document/api/v1`
-    }
-  }
-
-  // Default to dev environment if nothing else worked
-  if (!apiUrl) {
-    apiUrl = 'https://newwork-dev.newwork.com/document/api/v1'
-  }
+  const apiUrl = getDocumentServiceApiUrl()
 
   // Remove /api/v1 suffix if present to get base service URL
   // e.g., 'https://newwork-dev.newwork.com/document/api/v1' -> 'https://newwork-dev.newwork.com/document'
