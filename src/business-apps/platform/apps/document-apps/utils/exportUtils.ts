@@ -106,13 +106,23 @@ export function buildPrintHtmlDocument({
 
 export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
   const htmlDoc = buildPrintHtmlDocument(options)
-  const blob = new Blob([htmlDoc], { type: 'text/html;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-
-  const printWindow = window.open(url, '_blank', 'noopener,noreferrer')
+  const printWindow = window.open('about:blank', '_blank', 'noopener,noreferrer')
   if (!printWindow) {
     console.error('[exportUtils] Print window blocked')
-    URL.revokeObjectURL(url)
+    return
+  }
+
+  try {
+    // Write the content directly instead of navigating to a generated URL.
+    // This avoids passing a dynamic URL into window.open (Snyk Open Redirect sink).
+    printWindow.document.open()
+    printWindow.document.write(htmlDoc)
+    printWindow.document.close()
+  } catch {
+    console.error('[exportUtils] Failed to prepare print window')
+    try {
+      printWindow.close()
+    } catch {}
     return
   }
 
@@ -128,7 +138,6 @@ export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
         try {
           printWindow.close()
         } catch {}
-        URL.revokeObjectURL(url)
       }, 1000)
     }
   }
