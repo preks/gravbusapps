@@ -15,7 +15,6 @@
     "publish:prod:screens": "npm run build:prod && node ./scripts/publish-prod-screens.js",
     "publish:prod:all": "node ./scripts/publish-all-prod-screens.js",
     "serve": "vite serve --port 5001 --strictPort",
-    "proxy:conductor": "node ./scripts/conductor-proxy.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
