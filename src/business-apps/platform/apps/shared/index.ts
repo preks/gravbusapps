@@ -22,3 +22,13 @@ export { useCollaboration, type UseCollaborationOptions, type UseCollaborationRe
 export { PresenceIndicator, type PresenceIndicatorProps } from './components/PresenceIndicator'
 export { CollaboratorCursor, type CollaboratorCursorProps } from './components/CollaboratorCursor'
 export { CellCollaboratorIndicator, type CellCollaboratorIndicatorProps } from './components/CellCollaboratorIndicator'
+
+/**
+ * Default export exists to satisfy the auto-generated wrapped entry at
+ * `src/wrapped-entries/platform/apps/shared.ts`.
+ *
+ * This module is a shared utilities barrel, not an end-user screen.
+ */
+export default function SharedModuleEntry(): null {
+  return null
+}

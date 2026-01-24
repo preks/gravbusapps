@@ -256,7 +256,7 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
         <input
           ref={fileInputRef}
           type="file"
-          accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+          accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
           onChange={handleInputChange}
           className="gba:hidden"
           data-testid={`${testId}-input`}
@@ -279,8 +279,9 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
               {isDragging ? 'Drop your file here' : 'Upload your Excel file'}
             </h3>
             <p className="gba:text-sm gba:text-muted-foreground gba:max-w-sm">
-              Drag and drop your spreadsheet here, or click to browse. We support .xlsx, .xls, and .csv files up to{' '}
-              {maxFileSize}MB.
+              Drag and drop your spreadsheet here, or click to browse. We support .xlsx and .csv files up to{' '}
+              {maxFileSize}
+              MB.
             </p>
           </div>
 
@@ -294,9 +295,6 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
           <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap gba:justify-center">
             <Badge variant="secondary" className="gba:text-xs">
               .xlsx
-            </Badge>
-            <Badge variant="secondary" className="gba:text-xs">
-              .xls
             </Badge>
             <Badge variant="secondary" className="gba:text-xs">
               .csv

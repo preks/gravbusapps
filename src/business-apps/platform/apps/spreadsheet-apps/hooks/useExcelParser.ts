@@ -1,12 +1,11 @@
 /**
  * useExcelParser Hook
  *
- * Parses Excel files using SheetJS (xlsx) library.
+ * Parses spreadsheet files using ExcelJS for .xlsx and a lightweight CSV parser for .csv.
  * Extracts sheet structure, column headers, data types, and sample data.
  */
 
 import { useState, useCallback } from 'react'
-import * as XLSX from 'xlsx'
 import type { ParsedExcelFile, ParsedSheet, ParsedColumn, ExcelMetadata } from '../types'
 
 export interface UseExcelParserState {
@@ -24,6 +23,228 @@ export interface UseExcelParserResult extends UseExcelParserState {
 
 const MAX_SAMPLE_VALUES = 10
 const MAX_ROWS_FOR_TYPE_INFERENCE = 100
+
+type ExcelJSImport = typeof import('exceljs')
+
+type NormalizedCellValue = string | number | boolean | null
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function normalizeExcelJsCellValue(value: unknown): NormalizedCellValue {
+  if (value === null || value === undefined) return null
+
+  if (value instanceof Date) return value.toISOString()
+
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return value
+  }
+
+  if (isRecord(value)) {
+    // Formula value: { formula, result }
+    if ('result' in value) {
+      return normalizeExcelJsCellValue(value.result)
+    }
+
+    // Rich text value: { richText: [{ text: string }, ...] }
+    if ('richText' in value && Array.isArray(value.richText)) {
+      return value.richText.map(part => (isRecord(part) && typeof part.text === 'string' ? part.text : '')).join('')
+    }
+
+    // Hyperlink value: { text, hyperlink }
+    if ('text' in value && typeof value.text === 'string') {
+      return value.text
+    }
+  }
+
+  return String(value)
+}
+
+function extractHeaderString(value: unknown): string {
+  const normalized = normalizeExcelJsCellValue(value)
+  if (normalized === null) return ''
+  return String(normalized).trim()
+}
+
+function parseCSVLine(line: string): string[] {
+  const result: string[] = []
+  let current = ''
+  let inQuotes = false
+
+  let i = 0
+  while (i < line.length) {
+    const char = line[i]
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"'
+        i += 2
+        continue
+      }
+      inQuotes = !inQuotes
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim())
+      current = ''
+    } else {
+      current += char
+    }
+    i++
+  }
+  result.push(current.trim())
+  return result
+}
+
+function parseCSVContent(content: string): { headers: string[]; dataRows: unknown[][] } {
+  const lines = content.split(/\r?\n/).filter(line => line.trim())
+  if (lines.length === 0) return { headers: [], dataRows: [] }
+
+  const rawHeaders = parseCSVLine(lines[0])
+  const headers = rawHeaders.map((h, i) => (h ? h : `Column_${i + 1}`))
+
+  const dataRows = lines.slice(1).map(line => parseCSVLine(line))
+  return { headers, dataRows }
+}
+
+function buildParsedSheetFromAoa(params: {
+  name: string
+  index: number
+  headers: string[]
+  dataRows: unknown[][]
+  formulaByColumnIndex?: Record<number, string | undefined>
+}): ParsedSheet {
+  const { name, index, headers, dataRows, formulaByColumnIndex } = params
+
+  const isEmpty = headers.length === 0 || (dataRows.length === 0 && headers.every(h => !h))
+  if (isEmpty) {
+    return {
+      name,
+      index,
+      columns: [],
+      rows: [],
+      rowCount: 0,
+      isEmpty: true
+    }
+  }
+
+  const columns: ParsedColumn[] = headers.map((header, colIndex) => {
+    const sampleValues: unknown[] = []
+    const rowsToCheck = Math.min(dataRows.length, MAX_ROWS_FOR_TYPE_INFERENCE)
+
+    for (let rowIndex = 0; rowIndex < rowsToCheck; rowIndex++) {
+      const row = dataRows[rowIndex]
+      const cellValue = row?.[colIndex]
+      if (cellValue !== null && cellValue !== undefined && cellValue !== '') {
+        if (sampleValues.length < MAX_SAMPLE_VALUES) {
+          sampleValues.push(cellValue)
+        }
+      }
+    }
+
+    const formula = formulaByColumnIndex?.[colIndex]
+    const hasFormula = formula !== undefined
+
+    return {
+      name: header,
+      index: colIndex,
+      sampleValues,
+      hasFormula,
+      formula
+    }
+  })
+
+  const rows = dataRows.map(row => {
+    const rowObj: Record<string, unknown> = {}
+    headers.forEach((header, i) => {
+      rowObj[header] = row?.[i] ?? null
+    })
+    return rowObj
+  })
+
+  return {
+    name,
+    index,
+    columns,
+    rows,
+    rowCount: rows.length,
+    isEmpty: false
+  }
+}
+
+async function parseXlsxArrayBuffer(arrayBuffer: ArrayBuffer): Promise<{
+  sheets: ParsedSheet[]
+  metadata: ExcelMetadata
+}> {
+  const { default: ExcelJS } = (await import('exceljs')) as ExcelJSImport
+  const workbook = new ExcelJS.Workbook()
+  await workbook.xlsx.load(arrayBuffer)
+
+  const sheets = workbook.worksheets.map((worksheet, index) => {
+    const headerRow = worksheet.getRow(1)
+    const maxColumns = Math.max(worksheet.actualColumnCount || 0, headerRow.cellCount || 0)
+
+    if (worksheet.actualRowCount === 0 || maxColumns === 0) {
+      return {
+        name: worksheet.name,
+        index,
+        columns: [],
+        rows: [],
+        rowCount: 0,
+        isEmpty: true
+      }
+    }
+
+    const headers: string[] = []
+    for (let col = 1; col <= maxColumns; col++) {
+      const headerValue = headerRow.getCell(col).value
+      const headerStr = extractHeaderString(headerValue)
+      headers[col - 1] = headerStr || `Column_${col}`
+    }
+
+    const dataRows: unknown[][] = []
+    const startRow = 2
+    const endRow = worksheet.actualRowCount > 0 ? worksheet.actualRowCount : worksheet.rowCount
+
+    for (let rowNum = startRow; rowNum <= endRow; rowNum++) {
+      const row = worksheet.getRow(rowNum)
+      const rowValues: unknown[] = []
+      for (let col = 1; col <= maxColumns; col++) {
+        const cell = row.getCell(col)
+        rowValues[col - 1] = normalizeExcelJsCellValue(cell.value)
+      }
+
+      const hasData = rowValues.some(v => v !== null && v !== undefined && v !== '')
+      if (hasData) {
+        dataRows.push(rowValues)
+      }
+    }
+
+    const formulaByColumnIndex: Record<number, string | undefined> = {}
+    const formulaRow = worksheet.getRow(2)
+    for (let col = 1; col <= maxColumns; col++) {
+      const cellValue = formulaRow.getCell(col).value
+      if (isRecord(cellValue) && typeof cellValue.formula === 'string') {
+        formulaByColumnIndex[col - 1] = cellValue.formula
+      }
+    }
+
+    return buildParsedSheetFromAoa({
+      name: worksheet.name,
+      index,
+      headers,
+      dataRows,
+      formulaByColumnIndex
+    })
+  })
+
+  const metadata: ExcelMetadata = {
+    author: typeof workbook.creator === 'string' ? workbook.creator : undefined,
+    createdAt: workbook.created instanceof Date ? workbook.created.toISOString() : undefined,
+    modifiedAt: workbook.modified instanceof Date ? workbook.modified.toISOString() : undefined,
+    sheetCount: workbook.worksheets.length
+  }
+
+  return { sheets, metadata }
+}
 
 /**
  * Hook for parsing Excel files
@@ -46,59 +267,49 @@ export function useExcelParser(): UseExcelParserResult {
       // Validate file type
       const validTypes = [
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-        'application/vnd.ms-excel', // .xls
         'text/csv', // .csv
         'application/csv'
       ]
 
-      const isValidType = validTypes.includes(file.type) || /\.(xlsx|xls|csv)$/i.test(file.name)
+      const isValidType = validTypes.includes(file.type) || /\.(xlsx|csv)$/i.test(file.name)
 
       if (!isValidType) {
-        throw new Error('Invalid file type. Please upload an Excel (.xlsx, .xls) or CSV file.')
+        throw new Error('Invalid file type. Please upload an Excel (.xlsx) or CSV file.')
       }
 
       setState(prev => ({ ...prev, progress: 10 }))
 
-      // Read file as ArrayBuffer
-      const arrayBuffer = await file.arrayBuffer()
+      const fileNameLower = file.name.toLowerCase()
+      const isCsv = file.type === 'text/csv' || file.type === 'application/csv' || fileNameLower.endsWith('.csv')
 
       setState(prev => ({ ...prev, progress: 30 }))
 
-      // Parse with SheetJS
-      const workbook = XLSX.read(arrayBuffer, {
-        type: 'array',
-        cellFormula: true,
-        cellStyles: true,
-        cellDates: true
-      })
-
-      setState(prev => ({ ...prev, progress: 50 }))
-
-      // Extract metadata
-      const metadata: ExcelMetadata = {
-        author: workbook.Props?.Author,
-        createdAt: workbook.Props?.CreatedDate?.toISOString(),
-        modifiedAt: workbook.Props?.ModifiedDate?.toISOString(),
-        sheetCount: workbook.SheetNames.length
-      }
+      let sheets: ParsedSheet[]
+      let metadata: ExcelMetadata
 
       setState(prev => ({ ...prev, progress: 60 }))
 
-      // Parse each sheet
-      const sheets: ParsedSheet[] = []
-      const totalSheets = workbook.SheetNames.length
+      if (isCsv) {
+        const content = await file.text()
+        const { headers, dataRows } = parseCSVContent(content)
+        sheets = [
+          buildParsedSheetFromAoa({
+            name: 'Sheet1',
+            index: 0,
+            headers,
+            dataRows
+          })
+        ]
+        metadata = { sheetCount: 1 }
+        setState(prev => ({ ...prev, progress: 95 }))
+      } else {
+        const arrayBuffer = await file.arrayBuffer()
+        setState(prev => ({ ...prev, progress: 50 }))
 
-      for (let i = 0; i < totalSheets; i++) {
-        const sheetName = workbook.SheetNames[i]
-        const worksheet = workbook.Sheets[sheetName]
-
-        const parsedSheet = parseWorksheet(worksheet, sheetName, i)
-        sheets.push(parsedSheet)
-
-        setState(prev => ({
-          ...prev,
-          progress: 60 + Math.round(((i + 1) / totalSheets) * 35)
-        }))
+        const parsed = await parseXlsxArrayBuffer(arrayBuffer)
+        sheets = parsed.sheets
+        metadata = parsed.metadata
+        setState(prev => ({ ...prev, progress: 95 }))
       }
 
       const parsedFile: ParsedExcelFile = {
@@ -177,106 +388,6 @@ export function useExcelParser(): UseExcelParserResult {
     parseFile,
     parseFromUrl,
     reset
-  }
-}
-
-/**
- * Parse a single worksheet
- */
-function parseWorksheet(worksheet: XLSX.WorkSheet, name: string, index: number): ParsedSheet {
-  // Get the range of the worksheet
-  const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1')
-
-  // Check if sheet is empty
-  const isEmpty = range.e.r === 0 && range.e.c === 0 && !worksheet['A1']
-
-  if (isEmpty) {
-    return {
-      name,
-      index,
-      columns: [],
-      rows: [],
-      rowCount: 0,
-      isEmpty: true
-    }
-  }
-
-  // Convert to JSON to get data
-  const jsonData = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, {
-    header: 1,
-    raw: false,
-    defval: null
-  }) as unknown[][]
-
-  if (jsonData.length === 0) {
-    return {
-      name,
-      index,
-      columns: [],
-      rows: [],
-      rowCount: 0,
-      isEmpty: true
-    }
-  }
-
-  // Extract headers (first row)
-  const headers = (jsonData[0] as unknown[]).map((h, i) => {
-    if (h === null || h === undefined || h === '') {
-      return `Column_${i + 1}`
-    }
-    return String(h).trim()
-  })
-
-  // Extract data rows (skip header)
-  const dataRows = jsonData.slice(1)
-
-  // Build columns with sample values
-  const columns: ParsedColumn[] = headers.map((header, colIndex) => {
-    // Get sample values from the first N rows
-    const sampleValues: unknown[] = []
-    const rowsToCheck = Math.min(dataRows.length, MAX_ROWS_FOR_TYPE_INFERENCE)
-
-    for (let rowIndex = 0; rowIndex < rowsToCheck; rowIndex++) {
-      const row = dataRows[rowIndex] as unknown[]
-      if (row && row[colIndex] !== null && row[colIndex] !== undefined && row[colIndex] !== '') {
-        if (sampleValues.length < MAX_SAMPLE_VALUES) {
-          sampleValues.push(row[colIndex])
-        }
-      }
-    }
-
-    // Check for formulas in this column
-    const cellAddress = XLSX.utils.encode_col(colIndex) + '2' // Check second row for formula
-    const cell = worksheet[cellAddress]
-    const hasFormula = cell?.f !== undefined
-    const formula = hasFormula ? cell.f : undefined
-
-    return {
-      name: header,
-      index: colIndex,
-      sampleValues,
-      hasFormula,
-      formula
-    }
-  })
-
-  // Convert rows to objects with column headers as keys
-  const rows = dataRows.map(row => {
-    const rowObj: Record<string, unknown> = {}
-    headers.forEach((header, i) => {
-      const rowArray = row as unknown[]
-      rowObj[header] = rowArray[i] ?? null
-    })
-    return rowObj
-  })
-
-  return {
-    name,
-    index,
-    columns,
-    rows,
-    rowCount: rows.length,
-    isEmpty: false
   }
 }
 
