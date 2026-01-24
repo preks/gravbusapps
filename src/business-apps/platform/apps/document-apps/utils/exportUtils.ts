@@ -5,6 +5,8 @@
  * with proper page break support.
  */
 
+import DOMPurify from 'dompurify'
+
 /**
  * Escape plain text for safe insertion into HTML text nodes / <title>
  */
@@ -27,6 +29,18 @@ export function escapeHtmlText(text: string): string {
  */
 export function sanitizeHtmlForExport(html: string): string {
   if (!html) return ''
+
+  // Prefer DOMPurify when available (browser context). Snyk recognizes it as a sanitizer.
+  try {
+    if (typeof window !== 'undefined') {
+      return DOMPurify.sanitize(html, {
+        FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+        FORBID_ATTR: ['style']
+      })
+    }
+  } catch {
+    // Fall back to regex-based stripping below.
+  }
 
   let out = html
 
@@ -105,7 +119,13 @@ export function buildPrintHtmlDocument({
 }
 
 export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
-  const htmlDoc = buildPrintHtmlDocument(options)
+  const { title, htmlContent, includeTitleHeading = false, extraCss = '' } = options
+  const safeTitleText = title || 'Document'
+  const sanitizedBodyHtml = DOMPurify.sanitize(sanitizeHtmlForExport(htmlContent), {
+    FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
+    FORBID_ATTR: ['style']
+  })
+
   const printWindow = window.open('about:blank', '_blank', 'noopener,noreferrer')
   if (!printWindow) {
     console.error('[exportUtils] Print window blocked')
@@ -113,11 +133,61 @@ export function printHtmlDocument(options: PrintHtmlDocumentOptions): void {
   }
 
   try {
-    // Write the content directly instead of navigating to a generated URL.
-    // This avoids passing a dynamic URL into window.open (Snyk Open Redirect sink).
-    printWindow.document.open()
-    printWindow.document.write(htmlDoc)
-    printWindow.document.close()
+    const doc = printWindow.document
+
+    // Reset head/body (about:blank might already have them)
+    while (doc.head.firstChild) doc.head.removeChild(doc.head.firstChild)
+    while (doc.body.firstChild) doc.body.removeChild(doc.body.firstChild)
+
+    const metaCharset = doc.createElement('meta')
+    metaCharset.setAttribute('charset', 'utf-8')
+
+    const metaReferrer = doc.createElement('meta')
+    metaReferrer.setAttribute('name', 'referrer')
+    metaReferrer.setAttribute('content', 'no-referrer')
+
+    const titleEl = doc.createElement('title')
+    titleEl.textContent = safeTitleText
+
+    const styleEl = doc.createElement('style')
+    styleEl.textContent = `
+      @page { size: A4; margin: 1in; }
+      body { font-family: 'Times New Roman', Georgia, serif; font-size: 12pt; line-height: 1.6; margin: 0; padding: 0; }
+      h1 { font-size: 24pt; margin: 0 0 12pt 0; }
+      h2 { font-size: 18pt; margin: 18pt 0 10pt 0; }
+      h3 { font-size: 14pt; margin: 16pt 0 8pt 0; }
+      h4, h5, h6 { font-size: 12pt; margin: 14pt 0 6pt 0; }
+      p { margin: 0 0 10pt 0; }
+      ul, ol { padding-left: 24pt; margin: 0 0 10pt 0; }
+      li { margin-bottom: 4pt; }
+      blockquote { border-left: 3pt solid #ccc; padding-left: 12pt; margin: 12pt 0; color: #555; font-style: italic; }
+      table { border-collapse: collapse; width: 100%; margin: 12pt 0; }
+      td, th { border: 1px solid #333; padding: 6pt 8pt; }
+      th { background: #f0f0f0; font-weight: bold; }
+      pre { background: #f5f5f5; border: 1px solid #e0e0e0; padding: 8pt; font-family: 'Courier New', monospace; font-size: 10pt; white-space: pre-wrap; }
+      code { font-family: 'Courier New', monospace; font-size: 10pt; background: #f0f0f0; padding: 2pt 4pt; }
+      img { max-width: 100%; height: auto; }
+      a { color: #0066cc; text-decoration: underline; }
+      .page-break { page-break-after: always; break-after: page; height: 0; margin: 0; padding: 0; border: none; }
+      @media print {
+        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .page-break { page-break-after: always; break-after: page; height: 0; border: none; }
+      }
+      ${extraCss}
+    `
+
+    doc.head.append(metaCharset, metaReferrer, titleEl, styleEl)
+
+    if (includeTitleHeading) {
+      const heading = doc.createElement('h1')
+      heading.textContent = safeTitleText
+      doc.body.appendChild(heading)
+    }
+
+    const container = doc.createElement('div')
+    // Sanitized via DOMPurify above.
+    container.innerHTML = sanitizedBodyHtml
+    doc.body.appendChild(container)
   } catch {
     console.error('[exportUtils] Failed to prepare print window')
     try {
