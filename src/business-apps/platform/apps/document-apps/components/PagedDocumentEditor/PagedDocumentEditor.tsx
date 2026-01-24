@@ -67,7 +67,7 @@ import type { Document, DocumentApprovalRequest } from '../../types'
 import { PageBreak } from './extensions/PageBreak'
 import { createYjsCursorExtension } from './extensions/YjsCursor'
 import { EditorToolbar } from './EditorToolbar'
-import { exportToWord, exportToPDF } from '../../utils/exportUtils'
+import { exportToWord, exportToPDF, printHtmlDocument } from '../../utils/exportUtils'
 import { DocumentApiService } from '../../services/DocumentApiService'
 import { useCollaboration } from '../../../shared/hooks/useCollaboration'
 import type { DocumentParticipant } from '../../../shared/services/CollaborationClient'
@@ -915,81 +915,14 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
   // Print document
   const handlePrint = useCallback(() => {
     if (!editor) return
-
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${title}</title>
-        <style>
-          @page {
-            size: A4;
-            margin: 1in;
-          }
-          body {
-            font-family: 'Times New Roman', serif;
-            font-size: 12pt;
-            line-height: 1.6;
-            margin: 0;
-            padding: 0;
-          }
-          h1 { font-size: 24pt; margin: 0 0 12pt 0; }
-          h2 { font-size: 18pt; margin: 18pt 0 10pt 0; }
-          h3 { font-size: 14pt; margin: 16pt 0 8pt 0; }
-          h4, h5, h6 { font-size: 12pt; margin: 14pt 0 6pt 0; }
-          p { margin: 0 0 10pt 0; }
-          .page-break {
-            page-break-after: always;
-            break-after: page;
-          }
-          table {
-            border-collapse: collapse;
-            width: 100%;
-            margin: 12pt 0;
-          }
-          td, th {
-            border: 1px solid #333;
-            padding: 6pt 8pt;
-          }
-          th {
-            background: #f0f0f0;
-            font-weight: bold;
-          }
-          blockquote {
-            border-left: 3pt solid #ccc;
-            padding-left: 12pt;
-            margin: 12pt 0;
-            color: #555;
-          }
-          img {
-            max-width: 100%;
-            height: auto;
-          }
-          @media print {
-            .page-break {
-              page-break-after: always;
-              break-after: page;
-              height: 0;
-              border: none;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        ${editor.getHTML()}
-      </body>
-      </html>
-    `
-
-    const printWindow = window.open('', '_blank')
-    if (printWindow) {
-      printWindow.document.write(printContent)
-      printWindow.document.close()
-      printWindow.focus()
-      setTimeout(() => {
-        printWindow.print()
-      }, 250)
-    }
+    printHtmlDocument({
+      title,
+      htmlContent: editor.getHTML(),
+      extraCss: `
+        .page-break { page-break-after: always; break-after: page; }
+        @media print { .page-break { page-break-after: always; break-after: page; height: 0; border: none; } }
+      `
+    })
   }, [title, editor])
 
   // Zoom controls

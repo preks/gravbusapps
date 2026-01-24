@@ -34,7 +34,7 @@ import {
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Document } from './types'
-import { exportToWord, exportToPDF } from './utils/exportUtils'
+import { exportToWord, exportToPDF, printHtmlDocument } from './utils/exportUtils'
 
 // Import Quill styles
 import 'react-quill/dist/quill.snow.css'
@@ -248,31 +248,15 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
    * Print document
    */
   const handlePrint = useCallback(() => {
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>${title}</title>
-        <style>
-          body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; margin: 1in; }
-          h1, h2, h3, h4, h5, h6 { margin-top: 1em; margin-bottom: 0.5em; }
-          p { margin-bottom: 0.5em; }
-          @media print { body { margin: 0; } }
-        </style>
-      </head>
-      <body>
-        <h1>${title}</h1>
-        ${content}
-      </body>
-      </html>
-    `
-
-    const printWindow = window.open('', '_blank')
-    if (printWindow) {
-      printWindow.document.write(printContent)
-      printWindow.document.close()
-      printWindow.print()
-    }
+    printHtmlDocument({
+      title,
+      htmlContent: content,
+      includeTitleHeading: true,
+      extraCss: `
+        h1, h2, h3, h4, h5, h6 { margin-top: 1em; margin-bottom: 0.5em; }
+        p { margin-bottom: 0.5em; }
+      `
+    })
   }, [title, content])
 
   /**
