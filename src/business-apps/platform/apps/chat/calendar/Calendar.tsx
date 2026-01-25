@@ -477,12 +477,14 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
     // For RealtimeKit, we include all participants - they can join when invited
     const callParticipants: CallParticipant[] = []
 
-    // Add all participants (accepted or organizer status)
+    // Add all participants (for RealtimeKit, invite everyone - they can decline if needed)
+    // For calendar meetings, we want to invite all participants regardless of acceptance status
+    // This allows the call starter to invite everyone when starting from a calendar event
     if (enrichedSelectedEvent.participants) {
       for (const p of enrichedSelectedEvent.participants) {
-        // Include if accepted, or if organizer (even if not explicitly accepted)
         // Exclude current user from participant list (they're the one starting the call)
-        if ((p.status === 'accepted' || p.isOrganizer) && p.id !== currentUser.id) {
+        // Exclude declined participants (they explicitly said no)
+        if (p.id !== currentUser.id && p.status !== 'declined') {
           callParticipants.push({
             id: p.id,
             odId: p.id,

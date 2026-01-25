@@ -361,12 +361,23 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           wasIdleBeforeStart,
           isAlreadyInCallForThisConversation,
           participantsCount: participants.length,
-          shouldSendInvites
+          shouldSendInvites,
+          conversationIdRef: conversationIdRef.current,
+          callStateRoomId: callState.roomId,
+          meetingId,
+          callStateStatus: callState.status,
+          participants: participants.map(p => ({ id: p.id, name: p.odName }))
         })
 
         if (shouldSendInvites) {
           // CRITICAL: Pass callType explicitly to avoid stale closure from React state
           // inviteToCall uses callType from its dependency closure, which may be 'audio' initially
+          rtkDebug.log('[RTK] 📤 Sending invites to participants:', {
+            count: participants.length,
+            meetingId,
+            conversationId,
+            callType
+          })
           participantsHook.inviteToCall(participants, conversationName, meetingId, conversationId, callType)
         } else {
           rtkDebug.log('[RTK] Skipping invites:', {
@@ -374,7 +385,10 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
               ? 'Not starting from idle state'
               : isAlreadyInCallForThisConversation
                 ? 'Already in call for this conversation'
-                : 'No participants to invite'
+                : 'No participants to invite',
+            wasIdleBeforeStart,
+            isAlreadyInCallForThisConversation,
+            participantsCount: participants.length
           })
         }
 
