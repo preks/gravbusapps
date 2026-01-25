@@ -74,6 +74,7 @@ import {
   transformAllowanceCodeForCreate,
   transformAllowanceCodeFromAPI,
   getCodeUniquenessErrorMessage,
+  getValidityDatesFromExisting,
   type AllowanceCodeSaveData
 } from '../utils'
 import { useAllowanceCodeUsageCheck, useTableSorting, createFieldMappings } from '../hooks'
@@ -163,7 +164,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
   // i18n translations
   const amountPercentageHelperText = getTranslationFromI18nKeyAndLabel(
     'expense-settings:amount_percentage_helper',
-    'Use either Amount or Percentage (not both)'
+    'Either Amount or Percentage (above 0%) is required, but not both'
   )
 
   const form = useForm<AllowanceCodeFormData>({
@@ -457,9 +458,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
     setIsRestrictedEdit(false)
     setPercentageInputValue('') // Reset percentage input state
 
-    // ALWAYS inherit validity period from parent Expense Rule
-    const validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
-    const validToValue = formatDateForInput(activeTo) || '9999-12-31'
+    // Get validity dates using shared utility (copies from first existing entry if available)
+    const { validFrom, validTo } = getValidityDatesFromExisting(allowanceCodes, activeFrom, activeTo)
 
     form.reset({
       code: '',
@@ -474,8 +474,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       secondAllowanceRegionRulePercent: 0,
       firstWageCode: '',
       travelLocation: TravelLocation.BOTH, // Default to BOTH (Home & Abroad)
-      validFrom: validFromValue,
-      validTo: validToValue
+      validFrom,
+      validTo
     })
     // Keep the travel region set filter - don't reset it between adds
     setIsModalVisible(true)
@@ -983,7 +983,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                           className="gba:font-mono gba:font-medium"
                           data-testid={`allowance-code-amount-text-${record.id}`}
                         >
-                          {record.amount && record.amount > 0 ? record.amount.toFixed(1) : '-'}
+                          {record.amount ? record.amount.toFixed(1) : '-'}
                         </span>
                       </TableCell>
 

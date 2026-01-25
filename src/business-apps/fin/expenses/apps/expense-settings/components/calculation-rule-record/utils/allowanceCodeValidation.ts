@@ -1,15 +1,25 @@
 import dayjs from 'dayjs'
 
 /**
- * Validates mutual exclusivity between amount and percentage
- * Returns error message if both are set, null if valid
+ * Validates amount and percentage fields:
+ * - At least one must be filled (amount != 0 or percentage > 0)
+ * - Cannot have both filled at the same time
+ * Returns error message if validation fails, null if valid
  */
 export const validateAmountAndPercentage = (amount?: number | null, percentage?: number | null): string | null => {
-  const hasAmount = amount !== undefined && amount !== null && amount > 0
-  const hasPercentage = percentage !== undefined && percentage !== null && percentage !== 0
+  // Amount is valid if it's a non-zero number (positive or negative for deductions)
+  const hasAmount = amount !== undefined && amount !== null && amount !== 0
+  // Percentage is valid if it's greater than 0
+  const hasPercentage = percentage !== undefined && percentage !== null && percentage > 0
 
+  // Cannot have both
   if (hasAmount && hasPercentage) {
     return 'Cannot have both Amount and Percentage. Please use only one.'
+  }
+
+  // Must have at least one
+  if (!hasAmount && !hasPercentage) {
+    return 'Either Amount or Percentage (above 0%) is required.'
   }
 
   return null

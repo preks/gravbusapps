@@ -72,7 +72,8 @@ import {
   formatDateToISO,
   transformAllowanceSetupForRestrictedUpdate,
   transformAllowanceSetupForSave,
-  parseAllowanceSetupSaveError
+  parseAllowanceSetupSaveError,
+  getValidityDatesFromExisting
 } from '../utils'
 import { useTableSorting, createFieldMappings } from '../hooks'
 import { UsageInfo } from '../../../types'
@@ -334,6 +335,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
               id
               code
               name
+              calculationRef
             }
           }
         }
@@ -383,6 +385,13 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
   // Sorted data is provided by useTableSorting hook (single source of truth)
   const sortedAllowanceSetups = sorting.sortedData || allowanceSetups
 
+  // Filter out allowance codes that have a calculation defined (they shouldn't appear in allowance setup form)
+  // When editing, include the currently selected code even if it has a calculation (for display consistency)
+  const filteredAllowanceCodes = useMemo(() => {
+    const currentAllowanceCodeId = editingItem?.allowanceCode?.id
+    return allowanceCodes.filter(code => !code.calculationRef || code.id === currentAllowanceCodeId)
+  }, [allowanceCodes, editingItem])
+
   useEffect(() => {
     if (ruleId && accessToken) {
       fetchAllowanceSetups()
@@ -410,16 +419,15 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
     setCurrentUsageInfo(null)
     setValidityError(null)
 
-    // ALWAYS inherit validity period from parent Expense Rule
-    const validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
-    const validToValue = formatDateForInput(activeTo) || '9999-12-31'
+    // Get validity dates using shared utility (copies from first existing entry if available)
+    const { validFrom, validTo } = getValidityDatesFromExisting(allowanceSetups, activeFrom, activeTo)
 
     form.reset({
       name: '',
       issue: 'DAILY_ALLOWANCE',
       onlyTax: false,
-      validFrom: validFromValue,
-      validTo: validToValue,
+      validFrom,
+      validTo,
       allowancePeriodId: '',
       allowanceCodeId: ''
     })
@@ -965,7 +973,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                       onValueChange={value => {
                         field.onChange(value)
                         // Auto-populate name field with selected allowance code's name
-                        const selectedCode = allowanceCodes.find(code => code.id === value)
+                        const selectedCode = filteredAllowanceCodes.find(code => code.id === value)
                         if (selectedCode && !editingItem) {
                           form.setValue('name', selectedCode.name)
                         }
@@ -978,7 +986,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent data-testid="allowance-setup-code-options">
-                        {allowanceCodes.map(code => (
+                        {filteredAllowanceCodes.map(code => (
                           <SelectItem
                             key={code.id}
                             value={code.id}
