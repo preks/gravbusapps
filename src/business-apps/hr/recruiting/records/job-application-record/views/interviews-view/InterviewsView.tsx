@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobInterviews } from '@/common/data/recruiting/hooks/useJobInterviews'
 import { DataDisplay, DataTable } from '@newwork/nw-design-system'
-import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
+import type { ColumnDef, PaginationState, SortingState, CellContext } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -10,6 +10,21 @@ import type { JobInterview } from '@/common/data/recruiting/types/jobInterviewTy
 
 interface InterviewsViewProps extends BusinessAppContextProps {
   jobApplicationId: string
+}
+
+// Cell Components
+const ScheduledDateCell: React.FC<{ info: CellContext<JobInterview, unknown> }> = ({ info }) => {
+  const value = info.getValue() as string
+  return value ? (
+    <div className="gba:text-sm gba:font-medium">{new Date(value).toLocaleString()}</div>
+  ) : (
+    <span className="gba:text-sm gba:text-muted-foreground">-</span>
+  )
+}
+
+const LocationCell: React.FC<{ info: CellContext<JobInterview, unknown> }> = ({ info }) => {
+  const value = info.getValue() as string
+  return <div className="gba:text-sm">{value || '-'}</div>
 }
 
 export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId, accessToken }) => {
@@ -71,14 +86,7 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId
         id: 'scheduledAt',
         accessorKey: 'scheduledAt',
         header: getTranslationFromI18nKeyAndLabel('recruiting.scheduledAt', 'Scheduled Date & Time'),
-        cell: info => {
-          const value = info.getValue() as string
-          return value ? (
-            <div className="gba:text-sm gba:font-medium">{new Date(value).toLocaleString()}</div>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
+        cell: ScheduledDateCell,
         meta: { type: 'date' as const }
       },
       {
@@ -99,10 +107,7 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId
         id: 'location',
         accessorKey: 'location',
         header: getTranslationFromI18nKeyAndLabel('recruiting.location', 'Location'),
-        cell: info => {
-          const value = info.getValue() as string
-          return <div className="gba:text-sm">{value || '-'}</div>
-        },
+        cell: LocationCell,
         meta: { type: 'text' as const }
       }
     ],

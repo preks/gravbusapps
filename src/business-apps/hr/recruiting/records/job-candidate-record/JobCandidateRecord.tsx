@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Spinner, RecordLayout } from '@newwork/nw-design-system'
+import { Spinner, RecordLayout, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
 import { User, Hash, Calendar, FileText } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -18,8 +18,8 @@ interface JobCandidateRecordContentProps extends BusinessAppContextProps {
 
 const JobCandidateRecordContent: React.FC<JobCandidateRecordContentProps> = ({ jobCandidateId, onBack, ...props }) => {
   const [activeTab, setActiveTab] = useState<string>(() => {
-    if (typeof window === 'undefined') return 'overview'
-    const params = new URLSearchParams(window.location.search)
+    if (typeof globalThis === 'undefined' || !globalThis.location) return 'overview'
+    const params = new URLSearchParams(globalThis.location.search)
     return params.get('tab') || 'overview'
   })
 
@@ -33,10 +33,10 @@ const JobCandidateRecordContent: React.FC<JobCandidateRecordContentProps> = ({ j
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value)
-    if (typeof window === 'undefined') return
-    const url = new URL(window.location.href)
+    if (typeof globalThis === 'undefined' || !globalThis.location) return
+    const url = new URL(globalThis.location.href)
     url.searchParams.set('tab', value)
-    window.history.replaceState(null, '', url.toString())
+    globalThis.history.replaceState(null, '', url.toString())
   }, [])
 
   useEffect(() => {
@@ -139,7 +139,7 @@ const JobCandidateRecordContent: React.FC<JobCandidateRecordContentProps> = ({ j
           value: 'overview',
           label: getTranslationFromI18nKeyAndLabel('recruiting.overview', 'Overview'),
           icon: <User className="gba:mr-2" />,
-          content: <HomeView jobCandidateId={jobCandidateId} jobCandidate={jobCandidate} {...props} />
+          content: <HomeView jobCandidate={jobCandidate} {...props} />
         },
         {
           value: 'applications',
@@ -174,13 +174,15 @@ const JobCandidateRecordContent: React.FC<JobCandidateRecordContentProps> = ({ j
   return (
     <RecordLayout
       headerOrientation="horizontal"
-      headerIcon={User}
-      headerCategory={getTranslationFromI18nKeyAndLabel('recruiting.jobCandidate', 'Job Candidate')}
+      headerAvatar={<IconAvatar icon={User} variant="decorative" size="xl" />}
+      headerOverline={getTranslationFromI18nKeyAndLabel('recruiting.jobCandidate', 'Job Candidate')}
       onBack={onBack}
       headerTitle={jobCandidateName}
-      headerDetailGroups={headerDetailGroups}
+      headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
       headerActionButton={headerActionButton}
-      subViews={subViewsConfig}
+      views={subViewsConfig.items}
+      defaultView={subViewsConfig.defaultValue}
+      onViewChange={subViewsConfig.onValueChange}
     />
   )
 }
@@ -188,7 +190,10 @@ const JobCandidateRecordContent: React.FC<JobCandidateRecordContentProps> = ({ j
 // Wrapper component to handle ID extraction and navigation
 const JobCandidateRecord: React.FC<BusinessAppContextProps> = ({ additionalData = {}, ...props }) => {
   const jobCandidateId =
-    additionalData.jobCandidateId || new URLSearchParams(window.location.search).get('jobCandidateId')
+    additionalData.jobCandidateId ||
+    (typeof globalThis !== 'undefined' && globalThis.location
+      ? new URLSearchParams(globalThis.location.search).get('jobCandidateId')
+      : null)
 
   const handleBack = () => {
     const url = buildPlatformUrl('/platform/hr/recruiting/recruiting-manager', {

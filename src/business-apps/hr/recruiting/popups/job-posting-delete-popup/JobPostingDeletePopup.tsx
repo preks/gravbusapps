@@ -10,7 +10,6 @@ export interface JobPostingDeletePopupProps extends BusinessAppContextProps {
   onClose: () => void
 
   onSuccess?: () => void
-  onError?: (error: any) => void
 
   'data-testid'?: string
 }
@@ -39,7 +38,7 @@ export const JobPostingDeletePopup: React.FC<JobPostingDeletePopupProps> = ({
     return {
       jobPosting: {
         id: jobPosting.id,
-        ...(jobPosting.version !== undefined && jobPosting.version !== null ? { version: jobPosting.version } : {}),
+        ...(jobPosting.version != null ? { version: jobPosting.version } : {}),
         isDeleted: true
       }
     }

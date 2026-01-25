@@ -1,9 +1,16 @@
 import React, { useCallback } from 'react'
-import { FileUpload, type UploadFile } from '@newwork/nw-design-system'
-import { Button } from '@newwork/nw-design-system'
+import {
+  FileUpload,
+  type UploadFile,
+  Button,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage
+} from '@newwork/nw-design-system'
 import { X, Plus } from 'lucide-react'
 import { CatalogSelect } from '@/components/catalog-select'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -30,7 +37,7 @@ export const JobCandidateDocumentUpload: React.FC<JobCandidateDocumentUploadProp
 }) => {
   const addDocument = useCallback(() => {
     const newDocument: DocumentUploadItem = {
-      id: `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
     }
     onChange([...documents, newDocument])
   }, [documents, onChange])

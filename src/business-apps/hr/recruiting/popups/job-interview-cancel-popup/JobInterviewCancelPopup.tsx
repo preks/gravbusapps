@@ -13,7 +13,6 @@ export interface JobInterviewCancelPopupProps extends BusinessAppContextProps {
   onClose: () => void
 
   onSuccess?: () => void
-  onError?: (error: any) => void
 
   'data-testid'?: string
 }
@@ -27,8 +26,6 @@ export const JobInterviewCancelPopup: React.FC<JobInterviewCancelPopupProps> = (
 }) => {
   const jobInterviewId =
     additionalData?.jobInterviewId ||
-    additionalData?.jobInterviewId ||
-    additionalData?.psi_taskPayload?.psi_initialParameters?.jobInterviewId ||
     additionalData?.psi_taskPayload?.psi_initialParameters?.jobInterviewId ||
     additionalData?.id
 
@@ -78,9 +75,7 @@ export const JobInterviewCancelPopup: React.FC<JobInterviewCancelPopupProps> = (
     return {
       jobInterview: {
         id: jobInterview.id,
-        ...(jobInterview.version !== undefined && jobInterview.version !== null
-          ? { version: jobInterview.version }
-          : {}),
+        ...(jobInterview.version != null ? { version: jobInterview.version } : {}),
         jobInterviewStatus: JobInterviewStatus.CANCELLED
       },
       changeMode: 'UPDATE' as const

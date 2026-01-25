@@ -1,10 +1,9 @@
 import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Spinner } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useJobRequest } from '@/common/data/recruiting/hooks/useJobRequest'
 import { ErrorAlert } from '@/components/error-alert'
-import { Spinner } from '@newwork/nw-design-system'
 
 type JobRequestReviewFormProps = BusinessAppContextProps
 

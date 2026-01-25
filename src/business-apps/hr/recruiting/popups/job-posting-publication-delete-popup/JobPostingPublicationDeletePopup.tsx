@@ -10,7 +10,6 @@ export interface JobPostingPublicationDeletePopupProps extends BusinessAppContex
   onClose: () => void
 
   onSuccess?: () => void
-  onError?: (error: any) => void
 
   'data-testid'?: string
 }

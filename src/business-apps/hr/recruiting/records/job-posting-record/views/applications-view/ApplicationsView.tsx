@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobApplications } from '@/common/data/recruiting/hooks/useJobApplications'
 import { DataDisplay, DataTable, Badge, Avatar, AvatarFallback } from '@newwork/nw-design-system'
-import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
+import type { ColumnDef, PaginationState, SortingState, CellContext } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -11,6 +11,57 @@ import type { JobApplication } from '@/common/data/recruiting/types/jobApplicati
 
 interface ApplicationsViewProps extends BusinessAppContextProps {
   jobPostingId: string
+}
+
+// Helper function to get initials
+const getInitials = (firstName: string, lastName: string): string => {
+  const first = firstName?.charAt(0) || ''
+  const last = lastName?.charAt(0) || ''
+  return (first + last).toUpperCase() || 'A'
+}
+
+// Cell Components
+const CandidateLinkCell: React.FC<{
+  info: CellContext<JobApplication, unknown>
+  onCandidateClick: (jobCandidateId: string) => void
+}> = ({ info, onCandidateClick }) => {
+  const application = info.row.original
+  const candidate = application.jobCandidate
+  if (!candidate) return <span className="gba:text-sm gba:text-muted-foreground">-</span>
+
+  return (
+    <button
+      onClick={e => {
+        e.stopPropagation()
+        if (candidate.id) {
+          onCandidateClick(candidate.id)
+        }
+      }}
+      className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer hover:gba:opacity-80 gba:transition-opacity gba:text-left gba:w-full"
+      data-testid={`candidate-link-${candidate.id}`}
+    >
+      <Avatar className="gba:h-8 gba:w-8">
+        <AvatarFallback className="gba:text-xs">{getInitials(candidate.firstName, candidate.lastName)}</AvatarFallback>
+      </Avatar>
+      <div className="gba:flex gba:flex-col">
+        <span className="gba:text-sm gba:font-medium gba:text-primary hover:gba:underline">
+          {candidate.firstName} {candidate.lastName}
+        </span>
+        {candidate.code && <span className="gba:text-xs gba:text-muted-foreground">{candidate.code}</span>}
+      </div>
+    </button>
+  )
+}
+
+const ApplicationStageCell: React.FC<{ info: CellContext<JobApplication, unknown> }> = ({ info }) => {
+  const value = info.getValue() as string
+  return value ? (
+    <Badge variant="secondary" className="gba:text-xs">
+      {value}
+    </Badge>
+  ) : (
+    <span className="gba:text-sm gba:text-muted-foreground">-</span>
+  )
 }
 
 export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobPostingId, accessToken }) => {
@@ -36,13 +87,6 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobPostingId
     },
     'list'
   )
-
-  // Helper to get initials
-  const getInitials = (firstName: string, lastName: string): string => {
-    const first = firstName?.charAt(0) || ''
-    const last = lastName?.charAt(0) || ''
-    return (first + last).toUpperCase() || 'A'
-  }
 
   // Handle candidate click to navigate to candidate record
   const handleCandidateClick = useCallback((jobCandidateId: string) => {
@@ -91,36 +135,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobPostingId
           return `${candidate.firstName || ''} ${candidate.lastName || ''}`.trim() || '-'
         },
         header: getTranslationFromI18nKeyAndLabel('recruiting.candidate', 'Candidate'),
-        cell: info => {
-          const application = info.row.original
-          const candidate = application.jobCandidate
-          if (!candidate) return <span className="gba:text-sm gba:text-muted-foreground">-</span>
-
-          return (
-            <button
-              onClick={e => {
-                e.stopPropagation()
-                if (candidate.id) {
-                  handleCandidateClick(candidate.id)
-                }
-              }}
-              className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer hover:gba:opacity-80 gba:transition-opacity gba:text-left gba:w-full"
-              data-testid={`candidate-link-${candidate.id}`}
-            >
-              <Avatar className="gba:h-8 gba:w-8">
-                <AvatarFallback className="gba:text-xs">
-                  {getInitials(candidate.firstName, candidate.lastName)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="gba:flex gba:flex-col">
-                <span className="gba:text-sm gba:font-medium gba:text-primary hover:gba:underline">
-                  {candidate.firstName} {candidate.lastName}
-                </span>
-                {candidate.code && <span className="gba:text-xs gba:text-muted-foreground">{candidate.code}</span>}
-              </div>
-            </button>
-          )
-        },
+        cell: info => <CandidateLinkCell info={info} onCandidateClick={handleCandidateClick} />,
         meta: { type: 'text' as const }
       },
       {
@@ -141,16 +156,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobPostingId
         id: 'jobApplicationStage',
         accessorFn: row => row.jobApplicationStage?.value || row.jobApplicationStageRef || '-',
         header: getTranslationFromI18nKeyAndLabel('recruiting.jobApplicationStage', 'Current Stage'),
-        cell: info => {
-          const value = info.getValue() as string
-          return value ? (
-            <Badge variant="secondary" className="gba:text-xs">
-              {value}
-            </Badge>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
+        cell: ApplicationStageCell,
         meta: { type: 'text' as const }
       }
     ],

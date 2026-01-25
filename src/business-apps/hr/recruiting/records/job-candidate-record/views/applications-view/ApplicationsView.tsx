@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobApplications } from '@/common/data/recruiting/hooks/useJobApplications'
 import { DataDisplay, DataTable, Badge } from '@newwork/nw-design-system'
-import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
+import type { ColumnDef, PaginationState, SortingState, CellContext } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -11,6 +11,41 @@ import type { JobApplication } from '@/common/data/recruiting/types/jobApplicati
 
 interface ApplicationsViewProps extends BusinessAppContextProps {
   jobCandidateId: string
+}
+
+// Cell Components
+const JobPostingLinkCell: React.FC<{
+  info: CellContext<JobApplication, unknown>
+  onPostingClick: (jobPostingId: string) => void
+}> = ({ info, onPostingClick }) => {
+  const posting = info.row.original.jobPosting
+  return posting?.title ? (
+    <button
+      onClick={e => {
+        e.stopPropagation()
+        if (posting.id) {
+          onPostingClick(posting.id)
+        }
+      }}
+      className="gba:text-sm gba:font-medium gba:text-primary hover:gba:underline gba:cursor-pointer gba:text-left"
+      data-testid={`job-posting-link-${posting.id}`}
+    >
+      {posting.title}
+    </button>
+  ) : (
+    <span className="gba:text-sm gba:text-muted-foreground">-</span>
+  )
+}
+
+const ApplicationStageCell = (info: CellContext<JobApplication, unknown>) => {
+  const value = info.getValue() as string
+  return value ? (
+    <Badge variant="secondary" className="gba:text-xs">
+      {value}
+    </Badge>
+  ) : (
+    <span className="gba:text-sm gba:text-muted-foreground">-</span>
+  )
 }
 
 export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobCandidateId, accessToken }) => {
@@ -78,25 +113,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobCandidate
         id: 'jobPosting',
         accessorFn: row => row.jobPosting?.title || '-',
         header: getTranslationFromI18nKeyAndLabel('recruiting.jobPosting', 'Job Posting'),
-        cell: info => {
-          const posting = info.row.original.jobPosting
-          return posting?.title ? (
-            <button
-              onClick={e => {
-                e.stopPropagation()
-                if (posting.id) {
-                  handleJobPostingClick(posting.id)
-                }
-              }}
-              className="gba:text-sm gba:font-medium gba:text-primary hover:gba:underline gba:cursor-pointer gba:text-left"
-              data-testid={`job-posting-link-${posting.id}`}
-            >
-              {posting.title}
-            </button>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
+        cell: info => <JobPostingLinkCell info={info} onPostingClick={handleJobPostingClick} />,
         meta: { type: 'text' as const }
       },
       {
@@ -117,16 +134,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobCandidate
         id: 'jobApplicationStage',
         accessorFn: row => row.jobApplicationStage?.value || row.jobApplicationStageRef || '-',
         header: getTranslationFromI18nKeyAndLabel('recruiting.jobApplicationStage', 'Current Stage'),
-        cell: info => {
-          const value = info.getValue() as string
-          return value ? (
-            <Badge variant="secondary" className="gba:text-xs">
-              {value}
-            </Badge>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
+        cell: ApplicationStageCell,
         meta: { type: 'text' as const }
       }
     ],

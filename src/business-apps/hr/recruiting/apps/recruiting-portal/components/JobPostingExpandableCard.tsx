@@ -17,24 +17,25 @@ import {
   CaretUpIcon,
   MapPinIcon,
   DownloadIcon,
-  Briefcase,
-  CurrencyCircleDollar,
-  Clock
+  ClockIcon,
+  CurrencyCircleDollarIcon
 } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel, formatDate, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import {
+  getTranslationFromI18nKeyAndLabel,
+  formatDate,
+  getCurrentActiveUserLocale,
+  getCatalogValue
+} from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import type { JobPosting } from '@/common/data/recruiting/types/jobPostingTypes'
-import type { UserInfoProps } from '@/common/BusinessAppContext'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { ContentHtmlRenderer } from '@/business-apps/core/content/records/content-record/components/ContentHtmlRenderer'
 import { buildFileUrl } from '@/common/utils/fileUtils'
-import { getCatalogValue } from '@/common/utils/windowUtils'
 
 interface JobPostingExpandableCardProps {
   jobPosting: JobPosting
   accessToken: string
-  userInfo?: UserInfoProps
   jobCandidateId?: string
   prefixDataTestId?: string
   defaultExpanded?: boolean
@@ -80,7 +81,6 @@ function getI18nValue(i18nObj: any, fallback: string | undefined): string {
 export const JobPostingExpandableCard: React.FC<JobPostingExpandableCardProps> = ({
   jobPosting,
   accessToken,
-  userInfo,
   jobCandidateId,
   prefixDataTestId = 'JobPostingExpandableCard',
   defaultExpanded = false,
@@ -154,9 +154,8 @@ export const JobPostingExpandableCard: React.FC<JobPostingExpandableCardProps> =
     }
   }
 
-  const headerAriaLabel = showExpandButton
-    ? `${isExpanded ? 'Collapse' : 'Expand'} ${displayTitle} job posting details`
-    : undefined
+  const expandAction = isExpanded ? 'Collapse' : 'Expand'
+  const headerAriaLabel = showExpandButton ? `${expandAction} ${displayTitle} job posting details` : undefined
 
   return (
     <Card
@@ -166,117 +165,124 @@ export const JobPostingExpandableCard: React.FC<JobPostingExpandableCardProps> =
       <CardContent className="gba:p-0">
         {/* Header - Always visible */}
         {showExpandButton ? (
-          <button
-            type="button"
-            className="gba:w-full gba:p-6 gba:flex gba:items-center gba:justify-between gba:gap-4 gba:cursor-pointer gba:bg-transparent gba:border-0 gba:text-left"
-            onClick={handleExpandToggle}
-            onKeyDown={handleKeyDown}
-            aria-expanded={isExpanded}
-            aria-label={headerAriaLabel}
-            data-testid={formatDataTestId(prefixDataTestId, `expand-button-${jobPosting.id}`)}
-          >
-            <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1 gba:min-w-0">
-              {/* Avatar */}
-              <Avatar size="lg" className="gba:flex-shrink-0">
-                <AvatarFallback className="gba:bg-gradient-to-br gba:from-primary/15 gba:to-primary/5 gba:text-primary">
-                  <BriefcaseIcon size={28} weight="duotone" />
-                </AvatarFallback>
-              </Avatar>
+          <>
+            <button
+              type="button"
+              className="gba:w-full gba:p-6 gba:flex gba:items-center gba:justify-between gba:gap-4 gba:cursor-pointer gba:bg-transparent gba:border-0 gba:text-left"
+              onClick={handleExpandToggle}
+              onKeyDown={handleKeyDown}
+              aria-expanded={isExpanded}
+              aria-label={headerAriaLabel}
+              data-testid={formatDataTestId(prefixDataTestId, `expand-button-${jobPosting.id}`)}
+            >
+              <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1 gba:min-w-0">
+                {/* Avatar */}
+                <Avatar size="lg" className="gba:flex-shrink-0">
+                  <AvatarFallback className="gba:bg-gradient-to-br gba:from-primary/15 gba:to-primary/5 gba:text-primary">
+                    <BriefcaseIcon size={28} weight="duotone" />
+                  </AvatarFallback>
+                </Avatar>
 
-              {/* Job Posting Info */}
-              <div className="gba:flex-1 gba:min-w-0">
-                {jobRequest?.organizationalUnit?.name && (
-                  <p className="gba:text-xs gba:text-muted-foreground gba:m-0 gba:mb-1">
-                    {jobRequest.organizationalUnit.name}
-                  </p>
-                )}
-                <div className="gba:flex gba:items-center gba:gap-3 gba:mb-1 gba:flex-wrap">
-                  <h3 className="gba:m-0 gba:text-xl gba:font-bold gba:text-foreground">
-                    {displayTitle || 'Untitled Position'}
-                  </h3>
-                  {jobRequest?.jobExperienceLevel && (
-                    <Badge variant="outline" className="gba:text-xs">
-                      {getCatalogValue(jobRequest.jobExperienceLevel)}
-                    </Badge>
+                {/* Job Posting Info */}
+                <div className="gba:flex-1 gba:min-w-0">
+                  {jobRequest?.organizationalUnit?.name && (
+                    <p className="gba:text-xs gba:text-muted-foreground gba:m-0 gba:mb-1">
+                      {jobRequest.organizationalUnit.name}
+                    </p>
                   )}
+                  <div className="gba:flex gba:items-center gba:gap-3 gba:mb-1 gba:flex-wrap">
+                    <h3 className="gba:m-0 gba:text-xl gba:font-bold gba:text-foreground">
+                      {displayTitle || 'Untitled Position'}
+                    </h3>
+                    {jobRequest?.jobExperienceLevel && (
+                      <Badge variant="outline" className="gba:text-xs">
+                        {getCatalogValue(jobRequest.jobExperienceLevel)}
+                      </Badge>
+                    )}
+                  </div>
+                  <TooltipProvider>
+                    <div className="gba:flex gba:items-center gba:gap-4 gba:mb-1 gba:flex-wrap">
+                      {jobRequest?.employmentType && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground gba:cursor-help">
+                              <BriefcaseIcon size={14} weight="duotone" />
+                              <span>{getCatalogValue(jobRequest.employmentType)}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{getTranslationFromI18nKeyAndLabel('recruiting.employmentType', 'Employment Type')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      {jobRequest?.contractType && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground gba:cursor-help">
+                              <ClockIcon size={14} weight="duotone" />
+                              <span>{getCatalogValue(jobRequest.contractType)}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{getTranslationFromI18nKeyAndLabel('recruiting.contractType', 'Contract Type')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                    <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground gba:flex-wrap">
+                      {jobRequest?.company?.name && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-help">
+                              <BriefcaseIcon size={14} weight="duotone" />
+                              <span>{jobRequest.company.name}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{getTranslationFromI18nKeyAndLabel('recruiting.company', 'Company')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      {jobRequest?.siteLocation?.name && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-help">
+                              <MapPinIcon size={14} weight="duotone" />
+                              <span>{jobRequest.siteLocation.name}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{getTranslationFromI18nKeyAndLabel('recruiting.location', 'Location')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      {jobRequest?.costCenter?.name && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-help">
+                              <CurrencyCircleDollarIcon size={14} weight="duotone" />
+                              <span>{jobRequest.costCenter.name}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{getTranslationFromI18nKeyAndLabel('recruiting.costCenter', 'Cost Center')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </TooltipProvider>
                 </div>
-                <TooltipProvider>
-                  <div className="gba:flex gba:items-center gba:gap-4 gba:mb-1 gba:flex-wrap">
-                    {jobRequest?.employmentType && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground gba:cursor-help">
-                            <Briefcase size={14} weight="duotone" />
-                            <span>{getCatalogValue(jobRequest.employmentType)}</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{getTranslationFromI18nKeyAndLabel('recruiting.employmentType', 'Employment Type')}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                    {jobRequest?.contractType && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground gba:cursor-help">
-                            <Clock size={14} weight="duotone" />
-                            <span>{getCatalogValue(jobRequest.contractType)}</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{getTranslationFromI18nKeyAndLabel('recruiting.contractType', 'Contract Type')}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                  </div>
-                  <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground gba:flex-wrap">
-                    {jobRequest?.company?.name && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-help">
-                            <Briefcase size={14} weight="duotone" />
-                            <span>{jobRequest.company.name}</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{getTranslationFromI18nKeyAndLabel('recruiting.company', 'Company')}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                    {jobRequest?.siteLocation?.name && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-help">
-                            <MapPinIcon size={14} weight="duotone" />
-                            <span>{jobRequest.siteLocation.name}</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{getTranslationFromI18nKeyAndLabel('recruiting.location', 'Location')}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                    {jobRequest?.costCenter?.name && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-help">
-                            <CurrencyCircleDollar size={14} weight="duotone" />
-                            <span>{jobRequest.costCenter.name}</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{getTranslationFromI18nKeyAndLabel('recruiting.costCenter', 'Cost Center')}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                  </div>
-                </TooltipProvider>
               </div>
-            </div>
 
-            {/* Apply Button and Expand Button */}
-            <div className="gba:flex gba:items-center gba:gap-3 gba:flex-shrink-0">
-              {hasCandidate && (
+              {/* Expand Icon */}
+              <div className="gba:flex-shrink-0">
+                {isExpanded ? <CaretUpIcon size={20} /> : <CaretDownIcon size={20} />}
+              </div>
+            </button>
+
+            {/* Apply Button - Outside the expand button to avoid nested buttons */}
+            {hasCandidate && (
+              <div className="gba:px-6 gba:pb-4 gba:flex gba:justify-end">
                 <AppAction
                   variant="create-primary"
                   contexts={[
@@ -290,114 +296,137 @@ export const JobPostingExpandableCard: React.FC<JobPostingExpandableCardProps> =
                     }
                   ]}
                   accessToken={accessToken}
-                  userInfo={userInfo}
                   data-testid={formatDataTestId(prefixDataTestId, `apply-button-${jobPosting.id}`)}
                 >
                   {getTranslationFromI18nKeyAndLabel('recruiting.portal.applyButton', 'Apply Now')}
                 </AppAction>
-              )}
-              {isExpanded ? <CaretUpIcon size={20} /> : <CaretDownIcon size={20} />}
-            </div>
-          </button>
+              </div>
+            )}
+          </>
         ) : (
-          <div className="gba:p-6 gba:flex gba:items-center gba:justify-between gba:gap-4">
-            <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1 gba:min-w-0">
-              <Avatar size="lg" className="gba:flex-shrink-0">
-                <AvatarFallback className="gba:bg-gradient-to-br gba:from-primary/15 gba:to-primary/5 gba:text-primary">
-                  <BriefcaseIcon size={28} weight="duotone" />
-                </AvatarFallback>
-              </Avatar>
+          <>
+            <div className="gba:p-6 gba:flex gba:items-center gba:justify-between gba:gap-4">
+              <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1 gba:min-w-0">
+                <Avatar size="lg" className="gba:flex-shrink-0">
+                  <AvatarFallback className="gba:bg-gradient-to-br gba:from-primary/15 gba:to-primary/5 gba:text-primary">
+                    <BriefcaseIcon size={28} weight="duotone" />
+                  </AvatarFallback>
+                </Avatar>
 
-              <div className="gba:flex-1 gba:min-w-0">
-                {jobRequest?.organizationalUnit?.name && (
-                  <p className="gba:text-xs gba:text-muted-foreground gba:m-0 gba:mb-1">
-                    {jobRequest.organizationalUnit.name}
-                  </p>
-                )}
-                <div className="gba:flex gba:items-center gba:gap-3 gba:mb-1 gba:flex-wrap">
-                  <h3 className="gba:m-0 gba:text-xl gba:font-bold gba:text-foreground">
-                    {displayTitle || 'Untitled Position'}
-                  </h3>
-                  {jobRequest?.jobExperienceLevel && (
-                    <Badge variant="outline" className="gba:text-xs">
-                      {getCatalogValue(jobRequest.jobExperienceLevel)}
-                    </Badge>
+                <div className="gba:flex-1 gba:min-w-0">
+                  {jobRequest?.organizationalUnit?.name && (
+                    <p className="gba:text-xs gba:text-muted-foreground gba:m-0 gba:mb-1">
+                      {jobRequest.organizationalUnit.name}
+                    </p>
                   )}
+                  <div className="gba:flex gba:items-center gba:gap-3 gba:mb-1 gba:flex-wrap">
+                    <h3 className="gba:m-0 gba:text-xl gba:font-bold gba:text-foreground">
+                      {displayTitle || 'Untitled Position'}
+                    </h3>
+                    {jobRequest?.jobExperienceLevel && (
+                      <Badge variant="outline" className="gba:text-xs">
+                        {getCatalogValue(jobRequest.jobExperienceLevel)}
+                      </Badge>
+                    )}
+                  </div>
+                  <TooltipProvider>
+                    <div className="gba:flex gba:items-center gba:gap-4 gba:mb-1 gba:flex-wrap">
+                      {jobRequest?.employmentType && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground gba:cursor-help">
+                              <BriefcaseIcon size={14} weight="duotone" />
+                              <span>{getCatalogValue(jobRequest.employmentType)}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{getTranslationFromI18nKeyAndLabel('recruiting.employmentType', 'Employment Type')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      {jobRequest?.contractType && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground gba:cursor-help">
+                              <ClockIcon size={14} weight="duotone" />
+                              <span>{getCatalogValue(jobRequest.contractType)}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{getTranslationFromI18nKeyAndLabel('recruiting.contractType', 'Contract Type')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                    <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground gba:flex-wrap">
+                      {jobRequest?.company?.name && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-help">
+                              <BriefcaseIcon size={14} weight="duotone" />
+                              <span>{jobRequest.company.name}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{getTranslationFromI18nKeyAndLabel('recruiting.company', 'Company')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      {jobRequest?.siteLocation?.name && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-help">
+                              <MapPinIcon size={14} weight="duotone" />
+                              <span>{jobRequest.siteLocation.name}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{getTranslationFromI18nKeyAndLabel('recruiting.location', 'Location')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                      {jobRequest?.costCenter?.name && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-help">
+                              <CurrencyCircleDollarIcon size={14} weight="duotone" />
+                              <span>{jobRequest.costCenter.name}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{getTranslationFromI18nKeyAndLabel('recruiting.costCenter', 'Cost Center')}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
+                  </TooltipProvider>
                 </div>
-                <TooltipProvider>
-                  <div className="gba:flex gba:items-center gba:gap-4 gba:mb-1 gba:flex-wrap">
-                    {jobRequest?.employmentType && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground gba:cursor-help">
-                            <Briefcase size={14} weight="duotone" />
-                            <span>{getCatalogValue(jobRequest.employmentType)}</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{getTranslationFromI18nKeyAndLabel('recruiting.employmentType', 'Employment Type')}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                    {jobRequest?.contractType && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground gba:cursor-help">
-                            <Clock size={14} weight="duotone" />
-                            <span>{getCatalogValue(jobRequest.contractType)}</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{getTranslationFromI18nKeyAndLabel('recruiting.contractType', 'Contract Type')}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                  </div>
-                  <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground gba:flex-wrap">
-                    {jobRequest?.company?.name && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-help">
-                            <Briefcase size={14} weight="duotone" />
-                            <span>{jobRequest.company.name}</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{getTranslationFromI18nKeyAndLabel('recruiting.company', 'Company')}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                    {jobRequest?.siteLocation?.name && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-help">
-                            <MapPinIcon size={14} weight="duotone" />
-                            <span>{jobRequest.siteLocation.name}</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{getTranslationFromI18nKeyAndLabel('recruiting.location', 'Location')}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                    {jobRequest?.costCenter?.name && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-help">
-                            <CurrencyCircleDollar size={14} weight="duotone" />
-                            <span>{jobRequest.costCenter.name}</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{getTranslationFromI18nKeyAndLabel('recruiting.costCenter', 'Cost Center')}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                  </div>
-                </TooltipProvider>
               </div>
             </div>
-          </div>
+
+            {/* Apply Button - Outside to avoid nested buttons */}
+            {hasCandidate && (
+              <div className="gba:px-6 gba:pb-4 gba:flex gba:justify-end">
+                <AppAction
+                  variant="create-primary"
+                  contexts={[
+                    {
+                      context: FlowContextName.jobApplicationCreate,
+                      contextData: {
+                        jobPostingId: jobPosting.id,
+                        jobCandidateId: jobCandidateId,
+                        scope: 'personal'
+                      }
+                    }
+                  ]}
+                  accessToken={accessToken}
+                  data-testid={formatDataTestId(prefixDataTestId, `apply-button-${jobPosting.id}`)}
+                >
+                  {getTranslationFromI18nKeyAndLabel('recruiting.portal.applyButton', 'Apply Now')}
+                </AppAction>
+              </div>
+            )}
+          </>
         )}
 
         {/* Expanded Content */}

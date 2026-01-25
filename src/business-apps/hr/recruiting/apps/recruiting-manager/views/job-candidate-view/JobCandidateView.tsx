@@ -13,36 +13,119 @@ import type { JobApplication } from '@/common/data/recruiting/types/jobApplicati
 
 export type JobCandidateViewProps = BusinessAppContextProps
 
+// Component for job posting link in application table
+const JobPostingLinkCell: React.FC<{
+  application: JobApplication
+  onPostingClick: (jobPostingId: string) => void
+}> = ({ application, onPostingClick }) => {
+  const posting = application.jobPosting
+  if (!posting) return <span className="gba:text-sm gba:text-muted-foreground">-</span>
+
+  return (
+    <button
+      onClick={e => {
+        e.stopPropagation()
+        if (posting.id) {
+          onPostingClick(posting.id)
+        }
+      }}
+      className="gba:text-sm gba:font-medium gba:text-primary hover:gba:underline gba:cursor-pointer gba:text-left"
+      data-testid={`posting-link-${posting.id}`}
+    >
+      {posting.title || '-'}
+    </button>
+  )
+}
+
+// Component for application date cell
+const ApplicationDateCell: React.FC<{ value: string }> = ({ value }) => {
+  return value ? (
+    <div className="gba:text-sm">{new Date(value).toLocaleDateString()}</div>
+  ) : (
+    <span className="gba:text-sm gba:text-muted-foreground">-</span>
+  )
+}
+
+// Component for application stage cell
+const ApplicationStageCell: React.FC<{ value: string }> = ({ value }) => {
+  return value && value !== '-' ? (
+    <Badge variant="secondary" className="gba:text-xs">
+      {value}
+    </Badge>
+  ) : (
+    <span className="gba:text-sm gba:text-muted-foreground">-</span>
+  )
+}
+
+// Component for candidate cell
+const CandidateCell: React.FC<{
+  candidate: JobCandidate
+  getInitials: (firstName: string, lastName: string) => string
+}> = ({ candidate, getInitials }) => {
+  return (
+    <div className="gba:flex gba:items-center gba:gap-3">
+      <Avatar className="gba:h-8 gba:w-8">
+        <AvatarFallback className="gba:text-xs">{getInitials(candidate.firstName, candidate.lastName)}</AvatarFallback>
+      </Avatar>
+      <div className="gba:flex gba:flex-col">
+        <span className="gba:text-sm gba:font-medium">
+          {candidate.firstName} {candidate.lastName}
+        </span>
+        {candidate.code && <span className="gba:text-xs gba:text-muted-foreground">{candidate.code}</span>}
+      </div>
+    </div>
+  )
+}
+
+// Component for application count cell
+const ApplicationCountCell: React.FC<{ value: number }> = ({ value }) => {
+  return <div className="gba:text-sm gba:text-center">{value || 0}</div>
+}
+
+// Component for created date cell
+const CreatedDateCell: React.FC<{ value: string }> = ({ value }) => {
+  return value ? (
+    <div className="gba:text-sm">{new Date(value).toLocaleDateString()}</div>
+  ) : (
+    <span className="gba:text-sm gba:text-muted-foreground">-</span>
+  )
+}
+
+// Row actions component
+const JobCandidateRowActions: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => {
+  return (
+    <AppAction
+      data-testid={`job-candidate-actions-${row.original.id}`}
+      variant="table-row"
+      contexts={[
+        {
+          context: FlowContextName.jobCandidateEntity,
+          contextData: { jobCandidateId: row.original.id }
+        }
+      ]}
+      shareContext={{
+        entityType: 'jobCandidate',
+        entityId: row.original.id,
+        entityName: `${row.original.firstName} ${row.original.lastName}`.trim(),
+        entityUrl: buildPlatformUrl('/platform/hr/recruiting/job-candidate-record', {
+          jobCandidateId: row.original.id
+        })
+      }}
+      prefixDataTestId="job-candidate-actions"
+      accessToken={accessToken}
+      lazyLoad
+      onClick={e => e.stopPropagation()}
+    />
+  )
+}
+
 // Component to render expanded row content for candidate applications
 const ExpandedCandidateApplicationsContent: React.FC<{
   candidate: JobCandidate
-  accessToken: string
   applicationColumns: ColumnDef<JobApplication>[]
 }> = ({ candidate, applicationColumns }) => {
   const candidateId = candidate.id || ''
   const jobApplications = candidate.jobApplications || []
-
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/1d1d96ce-1896-4db3-b2fa-faa680c1d2c5', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      location: 'JobCandidateView.tsx:24',
-      message: 'ExpandedCandidateApplicationsContent received candidate',
-      data: {
-        candidateId,
-        hasJobApplications: !!candidate.jobApplications,
-        jobApplicationsLength: jobApplications.length,
-        jobApplicationsType: typeof candidate.jobApplications,
-        candidateKeys: Object.keys(candidate)
-      },
-      timestamp: Date.now(),
-      sessionId: 'debug-session',
-      runId: 'run1',
-      hypothesisId: 'C'
-    })
-  }).catch(() => {})
-  // #endregion
 
   if (jobApplications.length === 0) {
     return (
@@ -126,22 +209,6 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
 
   // Handle expanded state change
   const handleExpandedChange = useCallback((expanded: ExpandedState) => {
-    // #region agent log
-    const expandedKeys = Object.keys(expanded)
-    fetch('http://127.0.0.1:7242/ingest/1d1d96ce-1896-4db3-b2fa-faa680c1d2c5', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'JobCandidateView.tsx:123',
-        message: 'Expanded state changed',
-        data: { expandedKeys, expandedCount: expandedKeys.length },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'run1',
-        hypothesisId: 'B'
-      })
-    }).catch(() => {})
-    // #endregion
     setExpandedRows(expanded)
   }, [])
 
@@ -183,29 +250,8 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
     [context.accessToken]
   )
 
-  // Row actions
   const rowActions = useMemo(
-    () => (row: any) => (
-      <AppAction
-        data-testid={`job-candidate-actions-${row.original.id}`}
-        variant="table-row"
-        contexts={[
-          {
-            context: FlowContextName.jobCandidateEntity,
-            contextData: { jobCandidateId: row.original.id }
-          }
-        ]}
-        shareContext={{
-          entityType: 'jobCandidate',
-          entityId: row.original.id,
-          entityName: `${row.original.firstName} ${row.original.lastName}`.trim()
-        }}
-        prefixDataTestId="job-candidate-actions"
-        accessToken={context.accessToken}
-        lazyLoad
-        onClick={e => e.stopPropagation()}
-      />
-    ),
+    () => (row: any) => <JobCandidateRowActions row={row} accessToken={context.accessToken} />,
     [context.accessToken]
   )
 
@@ -216,56 +262,21 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
         id: 'jobPosting',
         accessorFn: row => row.jobPosting?.title || '-',
         header: getTranslationFromI18nKeyAndLabel('recruiting.jobPosting', 'Job Posting'),
-        cell: info => {
-          const application = info.row.original
-          const posting = application.jobPosting
-          if (!posting) return <span className="gba:text-sm gba:text-muted-foreground">-</span>
-
-          return (
-            <button
-              onClick={e => {
-                e.stopPropagation()
-                if (posting.id) {
-                  handlePostingClick(posting.id)
-                }
-              }}
-              className="gba:text-sm gba:font-medium gba:text-primary hover:gba:underline gba:cursor-pointer gba:text-left"
-              data-testid={`posting-link-${posting.id}`}
-            >
-              {posting.title || '-'}
-            </button>
-          )
-        },
+        cell: info => <JobPostingLinkCell application={info.row.original} onPostingClick={handlePostingClick} />,
         meta: { type: 'text' as const }
       },
       {
         id: 'applicationDate',
         accessorKey: 'applicationDate',
         header: getTranslationFromI18nKeyAndLabel('recruiting.applicationDate', 'Application Date'),
-        cell: info => {
-          const value = info.getValue() as string
-          return value ? (
-            <div className="gba:text-sm">{new Date(value).toLocaleDateString()}</div>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
+        cell: info => <ApplicationDateCell value={info.getValue() as string} />,
         meta: { type: 'date' as const }
       },
       {
         id: 'jobApplicationStage',
         accessorFn: row => row.jobApplicationStage?.value || row.jobApplicationStageRef || '-',
         header: getTranslationFromI18nKeyAndLabel('recruiting.jobApplicationStage', 'Current Stage'),
-        cell: info => {
-          const value = info.getValue() as string
-          return value && value !== '-' ? (
-            <Badge variant="secondary" className="gba:text-xs">
-              {value}
-            </Badge>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
+        cell: info => <ApplicationStageCell value={info.getValue() as string} />,
         meta: { type: 'text' as const }
       }
     ],
@@ -279,44 +290,21 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
         id: 'candidate',
         accessorFn: row => `${row.firstName} ${row.lastName}`,
         header: getTranslationFromI18nKeyAndLabel('recruiting.candidate', 'Candidate'),
-        cell: info => {
-          const candidate = info.row.original
-          return (
-            <div className="gba:flex gba:items-center gba:gap-3">
-              <Avatar className="gba:h-8 gba:w-8">
-                <AvatarFallback className="gba:text-xs">
-                  {getInitials(candidate.firstName, candidate.lastName)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="gba:flex gba:flex-col">
-                <span className="gba:text-sm gba:font-medium">
-                  {candidate.firstName} {candidate.lastName}
-                </span>
-              </div>
-            </div>
-          )
-        },
+        cell: info => <CandidateCell candidate={info.row.original} getInitials={getInitials} />,
         meta: { type: 'text' as const }
       },
       {
         id: 'applicationCount',
         accessorKey: 'applicationCount',
         header: getTranslationFromI18nKeyAndLabel('recruiting.applications', 'Applications'),
-        cell: info => <div className="gba:text-sm gba:text-center">{(info.getValue() as number) || 0}</div>,
+        cell: info => <ApplicationCountCell value={info.getValue() as number} />,
         meta: { type: 'number' as const }
       },
       {
         id: 'createdAt',
         accessorKey: 'createdAt',
         header: getTranslationFromI18nKeyAndLabel('recruiting.createdAt', 'Created'),
-        cell: info => {
-          const value = info.getValue() as string
-          return value ? (
-            <div className="gba:text-sm">{new Date(value).toLocaleDateString()}</div>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
+        cell: info => <CreatedDateCell value={info.getValue() as string} />,
         meta: { type: 'date' as const }
       }
     ],
@@ -373,37 +361,11 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
           onExpandedChange={handleExpandedChange}
           getRowCanExpand={(row: JobCandidate) => (row.applicationCount || 0) > 0}
           renderExpandedRow={row => {
-            // #region agent log
             const candidate = row.original
-            const allCandidates = jobCandidates
-            const candidateFromState = allCandidates.find((c: any) => c.id === candidate.id)
-            fetch('http://127.0.0.1:7242/ingest/1d1d96ce-1896-4db3-b2fa-faa680c1d2c5', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: 'JobCandidateView.tsx:373',
-                message: 'Rendering expanded row',
-                data: {
-                  candidateId: candidate.id,
-                  rowOriginalHasJobApplications: !!candidate.jobApplications,
-                  rowOriginalJobApplicationsLength: candidate.jobApplications?.length || 0,
-                  rowOriginalKeys: Object.keys(candidate),
-                  candidateFromStateId: candidateFromState?.id,
-                  candidateFromStateHasJobApplications: !!candidateFromState?.jobApplications,
-                  candidateFromStateJobApplicationsLength: candidateFromState?.jobApplications?.length || 0,
-                  applicationCount: candidate.applicationCount
-                },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: 'run1',
-                hypothesisId: 'B'
-              })
-            }).catch(() => {})
-            // #endregion
+            const candidateFromState = jobCandidates.find((c: any) => c.id === candidate.id)
             return (
               <ExpandedCandidateApplicationsContent
                 candidate={candidateFromState || candidate}
-                accessToken={context.accessToken}
                 applicationColumns={applicationColumns}
               />
             )

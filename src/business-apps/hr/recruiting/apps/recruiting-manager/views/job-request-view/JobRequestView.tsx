@@ -3,14 +3,110 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobRequests } from '@/common/data/recruiting/hooks/useJobRequests'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { DataDisplay, DataTable, Badge } from '@newwork/nw-design-system'
-import type { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table'
+import type { ColumnDef, PaginationState, SortingState, CellContext } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { JobRequest } from '@/common/data/recruiting/types/jobRequestTypes'
 import { getJobRequestTypeLabel, getJobRequestStatusLabel } from '@/common/data/recruiting/types/enums'
 
 export type JobRequestViewProps = BusinessAppContextProps
+
+// Cell Components
+const NameCell = (info: CellContext<JobRequest, unknown>) => {
+  const jobRequest = info.row.original
+  const name = (info.getValue() as string) || '-'
+  return (
+    <div className="gba:flex gba:flex-col">
+      <span className="gba:text-sm gba:font-medium">{name}</span>
+      {jobRequest.code && <span className="gba:text-xs gba:text-muted-foreground">{jobRequest.code}</span>}
+    </div>
+  )
+}
+
+const JobRequestTypeCell = (info: CellContext<JobRequest, unknown>) => {
+  const value = info.getValue() as string
+  return value ? (
+    <Badge variant="outline" className="gba:text-xs">
+      {getJobRequestTypeLabel(value)}
+    </Badge>
+  ) : (
+    <span className="gba:text-sm gba:text-muted-foreground">-</span>
+  )
+}
+
+const JobRequestStatusCell = (info: CellContext<JobRequest, unknown>) => {
+  const value = info.getValue() as string
+  return value ? (
+    <Badge variant="secondary" className="gba:text-xs">
+      {getJobRequestStatusLabel(value)}
+    </Badge>
+  ) : (
+    <span className="gba:text-sm gba:text-muted-foreground">-</span>
+  )
+}
+
+const ContractTypeCell = (info: CellContext<JobRequest, unknown>) => {
+  const value = info.getValue() as any
+  const contractTypeValue = value?.value
+  return contractTypeValue ? (
+    <span className="gba:text-sm gba:truncate gba:block" title={contractTypeValue}>
+      {contractTypeValue}
+    </span>
+  ) : (
+    <span className="gba:text-sm gba:text-muted-foreground">-</span>
+  )
+}
+
+const ExperienceLevelCell = (info: CellContext<JobRequest, unknown>) => {
+  const value = info.getValue() as any
+  const experienceLevelValue = value?.value
+  return experienceLevelValue ? (
+    <span className="gba:text-sm gba:truncate gba:block" title={experienceLevelValue}>
+      {experienceLevelValue}
+    </span>
+  ) : (
+    <span className="gba:text-sm gba:text-muted-foreground">-</span>
+  )
+}
+
+const DateCell = (info: CellContext<JobRequest, unknown>) => {
+  const value = info.getValue() as string
+  return value ? (
+    <div className="gba:text-sm">{new Date(value).toLocaleDateString()}</div>
+  ) : (
+    <span className="gba:text-sm gba:text-muted-foreground">-</span>
+  )
+}
+
+// Row actions component
+const JobRequestRowActions: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => {
+  return (
+    <AppAction
+      data-testid={`job-request-actions-${row.original.id}`}
+      variant="table-row"
+      contexts={[
+        {
+          context: FlowContextName.jobRequestEntity,
+          contextData: { jobRequestId: row.original.id }
+        }
+      ]}
+      shareContext={{
+        entityType: 'jobRequest',
+        entityId: row.original.id,
+        entityName: row.original.name || row.original.code,
+        entityUrl: buildPlatformUrl('/platform/hr/recruiting/job-request-record', {
+          jobRequestId: row.original.id
+        })
+      }}
+      prefixDataTestId="job-request-actions"
+      accessToken={accessToken}
+      lazyLoad
+      onClick={e => e.stopPropagation()}
+    />
+  )
+}
 
 export const JobRequestView: React.FC<JobRequestViewProps> = context => {
   const [search, setSearch] = useState('')
@@ -63,27 +159,7 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
 
   // Row actions
   const rowActions = useMemo(
-    () => (row: any) => (
-      <AppAction
-        data-testid={`job-request-actions-${row.original.id}`}
-        variant="table-row"
-        contexts={[
-          {
-            context: FlowContextName.jobRequestEntity,
-            contextData: { jobRequestId: row.original.id }
-          }
-        ]}
-        shareContext={{
-          entityType: 'jobRequest',
-          entityId: row.original.id,
-          entityName: row.original.name || row.original.code
-        }}
-        prefixDataTestId="job-request-actions"
-        accessToken={context.accessToken}
-        lazyLoad
-        onClick={e => e.stopPropagation()}
-      />
-    ),
+    () => (row: any) => <JobRequestRowActions row={row} accessToken={context.accessToken} />,
     [context.accessToken]
   )
 
@@ -91,111 +167,52 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
   const columns = useMemo<ColumnDef<JobRequest>[]>(
     () => [
       {
-        id: 'code',
-        accessorKey: 'code',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.code', 'Code'),
-        cell: info => <div className="gba:text-sm">{(info.getValue() as string) || '-'}</div>,
-        meta: { type: 'text' as const }
-      },
-      {
         id: 'name',
         accessorKey: 'name',
         header: getTranslationFromI18nKeyAndLabel('recruiting.name', 'Name'),
-        cell: info => <div className="gba:text-sm gba:font-medium">{(info.getValue() as string) || '-'}</div>,
+        cell: NameCell,
         meta: { type: 'text' as const }
       },
       {
         id: 'jobRequestType',
         accessorKey: 'jobRequestType',
         header: getTranslationFromI18nKeyAndLabel('recruiting.requestType', 'Request Type'),
-        cell: info => {
-          const value = info.getValue() as string
-          return value ? (
-            <Badge variant="outline" className="gba:text-xs">
-              {getJobRequestTypeLabel(value)}
-            </Badge>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
+        cell: JobRequestTypeCell,
         meta: { type: 'text' as const }
       },
       {
         id: 'jobRequestStatus',
         accessorKey: 'jobRequestStatus',
         header: getTranslationFromI18nKeyAndLabel('recruiting.status', 'Status'),
-        cell: info => {
-          const value = info.getValue() as string
-          return value ? (
-            <Badge variant="secondary" className="gba:text-xs">
-              {getJobRequestStatusLabel(value)}
-            </Badge>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
+        cell: JobRequestStatusCell,
         meta: { type: 'text' as const }
       },
       {
         id: 'contractType',
         accessorKey: 'contractType',
         header: getTranslationFromI18nKeyAndLabel('recruiting.contractType', 'Contract Type'),
-        cell: info => {
-          const value = info.getValue() as any
-          const contractTypeValue = value?.value
-          return contractTypeValue ? (
-            <span className="gba:text-sm gba:truncate gba:block" title={contractTypeValue}>
-              {contractTypeValue}
-            </span>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
+        cell: ContractTypeCell,
         meta: { type: 'text' as const }
       },
       {
         id: 'jobExperienceLevel',
         accessorKey: 'jobExperienceLevel',
         header: getTranslationFromI18nKeyAndLabel('recruiting.experienceLevel', 'Experience Level'),
-        cell: info => {
-          const value = info.getValue() as any
-          const experienceLevelValue = value?.value
-          return experienceLevelValue ? (
-            <span className="gba:text-sm gba:truncate gba:block" title={experienceLevelValue}>
-              {experienceLevelValue}
-            </span>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
+        cell: ExperienceLevelCell,
         meta: { type: 'text' as const }
       },
       {
         id: 'plannedHireDate',
         accessorKey: 'plannedHireDate',
         header: getTranslationFromI18nKeyAndLabel('recruiting.plannedHireDate', 'Planned Hire Date'),
-        cell: info => {
-          const value = info.getValue() as string
-          return value ? (
-            <div className="gba:text-sm">{new Date(value).toLocaleDateString()}</div>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
+        cell: DateCell,
         meta: { type: 'date' as const }
       },
       {
         id: 'plannedExitDate',
         accessorKey: 'plannedExitDate',
         header: getTranslationFromI18nKeyAndLabel('recruiting.plannedExitDate', 'Planned Exit Date'),
-        cell: info => {
-          const value = info.getValue() as string
-          return value ? (
-            <div className="gba:text-sm">{new Date(value).toLocaleDateString()}</div>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
+        cell: DateCell,
         meta: { type: 'date' as const }
       }
     ],

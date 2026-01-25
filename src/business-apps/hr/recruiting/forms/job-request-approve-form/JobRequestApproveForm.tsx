@@ -168,11 +168,11 @@ const JobRequestApproveForm: React.FC<JobRequestApproveFormProps> = ({ accessTok
         <div className="gba:space-y-4">
           <div className="gba:grid gba:grid-cols-2 gba:gap-4">
             <div>
-              <label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Name</label>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Name</div>
               <p className="gba:text-sm gba:mt-1">{getValue(jobRequest.name)}</p>
             </div>
             <div>
-              <label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Code</label>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Code</div>
               <p className="gba:text-sm gba:mt-1">{getValue(jobRequest.code)}</p>
             </div>
           </div>
@@ -184,7 +184,7 @@ const JobRequestApproveForm: React.FC<JobRequestApproveFormProps> = ({ accessTok
 
           <div className="gba:grid gba:grid-cols-3 gba:gap-4">
             <div>
-              <label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Type</label>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Type</div>
               <p className="gba:text-sm gba:mt-1">
                 {jobRequest.jobRequestType ? getJobRequestTypeLabel(jobRequest.jobRequestType) : '-'}
               </p>
@@ -240,7 +240,7 @@ const JobRequestApproveForm: React.FC<JobRequestApproveFormProps> = ({ accessTok
 
           <div className="gba:grid gba:grid-cols-3 gba:gap-4">
             <div>
-              <label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Contract Type</label>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Contract Type</div>
               <p className="gba:text-sm gba:mt-1">{getCatalogLabel(jobRequest.contractType)}</p>
             </div>
             <div>
@@ -248,14 +248,14 @@ const JobRequestApproveForm: React.FC<JobRequestApproveFormProps> = ({ accessTok
               <p className="gba:text-sm gba:mt-1">{getCatalogLabel(jobRequest.employmentType)}</p>
             </div>
             <div>
-              <label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Experience Level</label>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Experience Level</div>
               <p className="gba:text-sm gba:mt-1">{getCatalogLabel(jobRequest.jobExperienceLevel)}</p>
             </div>
           </div>
 
           <div className="gba:grid gba:grid-cols-3 gba:gap-4">
             <div>
-              <label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Company</label>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Company</div>
               <p className="gba:text-sm gba:mt-1">{jobRequest.company?.name || getValue(jobRequest.companyId)}</p>
             </div>
             <div>
@@ -263,7 +263,7 @@ const JobRequestApproveForm: React.FC<JobRequestApproveFormProps> = ({ accessTok
               <p className="gba:text-sm gba:mt-1">{jobRequest.costCenter?.name || getValue(jobRequest.costCenterId)}</p>
             </div>
             <div>
-              <label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Site Location</label>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Site Location</div>
               <p className="gba:text-sm gba:mt-1">
                 {jobRequest.siteLocation?.name || getValue(jobRequest.siteLocationId)}
               </p>
@@ -278,7 +278,7 @@ const JobRequestApproveForm: React.FC<JobRequestApproveFormProps> = ({ accessTok
               </p>
             </div>
             <div>
-              <label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Planned Exit Date</label>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Planned Exit Date</div>
               <p className="gba:text-sm gba:mt-1">
                 {jobRequest.plannedExitDate ? new Date(jobRequest.plannedExitDate).toLocaleDateString() : '-'}
               </p>

@@ -67,7 +67,10 @@ const JobPostingSelect: React.FC<JobPostingSelectProps> = ({
       <SelectTrigger data-testid={dataTestId}>
         <SelectValue placeholder={loading ? 'Loading...' : placeholder}>
           {selectedPosting
-            ? `${selectedPosting.title}${selectedPosting.code ? ` (${selectedPosting.code})` : ''}`
+            ? (() => {
+                const codePart = selectedPosting.code ? ` (${selectedPosting.code})` : ''
+                return `${selectedPosting.title}${codePart}`
+              })()
             : null}
         </SelectValue>
       </SelectTrigger>

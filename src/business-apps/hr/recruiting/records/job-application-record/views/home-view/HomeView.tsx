@@ -6,7 +6,6 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { JobApplication } from '@/common/data/recruiting/types/jobApplicationTypes'
 
 interface HomeViewProps extends BusinessAppContextProps {
-  jobApplicationId: string
   jobApplication: JobApplication | null
 }
 

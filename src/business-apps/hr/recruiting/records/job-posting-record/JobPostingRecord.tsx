@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback } from 'react'
-import { Spinner, RecordLayout } from '@newwork/nw-design-system'
+import { Spinner, RecordLayout, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
 import { Briefcase, MapPin, FileText, Home as HomeIcon, Users } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -136,20 +136,26 @@ const JobPostingRecordContent: React.FC<JobPostingRecordContentProps> = ({ jobPo
   return (
     <RecordLayout
       headerOrientation="horizontal"
-      headerIcon={Briefcase}
-      headerCategory={getTranslationFromI18nKeyAndLabel('recruiting.jobPosting', 'Job Posting')}
+      headerAvatar={<IconAvatar icon={Briefcase} variant="decorative" size="xl" />}
+      headerOverline={getTranslationFromI18nKeyAndLabel('recruiting.jobPosting', 'Job Posting')}
       onBack={onBack}
       headerTitle={jobPostingName}
-      headerDetailGroups={headerDetailGroups}
+      headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
       headerActionButton={headerActionButton}
-      subViews={subViewsConfig}
+      views={subViewsConfig.items}
+      defaultView={subViewsConfig.defaultValue}
+      onViewChange={subViewsConfig.onValueChange}
     />
   )
 }
 
 // Wrapper component to handle ID extraction and navigation
 const JobPostingRecord: React.FC<BusinessAppContextProps> = ({ additionalData = {}, ...props }) => {
-  const jobPostingId = additionalData.jobPostingId || new URLSearchParams(window.location.search).get('jobPostingId')
+  const jobPostingId =
+    additionalData.jobPostingId ||
+    (typeof globalThis !== 'undefined' && globalThis.location
+      ? new URLSearchParams(globalThis.location.search).get('jobPostingId')
+      : null)
 
   const handleBack = () => {
     const url = buildPlatformUrl('/platform/hr/recruiting/recruiting-manager', {

@@ -7,7 +7,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobPosting } from '@/common/data/recruiting/hooks/useJobPosting'
 import { useJobRequest } from '@/common/data/recruiting/hooks/useJobRequest'
 import { useJobRequests } from '@/common/data/recruiting/hooks/useJobRequests'
-import { useJobPositions } from '@/common/data/employee/hooks/useJobPositions'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { buildJobPostingPayload } from '@/common/data/recruiting/payloads/jobPostingPayloads'
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
@@ -26,14 +25,15 @@ import {
   FormMessage,
   Combobox,
   Button,
-  Input,
-  Badge,
-  Spinner
+  Input
 } from '@newwork/nw-design-system'
 import { FileText, Upload, X, Plus, Trash2 } from 'lucide-react'
-import { JobRequestStatus } from '@/common/data/recruiting/types/enums'
+import {
+  JobRequestStatus,
+  getJobRequestTypeLabel,
+  getJobRequestStatusLabel
+} from '@/common/data/recruiting/types/enums'
 import type { JobRequest } from '@/common/data/recruiting/types/jobRequestTypes'
-import { getJobRequestTypeLabel, getJobRequestStatusLabel } from '@/common/data/recruiting/types/enums'
 
 interface JobPostingPublication {
   id?: string
@@ -265,57 +265,20 @@ const JobPostingForm: React.FC<JobPostingFormProps> = ({ accessToken, userInfo, 
   const [publications, setPublications] = useState<JobPostingPublication[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Extract jobPosition IDs from jobPostingPositions
-  const jobPositionIds = useMemo(() => {
-    if (!jobPosting?.jobPostingPositions) return []
+  // Get current job request (selected or fetched)
+  const currentJobRequest = selectedJobRequest || jobRequest
 
-    const positions = Array.isArray(jobPosting.jobPostingPositions)
-      ? jobPosting.jobPostingPositions
-      : jobPosting.jobPostingPositions.positions || []
+  // Extract job positions from jobRequestPositions (already loaded in jobRequest query)
+  const jobPositions = useMemo(() => {
+    if (!currentJobRequest?.jobRequestPositions) return []
 
-    return positions.map((pos: any) => pos.jobPositionId || pos.id).filter(Boolean)
-  }, [jobPosting])
+    const positions = Array.isArray(currentJobRequest.jobRequestPositions)
+      ? currentJobRequest.jobRequestPositions
+      : currentJobRequest.jobRequestPositions.positions || []
 
-  // Fetch full JobPosition details
-  const {
-    jobPositions: jobPositionDetails,
-    loading: loadingPositions,
-    error: positionsError
-  } = useJobPositions(
-    accessToken || '',
-    { ids: jobPositionIds, limit: 100 },
-    'record' // Load all fields including relations
-  )
-
-  // Group identical job positions
-  const groupedPositions = useMemo(() => {
-    if (!jobPositionDetails || jobPositionDetails.length === 0) return []
-
-    // Group by identical attributes
-    const groups = new Map<string, { position: any; count: number; ids: string[] }>()
-
-    jobPositionDetails.forEach(pos => {
-      // Create a unique key based on all relevant attributes
-      const key = JSON.stringify({
-        name: pos.name,
-        contractType: pos.contractType?.value || '',
-        employmentType: pos.employmentType?.value || '',
-        jobProfile: pos.jobProfile?.name || '',
-        jobFunction: pos.jobFunction?.name || '',
-        jobLevel: pos.jobLevel?.name || ''
-      })
-
-      if (groups.has(key)) {
-        const existing = groups.get(key)!
-        existing.count++
-        existing.ids.push(pos.id)
-      } else {
-        groups.set(key, { position: pos, count: 1, ids: [pos.id] })
-      }
-    })
-
-    return Array.from(groups.values())
-  }, [jobPositionDetails])
+    // Extract jobPosition from each jobRequestPosition
+    return positions.map((jobRequestPosition: any) => jobRequestPosition.jobPosition).filter((pos: any) => pos != null)
+  }, [currentJobRequest])
 
   const jobPostingRef = useRef(jobPosting)
   const jobRequestRef = useRef(jobRequest)
@@ -566,8 +529,8 @@ const JobPostingForm: React.FC<JobPostingFormProps> = ({ accessToken, userInfo, 
                 return (
                   <div className="gba:space-y-2">
                     <div className="gba:flex gba:flex-wrap gba:gap-x-4 gba:gap-y-2 gba:text-sm">
-                      {infoItems.map((item, index) => (
-                        <div key={index} className="gba:flex gba:items-center gba:gap-1">
+                      {infoItems.map(item => (
+                        <div key={item.label} className="gba:flex gba:items-center gba:gap-1">
                           <span className="gba:text-muted-foreground">{item.label}:</span>
                           <span className="gba:font-medium">{item.value}</span>
                         </div>
@@ -577,17 +540,21 @@ const JobPostingForm: React.FC<JobPostingFormProps> = ({ accessToken, userInfo, 
                 )
               })()}
 
-            {/* Job Posting Positions - Read-only list */}
+            {/* Job Positions - Read-only list */}
             {contextJobPosting?.jobPostingPositions && contextJobPosting.jobPostingPositions.length > 0 && (
               <div className="gba:space-y-2">
-                <label className="gba:text-sm gba:font-medium">Job Posting Positions</label>
+                <div className="gba:text-sm gba:font-medium">Job Positions</div>
                 <div className="gba:border gba:border-border gba:rounded-md gba:p-3">
                   <ul className="gba:space-y-1">
-                    {contextJobPosting.jobPostingPositions.map((position: any, index: number) => (
-                      <li key={index} className="gba:text-sm">
-                        {position.jobPosition?.name || position.jobPositionId || `Position ${index + 1}`}
-                      </li>
-                    ))}
+                    {contextJobPosting.jobPostingPositions.map((position: any, index: number) => {
+                      const positionKey =
+                        position.jobPositionId || position.id || position.jobPosition?.id || `position-${index}`
+                      return (
+                        <li key={positionKey} className="gba:text-sm">
+                          {position.jobPosition?.name || position.jobPositionId || `Position ${index + 1}`}
+                        </li>
+                      )
+                    })}
                   </ul>
                 </div>
               </div>
@@ -648,72 +615,27 @@ const JobPostingForm: React.FC<JobPostingFormProps> = ({ accessToken, userInfo, 
               )}
             />
 
-            {/* Job Posting Positions - Read-only Display with Grouping */}
-            {(loadingPositions || groupedPositions.length > 0 || positionsError) && (
+            {/* Job Positions - Read-only Display (only when job request is selected) */}
+            {currentJobRequest && jobPositions.length > 0 && (
               <div className="gba:space-y-3 gba:p-4 gba:border gba:border-border gba:rounded-md gba:bg-muted/30">
                 <FormLabel>
-                  Job Posting Positions{' '}
-                  {!loadingPositions && groupedPositions.length > 0 && (
-                    <span className="gba:text-muted-foreground gba:font-normal">
-                      ({jobPositionDetails.length} total, {groupedPositions.length} unique)
-                    </span>
-                  )}
+                  Job Positions{' '}
+                  <span className="gba:text-muted-foreground gba:font-normal">({jobPositions.length})</span>
                 </FormLabel>
 
-                {loadingPositions && (
-                  <div className="gba:flex gba:items-center gba:justify-center gba:p-4">
-                    <Spinner size="sm" />
-                    <span className="gba:ml-2 gba:text-sm gba:text-muted-foreground">Loading positions...</span>
-                  </div>
-                )}
-
-                {positionsError && !loadingPositions && (
-                  <div className="gba:p-3 gba:bg-destructive-secondary gba:text-destructive-secondary-foreground gba:rounded-md gba:text-sm">
-                    {positionsError}
-                  </div>
-                )}
-
-                {!loadingPositions && !positionsError && groupedPositions.length > 0 && (
-                  <div className="gba:space-y-2">
-                    {groupedPositions.map((group, index) => (
+                <div className="gba:space-y-2">
+                  {jobPositions.map((position: any, index: number) => {
+                    const positionKey = position.id || `position-${index}`
+                    return (
                       <div
-                        key={index}
+                        key={positionKey}
                         className="gba:p-3 gba:bg-background gba:rounded-md gba:border gba:border-border"
                       >
-                        <div className="gba:flex gba:items-start gba:justify-between gba:mb-2">
-                          <div className="gba:text-sm gba:font-semibold">{group.position.name || '-'}</div>
-                          {group.count > 1 && (
-                            <Badge variant="secondary" className="gba:ml-2">
-                              {group.count}x
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="gba:grid gba:grid-cols-2 gba:gap-3 gba:text-sm">
-                          <div>
-                            <span className="gba:font-medium">Employment Type:</span>{' '}
-                            <span className="gba:text-muted-foreground">
-                              {group.position.employmentType?.value || '-'}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="gba:font-medium">Contract Type:</span>{' '}
-                            <span className="gba:text-muted-foreground">
-                              {group.position.contractType?.value || '-'}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="gba:font-medium">Job Profile:</span>{' '}
-                            <span className="gba:text-muted-foreground">{group.position.jobProfile?.name || '-'}</span>
-                          </div>
-                          <div>
-                            <span className="gba:font-medium">Job Function:</span>{' '}
-                            <span className="gba:text-muted-foreground">{group.position.jobFunction?.name || '-'}</span>
-                          </div>
-                        </div>
+                        <div className="gba:text-sm gba:font-semibold">{position.name || '-'}</div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    )
+                  })}
+                </div>
               </div>
             )}
 
@@ -735,50 +657,53 @@ const JobPostingForm: React.FC<JobPostingFormProps> = ({ accessToken, userInfo, 
 
               {publications.length > 0 && (
                 <div className="gba:space-y-3">
-                  {publications.map((publication, index) => (
-                    <div
-                      key={index}
-                      className="gba:flex gba:items-start gba:gap-3 gba:p-3 gba:border gba:border-border gba:rounded-md"
-                    >
-                      <div className="gba:flex-1 gba:grid gba:grid-cols-2 gba:gap-3">
-                        <div>
-                          <FormLabel className="gba:text-xs gba:mb-1">Channel</FormLabel>
-                          <CatalogSelect
-                            catalogIdentifier={RECRUITING_CATALOGS.JOB_POSTING_CHANNEL}
-                            value={publication.jobPostingChannelRef || null}
-                            onValueChange={(v: string | string[]) =>
-                              handlePublicationChange(
-                                index,
-                                'jobPostingChannelRef',
-                                Array.isArray(v) ? v[0] || '' : v || ''
-                              )
-                            }
-                            data-testid={formatDataTestId('job-posting-form', `publication-${index}-channel-select`)}
-                          />
-                        </div>
-                        <div>
-                          <FormLabel className="gba:text-xs gba:mb-1">URL</FormLabel>
-                          <Input
-                            type="url"
-                            value={publication.url || ''}
-                            onChange={e => handlePublicationChange(index, 'url', e.target.value)}
-                            placeholder="https://..."
-                            data-testid={formatDataTestId('job-posting-form', `publication-${index}-url-input`)}
-                          />
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemovePublication(index)}
-                        className="gba:mt-6"
-                        data-testid={formatDataTestId('job-posting-form', `publication-${index}-remove-button`)}
+                  {publications.map((publication, index) => {
+                    const publicationKey = publication.id || `publication-${publication.jobPostingChannelRef || index}`
+                    return (
+                      <div
+                        key={publicationKey}
+                        className="gba:flex gba:items-start gba:gap-3 gba:p-3 gba:border gba:border-border gba:rounded-md"
                       >
-                        <Trash2 className="gba:h-4 gba:w-4 gba:text-destructive" />
-                      </Button>
-                    </div>
-                  ))}
+                        <div className="gba:flex-1 gba:grid gba:grid-cols-2 gba:gap-3">
+                          <div>
+                            <FormLabel className="gba:text-xs gba:mb-1">Channel</FormLabel>
+                            <CatalogSelect
+                              catalogIdentifier={RECRUITING_CATALOGS.JOB_POSTING_CHANNEL}
+                              value={publication.jobPostingChannelRef || null}
+                              onValueChange={(v: string | string[]) =>
+                                handlePublicationChange(
+                                  index,
+                                  'jobPostingChannelRef',
+                                  Array.isArray(v) ? v[0] || '' : v || ''
+                                )
+                              }
+                              data-testid={formatDataTestId('job-posting-form', `publication-${index}-channel-select`)}
+                            />
+                          </div>
+                          <div>
+                            <FormLabel className="gba:text-xs gba:mb-1">URL</FormLabel>
+                            <Input
+                              type="url"
+                              value={publication.url || ''}
+                              onChange={e => handlePublicationChange(index, 'url', e.target.value)}
+                              placeholder="https://..."
+                              data-testid={formatDataTestId('job-posting-form', `publication-${index}-url-input`)}
+                            />
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemovePublication(index)}
+                          className="gba:mt-6"
+                          data-testid={formatDataTestId('job-posting-form', `publication-${index}-remove-button`)}
+                        >
+                          <Trash2 className="gba:h-4 gba:w-4 gba:text-destructive" />
+                        </Button>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>

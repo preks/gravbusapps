@@ -48,44 +48,7 @@ export function useJobPostings(
       try {
         const fields: string[] =
           typeof config === 'string' ? JOB_POSTING_QUERY_CONFIGS[config] || JOB_POSTING_QUERY_CONFIGS.list : config
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/1d1d96ce-1896-4db3-b2fa-faa680c1d2c5', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'useJobPostings.ts:50',
-            message: 'Fields config check',
-            data: {
-              config: typeof config === 'string' ? config : 'custom',
-              fields,
-              hasJobApplications: fields.includes('jobApplications')
-            },
-            timestamp: Date.now(),
-            sessionId: 'debug-session',
-            runId: 'run1',
-            hypothesisId: 'D'
-          })
-        }).catch(() => {})
-        // #endregion
         const fragment = buildJobPostingFragment(fields)
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/1d1d96ce-1896-4db3-b2fa-faa680c1d2c5', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'useJobPostings.ts:52',
-            message: 'Fragment built',
-            data: {
-              fragmentLength: fragment.length,
-              fragmentContainsJobApplications: fragment.includes('jobApplications')
-            },
-            timestamp: Date.now(),
-            sessionId: 'debug-session',
-            runId: 'run1',
-            hypothesisId: 'D'
-          })
-        }).catch(() => {})
-        // #endregion
         const whereObj = buildWhere({
           variables: vars,
           descriptors: JOB_POSTING_DESCRIPTORS,
@@ -108,62 +71,12 @@ export function useJobPostings(
           JobPostingAggregate: { aggregate: { count: number } }
         }>(query, { limit, offset, where: whereObj, orderBy: orderByArray })
 
-        // #region agent log
-        const allPostingsWithApps = (result.JobPosting || []).filter(
-          (p: any) => p.jobApplications && p.jobApplications.length > 0
-        )
-        const postingWithApps = allPostingsWithApps[0]
-        fetch('http://127.0.0.1:7242/ingest/1d1d96ce-1896-4db3-b2fa-faa680c1d2c5', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'useJobPostings.ts:72',
-            message: 'GraphQL result received',
-            data: {
-              postingCount: result.JobPosting?.length || 0,
-              postingsWithApplications: allPostingsWithApps.length,
-              postingWithAppsId: postingWithApps?.id,
-              postingWithAppsApplicationsCount: postingWithApps?.jobApplications?.length || 0,
-              postingWithAppsApplicationsType: typeof postingWithApps?.jobApplications,
-              postingWithAppsApplicationsIsArray: Array.isArray(postingWithApps?.jobApplications),
-              postingWithAppsFirstAppId: postingWithApps?.jobApplications?.[0]?.id
-            },
-            timestamp: Date.now(),
-            sessionId: 'debug-session',
-            runId: 'run1',
-            hypothesisId: 'D'
-          })
-        }).catch(() => {})
-        // #endregion
-
         // Map aggregate counts to top-level fields
         const mappedJobPostings = (result.JobPosting || []).map((posting: any) => ({
           ...posting,
           applicationCount: posting.jobApplicationsAggregate?.aggregate?.count || 0,
           positionCount: posting.jobPostingPositionsAggregate?.aggregate?.count || 0
         }))
-
-        // #region agent log
-        const mappedPostingWithApps = mappedJobPostings.find((p: any) => p.id === postingWithApps?.id)
-        fetch('http://127.0.0.1:7242/ingest/1d1d96ce-1896-4db3-b2fa-faa680c1d2c5', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            location: 'useJobPostings.ts:79',
-            message: 'After mapping - check jobApplications',
-            data: {
-              mappedPostingWithAppsId: mappedPostingWithApps?.id,
-              mappedPostingWithAppsHasApplications: !!mappedPostingWithApps?.jobApplications,
-              mappedPostingWithAppsApplicationsLength: mappedPostingWithApps?.jobApplications?.length || 0,
-              mappedPostingWithAppsApplicationsType: typeof mappedPostingWithApps?.jobApplications
-            },
-            timestamp: Date.now(),
-            sessionId: 'debug-session',
-            runId: 'run1',
-            hypothesisId: 'A'
-          })
-        }).catch(() => {})
-        // #endregion
 
         setState({
           jobPostings: mappedJobPostings as JobPosting[],

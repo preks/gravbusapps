@@ -438,7 +438,7 @@ const JobRequestSubmitForm: React.FC<JobRequestSubmitFormProps> = ({ accessToken
                       min={1}
                       {...field}
                       value={field.value || 1}
-                      onChange={e => field.onChange(e.target.value ? parseInt(e.target.value, 10) : 1)}
+                      onChange={e => field.onChange(e.target.value ? Number.parseInt(e.target.value, 10) : 1)}
                       data-testid={formatDataTestId('job-request-submit-form', 'amount-input')}
                     />
                   </FormControl>

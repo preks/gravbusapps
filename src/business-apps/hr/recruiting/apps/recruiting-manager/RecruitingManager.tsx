@@ -38,7 +38,7 @@ export const RecruitingManager: React.FC<RecruitingManagerProps> = context => {
   ]
 
   const getInitialView = () => {
-    const urlParams = new URLSearchParams(window.location.search)
+    const urlParams = new URLSearchParams(globalThis.location.search)
     const viewFromUrl = urlParams.get('view')
     if (viewFromUrl && viewOptions.some(option => option.key === viewFromUrl)) {
       return viewFromUrl
@@ -50,9 +50,9 @@ export const RecruitingManager: React.FC<RecruitingManagerProps> = context => {
 
   const handleViewChange = (view: string) => {
     setActiveView(view)
-    const currentUrl = new URL(window.location.href)
+    const currentUrl = new URL(globalThis.location.href)
     currentUrl.searchParams.set('view', view)
-    window.history.pushState({}, '', currentUrl.toString())
+    globalThis.history.pushState({}, '', currentUrl.toString())
   }
 
   const renderViewContent = () => {

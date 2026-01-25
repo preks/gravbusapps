@@ -10,7 +10,6 @@ export interface JobApplicationFeedbackDeletePopupProps extends BusinessAppConte
   onClose: () => void
 
   onSuccess?: () => void
-  onError?: (error: any) => void
 
   'data-testid'?: string
 }

@@ -23,7 +23,7 @@ import {
   Textarea
 } from '@newwork/nw-design-system'
 import { useEmployeeByUserId } from '@/common/data/employee/hooks/useEmployeeByUserId'
-import { ArrowsClockwise } from '@phosphor-icons/react'
+import { ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { JobCandidateDocumentUpload, type DocumentUploadItem } from './components/JobCandidateDocumentUpload'
 import { fileClient } from '@/common/network/files/FileClient'
 
@@ -280,7 +280,7 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
                   disabled={employeeLoading}
                   data-testid={formatDataTestId('job-candidate-form', 'reload-from-employee-button')}
                 >
-                  <ArrowsClockwise size={16} className="gba:mr-2" />
+                  <ArrowsClockwiseIcon size={16} className="gba:mr-2" />
                   Reload from Employee
                 </Button>
               </div>
@@ -451,7 +451,7 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
                       <Input
                         type="number"
                         {...field}
-                        onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
+                        onChange={e => field.onChange(e.target.value ? Number.parseInt(e.target.value, 10) : null)}
                         data-testid={formatDataTestId('job-candidate-form', 'children-input')}
                       />
                     </FormControl>

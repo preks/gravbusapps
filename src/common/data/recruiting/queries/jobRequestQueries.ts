@@ -7,7 +7,6 @@ import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFrag
 import { JobRequestFields } from '../types/jobRequestTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
 import { buildJobPostingFragment, JOB_POSTING_QUERY_CONFIGS } from './jobPostingQueries'
-import { buildJobPostingPositionFragment, JOB_POSTING_POSITION_QUERY_CONFIGS } from './jobPostingPositionQueries'
 
 /**
  * JobRequest Query Variables
@@ -197,6 +196,22 @@ const buildEntityReferenceField = (
 }
 
 /**
+ * Build JobRequestPosition fragment (JobRequestPosition has jobPositionId and jobRequestId, NOT jobPostingId)
+ */
+const buildJobRequestPositionFragment = (): string => {
+  return `
+    ${AUDIT_FIELDS}
+    id
+    jobPositionId
+    jobRequestId
+    jobPosition {
+      id
+      name
+    }
+  `
+}
+
+/**
  * Build array relation field fragment
  */
 const buildArrayRelationField = (fieldSet: Set<string>, fieldName: string, relationFragment: string): string => {
@@ -216,7 +231,7 @@ const buildArrayRelationField = (fieldSet: Set<string>, fieldName: string, relat
 export const buildJobRequestFragment = (fields: string[]): string => {
   const fieldSet = new Set(fields)
   const postingFragment = buildJobPostingFragment(JOB_POSTING_QUERY_CONFIGS.list)
-  const positionFragment = buildJobPostingPositionFragment(JOB_POSTING_POSITION_QUERY_CONFIGS.list)
+  const positionFragment = buildJobRequestPositionFragment()
 
   return `
     ${AUDIT_FIELDS}

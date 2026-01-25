@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobPostings } from '@/common/data/recruiting/hooks/useJobPostings'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { DataDisplay, DataTable, Avatar, AvatarFallback, Badge } from '@newwork/nw-design-system'
-import type { ColumnDef, PaginationState, SortingState, ExpandedState } from '@tanstack/react-table'
+import type { ColumnDef, PaginationState, SortingState, ExpandedState, CellContext } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -13,36 +13,108 @@ import type { JobApplication } from '@/common/data/recruiting/types/jobApplicati
 
 export type JobPostingViewProps = BusinessAppContextProps
 
+// Cell Components
+const ApplicationDateCell: React.FC<{ value: string }> = ({ value }) => {
+  return value ? (
+    <div className="gba:text-sm">{new Date(value).toLocaleDateString()}</div>
+  ) : (
+    <span className="gba:text-sm gba:text-muted-foreground">-</span>
+  )
+}
+
+const ApplicationStageCell: React.FC<{ value: string }> = ({ value }) => {
+  return value && value !== '-' ? (
+    <Badge variant="secondary" className="gba:text-xs">
+      {value}
+    </Badge>
+  ) : (
+    <span className="gba:text-sm gba:text-muted-foreground">-</span>
+  )
+}
+
+const TitleCell = (info: CellContext<JobPosting, unknown>) => (
+  <div className="gba:text-sm gba:font-medium">{(info.getValue() as string) || '-'}</div>
+)
+
+const CountCell = (info: CellContext<JobPosting, unknown>) => (
+  <div className="gba:text-sm gba:text-center">{(info.getValue() as number) || 0}</div>
+)
+
+const CreatedDateCell = (info: CellContext<JobPosting, unknown>) => {
+  const value = info.getValue() as string
+  if (!value) return <span className="gba:text-sm gba:text-muted-foreground">-</span>
+  const date = new Date(value)
+  return <div className="gba:text-sm">{date.toLocaleDateString()}</div>
+}
+
+// Row actions component
+const JobPostingRowActions: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => {
+  return (
+    <AppAction
+      data-testid={`job-posting-actions-${row.original.id}`}
+      variant="table-row"
+      contexts={[
+        {
+          context: FlowContextName.jobPostingEntity,
+          contextData: { jobPostingId: row.original.id }
+        }
+      ]}
+      shareContext={{
+        entityType: 'jobPosting',
+        entityId: row.original.id,
+        entityName: row.original.title || 'Job Posting',
+        entityUrl: buildPlatformUrl('/platform/hr/recruiting/job-posting-record', {
+          jobPostingId: row.original.id
+        })
+      }}
+      prefixDataTestId="job-posting-actions"
+      accessToken={accessToken}
+      lazyLoad
+      onClick={e => e.stopPropagation()}
+    />
+  )
+}
+
+// Component for candidate link in application table
+const CandidateLinkCell: React.FC<{
+  application: JobApplication
+  onCandidateClick: (jobCandidateId: string) => void
+  getInitials: (firstName: string, lastName: string) => string
+}> = ({ application, onCandidateClick, getInitials }) => {
+  const candidate = application.jobCandidate
+  if (!candidate) return <span className="gba:text-sm gba:text-muted-foreground">-</span>
+
+  return (
+    <button
+      onClick={e => {
+        e.stopPropagation()
+        if (candidate.id) {
+          onCandidateClick(candidate.id)
+        }
+      }}
+      className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer hover:gba:opacity-80 gba:transition-opacity gba:text-left gba:w-full"
+      data-testid={`candidate-link-${candidate.id}`}
+    >
+      <Avatar className="gba:h-8 gba:w-8">
+        <AvatarFallback className="gba:text-xs">{getInitials(candidate.firstName, candidate.lastName)}</AvatarFallback>
+      </Avatar>
+      <div className="gba:flex gba:flex-col">
+        <span className="gba:text-sm gba:font-medium gba:text-primary hover:gba:underline">
+          {candidate.firstName} {candidate.lastName}
+        </span>
+        {candidate.code && <span className="gba:text-xs gba:text-muted-foreground">{candidate.code}</span>}
+      </div>
+    </button>
+  )
+}
+
 // Component to render expanded row content for applications
 const ExpandedApplicationsContent: React.FC<{
   posting: JobPosting
-  accessToken: string
   applicationColumns: ColumnDef<JobApplication>[]
 }> = ({ posting, applicationColumns }) => {
   const postingId = posting.id || ''
   const jobApplications = posting.jobApplications || []
-
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/1d1d96ce-1896-4db3-b2fa-faa680c1d2c5', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      location: 'JobPostingView.tsx:24',
-      message: 'ExpandedApplicationsContent received posting',
-      data: {
-        postingId,
-        hasJobApplications: !!posting.jobApplications,
-        jobApplicationsLength: jobApplications.length,
-        jobApplicationsType: typeof posting.jobApplications,
-        postingKeys: Object.keys(posting)
-      },
-      timestamp: Date.now(),
-      sessionId: 'debug-session',
-      runId: 'run1',
-      hypothesisId: 'C'
-    })
-  }).catch(() => {})
-  // #endregion
 
   if (jobApplications.length === 0) {
     return (
@@ -119,22 +191,6 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
 
   // Handle expanded state change
   const handleExpandedChange = useCallback((expanded: ExpandedState) => {
-    // #region agent log
-    const expandedKeys = Object.keys(expanded)
-    fetch('http://127.0.0.1:7242/ingest/1d1d96ce-1896-4db3-b2fa-faa680c1d2c5', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        location: 'JobPostingView.tsx:104',
-        message: 'Expanded state changed',
-        data: { expandedKeys, expandedCount: expandedKeys.length },
-        timestamp: Date.now(),
-        sessionId: 'debug-session',
-        runId: 'run1',
-        hypothesisId: 'B'
-      })
-    }).catch(() => {})
-    // #endregion
     setExpandedRows(expanded)
   }, [])
 
@@ -183,29 +239,8 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
     [context.accessToken]
   )
 
-  // Row actions
   const rowActions = useMemo(
-    () => (row: any) => (
-      <AppAction
-        data-testid={`job-posting-actions-${row.original.id}`}
-        variant="table-row"
-        contexts={[
-          {
-            context: FlowContextName.jobPostingEntity,
-            contextData: { jobPostingId: row.original.id }
-          }
-        ]}
-        shareContext={{
-          entityType: 'jobPosting',
-          entityId: row.original.id,
-          entityName: row.original.title
-        }}
-        prefixDataTestId="job-posting-actions"
-        accessToken={context.accessToken}
-        lazyLoad
-        onClick={e => e.stopPropagation()}
-      />
-    ),
+    () => (row: any) => <JobPostingRowActions row={row} accessToken={context.accessToken} />,
     [context.accessToken]
   )
 
@@ -220,66 +255,27 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
           return `${candidate.firstName || ''} ${candidate.lastName || ''}`.trim() || '-'
         },
         header: getTranslationFromI18nKeyAndLabel('recruiting.candidate', 'Candidate'),
-        cell: info => {
-          const application = info.row.original
-          const candidate = application.jobCandidate
-          if (!candidate) return <span className="gba:text-sm gba:text-muted-foreground">-</span>
-
-          return (
-            <button
-              onClick={e => {
-                e.stopPropagation()
-                if (candidate.id) {
-                  handleCandidateClick(candidate.id)
-                }
-              }}
-              className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer hover:gba:opacity-80 gba:transition-opacity gba:text-left gba:w-full"
-              data-testid={`candidate-link-${candidate.id}`}
-            >
-              <Avatar className="gba:h-8 gba:w-8">
-                <AvatarFallback className="gba:text-xs">
-                  {getInitials(candidate.firstName, candidate.lastName)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="gba:flex gba:flex-col">
-                <span className="gba:text-sm gba:font-medium gba:text-primary hover:gba:underline">
-                  {candidate.firstName} {candidate.lastName}
-                </span>
-                {candidate.code && <span className="gba:text-xs gba:text-muted-foreground">{candidate.code}</span>}
-              </div>
-            </button>
-          )
-        },
+        cell: info => (
+          <CandidateLinkCell
+            application={info.row.original}
+            onCandidateClick={handleCandidateClick}
+            getInitials={getInitials}
+          />
+        ),
         meta: { type: 'text' as const }
       },
       {
         id: 'applicationDate',
         accessorKey: 'applicationDate',
         header: getTranslationFromI18nKeyAndLabel('recruiting.applicationDate', 'Application Date'),
-        cell: info => {
-          const value = info.getValue() as string
-          return value ? (
-            <div className="gba:text-sm">{new Date(value).toLocaleDateString()}</div>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
+        cell: info => <ApplicationDateCell value={info.getValue() as string} />,
         meta: { type: 'date' as const }
       },
       {
         id: 'jobApplicationStage',
         accessorFn: row => row.jobApplicationStage?.value || row.jobApplicationStageRef || '-',
         header: getTranslationFromI18nKeyAndLabel('recruiting.jobApplicationStage', 'Current Stage'),
-        cell: info => {
-          const value = info.getValue() as string
-          return value && value !== '-' ? (
-            <Badge variant="secondary" className="gba:text-xs">
-              {value}
-            </Badge>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
+        cell: info => <ApplicationStageCell value={info.getValue() as string} />,
         meta: { type: 'text' as const }
       }
     ],
@@ -293,33 +289,28 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
         id: 'title',
         accessorKey: 'title',
         header: getTranslationFromI18nKeyAndLabel('recruiting.title', 'Job Title'),
-        cell: info => <div className="gba:text-sm gba:font-medium">{(info.getValue() as string) || '-'}</div>,
+        cell: TitleCell,
         meta: { type: 'text' as const }
       },
       {
         id: 'applicationCount',
         accessorKey: 'applicationCount',
         header: getTranslationFromI18nKeyAndLabel('recruiting.applications', 'Applications'),
-        cell: info => <div className="gba:text-sm gba:text-center">{(info.getValue() as number) || 0}</div>,
+        cell: CountCell,
         meta: { type: 'number' as const }
       },
       {
         id: 'positionCount',
         accessorKey: 'positionCount',
         header: getTranslationFromI18nKeyAndLabel('recruiting.positions', 'Positions'),
-        cell: info => <div className="gba:text-sm gba:text-center">{(info.getValue() as number) || 0}</div>,
+        cell: CountCell,
         meta: { type: 'number' as const }
       },
       {
         id: 'createdAt',
         accessorKey: 'createdAt',
         header: getTranslationFromI18nKeyAndLabel('recruiting.postedDate', 'Posted Date'),
-        cell: info => {
-          const value = info.getValue() as string
-          if (!value) return <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          const date = new Date(value)
-          return <div className="gba:text-sm">{date.toLocaleDateString()}</div>
-        },
+        cell: CreatedDateCell,
         meta: { type: 'date' as const }
       }
     ],
@@ -373,37 +364,11 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
           onExpandedChange={handleExpandedChange}
           getRowCanExpand={(row: JobPosting) => (row.applicationCount || 0) > 0}
           renderExpandedRow={row => {
-            // #region agent log
             const posting = row.original
-            const allPostings = jobPostings
-            const postingFromState = allPostings.find((p: any) => p.id === posting.id)
-            fetch('http://127.0.0.1:7242/ingest/1d1d96ce-1896-4db3-b2fa-faa680c1d2c5', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: 'JobPostingView.tsx:380',
-                message: 'Rendering expanded row',
-                data: {
-                  postingId: posting.id,
-                  rowOriginalHasJobApplications: !!posting.jobApplications,
-                  rowOriginalJobApplicationsLength: posting.jobApplications?.length || 0,
-                  rowOriginalKeys: Object.keys(posting),
-                  postingFromStateId: postingFromState?.id,
-                  postingFromStateHasJobApplications: !!postingFromState?.jobApplications,
-                  postingFromStateJobApplicationsLength: postingFromState?.jobApplications?.length || 0,
-                  applicationCount: posting.applicationCount
-                },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: 'run1',
-                hypothesisId: 'B'
-              })
-            }).catch(() => {})
-            // #endregion
+            const postingFromState = jobPostings.find((p: any) => p.id === posting.id)
             return (
               <ExpandedApplicationsContent
                 posting={postingFromState || posting}
-                accessToken={context.accessToken}
                 applicationColumns={applicationColumns}
               />
             )

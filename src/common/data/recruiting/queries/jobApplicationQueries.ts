@@ -4,7 +4,6 @@
 import { AUDIT_FIELDS, CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 import { JobApplicationFields } from '../types/jobApplicationTypes'
 import type { BaseQueryVariables } from '@/common/network/graphql/commonTypes'
-import { buildJobCandidateDocumentFragment, JOB_CANDIDATE_DOCUMENT_QUERY_CONFIGS } from './jobCandidateDocumentQueries'
 import { buildJobInterviewFragment, JOB_INTERVIEW_QUERY_CONFIGS } from './jobInterviewQueries'
 import { buildJobOfferFragment, JOB_OFFER_QUERY_CONFIGS } from './jobOfferQueries'
 
@@ -157,7 +156,26 @@ export const buildJobApplicationFragment = (fields: string[]): string => {
     ? 'id\n      title\n      jobRequestId\n      jobRequest {\n        id\n        name\n        jobPositionId\n        jobPosition {\n          id\n          name\n        }\n      }'
     : 'id\n      title'
 
-  const documentFragment = buildJobCandidateDocumentFragment(JOB_CANDIDATE_DOCUMENT_QUERY_CONFIGS.list)
+  // Build JobApplicationDocument fragment (has jobApplicationId, NOT jobCandidateId)
+  const documentFragment = `
+    ${AUDIT_FIELDS}
+    id
+    jobApplicationId
+    description
+    documentGroupRef
+    documentTypeRef
+    fileInfo
+    folder
+    authenticated
+    authenticationDate
+    expirationDate
+    documentGroup {
+      ${CATALOG_ENTRY}
+    }
+    documentType {
+      ${CATALOG_ENTRY}
+    }
+  `
   const interviewFragment = buildJobInterviewFragment(JOB_INTERVIEW_QUERY_CONFIGS.list)
   const offerFragment = buildJobOfferFragment(JOB_OFFER_QUERY_CONFIGS.list)
 

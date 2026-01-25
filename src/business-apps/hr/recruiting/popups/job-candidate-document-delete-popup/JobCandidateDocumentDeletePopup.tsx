@@ -10,7 +10,6 @@ export interface JobCandidateDocumentDeletePopupProps extends BusinessAppContext
   onClose: () => void
 
   onSuccess?: () => void
-  onError?: (error: any) => void
 
   'data-testid'?: string
 }

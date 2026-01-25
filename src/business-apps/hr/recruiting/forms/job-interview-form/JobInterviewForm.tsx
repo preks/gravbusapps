@@ -93,11 +93,16 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
   const form = useForm<JobInterviewFormValues>({
     resolver: zodResolver(jobInterviewSchema),
     defaultValues: mapToFormValues(
-      {
-        ...(jobInterview || {}),
-        jobApplicationId: selectedJobApplicationId || jobInterview?.jobApplicationId || '',
-        meetingType: jobInterview?.meetingLink ? 'everyone' : 'external'
-      },
+      jobInterview
+        ? {
+            ...jobInterview,
+            jobApplicationId: selectedJobApplicationId || jobInterview.jobApplicationId || '',
+            meetingType: jobInterview.meetingLink ? 'everyone' : 'external'
+          }
+        : {
+            jobApplicationId: selectedJobApplicationId || '',
+            meetingType: 'external'
+          },
       jobInterviewSchema
     ) as JobInterviewFormValues,
     mode: 'onSubmit',
@@ -115,11 +120,16 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
   const interviewRef = useRef(jobInterview)
   useEffect(() => {
     if (interviewRef.current?.id !== jobInterview?.id) {
-      const defaultValues = {
-        ...(jobInterview || {}),
-        jobApplicationId: selectedJobApplicationId || jobInterview?.jobApplicationId || '',
-        meetingType: jobInterview?.meetingLink ? 'everyone' : 'external'
-      }
+      const defaultValues = jobInterview
+        ? {
+            ...jobInterview,
+            jobApplicationId: selectedJobApplicationId || jobInterview.jobApplicationId || '',
+            meetingType: jobInterview.meetingLink ? 'everyone' : 'external'
+          }
+        : {
+            jobApplicationId: selectedJobApplicationId || '',
+            meetingType: 'external'
+          }
       form.reset(mapToFormValues(defaultValues, jobInterviewSchema) as JobInterviewFormValues)
 
       if (jobInterview?.scheduledAt && jobInterview?.duration) {
@@ -219,6 +229,73 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
     return apiUrl
   }, [])
 
+  // Helper function to get candidate name
+  const getCandidateNameForMeeting = useCallback((): string => {
+    if (!jobApplication?.jobCandidate) return 'Candidate'
+    const firstName = jobApplication.jobCandidate.firstName || ''
+    const lastName = jobApplication.jobCandidate.lastName || ''
+    const fullName = `${firstName} ${lastName}`.trim()
+    return fullName || jobApplication.jobCandidate.displayName || 'Candidate'
+  }, [jobApplication])
+
+  // Helper function to get meeting title
+  const getMeetingTitle = useCallback((): string => {
+    const candidateName = getCandidateNameForMeeting()
+    const postingTitle = jobApplication?.jobPosting?.title || 'Job Posting'
+    return `Interview: ${candidateName} - ${postingTitle}`
+  }, [getCandidateNameForMeeting, jobApplication])
+
+  // Helper function to collect participant IDs
+  const collectParticipantIds = useCallback((): string[] => {
+    const ids: string[] = []
+    for (const participant of participants) {
+      if (participant.employeeId) {
+        const employee = selectedEmployees.get(participant.employeeId)
+        if (employee?.userId) {
+          ids.push(employee.userId)
+        }
+      } else if (participant.jobCandidateId && jobApplication?.jobCandidate?.userId) {
+        ids.push(jobApplication.jobCandidate.userId)
+      } else if (participant.userId && participant.userId !== currentUserId) {
+        ids.push(participant.userId)
+      }
+    }
+    return ids
+  }, [participants, selectedEmployees, jobApplication, currentUserId])
+
+  // Helper function to create or update meeting
+  const createOrUpdateMeeting = useCallback(
+    async (meetingTitle: string, startTime: Date, endTime: Date, participantIds: string[]): Promise<string> => {
+      const apiUrl = getChatApiUrl()
+      const calendarClient = createCalendarApiClient(apiUrl, accessToken || '')
+
+      if (jobInterview?.meetingLink && jobInterview.id) {
+        const updateData: UpdateMeetingData = {
+          title: meetingTitle,
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+          location: 'EveryOne',
+          addParticipantIds: participantIds,
+          notifyParticipants: true
+        }
+        const updatedMeeting = await calendarClient.updateMeeting(jobInterview.meetingLink, updateData)
+        return updatedMeeting.id
+      } else {
+        const createData: CreateMeetingData = {
+          title: meetingTitle,
+          startTime: startTime.toISOString(),
+          endTime: endTime.toISOString(),
+          location: 'EveryOne',
+          meetingLink: 'auto-generate',
+          participantIds: participantIds
+        }
+        const meeting = await calendarClient.createMeeting(createData)
+        return meeting.id
+      }
+    },
+    [accessToken, getChatApiUrl, jobInterview]
+  )
+
   const handlePreSubmit = useCallback(
     async (data: JobInterviewFormValues): Promise<JobInterviewFormValues> => {
       if (meetingType !== 'everyone') {
@@ -236,65 +313,16 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
       }
 
       try {
-        const apiUrl = getChatApiUrl()
-        const calendarClient = createCalendarApiClient(apiUrl, accessToken || '')
-
         const startTime = new Date(data.scheduledAt)
         const endTime = new Date(startTime.getTime() + (data.duration || 60) * 60 * 1000)
+        const meetingTitle = getMeetingTitle()
+        const participantIds = collectParticipantIds()
+        const meetingLink = await createOrUpdateMeeting(meetingTitle, startTime, endTime, participantIds)
 
-        const candidateName = jobApplication?.jobCandidate
-          ? `${jobApplication.jobCandidate.firstName || ''} ${jobApplication.jobCandidate.lastName || ''}`.trim() ||
-            jobApplication.jobCandidate.displayName ||
-            'Candidate'
-          : 'Candidate'
-        const postingTitle = jobApplication?.jobPosting?.title || 'Job Posting'
-        const meetingTitle = `Interview: ${candidateName} - ${postingTitle}`
-
-        const participantIds: string[] = []
-
-        for (const participant of participants) {
-          if (participant.employeeId) {
-            const employee = selectedEmployees.get(participant.employeeId)
-            if (employee?.userId) {
-              participantIds.push(employee.userId)
-            }
-          } else if (participant.jobCandidateId && jobApplication?.jobCandidate?.userId) {
-            participantIds.push(jobApplication.jobCandidate.userId)
-          } else if (participant.userId && participant.userId !== currentUserId) {
-            participantIds.push(participant.userId)
-          }
-        }
-
-        if (jobInterview?.meetingLink && jobInterview.id) {
-          const updateData: UpdateMeetingData = {
-            title: meetingTitle,
-            startTime: startTime.toISOString(),
-            endTime: endTime.toISOString(),
-            location: 'EveryOne',
-            addParticipantIds: participantIds,
-            notifyParticipants: true
-          }
-          const updatedMeeting = await calendarClient.updateMeeting(jobInterview.meetingLink, updateData)
-          return {
-            ...data,
-            meetingLink: updatedMeeting.id,
-            jobInterviewStatus: JobInterviewStatus.SCHEDULED
-          }
-        } else {
-          const createData: CreateMeetingData = {
-            title: meetingTitle,
-            startTime: startTime.toISOString(),
-            endTime: endTime.toISOString(),
-            location: 'EveryOne',
-            meetingLink: 'auto-generate',
-            participantIds: participantIds
-          }
-          const meeting = await calendarClient.createMeeting(createData)
-          return {
-            ...data,
-            meetingLink: meeting.id,
-            jobInterviewStatus: JobInterviewStatus.SCHEDULED
-          }
+        return {
+          ...data,
+          meetingLink,
+          jobInterviewStatus: JobInterviewStatus.SCHEDULED
         }
       } catch (error) {
         console.error('Error creating/updating chat meeting:', error)
@@ -304,16 +332,7 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
         }
       }
     },
-    [
-      meetingType,
-      participants,
-      jobApplication,
-      jobInterview,
-      accessToken,
-      getChatApiUrl,
-      selectedEmployees,
-      currentUserId
-    ]
+    [meetingType, getMeetingTitle, collectParticipantIds, createOrUpdateMeeting]
   )
 
   const handleSubmit = useCallback(
@@ -365,7 +384,7 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
     <AppActionForm
       processType={processType}
       onSubmit={handleSubmit}
-      onCancel={() => {}}
+      onCancel={undefined}
       formData={form.getValues()}
       form={form}
       schema={jobInterviewSchema}
@@ -437,16 +456,15 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
                       mode="range"
                       type="datetime-local"
                       value={
-                        dateRange
-                          ? dateRange
-                          : field.value && form.getValues('duration')
-                            ? [
-                                field.value,
-                                new Date(
-                                  new Date(field.value).getTime() + (form.getValues('duration') || 60) * 60 * 1000
-                                ).toISOString()
-                              ]
-                            : undefined
+                        dateRange ??
+                        (field.value && form.getValues('duration')
+                          ? [
+                              field.value,
+                              new Date(
+                                new Date(field.value).getTime() + (form.getValues('duration') ?? 60) * 60 * 1000
+                              ).toISOString()
+                            ]
+                          : undefined)
                       }
                       onChange={(value: string | [string | null, string | null] | null) => {
                         if (Array.isArray(value) && value[0] && value[1]) {
@@ -592,11 +610,13 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
                 value={participants.filter(p => p.employeeId).map(p => p.employeeId!)}
                 onValueChange={employeeIds => {
                   const currentEmployeeIds = participants.filter(p => p.employeeId).map(p => p.employeeId!)
-                  const newEmployeeIds = employeeIds.filter(id => !currentEmployeeIds.includes(id))
-                  const removedEmployeeIds = currentEmployeeIds.filter(id => !employeeIds.includes(id))
+                  const currentEmployeeIdsSet = new Set(currentEmployeeIds)
+                  const employeeIdsSet = new Set(employeeIds)
+                  const newEmployeeIds = employeeIds.filter(id => !currentEmployeeIdsSet.has(id))
+                  const removedEmployeeIds = new Set(currentEmployeeIds.filter(id => !employeeIdsSet.has(id)))
 
                   setParticipants(prev => {
-                    const withoutRemoved = prev.filter(p => !p.employeeId || !removedEmployeeIds.includes(p.employeeId))
+                    const withoutRemoved = prev.filter(p => !p.employeeId || !removedEmployeeIds.has(p.employeeId))
                     const newParticipants = newEmployeeIds.map(id => ({ employeeId: id }))
                     return [...withoutRemoved, ...newParticipants]
                   })
@@ -622,7 +642,7 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
             <div className="gba:space-y-2">
               <Label className="gba:text-sm">External Participants (User IDs)</Label>
               {externalUserIds.map((userId, index) => (
-                <div key={index} className="gba:flex gba:gap-2">
+                <div key={`external-user-${userId}-${index}`} className="gba:flex gba:gap-2">
                   <Input
                     type="text"
                     value={userId}

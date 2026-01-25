@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Spinner, RecordLayout } from '@newwork/nw-design-system'
+import { Spinner, RecordLayout, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
 import { Briefcase, Calendar, User, FileText } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -22,8 +22,8 @@ const JobApplicationRecordContent: React.FC<JobApplicationRecordContentProps> = 
   ...props
 }) => {
   const [activeTab, setActiveTab] = useState<string>(() => {
-    if (typeof window === 'undefined') return 'overview'
-    const params = new URLSearchParams(window.location.search)
+    if (typeof globalThis === 'undefined' || !globalThis.location) return 'overview'
+    const params = new URLSearchParams(globalThis.location.search)
     return params.get('tab') || 'overview'
   })
 
@@ -44,19 +44,19 @@ const JobApplicationRecordContent: React.FC<JobApplicationRecordContentProps> = 
   }, [])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const params = new URLSearchParams(window.location.search)
+    if (typeof globalThis === 'undefined' || !globalThis.location) return
+    const params = new URLSearchParams(globalThis.location.search)
     if (!params.get('tab')) {
-      const url = new URL(window.location.href)
+      const url = new URL(globalThis.location.href)
       url.searchParams.set('tab', activeTab)
-      window.history.replaceState(null, '', url.toString())
+      globalThis.history.replaceState(null, '', url.toString())
     }
     const onPop = () => {
-      const next = new URLSearchParams(window.location.search).get('tab') || 'overview'
+      const next = new URLSearchParams(globalThis.location.search).get('tab') || 'overview'
       setActiveTab(next)
     }
-    window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
+    globalThis.addEventListener('popstate', onPop)
+    return () => globalThis.removeEventListener('popstate', onPop)
   }, [activeTab])
 
   // Memoized callback for process completion
@@ -150,7 +150,7 @@ const JobApplicationRecordContent: React.FC<JobApplicationRecordContentProps> = 
           value: 'overview',
           label: getTranslationFromI18nKeyAndLabel('recruiting.overview', 'Overview'),
           icon: <Briefcase className="gba:mr-2" />,
-          content: <HomeView jobApplicationId={jobApplicationId} jobApplication={jobApplication} {...props} />
+          content: <HomeView jobApplication={jobApplication} {...props} />
         },
         {
           value: 'interviews',
@@ -185,13 +185,15 @@ const JobApplicationRecordContent: React.FC<JobApplicationRecordContentProps> = 
   return (
     <RecordLayout
       headerOrientation="horizontal"
-      headerIcon={Briefcase}
-      headerCategory={getTranslationFromI18nKeyAndLabel('recruiting.jobApplication', 'Job Application')}
+      headerAvatar={<IconAvatar icon={Briefcase} variant="decorative" size="xl" />}
+      headerOverline={getTranslationFromI18nKeyAndLabel('recruiting.jobApplication', 'Job Application')}
       onBack={onBack}
       headerTitle={jobApplicationName}
-      headerDetailGroups={headerDetailGroups}
+      headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
       headerActionButton={headerActionButton}
-      subViews={subViewsConfig}
+      views={subViewsConfig.items}
+      defaultView={subViewsConfig.defaultValue}
+      onViewChange={subViewsConfig.onValueChange}
     />
   )
 }
@@ -199,7 +201,10 @@ const JobApplicationRecordContent: React.FC<JobApplicationRecordContentProps> = 
 // Wrapper component to handle ID extraction and navigation
 const JobApplicationRecord: React.FC<BusinessAppContextProps> = ({ additionalData = {}, ...props }) => {
   const jobApplicationId =
-    additionalData.jobApplicationId || new URLSearchParams(window.location.search).get('jobApplicationId')
+    additionalData.jobApplicationId ||
+    (typeof globalThis !== 'undefined' && globalThis.location
+      ? new URLSearchParams(globalThis.location.search).get('jobApplicationId')
+      : null)
 
   const handleBack = () => {
     // Navigate back based on context - could be from candidate or posting
