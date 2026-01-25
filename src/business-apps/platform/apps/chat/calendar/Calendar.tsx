@@ -7,6 +7,7 @@ import { useEmployeeAvatarsCache } from '../hooks/useEmployeeAvatarsCache'
 import { CalendarHeader, DayView, WeekView, MonthView, CreateMeetingModal, MeetingDetailModal } from './components'
 import { CallModal } from '../components/CallModal'
 import { IncomingCallDialog } from '../components/IncomingCallDialog'
+import { debugLog } from '../utils/debugLog'
 import { GroupCallModal } from '../components/GroupCallModal'
 import { GroupCallModalRtk } from '../components/GroupCallModalRtk'
 import { RealtimeKitProvider } from '@cloudflare/realtimekit-react'
@@ -129,10 +130,10 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
     apiClient: apiClient || null,
     currentUser: currentUserAsParticipant,
     onCallStarted: (callId, participant) => {
-      console.debug('Meeting 1:1 call started:', callId, participant)
+      debugLog('Meeting 1:1 call started:', callId, participant)
     },
     onCallEnded: (callId, duration) => {
-      console.debug('Meeting 1:1 call ended:', callId, 'Duration:', duration, 'ms')
+      debugLog('Meeting 1:1 call ended:', callId, 'Duration:', duration, 'ms')
     }
   })
 
