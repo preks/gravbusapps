@@ -322,17 +322,22 @@ const ChatInner: React.FC<ChatProps> = memo(
     const availableParticipantsForCall = useMemo(() => {
       if (!activeConversation?.participants) return []
       return activeConversation.participants
-        .filter(p => p.user) // Only include participants with user data
-        .map(p => ({
-          id: p.user!.id,
-          odId: p.user!.id,
-          odName:
-            p.user!.displayName ||
-            `${p.user!.firstName || ''} ${p.user!.lastName || ''}`.trim() ||
-            p.user!.username ||
-            'Unknown',
-          avatarUrl: p.user!.avatarUrl
-        }))
+        .filter(p => p.userId || p.user) // Include if userId exists OR user object exists
+        .map(p => {
+          // Prefer user object details, fallback to userId only
+          const user = p.user
+          return {
+            id: user?.id || p.userId,
+            odId: user?.id || p.userId,
+            odName: user
+              ? user.displayName ||
+                `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
+                user.username ||
+                'Unknown'
+              : 'User',
+            avatarUrl: user?.avatarUrl
+          }
+        })
     }, [activeConversation?.participants])
 
     // 1:1 Call functionality
@@ -533,17 +538,22 @@ const ChatInner: React.FC<ChatProps> = memo(
         // Get all participants including current user
         const callParticipants: CallParticipant[] =
           activeConversation.participants
-            ?.filter(p => p.user)
-            .map(p => ({
-              id: p.user!.id,
-              odId: p.user!.id,
-              odName:
-                p.user!.displayName ||
-                `${p.user!.firstName || ''} ${p.user!.lastName || ''}`.trim() ||
-                p.user!.username ||
-                'Unknown',
-              avatarUrl: p.user!.avatarUrl
-            })) || []
+            ?.filter(p => p.userId || p.user) // Include if userId exists OR user object exists
+            .map(p => {
+              // Prefer user object details, fallback to userId only
+              const user = p.user
+              return {
+                id: user?.id || p.userId,
+                odId: user?.id || p.userId,
+                odName: user
+                  ? user.displayName ||
+                    `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
+                    user.username ||
+                    'Unknown'
+                  : 'User',
+                avatarUrl: user?.avatarUrl
+              }
+            }) || []
 
         // Use conversation ID as the room ID, pass conversation name for the invite
         startGroupCall(activeConversation.id, callType, callParticipants, activeConversation.name)
@@ -750,17 +760,18 @@ const ChatInner: React.FC<ChatProps> = memo(
               // Build full participant details for the AI context
               // This allows AI to know all participants and schedule meetings for them
               const participants = activeConversation.participants
-                ?.filter(p => p.user)
+                ?.filter(p => p.userId || p.user) // Include if userId exists OR user object exists
                 .map(p => {
-                  const user = p.user!
-                  const name =
-                    user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || ''
+                  const user = p.user
+                  const name = user
+                    ? user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || ''
+                    : ''
                   return {
-                    id: p.userId || user.id,
-                    odId: p.userId || user.id, // Open Directory ID for calendar/meetings
+                    id: p.userId || user?.id || '',
+                    odId: p.userId || user?.id || '', // Open Directory ID for calendar/meetings
                     name,
-                    email: user.email,
-                    employeeId: user.employeeId
+                    email: user?.email || '',
+                    employeeId: user?.employeeId
                   }
                 })
                 .filter(p => p.name)
@@ -1371,6 +1382,12 @@ const ChatInner: React.FC<ChatProps> = memo(
 
       const activeCall = activeCalls[stableActiveConversation.id]
 
+      rtkDebug.log('[CHAT] Building activeCallInfo:', {
+        conversationId: stableActiveConversation.id,
+        hasActiveCall: !!activeCall,
+        activeCall
+      })
+
       if (activeCall) {
         const participantNames =
           stableActiveConversation.participants
@@ -1411,6 +1428,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Handler to join an active call
     const handleJoinActiveCall = useCallback(() => {
       if (!activeCallInfo || !stableActiveConversation) return
+      rtkDebug.log('[CHAT] handleJoinActiveCall - activeCallInfo:', activeCallInfo)
       // Pass true to indicate we're joining an existing call (don't ring everyone)
       handleGroupCall(activeCallInfo.callType, true)
     }, [activeCallInfo, stableActiveConversation, handleGroupCall])

@@ -68,6 +68,7 @@ export interface PendingInvite {
 }
 
 export interface UseGroupCallReturn {
+  meeting?: any // RealtimeKit meeting object (only for RTK implementation)
   callState: GroupCallUIState
   isInCall: boolean
   isHost: boolean
