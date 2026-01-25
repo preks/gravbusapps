@@ -9,6 +9,88 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { createCollaborationClient, CollaborationClient } from '../../shared/services/CollaborationClient'
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
 
+type AvatarCache = Map<string, string | undefined>
+
+function getUncachedIds(cache: AvatarCache, userIds: string[]): string[] {
+  return userIds.filter(id => !cache.has(id))
+}
+
+function readCachedAvatars(cache: AvatarCache, userIds: string[]): Map<string, string | undefined> {
+  const result = new Map<string, string | undefined>()
+  for (const id of userIds) {
+    if (cache.has(id)) {
+      result.set(id, cache.get(id))
+    }
+  }
+  return result
+}
+
+function mergeMissingFromCache(
+  cache: AvatarCache,
+  userIds: string[],
+  partial: Map<string, string | undefined>
+): Map<string, string | undefined> {
+  for (const id of userIds) {
+    if (!partial.has(id)) {
+      partial.set(id, cache.get(id))
+    }
+  }
+  return partial
+}
+
+function removeUserFromPresenceMap(
+  prev: Map<string, PresenceParticipant[]>,
+  userId: string
+): Map<string, PresenceParticipant[]> {
+  const next = new Map(prev)
+  let changed = false
+
+  for (const [key, participants] of next) {
+    const filtered = participants.filter(p => p.userId !== userId && p.odId !== userId)
+    if (filtered.length === participants.length) continue
+
+    changed = true
+    if (filtered.length > 0) {
+      next.set(key, filtered)
+    } else {
+      next.delete(key)
+    }
+  }
+
+  return changed ? next : prev
+}
+
+function collectUniqueUserIds(presence: Record<string, PresenceParticipant[]>): string[] {
+  const ids = new Set<string>()
+  for (const participants of Object.values(presence)) {
+    for (const p of participants) {
+      if (p.odId) ids.add(p.odId)
+      if (p.userId) ids.add(p.userId)
+    }
+  }
+  return Array.from(ids)
+}
+
+function buildPresenceMapWithAvatars(
+  presence: Record<string, PresenceParticipant[]>,
+  avatarMap: Map<string, string | undefined>
+): Map<string, PresenceParticipant[]> {
+  const next = new Map<string, PresenceParticipant[]>()
+
+  for (const [key, participants] of Object.entries(presence)) {
+    if (!participants?.length) continue
+    next.set(
+      key,
+      participants.map(p => ({
+        ...p,
+        avatar: avatarMap.get(p.odId) || avatarMap.get(p.userId)
+      }))
+    )
+  }
+
+  return next
+}
+
 export interface DocumentPresence {
   entityType: 'document' | 'spreadsheet' | 'note'
   entityId: string
@@ -135,20 +217,14 @@ export function useDocumentPresence(options: UseDocumentPresenceOptions = {}): U
 
   // Fetch avatars for a list of user IDs
   const fetchAvatars = useCallback(async (userIds: string[]): Promise<Map<string, string | undefined>> => {
-    const result = new Map<string, string | undefined>()
+    const cache = avatarCacheRef.current
+    const cached = readCachedAvatars(cache, userIds)
+    const uncachedIds = getUncachedIds(cache, userIds)
 
-    // Check cache first
-    const uncachedIds = userIds.filter(id => !avatarCacheRef.current.has(id))
-
-    // Return cached results if all are cached
     if (uncachedIds.length === 0) {
-      for (const id of userIds) {
-        result.set(id, avatarCacheRef.current.get(id))
-      }
-      return result
+      return mergeMissingFromCache(cache, userIds, cached)
     }
 
-    // Make sure token is set
     if (tokenRef.current) {
       graphQLClient.setAccessToken(tokenRef.current)
     }
@@ -158,34 +234,23 @@ export function useDocumentPresence(options: UseDocumentPresenceOptions = {}): U
         Employee: Array<{ userId?: string; pictureThumbnail?: string }>
       }>(GET_EMPLOYEES_AVATARS, { userIds: uncachedIds })
 
-      if (response?.Employee) {
-        for (const emp of response.Employee) {
-          if (emp.userId) {
-            const avatar = normalizeImageSrc(emp.pictureThumbnail)
-            avatarCacheRef.current.set(emp.userId, avatar)
-            result.set(emp.userId, avatar)
-          }
-        }
+      for (const emp of response?.Employee ?? []) {
+        if (!emp.userId) continue
+        const avatar = normalizeImageSrc(emp.pictureThumbnail)
+        cache.set(emp.userId, avatar)
+        cached.set(emp.userId, avatar)
       }
 
-      // Cache undefined for IDs not found
       for (const id of uncachedIds) {
-        if (!result.has(id)) {
-          avatarCacheRef.current.set(id, undefined)
+        if (!cache.has(id)) {
+          cache.set(id, undefined)
         }
       }
     } catch (error) {
       console.error('[useDocumentPresence] Failed to fetch avatars:', error)
     }
 
-    // Merge with cached results
-    for (const id of userIds) {
-      if (!result.has(id)) {
-        result.set(id, avatarCacheRef.current.get(id))
-      }
-    }
-
-    return result
+    return mergeMissingFromCache(cache, userIds, cached)
   }, [])
 
   // Initialize collaboration client - with retry logic
@@ -202,8 +267,8 @@ export function useDocumentPresence(options: UseDocumentPresenceOptions = {}): U
         sessionStorage.getItem('auth_token')
 
       if (!token) {
-        console.warn('[useDocumentPresence] No auth token found (providedToken:', !!providedToken, '), attempt', retryCount + 1)
-        
+        console.warn('[useDocumentPresence] No auth token found, attempt', retryCount + 1)
+
         // Retry after a delay if we haven't exceeded max retries
         if (retryCount < maxRetries) {
           retryCount++
@@ -212,7 +277,7 @@ export function useDocumentPresence(options: UseDocumentPresenceOptions = {}): U
         return
       }
 
-      console.log('[useDocumentPresence] Attempting to connect with token...')
+      console.log('[useDocumentPresence] Attempting to connect')
 
       try {
         const client = createCollaborationClient()
@@ -222,7 +287,7 @@ export function useDocumentPresence(options: UseDocumentPresenceOptions = {}): U
         socketRef.current = socket
 
         socket.on('connect', () => {
-          console.log('[useDocumentPresence] ✓ Connected to collaboration server')
+          console.log('[useDocumentPresence] Connected to collaboration server')
           setIsConnected(true)
           retryCount = 0 // Reset retry count on successful connection
 
@@ -234,14 +299,14 @@ export function useDocumentPresence(options: UseDocumentPresenceOptions = {}): U
           }
         })
 
-        socket.on('disconnect', (reason) => {
-          console.log('[useDocumentPresence] ✗ Disconnected from collaboration server. Reason:', reason)
+        socket.on('disconnect', reason => {
+          console.log('[useDocumentPresence] Disconnected from collaboration server. Reason:', reason)
           setIsConnected(false)
         })
 
         socket.on('connect_error', error => {
-          console.error('[useDocumentPresence] ✗ Connection error:', error.message)
-          
+          console.error('[useDocumentPresence] Connection error:', error.message)
+
           // Retry connection if we haven't exceeded max retries
           if (retryCount < maxRetries) {
             retryCount++
@@ -252,32 +317,16 @@ export function useDocumentPresence(options: UseDocumentPresenceOptions = {}): U
 
         // Listen for individual user join/leave events to update presence in real-time
         socket.on('user_joined', (data: { userId: string; userName: string; userColor: string }) => {
-          console.log('[useDocumentPresence] 👤 User joined:', data.userName)
+          console.log('[useDocumentPresence] User joined:', data.userName)
         })
 
         socket.on('user_left', (data: { userId: string }) => {
-          console.log('[useDocumentPresence] 👤 User left:', data.userId)
-          // Remove user from all entries in presence map
-          setPresenceMap(prev => {
-            const newMap = new Map(prev)
-            let changed = false
-            for (const [key, participants] of newMap) {
-              const filtered = participants.filter(p => p.userId !== data.userId && p.odId !== data.userId)
-              if (filtered.length !== participants.length) {
-                changed = true
-                if (filtered.length > 0) {
-                  newMap.set(key, filtered)
-                } else {
-                  newMap.delete(key)
-                }
-              }
-            }
-            return changed ? newMap : prev
-          })
+          console.log('[useDocumentPresence] User left:', data.userId)
+          setPresenceMap(prev => removeUserFromPresenceMap(prev, data.userId))
         })
       } catch (error) {
-        console.error('[useDocumentPresence] ✗ Failed to initialize:', error)
-        
+        console.error('[useDocumentPresence] Failed to initialize:', error)
+
         // Retry connection if we haven't exceeded max retries
         if (retryCount < maxRetries) {
           retryCount++
@@ -303,75 +352,46 @@ export function useDocumentPresence(options: UseDocumentPresenceOptions = {}): U
     }
   }, [providedToken])
 
+  const handleMultiPresenceResponse = useCallback(
+    async (response: { success: boolean; presence?: Record<string, PresenceParticipant[]>; error?: string }) => {
+      if (!response?.success || !response.presence) {
+        console.warn('[useDocumentPresence] Failed to fetch presence:', response?.error || 'Unknown error')
+        return
+      }
+
+      const userIds = collectUniqueUserIds(response.presence)
+      const avatarMap = userIds.length > 0 ? await fetchAvatars(userIds) : new Map<string, string | undefined>()
+
+      setPresenceMap(buildPresenceMapWithAvatars(response.presence, avatarMap))
+    },
+    [fetchAvatars]
+  )
+
   // Internal fetch function
   const fetchPresenceInternal = useCallback(
     async (entities: { entityType: string; entityId: string }[]) => {
       const socket = socketRef.current
       if (!socket?.connected) {
-        console.warn('[useDocumentPresence] ⚠️ Socket not connected, queuing fetch for', entities.length, 'entities')
+        console.warn('[useDocumentPresence] Socket not connected, queuing fetch for', entities.length, 'entities')
         pendingFetchRef.current = entities
         return
       }
 
       if (entities.length === 0) {
-        console.log('[useDocumentPresence] No entities to fetch presence for')
         return
       }
-
-      console.log('[useDocumentPresence] 📡 Fetching presence for', entities.length, 'entities:', entities.map(e => `${e.entityType}:${e.entityId.substring(0, 8)}`).join(', '))
 
       socket.emit(
         'get_multi_presence',
         { entities },
-        async (response: { success: boolean; presence?: Record<string, PresenceParticipant[]>; error?: string }) => {
-          if (response?.success && response?.presence) {
-            const entitiesWithUsers = Object.keys(response.presence).length
-            const totalUsers = Object.values(response.presence).reduce((sum, p) => sum + p.length, 0)
-            
-            console.log(
-              '[useDocumentPresence] ✓ Received presence data:',
-              entitiesWithUsers,
-              'entities have',
-              totalUsers,
-              'active users'
-            )
-
-            // Collect all unique user IDs to fetch avatars
-            const allUserIds = new Set<string>()
-            for (const participants of Object.values(response.presence)) {
-              for (const p of participants) {
-                if (p.odId) allUserIds.add(p.odId)
-                if (p.userId) allUserIds.add(p.userId)
-              }
-            }
-
-            // Fetch avatars for all users
-            let avatarMap = new Map<string, string | undefined>()
-            if (allUserIds.size > 0) {
-              console.log('[useDocumentPresence] 🖼️ Fetching avatars for', allUserIds.size, 'users')
-              avatarMap = await fetchAvatars(Array.from(allUserIds))
-            }
-
-            // Build presence map with avatars
-            const newMap = new Map<string, PresenceParticipant[]>()
-            for (const [key, participants] of Object.entries(response.presence)) {
-              if (participants && participants.length > 0) {
-                const enrichedParticipants = participants.map(p => ({
-                  ...p,
-                  avatar: avatarMap.get(p.odId) || avatarMap.get(p.userId)
-                }))
-                newMap.set(key, enrichedParticipants)
-                console.log('[useDocumentPresence] 👥', key, '→', enrichedParticipants.map(p => p.userName).join(', '))
-              }
-            }
-            setPresenceMap(newMap)
-          } else {
-            console.warn('[useDocumentPresence] ✗ Failed to fetch presence:', response?.error || 'Unknown error')
-          }
+        (response: { success: boolean; presence?: Record<string, PresenceParticipant[]>; error?: string }) => {
+          handleMultiPresenceResponse(response).catch(error => {
+            console.error('[useDocumentPresence] Failed to handle presence response:', error)
+          })
         }
       )
     },
-    [fetchAvatars]
+    [handleMultiPresenceResponse]
   )
 
   // Public fetch function

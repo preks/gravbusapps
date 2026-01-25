@@ -5,7 +5,7 @@
  * Modern OneDrive-inspired design with sidebar navigation.
  */
 
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   Card,
@@ -74,18 +74,20 @@ import { SpreadsheetAppViewer } from './SpreadsheetAppViewer'
 import { SpreadsheetAppEditor } from './SpreadsheetAppEditor'
 import { ShareAppDialog } from './components/ShareAppDialog'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
-import type { SharedUserInfo } from './components/AppPreviewCard'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
 
 // Hooks
 import { useSpreadsheetApps } from './hooks/useSpreadsheetApps'
 import { useSpreadsheetAI } from './hooks/useSpreadsheetAI'
 import { useDataPromotion } from './hooks/useDataPromotion'
+import { useSpreadsheetAppsHubFavorites } from './hooks/useSpreadsheetAppsHubFavorites'
+import { useSpreadsheetAppsHubFiltering } from './hooks/useSpreadsheetAppsHubFiltering'
+import { useSpreadsheetAppsHubUrlState } from './hooks/useSpreadsheetAppsHubUrlState'
+import { useSpreadsheetAppsHubUserLookup } from './hooks/useSpreadsheetAppsHubUserLookup'
 
 // Services
 import { generateAppSchema, generateEmptyAppSchema } from './services/SchemaGenerator'
-import { SpreadsheetApiService, setSpreadsheetApiAuthTokenProvider } from './services/SpreadsheetApiService'
+import { setSpreadsheetApiAuthTokenProvider } from './services/SpreadsheetApiService'
 
 // Types
 import type { ParsedExcelFile, SpreadsheetAnalysis, SpreadsheetApp, SpreadsheetAppSummary } from './types'
@@ -170,14 +172,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [selectedApps, setSelectedApps] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [favorites, setFavorites] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem('spreadsheet-favorites')
-      return saved ? new Set(JSON.parse(saved)) : new Set()
-    } catch {
-      return new Set()
-    }
-  })
+  const { favorites, setFavorites } = useSpreadsheetAppsHubFavorites()
 
   // Data state
   const [parsedFile, setParsedFile] = useState<ParsedExcelFile | null>(null)
@@ -194,33 +189,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     setSpreadsheetApiAuthTokenProvider(() => accessToken)
     return () => setSpreadsheetApiAuthTokenProvider(null)
   }, [accessToken])
-
-  // URL helpers for deep linking
-  const getUrlParams = useCallback((): { appId: string | null; filePath: string | null; view: HubView | null } => {
-    const urlParams = new URLSearchParams(window.location.search)
-    return {
-      appId: urlParams.get('appId'),
-      filePath: urlParams.get('filePath'),
-      view: urlParams.get('view') as HubView | null
-    }
-  }, [])
-
-  const updateUrl = useCallback((appId: string | null, view?: HubView, filePath?: string | null) => {
-    const urlParams = new URLSearchParams(window.location.search)
-    if (appId) {
-      urlParams.set('appId', appId)
-      if (view) urlParams.set('view', view)
-      if (filePath) urlParams.set('filePath', encodeURIComponent(filePath))
-    } else {
-      urlParams.delete('appId')
-      urlParams.delete('view')
-      urlParams.delete('filePath')
-    }
-    const newUrl = urlParams.toString()
-      ? `${window.location.pathname}?${urlParams.toString()}`
-      : window.location.pathname
-    window.history.pushState({ appId, view, filePath }, '', newUrl)
-  }, [])
 
   // Share dialog state
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
@@ -239,11 +207,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   // Manage shares dialog state
   const [manageSharesDialogOpen, setManageSharesDialogOpen] = useState(false)
   const [selectedAppForManageShares, setSelectedAppForManageShares] = useState<SpreadsheetAppSummary | null>(null)
-
-  // Shared user info maps for displaying avatars
-  const [sharedUsersMap, setSharedUsersMap] = useState<Map<string, SharedUserInfo[]>>(new Map())
-  // const [sharedByUsersMap] = useState<Map<string, SharedUserInfo>>(new Map())
-  const [ownerInfoMap, setOwnerInfoMap] = useState<Map<string, { name: string; avatar?: string }>>(new Map())
 
   // GraphQL client for fetching user info
   const graphqlClient = useGraphQLClient(accessToken)
@@ -273,227 +236,39 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     updateSheet
   } = useSpreadsheetApps(accessToken, currentUserId)
 
+  const { ownerInfoMap, sharedUsersMap, invalidateSharedUsersForApp } = useSpreadsheetAppsHubUserLookup({
+    apps,
+    currentUserId,
+    graphqlClient,
+    activeSection
+  })
+
   // Ref to always have the latest currentApp value for callbacks
   const currentAppRef = useRef(currentApp)
   useEffect(() => {
     currentAppRef.current = currentApp
   }, [currentApp])
 
-  // Track which app ID we've attempted to load to prevent infinite loops
-  const loadAttemptedRef = useRef<string | null>(null)
-
   const { isAnalyzing, analyzeSpreadsheet, reset: resetAI } = useSpreadsheetAI(accessToken)
   const { promoteToDatabase } = useDataPromotion(accessToken)
+  const { updateUrl, resetLoadAttempt } = useSpreadsheetAppsHubUrlState({
+    currentView,
+    currentAppId: currentApp?.id || null,
+    isLoadingApps,
+    loadAppById: loadApp,
+    setSelectedAppId,
+    setCurrentView
+  })
 
-  // Save favorites to localStorage
-  useEffect(() => {
-    localStorage.setItem('spreadsheet-favorites', JSON.stringify([...favorites]))
-  }, [favorites])
-
-  // Load app from URL on mount
-  useEffect(() => {
-    const { appId, filePath, view } = getUrlParams()
-    if (appId && !currentApp && !isLoadingApps && loadAttemptedRef.current !== appId) {
-      loadAttemptedRef.current = appId
-      loadApp(appId, filePath ? decodeURIComponent(filePath) : undefined).then(app => {
-        if (app) {
-          setSelectedAppId(appId)
-          setCurrentView(view === 'editor' ? 'editor' : 'viewer')
-        }
-      })
-    }
-  }, [getUrlParams, loadApp, currentApp, isLoadingApps])
-
-  // Track if we came from desk
-  const cameFromDeskRef = useRef(false)
-  useEffect(() => {
-    const referrer = document.referrer
-    const urlParams = new URLSearchParams(window.location.search)
-    cameFromDeskRef.current =
-      referrer.includes('/platform/apps/desk') ||
-      referrer.includes('?app=platform/apps/desk') ||
-      urlParams.get('from') === 'desk'
-
-    // Push state to track navigation from desk
-    if (cameFromDeskRef.current && currentView === 'list') {
-      window.history.replaceState({ fromDesk: true }, '', window.location.href)
-    }
-  }, [currentView])
-
-  // Handle browser back/forward navigation
-  useEffect(() => {
-    const handlePopState = (event: PopStateEvent) => {
-      const state = event.state as { appId?: string; view?: HubView; fromDesk?: boolean } | null
-
-      // If we came from desk and there's no app, go back to desk
-      if (state?.fromDesk && !state?.appId && currentView === 'list') {
-        navigateTo('/platform/apps/desk')
-        return
-      }
-
-      if (state?.appId) {
-        loadApp(state.appId).then(app => {
-          if (app) {
-            setSelectedAppId(state.appId!)
-            setCurrentView(state.view || 'viewer')
-          }
-        })
-      } else {
-        setSelectedAppId(null)
-        setCurrentView('list')
-      }
-    }
-
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [loadApp, currentView])
-
-  // Filter and sort apps based on active section
-  const filteredApps = useMemo(() => {
-    let filtered = apps
-
-    // Filter by section
-    switch (activeSection) {
-      case 'my-files':
-        filtered = apps.filter(app => app.isOwner ?? app.createdBy === currentUserId)
-        break
-      case 'shared':
-        filtered = apps.filter(app => app.isShared && !(app.isOwner ?? app.createdBy === currentUserId))
-        break
-      case 'favorites':
-        filtered = apps.filter(app => favorites.has(app.id))
-        break
-      case 'recent':
-        // Show all apps sorted by most recently updated
-        filtered = [...apps]
-          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-          .slice(0, 10)
-        break
-      case 'home':
-      default:
-        // Show all accessible apps
-        break
-    }
-
-    // Filter by search
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(
-        app => app.name.toLowerCase().includes(query) || app.description?.toLowerCase().includes(query)
-      )
-    }
-
-    // Sort
-    filtered = [...filtered].sort((a, b) => {
-      let comparison = 0
-      switch (sortBy) {
-        case 'name':
-          comparison = a.name.localeCompare(b.name)
-          break
-        case 'modified':
-          comparison = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-          break
-        case 'created':
-          comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          break
-      }
-      return sortOrder === 'asc' ? -comparison : comparison
-    })
-
-    return filtered
-  }, [apps, searchQuery, activeSection, currentUserId, favorites, sortBy, sortOrder])
-
-  // Fetch owner info for apps
-  const loadingOwnerInfoRef = useRef<Set<string>>(new Set())
-  useEffect(() => {
-    if (!graphqlClient) return
-
-    const loadOwnerInfo = async () => {
-      for (const app of apps) {
-        const ownerId = app.createdBy
-        if (!ownerId || ownerInfoMap.has(ownerId) || loadingOwnerInfoRef.current.has(ownerId)) continue
-        loadingOwnerInfoRef.current.add(ownerId)
-
-        try {
-          const query = GET_EMPLOYEE_LIGHT_BY_USER_ID(ownerId)
-          const result = await graphqlClient.request<{
-            Employee: Array<{ displayName: string; pictureThumbnail?: string }>
-          }>(query)
-          const emp = result.Employee?.[0]
-          setOwnerInfoMap(prev =>
-            new Map(prev).set(ownerId, {
-              name: emp?.displayName || `User ${ownerId.slice(0, 8)}`,
-              avatar: emp?.pictureThumbnail
-                ? emp.pictureThumbnail.startsWith('data:')
-                  ? emp.pictureThumbnail
-                  : `data:image/png;base64,${emp.pictureThumbnail}`
-                : undefined
-            })
-          )
-        } catch {
-          // Ignore errors
-        } finally {
-          loadingOwnerInfoRef.current.delete(ownerId)
-        }
-      }
-    }
-
-    loadOwnerInfo()
-  }, [apps, graphqlClient, ownerInfoMap])
-
-  // Fetch shared user info
-  const loadingSharedUsersRef = useRef<Set<string>>(new Set())
-  useEffect(() => {
-    if (!graphqlClient || activeSection !== 'my-files') return
-
-    const ownedApps = apps.filter(app => app.isOwner ?? app.createdBy === currentUserId)
-
-    const loadSharedUsersData = async () => {
-      for (const app of ownedApps) {
-        if (sharedUsersMap.has(app.id) || loadingSharedUsersRef.current.has(app.id)) continue
-        loadingSharedUsersRef.current.add(app.id)
-
-        try {
-          const shares = await SpreadsheetApiService.getSharedUsers(app.id)
-          if (shares.length === 0) {
-            setSharedUsersMap(prev => new Map(prev).set(app.id, []))
-            continue
-          }
-
-          const userInfoPromises = shares.map(async share => {
-            try {
-              const query = GET_EMPLOYEE_LIGHT_BY_USER_ID(share.userId)
-              const result = await graphqlClient.request<{
-                Employee: Array<{ displayName: string; pictureThumbnail?: string }>
-              }>(query)
-              const emp = result.Employee?.[0]
-              return {
-                userId: share.userId,
-                userName: emp?.displayName || `User ${share.userId.slice(0, 8)}`,
-                userAvatar: emp?.pictureThumbnail
-                  ? emp.pictureThumbnail.startsWith('data:')
-                    ? emp.pictureThumbnail
-                    : `data:image/png;base64,${emp.pictureThumbnail}`
-                  : undefined,
-                permission: share.permission as 'view' | 'edit' | 'comment'
-              }
-            } catch {
-              return { userId: share.userId, userName: `User ${share.userId.slice(0, 8)}` }
-            }
-          })
-
-          const usersInfo = await Promise.all(userInfoPromises)
-          setSharedUsersMap(prev => new Map(prev).set(app.id, usersInfo))
-        } catch {
-          // Ignore errors
-        } finally {
-          loadingSharedUsersRef.current.delete(app.id)
-        }
-      }
-    }
-
-    loadSharedUsersData()
-  }, [apps, activeSection, currentUserId, graphqlClient, sharedUsersMap])
+  const { filteredApps } = useSpreadsheetAppsHubFiltering({
+    apps,
+    currentUserId,
+    activeSection,
+    favorites,
+    searchQuery,
+    sortBy,
+    sortOrder
+  })
 
   // Handlers
   const handleManageShares = useCallback(
@@ -510,13 +285,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const handleSharesChanged = useCallback(async () => {
     await refreshApps()
     if (selectedAppForManageShares) {
-      setSharedUsersMap(prev => {
-        const newMap = new Map(prev)
-        newMap.delete(selectedAppForManageShares.id)
-        return newMap
-      })
+      invalidateSharedUsersForApp(selectedAppForManageShares.id)
     }
-  }, [refreshApps, selectedAppForManageShares])
+  }, [refreshApps, selectedAppForManageShares, invalidateSharedUsersForApp])
 
   const handleFileParsed = useCallback(
     async (file: ParsedExcelFile) => {
@@ -752,14 +523,14 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   const handleBack = useCallback(() => {
     clearCurrentApp()
-    loadAttemptedRef.current = null
+    resetLoadAttempt()
     setSelectedAppId(null)
     setParsedFile(null)
     setAnalysis(null)
     resetAI()
     setCurrentView('list')
     updateUrl(null)
-  }, [clearCurrentApp, resetAI, updateUrl])
+  }, [clearCurrentApp, resetAI, resetLoadAttempt, updateUrl])
 
   const handleStartUpload = useCallback(() => {
     setParsedFile(null)

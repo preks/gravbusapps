@@ -297,62 +297,80 @@ export class DocumentFileStorageService {
     const localStorageKey = `document-apps-index-${this.currentUserId}`
     console.log('[DocumentStorage] Getting index for user:', this.currentUserId)
 
-    // Try localStorage first
-    const storedInfoStr = localStorage.getItem(localStorageKey)
-    console.log('[DocumentStorage] localStorage key:', localStorageKey, 'value:', storedInfoStr ? 'found' : 'not found')
+    const localIndex = await this.loadIndexFromLocalStorage(localStorageKey)
+    if (localIndex) return localIndex
 
-    if (storedInfoStr) {
-      try {
-        const storedInfo: StoredIndexInfo = JSON.parse(storedInfoStr)
-        console.log('[DocumentStorage] Stored info:', storedInfo)
-        if (storedInfo.filePath) {
-          console.log('[DocumentStorage] Attempting to read index from filePath:', storedInfo.filePath)
-          const index = await this.readJsonFileByPath<DocumentsIndex>(storedInfo.filePath)
-          if (index) {
-            console.log('[DocumentStorage] Successfully loaded index with', index.documents.length, 'documents')
-            if (!storedInfo.fileId) {
-              storedInfo.fileId = this.extractFileIdFromPath(storedInfo.filePath)
-            }
-            this.documentIndexInfo = storedInfo
-            return index
-          }
-          console.log('[DocumentStorage] Failed to read index from filePath, removing localStorage')
-          localStorage.removeItem(localStorageKey)
-        }
-      } catch (e) {
-        console.warn('[DocumentStorage] Failed to load from localStorage:', e)
-        localStorage.removeItem(localStorageKey)
-      }
-    }
+    const syncedIndex = await this.loadIndexFromSyncService(localStorageKey)
+    if (syncedIndex) return syncedIndex
 
-    // Try sync service (for cross-device access)
-    console.log('[DocumentStorage] Trying sync service...')
-    try {
-      const syncData = await this.syncService.getIndex()
-      console.log('[DocumentStorage] Sync service returned:', syncData)
-      if (syncData?.indexFilePath) {
-        debugLog('Found index via sync service:', syncData.indexFilePath)
-        console.log('[DocumentStorage] Attempting to read index from sync filePath:', syncData.indexFilePath)
-        const index = await this.readJsonFileByPath<DocumentsIndex>(syncData.indexFilePath)
-        if (index) {
-          console.log('[DocumentStorage] Successfully loaded index from sync with', index.documents.length, 'documents')
-          const fileId = this.extractFileIdFromPath(syncData.indexFilePath)
-          this.documentIndexInfo = { fileId, filePath: syncData.indexFilePath }
-          localStorage.setItem(localStorageKey, JSON.stringify(this.documentIndexInfo))
-          return index
-        }
-        console.log('[DocumentStorage] Failed to read index from sync filePath')
-      }
-    } catch (e) {
-      console.warn('[DocumentStorage] Failed to load from sync service:', e)
-    }
-
-    // Create new index
     console.log('[DocumentStorage] Creating new empty index')
+    return this.createEmptyIndex()
+  }
+
+  private createEmptyIndex(): DocumentsIndex {
     return {
       version: 1,
       documents: [],
       updatedAt: new Date().toISOString()
+    }
+  }
+
+  private async loadIndexFromLocalStorage(localStorageKey: string): Promise<DocumentsIndex | null> {
+    const storedInfoStr = localStorage.getItem(localStorageKey)
+    console.log('[DocumentStorage] localStorage key:', localStorageKey, 'value:', storedInfoStr ? 'found' : 'not found')
+
+    if (!storedInfoStr) return null
+
+    try {
+      const storedInfo: StoredIndexInfo = JSON.parse(storedInfoStr)
+      console.log('[DocumentStorage] Stored info:', storedInfo)
+
+      if (!storedInfo.filePath) return null
+
+      console.log('[DocumentStorage] Attempting to read index from filePath:', storedInfo.filePath)
+      const index = await this.readJsonFileByPath<DocumentsIndex>(storedInfo.filePath)
+      if (!index) {
+        console.log('[DocumentStorage] Failed to read index from filePath, removing localStorage')
+        localStorage.removeItem(localStorageKey)
+        return null
+      }
+
+      console.log('[DocumentStorage] Successfully loaded index with', index.documents.length, 'documents')
+      if (!storedInfo.fileId) {
+        storedInfo.fileId = this.extractFileIdFromPath(storedInfo.filePath)
+      }
+      this.documentIndexInfo = storedInfo
+      return index
+    } catch (e) {
+      console.warn('[DocumentStorage] Failed to load from localStorage:', e)
+      localStorage.removeItem(localStorageKey)
+      return null
+    }
+  }
+
+  private async loadIndexFromSyncService(localStorageKey: string): Promise<DocumentsIndex | null> {
+    console.log('[DocumentStorage] Trying sync service...')
+    try {
+      const syncData = await this.syncService.getIndex()
+      console.log('[DocumentStorage] Sync service returned:', syncData)
+      if (!syncData?.indexFilePath) return null
+
+      debugLog('Found index via sync service:', syncData.indexFilePath)
+      console.log('[DocumentStorage] Attempting to read index from sync filePath:', syncData.indexFilePath)
+      const index = await this.readJsonFileByPath<DocumentsIndex>(syncData.indexFilePath)
+      if (!index) {
+        console.log('[DocumentStorage] Failed to read index from sync filePath')
+        return null
+      }
+
+      console.log('[DocumentStorage] Successfully loaded index from sync with', index.documents.length, 'documents')
+      const fileId = this.extractFileIdFromPath(syncData.indexFilePath)
+      this.documentIndexInfo = { fileId, filePath: syncData.indexFilePath }
+      localStorage.setItem(localStorageKey, JSON.stringify(this.documentIndexInfo))
+      return index
+    } catch (e) {
+      console.warn('[DocumentStorage] Failed to load from sync service:', e)
+      return null
     }
   }
 
@@ -507,27 +525,10 @@ export class DocumentFileStorageService {
   async getDocument(id: string, directFilePath?: string): Promise<Document | null> {
     debugLog('Loading document:', id, directFilePath ? '(via direct path)' : '')
 
-    let document: Document | null = null
-
     // If a direct file path is provided (from URL for cross-device access), use it directly
     if (directFilePath) {
-      debugLog('Loading via direct path:', directFilePath)
-      try {
-        document = await this.readJsonFileByPath<Document>(directFilePath)
-        if (document) {
-          // Verify access before returning
-          if (!this.hasAccessToDocument(document)) {
-            console.warn('[DocumentStorage] Access denied to document:', id)
-            throw new Error('Access denied')
-          }
-          // Add to local index for future access
-          await this.addToLocalIndex(document, directFilePath)
-          return document
-        }
-      } catch (error) {
-        console.warn('[DocumentStorage] Direct path load failed:', error)
-        // Fall through to try local index
-      }
+      const direct = await this.tryLoadDocumentViaDirectPath(id, directFilePath)
+      if (direct) return direct
     }
 
     // Try local index
@@ -536,16 +537,8 @@ export class DocumentFileStorageService {
 
     if (!entry) {
       // Check if document is shared with us via sync service
-      const sharedDocs = await this.syncService.getSharedDocuments()
-      const sharedEntry = sharedDocs.find(d => d.documentId === id)
-
-      if (sharedEntry) {
-        document = await this.readJsonFileByPath<Document>(sharedEntry.filePath)
-        if (document && this.hasAccessToDocument(document)) {
-          await this.addToLocalIndex(document, sharedEntry.filePath)
-          return document
-        }
-      }
+      const shared = await this.tryLoadSharedDocumentViaSync(id)
+      if (shared) return shared
 
       console.warn('[DocumentStorage] Document not found:', id)
       return null
@@ -557,7 +550,7 @@ export class DocumentFileStorageService {
     }
 
     // Load full document data from file
-    document = await this.readJsonFileByPath<Document>(entry.filePath)
+    const document = await this.readJsonFileByPath<Document>(entry.filePath)
 
     if (!document) {
       return null
@@ -569,6 +562,41 @@ export class DocumentFileStorageService {
       return null
     }
 
+    return document
+  }
+
+  private async tryLoadDocumentViaDirectPath(id: string, directFilePath: string): Promise<Document | null> {
+    debugLog('Loading via direct path:', directFilePath)
+    try {
+      const document = await this.readJsonFileByPath<Document>(directFilePath)
+      if (!document) return null
+
+      if (!this.hasAccessToDocument(document)) {
+        console.warn('[DocumentStorage] Access denied to document:', id)
+        return null
+      }
+
+      await this.addToLocalIndex(document, directFilePath)
+      return document
+    } catch (error) {
+      console.warn('[DocumentStorage] Direct path load failed:', error)
+      return null
+    }
+  }
+
+  private async tryLoadSharedDocumentViaSync(id: string): Promise<Document | null> {
+    const sharedDocs = await this.syncService.getSharedDocuments()
+    const sharedEntry = sharedDocs.find(d => d.documentId === id)
+    if (!sharedEntry) return null
+
+    const document = await this.readJsonFileByPath<Document>(sharedEntry.filePath)
+    if (!document) return null
+
+    if (!this.hasAccessToDocument(document)) {
+      return null
+    }
+
+    await this.addToLocalIndex(document, sharedEntry.filePath)
     return document
   }
 

@@ -84,6 +84,12 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
     [app.sheets, activeSheetId]
   )
 
+  const AppIconComponent = useMemo(() => (app.icon ? getIconByName(app.icon) : null), [app.icon])
+  const iconButtonLabel = useMemo(() => {
+    if (!app.icon) return 'Select icon'
+    return APP_ICONS.find(i => i.name === app.icon)?.name || 'Select icon'
+  }, [app.icon])
+
   /**
    * Update app property
    */
@@ -318,14 +324,11 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
             <Separator orientation="vertical" className="gba:h-6" />
             <div className="gba:flex gba:items-center gba:gap-3">
               <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
-                {(() => {
-                  const IconComponent = app.icon ? getIconByName(app.icon) : null
-                  return IconComponent ? (
-                    <IconComponent className="gba:w-5 gba:h-5 gba:text-primary" />
-                  ) : (
-                    <DEFAULT_APP_ICON className="gba:w-5 gba:h-5 gba:text-primary" />
-                  )
-                })()}
+                {AppIconComponent ? (
+                  <AppIconComponent className="gba:w-5 gba:h-5 gba:text-primary" />
+                ) : (
+                  <DEFAULT_APP_ICON className="gba:w-5 gba:h-5 gba:text-primary" />
+                )}
               </div>
               <Input
                 value={app.name}
@@ -397,21 +400,12 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                 className="gba:w-full gba:justify-start gba:gap-3"
                 onClick={() => setIsIconPickerOpen(true)}
               >
-                {app.icon ? (
-                  (() => {
-                    const IconComponent = getIconByName(app.icon)
-                    return IconComponent ? (
-                      <IconComponent className="gba:w-5 gba:h-5 gba:text-primary" />
-                    ) : (
-                      <DEFAULT_APP_ICON className="gba:w-5 gba:h-5 gba:text-muted-foreground" />
-                    )
-                  })()
+                {AppIconComponent ? (
+                  <AppIconComponent className="gba:w-5 gba:h-5 gba:text-primary" />
                 ) : (
                   <DEFAULT_APP_ICON className="gba:w-5 gba:h-5 gba:text-muted-foreground" />
                 )}
-                <span className="gba:text-sm">
-                  {app.icon ? APP_ICONS.find(i => i.name === app.icon)?.name || 'Select icon' : 'Select icon'}
-                </span>
+                <span className="gba:text-sm">{iconButtonLabel}</span>
               </Button>
             </div>
           </div>

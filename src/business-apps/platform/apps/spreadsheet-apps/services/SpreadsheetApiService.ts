@@ -111,7 +111,8 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   }
 
   const text = await response.text()
-  return text ? JSON.parse(text) : null
+  // Some endpoints return no body (204/empty). Avoid returning `null` for generic `T`.
+  return text ? (JSON.parse(text) as T) : (undefined as unknown as T)
 }
 
 interface PaginatedResponse<T> {
@@ -173,6 +174,12 @@ function mapApiAppToSpreadsheetApp(apiApp: Record<string, unknown>): Spreadsheet
         id: sheet.id as string,
         name: sheet.name as string,
         description: sheet.description as string | undefined,
+        viewType:
+          (sheet.viewType as SpreadsheetSheet['viewType'] | undefined) ||
+          ((sheet.views as Array<Record<string, unknown>> | undefined)?.[0]?.type as
+            | SpreadsheetSheet['viewType']
+            | undefined) ||
+          'table',
         columns: (sheet.columns as SpreadsheetSheet['columns']) || [],
         views: (sheet.views as SpreadsheetSheet['views']) || [],
         settings: (sheet.settings as SpreadsheetSheet['settings']) || {},
@@ -378,6 +385,12 @@ export const SpreadsheetApiService = {
         id: sheet.id as string,
         name: sheet.name as string,
         description: sheet.description as string | undefined,
+        viewType:
+          (sheet.viewType as SpreadsheetSheet['viewType'] | undefined) ||
+          ((sheet.views as Array<Record<string, unknown>> | undefined)?.[0]?.type as
+            | SpreadsheetSheet['viewType']
+            | undefined) ||
+          'table',
         columns: (sheet.columns as SpreadsheetSheet['columns']) || [],
         views: (sheet.views as SpreadsheetSheet['views']) || [],
         settings: (sheet.settings as SpreadsheetSheet['settings']) || {},
@@ -417,6 +430,12 @@ export const SpreadsheetApiService = {
       id: created.id as string,
       name: created.name as string,
       description: created.description as string | undefined,
+      viewType:
+        (created.viewType as SpreadsheetSheet['viewType'] | undefined) ||
+        ((created.views as Array<Record<string, unknown>> | undefined)?.[0]?.type as
+          | SpreadsheetSheet['viewType']
+          | undefined) ||
+        'table',
       columns: (created.columns as SpreadsheetSheet['columns']) || [],
       views: (created.views as SpreadsheetSheet['views']) || [],
       settings: (created.settings as SpreadsheetSheet['settings']) || {},
@@ -456,6 +475,12 @@ export const SpreadsheetApiService = {
       id: updated.id as string,
       name: updated.name as string,
       description: updated.description as string | undefined,
+      viewType:
+        (updated.viewType as SpreadsheetSheet['viewType'] | undefined) ||
+        ((updated.views as Array<Record<string, unknown>> | undefined)?.[0]?.type as
+          | SpreadsheetSheet['viewType']
+          | undefined) ||
+        'table',
       columns: (updated.columns as SpreadsheetSheet['columns']) || [],
       views: (updated.views as SpreadsheetSheet['views']) || [],
       settings: (updated.settings as SpreadsheetSheet['settings']) || {},
@@ -679,27 +704,54 @@ export const SpreadsheetApiService = {
     const app = await this.createApp({
       name: options?.name || analysis.suggestedAppName,
       status: 'file_based',
-      sheets: analysis.sheets.map(sheet => ({
-        name: sheet.name,
-        columns: sheet.columns.map((col, idx) => ({
+      sheets: analysis.sheets.map((sheet, sheetIndex) => {
+        const columns: SpreadsheetSheet['columns'] = sheet.columns.map((col, idx) => ({
           id: `col_${idx}`,
           name: col.name,
           label: col.label,
           type: col.type as SpreadsheetSheet['columns'][0]['type'],
+          width: undefined,
+          isVisible: true,
+          isEditable: true,
+          isRequired: false,
+          isUnique: false,
+          defaultValue: undefined,
+          selectOptions: undefined,
+          validation: undefined,
+          formula: undefined,
+          referenceTo: undefined,
           order: idx
-        })),
-        views: [
-          {
-            id: 'default',
-            name: 'Default Table',
-            type: 'table' as const,
-            isDefault: true,
-            config: {}
-          }
-        ],
-        settings: {},
-        data: []
-      }))
+        }))
+
+        return {
+          id: `sheet_${sheetIndex}`,
+          name: sheet.name,
+          description: undefined,
+          viewType: 'table',
+          columns,
+          views: [
+            {
+              id: 'default',
+              name: 'Default Table',
+              type: 'table' as const,
+              isDefault: true,
+              config: { type: 'table', columns: columns.map(c => c.id) }
+            }
+          ],
+          settings: {
+            allowAdd: true,
+            allowEdit: true,
+            allowDelete: true,
+            allowExport: true,
+            allowImport: true,
+            rowsPerPage: 25,
+            showRowNumbers: true
+          },
+          data: [],
+          automations: [],
+          workflowLinks: []
+        }
+      })
     })
 
     // TODO: Import row data from analysis
@@ -1088,11 +1140,38 @@ export const SpreadsheetApiService = {
 
   async updateComment(commentId: string, updates: Partial<Comment>): Promise<Comment | null> {
     try {
-      await apiRequest<Record<string, unknown>>(`/comments/${commentId}`, {
+      const response = await apiRequest<Record<string, unknown>>(`/comments/${commentId}`, {
         method: 'PATCH',
         body: JSON.stringify({ content: updates.content })
       })
-      return null
+
+      const entityId = (response.entityId as string | undefined) || (response.appId as string | undefined)
+      const type = response.type as Comment['type'] | undefined
+      const content = response.content as string | undefined
+      const createdBy = response.createdBy as string | undefined
+      const createdAt = response.createdAt as string | undefined
+
+      if (!entityId || !type || content === undefined || !createdBy || !createdAt) {
+        return null
+      }
+
+      return {
+        id: (response.id as string | undefined) || commentId,
+        entityId,
+        entityType: 'spreadsheet_app',
+        type,
+        content,
+        createdBy,
+        createdByName: response.createdByName as string | undefined,
+        createdByAvatar: response.createdByAvatar as string | undefined,
+        createdAt,
+        updatedAt: response.updatedAt as string | undefined,
+        resolvedAt: response.resolvedAt as string | undefined,
+        resolvedBy: response.resolvedBy as string | undefined,
+        cellReference: response.cellReference as string | undefined,
+        sheetId: response.sheetId as string | undefined,
+        parentId: response.parentId as string | undefined
+      }
     } catch (error) {
       console.error('Failed to update comment:', error)
       return null
@@ -1121,11 +1200,38 @@ export const SpreadsheetApiService = {
 
   async replyToComment(commentId: string, reply: string): Promise<Comment | null> {
     try {
-      await apiRequest<Record<string, unknown>>(`/comments/${commentId}/reply`, {
+      const response = await apiRequest<Record<string, unknown>>(`/comments/${commentId}/reply`, {
         method: 'POST',
         body: JSON.stringify({ content: reply })
       })
-      return null
+
+      const entityId = (response.entityId as string | undefined) || (response.appId as string | undefined)
+      const type = response.type as Comment['type'] | undefined
+      const content = response.content as string | undefined
+      const createdBy = response.createdBy as string | undefined
+      const createdAt = response.createdAt as string | undefined
+
+      if (!entityId || !type || content === undefined || !createdBy || !createdAt) {
+        return null
+      }
+
+      return {
+        id: response.id as string,
+        entityId,
+        entityType: 'spreadsheet_app',
+        type,
+        content,
+        createdBy,
+        createdByName: response.createdByName as string | undefined,
+        createdByAvatar: response.createdByAvatar as string | undefined,
+        createdAt,
+        updatedAt: response.updatedAt as string | undefined,
+        resolvedAt: response.resolvedAt as string | undefined,
+        resolvedBy: response.resolvedBy as string | undefined,
+        cellReference: response.cellReference as string | undefined,
+        sheetId: response.sheetId as string | undefined,
+        parentId: (response.parentId as string | undefined) || commentId
+      }
     } catch (error) {
       console.error('Failed to reply to comment:', error)
       return null
@@ -1173,7 +1279,15 @@ export const SpreadsheetApiService = {
         return null
       }
 
-      return response as FileLock
+      return {
+        isLocked: Boolean(response.isLocked),
+        lockedBy: response.lockedBy as string | undefined,
+        lockedByName: response.lockedByName as string | undefined,
+        lockedByAvatar: response.lockedByAvatar as string | undefined,
+        lockedAt: response.lockedAt as string | undefined,
+        lockReason: response.lockReason as string | undefined,
+        lockExpiry: response.lockExpiry as string | undefined
+      }
     } catch (error) {
       console.error('Failed to get lock status:', error)
       return null

@@ -901,11 +901,36 @@ export const NoteApiService = {
 
   async updateComment(commentId: string, updates: Partial<Comment>): Promise<Comment | null> {
     try {
-      await apiRequest<Record<string, unknown>>(`/comments/${commentId}`, {
+      const response = await apiRequest<Record<string, unknown>>(`/comments/${commentId}`, {
         method: 'PATCH',
         body: JSON.stringify({ content: updates.content })
       })
-      return null
+
+      const entityId = (response.entityId as string | undefined) || (response.noteId as string | undefined)
+      const type = response.type as Comment['type'] | undefined
+      const content = response.content as string | undefined
+      const createdBy = response.createdBy as string | undefined
+      const createdAt = response.createdAt as string | undefined
+
+      if (!entityId || !type || content === undefined || !createdBy || !createdAt) {
+        return null
+      }
+
+      return {
+        id: (response.id as string | undefined) || commentId,
+        entityId,
+        entityType: 'note',
+        type,
+        content,
+        createdBy,
+        createdByName: response.createdByName as string | undefined,
+        createdByAvatar: response.createdByAvatar as string | undefined,
+        createdAt,
+        updatedAt: response.updatedAt as string | undefined,
+        resolvedAt: response.resolvedAt as string | undefined,
+        resolvedBy: response.resolvedBy as string | undefined,
+        parentId: response.parentId as string | undefined
+      }
     } catch (error) {
       console.error('Failed to update comment:', error)
       return null
@@ -934,11 +959,36 @@ export const NoteApiService = {
 
   async replyToComment(commentId: string, reply: string): Promise<Comment | null> {
     try {
-      await apiRequest<Record<string, unknown>>(`/comments/${commentId}/reply`, {
+      const response = await apiRequest<Record<string, unknown>>(`/comments/${commentId}/reply`, {
         method: 'POST',
         body: JSON.stringify({ content: reply })
       })
-      return null
+
+      const entityId = (response.entityId as string | undefined) || (response.noteId as string | undefined)
+      const type = response.type as Comment['type'] | undefined
+      const content = response.content as string | undefined
+      const createdBy = response.createdBy as string | undefined
+      const createdAt = response.createdAt as string | undefined
+
+      if (!entityId || !type || content === undefined || !createdBy || !createdAt) {
+        return null
+      }
+
+      return {
+        id: response.id as string,
+        entityId,
+        entityType: 'note',
+        type,
+        content,
+        createdBy,
+        createdByName: response.createdByName as string | undefined,
+        createdByAvatar: response.createdByAvatar as string | undefined,
+        createdAt,
+        updatedAt: response.updatedAt as string | undefined,
+        resolvedAt: response.resolvedAt as string | undefined,
+        resolvedBy: response.resolvedBy as string | undefined,
+        parentId: (response.parentId as string | undefined) || commentId
+      }
     } catch (error) {
       console.error('Failed to reply to comment:', error)
       return null

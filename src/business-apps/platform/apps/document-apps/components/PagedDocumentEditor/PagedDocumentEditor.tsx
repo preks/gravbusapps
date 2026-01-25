@@ -295,6 +295,34 @@ export interface PagedDocumentEditorProps extends Partial<BusinessAppContextProp
   'data-testid'?: string
 }
 
+function findInlineCommentSelection(editor: any, commentId: string): { from: number; to: number } | null {
+  const { doc } = editor.state
+  let found: { from: number; to: number } | null = null
+
+  doc.descendants((node: any, pos: number) => {
+    if (found) return false
+    const marks: any[] | undefined = node.marks
+    if (!marks?.length) return
+
+    for (const mark of marks) {
+      if (mark?.type?.name === 'inlineComment' && mark?.attrs?.commentId === commentId) {
+        found = { from: pos, to: pos + node.nodeSize }
+        return false
+      }
+    }
+    return
+  })
+
+  return found
+}
+
+function scrollInlineCommentDomIntoView(commentId: string) {
+  setTimeout(() => {
+    const element = document.querySelector(`[data-comment-id="${commentId}"]`)
+    element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, 100)
+}
+
 /**
  * PagedDocumentEditor Component
  */
@@ -1530,53 +1558,17 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
           accessToken={accessToken}
           headerHeight={120}
           onUnhighlight={commentId => {
-            // Remove inline comment highlight when resolved/deleted
-            if (editor) {
-              // Find and remove the specific comment highlight
-              const { doc } = editor.state
-              let foundPos: { from: number; to: number } | null = null
-
-              doc.descendants((node, pos) => {
-                if (node.marks) {
-                  node.marks.forEach(mark => {
-                    if (mark.type.name === 'inlineComment' && mark.attrs.commentId === commentId) {
-                      foundPos = { from: pos, to: pos + node.nodeSize }
-                    }
-                  })
-                }
-              })
-
-              if (foundPos) {
-                editor.chain().setTextSelection(foundPos).unsetInlineComment().run()
-              }
-            }
+            if (!editor) return
+            const selection = findInlineCommentSelection(editor, commentId)
+            if (!selection) return
+            editor.chain().setTextSelection(selection).unsetInlineComment().run()
           }}
           onScrollToHighlight={commentId => {
-            // Scroll to and highlight the text for this comment
-            if (editor) {
-              const { doc } = editor.state
-
-              doc.descendants((node, pos) => {
-                if (node.marks) {
-                  node.marks.forEach(mark => {
-                    if (mark.type.name === 'inlineComment' && mark.attrs.commentId === commentId) {
-                      // Scroll the element into view
-                      editor
-                        .chain()
-                        .setTextSelection({ from: pos, to: pos + node.nodeSize })
-                        .focus()
-                        .run()
-
-                      // Find the DOM element and scroll to it
-                      setTimeout(() => {
-                        const element = document.querySelector(`[data-comment-id="${commentId}"]`)
-                        element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                      }, 100)
-                    }
-                  })
-                }
-              })
-            }
+            if (!editor) return
+            const selection = findInlineCommentSelection(editor, commentId)
+            if (!selection) return
+            editor.chain().setTextSelection(selection).focus().run()
+            scrollInlineCommentDomIntoView(commentId)
           }}
           data-testid="document-comment-panel"
         />

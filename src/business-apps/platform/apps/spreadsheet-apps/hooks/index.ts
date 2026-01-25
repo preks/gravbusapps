@@ -28,3 +28,8 @@ export type { UseEntityDataSourceOptions, UseEntityDataSourceResult } from './us
 
 export { useSpreadsheetAutomations } from './useSpreadsheetAutomations'
 export type { UseSpreadsheetAutomationsParams, UseSpreadsheetAutomationsResult } from './useSpreadsheetAutomations'
+
+export { useSpreadsheetAppsHubFavorites } from './useSpreadsheetAppsHubFavorites'
+export { useSpreadsheetAppsHubFiltering } from './useSpreadsheetAppsHubFiltering'
+export { useSpreadsheetAppsHubUrlState } from './useSpreadsheetAppsHubUrlState'
+export { useSpreadsheetAppsHubUserLookup } from './useSpreadsheetAppsHubUserLookup'

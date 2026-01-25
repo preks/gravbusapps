@@ -17,11 +17,6 @@ import {
   Progress,
   Input,
   Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Table,
   TableBody,
   TableCell,
@@ -47,25 +42,14 @@ import {
   Download,
   CheckCircle,
   Clock,
-  XCircle,
   AlertTriangle,
   Play,
   Pause,
   Eye,
-  BarChart3,
-  Filter,
-  Plus,
-  Trash2,
-  ChevronRight
+  BarChart3
 } from 'lucide-react'
 import type { SpreadsheetColumn } from '../../types/spreadsheet'
-import type {
-  SpreadsheetAutomation,
-  BulkCollectionConfig,
-  WorkflowRowLink,
-  WorkflowStatus,
-  ResultMapping
-} from '../../types/automation'
+import type { SpreadsheetAutomation, WorkflowRowLink, WorkflowStatus } from '../../types/automation'
 
 export interface BulkCollectionPanelProps {
   /** Bulk collection automation */
@@ -127,13 +111,15 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
   const [isSendingReminders, setIsSendingReminders] = useState(false)
   const [viewMode, setViewMode] = useState<'progress' | 'responses'>('progress')
 
+  const removeSelectedUser = useCallback((userId: string) => {
+    setSelectedUsers(prev => prev.filter(u => u !== userId))
+  }, [])
+
   // Calculate statistics
   const stats = useMemo(() => {
     const total = workflowLinks.length
     const completed = workflowLinks.filter(l => l.workflowStatus === 'COMPLETED').length
-    const pending = workflowLinks.filter(
-      l => l.workflowStatus === 'PENDING' || l.workflowStatus === 'RUNNING'
-    ).length
+    const pending = workflowLinks.filter(l => l.workflowStatus === 'PENDING' || l.workflowStatus === 'RUNNING').length
     const failed = workflowLinks.filter(
       l => l.workflowStatus === 'FAILED' || l.workflowStatus === 'CANCELED' || l.workflowStatus === 'TIMED_OUT'
     ).length
@@ -159,9 +145,7 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
     return {
       completed: responses.filter(r => r.status === 'COMPLETED'),
       pending: responses.filter(r => r.status === 'PENDING' || r.status === 'RUNNING'),
-      failed: responses.filter(
-        r => r.status === 'FAILED' || r.status === 'CANCELED' || r.status === 'TIMED_OUT'
-      )
+      failed: responses.filter(r => r.status === 'FAILED' || r.status === 'CANCELED' || r.status === 'TIMED_OUT')
     }
   }, [workflowLinks])
 
@@ -300,12 +284,7 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
                 <span className="gba:text-sm gba:text-muted-foreground">
                   {stats.pending} users haven't responded yet
                 </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleSendReminders}
-                  disabled={isSendingReminders}
-                >
+                <Button size="sm" variant="outline" onClick={handleSendReminders} disabled={isSendingReminders}>
                   {isSendingReminders ? (
                     <Spinner size="sm" className="gba:mr-2" />
                   ) : (
@@ -393,11 +372,7 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
                             {link.workflowStatus}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          {link.completedAt
-                            ? new Date(link.completedAt).toLocaleString()
-                            : '—'}
-                        </TableCell>
+                        <TableCell>{link.completedAt ? new Date(link.completedAt).toLocaleString() : '—'}</TableCell>
                         <TableCell>
                           {link.workflowStatus === 'COMPLETED' && link.outputData && (
                             <Button size="sm" variant="ghost">
@@ -417,18 +392,14 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
         <Card>
           <CardHeader className="gba:pb-3">
             <CardTitle className="gba:text-base">Collected Responses</CardTitle>
-            <CardDescription>
-              {collectedData.length} response(s) collected
-            </CardDescription>
+            <CardDescription>{collectedData.length} response(s) collected</CardDescription>
           </CardHeader>
           <CardContent>
             {collectedData.length === 0 ? (
               <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
                 <BarChart3 className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:opacity-50" />
                 <p>No data collected yet.</p>
-                <p className="gba:text-sm gba:mt-1">
-                  Data will appear here as users complete their responses.
-                </p>
+                <p className="gba:text-sm gba:mt-1">Data will appear here as users complete their responses.</p>
               </div>
             ) : (
               <ScrollArea className="gba:h-[300px]">
@@ -452,15 +423,11 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
                         )}
                         {visibleColumns.map(column => (
                           <TableCell key={column.id}>
-                            {row[column.name] !== undefined
-                              ? String(row[column.name])
-                              : '—'}
+                            {row[column.name] !== undefined ? String(row[column.name]) : '—'}
                           </TableCell>
                         ))}
                         <TableCell>
-                          {row._submittedAt
-                            ? new Date(row._submittedAt as string).toLocaleString()
-                            : '—'}
+                          {row._submittedAt ? new Date(row._submittedAt as string).toLocaleString() : '—'}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -477,9 +444,7 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Start Data Collection</DialogTitle>
-            <DialogDescription>
-              Send workflows to collect data from selected users.
-            </DialogDescription>
+            <DialogDescription>Send workflows to collect data from selected users.</DialogDescription>
           </DialogHeader>
 
           <div className="gba:space-y-4">
@@ -497,27 +462,15 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
 
             {/* Quick selection options */}
             <div className="gba:flex gba:flex-wrap gba:gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setSelectedUsers(['all-employees'])}
-              >
+              <Button size="sm" variant="outline" onClick={() => setSelectedUsers(['all-employees'])}>
                 <Users className="gba:w-4 gba:h-4 gba:mr-1" />
                 All Employees
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setSelectedUsers(['my-team'])}
-              >
+              <Button size="sm" variant="outline" onClick={() => setSelectedUsers(['my-team'])}>
                 <Users className="gba:w-4 gba:h-4 gba:mr-1" />
                 My Team
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setSelectedUsers(['department'])}
-              >
+              <Button size="sm" variant="outline" onClick={() => setSelectedUsers(['department'])}>
                 <Users className="gba:w-4 gba:h-4 gba:mr-1" />
                 My Department
               </Button>
@@ -530,12 +483,7 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
                   {selectedUsers.map(user => (
                     <Badge key={user} variant="outline" className="gba:gap-1">
                       {user}
-                      <button
-                        onClick={() =>
-                          setSelectedUsers(prev => prev.filter(u => u !== user))
-                        }
-                        className="gba:ml-1 gba:hover:text-destructive"
-                      >
+                      <button onClick={() => removeSelectedUser(user)} className="gba:ml-1 gba:hover:text-destructive">
                         ×
                       </button>
                     </Badge>
@@ -569,15 +517,8 @@ export const BulkCollectionPanel: React.FC<BulkCollectionPanelProps> = ({
             <Button variant="outline" onClick={() => setIsStartDialogOpen(false)}>
               Cancel
             </Button>
-            <Button
-              onClick={handleStartCollection}
-              disabled={selectedUsers.length === 0 || isStarting}
-            >
-              {isStarting ? (
-                <Spinner size="sm" className="gba:mr-2" />
-              ) : (
-                <Send className="gba:w-4 gba:h-4 gba:mr-2" />
-              )}
+            <Button onClick={handleStartCollection} disabled={selectedUsers.length === 0 || isStarting}>
+              {isStarting ? <Spinner size="sm" className="gba:mr-2" /> : <Send className="gba:w-4 gba:h-4 gba:mr-2" />}
               Start Collection
             </Button>
           </DialogFooter>

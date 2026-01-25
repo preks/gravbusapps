@@ -9,6 +9,29 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { Version } from '../types/versioning'
 
+function shouldSkipAutoSave(isPaused: boolean, hasUnsavedChanges: boolean): boolean {
+  return isPaused || !hasUnsavedChanges
+}
+
+async function deleteOldAutoSaveVersionsIfNeeded(params: {
+  entityId: string
+  versions: Version[]
+  maxAutoSaveVersions: number
+  deleteVersion?: (id: string, versionNumber: number) => Promise<boolean>
+}): Promise<Set<number>> {
+  const autoSaveVersions = params.versions.filter(v => v.isAutoSave)
+  if (autoSaveVersions.length < params.maxAutoSaveVersions) return new Set()
+
+  const toDelete = autoSaveVersions.slice(params.maxAutoSaveVersions - 1)
+  for (const oldVersion of toDelete) {
+    if (params.deleteVersion) {
+      await params.deleteVersion(params.entityId, oldVersion.version)
+    }
+  }
+
+  return new Set(toDelete.map(v => v.version))
+}
+
 export interface UseVersioningOptions {
   entityId: string
   entityType: 'document' | 'note' | 'spreadsheet_app'
@@ -210,7 +233,7 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
    */
   const saveAutoVersion = useCallback(async (): Promise<Version | null> => {
     // Don't auto-save if paused or no unsaved changes
-    if (autoSavePausedRef.current || !state.hasUnsavedChanges) {
+    if (shouldSkipAutoSave(autoSavePausedRef.current, state.hasUnsavedChanges)) {
       return null
     }
 
@@ -221,38 +244,28 @@ export function useVersioning(options: UseVersioningOptions): UseVersioningRetur
         isCheckpoint: false // Mark as auto-save
       })
 
-      if (version) {
-        // Clean up old auto-save versions (keep only maxAutoSaveVersions)
-        const autoSaveVersions = state.versions.filter(v => v.isAutoSave)
-        let deletedVersions: typeof autoSaveVersions = []
-
-        if (autoSaveVersions.length >= maxAutoSaveVersions) {
-          // Delete oldest auto-save versions
-          const toDelete = autoSaveVersions.slice(maxAutoSaveVersions - 1)
-          for (const oldVersion of toDelete) {
-            if (apiService.deleteVersion) {
-              await apiService.deleteVersion(entityId, oldVersion.version)
-            }
-          }
-          deletedVersions = toDelete
-        }
-
-        setState(prev => ({
-          ...prev,
-          versions: [version, ...prev.versions.filter(v => !deletedVersions.some(d => d.version === v.version))],
-          currentVersion: version,
-          isSaving: false,
-          hasUnsavedChanges: false,
-          lastSaveTime: new Date()
-        }))
-
-        if (onVersionCreated) {
-          onVersionCreated(version)
-        }
-      } else {
+      if (!version) {
         setState(prev => ({ ...prev, isSaving: false }))
+        return version
       }
 
+      const deletedVersionNumbers = await deleteOldAutoSaveVersionsIfNeeded({
+        entityId,
+        versions: state.versions,
+        maxAutoSaveVersions,
+        deleteVersion: apiService.deleteVersion
+      })
+
+      setState(prev => ({
+        ...prev,
+        versions: [version, ...prev.versions.filter(v => !deletedVersionNumbers.has(v.version))],
+        currentVersion: version,
+        isSaving: false,
+        hasUnsavedChanges: false,
+        lastSaveTime: new Date()
+      }))
+
+      onVersionCreated?.(version)
       return version
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to auto-save'

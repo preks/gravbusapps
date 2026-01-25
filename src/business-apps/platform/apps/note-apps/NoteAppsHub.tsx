@@ -5,7 +5,7 @@
  * Modern OneDrive-inspired design with sidebar navigation.
  */
 
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useCallback } from 'react'
 import { toast } from 'sonner'
 import {
   Card,
@@ -57,16 +57,15 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
 // Components
-import { type SharedUserInfo } from './components/NotePreviewCard'
 import { NoteEditor } from './NoteEditor'
 import { ShareNoteDialog, type SharedNoteUser } from './components/ShareNoteDialog'
 
 // Hooks
 import { useNotes } from './hooks/useNotes'
-
-// GraphQL
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
+import { useNoteAppsHubUserLookup } from './hooks/useNoteAppsHubUserLookup'
+import { useNoteAppsHubFavorites } from './hooks/useNoteAppsHubFavorites'
+import { useNoteAppsHubFiltering } from './hooks/useNoteAppsHubFiltering'
+import { useNoteAppsHubUrlState } from './hooks/useNoteAppsHubUrlState'
 
 // Services
 import { NoteApiService } from './services/NoteApiService'
@@ -146,19 +145,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [favorites, setFavorites] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem('note-favorites')
-      return saved ? new Set(JSON.parse(saved)) : new Set()
-    } catch {
-      return new Set()
-    }
-  })
+  const { favorites, setFavorites } = useNoteAppsHubFavorites()
 
   // Data state
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
-  const [sharedUsersMap] = useState<Record<string, SharedUserInfo[]>>({})
-  const [ownerInfoMap, setOwnerInfoMap] = useState<Map<string, { name: string; avatar?: string }>>(new Map())
 
   // Share dialog state
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
@@ -167,30 +157,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
 
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
-
-  // URL helpers for deep linking
-  const getUrlParams = useCallback((): { noteId: string | null; view: HubView | null } => {
-    const urlParams = new URLSearchParams(window.location.search)
-    return {
-      noteId: urlParams.get('noteId'),
-      view: urlParams.get('view') as HubView | null
-    }
-  }, [])
-
-  const updateUrl = useCallback((noteId: string | null, view?: HubView) => {
-    const urlParams = new URLSearchParams(window.location.search)
-    if (noteId) {
-      urlParams.set('noteId', noteId)
-      if (view) urlParams.set('view', view)
-    } else {
-      urlParams.delete('noteId')
-      urlParams.delete('view')
-    }
-    const newUrl = urlParams.toString()
-      ? `${window.location.pathname}?${urlParams.toString()}`
-      : window.location.pathname
-    window.history.pushState({ noteId, view }, '', newUrl)
-  }, [])
 
   // Hooks
   const {
@@ -211,207 +177,25 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     shareNote,
     getSharedUsers
   } = useNotes({ accessToken, userId: currentUserId })
+  const { ownerInfoMap, sharedUsersMap } = useNoteAppsHubUserLookup({ accessToken, notes })
+  const { updateUrl, resetLoadAttempt } = useNoteAppsHubUrlState({
+    currentView,
+    currentNoteId: currentNote?.id || null,
+    isLoadingNote: isLoadingNotes,
+    loadNoteById: loadNote,
+    setCurrentView,
+    setSelectedNoteId
+  })
 
-  // GraphQL client for fetching user info
-  const graphqlClient = useGraphQLClient(accessToken)
-
-  // Track which note ID we've attempted to load
-  const loadAttemptedRef = useRef<string | null>(null)
-
-  // Load note from URL on mount
-  useEffect(() => {
-    const { noteId, view } = getUrlParams()
-    if (noteId && !currentNote && !isLoadingNotes && loadAttemptedRef.current !== noteId) {
-      loadAttemptedRef.current = noteId
-      loadNote(noteId).then(note => {
-        if (note) {
-          setSelectedNoteId(noteId)
-          setCurrentView(view === 'editor' ? 'editor' : 'editor')
-        }
-      })
-    }
-  }, [getUrlParams, loadNote, currentNote, isLoadingNotes])
-
-  // Track if we came from desk
-  const cameFromDeskRef = useRef(false)
-  useEffect(() => {
-    const referrer = document.referrer
-    const urlParams = new URLSearchParams(window.location.search)
-    cameFromDeskRef.current =
-      referrer.includes('/platform/apps/desk') ||
-      referrer.includes('?app=platform/apps/desk') ||
-      urlParams.get('from') === 'desk'
-
-    // Push state to track navigation from desk
-    if (cameFromDeskRef.current && currentView === 'list') {
-      window.history.replaceState({ fromDesk: true }, '', window.location.href)
-    }
-  }, [currentView])
-
-  // Handle browser back/forward navigation
-  useEffect(() => {
-    const handlePopState = (event: PopStateEvent) => {
-      const state = event.state as { noteId?: string; view?: HubView; fromDesk?: boolean } | null
-
-      // If we came from desk and there's no note, go back to desk
-      if (state?.fromDesk && !state?.noteId && currentView === 'list') {
-        navigateTo('/platform/apps/desk')
-        return
-      }
-
-      if (state?.noteId) {
-        loadNote(state.noteId).then(note => {
-          if (note) {
-            setSelectedNoteId(state.noteId!)
-            setCurrentView(state.view || 'editor')
-          }
-        })
-      } else {
-        setSelectedNoteId(null)
-        setCurrentView('list')
-      }
-    }
-
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [loadNote, currentView])
-
-  // Save favorites to localStorage
-  useEffect(() => {
-    localStorage.setItem('note-favorites', JSON.stringify(Array.from(favorites)))
-  }, [favorites])
-
-  // Fetch owner info for notes - match spreadsheet pattern
-  const loadingOwnerInfoRef = useRef<Set<string>>(new Set())
-  useEffect(() => {
-    if (!graphqlClient) return
-
-    const loadOwnerInfo = async () => {
-      for (const note of notes) {
-        const ownerId = note.ownerId
-        if (!ownerId || ownerInfoMap.has(ownerId) || loadingOwnerInfoRef.current.has(ownerId)) continue
-        loadingOwnerInfoRef.current.add(ownerId)
-
-        try {
-          const query = GET_EMPLOYEE_LIGHT_BY_USER_ID(ownerId)
-          const result = await graphqlClient.request<{
-            Employee: Array<{ displayName: string; pictureThumbnail?: string }>
-          }>(query)
-          const emp = result.Employee?.[0]
-          setOwnerInfoMap(prev =>
-            new Map(prev).set(ownerId, {
-              name: emp?.displayName || `User ${ownerId.slice(0, 8)}`,
-              avatar: emp?.pictureThumbnail
-                ? emp.pictureThumbnail.startsWith('data:')
-                  ? emp.pictureThumbnail
-                  : `data:image/png;base64,${emp.pictureThumbnail}`
-                : undefined
-            })
-          )
-        } catch {
-          // Ignore errors - just show fallback
-          setOwnerInfoMap(prev =>
-            new Map(prev).set(ownerId, {
-              name: `User ${ownerId.slice(0, 8)}`
-            })
-          )
-        } finally {
-          loadingOwnerInfoRef.current.delete(ownerId)
-        }
-      }
-    }
-
-    loadOwnerInfo()
-  }, [notes, graphqlClient, ownerInfoMap])
-
-  // Separate notes into categories
-  const { myNotes, sharedNotes, pinnedNotes, archivedNotes, recentNotes } = useMemo(() => {
-    const my: NoteSummary[] = []
-    const shared: NoteSummary[] = []
-    const pinned: NoteSummary[] = []
-    const archived: NoteSummary[] = []
-    const recent: NoteSummary[] = []
-
-    // Sort by updatedAt for recent
-    const sortedByDate = [...notes].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    const recentSet = new Set(sortedByDate.slice(0, 10).map(n => n.id))
-
-    notes.forEach(note => {
-      if (note.isArchived) {
-        archived.push(note)
-        return
-      }
-      if (note.isPinned) {
-        pinned.push(note)
-      }
-      if (recentSet.has(note.id)) {
-        recent.push(note)
-      }
-      const isSharedWithMe = note.isShared === true || (note.ownerId !== currentUserId && note.permission !== 'owner')
-      if (isSharedWithMe) {
-        shared.push(note)
-      } else {
-        my.push(note)
-      }
-    })
-
-    return { myNotes: my, sharedNotes: shared, pinnedNotes: pinned, archivedNotes: archived, recentNotes: recent }
-  }, [notes, currentUserId])
-
-  // Filter and sort notes based on current section
-  const filteredNotes = useMemo(() => {
-    let baseNotes: NoteSummary[] = []
-
-    switch (activeSection) {
-      case 'home':
-        baseNotes = [...myNotes, ...sharedNotes]
-        break
-      case 'pinned':
-        baseNotes = pinnedNotes
-        break
-      case 'shared':
-        baseNotes = sharedNotes
-        break
-      case 'archived':
-        baseNotes = archivedNotes
-        break
-      case 'recent':
-        baseNotes = recentNotes
-        break
-      default:
-        baseNotes = myNotes
-    }
-
-    // Filter by search
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
-      baseNotes = baseNotes.filter(
-        note =>
-          note.title?.toLowerCase().includes(query) ||
-          note.preview?.toLowerCase().includes(query) ||
-          note.tags?.some(tag => tag.toLowerCase().includes(query))
-      )
-    }
-
-    // Sort
-    baseNotes.sort((a, b) => {
-      let comparison = 0
-      switch (sortBy) {
-        case 'name':
-          comparison = (a.title || '').localeCompare(b.title || '')
-          break
-        case 'modified':
-          comparison = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-          break
-        case 'created':
-          comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          break
-      }
-      return sortOrder === 'asc' ? -comparison : comparison
-    })
-
-    return baseNotes
-  }, [myNotes, sharedNotes, pinnedNotes, archivedNotes, recentNotes, activeSection, searchQuery, sortBy, sortOrder])
+  const { sharedNotes, pinnedNotes, filteredNotes } = useNoteAppsHubFiltering({
+    notes,
+    currentUserId,
+    activeSection,
+    favorites,
+    searchQuery,
+    sortBy,
+    sortOrder
+  })
 
   /**
    * Create new note
@@ -514,11 +298,11 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
    */
   const handleBack = useCallback(() => {
     clearCurrentNote()
-    loadAttemptedRef.current = null
+    resetLoadAttempt()
     setSelectedNoteId(null)
     setCurrentView('list')
     updateUrl(null)
-  }, [clearCurrentNote, updateUrl])
+  }, [clearCurrentNote, resetLoadAttempt, updateUrl])
 
   /**
    * Toggle favorite

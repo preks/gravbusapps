@@ -6,6 +6,26 @@ import { VoiceModeButton } from './voice/VoiceModeButton'
 
 type Suggestion = string | { heading?: string; message?: string }
 
+function getUploadErrorMessage(err: unknown): string {
+  if (err instanceof MaxNumberOfFilesError) {
+    return 'You can only upload up to 5 files.'
+  }
+  if (err instanceof MaxTotalSizeError) {
+    return 'The total size of the files exceeds 100MB.'
+  }
+  return 'File upload failed. Please check size/format.'
+}
+
+function shouldSendMessage(params: { disabled?: boolean; value: string; fileCount: number }): {
+  canSend: boolean
+  trimmed: string
+} {
+  if (params.disabled) return { canSend: false, trimmed: '' }
+  const trimmed = params.value.trim()
+  if (!trimmed && params.fileCount === 0) return { canSend: false, trimmed }
+  return { canSend: true, trimmed }
+}
+
 interface ChatInputProps {
   onSend: (
     text: string,
@@ -66,9 +86,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const suggestionsScrollId = useId()
 
   const handleSend = useCallback(() => {
-    if (disabled) return
-    const trimmed = value.trim()
-    if (!trimmed && files.length === 0) return
+    const { canSend, trimmed } = shouldSendMessage({ disabled, value, fileCount: files.length })
+    if (!canSend) return
     onSend(
       trimmed,
       files.map(f => f.file),
@@ -90,13 +109,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           uploadFile(file)
           attachedFiles.push(file)
         } catch (err) {
-          if (err instanceof MaxNumberOfFilesError) {
-            alert('You can only upload up to 5 files.')
-          } else if (err instanceof MaxTotalSizeError) {
-            alert('The total size of the files exceeds 100MB.')
-          } else {
-            alert('File upload failed. Please check size/format.')
-          }
+          alert(getUploadErrorMessage(err))
         }
       })
       // Notify parent that new files were attached so they can be pre-uploaded if desired.

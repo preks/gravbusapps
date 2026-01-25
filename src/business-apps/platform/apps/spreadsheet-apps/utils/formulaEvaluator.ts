@@ -75,7 +75,7 @@ function evaluateExpression(expr: string, context: FormulaContext): unknown {
       const row = context.allRows[rowIndex]
       const col = context.columns[colIndex]
       const colName = col.name
-      
+
       // Try multiple ways to get the value
       let value = row[colName]
       if (value === undefined) value = row[col.id]
@@ -86,7 +86,7 @@ function evaluateExpression(expr: string, context: FormulaContext): unknown {
         )
         if (matchingKey) value = row[matchingKey]
       }
-      
+
       // Return the value (even if undefined/null, let SUM handle it)
       return value
     }
@@ -293,85 +293,99 @@ function splitFunctionArgs(args: string): string[] {
  * Get values from a range (e.g., A1:A10 or price:quantity)
  */
 function getRangeValues(startRef: string, endRef: string, context: FormulaContext): unknown[] {
+  if (isExcelStyleCellRef(startRef) && isExcelStyleCellRef(endRef)) {
+    return getExcelRangeValues(startRef, endRef, context)
+  }
+
+  const byColumnRange = getColumnRangeValues(startRef, endRef, context)
+  if (byColumnRange) return byColumnRange
+
+  return getFallbackCellRangeValues(startRef, endRef, context) || []
+}
+
+function isExcelStyleCellRef(ref: string): boolean {
+  return /^[A-Z]+[0-9]+$/i.test(ref)
+}
+
+function collectValuesFromRect(params: {
+  startCol: number
+  endCol: number
+  startRow: number
+  endRow: number
+  context: FormulaContext
+}): unknown[] {
+  const { context } = params
   const values: unknown[] = []
 
-  // Check if both references are Excel-style (A1, B2, etc.) with row numbers
-  const isExcelStyleStart = /^[A-Z]+[0-9]+$/i.test(startRef)
-  const isExcelStyleEnd = /^[A-Z]+[0-9]+$/i.test(endRef)
+  const minRow = Math.min(params.startRow, params.endRow)
+  const maxRow = Math.max(params.startRow, params.endRow)
+  const minCol = Math.min(params.startCol, params.endCol)
+  const maxCol = Math.max(params.startCol, params.endCol)
 
-  if (isExcelStyleStart && isExcelStyleEnd) {
-    // Excel-style range (A1:A10)
-    const startCell = parseCellReference(startRef, context)
-    const endCell = parseCellReference(endRef, context)
-
-    if (startCell && endCell) {
-      const startCol = startCell.colIndex
-      const endCol = endCell.colIndex
-      const startRow = startCell.rowIndex
-      const endRow = endCell.rowIndex
-
-      for (let rowIdx = startRow; rowIdx <= endRow; rowIdx++) {
-        if (rowIdx >= 0 && rowIdx < context.allRows.length) {
-          const row = context.allRows[rowIdx]
-          for (let colIdx = startCol; colIdx <= endCol; colIdx++) {
-            if (colIdx >= 0 && colIdx < context.columns.length) {
-              const col = context.columns[colIdx]
-              values.push(row[col.name] ?? row[col.id])
-            }
-          }
-        }
-      }
-    }
-  } else {
-    // Column name range (e.g., price:quantity) - sum across all rows
-    const startCol = context.columns.find(
-      c => c.name.toLowerCase() === startRef.toLowerCase() || c.id.toLowerCase() === startRef.toLowerCase()
-    )
-    const endCol = context.columns.find(
-      c => c.name.toLowerCase() === endRef.toLowerCase() || c.id.toLowerCase() === endRef.toLowerCase()
-    )
-
-    if (startCol && endCol) {
-      const startIdx = context.columns.findIndex(c => c.id === startCol.id)
-      const endIdx = context.columns.findIndex(c => c.id === endCol.id)
-      const minIdx = Math.min(startIdx, endIdx)
-      const maxIdx = Math.max(startIdx, endIdx)
-
-      for (const row of context.allRows) {
-        for (let i = minIdx; i <= maxIdx; i++) {
-          if (i >= 0 && i < context.columns.length) {
-            const col = context.columns[i]
-            values.push(row[col.name] ?? row[col.id])
-          }
-        }
-      }
-    } else {
-      // Fallback: try to parse as individual cell references
-      const startCell = parseCellReference(startRef, context)
-      const endCell = parseCellReference(endRef, context)
-      
-      if (startCell && endCell) {
-        const startCol = startCell.colIndex
-        const endCol = endCell.colIndex
-        const startRow = startCell.rowIndex
-        const endRow = endCell.rowIndex
-
-        for (let rowIdx = startRow; rowIdx <= endRow; rowIdx++) {
-          if (rowIdx >= 0 && rowIdx < context.allRows.length) {
-            const row = context.allRows[rowIdx]
-            for (let colIdx = startCol; colIdx <= endCol; colIdx++) {
-              if (colIdx >= 0 && colIdx < context.columns.length) {
-                const col = context.columns[colIdx]
-                values.push(row[col.name] ?? row[col.id])
-              }
-            }
-          }
-        }
-      }
+  for (let rowIdx = minRow; rowIdx <= maxRow; rowIdx++) {
+    if (rowIdx < 0 || rowIdx >= context.allRows.length) continue
+    const row = context.allRows[rowIdx]
+    for (let colIdx = minCol; colIdx <= maxCol; colIdx++) {
+      if (colIdx < 0 || colIdx >= context.columns.length) continue
+      const col = context.columns[colIdx]
+      values.push(row[col.name] ?? row[col.id])
     }
   }
 
   return values
+}
+
+function getExcelRangeValues(startRef: string, endRef: string, context: FormulaContext): unknown[] {
+  const startCell = parseCellReference(startRef, context)
+  const endCell = parseCellReference(endRef, context)
+  if (!startCell || !endCell) return []
+
+  return collectValuesFromRect({
+    startCol: startCell.colIndex,
+    endCol: endCell.colIndex,
+    startRow: startCell.rowIndex,
+    endRow: endCell.rowIndex,
+    context
+  })
+}
+
+function getColumnRangeValues(startRef: string, endRef: string, context: FormulaContext): unknown[] | null {
+  const startCol = context.columns.find(
+    c => c.name.toLowerCase() === startRef.toLowerCase() || c.id.toLowerCase() === startRef.toLowerCase()
+  )
+  const endCol = context.columns.find(
+    c => c.name.toLowerCase() === endRef.toLowerCase() || c.id.toLowerCase() === endRef.toLowerCase()
+  )
+  if (!startCol || !endCol) return null
+
+  const startIdx = context.columns.findIndex(c => c.id === startCol.id)
+  const endIdx = context.columns.findIndex(c => c.id === endCol.id)
+  const minIdx = Math.min(startIdx, endIdx)
+  const maxIdx = Math.max(startIdx, endIdx)
+
+  const values: unknown[] = []
+  for (const row of context.allRows) {
+    for (let i = minIdx; i <= maxIdx; i++) {
+      if (i < 0 || i >= context.columns.length) continue
+      const col = context.columns[i]
+      values.push(row[col.name] ?? row[col.id])
+    }
+  }
+  return values
+}
+
+function getFallbackCellRangeValues(startRef: string, endRef: string, context: FormulaContext): unknown[] | null {
+  const startCell = parseCellReference(startRef, context)
+  const endCell = parseCellReference(endRef, context)
+  if (!startCell || !endCell) return null
+
+  return collectValuesFromRect({
+    startCol: startCell.colIndex,
+    endCol: endCell.colIndex,
+    startRow: startCell.rowIndex,
+    endRow: endCell.rowIndex,
+    context
+  })
 }
 
 /**
@@ -390,7 +404,7 @@ function parseCellReference(ref: string, context: FormulaContext): { colIndex: n
       colIndex = colIndex * 26 + (colLetter.charCodeAt(i) - 64)
     }
     colIndex -= 1 // Convert to 0-based
-    
+
     // Validate indices
     if (colIndex < 0 || colIndex >= context.columns.length) {
       return null

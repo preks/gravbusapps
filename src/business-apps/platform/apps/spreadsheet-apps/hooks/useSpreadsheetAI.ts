@@ -619,7 +619,7 @@ function getSelectOptions(sampleValues: unknown[]): string[] | undefined {
   const uniqueValues = Array.from(new Set(nonNullValues.map(String)))
 
   if (uniqueValues.length > 0 && uniqueValues.length <= 20) {
-    return uniqueValues.sort()
+    return uniqueValues.sort((a, b) => a.localeCompare(b))
   }
 
   return undefined

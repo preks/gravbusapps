@@ -27,11 +27,8 @@ export const LinkEditor: React.FC<LinkEditorProps> = ({
   value,
   onSave,
   onCancel,
-  accessToken = '',
   'data-testid': testId = 'link-editor'
 }) => {
-  // Access token is reserved for future use (e.g., fetching page titles from URLs)
-  void accessToken
   const [title, setTitle] = useState('')
   const [url, setUrl] = useState('')
   const [urlError, setUrlError] = useState('')

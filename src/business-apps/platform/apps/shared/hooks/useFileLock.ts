@@ -10,6 +10,23 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { FileLock, LockFileInput } from '../types/versioning'
 
+function computeLockFlags(lock: FileLock | null, currentUserId?: string): { isLockedByMe: boolean; canEdit: boolean } {
+  const isLockedByMe = Boolean(lock?.isLocked && currentUserId && lock.lockedBy === currentUserId)
+  const canEdit = !lock?.isLocked || isLockedByMe
+  return { isLockedByMe, canEdit }
+}
+
+function isExpired(lock: FileLock | null): boolean {
+  if (!lock?.isLocked) return false
+  if (!lock.lockExpiry) return false
+  return Date.now() > new Date(lock.lockExpiry).getTime()
+}
+
+function markUnlocked(lock: FileLock | null): FileLock | null {
+  if (!lock) return null
+  return { ...lock, isLocked: false }
+}
+
 export interface UseFileLockOptions {
   entityId: string
   entityType: 'document' | 'note' | 'spreadsheet_app'
@@ -90,30 +107,19 @@ export function useFileLock(options: UseFileLockOptions): UseFileLockReturn {
 
     try {
       const lock = await apiService.getLockStatus(entityId)
-
-      const isLockedByMe = lock?.isLocked && currentUserId && lock.lockedBy === currentUserId
-      const canEdit = !lock?.isLocked || isLockedByMe
-
-      // Check if lock expired
-      if (lock?.isLocked && lock.lockExpiry) {
-        const expiryTime = new Date(lock.lockExpiry).getTime()
-        const now = Date.now()
-
-        if (now > expiryTime) {
-          if (onLockExpired) {
-            onLockExpired()
-          }
-          // Lock has expired, user can edit
-          setState(prev => ({
-            ...prev,
-            lock: { ...lock, isLocked: false },
-            canEdit: true,
-            isLockedByMe: false,
-            isChecking: false
-          }))
-          return
-        }
+      if (isExpired(lock)) {
+        onLockExpired?.()
+        setState(prev => ({
+          ...prev,
+          lock: markUnlocked(lock),
+          canEdit: true,
+          isLockedByMe: false,
+          isChecking: false
+        }))
+        return
       }
+
+      const { canEdit, isLockedByMe } = computeLockFlags(lock, currentUserId)
 
       setState(prev => ({
         ...prev,

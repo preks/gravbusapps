@@ -472,5 +472,5 @@ export function getUniqueValues(sampleValues: unknown[]): string[] {
     }
   })
 
-  return Array.from(uniqueSet).sort()
+  return Array.from(uniqueSet).sort((a, b) => a.localeCompare(b))
 }

@@ -27,13 +27,13 @@ const getFlowEngineApiUrl = () => {
   if (envUrl) {
     return `${envUrl}/api`
   }
-  
+
   // Fallback: derive from current window location (same domain, /flow-engine path)
   if (typeof window !== 'undefined') {
     const { protocol, host } = window.location
     return `${protocol}//${host}/flow-engine/api`
   }
-  
+
   // Server-side fallback (shouldn't happen in practice)
   return '/flow-engine/api'
 }
@@ -279,13 +279,13 @@ export class SpreadsheetAutomationService {
         // Bulk collection executes per RECIPIENT, not per row
         let collectionRecipients = recipients || automation.collectionConfig?.recipients || []
         const recipientType = automation.collectionConfig?.recipientType || 'specific'
-        
+
         console.log('[SpreadsheetAutomationService] Bulk collection config:', {
           recipientType,
           explicitRecipients: collectionRecipients.length,
           configRecipients: automation.collectionConfig?.recipients?.length
         })
-        
+
         // If recipientType is 'team' or 'department', resolve to actual user IDs
         if ((recipientType === 'team' || recipientType === 'department') && collectionRecipients.length === 0) {
           try {
@@ -302,14 +302,15 @@ export class SpreadsheetAutomationService {
             }
           }
         }
-        
+
         if (collectionRecipients.length === 0) {
           console.error('[SpreadsheetAutomationService] ERROR: No recipients for bulk collection!')
           return {
             success: false,
-            error: recipientType === 'specific' 
-              ? 'No recipients specified for bulk collection. Please edit this automation and select recipients.'
-              : `No ${recipientType} members found. Please check your team/department membership.`,
+            error:
+              recipientType === 'specific'
+                ? 'No recipients specified for bulk collection. Please edit this automation and select recipients.'
+                : `No ${recipientType} members found. Please check your team/department membership.`,
             workflows: [],
             executedAt: new Date().toISOString(),
             totalRows: 0
@@ -378,7 +379,7 @@ export class SpreadsheetAutomationService {
     const chunks = this.chunkArray(recipients, CONCURRENCY_LIMIT)
 
     for (const chunk of chunks) {
-      const promises = chunk.map(async (recipientId) => {
+      const promises = chunk.map(async recipientId => {
         try {
           const result = await this.executeRecipientWorkflow({
             automation,
@@ -401,7 +402,10 @@ export class SpreadsheetAutomationService {
             failedRecipients.push(recipientId)
           }
         } catch (error) {
-          console.error(`[SpreadsheetAutomationService] Failed to execute workflow for recipient ${recipientId}:`, error)
+          console.error(
+            `[SpreadsheetAutomationService] Failed to execute workflow for recipient ${recipientId}:`,
+            error
+          )
           failedRecipients.push(recipientId)
         }
       })
@@ -514,7 +518,7 @@ export class SpreadsheetAutomationService {
     recipientId: string
   ): AutomationFlowTemplate {
     const formFields = automation.collectionConfig?.formFields || []
-    
+
     // Build form inputs from configured fields
     const formInputs: AutomationFormInput[] = formFields.map(field => ({
       name: field.columnId || field.id,
@@ -539,16 +543,18 @@ export class SpreadsheetAutomationService {
       name: `${automation.name} - Collection`,
       description: automation.description || 'Please submit your response',
       version: 1,
-      steps: [{
-        type: 'TASK',
-        title: 'Submit Your Response',
-        message: automation.description || 'Please fill out the requested information and submit.',
-        form: formInputs,
-        assignment: {
-          targets: { users: [recipientId] },
-          assignmentMode: 'ASSIGN'
+      steps: [
+        {
+          type: 'TASK',
+          title: 'Submit Your Response',
+          message: automation.description || 'Please fill out the requested information and submit.',
+          form: formInputs,
+          assignment: {
+            targets: { users: [recipientId] },
+            assignmentMode: 'ASSIGN'
+          }
         }
-      }],
+      ],
       tags: {
         app: 'spreadsheet-automation',
         automationType: 'bulk_collection'
@@ -611,11 +617,13 @@ export class SpreadsheetAutomationService {
 
       return {
         success: true,
-        workflows: [{
-          rowId: 'sheet_approval',
-          workflowId,
-          status: 'RUNNING'
-        }],
+        workflows: [
+          {
+            rowId: 'sheet_approval',
+            workflowId,
+            status: 'RUNNING'
+          }
+        ],
         executedAt,
         totalRows: rows.length
       }
@@ -639,48 +647,63 @@ export class SpreadsheetAutomationService {
     rows: Array<{ rowId: string; data: Record<string, unknown> }>
   ): AutomationFlowTemplate {
     const approvalSteps = automation.approvalConfig?.approvalSteps || []
-    
+
     // Build steps from approval config
-    const steps: AutomationFlowStep[] = approvalSteps.length > 0
-      ? approvalSteps.map((step) => ({
-          type: 'APPROVAL' as AutomationStepType,
-          title: step.title,
-          message: step.message || `Please review and approve ${rows.length} items`,
-          form: [{
-            name: 'approvalDecision',
-            label: 'Decision',
-            type: 'SELECT' as AutomationInputType,
-            required: true,
-            options: [{ value: 'approve', label: 'Approve' }, { value: 'reject', label: 'Reject' }]
-          }, {
-            name: 'comments',
-            label: 'Comments',
-            type: 'TEXTAREA' as AutomationInputType,
-            required: false
-          }],
-          assignment: step.approvers
-        }))
-      : [{
-          type: 'APPROVAL' as AutomationStepType,
-          title: 'Review & Approve',
-          message: `Please review and approve ${rows.length} items`,
-          form: [{
-            name: 'approvalDecision',
-            label: 'Decision',
-            type: 'SELECT' as AutomationInputType,
-            required: true,
-            options: [{ value: 'approve', label: 'Approve' }, { value: 'reject', label: 'Reject' }]
-          }, {
-            name: 'comments',
-            label: 'Comments',
-            type: 'TEXTAREA' as AutomationInputType,
-            required: false
-          }],
-          assignment: {
-            targets: null,
-            assignmentMode: 'ASSIGN'
-          }
-        }]
+    const steps: AutomationFlowStep[] =
+      approvalSteps.length > 0
+        ? approvalSteps.map(step => ({
+            type: 'APPROVAL' as AutomationStepType,
+            title: step.title,
+            message: step.message || `Please review and approve ${rows.length} items`,
+            form: [
+              {
+                name: 'approvalDecision',
+                label: 'Decision',
+                type: 'SELECT' as AutomationInputType,
+                required: true,
+                options: [
+                  { value: 'approve', label: 'Approve' },
+                  { value: 'reject', label: 'Reject' }
+                ]
+              },
+              {
+                name: 'comments',
+                label: 'Comments',
+                type: 'TEXTAREA' as AutomationInputType,
+                required: false
+              }
+            ],
+            assignment: step.approvers
+          }))
+        : [
+            {
+              type: 'APPROVAL' as AutomationStepType,
+              title: 'Review & Approve',
+              message: `Please review and approve ${rows.length} items`,
+              form: [
+                {
+                  name: 'approvalDecision',
+                  label: 'Decision',
+                  type: 'SELECT' as AutomationInputType,
+                  required: true,
+                  options: [
+                    { value: 'approve', label: 'Approve' },
+                    { value: 'reject', label: 'Reject' }
+                  ]
+                },
+                {
+                  name: 'comments',
+                  label: 'Comments',
+                  type: 'TEXTAREA' as AutomationInputType,
+                  required: false
+                }
+              ],
+              assignment: {
+                targets: null,
+                assignmentMode: 'ASSIGN'
+              }
+            }
+          ]
 
     return {
       type: 'TEMPLATE',
@@ -702,9 +725,15 @@ export class SpreadsheetAutomationService {
   private buildApprovalStepAssignments(
     automation: SpreadsheetAutomation,
     initiatorId: string
-  ): Record<string, { assignment: { targets: { users: string[] }; assignmentMode: string; allowReassignment: boolean } }> {
+  ): Record<
+    string,
+    { assignment: { targets: { users: string[] }; assignmentMode: string; allowReassignment: boolean } }
+  > {
     const approvalSteps = automation.approvalConfig?.approvalSteps || []
-    const assignments: Record<string, { assignment: { targets: { users: string[] }; assignmentMode: string; allowReassignment: boolean } }> = {}
+    const assignments: Record<
+      string,
+      { assignment: { targets: { users: string[] }; assignmentMode: string; allowReassignment: boolean } }
+    > = {}
 
     approvalSteps.forEach((step, index) => {
       const stepKey = `step_${index}`
@@ -745,10 +774,7 @@ export class SpreadsheetAutomationService {
   /**
    * Generate a dynamic FlowTemplate from automation config and row data
    */
-  generateDynamicTemplate(
-    automation: SpreadsheetAutomation,
-    rowData: Record<string, unknown>
-  ): AutomationFlowTemplate {
+  generateDynamicTemplate(automation: SpreadsheetAutomation, rowData: Record<string, unknown>): AutomationFlowTemplate {
     const { workflowConfig } = automation
 
     // If using an existing template, we don't generate dynamically
@@ -764,7 +790,9 @@ export class SpreadsheetAutomationService {
     const template: AutomationFlowTemplate = JSON.parse(JSON.stringify(baseTemplate))
 
     // Apply column mappings to inject row data into template
-    template.steps = template.steps.map(step => this.applyColumnMappingsToStep(step, workflowConfig.columnMappings, rowData))
+    template.steps = template.steps.map(step =>
+      this.applyColumnMappingsToStep(step, workflowConfig.columnMappings, rowData)
+    )
 
     // Update template name to include row identifier
     const rowIdentifier = rowData._id || rowData.id || 'unknown'
@@ -797,7 +825,9 @@ export class SpreadsheetAutomationService {
     if (updatedStep.form) {
       updatedStep.form = updatedStep.form.map(input => {
         // Find mapping for this input
-        const mapping = mappings.find(m => m.workflowParameter === `formData.${input.name}` && m.direction !== 'fromWorkflow')
+        const mapping = mappings.find(
+          m => m.workflowParameter === `formData.${input.name}` && m.direction !== 'fromWorkflow'
+        )
 
         if (mapping) {
           const value = rowData[mapping.columnName]
@@ -900,13 +930,13 @@ export class SpreadsheetAutomationService {
   /**
    * Create a default template for an automation based on its type.
    * Each automation type has a distinct purpose and workflow structure.
-   * 
+   *
    * @param automation - The automation configuration
    * @param initiatorId - The user triggering the workflow (used as default assignee)
    */
   private createDefaultTemplate(automation: SpreadsheetAutomation, initiatorId?: string): AutomationFlowTemplate {
     const steps: AutomationFlowStep[] = []
-    
+
     // Default assignment targets to initiator if no specific targets are configured
     const defaultTargets = initiatorId ? { users: [initiatorId] } : null
 
@@ -921,7 +951,8 @@ export class SpreadsheetAutomationService {
           {
             type: 'TASK',
             title: 'Review Row Data',
-            message: 'Review the data in this row and verify it is complete and accurate.\n\nRow Details:\n{{rowSummary}}',
+            message:
+              'Review the data in this row and verify it is complete and accurate.\n\nRow Details:\n{{rowSummary}}',
             form: [
               {
                 type: 'SELECT',
@@ -987,7 +1018,8 @@ export class SpreadsheetAutomationService {
           {
             type: 'INFORMATION',
             title: 'Sheet Submitted for Approval',
-            message: 'The spreadsheet "{{sheetName}}" has been submitted for approval.\n\nTotal rows: {{rowCount}}\nSubmitted by: {{submittedBy}}\nSubmission date: {{submissionDate}}',
+            message:
+              'The spreadsheet "{{sheetName}}" has been submitted for approval.\n\nTotal rows: {{rowCount}}\nSubmitted by: {{submittedBy}}\nSubmission date: {{submissionDate}}',
             assignment: {
               targets: defaultTargets,
               assignmentMode: 'ASSIGN',
@@ -997,7 +1029,8 @@ export class SpreadsheetAutomationService {
           {
             type: 'APPROVAL',
             title: 'Approve Spreadsheet',
-            message: 'Review the entire spreadsheet and approve or reject it.\n\nPlease verify:\n- All data is accurate\n- Calculations are correct\n- Required fields are complete',
+            message:
+              'Review the entire spreadsheet and approve or reject it.\n\nPlease verify:\n- All data is accurate\n- Calculations are correct\n- Required fields are complete',
             form: [
               {
                 type: 'TEXTAREA',
@@ -1087,7 +1120,8 @@ export class SpreadsheetAutomationService {
         steps.push({
           type: 'TASK',
           title: 'Submit Your Response',
-          message: 'Please complete this form. Your response will be added to the collection.\n\n{{collectionDescription}}',
+          message:
+            'Please complete this form. Your response will be added to the collection.\n\n{{collectionDescription}}',
           form: [
             // The form fields should be dynamically generated based on spreadsheet columns
             // This is a placeholder - actual implementation should map columns to form inputs
@@ -1164,13 +1198,15 @@ export class SpreadsheetAutomationService {
     initiatorId?: string
   ): Record<string, unknown> {
     const assignments: Record<string, unknown> = {}
-    
+
     // Default assignment to initiator
-    const defaultAssignment = initiatorId ? {
-      targets: { users: [initiatorId] },
-      assignmentMode: 'ASSIGN',
-      allowReassignment: true
-    } : null
+    const defaultAssignment = initiatorId
+      ? {
+          targets: { users: [initiatorId] },
+          assignmentMode: 'ASSIGN',
+          allowReassignment: true
+        }
+      : null
 
     // If approval config exists, use its approvers
     if (automation.approvalConfig?.approvalSteps) {
@@ -1187,7 +1223,10 @@ export class SpreadsheetAutomationService {
       automation.workflowConfig.dynamicTemplate.steps.forEach((step, index) => {
         // Check if assignment targets reference row data
         if (step.assignment?.targets) {
-          const resolvedTargets = this.resolveAssignmentTargets(step.assignment.targets as unknown as Record<string, unknown>, rowData)
+          const resolvedTargets = this.resolveAssignmentTargets(
+            step.assignment.targets as unknown as Record<string, unknown>,
+            rowData
+          )
           assignments[`step_${index}`] = {
             assignment: {
               ...step.assignment,
@@ -1330,10 +1369,7 @@ export class SpreadsheetAutomationService {
   /**
    * Get workflow links for all rows with active workflows in a sheet
    */
-  async getWorkflowLinksForSheet(params: {
-    spreadsheetId: string
-    sheetId: string
-  }): Promise<WorkflowRowLink[]> {
+  async getWorkflowLinksForSheet(params: { spreadsheetId: string; sheetId: string }): Promise<WorkflowRowLink[]> {
     try {
       // Query flows by tags to find all workflows for this sheet
       const response = await fetch(
@@ -1355,13 +1391,13 @@ export class SpreadsheetAutomationService {
 
       return flows.map((flow: Record<string, unknown>) => ({
         rowId: (flow.tags as Record<string, string>)?.rowId || '',
-        workflowId: flow.workflowId as string || flow.id as string,
+        workflowId: (flow.workflowId as string) || (flow.id as string),
         workflowStatus: this.mapFlowStatus(flow.status as string),
         currentStepIndex: (flow.progress as Record<string, number>)?.currentStep ?? 0,
         totalSteps: (flow.progress as Record<string, number>)?.totalSteps ?? 1,
-        startedAt: flow.startedAt as string || flow.createdAt as string,
+        startedAt: (flow.startedAt as string) || (flow.createdAt as string),
         completedAt: flow.completedAt as string,
-        lastUpdatedAt: flow.updatedAt as string || flow.startedAt as string,
+        lastUpdatedAt: (flow.updatedAt as string) || (flow.startedAt as string),
         automationId: (flow.tags as Record<string, string>)?.automationId || ''
       }))
     } catch (error) {
@@ -1379,15 +1415,17 @@ export class SpreadsheetAutomationService {
     sheetId: string
     automationId: string
     bulkGroupId?: string
-  }): Promise<Array<{
-    workflowId: string
-    responderId: string
-    responderName: string
-    responderEmail?: string
-    submittedAt: string
-    formData: Record<string, unknown>
-    status: 'COMPLETED' | 'PENDING' | 'FAILED'
-  }>> {
+  }): Promise<
+    Array<{
+      workflowId: string
+      responderId: string
+      responderName: string
+      responderEmail?: string
+      submittedAt: string
+      formData: Record<string, unknown>
+      status: 'COMPLETED' | 'PENDING' | 'FAILED'
+    }>
+  > {
     try {
       // Query the webhook controller for aggregated results
       const queryParams = new URLSearchParams({
@@ -1397,22 +1435,19 @@ export class SpreadsheetAutomationService {
         ...(params.bulkGroupId && { bulkGroupId: params.bulkGroupId })
       })
 
-      const response = await fetch(
-        `${this.apiBaseUrl}/webhooks/spreadsheet/aggregate-bulk?${queryParams}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${this.accessToken}`
-          },
-          body: JSON.stringify({
-            spreadsheetId: params.spreadsheetId,
-            sheetId: params.sheetId,
-            automationId: params.automationId,
-            bulkGroupId: params.bulkGroupId || params.automationId
-          })
-        }
-      )
+      const response = await fetch(`${this.apiBaseUrl}/webhooks/spreadsheet/aggregate-bulk?${queryParams}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.accessToken}`
+        },
+        body: JSON.stringify({
+          spreadsheetId: params.spreadsheetId,
+          sheetId: params.sheetId,
+          automationId: params.automationId,
+          bulkGroupId: params.bulkGroupId || params.automationId
+        })
+      })
 
       if (!response.ok) {
         console.log('[SpreadsheetAutomationService] aggregate-bulk endpoint failed, using fallback')
@@ -1425,20 +1460,22 @@ export class SpreadsheetAutomationService {
         totalWorkflows: data.totalWorkflows,
         completedCount: data.completedResults?.length || 0
       })
-      
+
       // If aggregate-bulk returns empty results, fall back to flow-based query
       if (!data.completedResults || data.completedResults.length === 0) {
         console.log('[SpreadsheetAutomationService] aggregate-bulk returned empty, using fallback')
         return this.fetchBulkResponsesFromFlows(params)
       }
-      
+
       return (data.completedResults || []).map((result: Record<string, unknown>) => ({
         workflowId: result.workflowId as string,
-        responderId: (result.outputData as Record<string, unknown>)?.responderId as string || '',
-        responderName: (result.outputData as Record<string, unknown>)?.responderName as string || 'Unknown',
+        responderId: ((result.outputData as Record<string, unknown>)?.responderId as string) || '',
+        responderName: ((result.outputData as Record<string, unknown>)?.responderName as string) || 'Unknown',
         responderEmail: (result.outputData as Record<string, unknown>)?.responderEmail as string,
-        submittedAt: result.completedAt as string || new Date().toISOString(),
-        formData: (result.outputData as Record<string, unknown>)?.formData as Record<string, unknown> || result.outputData as Record<string, unknown>,
+        submittedAt: (result.completedAt as string) || new Date().toISOString(),
+        formData:
+          ((result.outputData as Record<string, unknown>)?.formData as Record<string, unknown>) ||
+          (result.outputData as Record<string, unknown>),
         status: 'COMPLETED'
       }))
     } catch (error) {
@@ -1455,38 +1492,37 @@ export class SpreadsheetAutomationService {
     spreadsheetId: string
     sheetId: string
     automationId: string
-  }): Promise<Array<{
-    workflowId: string
-    responderId: string
-    responderName: string
-    responderEmail?: string
-    submittedAt: string
-    formData: Record<string, unknown>
-    status: 'COMPLETED' | 'PENDING' | 'FAILED'
-  }>> {
+  }): Promise<
+    Array<{
+      workflowId: string
+      responderId: string
+      responderName: string
+      responderEmail?: string
+      submittedAt: string
+      formData: Record<string, unknown>
+      status: 'COMPLETED' | 'PENDING' | 'FAILED'
+    }>
+  > {
     try {
       // Query flows by tags - this is a POLLING fallback, minimal logging to avoid console spam
       let flows: Array<Record<string, unknown>> = []
-      
+
       // Try GET /flows/list - the most commonly available endpoint
       try {
-        const listResponse = await fetch(
-          `${this.apiBaseUrl}/flows/list`,
-          {
-            method: 'GET',
-            headers: {
-              Authorization: `Bearer ${this.accessToken}`
-            }
+        const listResponse = await fetch(`${this.apiBaseUrl}/flows/list`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`
           }
-        )
-        
+        })
+
         if (listResponse.ok) {
           const listData = await listResponse.json()
           const allFlows = listData.data?.flows || listData.flows || (Array.isArray(listData) ? listData : [])
-          
+
           // Filter flows by tags manually
           flows = allFlows.filter((flow: Record<string, unknown>) => {
-            const tags = flow.tags as Record<string, string> || {}
+            const tags = (flow.tags as Record<string, string>) || {}
             return (
               tags.app === 'spreadsheet-automation' &&
               tags.automationType === 'bulk_collection' &&
@@ -1509,138 +1545,25 @@ export class SpreadsheetAutomationService {
       const results = await Promise.all(
         flows.map(async (flow: Record<string, unknown>) => {
           // Try all possible property names for flow ID
-          const flowId = (flow.id as string) || (flow.workflowId as string) || (flow.flowId as string) || (flow._id as string)
+          const flowId =
+            (flow.id as string) || (flow.workflowId as string) || (flow.flowId as string) || (flow._id as string)
           const tags = (flow.tags as Record<string, string>) || {}
           const recipientId = tags.recipientId
-          
-          console.log('[SpreadsheetAutomationService] Processing flow:', { 
-            flowId, 
+
+          console.log('[SpreadsheetAutomationService] Processing flow:', {
+            flowId,
             flowKeys: Object.keys(flow),
             status: flow.status,
-            recipientId 
+            recipientId
           })
-          
+
           if (!flowId) {
             console.warn('[SpreadsheetAutomationService] Flow has no ID, skipping:', flow)
             return null
           }
-          
-          let formData: Record<string, unknown> = {}
-          
-          // Try multiple approaches to get the form data
-          
-          // Approach 1: Get form data from step data endpoint (this is where it's stored!)
-          try {
-            const stepDataResponse = await fetch(
-              `${this.apiBaseUrl}/flows/${flowId}/steps/step_0/data`,
-              {
-                method: 'GET',
-                headers: {
-                  Authorization: `Bearer ${this.accessToken}`
-                }
-              }
-            )
-            
-            if (stepDataResponse.ok) {
-              const stepData = await stepDataResponse.json()
-              // The data is in an array, get the first (or most recent) entry
-              const dataEntries = stepData.data || []
-              if (dataEntries.length > 0) {
-                // Get the most recent entry (last one)
-                const latestEntry = dataEntries[dataEntries.length - 1]
-                formData = latestEntry.formData || latestEntry.inputData || {}
-                console.log('[SpreadsheetAutomationService] Got form data from /steps/step_0/data:', formData)
-              }
-            }
-          } catch (err) {
-            console.log('[SpreadsheetAutomationService] /steps/step_0/data endpoint error:', err)
-          }
-          
-          // Approach 2: If we have recipientId, get their completed tasks
-          if (Object.keys(formData).length === 0 && recipientId) {
-            try {
-              const tasksResponse = await fetch(
-                `${this.apiBaseUrl}/tasks/user/${recipientId}/completed?limit=50`,
-                {
-                  method: 'GET',
-                  headers: {
-                    Authorization: `Bearer ${this.accessToken}`
-                  }
-                }
-              )
-              
-              if (tasksResponse.ok) {
-                const tasksData = await tasksResponse.json()
-                const tasks = tasksData.data?.tasks || tasksData.tasks || tasksData || []
-                
-                // Find the task for this flow
-                const flowTask = tasks.find((t: Record<string, unknown>) => 
-                  t.flowId === flowId || t.workflowId === flowId
-                )
-                
-                if (flowTask) {
-                  formData = (flowTask.formData as Record<string, unknown>) || 
-                            (flowTask.outputData as Record<string, unknown>) || 
-                            (flowTask.data as Record<string, unknown>) || {}
-                  console.log('[SpreadsheetAutomationService] Got form data from completed tasks:', formData)
-                }
-              }
-            } catch (err) {
-              console.log('[SpreadsheetAutomationService] Error fetching completed tasks:', err)
-            }
-          }
-          
-          // Approach 3: Get flow details and check steps
-          if (Object.keys(formData).length === 0) {
-            try {
-              const detailResponse = await fetch(
-                `${this.apiBaseUrl}/flows/${flowId}`,
-                {
-                  method: 'GET',
-                  headers: {
-                    Authorization: `Bearer ${this.accessToken}`
-                  }
-                }
-              )
-              
-              if (detailResponse.ok) {
-                const detailData = await detailResponse.json()
-                const flowDetail = detailData.data || detailData
-                
-                // Check outputData
-                if (flowDetail.outputData && Object.keys(flowDetail.outputData).length > 0) {
-                  formData = flowDetail.outputData.formData || flowDetail.outputData
-                }
-                
-                // Check steps for outputs
-                if (Object.keys(formData).length === 0 && flowDetail.steps) {
-                  for (const step of flowDetail.steps) {
-                    if (step.outputs && Object.keys(step.outputs).length > 0) {
-                      formData = step.outputs.formData || step.outputs
-                      break
-                    }
-                    if (step.formData && Object.keys(step.formData).length > 0) {
-                      formData = step.formData
-                      break
-                    }
-                  }
-                }
-                
-                console.log('[SpreadsheetAutomationService] Flow detail check:', {
-                  flowId,
-                  status: flowDetail.status,
-                  hasOutputData: !!flowDetail.outputData,
-                  hasFormData: Object.keys(formData).length > 0,
-                  formDataKeys: Object.keys(formData)
-                })
-              }
-            } catch (detailErr) {
-              console.error('[SpreadsheetAutomationService] Error fetching flow detail:', detailErr)
-            }
-          }
-          
+          const formData = await this.resolveBulkFlowFormData(flowId, recipientId)
           console.log('[SpreadsheetAutomationService] Final form data for flow', flowId, ':', formData)
-          
+
           return {
             workflowId: flowId,
             responderId: recipientId || '',
@@ -1660,6 +1583,105 @@ export class SpreadsheetAutomationService {
     } catch (error) {
       console.error('[SpreadsheetAutomationService] Fetch flows fallback error:', error)
       return []
+    }
+  }
+
+  private async resolveBulkFlowFormData(flowId: string, recipientId?: string): Promise<Record<string, unknown>> {
+    const fromStep0 = await this.fetchFormDataFromStep0(flowId)
+    if (fromStep0) return fromStep0
+
+    const fromTasks = recipientId ? await this.fetchFormDataFromCompletedTasks(flowId, recipientId) : null
+    if (fromTasks) return fromTasks
+
+    const fromFlowDetail = await this.fetchFormDataFromFlowDetail(flowId)
+    return fromFlowDetail || {}
+  }
+
+  private async fetchFormDataFromStep0(flowId: string): Promise<Record<string, unknown> | null> {
+    try {
+      const stepDataResponse = await fetch(`${this.apiBaseUrl}/flows/${flowId}/steps/step_0/data`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${this.accessToken}` }
+      })
+      if (!stepDataResponse.ok) return null
+
+      const stepData = await stepDataResponse.json()
+      const dataEntries = stepData.data || []
+      if (!Array.isArray(dataEntries) || dataEntries.length === 0) return null
+
+      const latestEntry = dataEntries[dataEntries.length - 1] as Record<string, unknown>
+      const formData = (latestEntry.formData || latestEntry.inputData) as Record<string, unknown> | undefined
+      return formData && Object.keys(formData).length > 0 ? formData : null
+    } catch (err) {
+      console.log('[SpreadsheetAutomationService] /steps/step_0/data endpoint error:', err)
+      return null
+    }
+  }
+
+  private async fetchFormDataFromCompletedTasks(
+    flowId: string,
+    recipientId: string
+  ): Promise<Record<string, unknown> | null> {
+    try {
+      const tasksResponse = await fetch(`${this.apiBaseUrl}/tasks/user/${recipientId}/completed?limit=50`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${this.accessToken}` }
+      })
+      if (!tasksResponse.ok) return null
+
+      const tasksData = await tasksResponse.json()
+      const tasks = tasksData.data?.tasks || tasksData.tasks || tasksData || []
+      if (!Array.isArray(tasks)) return null
+
+      const flowTask = tasks.find((t: Record<string, unknown>) => t.flowId === flowId || t.workflowId === flowId)
+      if (!flowTask) return null
+
+      const formData =
+        (flowTask.formData as Record<string, unknown>) ||
+        (flowTask.outputData as Record<string, unknown>) ||
+        (flowTask.data as Record<string, unknown>) ||
+        {}
+      return Object.keys(formData).length > 0 ? formData : null
+    } catch (err) {
+      console.log('[SpreadsheetAutomationService] Error fetching completed tasks:', err)
+      return null
+    }
+  }
+
+  private async fetchFormDataFromFlowDetail(flowId: string): Promise<Record<string, unknown> | null> {
+    try {
+      const detailResponse = await fetch(`${this.apiBaseUrl}/flows/${flowId}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${this.accessToken}` }
+      })
+      if (!detailResponse.ok) return null
+
+      const detailData = await detailResponse.json()
+      const flowDetail = detailData.data || detailData
+
+      const outputData = flowDetail?.outputData as Record<string, unknown> | undefined
+      if (outputData && Object.keys(outputData).length > 0) {
+        const fromOutput = (outputData.formData as Record<string, unknown> | undefined) || outputData
+        if (Object.keys(fromOutput).length > 0) return fromOutput
+      }
+
+      const steps = flowDetail?.steps as Array<Record<string, unknown>> | undefined
+      if (!Array.isArray(steps)) return null
+
+      for (const step of steps) {
+        const outputs = step.outputs as Record<string, unknown> | undefined
+        if (outputs && Object.keys(outputs).length > 0) {
+          const fromOutputs = (outputs.formData as Record<string, unknown> | undefined) || outputs
+          if (Object.keys(fromOutputs).length > 0) return fromOutputs
+        }
+        const formData = step.formData as Record<string, unknown> | undefined
+        if (formData && Object.keys(formData).length > 0) return formData
+      }
+
+      return null
+    } catch (detailErr) {
+      console.error('[SpreadsheetAutomationService] Error fetching flow detail:', detailErr)
+      return null
     }
   }
 
@@ -1698,16 +1720,13 @@ export class SpreadsheetAutomationService {
    * Resolve recipients by type (team = direct reports, department = all department members)
    * Uses GraphQL to query Employee data with proper supervisor/department relationships
    */
-  private async resolveRecipientsByType(
-    recipientType: 'team' | 'department',
-    initiatorId: string
-  ): Promise<string[]> {
+  private async resolveRecipientsByType(recipientType: 'team' | 'department', initiatorId: string): Promise<string[]> {
     console.log('[SpreadsheetAutomationService] Resolving recipients by type:', { recipientType, initiatorId })
-    
+
     try {
       // First, get the employee ID for the initiator (we have user ID, need employee ID)
       const initiatorEmployeeId = await this.getEmployeeIdForUser(initiatorId)
-      
+
       if (!initiatorEmployeeId) {
         console.warn('[SpreadsheetAutomationService] Could not find employee record for user:', initiatorId)
         // Try alternative: the initiatorId might already be an employee ID
@@ -1739,15 +1758,15 @@ export class SpreadsheetAutomationService {
           }
         `
 
-        const result = await this.executeGraphQLQuery(directReportsQuery, { 
-          supervisorEmployeeId: employeeIdToUse 
+        const result = await this.executeGraphQLQuery(directReportsQuery, {
+          supervisorEmployeeId: employeeIdToUse
         })
-        
+
         const employees = (result?.Employee as Array<{ userId?: string }>) || []
         console.log('[SpreadsheetAutomationService] Found', employees.length, 'direct reports')
-        
+
         recipientUserIds = employees
-          .map((emp) => emp.userId)
+          .map(emp => emp.userId)
           .filter((id): id is string => Boolean(id) && id !== initiatorId)
       } else if (recipientType === 'department') {
         // First get the initiator's department
@@ -1763,16 +1782,16 @@ export class SpreadsheetAutomationService {
             }
           }
         `
-        
-        const initiatorResult = await this.executeGraphQLQuery(initiatorQuery, { 
-          employeeId: employeeIdToUse 
-        }) as { Employee?: Array<{ employeePosition?: { organizationalUnit?: { id?: string } } }> } | null
-        
+
+        const initiatorResult = (await this.executeGraphQLQuery(initiatorQuery, {
+          employeeId: employeeIdToUse
+        })) as { Employee?: Array<{ employeePosition?: { organizationalUnit?: { id?: string } } }> } | null
+
         const departmentId = initiatorResult?.Employee?.[0]?.employeePosition?.organizationalUnit?.id
-        
+
         if (departmentId) {
           console.log('[SpreadsheetAutomationService] Found department ID:', departmentId)
-          
+
           // Get all employees in the same department
           const departmentQuery = `
             query GetDepartmentMembers($departmentId: uuid!) {
@@ -1793,20 +1812,25 @@ export class SpreadsheetAutomationService {
               }
             }
           `
-          
+
           const deptResult = await this.executeGraphQLQuery(departmentQuery, { departmentId })
           const employees = (deptResult?.Employee as Array<{ userId?: string }>) || []
           console.log('[SpreadsheetAutomationService] Found', employees.length, 'department members')
-          
+
           recipientUserIds = employees
-            .map((emp) => emp.userId)
+            .map(emp => emp.userId)
             .filter((id): id is string => Boolean(id) && id !== initiatorId)
         } else {
           console.warn('[SpreadsheetAutomationService] Could not find department for employee:', employeeIdToUse)
         }
       }
 
-      console.log('[SpreadsheetAutomationService] Resolved', recipientUserIds.length, 'recipient user IDs for', recipientType)
+      console.log(
+        '[SpreadsheetAutomationService] Resolved',
+        recipientUserIds.length,
+        'recipient user IDs for',
+        recipientType
+      )
       return recipientUserIds
     } catch (error) {
       console.error('[SpreadsheetAutomationService] Error resolving recipients:', error)
@@ -1825,8 +1849,8 @@ export class SpreadsheetAutomationService {
         }
       }
     `
-    
-    const result = await this.executeGraphQLQuery(query, { userId }) as { Employee?: Array<{ id?: string }> } | null
+
+    const result = (await this.executeGraphQLQuery(query, { userId })) as { Employee?: Array<{ id?: string }> } | null
     return result?.Employee?.[0]?.id || null
   }
 
@@ -1834,14 +1858,13 @@ export class SpreadsheetAutomationService {
    * Execute a GraphQL query against the NEWWORK API
    */
   private async executeGraphQLQuery(
-    query: string, 
+    query: string,
     variables: Record<string, unknown>
   ): Promise<Record<string, unknown> | null> {
     // GraphQL endpoint - derive from current domain
-    const graphqlUrl = typeof window !== 'undefined'
-      ? `${window.location.protocol}//${window.location.host}/v1/graphql`
-      : '/v1/graphql'
-    
+    const graphqlUrl =
+      typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}/v1/graphql` : '/v1/graphql'
+
     try {
       const response = await fetch(graphqlUrl, {
         method: 'POST',
@@ -1858,12 +1881,12 @@ export class SpreadsheetAutomationService {
       }
 
       const result = await response.json()
-      
+
       if (result.errors) {
         console.error('[SpreadsheetAutomationService] GraphQL errors:', result.errors)
         return null
       }
-      
+
       return result.data
     } catch (error) {
       console.error('[SpreadsheetAutomationService] GraphQL execution error:', error)

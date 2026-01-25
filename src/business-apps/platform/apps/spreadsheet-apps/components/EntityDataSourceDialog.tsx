@@ -297,6 +297,13 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
   }, [])
 
   /**
+   * Update sort configuration at index
+   */
+  const updateSortConfigAtIndex = useCallback((index: number, updates: Partial<EntitySortConfig>) => {
+    setOrderBy(prev => prev.map((s, i) => (i === index ? { ...s, ...updates } : s)))
+  }, [])
+
+  /**
    * Preview data with current configuration
    */
   const handlePreview = useCallback(async () => {
@@ -757,9 +764,7 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                       <div key={index} className="gba:flex gba:items-center gba:gap-2">
                         <Select
                           value={sort.field}
-                          onValueChange={value =>
-                            setOrderBy(prev => prev.map((s, i) => (i === index ? { ...s, field: value } : s)))
-                          }
+                          onValueChange={value => updateSortConfigAtIndex(index, { field: value })}
                         >
                           <SelectTrigger className="gba:flex-1">
                             <SelectValue placeholder="Select field" />
@@ -775,11 +780,7 @@ export const EntityDataSourceDialog: React.FC<EntityDataSourceDialogProps> = ({
                         <Select
                           value={sort.direction}
                           onValueChange={value =>
-                            setOrderBy(prev =>
-                              prev.map((s, i) =>
-                                i === index ? { ...s, direction: value as EntitySortConfig['direction'] } : s
-                              )
-                            )
+                            updateSortConfigAtIndex(index, { direction: value as EntitySortConfig['direction'] })
                           }
                         >
                           <SelectTrigger className="gba:w-40">

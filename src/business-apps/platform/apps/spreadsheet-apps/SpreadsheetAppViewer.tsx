@@ -86,6 +86,9 @@ import { isTrackingColumn } from './utils/trackingColumns'
 import { TRACKING_COLUMNS } from './components/automations/TrackingColumnsConfig'
 import { normalizeImageSrc } from './utils/normalizeImageSrc'
 import { isValidUrl, urlToMarkdown, parseMarkdownLink, isMarkdownLink } from './utils/linkUtils'
+import { computeNextLocalSheetData, persistCellChangeToBackend } from './viewer/cellChange'
+import { appendCellRef, buildRangeCells } from './viewer/formulaSelection'
+import { createSpreadsheetGlobalKeyDownHandler, type SelectedCell as GlobalSelectedCell } from './viewer/globalKeyDown'
 import { useCollaboration } from '../shared/hooks/useCollaboration'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { DocumentParticipant } from '../shared/services/CollaborationClient'
@@ -182,8 +185,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   activeSheetId: initialSheetId,
   activeViewId: initialViewId,
   onDataChange,
-  onRowAdd,
-  onRowUpdate,
   onAppUpdate: _onAppUpdate,
   onSheetUpdate,
   onBack,
@@ -193,8 +194,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   userId,
   'data-testid': testId = 'spreadsheet-app-viewer'
 }) => {
-  void onRowAdd
-  void onRowUpdate
   // State
   const [activeSheetId, setActiveSheetId] = useState(initialSheetId || app.sheets[0]?.id || '')
   const [activeViewId, setActiveViewId] = useState<string | null>(initialViewId || null)
@@ -431,172 +430,174 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     onAppUpdateRef.current = _onAppUpdate
   }, [_onAppUpdate])
 
+  // Keep latest app in a ref for stable callbacks
+  const appRef = useRef(app)
+  useEffect(() => {
+    appRef.current = app
+  }, [app])
+
   // Store current user ID and info to avoid applying our own operations
   const currentUserIdRef = useRef<string | undefined>(undefined)
   const [currentUserName, setCurrentUserName] = useState<string>('User')
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | undefined>(undefined)
 
+  const updateAppForSheet = useCallback((sheetId: string, update: (sheet: SpreadsheetSheet) => SpreadsheetSheet) => {
+    const onAppUpdate = onAppUpdateRef.current
+    if (!onAppUpdate) return
+
+    const currentApp = appRef.current
+    const targetSheet = currentApp.sheets.find(s => s.id === sheetId)
+    if (!targetSheet) return
+
+    const updatedSheets = currentApp.sheets.map(sheet => (sheet.id === sheetId ? update(sheet) : sheet))
+    onAppUpdate({ ...currentApp, sheets: updatedSheets })
+  }, [])
+
+  const handleRemoteCellUpdate = useCallback(
+    (params: { sheetId: string; rowId: string; column: string; value: unknown; isActiveSheet: boolean }) => {
+      if (params.isActiveSheet) {
+        setLocalSheetData(prev =>
+          prev.map(row => (row._id === params.rowId ? { ...row, [params.column]: params.value } : row))
+        )
+        return
+      }
+
+      updateAppForSheet(params.sheetId, sheet => {
+        const updatedData = (sheet.data || []).map((row: Record<string, unknown>) =>
+          row._id === params.rowId ? { ...row, [params.column]: params.value } : row
+        )
+        return { ...sheet, data: updatedData }
+      })
+    },
+    [updateAppForSheet]
+  )
+
+  const handleRemoteRowAdd = useCallback(
+    (params: { sheetId: string; rowData: Record<string, unknown>; isActiveSheet: boolean }) => {
+      if (params.isActiveSheet) {
+        setLocalSheetData(prev => {
+          const exists = prev.some(row => row._id === params.rowData._id)
+          return exists ? prev : [...prev, params.rowData]
+        })
+        return
+      }
+
+      updateAppForSheet(params.sheetId, sheet => {
+        const existingData = sheet.data || []
+        const exists = existingData.some((row: Record<string, unknown>) => row._id === params.rowData._id)
+        return exists ? sheet : { ...sheet, data: [...existingData, params.rowData] }
+      })
+    },
+    [updateAppForSheet]
+  )
+
+  const handleRemoteRowDelete = useCallback(
+    (params: { sheetId: string; rowId: string; isActiveSheet: boolean }) => {
+      if (params.isActiveSheet) {
+        setLocalSheetData(prev => prev.filter(row => row._id !== params.rowId))
+        return
+      }
+
+      updateAppForSheet(params.sheetId, sheet => {
+        const updatedData = (sheet.data || []).filter((row: Record<string, unknown>) => row._id !== params.rowId)
+        return { ...sheet, data: updatedData }
+      })
+    },
+    [updateAppForSheet]
+  )
+
+  const handleRemoteColumnAdd = useCallback(
+    (params: { sheetId: string; column: SpreadsheetColumn; isActiveSheet: boolean }) => {
+      updateAppForSheet(params.sheetId, sheet => ({
+        ...sheet,
+        columns: [...sheet.columns, params.column],
+        data: params.isActiveSheet ? localSheetDataRef.current : sheet.data
+      }))
+    },
+    [updateAppForSheet]
+  )
+
+  const handleRemoteColumnUpdate = useCallback(
+    (params: {
+      sheetId: string
+      columns?: SpreadsheetColumn[]
+      columnId?: string
+      columnPatch?: Partial<SpreadsheetColumn>
+      isActiveSheet: boolean
+    }) => {
+      updateAppForSheet(params.sheetId, sheet => {
+        let updatedColumns: SpreadsheetColumn[]
+        if (params.columnId && params.columnPatch) {
+          updatedColumns = sheet.columns.map(col =>
+            col.id === params.columnId ? { ...col, ...params.columnPatch } : col
+          )
+        } else if (params.columns) {
+          updatedColumns = params.columns
+        } else {
+          return sheet
+        }
+
+        return {
+          ...sheet,
+          columns: updatedColumns,
+          data: params.isActiveSheet ? localSheetDataRef.current : sheet.data
+        }
+      })
+    },
+    [updateAppForSheet]
+  )
+
+  const handleRemoteColumnDelete = useCallback(
+    (params: { sheetId: string; columnId: string; isActiveSheet: boolean }) => {
+      updateAppForSheet(params.sheetId, sheet => ({
+        ...sheet,
+        columns: sheet.columns.filter(col => col.id !== params.columnId),
+        data: params.isActiveSheet ? localSheetDataRef.current : sheet.data
+      }))
+    },
+    [updateAppForSheet]
+  )
+
   // Collaboration callbacks (stable references - no dependencies)
   const onOperationReceivedCallback = useCallback((operation: any) => {
-    // Handle incoming operations from other users
-    console.log('[SpreadsheetAppViewer] Received operation:', operation)
-
     // Skip if this is our own operation (we already applied it optimistically)
-    const isOwnOperation = operation.userId === currentUserIdRef.current
-    if (isOwnOperation) {
-      console.log('[SpreadsheetAppViewer] Skipping own operation')
-      return
-    }
+    if (operation?.userId === currentUserIdRef.current) return
 
-    // Apply the operation to local state
-    // Operations can be for ANY sheet, not just the active one
-    const { sheetId } = operation.operation.data as { sheetId: string }
+    const op = operation?.operation
+    const type: string | undefined = op?.type
+    const data: any = op?.data
+    const sheetId: string | undefined = data?.sheetId
+    if (!type || !sheetId) return
+
     const isActiveSheet = sheetId === activeSheetIdRef.current
 
-    if (operation.operation.type === 'cell_update') {
-      const { rowId, column, value } = operation.operation.data as {
-        sheetId: string
-        rowId: string
-        column: string
-        value: unknown
-      }
-
-      if (isActiveSheet) {
-        // Update local state for active sheet
-        setLocalSheetData(prevData => prevData.map(row => (row._id === rowId ? { ...row, [column]: value } : row)))
-      } else if (onAppUpdateRef.current) {
-        // Update app.sheets for non-active sheet so data is correct when user switches
-        const targetSheet = app.sheets.find(s => s.id === sheetId)
-        if (targetSheet) {
-          const updatedData = (targetSheet.data || []).map((row: Record<string, unknown>) =>
-            row._id === rowId ? { ...row, [column]: value } : row
-          )
-          const updatedSheets = app.sheets.map(sheet =>
-            sheet.id === sheetId ? { ...sheet, data: updatedData } : sheet
-          )
-          onAppUpdateRef.current({ ...app, sheets: updatedSheets })
-        }
-      }
-    } else if (operation.operation.type === 'row_add') {
-      const { rowData } = operation.operation.data as {
-        sheetId: string
-        rowData: Record<string, unknown>
-      }
-
-      if (isActiveSheet) {
-        setLocalSheetData(prevData => {
-          const exists = prevData.some(row => row._id === rowData._id)
-          if (exists) return prevData
-          return [...prevData, rowData]
+    switch (type) {
+      case 'cell_update':
+        handleRemoteCellUpdate({ sheetId, rowId: data.rowId, column: data.column, value: data.value, isActiveSheet })
+        return
+      case 'row_add':
+        handleRemoteRowAdd({ sheetId, rowData: data.rowData, isActiveSheet })
+        return
+      case 'row_delete':
+        handleRemoteRowDelete({ sheetId, rowId: data.rowId, isActiveSheet })
+        return
+      case 'column_add':
+        handleRemoteColumnAdd({ sheetId, column: data.column, isActiveSheet })
+        return
+      case 'column_update':
+        handleRemoteColumnUpdate({
+          sheetId,
+          columns: data.columns,
+          columnId: data.columnId,
+          columnPatch: data.columnPatch,
+          isActiveSheet
         })
-      } else if (onAppUpdateRef.current) {
-        const targetSheet = app.sheets.find(s => s.id === sheetId)
-        if (targetSheet) {
-          const existingData = targetSheet.data || []
-          const exists = existingData.some((row: Record<string, unknown>) => row._id === rowData._id)
-          if (!exists) {
-            const updatedSheets = app.sheets.map(sheet =>
-              sheet.id === sheetId ? { ...sheet, data: [...existingData, rowData] } : sheet
-            )
-            onAppUpdateRef.current({ ...app, sheets: updatedSheets })
-          }
-        }
-      }
-    } else if (operation.operation.type === 'row_delete') {
-      const { rowId } = operation.operation.data as {
-        sheetId: string
-        rowId: string
-      }
-
-      if (isActiveSheet) {
-        setLocalSheetData(prevData => prevData.filter(row => row._id !== rowId))
-      } else if (onAppUpdateRef.current) {
-        const targetSheet = app.sheets.find(s => s.id === sheetId)
-        if (targetSheet) {
-          const updatedData = (targetSheet.data || []).filter((row: Record<string, unknown>) => row._id !== rowId)
-          const updatedSheets = app.sheets.map(sheet =>
-            sheet.id === sheetId ? { ...sheet, data: updatedData } : sheet
-          )
-          onAppUpdateRef.current({ ...app, sheets: updatedSheets })
-        }
-      }
-    } else if (operation.operation.type === 'column_add') {
-      const { column } = operation.operation.data as {
-        sheetId: string
-        column: SpreadsheetColumn
-      }
-
-      if (onAppUpdateRef.current) {
-        const targetSheet = app.sheets.find(s => s.id === sheetId)
-        if (targetSheet) {
-          const updatedSheets = app.sheets.map(sheet =>
-            sheet.id === sheetId
-              ? {
-                  ...sheet,
-                  columns: [...sheet.columns, column],
-                  data: isActiveSheet ? localSheetDataRef.current : sheet.data
-                }
-              : sheet
-          )
-          onAppUpdateRef.current({ ...app, sheets: updatedSheets })
-        }
-      }
-    } else if (operation.operation.type === 'column_update') {
-      const { columns, columnId, columnPatch } = operation.operation.data as {
-        sheetId: string
-        columns?: SpreadsheetColumn[]
-        columnId?: string
-        columnPatch?: Partial<SpreadsheetColumn>
-      }
-
-      if (onAppUpdateRef.current) {
-        const targetSheet = app.sheets.find(s => s.id === sheetId)
-        if (targetSheet) {
-          let updatedColumns: SpreadsheetColumn[]
-
-          // Support patch-based updates (prevents race conditions)
-          if (columnId && columnPatch) {
-            updatedColumns = targetSheet.columns.map(col => (col.id === columnId ? { ...col, ...columnPatch } : col))
-          } else if (columns) {
-            updatedColumns = columns
-          } else {
-            return
-          }
-
-          const updatedSheets = app.sheets.map(sheet =>
-            sheet.id === sheetId
-              ? {
-                  ...sheet,
-                  columns: updatedColumns,
-                  data: isActiveSheet ? localSheetDataRef.current : sheet.data
-                }
-              : sheet
-          )
-          onAppUpdateRef.current({ ...app, sheets: updatedSheets })
-        }
-      }
-    } else if (operation.operation.type === 'column_delete') {
-      const { columnId } = operation.operation.data as {
-        sheetId: string
-        columnId: string
-      }
-
-      if (onAppUpdateRef.current) {
-        const targetSheet = app.sheets.find(s => s.id === sheetId)
-        if (targetSheet) {
-          const updatedColumns = targetSheet.columns.filter(col => col.id !== columnId)
-          const updatedSheets = app.sheets.map(sheet =>
-            sheet.id === sheetId
-              ? {
-                  ...sheet,
-                  columns: updatedColumns,
-                  data: isActiveSheet ? localSheetDataRef.current : sheet.data
-                }
-              : sheet
-          )
-          onAppUpdateRef.current({ ...app, sheets: updatedSheets })
-        }
-      }
+        return
+      case 'column_delete':
+        handleRemoteColumnDelete({ sheetId, columnId: data.columnId, isActiveSheet })
+        return
+      default:
+        return
     }
   }, []) // No dependencies - completely stable
 
@@ -1933,38 +1934,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
       // Track selected cells for highlighting
       if (isRangeEnd && mode.startCell) {
-        // For range selection, add all cells in the range
-        const startRow = Math.min(mode.startCell.rowIndex, rowIndex)
-        const endRow = Math.max(mode.startCell.rowIndex, rowIndex)
-        const startCol = Math.min(mode.startCell.colIndex, colIndex)
-        const endCol = Math.max(mode.startCell.colIndex, colIndex)
-
-        const rangeCells: Array<{ rowIndex: number; colIndex: number }> = []
-        for (let r = startRow; r <= endRow; r++) {
-          for (let c = startCol; c <= endCol; c++) {
-            rangeCells.push({ rowIndex: r, colIndex: c })
-          }
-        }
+        const rangeCells = buildRangeCells({ start: mode.startCell, end: { rowIndex, colIndex } })
         setFormulaSelectedCells(prev => [
           ...prev.filter(c => !(c.rowIndex === mode.startCell!.rowIndex && c.colIndex === mode.startCell!.colIndex)),
           ...rangeCells
         ])
-
-        setFormulaSelectionMode({
-          ...mode,
-          endCell: { rowIndex, colIndex },
-          isRangeSelection: true
-        })
+        setFormulaSelectionMode({ ...mode, endCell: { rowIndex, colIndex }, isRangeSelection: true })
       } else {
-        // Single cell selection - add to the list
         setFormulaSelectedCells(prev => [...prev, { rowIndex, colIndex }])
-
-        setFormulaSelectionMode({
-          ...mode,
-          startCell: { rowIndex, colIndex },
-          endCell: null,
-          isRangeSelection: false
-        })
+        setFormulaSelectionMode({ ...mode, startCell: { rowIndex, colIndex }, endCell: null, isRangeSelection: false })
       }
 
       // Get current formula from ref or input
@@ -1973,14 +1951,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       ) as HTMLInputElement | null
 
       const currentFormula = activeCellElement?.value?.trim() || currentFormulaValueRef.current?.trim() || '='
-
-      const appendRef = (formula: string, ref: string) => {
-        const trimmed = formula.trim()
-        if (trimmed === '' || trimmed === '=') return `${trimmed}${ref}`
-        const lastChar = trimmed.slice(-1)
-        if (/[+\-*/=(,]/.test(lastChar)) return `${formula}${ref}`
-        return `${formula}+${ref}`
-      }
 
       // Build new formula string
       let newFormula = currentFormula
@@ -1994,10 +1964,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         if (newFormula.trim().endsWith(startRef)) {
           newFormula = `${newFormula.trim().slice(0, -startRef.length)}${rangeRef}`
         } else {
-          newFormula = appendRef(newFormula, rangeRef)
+          newFormula = appendCellRef(newFormula, rangeRef)
         }
       } else {
-        newFormula = appendRef(newFormula, cellRef)
+        newFormula = appendCellRef(newFormula, cellRef)
       }
 
       // Always update the ref and state so we can save later and display properly
@@ -2036,150 +2006,31 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       // Check if we're using entity data source
       const isEntityDataSource = activeSheet.entityDataSource?.enabled && entityData.length > 0
 
-      let newData: Record<string, unknown>[]
-
-      if (isEntityDataSource) {
-        // When entity data source is enabled, we save custom column data in localSheetData
-        // keyed by the entity row ID
-        const existingRowIndex = localSheetData.findIndex(row => row._id === rowId || row.id === rowId)
-
-        if (existingRowIndex >= 0) {
-          // Update existing row
-          newData = localSheetData.map(row => {
-            if (row._id === rowId || row.id === rowId) {
-              const updatedRow: Record<string, unknown> = { ...row, _updatedAt: new Date().toISOString() }
-              updatedRow[columnName] = value
-
-              // Handle formulas
-              if (isFormulaValue) {
-                const formulas = (updatedRow._formulas as Record<string, string>) || {}
-                formulas[columnName] = value as string
-                updatedRow._formulas = formulas
-              } else {
-                const formulas = updatedRow._formulas as Record<string, string> | undefined
-                if (formulas) {
-                  delete formulas[columnName]
-                  if (Object.keys(formulas).length === 0) {
-                    delete updatedRow._formulas
-                  }
-                }
-              }
-
-              return updatedRow
-            }
-            return row
-          })
-        } else {
-          // Create new row for custom column data (linked to entity row by _id)
-          const newRow: Record<string, unknown> = {
-            _id: rowId,
-            _updatedAt: new Date().toISOString(),
-            [columnName]: value
-          }
-
-          if (isFormulaValue) {
-            newRow._formulas = { [columnName]: value as string }
-          }
-
-          newData = [...localSheetData, newRow]
-        }
-      } else {
-        // Standard behavior when no entity data source
-        newData = localSheetData.map(row => {
-          if (row._id === rowId || row.id === rowId) {
-            const updatedRow: Record<string, unknown> = { ...row, _updatedAt: new Date().toISOString() }
-
-            // Store formula in _formulas object if it's a formula
-            if (isFormulaValue) {
-              updatedRow[columnName] = value // Store the formula string
-              // Initialize _formulas if it doesn't exist
-              const formulas = (updatedRow._formulas as Record<string, string>) || {}
-              formulas[columnName] = value as string
-              updatedRow._formulas = formulas
-            } else {
-              // Remove formula if user entered a regular value
-              updatedRow[columnName] = value
-              const formulas = updatedRow._formulas as Record<string, string> | undefined
-              if (formulas) {
-                delete formulas[columnName]
-                // Clean up empty _formulas object
-                if (Object.keys(formulas).length === 0) {
-                  delete updatedRow._formulas
-                } else {
-                  updatedRow._formulas = formulas
-                }
-              }
-            }
-
-            return updatedRow
-          }
-          return row
-        })
-      }
+      const { nextData, localRow } = computeNextLocalSheetData({
+        localSheetData,
+        rowId,
+        columnName,
+        value,
+        isFormulaValue,
+        isEntityDataSource
+      })
 
       // Recalculate all formulas (in case this cell is referenced by others)
-      newData = recalculateAllFormulas(newData)
+      const newData = recalculateAllFormulas(nextData)
 
       // Update local state immediately for responsive UI
       setLocalSheetData(newData)
 
-      // Persist change:
-      // - Normal rows: rowId is a backend UUID -> PATCH /rows/:uuid
-      // - Entity-data-source rows: rowId is an entity id (non-UUID) -> we create ONE backend row with
-      //   `_clientRowId = entityId`, store returned backend uuid in `_rowUuid`, then PATCH that uuid.
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-      const localRow = newData.find(r => (r._id as string | undefined) === rowId) as
-        | (Record<string, unknown> & { _rowUuid?: string })
-        | undefined
-
-      const backendRowUuid = localRow?._rowUuid
-      const isBackendUuid = uuidRegex.test(backendRowUuid || '')
-      const isRowIdUuid = uuidRegex.test(rowId)
-
-      const patchRow = (rowUuid: string) => {
-        SpreadsheetApiService.updateRow(app.id, activeSheet.id, rowUuid, { [columnName]: value }).catch(err =>
-          console.error('[SpreadsheetAppViewer] Failed to update cell:', err)
-        )
-      }
-
-      if (isRowIdUuid) {
-        patchRow(rowId)
-      } else if (isBackendUuid && backendRowUuid) {
-        patchRow(backendRowUuid)
-      } else if (localRow) {
-        // Create backing row once (idempotent on client): include `_clientRowId` so we can map it on reload.
-        // We avoid spamming creation by storing `_rowUuid` once we get it back.
-        if (pendingBackingRowCreateRef.current.has(rowId)) {
-          // Already creating backing row for this client row id
-          // (localSheetData update above is still applied)
-        } else {
-          pendingBackingRowCreateRef.current.add(rowId)
-
-          const payload: Record<string, unknown> = { _clientRowId: rowId }
-          for (const [k, v] of Object.entries(localRow)) {
-            if (k === '_id' || k === '_rowUuid' || k === 'id') continue
-            if (k === '_entityType' || k === '_fetchedAt') continue
-            payload[k] = v
-          }
-
-          SpreadsheetApiService.addRow(app.id, activeSheet.id, payload)
-            .then(saved => {
-              const savedRowUuid = (saved as Record<string, unknown>)._rowUuid as string | undefined
-              if (savedRowUuid && uuidRegex.test(savedRowUuid)) {
-                setLocalSheetData(prev =>
-                  prev.map(r => ((r._id as string | undefined) === rowId ? { ...r, _rowUuid: savedRowUuid } : r))
-                )
-                // Now PATCH the specific cell as well (in case server only stored partial row)
-                patchRow(savedRowUuid)
-              }
-            })
-            .catch(err => console.error('[SpreadsheetAppViewer] Failed to create backing row:', err))
-            .finally(() => {
-              pendingBackingRowCreateRef.current.delete(rowId)
-            })
-        }
-      }
+      persistCellChangeToBackend({
+        appId: app.id,
+        sheetId: activeSheet.id,
+        rowId,
+        columnName,
+        value,
+        localRow,
+        pendingBackingRowCreate: pendingBackingRowCreateRef.current,
+        setLocalSheetData
+      })
 
       // Also emit collaboration operation for real-time sync to other clients (uses UI row id)
       if (isCollaborationConnected) {
@@ -2254,147 +2105,18 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   useEffect(() => {
     if (!selectedCell) return
 
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Don't handle if we're in an input or textarea (unless it's a cell input)
-      const target = e.target as HTMLElement
-      const isCellInput = target.closest('[data-cell-rowid]')
-
-      // Don't handle if target is inside a link editor
-      const isLinkEditorInput =
-        target.closest('[data-link-editor="true"]') || target.hasAttribute('data-link-editor-input')
-      if (isLinkEditorInput) return
-
-      if ((target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') && !isCellInput) return
-
-      // Don't handle if a cell is currently being edited
-      if (isEditingRef.current) return
-
-      // Don't handle if formula selection mode is active
-      if (formulaSelectionMode) return
-
-      // Don't handle if target is a cell div (cell's own handler will handle it)
-      // This prevents double navigation with arrow keys
-      if (target.hasAttribute('data-cell-rowid')) {
-        return
-      }
-
-      const { rowIndex, colIndex, rowId, colId } = selectedCell
-      // Find column by colId (more reliable than index)
-      const column = activeSheet?.columns.find(c => c.id === colId)
-      const canEdit =
-        isEditing && activeSheet?.settings.allowEdit && column?.isEditable && column?.type !== 'calculated'
-
-      // Navigation function
-      const navigateTo = (direction: 'up' | 'down' | 'left' | 'right') => {
-        let targetRow = rowIndex
-        let targetCol = colIndex
-
-        switch (direction) {
-          case 'up':
-            targetRow = Math.max(0, rowIndex - 1)
-            break
-          case 'down':
-            targetRow = rowIndex + 1
-            break
-          case 'left':
-            targetCol = Math.max(0, colIndex - 1)
-            break
-          case 'right':
-            targetCol = colIndex + 1
-            break
-        }
-
-        // Skip if we're already at the boundary and not moving
-        if (targetRow === rowIndex && targetCol === colIndex) {
-          return
-        }
-
-        const targetCell = document.querySelector(
-          `[data-cell-row="${targetRow}"][data-cell-col="${targetCol}"]`
-        ) as HTMLElement
-
-        if (targetCell) {
-          const targetRowId = targetCell.dataset.cellRowid
-          const targetColId = targetCell.dataset.cellColid
-          if (targetRowId && targetColId) {
-            // Emit cursor immediately for collaboration
-            emitCursorImmediate(targetRowId, targetColId, targetRow, targetCol)
-            // Update selection
-            setSelectedCell({ rowId: targetRowId, colId: targetColId, rowIndex: targetRow, colIndex: targetCol })
-          }
-        }
-      }
-
-      // Arrow keys - navigate
-      if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        navigateTo('up')
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        navigateTo('down')
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault()
-        navigateTo('left')
-      } else if (e.key === 'ArrowRight') {
-        e.preventDefault()
-        navigateTo('right')
-      } else if (e.key === 'Tab') {
-        e.preventDefault()
-        navigateTo(e.shiftKey ? 'left' : 'right')
-      } else if (e.key === 'Enter') {
-        e.preventDefault()
-        // Enter navigates down
-        navigateTo('down')
-      } else if (e.key === 'Escape') {
-        e.preventDefault()
-        setSelectedCell(null)
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        // Copy
-        e.preventDefault()
-        const row = filteredData.find(r => (r._id ?? r.id) === rowId)
-        if (row && column) {
-          const valueToCopy = String(row[column.name] ?? '')
-          navigator.clipboard.writeText(valueToCopy)
-        }
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-        // Paste
-        e.preventDefault()
-        if (canEdit && column) {
-          navigator.clipboard.readText().then(text => {
-            // If pasted text is a URL, convert it to markdown link format
-            const processedText = isValidUrl(text) ? urlToMarkdown(text) : text
-            handleCellChange(rowId, column.name, processedText)
-          })
-        }
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        // Clear cell
-        e.preventDefault()
-        if (canEdit && column) {
-          handleCellChange(rowId, column.name, '')
-        }
-      } else if (e.key === 'F2') {
-        // F2 - enter edit mode (click cell to trigger edit)
-        e.preventDefault()
-        const cellElement = document.querySelector(
-          `[data-cell-row="${rowIndex}"][data-cell-col="${colIndex}"]`
-        ) as HTMLElement
-        if (cellElement) {
-          cellElement.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
-        }
-      } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && canEdit) {
-        // Printable character - start editing with this character
-        e.preventDefault()
-        // Find the cell and trigger edit mode with the typed character
-        const cellElement = document.querySelector(
-          `[data-cell-row="${rowIndex}"][data-cell-col="${colIndex}"]`
-        ) as HTMLElement
-        if (cellElement) {
-          // Set a data attribute to indicate we want to start with this character
-          cellElement.dataset.startChar = e.key
-          cellElement.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
-        }
-      }
-    }
+    const handleGlobalKeyDown = createSpreadsheetGlobalKeyDownHandler({
+      selectedCell: selectedCell as GlobalSelectedCell,
+      activeSheetColumns: activeSheet?.columns || [],
+      activeSheetAllowEdit: Boolean(activeSheet?.settings.allowEdit),
+      isEditingEnabled: Boolean(isEditing),
+      isEditingCell: isEditingRef.current,
+      isFormulaSelectionMode: Boolean(formulaSelectionMode),
+      filteredData,
+      handleCellChange,
+      emitCursorImmediate,
+      setSelectedCell
+    })
 
     document.addEventListener('keydown', handleGlobalKeyDown)
     return () => document.removeEventListener('keydown', handleGlobalKeyDown)
@@ -4450,65 +4172,70 @@ const EditableCell: React.FC<EditableCellProps> = ({
     // Don't handle if link editor is open
     if (showLinkEditor) return
 
-    // Arrow keys - navigate
-    if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      navigateToCell('up')
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      navigateToCell('down')
-    } else if (e.key === 'ArrowLeft') {
-      e.preventDefault()
-      navigateToCell('left')
-    } else if (e.key === 'ArrowRight') {
-      e.preventDefault()
-      navigateToCell('right')
-    } else if (e.key === 'Tab') {
-      e.preventDefault()
-      navigateToCell(e.shiftKey ? 'left' : 'right')
-    } else if (e.key === 'Enter') {
-      // Enter - start editing (like F2)
-      e.preventDefault()
-      if (canEdit) startEditing(false)
-    } else if (e.key === 'F2') {
-      // F2 - edit mode
-      e.preventDefault()
-      if (canEdit) startEditing(false)
-    } else if (e.key === 'Delete' || e.key === 'Backspace') {
-      // Delete/Backspace - clear cell
-      e.preventDefault()
-      if (canEdit) {
-        onSave(rowId, column.name, '')
-      }
-    } else if (e.key === 'Escape') {
-      // Escape - deselect
-      e.preventDefault()
-      setSelectedCell(null)
-    } else if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-      // Ctrl+C - copy
-      e.preventDefault()
-      const textToCopy = String(value ?? '')
-      navigator.clipboard.writeText(textToCopy)
-    } else if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-      // Ctrl+V - paste
-      e.preventDefault()
-      if (canEdit) {
-        navigator.clipboard.readText().then(text => {
-          // If pasted text is a URL, convert it to markdown link format
-          const processedText = isValidUrl(text) ? urlToMarkdown(text) : text
-          onSave(rowId, column.name, processedText)
-        })
-      }
-    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      // Any printable character - start editing and replace content
-      if (canEdit) {
+    switch (e.key) {
+      case 'ArrowUp':
         e.preventDefault()
-        // Mark that we started from typing (so cursor goes to end, not select all)
-        startedFromTypingRef.current = true
-        setOriginalValue(storedFormula || String(value ?? ''))
-        setEditValue(e.key)
-        setIsEditing(true)
-      }
+        navigateToCell('up')
+        return
+      case 'ArrowDown':
+        e.preventDefault()
+        navigateToCell('down')
+        return
+      case 'ArrowLeft':
+        e.preventDefault()
+        navigateToCell('left')
+        return
+      case 'ArrowRight':
+        e.preventDefault()
+        navigateToCell('right')
+        return
+      case 'Tab':
+        e.preventDefault()
+        navigateToCell(e.shiftKey ? 'left' : 'right')
+        return
+      case 'Enter':
+      case 'F2':
+        e.preventDefault()
+        if (canEdit) startEditing(false)
+        return
+      case 'Delete':
+      case 'Backspace':
+        e.preventDefault()
+        if (canEdit) onSave(rowId, column.name, '')
+        return
+      case 'Escape':
+        e.preventDefault()
+        setSelectedCell(null)
+        return
+      default:
+        break
+    }
+
+    const isCopy = (e.ctrlKey || e.metaKey) && e.key === 'c'
+    if (isCopy) {
+      e.preventDefault()
+      navigator.clipboard.writeText(String(value ?? ''))
+      return
+    }
+
+    const isPaste = (e.ctrlKey || e.metaKey) && e.key === 'v'
+    if (isPaste) {
+      e.preventDefault()
+      if (!canEdit) return
+      navigator.clipboard.readText().then(text => {
+        const processedText = isValidUrl(text) ? urlToMarkdown(text) : text
+        onSave(rowId, column.name, processedText)
+      })
+      return
+    }
+
+    const isPrintable = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey
+    if (isPrintable && canEdit) {
+      e.preventDefault()
+      startedFromTypingRef.current = true
+      setOriginalValue(storedFormula || String(value ?? ''))
+      setEditValue(e.key)
+      setIsEditing(true)
     }
   }
 
@@ -5091,31 +4818,69 @@ function getStatusBadgeVariant(value: string): 'success' | 'warning' | 'destruct
 /**
  * Format cell value for display
  */
-function formatCellValue(value: unknown, column: SpreadsheetColumn, isStatusColumn?: boolean): React.ReactNode {
-  if (value === null || value === undefined || value === '') {
-    return <span className="gba:text-muted-foreground">—</span>
-  }
+function isEmptyCellValue(value: unknown): boolean {
+  return value === null || value === undefined || value === ''
+}
 
-  // Handle formula errors
-  if (value === '#ERROR!' || (typeof value === 'string' && value.startsWith('#ERROR'))) {
-    return <span className="gba:text-destructive">#ERROR!</span>
-  }
+function isFormulaErrorValue(value: unknown): boolean {
+  return value === '#ERROR!' || (typeof value === 'string' && value.startsWith('#ERROR'))
+}
 
-  // Check if this looks like a status value and render as badge
-  // Check both column.name and column.label since either might contain "status"
+function renderStatusBadgeIfNeeded(
+  value: unknown,
+  column: SpreadsheetColumn,
+  isStatusColumn?: boolean
+): React.ReactNode | null {
+  if (typeof value !== 'string') return null
   const isStatusByName = column.name?.toLowerCase().includes('status') || column.label?.toLowerCase().includes('status')
+  if (!isStatusColumn && !isStatusByName) return null
 
-  if (typeof value === 'string' && (isStatusColumn || isStatusByName)) {
-    const badgeVariant = getStatusBadgeVariant(value)
-    if (badgeVariant) {
-      return (
-        <Badge variant={badgeVariant} className="gba:font-medium">
-          {value}
-        </Badge>
-      )
-    }
+  const badgeVariant = getStatusBadgeVariant(value)
+  if (!badgeVariant) return null
+
+  return (
+    <Badge variant={badgeVariant} className="gba:font-medium">
+      {value}
+    </Badge>
+  )
+}
+
+function renderMarkdownOrUrlValue(value: string): React.ReactNode | null {
+  const linkData = parseMarkdownLink(value)
+  if (linkData) {
+    return (
+      <a
+        href={linkData.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="gba:text-primary gba:hover:underline"
+        onClick={e => e.stopPropagation()}
+        title={linkData.url}
+      >
+        {linkData.title}
+      </a>
+    )
   }
 
+  if (isValidUrl(value)) {
+    return (
+      <a
+        href={value}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="gba:text-primary gba:hover:underline"
+        onClick={e => e.stopPropagation()}
+        title={value}
+      >
+        {value}
+      </a>
+    )
+  }
+
+  return null
+}
+
+function renderValueByColumnType(value: unknown, column: SpreadsheetColumn): React.ReactNode {
   switch (column.type) {
     case 'currency':
       return `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
@@ -5155,39 +4920,25 @@ function formatCellValue(value: unknown, column: SpreadsheetColumn, isStatusColu
           {String(value)}
         </a>
       )
-    default:
-      // Check if value is a markdown link
+    default: {
       const stringValue = String(value)
-      const linkData = parseMarkdownLink(stringValue)
-      if (linkData) {
-        return (
-          <a
-            href={linkData.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="gba:text-primary gba:hover:underline"
-            onClick={e => e.stopPropagation()}
-            title={linkData.url}
-          >
-            {linkData.title}
-          </a>
-        )
-      }
-      // Check if value is a plain URL
-      if (isValidUrl(stringValue)) {
-        return (
-          <a
-            href={stringValue}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="gba:text-primary gba:hover:underline"
-            onClick={e => e.stopPropagation()}
-            title={stringValue}
-          >
-            {stringValue}
-          </a>
-        )
-      }
-      return String(value)
+      return renderMarkdownOrUrlValue(stringValue) || stringValue
+    }
   }
+}
+
+function formatCellValue(value: unknown, column: SpreadsheetColumn, isStatusColumn?: boolean): React.ReactNode {
+  if (isEmptyCellValue(value)) {
+    return <span className="gba:text-muted-foreground">—</span>
+  }
+
+  // Handle formula errors
+  if (isFormulaErrorValue(value)) {
+    return <span className="gba:text-destructive">#ERROR!</span>
+  }
+
+  const statusBadge = renderStatusBadgeIfNeeded(value, column, isStatusColumn)
+  if (statusBadge) return statusBadge
+
+  return renderValueByColumnType(value, column)
 }

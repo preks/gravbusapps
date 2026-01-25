@@ -5,7 +5,7 @@
  * Modern OneDrive-inspired design with sidebar navigation.
  */
 
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useCallback } from 'react'
 import { toast } from 'sonner'
 import {
   Card,
@@ -62,7 +62,6 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 
 // Components
 import { WordUploader } from './components/WordUploader'
-import { type SharedUserInfo } from './components/DocumentPreviewCard'
 import { TemplateGallery } from './components/TemplateGallery'
 import { SendForApprovalDialog } from './components/SendForApprovalDialog'
 import { ShareDocumentDialog } from './components/ShareDocumentDialog'
@@ -73,12 +72,10 @@ import { PagedDocumentEditor } from './components/PagedDocumentEditor'
 import { useDocumentApps } from './hooks/useDocumentApps'
 import { useDocumentTemplates } from './hooks/useDocumentTemplates'
 
-// Services
-import { DocumentApiService } from './services/DocumentApiService'
-
-// GraphQL
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
+import { useDocumentAppsHubUserLookup } from './hooks/useDocumentAppsHubUserLookup'
+import { useDocumentAppsHubFavorites } from './hooks/useDocumentAppsHubFavorites'
+import { useDocumentAppsHubFiltering } from './hooks/useDocumentAppsHubFiltering'
+import { useDocumentAppsHubUrlState } from './hooks/useDocumentAppsHubUrlState'
 
 // Types
 import type { DocumentTemplate, ParsedWordDocument, DocumentSummary } from './types'
@@ -155,14 +152,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const [favorites, setFavorites] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem('document-favorites')
-      return saved ? new Set(JSON.parse(saved)) : new Set()
-    } catch {
-      return new Set()
-    }
-  })
+  const { favorites, setFavorites } = useDocumentAppsHubFavorites()
 
   // Data state
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
@@ -174,36 +164,8 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [manageSharesDialogOpen, setManageSharesDialogOpen] = useState(false)
   const [documentForManageShares, setDocumentForManageShares] = useState<string | null>(null)
 
-  // Store shared users data for each document (for avatar display)
-  const [sharedUsersMap, setSharedUsersMap] = useState<Record<string, SharedUserInfo[]>>({})
-  const [ownerInfoMap, setOwnerInfoMap] = useState<Map<string, { name: string; avatar?: string }>>(new Map())
-
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
-
-  // URL helpers for deep linking
-  const getUrlParams = useCallback((): { docId: string | null; view: HubView | null } => {
-    const urlParams = new URLSearchParams(window.location.search)
-    return {
-      docId: urlParams.get('docId'),
-      view: urlParams.get('view') as HubView | null
-    }
-  }, [])
-
-  const updateUrl = useCallback((docId: string | null, view?: HubView) => {
-    const urlParams = new URLSearchParams(window.location.search)
-    if (docId) {
-      urlParams.set('docId', docId)
-      if (view) urlParams.set('view', view)
-    } else {
-      urlParams.delete('docId')
-      urlParams.delete('view')
-    }
-    const newUrl = urlParams.toString()
-      ? `${window.location.pathname}?${urlParams.toString()}`
-      : window.location.pathname
-    window.history.pushState({ docId, view }, '', newUrl)
-  }, [])
 
   // Hooks
   const {
@@ -224,308 +186,28 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   } = useDocumentApps(accessToken, currentUserId)
 
   const { templates, createDocumentFromTemplate } = useDocumentTemplates(accessToken, currentUserId)
+  const { updateUrl, resetLoadAttempt } = useDocumentAppsHubUrlState({
+    currentView,
+    currentDocumentId: currentDocument?.id || null,
+    isLoadingDocument: isLoadingDocuments,
+    loadDocumentById: loadDocument,
+    setCurrentView,
+    setSelectedDocumentId
+  })
 
-  // GraphQL client for fetching user info
-  const graphqlClient = useGraphQLClient(accessToken)
+  const { ownerInfoMap, sharedUsersMap, refreshSharedUsersForDocument } = useDocumentAppsHubUserLookup({
+    accessToken,
+    documents
+  })
 
-  // Track which document ID we've attempted to load to prevent infinite loops
-  const loadAttemptedRef = useRef<string | null>(null)
-
-  // Save favorites to localStorage
-  useEffect(() => {
-    localStorage.setItem('document-favorites', JSON.stringify(Array.from(favorites)))
-  }, [favorites])
-
-  // Load document from URL on mount
-  useEffect(() => {
-    const { docId, view } = getUrlParams()
-    if (docId && !currentDocument && !isLoadingDocuments && loadAttemptedRef.current !== docId) {
-      loadAttemptedRef.current = docId
-      loadDocument(docId).then(doc => {
-        if (doc) {
-          setSelectedDocumentId(docId)
-          setCurrentView(view === 'editor' ? 'editor' : 'editor')
-        }
-      })
-    }
-  }, [getUrlParams, loadDocument, currentDocument, isLoadingDocuments])
-
-  // Track if we came from desk
-  const cameFromDeskRef = useRef(false)
-  useEffect(() => {
-    const referrer = document.referrer
-    const urlParams = new URLSearchParams(window.location.search)
-    cameFromDeskRef.current =
-      referrer.includes('/platform/apps/desk') ||
-      referrer.includes('?app=platform/apps/desk') ||
-      urlParams.get('from') === 'desk'
-
-    // Push state to track navigation from desk
-    if (cameFromDeskRef.current && currentView === 'list') {
-      window.history.replaceState({ fromDesk: true }, '', window.location.href)
-    }
-  }, [currentView])
-
-  // Handle browser back/forward navigation
-  useEffect(() => {
-    const handlePopState = (event: PopStateEvent) => {
-      const state = event.state as { docId?: string; view?: HubView; fromDesk?: boolean } | null
-
-      // If we came from desk and there's no document, go back to desk
-      if (state?.fromDesk && !state?.docId && currentView === 'list') {
-        navigateTo('/platform/apps/desk')
-        return
-      }
-
-      if (state?.docId) {
-        loadDocument(state.docId).then(doc => {
-          if (doc) {
-            setSelectedDocumentId(state.docId!)
-            setCurrentView(state.view || 'editor')
-          }
-        })
-      } else {
-        setSelectedDocumentId(null)
-        setCurrentView('list')
-      }
-    }
-
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [loadDocument, currentView])
-
-  /**
-   * Helper to fetch user info by userId using GraphQL
-   */
-  const fetchUserInfoByUserId = useCallback(
-    async (userId: string): Promise<SharedUserInfo | null> => {
-      if (!graphqlClient || !userId) return null
-
-      try {
-        const query = GET_EMPLOYEE_LIGHT_BY_USER_ID(userId)
-        const result = await graphqlClient.request<{
-          Employee: Array<{
-            id: string
-            displayName: string
-            firstName?: string
-            lastName?: string
-            userId: string
-            pictureThumbnail?: string
-          }>
-        }>(query)
-
-        const emp = result.Employee?.[0]
-        if (emp) {
-          return {
-            userId: emp.userId,
-            userName: emp.displayName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown',
-            userAvatar: emp.pictureThumbnail
-              ? emp.pictureThumbnail.startsWith('data:')
-                ? emp.pictureThumbnail
-                : `data:image/png;base64,${emp.pictureThumbnail}`
-              : undefined
-          }
-        }
-      } catch {
-        // Ignore errors
-      }
-      return null
-    },
-    [graphqlClient]
-  )
-
-  // Track which documents we've already loaded shares for
-  const loadedSharesRef = useRef<Set<string>>(new Set())
-
-  // Fetch owner info for documents
-  const loadingOwnerInfoRef = useRef<Set<string>>(new Set())
-  useEffect(() => {
-    if (!graphqlClient) return
-
-    const loadOwnerInfo = async () => {
-      for (const doc of documents) {
-        const ownerId = doc.createdBy
-        if (!ownerId || ownerInfoMap.has(ownerId) || loadingOwnerInfoRef.current.has(ownerId)) continue
-        loadingOwnerInfoRef.current.add(ownerId)
-
-        try {
-          const query = GET_EMPLOYEE_LIGHT_BY_USER_ID(ownerId)
-          const result = await graphqlClient.request<{
-            Employee: Array<{ displayName: string; pictureThumbnail?: string }>
-          }>(query)
-          const emp = result.Employee?.[0]
-          setOwnerInfoMap(prev =>
-            new Map(prev).set(ownerId, {
-              name: emp?.displayName || `User ${ownerId.slice(0, 8)}`,
-              avatar: emp?.pictureThumbnail
-                ? emp.pictureThumbnail.startsWith('data:')
-                  ? emp.pictureThumbnail
-                  : `data:image/png;base64,${emp.pictureThumbnail}`
-                : undefined
-            })
-          )
-        } catch {
-          setOwnerInfoMap(prev =>
-            new Map(prev).set(ownerId, {
-              name: `User ${ownerId.slice(0, 8)}`
-            })
-          )
-        } finally {
-          loadingOwnerInfoRef.current.delete(ownerId)
-        }
-      }
-    }
-
-    loadOwnerInfo()
-  }, [documents, graphqlClient, ownerInfoMap])
-
-  // Load shared users data for owned documents (to show avatars)
-  useEffect(() => {
-    const loadSharedUsersData = async () => {
-      const ownedDocs = documents.filter(doc => doc.isOwner && !loadedSharesRef.current.has(doc.id))
-
-      if (ownedDocs.length === 0) return
-
-      ownedDocs.forEach(doc => loadedSharesRef.current.add(doc.id))
-
-      const sharesPromises = ownedDocs.map(async doc => {
-        try {
-          const shares = await DocumentApiService.getSharedUsers(doc.id)
-
-          if (shares.length === 0) {
-            return { docId: doc.id, sharedUsers: [] }
-          }
-
-          const userInfoPromises = shares.map(async share => {
-            const userInfo = await fetchUserInfoByUserId(share.userId)
-            if (userInfo) {
-              return {
-                ...userInfo,
-                permission: share.permission
-              } as SharedUserInfo
-            }
-            return {
-              userId: share.userId,
-              userName: `User ${share.userId.slice(0, 8)}...`,
-              permission: share.permission
-            } as SharedUserInfo
-          })
-
-          const userInfoResults = await Promise.all(userInfoPromises)
-          return { docId: doc.id, sharedUsers: userInfoResults }
-        } catch {
-          return { docId: doc.id, sharedUsers: [] }
-        }
-      })
-
-      const results = await Promise.all(sharesPromises)
-      const newMap: Record<string, SharedUserInfo[]> = {}
-      results.forEach(r => {
-        newMap[r.docId] = r.sharedUsers
-      })
-      setSharedUsersMap(prev => ({ ...prev, ...newMap }))
-    }
-
-    if (documents.length > 0 && graphqlClient) {
-      loadSharedUsersData()
-    }
-  }, [documents, graphqlClient, fetchUserInfoByUserId])
-
-  // Separate documents into categories
-  const { myDocuments, sharedDocuments, recentDocuments, archivedDocuments } = useMemo(() => {
-    const my: DocumentSummary[] = []
-    const shared: DocumentSummary[] = []
-    const archived: DocumentSummary[] = []
-
-    // Sort by updatedAt for recent
-    const sortedByDate = [...documents].sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-    )
-    const recent = sortedByDate.slice(0, 10)
-
-    documents.forEach(doc => {
-      if (doc.status === 'archived') {
-        archived.push(doc)
-        return
-      }
-      const isSharedWithMe = doc.isShared === true || (!doc.isOwner && doc.permission !== 'owner')
-      if (isSharedWithMe) {
-        shared.push(doc)
-      } else {
-        my.push(doc)
-      }
-    })
-
-    return { myDocuments: my, sharedDocuments: shared, recentDocuments: recent, archivedDocuments: archived }
-  }, [documents])
-
-  // Filter and sort documents based on current section
-  const filteredDocuments = useMemo(() => {
-    let baseDocuments: DocumentSummary[] = []
-
-    switch (activeSection) {
-      case 'home':
-        baseDocuments = [...myDocuments, ...sharedDocuments]
-        break
-      case 'shared':
-        baseDocuments = sharedDocuments
-        break
-      case 'favorites':
-        baseDocuments = documents.filter(doc => favorites.has(doc.id))
-        break
-      case 'recent':
-        baseDocuments = recentDocuments
-        break
-      case 'archived':
-        baseDocuments = archivedDocuments
-        break
-      case 'templates':
-        return [] // Templates handled separately
-      default:
-        baseDocuments = myDocuments
-    }
-
-    // Filter by search
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
-      baseDocuments = baseDocuments.filter(
-        doc =>
-          doc.title.toLowerCase().includes(query) ||
-          doc.description?.toLowerCase().includes(query) ||
-          doc.tags?.some(tag => tag.toLowerCase().includes(query))
-      )
-    }
-
-    // Sort
-    baseDocuments.sort((a, b) => {
-      let comparison = 0
-      switch (sortBy) {
-        case 'name':
-          comparison = (a.title || '').localeCompare(b.title || '')
-          break
-        case 'modified':
-          comparison = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-          break
-        case 'created':
-          comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          break
-      }
-      return sortOrder === 'asc' ? -comparison : comparison
-    })
-
-    return baseDocuments
-  }, [
-    myDocuments,
-    sharedDocuments,
-    recentDocuments,
-    archivedDocuments,
+  const { sharedDocuments, filteredDocuments } = useDocumentAppsHubFiltering({
     documents,
     activeSection,
+    favorites,
     searchQuery,
     sortBy,
-    sortOrder,
-    favorites
-  ])
+    sortOrder
+  })
 
   /**
    * Handle Word file parsed from uploader
@@ -646,12 +328,12 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
    */
   const handleBack = useCallback(() => {
     clearCurrentDocument()
-    loadAttemptedRef.current = null
+    resetLoadAttempt()
     setSelectedDocumentId(null)
     setParsedWordDocument(null)
     setCurrentView('list')
     updateUrl(null)
-  }, [clearCurrentDocument, updateUrl])
+  }, [clearCurrentDocument, resetLoadAttempt, updateUrl])
 
   /**
    * Start upload flow
@@ -1587,12 +1269,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           currentUserName={userInfo?.displayName || userInfo?.employeeDetails?.displayName}
           accessToken={accessToken}
           shareDocument={shareDocument}
-          onShareComplete={() => {
+          onShareComplete={async () => {
             refreshDocuments()
-            // Refresh shared users map
-            if (documentForShare) {
-              loadedSharesRef.current.delete(documentForShare)
-            }
+            await refreshSharedUsersForDocument(documentForShare)
           }}
           data-testid={`${testId}-share-dialog`}
         />
@@ -1611,31 +1290,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           accessToken={accessToken}
           onSharesChanged={async () => {
             refreshDocuments()
-            try {
-              const shares = await DocumentApiService.getSharedUsers(documentForManageShares)
-              const userInfoPromises = shares.map(async share => {
-                const userInfo = await fetchUserInfoByUserId(share.userId)
-                if (userInfo) {
-                  return {
-                    ...userInfo,
-                    permission: share.permission
-                  } as SharedUserInfo
-                }
-                return {
-                  userId: share.userId,
-                  userName: `User ${share.userId.slice(0, 8)}...`,
-                  permission: share.permission
-                } as SharedUserInfo
-              })
-
-              const userInfoResults = await Promise.all(userInfoPromises)
-              setSharedUsersMap(prev => ({
-                ...prev,
-                [documentForManageShares]: userInfoResults
-              }))
-            } catch {
-              // Ignore errors
-            }
+            await refreshSharedUsersForDocument(documentForManageShares)
           }}
           onAddMoreUsers={() => {
             setManageSharesDialogOpen(false)

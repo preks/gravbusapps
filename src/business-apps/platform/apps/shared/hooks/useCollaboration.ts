@@ -7,6 +7,72 @@ import {
   DocumentOperation
 } from '../services/CollaborationClient'
 
+type SocketParticipant = {
+  odId?: string
+  userId?: string
+  id?: string
+  userName?: string
+  userColor?: string
+  socketId?: string
+  avatarUrl?: string
+  avatar?: string
+  cursor?: unknown
+  selection?: unknown
+  lastActiveAt?: string | number | Date
+}
+
+type ParticipantEventData = {
+  userId: string
+  userName: string
+  userColor: string
+  socketId?: string
+  avatarUrl?: string
+  avatar?: string
+}
+
+type CursorEventData = { userId: string; position: DocumentParticipant['cursor'] }
+type SelectionEventData = { userId: string; selection: DocumentParticipant['selection'] }
+
+function mapSocketParticipantToParticipant(p: SocketParticipant): DocumentParticipant {
+  return {
+    userId: (p.odId || p.userId || p.id || '') as string,
+    userName: p.userName || '',
+    userColor: p.userColor || '',
+    socketId: p.socketId,
+    avatarUrl: p.avatarUrl || p.avatar,
+    cursor: p.cursor as DocumentParticipant['cursor'],
+    selection: p.selection as DocumentParticipant['selection'],
+    lastActiveAt: p.lastActiveAt ? new Date(p.lastActiveAt) : new Date()
+  }
+}
+
+function addParticipantIfMissing(prev: DocumentParticipant[], data: ParticipantEventData): DocumentParticipant[] {
+  if (prev.some(p => p.userId === data.userId)) return prev
+  return [
+    ...prev,
+    {
+      userId: data.userId,
+      userName: data.userName,
+      userColor: data.userColor,
+      socketId: data.socketId,
+      avatarUrl: data.avatarUrl || data.avatar,
+      lastActiveAt: new Date()
+    }
+  ]
+}
+
+function removeParticipant(prev: DocumentParticipant[], userId: string): DocumentParticipant[] {
+  return prev.filter(p => p.userId !== userId)
+}
+
+function updateParticipantCursor(prev: DocumentParticipant[], data: CursorEventData): DocumentParticipant[] {
+  return prev.map(p => (p.userId === data.userId ? { ...p, cursor: data.position, lastActiveAt: new Date() } : p))
+}
+
+function updateParticipantSelection(prev: DocumentParticipant[], data: SelectionEventData): DocumentParticipant[] {
+  return prev.map(p => (p.userId === data.userId ? { ...p, selection: data.selection, lastActiveAt: new Date() } : p))
+}
+
 export interface UseCollaborationOptions {
   entityType: 'document' | 'spreadsheet' | 'note'
   entityId: string
@@ -122,90 +188,63 @@ export function useCollaboration(options: UseCollaborationOptions): UseCollabora
     const socketInstance = client.connect(token)
     setSocket(socketInstance)
 
-    // Setup event listeners
-    client.getSocket()?.on('connect', () => {
+    const joinRoomIfNeeded = () => {
+      if (hasJoinedRef.current) return
+      client.joinDocument(entityType, entityId, (rawParticipants: SocketParticipant[]) => {
+        setParticipants(rawParticipants.map(mapSocketParticipantToParticipant))
+      })
+      hasJoinedRef.current = true
+    }
+
+    const handleConnect = () => {
       console.log('[useCollaboration] Connected to collaboration server')
       setIsConnected(true)
+      joinRoomIfNeeded()
+    }
 
-      // Join document room
-      if (!hasJoinedRef.current) {
-        client.joinDocument(entityType, entityId, participants => {
-          // Set initial participants from join callback
-          console.log('[useCollaboration] Setting initial participants from join callback:', participants)
-          setParticipants(
-            participants.map((p: any) => ({
-              userId: p.odId || p.userId || p.id,
-              userName: p.userName,
-              userColor: p.userColor,
-              socketId: p.socketId,
-              avatarUrl: p.avatarUrl || p.avatar,
-              cursor: p.cursor,
-              selection: p.selection,
-              lastActiveAt: new Date(p.lastActiveAt)
-            }))
-          )
-        })
-        hasJoinedRef.current = true
-      }
-    })
-
-    client.getSocket()?.on('disconnect', () => {
+    const handleDisconnect = () => {
       console.log('[useCollaboration] Disconnected from collaboration server')
       setIsConnected(false)
       hasJoinedRef.current = false
       setSocket(null)
-    })
+    }
+
+    // Setup event listeners
+    client.getSocket()?.on('connect', handleConnect)
+    client.getSocket()?.on('disconnect', handleDisconnect)
 
     // Handle user joined
-    client.onUserJoined(data => {
+    const handleUserJoined = (data: ParticipantEventData) => {
       console.log('[useCollaboration] User joined:', data)
-      setParticipants(prev => {
-        // Check if user already exists
-        if (prev.some(p => p.userId === data.userId)) {
-          return prev
-        }
-        return [
-          ...prev,
-          {
-            userId: data.userId,
-            userName: data.userName,
-            userColor: data.userColor,
-            socketId: data.socketId,
-            avatarUrl: data.avatarUrl || data.avatar,
-            lastActiveAt: new Date()
-          }
-        ]
-      })
-    })
+      setParticipants(prev => addParticipantIfMissing(prev, data))
+    }
+    client.onUserJoined(handleUserJoined)
 
     // Handle user left
-    client.onUserLeft(data => {
+    const handleUserLeft = (data: { userId: string }) => {
       console.log('[useCollaboration] User left:', data)
-      setParticipants(prev => prev.filter(p => p.userId !== data.userId))
-    })
+      setParticipants(prev => removeParticipant(prev, data.userId))
+    }
+    client.onUserLeft(handleUserLeft)
 
     // Handle operation applied
-    client.onOperationApplied(data => {
+    const handleOperationApplied = (data: Parameters<NonNullable<typeof onOperationReceived>>[0]) => {
       console.log('[useCollaboration] Operation applied:', data)
       onOperationReceived?.(data)
-    })
+    }
+    client.onOperationApplied(handleOperationApplied)
 
     // Handle cursor updates
-    client.onCursorUpdate(data => {
-      setParticipants(prev => {
-        const updated = prev.map(p =>
-          p.userId === data.userId ? { ...p, cursor: data.position, lastActiveAt: new Date() } : p
-        )
-        return updated
-      })
-    })
+    const handleCursorUpdate = (data: CursorEventData) => {
+      setParticipants(prev => updateParticipantCursor(prev, data))
+    }
+    client.onCursorUpdate(handleCursorUpdate)
 
     // Handle selection updates
-    client.onSelectionUpdate(data => {
-      setParticipants(prev =>
-        prev.map(p => (p.userId === data.userId ? { ...p, selection: data.selection, lastActiveAt: new Date() } : p))
-      )
-    })
+    const handleSelectionUpdate = (data: SelectionEventData) => {
+      setParticipants(prev => updateParticipantSelection(prev, data))
+    }
+    client.onSelectionUpdate(handleSelectionUpdate)
 
     // Cleanup
     return () => {

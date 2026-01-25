@@ -406,15 +406,24 @@ export function prepareContentForExport(htmlContent: string): string {
  * Used when working with JSON content instead of HTML
  */
 export function jsonToHtml(jsonContent: unknown): string {
-  // TipTap can directly convert to HTML, but this is a fallback
-  // if we're working with raw JSON
+  // TipTap can directly convert to HTML via editor.getHTML(), but some backends might store JSON.
+  // This helper is best-effort and guarantees a non-constant return shape.
+  if (typeof jsonContent === 'string') {
+    return jsonContent
+  }
+
   if (!jsonContent || typeof jsonContent !== 'object') {
     return ''
   }
 
-  // This would need the TipTap editor instance to properly convert
-  // For now, return empty string as we're using editor.getHTML()
-  return ''
+  // Common convenience shape: { html: "<p>...</p>" }
+  if ('html' in jsonContent && typeof (jsonContent as { html?: unknown }).html === 'string') {
+    return (jsonContent as { html: string }).html
+  }
+
+  // Fallback: preserve content for export/debug in a safe way.
+  const asJson = JSON.stringify(jsonContent, null, 2)
+  return `<pre>${escapeHtmlText(asJson)}</pre>`
 }
 
 /**

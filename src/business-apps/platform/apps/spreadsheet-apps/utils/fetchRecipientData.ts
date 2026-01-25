@@ -1,6 +1,6 @@
 /**
  * Fetch recipient data from GraphQL
- * 
+ *
  * Utilities to fetch user/employee data (name, email, avatar) for bulk collection recipients.
  */
 
@@ -110,7 +110,7 @@ function getEmail(employee: EmployeeResult): string {
 /**
  * Fetch recipient data for multiple user/employee IDs
  * Tries to match by userId first, then by employeeId
- * 
+ *
  * @param graphqlClient - The GraphQL client instance
  * @param recipientIds - Array of recipient IDs (could be userIds or employeeIds)
  * @returns Map of recipientId to RecipientData
@@ -120,103 +120,77 @@ export async function fetchRecipientsData(
   recipientIds: string[]
 ): Promise<Map<string, RecipientData>> {
   const resultMap = new Map<string, RecipientData>()
-  
+
   if (!recipientIds.length) return resultMap
-  
-  // Remove duplicates
+
   const uniqueIds = [...new Set(recipientIds)]
-  
-  console.warn('[fetchRecipientsData] Fetching data for', uniqueIds.length, 'recipients:', uniqueIds)
-  
+  console.warn('[fetchRecipientsData] Fetching recipient data:', uniqueIds.length)
+
   try {
-    // First try: Query by userId
-    const userIdResult = await graphqlClient.request<{ Employee: EmployeeResult[] }>(
-      GET_EMPLOYEES_BY_USER_IDS,
-      { userIds: uniqueIds }
-    )
-    
-    console.warn('[fetchRecipientsData] Found', userIdResult.Employee?.length || 0, 'employees by userId')
-    
-    // Map results by userId
-    const foundByUserId = new Set<string>()
-    if (userIdResult.Employee) {
-      for (const emp of userIdResult.Employee) {
-        console.warn('[fetchRecipientsData] Employee data:', {
-          userId: emp.userId,
-          displayName: emp.displayName,
-          firstName: emp.firstName,
-          lastName: emp.lastName,
-          email: getEmail(emp),
-          avatar: emp.pictureThumbnail,
-          communication: emp.communication
-        })
-        if (emp.userId) {
-          foundByUserId.add(emp.userId)
-          resultMap.set(emp.userId, {
-            id: emp.userId,
-            name: getDisplayName(emp),
-            email: getEmail(emp),
-            avatar: normalizeImageSrc(emp.pictureThumbnail)
-          })
-        }
-      }
-    }
-    
-    // Second try: Query remaining IDs by employeeId
+    const foundByUserId = await fetchByUserIds(graphqlClient, uniqueIds, resultMap)
     const remainingIds = uniqueIds.filter(id => !foundByUserId.has(id))
-    
     if (remainingIds.length > 0) {
-      console.warn('[fetchRecipientsData] Trying', remainingIds.length, 'IDs as employeeIds')
-      
-      const employeeIdResult = await graphqlClient.request<{ Employee: EmployeeResult[] }>(
-        GET_EMPLOYEES_BY_IDS,
-        { employeeIds: remainingIds }
-      )
-      
-      console.warn('[fetchRecipientsData] Found', employeeIdResult.Employee?.length || 0, 'employees by employeeId')
-      
-      if (employeeIdResult.Employee) {
-        for (const emp of employeeIdResult.Employee) {
-          resultMap.set(emp.id, {
-            id: emp.id,
-            name: getDisplayName(emp),
-            email: getEmail(emp),
-            avatar: normalizeImageSrc(emp.pictureThumbnail)
-          })
-        }
-      }
+      await fetchByEmployeeIds(graphqlClient, remainingIds, resultMap)
     }
-    
-    console.warn('[fetchRecipientsData] Total recipients found:', resultMap.size, 'Final result:', Array.from(resultMap.entries()))
-    
-    // Fill in missing recipients with defaults
-    for (const id of uniqueIds) {
-      if (!resultMap.has(id)) {
-        console.warn('[fetchRecipientsData] No data found for recipient:', id)
-        resultMap.set(id, {
-          id,
-          name: 'Unknown',
-          email: '',
-          avatar: undefined
-        })
-      }
-    }
-    
+    fillMissingRecipients(uniqueIds, resultMap)
   } catch (error) {
     console.error('[fetchRecipientsData] Error fetching recipient data:', error)
-    
-    // Return defaults for all IDs on error
-    for (const id of uniqueIds) {
-      if (!resultMap.has(id)) {
-        resultMap.set(id, {
-          id,
-          name: 'Unknown',
-          email: '',
-          avatar: undefined
-        })
-      }
-    }
+
+    fillMissingRecipients(uniqueIds, resultMap)
   }
-  
+
   return resultMap
+}
+
+async function fetchByUserIds(
+  graphqlClient: GraphQLClient,
+  userIds: string[],
+  resultMap: Map<string, RecipientData>
+): Promise<Set<string>> {
+  const foundByUserId = new Set<string>()
+  const userIdResult = await graphqlClient.request<{ Employee: EmployeeResult[] }>(GET_EMPLOYEES_BY_USER_IDS, {
+    userIds
+  })
+  console.warn('[fetchRecipientsData] Found employees by userId:', userIdResult.Employee?.length || 0)
+
+  for (const emp of userIdResult.Employee || []) {
+    if (!emp.userId) continue
+    foundByUserId.add(emp.userId)
+    resultMap.set(emp.userId, {
+      id: emp.userId,
+      name: getDisplayName(emp),
+      email: getEmail(emp),
+      avatar: normalizeImageSrc(emp.pictureThumbnail)
+    })
+  }
+
+  return foundByUserId
+}
+
+async function fetchByEmployeeIds(
+  graphqlClient: GraphQLClient,
+  employeeIds: string[],
+  resultMap: Map<string, RecipientData>
+): Promise<void> {
+  console.warn('[fetchRecipientsData] Trying IDs as employeeIds:', employeeIds.length)
+  const employeeIdResult = await graphqlClient.request<{ Employee: EmployeeResult[] }>(GET_EMPLOYEES_BY_IDS, {
+    employeeIds
+  })
+  console.warn('[fetchRecipientsData] Found employees by employeeId:', employeeIdResult.Employee?.length || 0)
+
+  for (const emp of employeeIdResult.Employee || []) {
+    resultMap.set(emp.id, {
+      id: emp.id,
+      name: getDisplayName(emp),
+      email: getEmail(emp),
+      avatar: normalizeImageSrc(emp.pictureThumbnail)
+    })
+  }
+}
+
+function fillMissingRecipients(ids: string[], resultMap: Map<string, RecipientData>): void {
+  for (const id of ids) {
+    if (resultMap.has(id)) continue
+    resultMap.set(id, { id, name: 'Unknown', email: '', avatar: undefined })
+  }
 }

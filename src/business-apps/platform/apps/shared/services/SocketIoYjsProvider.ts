@@ -112,7 +112,7 @@ export class SocketIoYjsProvider {
     this.awareness.on('update', this.handleLocalAwarenessUpdate)
 
     if (this.socket.connected) {
-      void this.sync()
+      this.triggerSync()
     }
   }
 
@@ -143,95 +143,122 @@ export class SocketIoYjsProvider {
     this.onSyncedChange?.(next)
   }
 
+  private triggerSync() {
+    this.sync().catch(error => {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      console.error('[SocketIoYjsProvider] Sync threw:', message)
+    })
+  }
+
   private handleSocketConnect = () => {
     if (this.destroyed) return
-    void this.sync()
+    this.triggerSync()
+  }
+
+  private scheduleSyncRetry(delayMs: number = 1500) {
+    if (this.retrySyncTimeout !== null) {
+      window.clearTimeout(this.retrySyncTimeout)
+    }
+    this.retrySyncTimeout = window.setTimeout(() => this.triggerSync(), delayMs)
+  }
+
+  private async requestSync(): Promise<YjsSyncResponse> {
+    try {
+      return await emitWithAck<YjsSyncResponse>(
+        this.socket,
+        'yjs_sync_request',
+        { documentId: this.documentId, entityType: this.entityType },
+        10000
+      )
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      return { success: false, error: message }
+    }
+  }
+
+  private handleSyncFailure(response: Extract<YjsSyncResponse, { success: false }>) {
+    console.error('[SocketIoYjsProvider] Sync failed:', response.error)
+    this.scheduleSyncRetry()
+  }
+
+  private handleReadyStatus(
+    response: Extract<YjsSyncResponse, { success: true; status: 'ready' | 'already_ready' }>
+  ): boolean {
+    if (response.status !== 'ready' && response.status !== 'already_ready') return false
+
+    console.log('[SocketIoYjsProvider] Applying ready state, status:', response.status)
+    if (response.status === 'ready') {
+      this.applyDocState(response.state)
+      if (response.awareness) {
+        this.applyAwarenessState(response.awareness)
+      }
+    }
+    this.setSynced(true)
+    return true
+  }
+
+  private async handleBootstrapInitializer(
+    response: Extract<YjsSyncResponse, { success: true; status: 'bootstrap'; role: 'initializer' }>
+  ): Promise<boolean> {
+    if (response.status !== 'bootstrap' || response.role !== 'initializer') return false
+
+    try {
+      await this.onBootstrapRequired?.(response.initialHtml)
+    } catch (error) {
+      console.error('[SocketIoYjsProvider] Bootstrap callback failed:', error)
+      this.scheduleSyncRetry()
+      return true
+    }
+
+    if (this.destroyed) return true
+
+    const fullStateBase64 = uint8ArrayToBase64(Y.encodeStateAsUpdate(this.ydoc))
+    const bootstrapResp = await emitWithAck<{ success: boolean; error?: string }>(
+      this.socket,
+      'yjs_bootstrap',
+      { documentId: this.documentId, entityType: this.entityType, state: fullStateBase64 },
+      15000
+    ).catch((err: Error) => ({ success: false, error: err.message }))
+
+    if (!bootstrapResp.success) {
+      console.error('[SocketIoYjsProvider] Bootstrap failed:', bootstrapResp.error)
+      this.scheduleSyncRetry()
+      return true
+    }
+
+    this.setSynced(true)
+    return true
+  }
+
+  private handleWaitingStatus(response: Extract<YjsSyncResponse, { success: true; status: 'waiting' }>): boolean {
+    if (response.status !== 'waiting') return false
+    this.scheduleSyncRetry()
+    return true
   }
 
   private sync = async () => {
     if (this.destroyed) return
     if (!this.documentId) return
-
-    // Avoid spamming syncs when already synced.
     if (this.synced) return
 
     console.log(`[SocketIoYjsProvider] Starting sync for ${this.entityType}:`, this.documentId)
 
-    const response = await emitWithAck<YjsSyncResponse>(
-      this.socket,
-      'yjs_sync_request',
-      { documentId: this.documentId, entityType: this.entityType },
-      10000
-    ).catch((err: Error) => ({ success: false, error: err.message } as const))
-
-    console.log('[SocketIoYjsProvider] Sync response:', response)
-
+    const response = await this.requestSync()
     if (this.destroyed) return
 
     if (!response.success) {
-      console.error('[SocketIoYjsProvider] Sync failed:', response.error)
-      // Retry with backoff
-      this.retrySyncTimeout = window.setTimeout(() => void this.sync(), 1500)
+      this.handleSyncFailure(response)
       return
     }
 
-    if (response.status === 'ready' || response.status === 'already_ready') {
-      console.log('[SocketIoYjsProvider] Applying ready state, status:', response.status)
-      if (response.status === 'ready') {
-        console.log('[SocketIoYjsProvider] State base64 length:', response.state?.length)
-        this.applyDocState(response.state)
-        if (response.awareness) {
-          this.applyAwarenessState(response.awareness)
-        }
-      }
-      this.setSynced(true)
-      console.log('[SocketIoYjsProvider] Sync complete - isYjsSynced set to true, editor should be editable now')
+    if (this.handleReadyStatus(response)) return
+    if (
+      await this.handleBootstrapInitializer(
+        response as Extract<YjsSyncResponse, { success: true; status: 'bootstrap'; role: 'initializer' }>
+      )
+    )
       return
-    }
-
-    if (response.status === 'bootstrap' && response.role === 'initializer') {
-      // The server needs one client to initialize the Yjs state from HTML.
-      console.log('[SocketIoYjsProvider] Bootstrap required - initializing from HTML:', response.initialHtml?.substring(0, 50))
-      try {
-        await this.onBootstrapRequired?.(response.initialHtml)
-        console.log('[SocketIoYjsProvider] Bootstrap callback completed')
-      } catch (error) {
-        console.error('[SocketIoYjsProvider] Bootstrap callback failed:', error)
-        // Retry to get a new initializer role if needed
-        this.retrySyncTimeout = window.setTimeout(() => void this.sync(), 1500)
-        return
-      }
-
-      if (this.destroyed) return
-
-      // Send full state to server as the bootstrap snapshot.
-      const fullStateBase64 = uint8ArrayToBase64(Y.encodeStateAsUpdate(this.ydoc))
-      console.log('[SocketIoYjsProvider] Sending bootstrap state to server, length:', fullStateBase64.length)
-      const bootstrapResp = await emitWithAck<{ success: boolean; error?: string }>(
-        this.socket,
-        'yjs_bootstrap',
-        { documentId: this.documentId, entityType: this.entityType, state: fullStateBase64 },
-        15000
-      ).catch((err: Error) => ({ success: false, error: err.message }))
-
-      console.log('[SocketIoYjsProvider] Bootstrap response:', bootstrapResp)
-
-      if (!bootstrapResp.success) {
-        console.error('[SocketIoYjsProvider] Bootstrap failed:', bootstrapResp.error)
-        this.retrySyncTimeout = window.setTimeout(() => void this.sync(), 1500)
-        return
-      }
-
-      this.setSynced(true)
-      console.log('[SocketIoYjsProvider] Bootstrap complete - editor should be editable now')
-      return
-    }
-
-    if (response.status === 'waiting') {
-      // We'll wait for server broadcast `yjs_sync_response` and also retry in case it never arrives.
-      console.log('[SocketIoYjsProvider] Waiting for bootstrap from another client...')
-      this.retrySyncTimeout = window.setTimeout(() => void this.sync(), 1500)
-    }
+    this.handleWaitingStatus(response as Extract<YjsSyncResponse, { success: true; status: 'waiting' }>)
   }
 
   private applyDocState(stateBase64: string) {
@@ -239,7 +266,7 @@ export class SocketIoYjsProvider {
       const stateBytes = base64ToUint8Array(stateBase64)
       console.log('[SocketIoYjsProvider] Applying doc state, length:', stateBytes.length)
       Y.applyUpdate(this.ydoc, stateBytes, 'remote')
-      
+
       // Debug: Check what's in the Yjs doc now (TipTap uses 'default' fragment by default)
       const fragment = this.ydoc.getXmlFragment('default')
       console.log('[SocketIoYjsProvider] After applying state, fragment length:', fragment.length)
@@ -283,7 +310,11 @@ export class SocketIoYjsProvider {
     this.applyDocState(event.update)
   }
 
-  private handleRemoteAwarenessUpdate = (event: { documentId: string; entityType?: 'document' | 'note'; update: string }) => {
+  private handleRemoteAwarenessUpdate = (event: {
+    documentId: string
+    entityType?: 'document' | 'note'
+    update: string
+  }) => {
     if (this.destroyed) return
     if (!event || event.documentId !== this.documentId) return
     // Check entityType matches
@@ -306,7 +337,7 @@ export class SocketIoYjsProvider {
     {
       added,
       updated,
-      removed,
+      removed
     }: {
       added: number[]
       updated: number[]
@@ -322,7 +353,10 @@ export class SocketIoYjsProvider {
     if (changed.length === 0) return
 
     const update = encodeAwarenessUpdate(this.awareness, changed)
-    this.socket.emit('yjs_awareness_update', { documentId: this.documentId, entityType: this.entityType, update: uint8ArrayToBase64(update) })
+    this.socket.emit('yjs_awareness_update', {
+      documentId: this.documentId,
+      entityType: this.entityType,
+      update: uint8ArrayToBase64(update)
+    })
   }
 }
-

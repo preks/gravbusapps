@@ -90,14 +90,7 @@ const GoldenNeuralBackground: React.FC = () => {
     const goldLight = { r: 244, g: 208, b: 63 } // Light gold/amber
     const goldWarm = { r: 230, g: 180, b: 80 } // Warm gold
 
-    let time = 0
-    const animate = () => {
-      if (!canvas || !ctx) return
-
-      time += 0.007
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-      // Subtle warm central glow
+    const drawCentralGlow = () => {
       const centerX = canvas.width / 2
       const centerY = canvas.height * 0.45
       const glowRadius = Math.min(canvas.width, canvas.height) * 0.45
@@ -108,55 +101,52 @@ const GoldenNeuralBackground: React.FC = () => {
       centralGlow.addColorStop(1, 'transparent')
       ctx.fillStyle = centralGlow
       ctx.fillRect(0, 0, canvas.width, canvas.height)
+    }
 
-      const nodes = nodesRef.current
-
-      // Update node positions
-      nodes.forEach(node => {
+    const updateNodes = (nodes: NeuralNode[]) => {
+      for (const node of nodes) {
         node.x += node.vx
         node.y += node.vy
 
-        // Bounce off edges
         if (node.x < 0 || node.x > canvas.width) node.vx *= -1
         if (node.y < 0 || node.y > canvas.height) node.vy *= -1
 
         node.x = Math.max(0, Math.min(canvas.width, node.x))
         node.y = Math.max(0, Math.min(canvas.height, node.y))
-      })
+      }
+    }
 
-      // Draw connections with golden gradient
-      nodes.forEach((node, i) => {
-        nodes.forEach((other, j) => {
-          if (i >= j) return
-
+    const drawConnections = (nodes: NeuralNode[]) => {
+      const maxDist = 100
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i]
+        for (let j = i + 1; j < nodes.length; j++) {
+          const other = nodes[j]
           const dx = other.x - node.x
           const dy = other.y - node.y
           const distance = Math.sqrt(dx * dx + dy * dy)
-          const maxDist = 100
+          if (distance >= maxDist || distance <= 0) continue
 
-          if (distance < maxDist && distance > 0) {
-            const opacity = (1 - distance / maxDist) * 0.18
+          const opacity = (1 - distance / maxDist) * 0.18
+          const gradient = ctx.createLinearGradient(node.x, node.y, other.x, other.y)
+          gradient.addColorStop(0, `rgba(${goldPrimary.r}, ${goldPrimary.g}, ${goldPrimary.b}, ${opacity})`)
+          gradient.addColorStop(1, `rgba(${goldLight.r}, ${goldLight.g}, ${goldLight.b}, ${opacity})`)
 
-            const gradient = ctx.createLinearGradient(node.x, node.y, other.x, other.y)
-            gradient.addColorStop(0, `rgba(${goldPrimary.r}, ${goldPrimary.g}, ${goldPrimary.b}, ${opacity})`)
-            gradient.addColorStop(1, `rgba(${goldLight.r}, ${goldLight.g}, ${goldLight.b}, ${opacity})`)
+          ctx.beginPath()
+          ctx.moveTo(node.x, node.y)
+          ctx.lineTo(other.x, other.y)
+          ctx.strokeStyle = gradient
+          ctx.lineWidth = 0.8
+          ctx.stroke()
+        }
+      }
+    }
 
-            ctx.beginPath()
-            ctx.moveTo(node.x, node.y)
-            ctx.lineTo(other.x, other.y)
-            ctx.strokeStyle = gradient
-            ctx.lineWidth = 0.8
-            ctx.stroke()
-          }
-        })
-      })
-
-      // Draw nodes with golden glow
-      nodes.forEach(node => {
+    const drawNodes = (nodes: NeuralNode[], time: number) => {
+      for (const node of nodes) {
         const pulse = Math.sin(time * 2 + node.pulsePhase) * 0.3 + 0.7
         const radius = node.radius * pulse
 
-        // Node glow - golden halo
         const glowGradient = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, radius * 5)
         glowGradient.addColorStop(0, `rgba(${goldLight.r}, ${goldLight.g}, ${goldLight.b}, ${0.2 * node.brightness})`)
         glowGradient.addColorStop(1, 'transparent')
@@ -165,12 +155,25 @@ const GoldenNeuralBackground: React.FC = () => {
         ctx.fillStyle = glowGradient
         ctx.fill()
 
-        // Node core - solid gold
         ctx.beginPath()
         ctx.arc(node.x, node.y, radius, 0, Math.PI * 2)
         ctx.fillStyle = `rgba(${goldPrimary.r}, ${goldPrimary.g}, ${goldPrimary.b}, ${0.8 * node.brightness})`
         ctx.fill()
-      })
+      }
+    }
+
+    let time = 0
+    const animate = () => {
+      if (!canvas || !ctx) return
+
+      time += 0.007
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+      const nodes = nodesRef.current
+      drawCentralGlow()
+      updateNodes(nodes)
+      drawConnections(nodes)
+      drawNodes(nodes, time)
 
       animationRef.current = requestAnimationFrame(animate)
     }

@@ -176,72 +176,82 @@ export class SpreadsheetFileStorageService {
     debugLog('[TRACE] Current indexInfo:', this.indexInfo)
     debugLog('[TRACE] localStorage key:', localStorageKey)
 
-    // 1. Try localStorage (fast cache)
+    const localIndex = await this.loadIndexFromLocalStorage(localStorageKey)
+    if (localIndex) return localIndex
+
+    const backendIndex = await this.loadIndexFromBackendSync(localStorageKey)
+    if (backendIndex) return backendIndex
+
+    return this.createEmptyIndex()
+  }
+
+  private async loadIndexFromLocalStorage(localStorageKey: string): Promise<AppsIndex | null> {
     const storedInfoStr = localStorage.getItem(localStorageKey)
     debugLog('[TRACE] localStorage value:', storedInfoStr)
 
-    if (storedInfoStr) {
-      try {
-        const storedInfo: StoredIndexInfo = JSON.parse(storedInfoStr)
-        debugLog('[TRACE] Parsed storedInfo:', storedInfo)
-
-        if (storedInfo.filePath) {
-          debugLog('[SpreadsheetStorage] Loading index from localStorage:', storedInfo.filePath)
-          const index = await this.readJsonFileByPath<AppsIndex>(storedInfo.filePath)
-          debugLog('[TRACE] Index loaded from file:', index ? `${index.apps.length} apps` : 'NULL')
-
-          if (index) {
-            // Ensure we have fileId
-            if (!storedInfo.fileId) {
-              storedInfo.fileId = this.extractFileIdFromPath(storedInfo.filePath)
-              debugLog('[TRACE] Extracted fileId:', storedInfo.fileId)
-            }
-            this.indexInfo = storedInfo
-            debugLog('[SpreadsheetStorage] Index loaded with', index.apps.length, 'apps')
-            debugLog('=== [TRACE] getIndex() END (from localStorage) ===')
-            return index
-          }
-          // Index file not found - clear stale cache
-          debugLog('[SpreadsheetStorage] Cached index not found, checking backend...')
-          localStorage.removeItem(localStorageKey)
-        }
-      } catch (e) {
-        console.warn('[SpreadsheetStorage] Failed to load from localStorage:', e)
-        localStorage.removeItem(localStorageKey)
-      }
-    } else {
+    if (!storedInfoStr) {
       debugLog('[TRACE] No localStorage entry found')
+      return null
     }
 
-    // 2. Try backend sync service (cross-device)
+    try {
+      const storedInfo: StoredIndexInfo = JSON.parse(storedInfoStr)
+      debugLog('[TRACE] Parsed storedInfo:', storedInfo)
+      if (!storedInfo.filePath) return null
+
+      debugLog('[SpreadsheetStorage] Loading index from localStorage:', storedInfo.filePath)
+      const index = await this.readJsonFileByPath<AppsIndex>(storedInfo.filePath)
+      debugLog('[TRACE] Index loaded from file:', index ? `${index.apps.length} apps` : 'NULL')
+      if (!index) {
+        debugLog('[SpreadsheetStorage] Cached index not found, checking backend...')
+        localStorage.removeItem(localStorageKey)
+        return null
+      }
+
+      if (!storedInfo.fileId) {
+        storedInfo.fileId = this.extractFileIdFromPath(storedInfo.filePath)
+        debugLog('[TRACE] Extracted fileId:', storedInfo.fileId)
+      }
+      this.indexInfo = storedInfo
+      debugLog('[SpreadsheetStorage] Index loaded with', index.apps.length, 'apps')
+      debugLog('=== [TRACE] getIndex() END (from localStorage) ===')
+      return index
+    } catch (e) {
+      console.warn('[SpreadsheetStorage] Failed to load from localStorage:', e)
+      localStorage.removeItem(localStorageKey)
+      return null
+    }
+  }
+
+  private async loadIndexFromBackendSync(localStorageKey: string): Promise<AppsIndex | null> {
     debugLog('[SpreadsheetStorage] Checking backend (prompt-manager) for index path...')
     try {
       const syncData = await this.syncService.getIndex()
       debugLog('[TRACE] Prompt-manager returned:', syncData)
 
-      if (syncData?.indexFilePath) {
-        debugLog('[SpreadsheetStorage] Found index via backend sync:', syncData.indexFilePath)
-        const index = await this.readJsonFileByPath<AppsIndex>(syncData.indexFilePath)
-        debugLog('[TRACE] Index loaded from backend file:', index ? `${index.apps.length} apps` : 'NULL')
-
-        if (index) {
-          // Extract fileId from filePath (e.g., /api/v1/tenant/downloads/.../abc123.json -> abc123.json)
-          const fileId = this.extractFileIdFromPath(syncData.indexFilePath)
-          // Cache in localStorage
-          this.indexInfo = { fileId, filePath: syncData.indexFilePath }
-          localStorage.setItem(localStorageKey, JSON.stringify(this.indexInfo))
-          debugLog('[SpreadsheetStorage] Index loaded from backend with', index.apps.length, 'apps, fileId:', fileId)
-          debugLog('=== [TRACE] getIndex() END (from backend) ===')
-          return index
-        }
-      } else {
+      if (!syncData?.indexFilePath) {
         debugLog('[TRACE] No index path from prompt-manager')
+        return null
       }
+
+      debugLog('[SpreadsheetStorage] Found index via backend sync:', syncData.indexFilePath)
+      const index = await this.readJsonFileByPath<AppsIndex>(syncData.indexFilePath)
+      debugLog('[TRACE] Index loaded from backend file:', index ? `${index.apps.length} apps` : 'NULL')
+      if (!index) return null
+
+      const fileId = this.extractFileIdFromPath(syncData.indexFilePath)
+      this.indexInfo = { fileId, filePath: syncData.indexFilePath }
+      localStorage.setItem(localStorageKey, JSON.stringify(this.indexInfo))
+      debugLog('[SpreadsheetStorage] Index loaded from backend with', index.apps.length, 'apps, fileId:', fileId)
+      debugLog('=== [TRACE] getIndex() END (from backend) ===')
+      return index
     } catch (e) {
       console.warn('[SpreadsheetStorage] Backend sync check failed:', e)
+      return null
     }
+  }
 
-    // 3. Create new index
+  private createEmptyIndex(): AppsIndex {
     debugLog('[TRACE] Creating fresh EMPTY index (no existing data found)')
     const newIndex: AppsIndex = {
       version: 1,
@@ -249,7 +259,6 @@ export class SpreadsheetFileStorageService {
       updatedAt: new Date().toISOString()
     }
     debugLog('=== [TRACE] getIndex() END (fresh index) ===')
-
     return newIndex
   }
 
@@ -683,7 +692,10 @@ export class SpreadsheetFileStorageService {
     // Use the already-loaded app (we loaded it above for permission check)
     debugLog('[TRACE] Using already-loaded app, sheets:', currentApp.sheets.length)
     console.warn('[SpreadsheetStorage] updateApp - currentApp rows:', currentApp.sheets[0]?.data?.length)
-    console.warn('[SpreadsheetStorage] updateApp - updates rows:', (updates as SpreadsheetApp).sheets?.[0]?.data?.length)
+    console.warn(
+      '[SpreadsheetStorage] updateApp - updates rows:',
+      (updates as SpreadsheetApp).sheets?.[0]?.data?.length
+    )
 
     // Merge updates
     const now = new Date().toISOString()
@@ -700,7 +712,11 @@ export class SpreadsheetFileStorageService {
     const appFile = this.createJsonFile(updatedApp, `${APP_FILE_PREFIX}-${id}.json`)
     debugLog('[TRACE] *** CALLING PUT to update app file ***:', fileId)
 
-    console.warn('[SpreadsheetStorage] updateApp - SAVING to file service with', updatedApp.sheets[0]?.data?.length, 'rows')
+    console.warn(
+      '[SpreadsheetStorage] updateApp - SAVING to file service with',
+      updatedApp.sheets[0]?.data?.length,
+      'rows'
+    )
     await fileClient.updateFile(
       appFile,
       { accessScope: FILE_SCOPE, fileId: fileId },
@@ -710,7 +726,11 @@ export class SpreadsheetFileStorageService {
         mimeType: 'application/json'
       }
     )
-    console.warn('[SpreadsheetStorage] updateApp - FILE SAVED SUCCESSFULLY with', updatedApp.sheets[0]?.data?.length, 'rows')
+    console.warn(
+      '[SpreadsheetStorage] updateApp - FILE SAVED SUCCESSFULLY with',
+      updatedApp.sheets[0]?.data?.length,
+      'rows'
+    )
     debugLog('[TRACE] PUT completed successfully')
 
     // Update index entry (fileId and filePath stay the same!)

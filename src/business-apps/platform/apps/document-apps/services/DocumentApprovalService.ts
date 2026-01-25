@@ -375,6 +375,41 @@ export class DocumentApprovalService {
    * Sync approval status for a document
    * Checks all workflow statuses and updates the approval request accordingly
    */
+  private getApproverWorkflowId(
+    approvalRequest: DocumentApprovalRequest,
+    approverIndex: number,
+    approver: DocumentApprovalRequest['approvers'][number]
+  ): string | undefined {
+    return (
+      approver.workflowId || approvalRequest.workflowIds?.[approverIndex] || approvalRequest.workflowId || undefined
+    )
+  }
+
+  private applyApproverWorkflowResult(
+    approver: DocumentApprovalRequest['approvers'][number],
+    details: { status: 'approved' | 'rejected' | 'cancelled'; completedAt?: string; comments?: string }
+  ): DocumentApprovalRequest['approvers'][number] {
+    return {
+      ...approver,
+      status: details.status === 'cancelled' ? 'rejected' : details.status,
+      respondedAt: details.completedAt,
+      comments: details.comments
+    }
+  }
+
+  private computeOverallApprovalStatus(
+    approvers: DocumentApprovalRequest['approvers']
+  ): 'pending' | 'approved' | 'rejected' | 'cancelled' {
+    const anyRejected = approvers.some(a => a.status === 'rejected')
+    if (anyRejected) return 'rejected'
+
+    const allApproved = approvers.every(a => a.status === 'approved')
+    const allResponded = approvers.every(a => a.status !== 'pending')
+    if (allApproved && allResponded) return 'approved'
+
+    return 'pending'
+  }
+
   async syncApprovalStatus(approvalRequest: DocumentApprovalRequest): Promise<DocumentApprovalRequest | null> {
     if (!approvalRequest || !approvalRequest.approvers?.length) {
       return null
@@ -393,17 +428,12 @@ export class DocumentApprovalService {
           continue
         }
 
-        const workflowId = approver.workflowId || approvalRequest.workflowIds?.[i] || approvalRequest.workflowId
+        const workflowId = this.getApproverWorkflowId(approvalRequest, i, approver)
         if (!workflowId) continue
 
         const details = await this.getWorkflowDetails(workflowId)
         if (details && details.status !== 'pending') {
-          updatedApprovers[i] = {
-            ...approver,
-            status: details.status === 'cancelled' ? 'rejected' : details.status,
-            respondedAt: details.completedAt,
-            comments: details.comments
-          }
+          updatedApprovers[i] = this.applyApproverWorkflowResult(approver, details)
           hasChanges = true
         }
       }
@@ -412,17 +442,7 @@ export class DocumentApprovalService {
         return null // No changes needed
       }
 
-      // Calculate overall status
-      const allApproved = updatedApprovers.every(a => a.status === 'approved')
-      const anyRejected = updatedApprovers.some(a => a.status === 'rejected')
-      const allResponded = updatedApprovers.every(a => a.status !== 'pending')
-
-      let overallStatus: 'pending' | 'approved' | 'rejected' | 'cancelled' = 'pending'
-      if (anyRejected) {
-        overallStatus = 'rejected'
-      } else if (allApproved && allResponded) {
-        overallStatus = 'approved'
-      }
+      const overallStatus = this.computeOverallApprovalStatus(updatedApprovers)
 
       return {
         ...approvalRequest,

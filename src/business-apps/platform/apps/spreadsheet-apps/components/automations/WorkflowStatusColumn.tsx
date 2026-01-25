@@ -19,19 +19,7 @@ import {
   TooltipProvider,
   Spinner
 } from '@newwork/nw-design-system'
-import {
-  Play,
-  Pause,
-  CheckCircle,
-  XCircle,
-  Clock,
-  AlertTriangle,
-  RefreshCw,
-  Eye,
-  Hand,
-  ChevronRight,
-  MoreHorizontal
-} from 'lucide-react'
+import { Play, Pause, CheckCircle, XCircle, Clock, AlertTriangle, RefreshCw, Eye, Hand } from 'lucide-react'
 import type {
   WorkflowRowLink,
   WorkflowStatus,
@@ -59,6 +47,23 @@ export interface WorkflowStatusColumnProps {
   currentUserId?: string
   /** Data test ID */
   'data-testid'?: string
+}
+
+type WorkflowBadgeVariant = 'success' | 'warning' | 'destructive' | 'info' | 'outline'
+
+function getWorkflowBadgeVariant(statusColor: ReturnType<typeof getWorkflowStatusColor>): WorkflowBadgeVariant {
+  switch (statusColor) {
+    case 'success':
+      return 'success'
+    case 'destructive':
+      return 'destructive'
+    case 'warning':
+      return 'warning'
+    case 'info':
+      return 'info'
+    default:
+      return 'outline'
+  }
 }
 
 /**
@@ -126,38 +131,33 @@ export const WorkflowStatusColumn: React.FC<WorkflowStatusColumnProps> = ({
   currentUserId,
   'data-testid': testId = 'workflow-status-column'
 }) => {
-  const [isClaimingTask, setIsClaimingTask] = useState(false)
-  const [isCompletingTask, setIsCompletingTask] = useState(false)
+  if (!workflowLink) {
+    return <WorkflowStatusNoWorkflow rowId={rowId} onTriggerWorkflow={onTriggerWorkflow} data-testid={testId} />
+  }
+
+  return (
+    <WorkflowStatusWithWorkflow
+      rowId={rowId}
+      workflowLink={workflowLink}
+      config={config}
+      onViewDetails={onViewDetails}
+      onClaimTask={onClaimTask}
+      onCompleteTask={onCompleteTask}
+      currentUserId={currentUserId}
+      data-testid={testId}
+    />
+  )
+}
+
+const WorkflowStatusNoWorkflow: React.FC<{
+  rowId: string
+  onTriggerWorkflow?: (rowId: string) => Promise<void>
+  'data-testid': string
+}> = ({ rowId, onTriggerWorkflow, 'data-testid': testId }) => {
   const [isTriggeringWorkflow, setIsTriggeringWorkflow] = useState(false)
 
-  // Handle claim task
-  const handleClaimTask = useCallback(async () => {
-    if (!workflowLink || !onClaimTask) return
-
-    setIsClaimingTask(true)
-    try {
-      await onClaimTask(workflowLink.workflowId, workflowLink.currentStepIndex)
-    } finally {
-      setIsClaimingTask(false)
-    }
-  }, [workflowLink, onClaimTask])
-
-  // Handle complete task
-  const handleCompleteTask = useCallback(async () => {
-    if (!workflowLink || !onCompleteTask) return
-
-    setIsCompletingTask(true)
-    try {
-      await onCompleteTask(workflowLink.workflowId, workflowLink.currentStepIndex)
-    } finally {
-      setIsCompletingTask(false)
-    }
-  }, [workflowLink, onCompleteTask])
-
-  // Handle trigger workflow
   const handleTriggerWorkflow = useCallback(async () => {
     if (!onTriggerWorkflow) return
-
     setIsTriggeringWorkflow(true)
     try {
       await onTriggerWorkflow(rowId)
@@ -166,35 +166,46 @@ export const WorkflowStatusColumn: React.FC<WorkflowStatusColumnProps> = ({
     }
   }, [rowId, onTriggerWorkflow])
 
-  // No workflow link - show trigger button or empty state
-  if (!workflowLink) {
-    if (onTriggerWorkflow) {
-      return (
-        <div className="gba:flex gba:items-center gba:justify-center" data-testid={testId}>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleTriggerWorkflow}
-            disabled={isTriggeringWorkflow}
-            className="gba:text-xs gba:text-muted-foreground gba:hover:text-foreground"
-          >
-            {isTriggeringWorkflow ? (
-              <Spinner size="sm" className="gba:mr-1" />
-            ) : (
-              <Play className="gba:w-3 gba:h-3 gba:mr-1" />
-            )}
-            Run Workflow
-          </Button>
-        </div>
-      )
-    }
-
+  if (!onTriggerWorkflow) {
     return (
       <div className="gba:text-center gba:text-muted-foreground gba:text-xs" data-testid={testId}>
         —
       </div>
     )
   }
+
+  return (
+    <div className="gba:flex gba:items-center gba:justify-center" data-testid={testId}>
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={handleTriggerWorkflow}
+        disabled={isTriggeringWorkflow}
+        className="gba:text-xs gba:text-muted-foreground gba:hover:text-foreground"
+      >
+        {isTriggeringWorkflow ? (
+          <Spinner size="sm" className="gba:mr-1" />
+        ) : (
+          <Play className="gba:w-3 gba:h-3 gba:mr-1" />
+        )}
+        Run Workflow
+      </Button>
+    </div>
+  )
+}
+
+const WorkflowStatusWithWorkflow: React.FC<{
+  rowId: string
+  workflowLink: WorkflowRowLink
+  config: WorkflowStatusColumnConfig
+  onViewDetails?: (workflowId: string) => void
+  onClaimTask?: (workflowId: string, stepIndex: number) => Promise<void>
+  onCompleteTask?: (workflowId: string, stepIndex: number) => Promise<void>
+  currentUserId?: string
+  'data-testid': string
+}> = ({ workflowLink, config, onViewDetails, onClaimTask, onCompleteTask, currentUserId, 'data-testid': testId }) => {
+  const [isClaimingTask, setIsClaimingTask] = useState(false)
+  const [isCompletingTask, setIsCompletingTask] = useState(false)
 
   const { workflowStatus, currentStepIndex, totalSteps, stepDetails, errorMessage } = workflowLink
   const StatusIcon = getStatusIcon(workflowStatus)
@@ -203,35 +214,41 @@ export const WorkflowStatusColumn: React.FC<WorkflowStatusColumnProps> = ({
   const isTerminal = isTerminalStatus(workflowStatus)
   const progressPercent = totalSteps > 0 ? Math.round((currentStepIndex / totalSteps) * 100) : 0
 
-  // Get current step details if available
   const currentStep = stepDetails?.[currentStepIndex]
   const isAssignedToCurrentUser = currentStep?.assignedTo === currentUserId
   const canClaim = currentStep?.status === 'PENDING' && config.allowActions && onClaimTask
-  const canComplete = currentStep?.status === 'IN_PROGRESS' && isAssignedToCurrentUser && config.allowActions && onCompleteTask
+  const canComplete =
+    currentStep?.status === 'IN_PROGRESS' && isAssignedToCurrentUser && config.allowActions && onCompleteTask
 
-  // Build badge variant based on status
-  const badgeVariant =
-    statusColor === 'success'
-      ? 'success'
-      : statusColor === 'destructive'
-        ? 'destructive'
-        : statusColor === 'warning'
-          ? 'warning'
-          : statusColor === 'info'
-            ? 'info'
-            : 'outline'
+  const badgeVariant = getWorkflowBadgeVariant(statusColor)
 
-  // Simple status badge view
+  const handleClaimTask = useCallback(async () => {
+    if (!onClaimTask) return
+    setIsClaimingTask(true)
+    try {
+      await onClaimTask(workflowLink.workflowId, workflowLink.currentStepIndex)
+    } finally {
+      setIsClaimingTask(false)
+    }
+  }, [onClaimTask, workflowLink])
+
+  const handleCompleteTask = useCallback(async () => {
+    if (!onCompleteTask) return
+    setIsCompletingTask(true)
+    try {
+      await onCompleteTask(workflowLink.workflowId, workflowLink.currentStepIndex)
+    } finally {
+      setIsCompletingTask(false)
+    }
+  }, [onCompleteTask, workflowLink])
+
   const statusBadge = (
     <Badge variant={badgeVariant as 'default'} className="gba:gap-1 gba:cursor-default">
-      <StatusIcon
-        className={`gba:w-3 gba:h-3 ${workflowStatus === 'RUNNING' ? 'gba:animate-spin' : ''}`}
-      />
+      <StatusIcon className={`gba:w-3 gba:h-3 ${workflowStatus === 'RUNNING' ? 'gba:animate-spin' : ''}`} />
       <span className="gba:text-xs">{statusLabel}</span>
     </Badge>
   )
 
-  // Progress view
   const progressView = config.showProgress && !isTerminal && (
     <div className="gba:flex gba:items-center gba:gap-2 gba:mt-1">
       <Progress value={progressPercent} className="gba:h-1 gba:flex-1" />
@@ -241,7 +258,6 @@ export const WorkflowStatusColumn: React.FC<WorkflowStatusColumnProps> = ({
     </div>
   )
 
-  // If no details needed, just show badge with progress
   if (!config.showStepDetails && !config.allowActions) {
     return (
       <div className="gba:flex gba:flex-col gba:gap-1" data-testid={testId}>
@@ -251,7 +267,6 @@ export const WorkflowStatusColumn: React.FC<WorkflowStatusColumnProps> = ({
     )
   }
 
-  // Full view with popover for details
   return (
     <TooltipProvider>
       <Popover>
@@ -269,7 +284,6 @@ export const WorkflowStatusColumn: React.FC<WorkflowStatusColumnProps> = ({
 
         <PopoverContent className="gba:w-80" align="start">
           <div className="gba:space-y-4">
-            {/* Header */}
             <div className="gba:flex gba:items-center gba:justify-between">
               <div>
                 <h4 className="gba:font-semibold gba:text-foreground">Workflow Status</h4>
@@ -278,7 +292,6 @@ export const WorkflowStatusColumn: React.FC<WorkflowStatusColumnProps> = ({
               {statusBadge}
             </div>
 
-            {/* Progress */}
             {!isTerminal && (
               <div>
                 <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
@@ -291,14 +304,12 @@ export const WorkflowStatusColumn: React.FC<WorkflowStatusColumnProps> = ({
               </div>
             )}
 
-            {/* Error message */}
             {errorMessage && (
               <div className="gba:bg-destructive/10 gba:text-destructive gba:text-sm gba:p-2 gba:rounded-md">
                 {errorMessage}
               </div>
             )}
 
-            {/* Step details */}
             {config.showStepDetails && stepDetails && stepDetails.length > 0 && (
               <div>
                 <span className="gba:text-sm gba:font-medium gba:text-foreground gba:block gba:mb-2">Steps</span>
@@ -337,7 +348,6 @@ export const WorkflowStatusColumn: React.FC<WorkflowStatusColumnProps> = ({
               </div>
             )}
 
-            {/* Actions */}
             {config.allowActions && !isTerminal && (
               <div className="gba:flex gba:items-center gba:gap-2 gba:pt-2 gba:border-t">
                 {canClaim && (
@@ -371,7 +381,6 @@ export const WorkflowStatusColumn: React.FC<WorkflowStatusColumnProps> = ({
               </div>
             )}
 
-            {/* Completed actions */}
             {isTerminal && config.clickToViewDetail && onViewDetails && (
               <div className="gba:pt-2 gba:border-t">
                 <Button size="sm" variant="ghost" onClick={() => onViewDetails(workflowLink.workflowId)}>
@@ -400,16 +409,7 @@ export const WorkflowStatusBadge: React.FC<{
   const statusColor = getWorkflowStatusColor(status)
   const statusLabel = getWorkflowStatusLabel(status)
 
-  const badgeVariant =
-    statusColor === 'success'
-      ? 'success'
-      : statusColor === 'destructive'
-        ? 'destructive'
-        : statusColor === 'warning'
-          ? 'warning'
-          : statusColor === 'info'
-            ? 'info'
-            : 'outline'
+  const badgeVariant = getWorkflowBadgeVariant(statusColor)
 
   return (
     <TooltipProvider>
@@ -420,9 +420,7 @@ export const WorkflowStatusBadge: React.FC<{
             className={`gba:gap-1 ${onClick ? 'gba:cursor-pointer' : 'gba:cursor-default'}`}
             onClick={onClick}
           >
-            <StatusIcon
-              className={`gba:w-3 gba:h-3 ${status === 'RUNNING' ? 'gba:animate-spin' : ''}`}
-            />
+            <StatusIcon className={`gba:w-3 gba:h-3 ${status === 'RUNNING' ? 'gba:animate-spin' : ''}`} />
             {currentStep !== undefined && totalSteps !== undefined && (
               <span className="gba:text-xs">
                 {currentStep + 1}/{totalSteps}
