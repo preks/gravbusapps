@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import {
   Select,
   SelectContent,
@@ -47,6 +47,25 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   disabled = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
+  // Store selected option so we can display it even when not in current options
+  const [selectedOption, setSelectedOption] = useState<SelectOption | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Update selected option when value changes or options update
+  useEffect(() => {
+    if (value) {
+      // First check if selected option already matches
+      if (selectedOption?.value === value) return
+
+      // Try to find in current options
+      const found = options.find(opt => opt.value === value)
+      if (found) {
+        setSelectedOption(found)
+      }
+    } else {
+      setSelectedOption(null)
+    }
+  }, [value, options, selectedOption?.value])
 
   // Debounced search
   const debouncedSearch = useCallback(
@@ -70,6 +89,12 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   // Handle selection change
   const handleChange = useCallback(
     (selectedValue: string) => {
+      // Find the selected option and store it
+      const selected = options.find(opt => opt.value === selectedValue)
+      if (selected) {
+        setSelectedOption(selected)
+      }
+
       if (onChange) {
         onChange(selectedValue)
       }
@@ -79,23 +104,33 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
         onSearch('')
       }
     },
-    [onChange, onSearch]
+    [onChange, onSearch, options]
   )
+
+  // Get display value - use stored selected option if available
+  const getDisplayValue = () => {
+    if (selectedOption) {
+      return selectedOption.label
+    }
+    return undefined
+  }
 
   return (
     <Select value={value} onValueChange={handleChange} disabled={disabled}>
       <SelectTrigger data-testid={dataTestId} className="gba:w-full">
-        <SelectValue placeholder={placeholder} />
+        <SelectValue placeholder={placeholder}>{getDisplayValue()}</SelectValue>
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="gba:max-h-[300px] gba:overflow-y-auto">
         {showSearch && (
-          <div className="gba:p-2 gba:border-b gba:border-border">
+          <div className="gba:p-2 gba:border-b gba:border-border gba:sticky gba:top-0 gba:bg-popover gba:z-10">
             <div className="gba:relative">
               <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
               <Input
+                ref={searchInputRef}
                 placeholder="Type to search..."
                 value={searchTerm}
                 onChange={e => handleSearchChange(e.target.value)}
+                onKeyDown={e => e.stopPropagation()}
                 className="gba:pl-10"
                 data-testid={dataTestId ? `${dataTestId}-search-input` : 'searchable-select-search-input'}
               />

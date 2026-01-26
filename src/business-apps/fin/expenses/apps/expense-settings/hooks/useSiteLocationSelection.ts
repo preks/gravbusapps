@@ -86,10 +86,13 @@ export const useSiteLocationSelection = (
           isDeleted: { _eq: false }
         }
 
-        // Add structure filter only if available (not available in local dev)
+        // Add structure filter - always required in production
         const structureId = getCurrentActiveStructureId()
+        console.log('📍 useSiteLocationSelection - structureId:', structureId)
         if (structureId) {
           whereCondition.structureId = { _eq: structureId }
+        } else {
+          console.warn('⚠️ useSiteLocationSelection - No structureId available, data may be unfiltered')
         }
 
         // Add search conditions

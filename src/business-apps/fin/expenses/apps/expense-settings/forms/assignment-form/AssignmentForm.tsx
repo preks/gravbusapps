@@ -198,13 +198,13 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
               applicants: freshData.applicants || false,
               activeFrom: formatDateForForm(freshData.activeFrom) || dayjs().format('YYYY-MM-DD'),
               activeTo: formatDateForForm(freshData.activeTo) || '9999-12-31',
-              expenseRuleId: freshData.expenseRuleId || freshData.expenseRule?.id || '',
-              employeeId: freshData.employeeId || freshData.employee?.id || '',
-              companyId: freshData.companyId || freshData.company?.id || '',
-              organizationalUnitId: freshData.organizationalUnitId || freshData.organizationalUnit?.id || '',
-              siteLocationId: freshData.siteLocationId || freshData.siteLocation?.id || '',
-              employmentTypeRef: freshData.employmentTypeRef || freshData.employmentType?.id || '',
-              contractTypeRef: freshData.contractTypeRef || freshData.contractType?.id || '',
+              expenseRuleId: freshData.expenseRuleId || '',
+              employeeId: freshData.employeeId || '',
+              companyId: freshData.companyId || '',
+              organizationalUnitId: freshData.organizationalUnitId || '',
+              siteLocationId: freshData.siteLocationId || '',
+              employmentTypeRef: freshData.employmentTypeRef || '',
+              contractTypeRef: freshData.contractTypeRef || '',
               id: freshData.id
             }
             console.log('📝 Form reset with fresh data:', formValues)
@@ -231,13 +231,13 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
           applicants: initialData.applicants || false,
           activeFrom: formatDateForForm(initialData.activeFrom) || dayjs().format('YYYY-MM-DD'),
           activeTo: formatDateForForm(initialData.activeTo) || '9999-12-31',
-          expenseRuleId: initialData.expenseRuleId || initialData.expenseRule?.id || '',
-          employeeId: initialData.employeeId || initialData.employee?.id || '',
-          companyId: initialData.companyId || initialData.company?.id || '',
-          organizationalUnitId: initialData.organizationalUnitId || initialData.organizationalUnit?.id || '',
-          siteLocationId: initialData.siteLocationId || initialData.siteLocation?.id || '',
-          employmentTypeRef: initialData.employmentTypeRef || initialData.employmentType?.id || '',
-          contractTypeRef: initialData.contractTypeRef || initialData.contractType?.id || '',
+          expenseRuleId: initialData.expenseRuleId || '',
+          employeeId: initialData.employeeId || '',
+          companyId: initialData.companyId || '',
+          organizationalUnitId: initialData.organizationalUnitId || '',
+          siteLocationId: initialData.siteLocationId || '',
+          employmentTypeRef: initialData.employmentTypeRef || '',
+          contractTypeRef: initialData.contractTypeRef || '',
           id: initialData.id
         }
         console.log('📝 Form reset with initial data (fallback):', fallbackValues)
