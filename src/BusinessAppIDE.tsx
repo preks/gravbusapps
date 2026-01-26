@@ -923,6 +923,15 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     )
   }
 
+  const tokenStatusIcon = (size: number) =>
+    tokenStatus?.isExpired ? (
+      <XCircleIcon size={size} weight="fill" />
+    ) : tokenStatus?.variant === 'warning' ? (
+      <WarningIcon size={size} weight="fill" />
+    ) : (
+      <CheckCircleIcon size={size} weight="fill" />
+    )
+
   return (
     <ThemeProvider defaultTheme="light" storageKey="business-app-ide-ui-theme">
       <LocalizationProvider locale={locale}>
@@ -1029,13 +1038,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                                   onClick={handleTokenBadgeClick}
                                   data-testid="TokenStatusBadge"
                                 >
-                                  {tokenStatus.isExpired ? (
-                                    <XCircleIcon size={14} weight="fill" />
-                                  ) : tokenStatus.variant === 'warning' ? (
-                                    <WarningIcon size={14} weight="fill" />
-                                  ) : (
-                                    <CheckCircleIcon size={14} weight="fill" />
-                                  )}
+                                  {tokenStatusIcon(14)}
                                   <span className="gba:text-xs gba:font-medium">{tokenStatus.remainingTime}</span>
                                 </Badge>
                               </TooltipTrigger>
@@ -1184,15 +1187,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                             }`}
                             data-testid="TokenStatusInfo"
                           >
-                            <div className="gba:flex-shrink-0 gba:mt-0.5">
-                              {tokenStatus.isExpired ? (
-                                <XCircleIcon size={18} weight="fill" />
-                              ) : tokenStatus.variant === 'warning' ? (
-                                <WarningIcon size={18} weight="fill" />
-                              ) : (
-                                <CheckCircleIcon size={18} weight="fill" />
-                              )}
-                            </div>
+                            <div className="gba:flex-shrink-0 gba:mt-0.5">{tokenStatusIcon(18)}</div>
                             <div className="gba:flex-1 gba:space-y-1">
                               <div className="gba:font-semibold gba:text-sm">
                                 {tokenStatus.isExpired
