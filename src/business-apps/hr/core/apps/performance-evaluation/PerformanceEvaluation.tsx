@@ -136,15 +136,17 @@ function makeId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}`
 }
 
+// Tabs for the Performance Evaluation page (defined outside component to avoid redeclaration)
+enum PerformanceTabEnum {
+  Cycles = 'cycles',
+  RatingScales = 'rating-scales',
+  Values = 'values'
+}
+
 export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
   const [cycles, setCycles] = useState<PerformanceCycle[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<PerformanceCycle | null>(null)
-  enum PerformanceTabEnum {
-    Cycles = 'cycles',
-    RatingScales = 'rating-scales',
-    Values = 'values'
-  }
   const [activeTab, setActiveTab] = useState<PerformanceTabEnum>(PerformanceTabEnum.Cycles)
   const handleTabChange = (value: string) => setActiveTab(value as PerformanceTabEnum)
   const [ratingScales, setRatingScales] = useState<RatingScale[]>([])
