@@ -131,6 +131,13 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
     }
   }, [sortField, sortOrder])
 
+  // Compute used order numbers from existing assignments
+  const usedOrderNumbers = useMemo(() => {
+    return assignments
+      .map(a => a.assignmentOrder)
+      .filter((order): order is number => order !== null && order !== undefined)
+  }, [assignments])
+
   // Handle search, sorting, and pagination with debounce (500ms)
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -580,6 +587,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
           <AssignmentForm
             accessToken={accessToken}
             availableRules={rules}
+            usedOrderNumbers={usedOrderNumbers}
             onSave={handleCreateSubmit}
             onCancel={() => setIsCreateModalVisible(false)}
             isEditing={false}
@@ -602,6 +610,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
             <AssignmentForm
               accessToken={accessToken}
               availableRules={rules}
+              usedOrderNumbers={usedOrderNumbers}
               initialData={editingAssignment}
               onSave={handleEditSubmit}
               onCancel={() => {

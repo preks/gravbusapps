@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -25,8 +25,7 @@ import {
   FormItem,
   FormLabel,
   FormControl,
-  FormMessage,
-  Input
+  FormMessage
 } from '@newwork/nw-design-system'
 import { PiFloppyDisk, PiX, PiWarning } from 'react-icons/pi'
 import dayjs from 'dayjs'
@@ -60,6 +59,7 @@ export interface AssignmentFormData {
 interface AssignmentFormProps extends BusinessAppContextProps {
   initialData?: ExpenseRuleAssignment
   availableRules: ExpenseRule[]
+  usedOrderNumbers?: number[]
   isEditing?: boolean
   onSave: (data: SaveExpenseRuleAssignmentInput) => Promise<void>
   onCancel: () => void
@@ -75,6 +75,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   accessToken,
   initialData,
   availableRules,
+  usedOrderNumbers = [],
   isEditing = false,
   onSave,
   onCancel,
@@ -103,6 +104,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   })
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [currentVersion, setCurrentVersion] = useState<number | undefined>(initialData?.version)
   const [catalogs, setCatalogs] = useState<{
     employmentTypes: CatalogOption[]
     contractTypes: CatalogOption[]
@@ -124,6 +126,32 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   const companySelection = useCompanySelection(context)
   const orgUnitSelection = useOrganizationalUnitSelection(context)
   const siteLocationSelection = useSiteLocationSelection(context)
+
+  // Compute available order numbers (1-100, excluding used ones, but include current if editing)
+  const availableOrderNumbers = useMemo(() => {
+    const MAX_ORDER = 100
+    const currentOrder = initialData?.assignmentOrder
+    const usedSet = new Set(usedOrderNumbers)
+
+    // If editing, exclude the current order from the "used" set so it remains available
+    if (isEditing && currentOrder !== undefined) {
+      usedSet.delete(currentOrder)
+    }
+
+    // Generate available numbers
+    const available: { value: string; label: string }[] = []
+    for (let i = 1; i <= MAX_ORDER; i++) {
+      if (!usedSet.has(i)) {
+        available.push({ value: String(i), label: String(i) })
+      }
+    }
+    return available
+  }, [usedOrderNumbers, initialData?.assignmentOrder, isEditing])
+
+  // Get the first available order number for default
+  const firstAvailableOrder = useMemo(() => {
+    return availableOrderNumbers.length > 0 ? parseInt(availableOrderNumbers[0].value, 10) : 1
+  }, [availableOrderNumbers])
 
   // Feature flag guard
   if (isDevEnabled === false) {
@@ -181,6 +209,12 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
         try {
           const freshData = await fetchExpenseRuleAssignmentById(initialData.id)
           if (freshData) {
+            // Store the version for update operations
+            if (freshData.version !== undefined) {
+              setCurrentVersion(freshData.version)
+              console.log('📦 Stored version from fresh data:', freshData.version)
+            }
+
             // Format dates to YYYY-MM-DD for DateInput component
             const formatDateForForm = (date: string | null | undefined): string => {
               if (!date) return ''
@@ -259,6 +293,17 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     loadData()
   }, [initialData?.id, isEditing, fetchExpenseRuleAssignmentById, form])
 
+  // Update order to first available when creating new assignment
+  useEffect(() => {
+    if (!isEditing && !initialData && availableOrderNumbers.length > 0) {
+      const currentOrder = form.getValues('assignmentOrder')
+      const isCurrentOrderAvailable = availableOrderNumbers.some(opt => parseInt(opt.value, 10) === currentOrder)
+      if (!isCurrentOrderAvailable) {
+        form.setValue('assignmentOrder', firstAvailableOrder)
+      }
+    }
+  }, [isEditing, initialData, availableOrderNumbers, firstAvailableOrder, form])
+
   // Log form errors for debugging
   const onFormError = (errors: any) => {
     console.error('❌ Form validation errors:', errors)
@@ -272,12 +317,13 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
 
       const assignmentData: any = {
         ...(isEditing && initialData?.id ? { id: initialData.id } : {}),
-        ...(initialData?.version ? { version: initialData.version } : {}),
+        ...(currentVersion !== undefined ? { version: currentVersion } : {}),
         assignmentOrder: data.assignmentOrder,
         cascading: data.cascading || false,
         applicants: data.applicants || false,
         expenseRule: data.expenseRuleId
       }
+      console.log('📤 Submitting assignment data:', assignmentData)
 
       // Handle optional dates - use null for eternity
       if (data.activeFrom) {
@@ -625,17 +671,24 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                             {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.order', 'Order')} *
                           </FormLabel>
                           <FormControl>
-                            <Input
-                              type="number"
-                              min={1}
-                              {...field}
-                              value={field.value}
-                              onChange={e => field.onChange(parseInt(e.target.value, 10) || 1)}
-                              data-testid="assignment-form-order-input"
+                            <SearchableSelect
+                              placeholder={getTranslationFromI18nKeyAndLabel(
+                                'expenseSettings.assignment.selectOrder',
+                                'Select order'
+                              )}
+                              value={field.value ? String(field.value) : ''}
+                              onChange={val => field.onChange(val ? parseInt(val, 10) : firstAvailableOrder)}
+                              options={availableOrderNumbers.map(opt => ({
+                                id: opt.value,
+                                value: opt.value,
+                                label: opt.label,
+                                name: opt.label
+                              }))}
+                              data-testid="assignment-form-order-select"
                             />
                           </FormControl>
                           <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                            Lower numbers have higher priority
+                            Lower numbers have higher priority. Each order must be unique.
                           </p>
                           <FormMessage />
                         </FormItem>
