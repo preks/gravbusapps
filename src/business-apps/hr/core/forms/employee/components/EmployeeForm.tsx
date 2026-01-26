@@ -66,6 +66,11 @@ const EmployeeForm: React.FC = () => {
     return emailRegex.test(email)
   }
 
+  const formatDateToMidnight = (value?: string) => {
+    if (!value) return undefined
+    return `${value}T00:00:00`
+  }
+
   const isEmailFieldValid = !formValues.email || isEmailValid(formValues.email)
 
   const handleJobPositionChange = (selectedJobPositionId: string) => {
@@ -101,7 +106,8 @@ const EmployeeForm: React.FC = () => {
       await submit()
 
       const hireDateToUse = formValues.hireDate || new Date().toISOString().split('T')[0]
-      const hireDateFormatted = `${hireDateToUse}T00:00:00`
+      const hireDateFormatted = formatDateToMidnight(hireDateToUse)
+      const fixedTermUntilFormatted = formatDateToMidnight(formValues.fixedTermUntil)
 
       const payload: any = {
         employee: {
@@ -123,7 +129,8 @@ const EmployeeForm: React.FC = () => {
               contractStatus: 'ACTIVE',
               contractTypeRef: formValues.contractTypeId,
               employmentTypeRef: formValues.employmentTypeId,
-              hireDate: hireDateFormatted
+              hireDate: hireDateFormatted,
+              exitDate: fixedTermUntilFormatted
             }
           ]
         },
@@ -303,6 +310,19 @@ const EmployeeForm: React.FC = () => {
                 type="date"
                 value={formValues.hireDate || ''}
                 onChange={v => setFormValues({ hireDate: typeof v === 'string' ? v : '' })}
+                className="gba:w-full"
+                captionLayout="dropdown"
+              />
+            </div>
+
+            <div>
+              <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
+                {t('employee-form-fixed-term-until')}
+              </label>
+              <DateInput
+                type="date"
+                value={formValues.fixedTermUntil || ''}
+                onChange={v => setFormValues({ fixedTermUntil: typeof v === 'string' ? v : '' })}
                 className="gba:w-full"
                 captionLayout="dropdown"
               />
