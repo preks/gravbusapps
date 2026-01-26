@@ -21,6 +21,9 @@ export * from './MessageInput'
 export * from './UserSearch'
 export * from './UserSelector'
 
+// Call Components (RealtimeKit)
+export * from './call'
+
 // Every Experts
 export * from './ExpertSelectorPanel'
 export * from './ActiveExpertsBar'
