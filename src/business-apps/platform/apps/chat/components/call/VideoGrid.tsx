@@ -62,7 +62,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
   }
 
   return (
-    <div className="gba:flex gba:flex-col gba:flex-1 gba:h-0 gba:w-full gba:gap-2" style={{ border: '2px solid blue' }}>
+    <div className="gba:flex gba:flex-col gba:flex-1 gba:h-0 gba:w-full gba:gap-2">
       {/* Participant Grid */}
       <div
         className="gba:flex-1 gba:w-full gba:grid gba:gap-3 gba:min-h-0"

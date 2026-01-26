@@ -149,9 +149,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
       {/* Header */}
       <div className="gba:p-4 gba:border-b gba:flex-shrink-0">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
-          <h3 className="gba:font-semibold gba:text-lg">
-            {t('groupCall-participants') || 'Participants'} ({totalCount})
-          </h3>
+          <h3 className="gba:font-semibold gba:text-lg">Participants ({totalCount})</h3>
           <button
             onClick={onClose}
             className="gba:p-1 hover:gba:bg-muted gba:rounded gba:transition-colors"

@@ -895,6 +895,8 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
               onToggleScreenShare={toggleGroupScreenShare}
               onToggleMinimize={toggleGroupMinimize}
               onToggleBackground={toggleGroupBackground}
+              onToggleRaiseHand={realtimeKitGroupCall.toggleRaiseHand}
+              onSendReaction={realtimeKitGroupCall.sendReaction}
               onInviteParticipant={(participant: CallParticipant) => {
                 // Use RealtimeKit inviteToCall with conversation name
                 inviteToGroupCall(

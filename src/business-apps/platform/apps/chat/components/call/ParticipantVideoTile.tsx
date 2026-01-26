@@ -240,17 +240,22 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
 
       {/* Avatar (shown when no video) */}
       {!hasVideoTrack && (
-        <div className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full">
-          <Avatar className="gba:w-[min(60%,300px)] gba:h-[min(60%,300px)]">
-            <AvatarFallback className="gba:text-7xl gba:font-bold">{getInitials(peerName)}</AvatarFallback>
+        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:w-full gba:h-full gba:gap-2">
+          <Avatar className="gba:w-20 gba:h-20">
+            <AvatarFallback className="gba:text-2xl">{getInitials(peerName)}</AvatarFallback>
           </Avatar>
+          <span className="gba:text-sm gba:text-foreground">
+            {peerName} {isLocal ? '(You)' : ''}
+          </span>
         </div>
       )}
 
-      {/* Name overlay */}
-      <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm">
-        {peerName} {isLocal ? '(You)' : ''} {isMuted && '🔇'}
-      </div>
+      {/* Name overlay (only shown when video is on) */}
+      {hasVideoTrack && (
+        <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm">
+          {peerName} {isLocal ? '(You)' : ''} {isMuted && '🔇'}
+        </div>
+      )}
 
       {/* Raised hand indicator */}
       {isHandRaised && (

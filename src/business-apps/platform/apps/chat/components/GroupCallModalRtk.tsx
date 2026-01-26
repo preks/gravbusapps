@@ -250,8 +250,24 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
         return true
       }) as GroupCallParticipant[]
 
+      // Deduplicate by customParticipantId or userId (keep first occurrence)
+      const seenStableIds = new Set<string>()
+      const dedupedPeers = peers.filter((peer: any) => {
+        const stableId = peer.customParticipantId || peer.userId || peer.id
+        if (seenStableIds.has(stableId)) {
+          rtkDebug.log(`[RTK Modal] ⚠️ Duplicate participant filtered in selector:`, {
+            peerId: peer.id,
+            stableId,
+            peerName: peer.name
+          })
+          return false
+        }
+        seenStableIds.add(stableId)
+        return true
+      })
+
       // Debug: Log screen share status only when screen share is actually enabled
-      peers.forEach((peer: any) => {
+      dedupedPeers.forEach((peer: any) => {
         if (peer.screenShareEnabled) {
           rtkDebug.log(`[RTK Modal] Remote peer ${peer.name || peer.id} screen share ACTIVE:`, {
             screenShareEnabled: peer.screenShareEnabled,
@@ -262,7 +278,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
         }
       })
 
-      return peers
+      return dedupedPeers
     } catch {
       return []
     }
@@ -1371,10 +1387,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                 />
 
                 {/* Main Content Area - Unified Grid Layout */}
-                <div
-                  className="gba:flex gba:flex-col gba:flex-1 gba:p-4 gba:bg-muted/30 gba:gap-4 gba:min-h-0"
-                  style={{ border: '2px solid red' }}
-                >
+                <div className="gba:flex gba:flex-col gba:flex-1 gba:p-4 gba:bg-muted/30 gba:gap-4 gba:min-h-0">
                   <VideoGrid
                     gridItems={paginatedGridItems.items.map(item => {
                       const isFocused = item.isFocusedScreenShare
@@ -1384,7 +1397,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                       return (
                         <div
                           key={item.id}
-                          style={{ gridColumn, gridRow, border: '2px solid green' }}
+                          style={{ gridColumn, gridRow }}
                           className="gba:relative gba:w-full gba:h-full"
                           data-testid={`${prefixDataTestId}-grid-item-${item.id}`}
                         >
