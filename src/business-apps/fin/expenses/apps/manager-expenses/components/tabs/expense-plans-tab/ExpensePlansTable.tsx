@@ -123,6 +123,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
 
   // Reset page to 1 when filter changes (fixes pagination issue when switching filters)
   const prevFilterRef = useRef<ExpenseStatus[] | null>(null)
+  // Deterministic scroll target for pagination (top of table)
+  const tableTopRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     const currentFilterStr = JSON.stringify(currentStatusFilter)
     const prevFilterStr = JSON.stringify(prevFilterRef.current)
@@ -241,7 +243,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
   }
 
   return (
-    <div data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
+    <div data-testid={`${DATA_TEST_ID_PREFIX}-container`} ref={tableTopRef}>
       {/* Table with border containing both table and pagination */}
       <div className="gba:border gba:border-border gba:rounded-md">
         {/* Table with horizontal scrolling and fixed height */}
@@ -505,6 +507,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
           pageSize={pageSize}
           totalItems={totalCount}
           onPageChange={handleTablePaginationChange}
+          scrollTargetRef={tableTopRef}
           entityNamePlural={getTranslationFromI18nKeyAndLabel(
             'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
             'Expense Plans'
@@ -564,13 +567,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
       <Sheet
         open={!!selectedItem}
         onOpenChange={open => !open && handleCloseDetails()}
-        title={
-          selectedItem?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:approve_expense_plan.expense_subtitle_details',
-            'Expense Plan Details'
-          )
-        }
         data-testid="expense-plan-details-sheet"
       >
         <SheetContent side="right" className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
