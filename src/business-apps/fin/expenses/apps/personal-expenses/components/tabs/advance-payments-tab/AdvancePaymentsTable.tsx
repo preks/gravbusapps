@@ -73,6 +73,8 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   const [pageSize, setPageSize] = useState(20)
   const savedPageBeforeSearchRef = useRef<number | null>(null)
   const currentPageRef = useRef<number>(1)
+  // Deterministic scroll target for pagination (top of table)
+  const tableTopRef = useRef<HTMLDivElement | null>(null)
 
   const [sortField, setSortField] = useState<string>('createdAt')
   const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend')
@@ -278,14 +280,32 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   }, [])
 
   // Pagination handlers
-  const handlePageChange = useCallback((newPage: number) => {
-    setCurrentPage(newPage)
+  const scrollTableIntoView = useCallback(() => {
+    const el = tableTopRef.current
+    if (!el) return
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => el.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' }))
+    } else {
+      el.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' })
+    }
   }, [])
 
-  const handlePageSizeChange = useCallback((newPageSize: number) => {
-    setPageSize(newPageSize)
-    setCurrentPage(1) // Reset to first page when page size changes
-  }, [])
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      setCurrentPage(newPage)
+      scrollTableIntoView()
+    },
+    [scrollTableIntoView]
+  )
+
+  const handlePageSizeChange = useCallback(
+    (newPageSize: number) => {
+      setPageSize(newPageSize)
+      setCurrentPage(1) // Reset to first page when page size changes
+      scrollTableIntoView()
+    },
+    [scrollTableIntoView]
+  )
 
   // Handle closing the details panel
   const handleCloseDetails = useCallback(() => {
@@ -351,7 +371,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   // Render the data body with memoization
   const renderDataBody = useCallback(() => {
     return (
-      <div>
+      <div ref={tableTopRef} data-testid={`${DATA_TEST_ID_PREFIX}-scroll-anchor`}>
         <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
           <CardContent className="gba:p-0">
             <div className="gba:overflow-x-auto">
@@ -838,17 +858,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       />
 
       {/* Advance Payment Details Sheet */}
-      <Sheet
-        open={!!selectedItem}
-        onOpenChange={open => !open && handleCloseDetails()}
-        title={
-          selectedItem?.expensePlan?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:personal_expenses.advance_payment_details',
-            'Advance Payment Details'
-          )
-        }
-      >
+      <Sheet open={!!selectedItem} onOpenChange={open => !open && handleCloseDetails()}>
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
           <ExpenseDetailsShell
             title={
@@ -860,25 +870,13 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
             }
             onClose={handleCloseDetails}
           >
-            {selectedItem ? (
-              <AdvancePaymentDetails payment={selectedItem} onClose={handleCloseDetails} {...contextProps} />
-            ) : null}
+            {selectedItem ? <AdvancePaymentDetails payment={selectedItem} {...contextProps} /> : null}
           </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
 
       {/* Expense Plan Details Sheet */}
-      <Sheet
-        open={!!selectedExpensePlan}
-        onOpenChange={open => !open && handleCloseDetails()}
-        title={
-          selectedExpensePlan?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:approve_expense_plan.expense_subtitle_details',
-            'Expense Plan Details'
-          )
-        }
-      >
+      <Sheet open={!!selectedExpensePlan} onOpenChange={open => !open && handleCloseDetails()}>
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
           <ExpenseDetailsShell
             title={
@@ -912,17 +910,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       </Sheet>
 
       {/* Expense Request Details Sheet */}
-      <Sheet
-        open={!!selectedExpenseRequest}
-        onOpenChange={open => !open && handleCloseDetails()}
-        title={
-          selectedExpenseRequest?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
-            'Expense Request Details'
-          )
-        }
-      >
+      <Sheet open={!!selectedExpenseRequest} onOpenChange={open => !open && handleCloseDetails()}>
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
           <ExpenseDetailsShell
             title={
