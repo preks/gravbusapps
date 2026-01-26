@@ -22,7 +22,7 @@ const JobApplicationRecordContent: React.FC<JobApplicationRecordContentProps> = 
   ...props
 }) => {
   const [activeTab, setActiveTab] = useState<string>(() => {
-    if (globalThis.window === undefined || !globalThis.window?.location) return 'overview'
+    if (!globalThis.window?.location) return 'overview'
     const params = new URLSearchParams(globalThis.window.location.search)
     return params.get('tab') || 'overview'
   })
@@ -44,7 +44,7 @@ const JobApplicationRecordContent: React.FC<JobApplicationRecordContentProps> = 
   }, [])
 
   useEffect(() => {
-    if (globalThis.window === undefined || !globalThis.window?.location) return
+    if (!globalThis.window?.location) return
     const params = new URLSearchParams(globalThis.window.location.search)
     if (!params.get('tab')) {
       const url = new URL(globalThis.window.location.href)
@@ -202,7 +202,7 @@ const JobApplicationRecordContent: React.FC<JobApplicationRecordContentProps> = 
 const JobApplicationRecord: React.FC<BusinessAppContextProps> = ({ additionalData = {}, ...props }) => {
   const jobApplicationId =
     additionalData.jobApplicationId ||
-    (globalThis.window !== undefined && globalThis.window?.location
+    (globalThis.window?.location
       ? new URLSearchParams(globalThis.window.location.search).get('jobApplicationId')
       : null)
 

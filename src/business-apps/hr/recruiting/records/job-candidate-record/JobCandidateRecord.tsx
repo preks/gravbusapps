@@ -18,7 +18,7 @@ interface JobCandidateRecordContentProps extends BusinessAppContextProps {
 
 const JobCandidateRecordContent: React.FC<JobCandidateRecordContentProps> = ({ jobCandidateId, onBack, ...props }) => {
   const [activeTab, setActiveTab] = useState<string>(() => {
-    if (globalThis.window === undefined || !globalThis.window?.location) return 'overview'
+    if (!globalThis.window?.location) return 'overview'
     const params = new URLSearchParams(globalThis.window.location.search)
     return params.get('tab') || 'overview'
   })
@@ -33,7 +33,7 @@ const JobCandidateRecordContent: React.FC<JobCandidateRecordContentProps> = ({ j
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value)
-    if (globalThis.window === undefined || !globalThis.window?.location) return
+    if (!globalThis.window?.location) return
     const url = new URL(globalThis.window.location.href)
     url.searchParams.set('tab', value)
     globalThis.history.replaceState(null, '', url.toString())
@@ -191,9 +191,7 @@ const JobCandidateRecordContent: React.FC<JobCandidateRecordContentProps> = ({ j
 const JobCandidateRecord: React.FC<BusinessAppContextProps> = ({ additionalData = {}, ...props }) => {
   const jobCandidateId =
     additionalData.jobCandidateId ||
-    (globalThis.window !== undefined && globalThis.window?.location
-      ? new URLSearchParams(globalThis.window.location.search).get('jobCandidateId')
-      : null)
+    (globalThis.window?.location ? new URLSearchParams(globalThis.window.location.search).get('jobCandidateId') : null)
 
   const handleBack = () => {
     const url = buildPlatformUrl('/platform/hr/recruiting/recruiting-manager', {
