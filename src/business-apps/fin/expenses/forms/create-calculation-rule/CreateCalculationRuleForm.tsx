@@ -82,6 +82,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
   const navigationPayload = (_navigationPayload as any)?.nvi_navigationPayload || null
   const {
     graphqlClient,
+    formState,
     calculationTypeOptions: hookCalcTypes,
     currencyOptions: hookCurrencies,
     countryOptions: hookCountries,
@@ -205,16 +206,15 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
     countryOptions.length
   ])
 
-  // Prefill flags when loaded
+  // Prefill flags when loaded - use formState from hook (already processed all flags)
   useEffect(() => {
-    if (!flagsLoaded || !existingFlag) return
+    if (!flagsLoaded || !isUpdate) return
 
-    const austrian = existingFlag.name === 'Austrian Abroad' && existingFlag.value === 'true'
-    const romanian = existingFlag.name === 'Romanian Calculation' && existingFlag.value === 'true'
-
-    if (austrian) setValue('austrianAbroad', true)
-    if (romanian) setValue('romanianCalculation', true)
-  }, [flagsLoaded, existingFlag, setValue])
+    // The hook's formState has already processed all flags correctly
+    // We need to sync these values to React Hook Form
+    setValue('austrianAbroad', formState.austrianAbroad)
+    setValue('romanianCalculation', formState.romanianCalculation)
+  }, [flagsLoaded, isUpdate, formState.austrianAbroad, formState.romanianCalculation, setValue])
 
   // Capture initial snapshot for update mode (to detect if values changed)
   useEffect(() => {

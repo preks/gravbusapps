@@ -186,16 +186,23 @@ export const useCreateCalculationRuleForm = ({ accessToken, navigationPayload, o
           setCurrencies((res?.Currencies || []).map((c: any) => ({ id: c.id, code: c.code })))
           setCountries(res?.Countries || [])
 
-          // Process flags and update form
-          const flag = res?.ExpenseRuleFlag?.[0] || null
-          setExistingFlag(flag)
-          const austrian = flag && flag.name === 'Austrian Abroad' && flag.value === 'true'
-          const romanian = flag && flag.name === 'Romanian Calculation' && flag.value === 'true'
+          // Process ALL flags and update form
+          const flags = res?.ExpenseRuleFlag || []
+          // Find the first active flag (we store the first for update operations)
+          setExistingFlag(flags[0] || null)
 
-          // Update just the flag fields
-          if (austrian || romanian) {
-            dispatch({ type: 'HYDRATE', payload: { austrianAbroad: !!austrian, romanianCalculation: !!romanian } })
-          }
+          // Check ALL flags for Austrian and Romanian settings
+          const austrianFlag = flags.find((f: any) => f.name === 'Austrian Abroad' && f.value === 'true')
+          const romanianFlag = flags.find((f: any) => f.name === 'Romanian Calculation' && f.value === 'true')
+
+          // Update form with found flag values
+          dispatch({
+            type: 'HYDRATE',
+            payload: {
+              austrianAbroad: !!austrianFlag,
+              romanianCalculation: !!romanianFlag
+            }
+          })
 
           // Process usage check - determine if rule has been used
           const planCount = res?.planCount?.aggregate?.count || 0
