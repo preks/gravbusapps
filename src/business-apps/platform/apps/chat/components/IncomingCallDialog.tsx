@@ -2,6 +2,8 @@ import React, { useEffect, useState, memo } from 'react'
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
+  DialogDescription,
   Button,
   Avatar,
   AvatarImage,
@@ -136,6 +138,12 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = memo(
           onPointerDownOutside={e => e.preventDefault()}
           onEscapeKeyDown={e => e.preventDefault()}
         >
+          <DialogTitle className="gba:sr-only">
+            {isVideoCall ? t('call-incomingVideoCall') : t('call-incomingAudioCall')}
+          </DialogTitle>
+          <DialogDescription className="gba:sr-only">
+            {t('call-incomingFrom')} {participantName}
+          </DialogDescription>
           <div className="gba:flex gba:flex-col gba:items-center gba:py-8 gba:px-6">
             {/* Call Type Indicator */}
             <div className="gba:flex gba:items-center gba:gap-2 gba:text-gray-400 gba:text-sm gba:mb-6">

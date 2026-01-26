@@ -1,5 +1,14 @@
 import React, { useEffect, useRef, useState, useMemo, memo } from 'react'
-import { Dialog, DialogContent, Avatar, AvatarImage, AvatarFallback, IconAvatar } from '@newwork/nw-design-system'
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  IconAvatar
+} from '@newwork/nw-design-system'
 import { UserIcon, Maximize2, Minimize2, Expand, Shrink, Monitor } from 'lucide-react'
 import { CallControls } from './CallControls'
 import { AddParticipantDropdown } from './AddParticipantDropdown'
@@ -219,6 +228,14 @@ export const CallModal: React.FC<CallModalProps> = memo(
           onPointerDownOutside={e => e.preventDefault()}
           onEscapeKeyDown={e => e.preventDefault()}
         >
+          <DialogTitle className="gba:sr-only">{isVideoCall ? t('call-videoCall') : t('call-audioCall')}</DialogTitle>
+          <DialogDescription className="gba:sr-only">
+            {callState.status === 'connected'
+              ? t('call-activeCall') || 'Active call'
+              : callState.status === 'ringing'
+                ? t('call-ringing') || 'Ringing'
+                : t('call-connecting') || 'Connecting'}
+          </DialogDescription>
           <div className="gba:relative gba:w-full gba:h-full gba:min-h-[400px] gba:flex gba:flex-col">
             {/* Call Status */}
             <CallStatusIndicator status={callState.status} error={callState.error} t={t} />
