@@ -4,6 +4,7 @@
 
 import { SelfieSegmentation, Results } from '@mediapipe/selfie_segmentation'
 import backgroundPoster from '../assets/background-poster.jpg'
+import { debugLog } from '../utils/debugLog'
 
 export interface BackgroundProcessorOptions {
   backgroundImageUrl?: string
@@ -37,7 +38,7 @@ export class BackgroundProcessor {
   private async initialize(): Promise<void> {
     if (this.isInitialized) return
 
-    console.debug('BackgroundProcessor: Initializing...')
+    debugLog('BackgroundProcessor: Initializing...')
 
     // Load background image
     await this.loadBackgroundImage(this.options.backgroundImageUrl || backgroundPoster)
@@ -58,7 +59,7 @@ export class BackgroundProcessor {
 
     await this.selfieSegmentation.initialize()
     this.isInitialized = true
-    console.debug('BackgroundProcessor: Initialized')
+    debugLog('BackgroundProcessor: Initialized')
   }
 
   private async loadBackgroundImage(url: string): Promise<void> {
@@ -67,7 +68,7 @@ export class BackgroundProcessor {
       img.crossOrigin = 'anonymous'
       img.onload = () => {
         this.backgroundImage = img
-        console.debug('BackgroundProcessor: Background loaded')
+        debugLog('BackgroundProcessor: Background loaded')
         resolve()
       }
       img.onerror = reject
@@ -105,7 +106,7 @@ export class BackgroundProcessor {
     this.isRunning = true
     this.processLoop()
 
-    console.debug('BackgroundProcessor: Started')
+    debugLog('BackgroundProcessor: Started')
     return this.outputStream
   }
 
@@ -191,7 +192,7 @@ export class BackgroundProcessor {
     this.inputStream = null
     this.outputStream = null
     this.latestMask = null
-    console.debug('BackgroundProcessor: Stopped')
+    debugLog('BackgroundProcessor: Stopped')
   }
 
   getOutputStream(): MediaStream | null {
@@ -214,6 +215,6 @@ export class BackgroundProcessor {
     }
     this.backgroundImage = null
     this.isInitialized = false
-    console.debug('BackgroundProcessor: Destroyed')
+    debugLog('BackgroundProcessor: Destroyed')
   }
 }

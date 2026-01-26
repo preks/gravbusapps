@@ -148,7 +148,7 @@ export const TravelOrderAttachmentPreview: React.FC<TravelOrderAttachmentPreview
         data-testid={`${dataTestIdPrefix}-travel-order-grid`}
       >
         <div
-          className="gba:flex gba:flex-col gba:items-center gba:p-2 gba:bg-background gba:rounded-lg gba:shadow-md gba:w-[104px] gba:min-h-[130px] gba:max-h-[150px]"
+          className="gba:flex gba:flex-col gba:items-center gba:p-2 gba:bg-background gba:rounded-lg gba:w-[104px] gba:min-h-[130px] gba:max-h-[150px]"
           data-testid={`${dataTestIdPrefix}-travel-order-card`}
         >
           <button
