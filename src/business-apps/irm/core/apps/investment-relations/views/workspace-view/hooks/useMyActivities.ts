@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
+import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
@@ -161,8 +162,20 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
   const filterGroups = useFilterGroups(context, 'InvestmentActivity', INVESTMENT_ACTIVITY_DESCRIPTORS, { limit: 100 })
 
   // Dynamic Filter Configuration (using IRM-specific config with Investment option)
+  // Exclude owner filter since these are MY activities
   const dynamicFilterConfig = useMemo(() => {
-    return buildDynamicFilterConfig(investmentActivityFilterConfig, INVESTMENT_ACTIVITY_DESCRIPTORS, filterGroups)
+    const config = buildDynamicFilterConfig(
+      investmentActivityFilterConfig,
+      INVESTMENT_ACTIVITY_DESCRIPTORS,
+      filterGroups
+    )
+    // Remove owner filter group - activities are already filtered to current user
+    type FilterGroup = FilterConfiguration['groups'][number]
+    const filteredGroups = config.groups.filter((group: FilterGroup) => group.id !== 'owner-group')
+    return {
+      ...config,
+      groups: filteredGroups
+    }
   }, [filterGroups])
 
   // Initialize visible columns (excluding ownerEmployee)

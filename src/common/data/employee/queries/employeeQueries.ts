@@ -67,3 +67,24 @@ export const GET_EMPLOYEE_LIGHT_BY_ID = (id: string): string => {
     }
   `
 }
+
+// Fetch a single employee by userId (Keycloak ID) with lightweight fields
+export const GET_EMPLOYEE_LIGHT_BY_USER_ID = (userId: string): string => {
+  const safeId = (userId || '').replace(/"/g, '')
+  return `
+    query GetEmployeeLightByUserId {
+      Employee(where: { userId: { _eq: "${safeId}" } }, limit: 1) {
+        id
+        displayName
+        firstName
+        lastName
+        userId
+        pictureThumbnail
+        employeePosition {
+          jobPosition { name }
+          organizationalUnit { id name }
+        }
+      }
+    }
+  `
+}

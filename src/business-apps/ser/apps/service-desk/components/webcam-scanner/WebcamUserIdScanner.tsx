@@ -4,29 +4,39 @@ import React from 'react'
 import { Card, Button, Combobox, Spinner, Alert } from '@newwork/nw-design-system'
 import { Play as PlayIcon } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import ServiceIqForm from './SerficeFormIq'
 
 // Lazy imports so initial load doesn't pull heavy libs until needed
 type ZXingReader = typeof import('@zxing/library')
 
-export interface WebcamUserIdScannerProps extends Pick<BusinessAppContextProps, 'userInfo'> {
+export interface WebcamUserIdScannerProps extends Pick<BusinessAppContextProps, 'userInfo' | 'accessToken'> {
   onDetected?: (userId: string, raw?: string) => void
+  onFormSubmitOverride?: (data: any) => Promise<void> | void
 }
 
 type ScanMode = 'barcode' | 'ocr'
 
 const DEFAULT_ID_REGEX = String.raw`(?:\b(?:User|Employee|Emp|ID|UID)\b[:\s#-]*([A-Za-z0-9_-]{5,}))|\b([0-9]{6,12})\b`
 
-export const WebcamUserIdScanner: React.FC<WebcamUserIdScannerProps> = ({ onDetected }) => {
+export const WebcamUserIdScanner: React.FC<WebcamUserIdScannerProps> = ({
+  onDetected,
+  userInfo,
+  accessToken,
+  onFormSubmitOverride
+}) => {
   const videoRef = React.useRef<HTMLVideoElement | null>(null)
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null)
   const [selectedDeviceId, setSelectedDeviceId] = React.useState<string>('')
 
   // Track flow stage and detected values across stages
-  type Stage = 'user' | 'invoice'
+  type Stage = 'user' | 'invoice' | 'form'
   const getStageFromUrl = (): Stage => {
     try {
       const sp = new URLSearchParams(window.location.search)
-      return sp.get('stage') === 'invoice' ? 'invoice' : 'user'
+      const stageParam = sp.get('stage')
+      if (stageParam === 'invoice') return 'invoice'
+      if (stageParam === 'form') return 'form'
+      return 'user'
     } catch {
       return 'user'
     }
@@ -48,6 +58,9 @@ export const WebcamUserIdScanner: React.FC<WebcamUserIdScannerProps> = ({ onDete
   const [invoiceNumber, setInvoiceNumber] = React.useState<string>('')
   const [selectedItem, setSelectedItem] = React.useState<string>('')
   const [userScanCompleted, setUserScanCompleted] = React.useState<boolean>(false)
+  const [manualUserIdInput, setManualUserIdInput] = React.useState<string>('')
+  const [manualInvoiceInput, setManualInvoiceInput] = React.useState<string>('')
+  const isManualInvoiceValid = /^\d{15}$/.test((manualInvoiceInput || '').replace(/\D/g, ''))
 
   const zxingReaderRef = React.useRef<InstanceType<ZXingReader['BrowserMultiFormatReader']> | null>(null)
   const currentStreamRef = React.useRef<MediaStream | null>(null)
@@ -299,90 +312,203 @@ export const WebcamUserIdScanner: React.FC<WebcamUserIdScannerProps> = ({ onDete
     else startCameraForOcr()
   }
 
+  // Render Service IQ Form instead of scanner when in 'form' stage
+  if (stage === 'form') {
+    return (
+      <ServiceIqForm
+        userInfo={userInfo}
+        accessToken={accessToken}
+        initialData={{
+          userId: '0408531617',
+          client: 'NewWork SRL',
+          phoneNumber: '0722456789',
+          address: 'Selgros',
+          buyer: 'Bogdan Iliescu',
+          article: selectedItem,
+          articleName: selectedItem,
+          numarFactura: invoiceNumber
+        }}
+        onSubmitOverride={onFormSubmitOverride}
+        onCancel={() => navigateToStage('user')}
+      />
+    )
+  }
+
   return (
     <div className="gba:p-6 gba:min-h-screen gba:bg-background" data-testid="webcam-userid-scanner">
-      <div className="gba:mb-4 gba:flex gba:items-start gba:justify-between gba:gap-4">
-        <div>
-          <h2 className="gba:text-2xl gba:font-bold">{stage === 'invoice' ? 'Scan Invoice Number' : 'Scan User ID'}</h2>
-          <p className="gba:text-muted-foreground">
-            {stage === 'invoice'
-              ? 'Use your webcam to scan a barcode/QR or run OCR on an invoice to extract the invoice number.'
-              : 'Use your webcam to scan a barcode/QR or run OCR on a document to extract a user ID.'}
-          </p>
+      <Card className="gba:p-4">
+        <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
+          <div>
+            <h2 className="gba:text-2xl gba:font-bold">
+              {stage === 'invoice' ? 'Scan Invoice Number' : 'Scan User ID'}
+            </h2>
+            <p className="gba:text-muted-foreground">
+              {stage === 'invoice'
+                ? 'Use your webcam to scan a barcode/QR or run OCR on an invoice to extract the invoice number.'
+                : 'Use your webcam to scan a barcode/QR or run OCR on a document to extract a user ID.'}
+            </p>
+          </div>
+          <div className="gba:p-1 gba:flex gba:flex-col gba:items-end gba:gap-2">
+            <Button
+              onClick={handleStart}
+              disabled={isStarting || isRunning}
+              data-testid="scanner-start"
+              className="gba:flex gba:items-center gba:gap-2"
+            >
+              {isStarting ? <Spinner size="sm" /> : <PlayIcon className="gba:w-4 gba:h-4" />}
+              Start
+            </Button>
+            {progress && (
+              <div className="gba:text-xs gba:text-muted-foreground" data-testid="scanner-progress">
+                {progress}
+              </div>
+            )}
+            {error && (
+              <Alert variant="destructive" className="gba:p-2 gba:text-xs">
+                {error}
+              </Alert>
+            )}
+          </div>
         </div>
-        <Card className="gba:p-3 gba:flex gba:flex-col gba:items-end gba:gap-2">
-          <Button
-            onClick={handleStart}
-            disabled={isStarting || isRunning}
-            data-testid="scanner-start"
-            className="gba:flex gba:items-center gba:gap-2"
-          >
-            {isStarting ? <Spinner size="sm" /> : <PlayIcon className="gba:w-4 gba:h-4" />}
-            Start
-          </Button>
-          {progress && (
-            <div className="gba:text-xs gba:text-muted-foreground" data-testid="scanner-progress">
-              {progress}
-            </div>
-          )}
-          {error && (
-            <Alert variant="destructive" className="gba:p-2 gba:text-xs">
-              {error}
-            </Alert>
-          )}
-        </Card>
-      </div>
+      </Card>
 
       <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-3 gba:gap-6">
         <div className="lg:gba:col-span-2 gba:space-y-6">
-          <Card className="gba:p-3">
-            <div className="gba:aspect-video gba:bg-black/5 gba:flex gba:items-center gba:justify-center gba:rounded-md gba:overflow-hidden">
-              <video ref={videoRef} playsInline muted className="gba:w-full gba:h-full gba:object-contain" />
-              <canvas ref={canvasRef} className="gba:hidden" />
-            </div>
-          </Card>
+          {(isStarting || isRunning) && (
+            <Card className="gba:p-3">
+              <div className="gba:aspect-video gba:bg-black/5 gba:flex gba:items-center gba:justify-center gba:rounded-md gba:overflow-hidden">
+                <video ref={videoRef} playsInline muted className="gba:w-full gba:h-full gba:object-contain" />
+                <canvas ref={canvasRef} className="gba:hidden" />
+              </div>
+            </Card>
+          )}
         </div>
 
         <div className="gba:space-y-6">
-          <Card className="gba:p-4">
-            <div className="gba:space-y-3">
-              {(stage === 'invoice' ? !!userId : userId && userScanCompleted) && (
-                <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
-                  <div className="gba:text-base gba:font-medium" data-testid="scanner-user-output">
-                    Detected User ID: <span className="gba:font-bold">{userId}</span>
-                  </div>
-                  {stage === 'user' && userScanCompleted && (
-                    <Button
-                      onClick={() => navigateToStage('invoice')}
-                      data-testid="scanner-next"
-                      className="gba:flex gba:items-center gba:gap-2"
-                    >
-                      Next
-                    </Button>
-                  )}
+          {stage === 'user' && (
+            <Card className="gba:p-4">
+              <div className="gba:space-y-3">
+                <h2 className="gba:text-2xl gba:font-bold">Manual insert User ID</h2>
+                <form
+                  className="gba:flex gba:items-center gba:gap-2"
+                  onSubmit={e => {
+                    e.preventDefault()
+                    const value = manualUserIdInput.trim()
+                    if (!value) return
+                    clearAutoStopTimer()
+                    stopCamera()
+                    setUserIdAndPersist(value)
+                    setUserScanCompleted(true)
+                  }}
+                >
+                  <input
+                    type="text"
+                    value={manualUserIdInput}
+                    onChange={e => setManualUserIdInput(e.target.value)}
+                    placeholder="Enter UserID"
+                    className="gba:flex-1 gba:h-9 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-1 gba:text-sm gba:outline-none focus:gba:ring-2 focus:gba:ring-ring"
+                    data-testid="manual-userid-input"
+                  />
+                  <Button type="submit" data-testid="manual-userid-submit">
+                    Submit
+                  </Button>
+                </form>
+              </div>
+            </Card>
+          )}
+          {stage === 'invoice' && (
+            <Card className="gba:p-4">
+              <div className="gba:space-y-3">
+                <h2 className="gba:text-2xl gba:font-bold">Manual insert Invoice Number</h2>
+                <form
+                  className="gba:flex gba:items-center gba:gap-2"
+                  onSubmit={e => {
+                    e.preventDefault()
+                    const value = (manualInvoiceInput || '').replace(/\D/g, '')
+                    if (!/^\d{15}$/.test(value)) return
+                    clearAutoStopTimer()
+                    stopCamera()
+                    setInvoiceNumber(value)
+                    setSelectedItem('')
+                  }}
+                >
+                  <input
+                    type="text"
+                    value={manualInvoiceInput}
+                    onChange={e => {
+                      const onlyDigits = e.target.value.replace(/\D/g, '').slice(0, 15)
+                      setManualInvoiceInput(onlyDigits)
+                    }}
+                    placeholder="Enter Invoice Number"
+                    className="gba:flex-1 gba:h-9 gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-1 gba:text-sm gba:outline-none focus:gba:ring-2 focus:gba:ring-ring"
+                    data-testid="manual-invoice-input"
+                  />
+                  <Button type="submit" disabled={!isManualInvoiceValid} data-testid="manual-invoice-submit">
+                    Submit
+                  </Button>
+                </form>
+                <div className="gba:text-xs gba:text-muted-foreground">
+                  {`${(manualInvoiceInput || '').length}/15 digits`}
                 </div>
-              )}
+              </div>
+            </Card>
+          )}
+          {(stage === 'user' ? userId && userScanCompleted : !!userId || !!invoiceNumber) && (
+            <Card className="gba:p-4">
+              <div className="gba:space-y-3">
+                {(stage === 'invoice' ? !!userId : userId && userScanCompleted) && (
+                  <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
+                    <div className="gba:text-base gba:font-medium" data-testid="scanner-user-output">
+                      User ID: <span className="gba:font-bold">{userId}</span>
+                    </div>
+                    {stage === 'user' && userScanCompleted && (
+                      <Button
+                        variant="secondary"
+                        onClick={() => navigateToStage('invoice')}
+                        data-testid="scanner-next"
+                        className="gba:flex gba:items-center gba:gap-2"
+                      >
+                        Next
+                      </Button>
+                    )}
+                  </div>
+                )}
 
-              {stage === 'invoice' && (
-                <div className="gba:space-y-3">
-                  <div className="gba:text-base gba:font-medium" data-testid="scanner-invoice-output">
-                    Detected Invoice Number: <span className="gba:font-bold">{invoiceNumber}</span>
+                {stage === 'invoice' && (
+                  <div className="gba:space-y-3">
+                    <div className="gba:text-base gba:font-medium" data-testid="scanner-invoice-output">
+                      Invoice Number: <span className="gba:font-bold">{invoiceNumber}</span>
+                    </div>
+                    {invoiceNumber && (
+                      <Combobox
+                        value={selectedItem}
+                        onValueChange={v => setSelectedItem((v as string) || '')}
+                        options={[
+                          { label: 'ThinkPad Laptop', value: 'ThinkPad Laptop' },
+                          { label: 'Lenovo Wireless Mouse', value: 'Lenovo Wireless Mouse' },
+                          { label: 'One Plus 1+ Nord Phone', value: 'One Plus' }
+                        ]}
+                        placeholder="Select item"
+                      />
+                    )}
                   </div>
-                  {invoiceNumber && (
-                    <Combobox
-                      value={selectedItem}
-                      onValueChange={v => setSelectedItem((v as string) || '')}
-                      options={[
-                        { label: 'ThinkPad Laptop', value: 'ThinkPad Laptop' },
-                        { label: 'Lenovo Wireless Mouse', value: 'Lenovo Wireless Mouse' }
-                      ]}
-                      placeholder="Select item"
-                    />
-                  )}
-                </div>
-              )}
-            </div>
-          </Card>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {stage === 'invoice' && userId && invoiceNumber && selectedItem && (
+            <Card className="gba:p-4">
+              <Button
+                className="gba:w-full"
+                variant="default"
+                onClick={() => navigateToStage('form')}
+                data-testid="open-service-iq-form"
+              >
+                Generate Service Document
+              </Button>
+            </Card>
+          )}
         </div>
       </div>
     </div>

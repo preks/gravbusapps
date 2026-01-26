@@ -29,6 +29,7 @@ import { Plus, Edit, Trash2 } from 'lucide-react'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { useForm } from 'react-hook-form'
 import type { CatalogItem, CatalogUpsertData, CatalogTabState, CatalogTabHandlers } from '../types/catalogTypes'
+import { pluralize } from '@/common/utils/pluralize'
 
 interface CatalogTabProps extends CatalogTabState, CatalogTabHandlers {
   entityName: string
@@ -247,7 +248,11 @@ export const CatalogTab: React.FC<CatalogTabProps> = ({
                 <TableRow>
                   <TableCell colSpan={5} className="gba:py-8">
                     <EmptyState
-                      title={search ? 'No entries match your search' : `No ${entityName.toLowerCase()}s configured yet`}
+                      title={
+                        search
+                          ? 'No entries match your search'
+                          : `No ${pluralize(entityName.toLowerCase())} configured yet`
+                      }
                       description={
                         search
                           ? 'Try adjusting your search terms'
