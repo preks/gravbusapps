@@ -37,7 +37,7 @@ export const validateFilters = (filters: AdvancePaymentFilters): FilterState => 
   }
 }
 
-const buildQueryParameters = (filterState: FilterState): string[] => {
+const buildQueryParameters = (filterState: FilterState, filters: AdvancePaymentFilters): string[] => {
   const parameters: string[] = []
 
   if (filterState.hasStatusFilter) {
@@ -45,11 +45,23 @@ const buildQueryParameters = (filterState: FilterState): string[] => {
   }
 
   if (filterState.hasAmountRange) {
-    parameters.push('$amountMin: numeric', '$amountMax: numeric')
+    // Only declare variables that are actually used (more efficient GraphQL queries)
+    if (filters.amountRange?.min !== undefined) {
+      parameters.push('$amountMin: numeric')
+    }
+    if (filters.amountRange?.max !== undefined) {
+      parameters.push('$amountMax: numeric')
+    }
   }
 
   if (filterState.hasAdvanceRange) {
-    parameters.push('$advanceMin: numeric', '$advanceMax: numeric')
+    // Only declare variables that are actually used (more efficient GraphQL queries)
+    if (filters.advanceRange?.min !== undefined) {
+      parameters.push('$advanceMin: numeric')
+    }
+    if (filters.advanceRange?.max !== undefined) {
+      parameters.push('$advanceMax: numeric')
+    }
   }
 
   if (filterState.hasCurrencyRef) {
@@ -151,7 +163,7 @@ export const buildAdvancePaymentsListQuery = (
 ) => {
   const includeSearch = options?.includeSearch ?? true
   const filterState = validateFilters(filters)
-  const queryParameters = buildQueryParameters(filterState)
+  const queryParameters = buildQueryParameters(filterState, filters)
   const expensePlanConditions = buildExpensePlanConditions(filterState, filters)
   const advancePaymentConditions = buildAdvancePaymentConditions(filterState, filters)
 
