@@ -70,21 +70,14 @@ export const useCompanySelection = (
       }))
 
       try {
-        const structureId = getCurrentActiveStructureId()
-        if (!structureId) {
-          console.error('No active structure ID available')
-          setState(prev => ({
-            ...prev,
-            isLoading: false,
-            error: 'No active structure available',
-            companies: append ? prev.companies : []
-          }))
-          return
+        const whereCondition: any = {
+          isDeleted: { _eq: false }
         }
 
-        const whereCondition: any = {
-          isDeleted: { _eq: false },
-          structureId: { _eq: structureId }
+        // Add structure filter only if available (not available in local dev)
+        const structureId = getCurrentActiveStructureId()
+        if (structureId) {
+          whereCondition.structureId = { _eq: structureId }
         }
 
         // Add search conditions

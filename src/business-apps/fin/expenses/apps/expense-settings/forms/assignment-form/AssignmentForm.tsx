@@ -24,10 +24,7 @@ import {
   Alert,
   AlertDescription,
   Spinner,
-  Calendar,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
+  DateInput,
   Form,
   FormField,
   FormItem,
@@ -673,30 +670,13 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                           <FormLabel>
                             {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.activeFrom', 'Active From')}
                           </FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant="outline"
-                                  className="gba:w-full gba:justify-start gba:text-left gba:font-normal"
-                                  data-testid="assignment-form-active-from-trigger"
-                                >
-                                  {field.value
-                                    ? dayjs(field.value).format('YYYY-MM-DD')
-                                    : 'Always active (empty = eternity)'}
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="gba:w-auto gba:p-0">
-                              <Calendar
-                                mode="single"
-                                selected={field.value ? new Date(field.value) : undefined}
-                                onSelect={(date: Date | undefined) =>
-                                  field.onChange(date ? dayjs(date).toISOString() : '')
-                                }
-                              />
-                            </PopoverContent>
-                          </Popover>
+                          <FormControl>
+                            <DateInput
+                              value={field.value || ''}
+                              onChange={date => field.onChange(date)}
+                              data-testid="assignment-form-active-from"
+                            />
+                          </FormControl>
                           <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
                             Leave empty for 'always active from the beginning'
                           </p>
@@ -713,33 +693,13 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                           <FormLabel>
                             {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.activeTo', 'Active To')}
                           </FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant="outline"
-                                  className="gba:w-full gba:justify-start gba:text-left gba:font-normal"
-                                  data-testid="assignment-form-active-to-trigger"
-                                >
-                                  {field.value ? dayjs(field.value).format('YYYY-MM-DD') : 'Ongoing (empty = eternity)'}
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="gba:w-auto gba:p-0">
-                              <Calendar
-                                mode="single"
-                                selected={field.value ? new Date(field.value) : undefined}
-                                onSelect={(date: Date | undefined) =>
-                                  field.onChange(date ? dayjs(date).toISOString() : '')
-                                }
-                                disabled={date => {
-                                  const activeFrom = form.getValues('activeFrom')
-                                  if (!activeFrom) return false
-                                  return date < new Date(activeFrom)
-                                }}
-                              />
-                            </PopoverContent>
-                          </Popover>
+                          <FormControl>
+                            <DateInput
+                              value={field.value || ''}
+                              onChange={date => field.onChange(date)}
+                              data-testid="assignment-form-active-to"
+                            />
+                          </FormControl>
                           <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
                             Leave empty for 'ongoing/never expires'
                           </p>
