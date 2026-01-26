@@ -39,7 +39,7 @@
     "@monaco-editor/react": "^4.7.0",
     "@newwork/gravity-ui-catalog": "^7.10.29",
     "@newwork/nw-design-system": "^0.67.0-507",
-    "@newwork/remote-component-loader": "^0.1.1",
+    "@newwork/remote-component-loader": "^0.1.4",
     "@remixicon/react": "^4.6.0",
     "@tiptap/extension-bubble-menu": "^3.15.3",
     "@tiptap/extension-character-count": "^3.15.3",
@@ -161,10 +161,7 @@
     "@ant-design/cssinjs": "1.24.0",
     "js-yaml": "4.1.1",
     "next": "^15.5.9",
-    "glob": "^11.1.0",
-    "@newwork/remote-component-loader": {
-      "@newwork/gravity-ui-catalog": "7.10.28"
-    }
+    "glob": "^11.1.0"
   },
   "engines": {
     "node": ">=20.18.0",
