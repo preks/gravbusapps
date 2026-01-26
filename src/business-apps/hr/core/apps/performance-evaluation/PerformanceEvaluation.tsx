@@ -19,6 +19,8 @@ import {
 import { CalendarBlank, ListChecks, PencilSimple, Plus, Warning as WarningIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import translations from './_i18n'
 import CycleEditorModal, {
   CycleEditorValues,
@@ -144,6 +146,14 @@ enum PerformanceTabEnum {
 }
 
 export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
+  const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
+  const { t } = useTranslation(translations)
+
+  // Show page only if dev.enabled feature flag is active
+  if (!devFeatureFlag) {
+    return null
+  }
+
   const [cycles, setCycles] = useState<PerformanceCycle[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<PerformanceCycle | null>(null)
@@ -153,7 +163,6 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
   const [isScaleModalOpen, setIsScaleModalOpen] = useState(false)
   const [editingScale, setEditingScale] = useState<RatingScale | null>(null)
   const [valuesStore, setValuesStore] = useState<ValueItemStored[]>([])
-  const { t } = useTranslation(translations)
 
   useEffect(() => {
     setCycles(loadCycles())
