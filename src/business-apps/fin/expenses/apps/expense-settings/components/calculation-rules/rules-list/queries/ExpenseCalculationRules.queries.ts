@@ -154,6 +154,20 @@ export const getExpensesWithRulePk = `query ExpenseRuleAggregateByCode($ruleId: 
 }
 `
 
+// Batch query to check which rules are used (have associated expenses)
+export const getBatchRuleUsage = `query BatchRuleUsage($ruleIds: [uuid!]!) {
+  ExpenseItem(where: {expenseRuleId: {_in: $ruleIds}}, limit: 1000) {
+    expenseRuleId
+  }
+  ExpenseRequest(where: {expenseRuleId: {_in: $ruleIds}}, limit: 1000) {
+    expenseRuleId
+  }
+  ExpensePlan(where: {expenseRuleId: {_in: $ruleIds}}, limit: 1000) {
+    expenseRuleId
+  }
+}
+`
+
 export interface ExpenseRuleRecord {
   id: string
   version?: string
