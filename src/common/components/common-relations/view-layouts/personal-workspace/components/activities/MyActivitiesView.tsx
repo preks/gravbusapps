@@ -248,6 +248,8 @@ export const MyActivitiesView: React.FC<MyActivitiesViewProps> = ({
           if (!open) setSelectedActivity(null)
         }}
         data-testid={`${dataTestId}-detail-sheet`}
+        accessToken={accessToken}
+        flowContext={config.rowActionsContextArray?.[0]}
       />
     </div>
   )

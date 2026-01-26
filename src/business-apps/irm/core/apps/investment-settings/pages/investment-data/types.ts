@@ -48,7 +48,7 @@ export interface CatalogEntryWithConfig {
 }
 
 export type ConfigurationType = 'form' | 'prospect' | 'tile'
-export type TargetLevel = 'group' | 'type'
+export type TargetLevel = 'group' | 'type' | 'liquidFundType'
 
 export interface ConfigurationContext {
   targetLevel: TargetLevel

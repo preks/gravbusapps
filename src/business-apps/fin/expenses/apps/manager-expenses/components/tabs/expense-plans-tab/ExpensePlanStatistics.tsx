@@ -59,7 +59,6 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
             ExpenseStatus.ASSIGNED,
             ExpenseStatus.PENDING,
             ExpenseStatus.APPROVED,
-            ExpenseStatus.RETURNED,
             ExpenseStatus.REJECTED,
             ExpenseStatus.VERIFIED,
             ExpenseStatus.BOOKED,
@@ -69,7 +68,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           ]
           // Check if this filter is already active, if so clear it
           const isTotalPlansFilterActive =
-            activeFilter?.length === 11 &&
+            activeFilter?.length === 10 &&
             allStatusesExceptDiscarded.every(status => activeFilter.includes(status)) &&
             !activeFilter.includes(ExpenseStatus.DISCARDED) &&
             !activeFilter.includes(ExpenseStatus.CREATED)
@@ -128,13 +127,12 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           'All submitted plans'
         ),
         active: !!(
-          activeFilter?.length === 11 &&
+          activeFilter?.length === 10 &&
           [
             ExpenseStatus.PREPARED,
             ExpenseStatus.ASSIGNED,
             ExpenseStatus.PENDING,
             ExpenseStatus.APPROVED,
-            ExpenseStatus.RETURNED,
             ExpenseStatus.REJECTED,
             ExpenseStatus.VERIFIED,
             ExpenseStatus.BOOKED,
@@ -152,7 +150,6 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
             ExpenseStatus.ASSIGNED,
             ExpenseStatus.PENDING,
             ExpenseStatus.APPROVED,
-            ExpenseStatus.RETURNED,
             ExpenseStatus.REJECTED,
             ExpenseStatus.VERIFIED,
             ExpenseStatus.BOOKED,

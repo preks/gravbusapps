@@ -1,59 +1,30 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { getNewHiresCountQuery } from '../queries/getNewHiresCount'
 import dayjs from 'dayjs'
-import { formatDate } from '@/common/utils/windowUtils'
+import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 
-/**
- * GraphQL response type for new hires count query using the EmployeeWorkingCondition.hireDate field
- * with distinct employee count
- */
-interface NewHiresCountResponse {
-  EmployeeWorkingConditionAggregate: {
-    aggregate: {
-      count: number
-    }
-  }
+type TimeseriesRow = {
+  category?: string
+  date_category?: string
+  dateCategory?: string
+  value?: number
+  [key: string]: any
 }
 
 /**
- * Hook to fetch new hires count from the GraphQL API for the current month
- * Uses the EmployeeWorkingCondition.hireDate field to accurately identify new employees
+ * Hook to fetch new hires count using the Dataset timeseries 'hiresPerYear'
+ * We derive the current year's hires (YTD if endDate is today).
  *
  * @param accessToken - Access token for API authentication
  * @returns Object containing count, loading state, error, and refetch function
  */
 export const useNewHiresCount = (accessToken: string) => {
-  // Define all hooks at the top level to ensure consistent order
   const [count, setCount] = useState<number>(0)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
   const isMounted = useRef<boolean>(true)
 
-  // Get GraphQL client using the project's pattern
-  const graphQLClient = useGraphqlClient(accessToken)
+  const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
 
-  /**
-   * Get the start and end dates for the current month using standardized ISO formatting.
-   * Uses a half-open interval: [monthStart, nextMonthStart)
-   */
-  const getMonthDateRange = useCallback(() => {
-    const now = dayjs()
-    const startOfMonth = formatDate(now.startOf('month').toDate(), 'fullDateTime.ISO') as string
-    const startOfNextMonth = formatDate(now.add(1, 'month').startOf('month').toDate(), 'fullDateTime.ISO') as string
-
-    // Log the date range for debugging
-    console.log(`[useNewHiresCount] Date range for hireDate filter: ${startOfMonth} to ${startOfNextMonth}`)
-
-    return {
-      startDate: startOfMonth,
-      endDate: startOfNextMonth
-    }
-  }, [])
-
-  /**
-   * Fetch new hires count from GraphQL API
-   */
   const fetchNewHiresCount = useCallback(async () => {
     if (!accessToken) {
       if (isMounted.current) {
@@ -69,43 +40,35 @@ export const useNewHiresCount = (accessToken: string) => {
         setError(null)
       }
 
-      // Get date range for current month
-      const { startDate, endDate } = getMonthDateRange()
-      const startDateISO = startDate
-      const endDateISO = endDate
+      // Build a range from start of current year to today (YTD)
+      const currentYear = dayjs().year()
+      const startDate = dayjs().startOf('year').format('YYYY-MM-DD')
+      const endDate = dayjs().format('YYYY-MM-DD')
 
-      console.log('[useNewHiresCount] Date range:', startDateISO, 'to', endDateISO)
-      console.log('[useNewHiresCount] Fetching new hires using hireDate between', startDateISO, 'and', endDateISO)
+      const response = await datasetClient.executeQuery('hiresPerYear', QueryType.TIMESERIES, {
+        startDate,
+        endDate
+      })
 
-      // Execute the GraphQL query with variables
-      const response = await graphQLClient.request<NewHiresCountResponse>(getNewHiresCountQuery, { startDate, endDate })
+      const rows = (response?.data ?? []) as TimeseriesRow[]
+      const byYear = new Map<number, number>()
+      rows.forEach(r => {
+        const dateStr = r.dateCategory ?? r.date_category
+        if (dateStr) {
+          const y = dayjs(dateStr).year()
+          const v = Number(r.value ?? 0)
+          if (Number.isFinite(y) && Number.isFinite(v)) {
+            byYear.set(y, v)
+          }
+        }
+      })
 
-      // Log the response for debugging
-      console.log('[useNewHiresCount] GraphQL response:', response)
-
-      // Validate response structure
-      if (
-        !response ||
-        !response.EmployeeWorkingConditionAggregate ||
-        !response.EmployeeWorkingConditionAggregate.aggregate
-      ) {
-        throw new Error('Invalid response structure from GraphQL API')
-      }
-
-      // Extract and validate count
-      const hiresCount = Number(response.EmployeeWorkingConditionAggregate.aggregate.count)
-      if (isNaN(hiresCount)) {
-        throw new Error('New hires count is not a valid number')
-      }
-
-      // Update state if component is still mounted
+      const thisYearCount = Number(byYear.get(currentYear) ?? 0)
       if (isMounted.current) {
-        setCount(hiresCount)
-        setError(null)
+        setCount(thisYearCount)
       }
     } catch (err) {
-      console.error('[useNewHiresCount] Error fetching new hires count:', err)
-
+      console.error('[useNewHiresCount] Error fetching hires per year (dataset):', err)
       if (isMounted.current) {
         setError(err instanceof Error ? err : new Error('Failed to fetch new hires count'))
       }
@@ -114,22 +77,16 @@ export const useNewHiresCount = (accessToken: string) => {
         setLoading(false)
       }
     }
-  }, [accessToken, graphQLClient, getMonthDateRange])
+  }, [accessToken, datasetClient])
 
-  // Set up effect to fetch data and handle cleanup
   useEffect(() => {
     isMounted.current = true
-
-    // Fetch data
     fetchNewHiresCount()
-
-    // Cleanup function
     return () => {
       isMounted.current = false
     }
   }, [fetchNewHiresCount])
 
-  // Function to manually refresh the data
   const refetch = useCallback(() => {
     fetchNewHiresCount()
   }, [fetchNewHiresCount])
