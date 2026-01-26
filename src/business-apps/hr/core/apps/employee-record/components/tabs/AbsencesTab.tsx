@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import '@newwork/nw-design-system/style'
 import dayjs from 'dayjs'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -18,7 +18,6 @@ dayjs.extend(updateLocale)
 
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { AppAction } from '@/components/app-action/AppAction'
-import { useAppActionData } from '@/common/hooks/useAppActionData'
 
 import { AbsencesTabProps } from '../../queries/types'
 import { useAbsenceData } from '../../hooks/useAbsenceData'
@@ -26,6 +25,7 @@ import AbsenceCalendar from './components/AbsenceCalendar'
 import AbsenceList from './components/AbsenceList'
 import Entitlements from './components/Entitlements'
 import AbsenceCharts from './components/AbsenceCharts'
+import { ContextMenuActionHandler } from './components/ContextMenuActionHandler'
 import { Dialog, DialogContent } from '@newwork/nw-design-system'
 import { PiPlus } from 'react-icons/pi'
 import UpdateEmployeeEntitlements from '../../../../forms/update-employee-entitlements'
@@ -33,55 +33,6 @@ import { env } from '@/common/env/EnvUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { fetchHolidayDates } from './utils/fetchHolidayDates'
-
-// Component to handle context menu absence action execution
-const ContextMenuActionHandler: React.FC<{
-  employeeId: string
-  absenceTypeId: string
-  flowType: string
-  startDate: string
-  endDate: string
-  accessToken: string
-  onComplete: () => void
-}> = ({ employeeId, absenceTypeId, flowType, startDate, endDate, accessToken, onComplete }) => {
-  const { combinedData, handleDeferredFetch } = useAppActionData(
-    {
-      contextsArray: [FlowContextName.employeeAbsenceRecord],
-      externalContextData: {
-        employeeId,
-        absenceType: absenceTypeId,
-        flowType,
-        startDate,
-        endDate
-      },
-      accessToken,
-      deferMainContextRequestsUntilClick: false,
-      emptyStateBehavior: 'enable'
-    },
-    'context-menu-absence'
-  )
-
-  useEffect(() => {
-    // Ensure data is fetched
-    handleDeferredFetch()
-  }, [handleDeferredFetch])
-
-  useEffect(() => {
-    if (combinedData.length > 0) {
-      // Execute the first available action
-      const firstAction = combinedData[0]
-      if (firstAction?.onClick) {
-        firstAction.onClick()
-        // Reset after a short delay to allow the process to start
-        setTimeout(() => {
-          onComplete()
-        }, 100)
-      }
-    }
-  }, [combinedData, onComplete])
-
-  return null
-}
 
 const AbsencesTab: React.FC<AbsencesTabProps> = ({
   employee,
@@ -287,6 +238,11 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     loadHolidays()
   }, [employee?.id, accessToken, graphqlClient, currentDate])
 
+  // Memoize the onComplete callback to prevent unnecessary re-renders
+  const handleContextMenuComplete = useCallback(() => {
+    setContextMenuAbsenceData(null)
+  }, [])
+
   return (
     <div className="gba:absences-tab gba:space-y-8">
       {!shownTab && (
@@ -433,7 +389,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
           startDate={contextMenuAbsenceData.startDate}
           endDate={contextMenuAbsenceData.endDate}
           accessToken={accessToken}
-          onComplete={() => setContextMenuAbsenceData(null)}
+          onComplete={handleContextMenuComplete}
         />
       )}
     </div>

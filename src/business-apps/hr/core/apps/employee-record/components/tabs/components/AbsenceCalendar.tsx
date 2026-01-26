@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import dayjs from 'dayjs'
 import isBetween from 'dayjs/plugin/isBetween'
 import { Button, useTranslation } from '@newwork/nw-design-system'
@@ -14,6 +14,8 @@ import {
   getBadgeVariantBackgroundClass
 } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import translations from './_i18n'
+import { calculateContextMenuPosition } from './utils/contextMenuPositioning'
+import { AVAILABLE_ABSENCE_TYPES } from './constants/absenceTypes'
 
 // Import dayjs locale
 import 'dayjs/locale/ro'
@@ -116,7 +118,6 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 })
   const [contextMenuDate, setContextMenuDate] = useState<dayjs.Dayjs | null>(null)
-  const calendarRef = useRef<HTMLDivElement>(null)
 
   // Close context menu when clicking anywhere (left click)
   useEffect(() => {
@@ -132,30 +133,6 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
       document.removeEventListener('mousedown', handleClick)
     }
   }, [contextMenuOpen])
-
-  // Fixed list of absence types to show in context menu
-  const availableAbsenceTypes = [
-    {
-      id: 'AbsenceType:v1:A001',
-      name: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_vacation', 'Request Vacation'),
-      flowType: 'vacation'
-    },
-    {
-      id: 'AbsenceType:v1:A021',
-      name: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.report_sick_leave', 'Report Sick Leave'),
-      flowType: 'sickLeave'
-    },
-    {
-      id: 'AbsenceType:v1:A050',
-      name: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_special_leave', 'Request Special Leave'),
-      flowType: 'specialLeave'
-    },
-    {
-      id: 'AbsenceType:v1:A170',
-      name: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_work_leave', 'Request Work Leave'),
-      flowType: 'workLeave'
-    }
-  ]
 
   const handleContextMenu = (e: React.MouseEvent, day: dayjs.Dayjs, isCurrentMonthDay: boolean) => {
     if (!enableSelection || !isCurrentMonthDay) return
@@ -189,50 +166,12 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
     const padding = 8 // py-1 padding
     const totalMenuHeight = maxMenuHeight + padding * 2
 
-    // Determine horizontal position - open to the left by default, adjust for borders
-    const spaceRight = window.innerWidth - e.clientX
-    const spaceLeft = e.clientX
-    const margin = 10 // Small margin from screen edge
+    // Use utility function to calculate position
+    const position = calculateContextMenuPosition(e.clientX, e.clientY, menuWidth, totalMenuHeight)
 
-    let menuX: number
-    // If near right border, open to the left of cursor
-    if (spaceRight < menuWidth + margin) {
-      menuX = e.clientX - menuWidth
-    }
-    // If near left border, open to the right of cursor
-    else if (spaceLeft < menuWidth + margin) {
-      menuX = e.clientX
-    }
-    // Default: open to the left of cursor
-    else {
-      menuX = e.clientX - menuWidth
-    }
-
-    // Ensure menu doesn't go off-screen
-    if (menuX < 0) {
-      menuX = margin
-    }
-    if (menuX + menuWidth > window.innerWidth) {
-      menuX = window.innerWidth - menuWidth - margin
-    }
-
-    // Vertical position - adjust if menu would go off-screen at bottom
-    let menuY = e.clientY
-    const spaceBelow = window.innerHeight - e.clientY
-    if (spaceBelow < totalMenuHeight) {
-      // Position above cursor if not enough space below
-      menuY = e.clientY - totalMenuHeight
-      if (menuY < 0) {
-        menuY = margin
-      }
-    }
-
-    // Store the clicked day and the calculated date range for the context menu
+    // Store the clicked day and the calculated position for the context menu
     setContextMenuDate(day)
-    setContextMenuPosition({
-      x: menuX,
-      y: menuY
-    })
+    setContextMenuPosition(position)
     setContextMenuOpen(true)
   }
 
@@ -279,7 +218,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
   }
 
   return (
-    <div className="gba:calendar-content" ref={calendarRef}>
+    <div className="gba:calendar-content">
       {contextMenuOpen && (
         <div
           className="gba:fixed gba:bg-popover gba:border gba:border-border gba:rounded-md gba:shadow-lg gba:z-[10000] gba:w-[180px] gba:py-1"
@@ -290,33 +229,24 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
           data-testid="absence-context-menu"
           onMouseDown={e => e.stopPropagation()}
         >
-          {availableAbsenceTypes.length > 0 ? (
-            availableAbsenceTypes.map(absenceType => (
-              <div
-                key={absenceType.id}
-                role="menuitem"
-                tabIndex={0}
-                className="gba:px-3 gba:py-2 gba:cursor-pointer gba:hover:bg-accent gba:text-sm gba:min-h-[2.5rem] gba:flex gba:items-center"
-                onClick={() => handleAbsenceTypeClick(absenceType.id, absenceType.flowType)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    handleAbsenceTypeClick(absenceType.id, absenceType.flowType)
-                  }
-                }}
-                data-testid={`absence-type-${absenceType.id}`}
-              >
-                {absenceType.name}
-              </div>
-            ))
-          ) : (
+          {AVAILABLE_ABSENCE_TYPES.map(absenceType => (
             <div
-              className="gba:px-3 gba:py-2 gba:text-sm gba:text-muted-foreground gba:min-h-[2.5rem] gba:flex gba:items-center"
-              data-testid="no-absence-types"
+              key={absenceType.id}
+              role="menuitem"
+              tabIndex={0}
+              className="gba:px-3 gba:py-2 gba:cursor-pointer gba:hover:bg-accent gba:text-sm gba:min-h-[2.5rem] gba:flex gba:items-center"
+              onClick={() => handleAbsenceTypeClick(absenceType.id, absenceType.flowType)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  handleAbsenceTypeClick(absenceType.id, absenceType.flowType)
+                }
+              }}
+              data-testid={`absence-type-${absenceType.id}`}
             >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.no_absence_types', 'No absence types available')}
+              {absenceType.name}
             </div>
-          )}
+          ))}
         </div>
       )}
       <div
