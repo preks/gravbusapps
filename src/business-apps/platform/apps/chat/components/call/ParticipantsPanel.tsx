@@ -14,7 +14,7 @@ import { X, Search, Mic, MicOff, Video, VideoOff, Hand, Monitor, Phone, MoreVert
 import { Avatar, AvatarFallback } from '@newwork/nw-design-system'
 import { useRealtimeKitSelector } from '@cloudflare/realtimekit-react'
 import { getInitials } from '../../utils/callUtils'
-import type { PendingInvite } from '../../../hooks/useGroupCall'
+import type { PendingInvite } from '../../hooks/useGroupCall'
 
 export interface AvailableParticipant {
   id: string
