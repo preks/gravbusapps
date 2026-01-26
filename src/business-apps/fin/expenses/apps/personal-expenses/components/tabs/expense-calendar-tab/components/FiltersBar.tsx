@@ -3,8 +3,8 @@ import { Typography, Space } from 'antd'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface FiltersBarProps {
-  active: { expense: boolean; plan: boolean; request: boolean }
-  toggle: (type: 'expense' | 'plan' | 'request') => void
+  active: { plan: boolean; request: boolean }
+  toggle: (type: 'plan' | 'request') => void
 }
 
 const FiltersBar: React.FC<FiltersBarProps> = ({ active, toggle }) => {
@@ -24,20 +24,6 @@ const FiltersBar: React.FC<FiltersBarProps> = ({ active, toggle }) => {
         {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_calendar', 'Expense Calendar')}
       </Typography.Title>
       <Space direction="horizontal" wrap>
-        <Space
-          data-testid="filter-items"
-          align="center"
-          onClick={() => toggle('expense')}
-          style={{ cursor: 'pointer', opacity: active.expense ? 1 : 0.5, padding: '4px 8px', borderRadius: '4px' }}
-        >
-          <div
-            className="gba:w-[14px] gba:h-[14px] gba:bg-muted gba:border gba:border-border gba:rounded-sm"
-            data-testid="filter-items-color"
-          />
-          <Typography.Text data-testid="filter-items-label">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.items', 'Items')}
-          </Typography.Text>
-        </Space>
         <Space
           data-testid="filter-plan"
           align="center"
