@@ -251,6 +251,20 @@ call-reconnect = Reconnect
 call-retrying = Retrying...
 call-waitingForParticipants = Waiting for participants...
 
+# Group Call
+groupCall-title = Group Call
+groupCall-participants = participants
+groupCall-audioOnly = Audio Only
+groupCall-minimize = Minimize call
+groupCall-waitingForParticipants = Waiting for participants...
+groupCall-unmute = Unmute
+groupCall-mute = Mute
+groupCall-turnOnVideo = Turn on camera
+groupCall-turnOffVideo = Turn off camera
+groupCall-endCall = End call
+groupCall-enableBackground = Enable background effect
+groupCall-disableBackground = Disable background effect
+
 # Notifications
 notifications-title = Notifications
 notifications-empty = No notifications at the moment

@@ -24,6 +24,7 @@ export interface GlobalCallState {
   status: 'idle' | 'joining' | 'connected'
   roomId: string | null
   callType: CallType
+  callImplementation: 'mesh' | 'realtime-kit' | '1-on-1' // Track which implementation is used
   hostId: string | null
   isMuted: boolean
   isVideoEnabled: boolean
@@ -50,6 +51,7 @@ const initialCallState: GlobalCallState = {
   status: 'idle',
   roomId: null,
   callType: 'audio',
+  callImplementation: 'mesh',
   hostId: null,
   isMuted: false,
   isVideoEnabled: true,

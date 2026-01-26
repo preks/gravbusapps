@@ -12,8 +12,8 @@ export interface AccountDataPageProps extends BusinessAppContextProps {
 const AccountDataPage: React.FC<AccountDataPageProps> = props => {
   const config = useMemo(
     () => ({
-      priorityCatalog: 'SalesAccountPriority',
-      typeCatalog: 'SalesAccountType',
+      priorityCatalog: 'CustomerAccountPriority',
+      typeCatalog: 'CustomerAccountType',
       dataTestIdPrefix: 'CustomerAccountDataPage',
       headerTitle: 'Account Data',
       headerDescription: 'Manage account priorities and types'
