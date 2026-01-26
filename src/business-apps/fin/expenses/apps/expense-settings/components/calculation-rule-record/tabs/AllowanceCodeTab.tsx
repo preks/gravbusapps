@@ -431,9 +431,15 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
 
   // Filter region rules based on selected travel region set
   useEffect(() => {
+    // Sort function for alphabetical ordering by name
+    const sortByName = (a: AllowanceRegionRule, b: AllowanceRegionRule) =>
+      (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })
+
     if (filterTravelRegionSetId) {
-      // Filter region rules by selected travel region set
-      const filtered = allowanceRegionRules.filter(rule => rule.travelRegionSetRef === filterTravelRegionSetId)
+      // Filter region rules by selected travel region set and sort alphabetically
+      const filtered = allowanceRegionRules
+        .filter(rule => rule.travelRegionSetRef === filterTravelRegionSetId)
+        .sort(sortByName)
       setFilteredRegionRules(filtered)
 
       // Clear region rule selection if it's not in the filtered list
@@ -442,8 +448,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         form.setValue('firstAllowanceRegionRuleId', '')
       }
     } else {
-      // If no travel region set selected, show all region rules
-      setFilteredRegionRules(allowanceRegionRules)
+      // If no travel region set selected, show all region rules sorted alphabetically
+      setFilteredRegionRules([...allowanceRegionRules].sort(sortByName))
     }
   }, [filterTravelRegionSetId, allowanceRegionRules, form])
 
