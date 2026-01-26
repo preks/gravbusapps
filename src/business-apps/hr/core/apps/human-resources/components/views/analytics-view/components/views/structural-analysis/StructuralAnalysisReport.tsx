@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Tabs, Card, Spin, Alert, Button, Typography, Space } from 'antd'
-import {
-  BarChartOutlined,
-  ApartmentOutlined,
-  TeamOutlined,
-  DashboardOutlined,
-  ReloadOutlined
-} from '@ant-design/icons'
+import { Spin, Alert, Button, Typography, Space } from 'antd'
+import { ReloadOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useStructuralAnalysisDataIntegration } from '../../../hooks/useStructuralAnalysisDataIntegration'
 import { SunburstVisualization } from './components/SunburstVisualization'
@@ -14,10 +8,11 @@ import { SpanOfControlChart } from './components/SpanOfControlChart'
 import { ReportingChainAnalysis } from './components/ReportingChainAnalysis'
 import { AnalysisTab } from './types/structuralTypes'
 
-import { useTranslation } from '@newwork/nw-design-system'
+import { Tabs, TabsList, TabsTrigger, TabsContent, useTranslation, Icon } from '@newwork/nw-design-system'
+import { ChartPie, ChartBar, Buildings, UsersThree } from '@phosphor-icons/react'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 interface StructuralAnalysisReportProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -28,12 +23,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
   const { t } = useTranslation(hrTranslations)
 
   // Define valid tabs
-  const validTabs: AnalysisTab[] = [
-    'overview',
-    'span-control',
-    'depth-analysis',
-    'reporting-chains'
-  ]
+  const validTabs: AnalysisTab[] = ['overview', 'span-control', 'depth-analysis', 'reporting-chains']
   const defaultTab: AnalysisTab = 'overview'
 
   // Get content from URL query parameter or use default
@@ -136,10 +126,10 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
   const renderOverviewTab = () => (
     <div className="gba:grid gba:gap-6">
       {/* Key Statistics */}
-      <Card>
-        <Title level={4} className="gba:m-0 gba:mb-6 gba:text-foreground">
+      <div>
+        <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold">
           {t('hr-analytics-structural-health-overview')}
-        </Title>
+        </h3>
         <div className="gba:grid gba:grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gba:gap-5">
           <div className="gba:text-center gba:p-5 gba:bg-muted gba:rounded-lg">
             <div className="gba:text-3xl gba:font-bold gba:text-foreground">
@@ -174,13 +164,13 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
             <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t('hr-analytics-avg-chain-length')}</div>
           </div>
         </div>
-      </Card>
+      </div>
 
       {/* Quick Insights */}
-      <Card>
-        <Title level={4} className="gba:m-0 gba:mb-4 gba:text-foreground">
+      <div>
+        <h3 className="gba:m-0 gba:mb-4 gba:text-foreground gba:text-xl gba:font-semibold">
           {t('hr-analytics-key-insights')}
-        </Title>
+        </h3>
         <div className="gba:grid gba:gap-3">
           <div className="gba:p-3 gba:bg-success-secondary/40 gba:rounded gba:border-l-4 gba:border-l-success">
             <Text strong className="gba:text-success-secondary-foreground">
@@ -211,92 +201,98 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
             </div>
           )}
         </div>
-      </Card>
+      </div>
     </div>
   )
 
-  // Tab configuration
-  const tabItems = [
-    {
-      key: 'overview',
-      label: (
-        <span>
-          <DashboardOutlined />
-          {t('hr-analytics-overview-tab')}
-        </span>
-      ),
-      children: renderOverviewTab()
-    },
-    {
-      key: 'span-control',
-      label: (
-        <span>
-          <BarChartOutlined />
-          {t('hr-analytics-span-of-control')}
-        </span>
-      ),
-      children: (
-        <SpanOfControlChart
-          data={data.spanOfControlData}
-          summary={data.spanOfControlSummary}
-          prefixDataTestId={prefixDataTestId}
-        />
-      )
-    },
-    {
-      key: 'depth-analysis',
-      label: (
-        <span>
-          <ApartmentOutlined />
-          {t('hr-analytics-depth-analysis')}
-        </span>
-      ),
-      children: <SunburstVisualization data={data.sunburstData} prefixDataTestId={prefixDataTestId} />
-    },
-    {
-      key: 'reporting-chains',
-      label: (
-        <span>
-          <TeamOutlined />
-          {t('hr-analytics-reporting-chains')}
-        </span>
-      ),
-      children: (
-        <ReportingChainAnalysis
-          chains={data.reportingChainData}
-          summary={data.reportingChainSummary}
-          prefixDataTestId={prefixDataTestId}
-        />
-      )
-    },
-  ]
-
   return (
-    <div
-      data-testid={prefixDataTestId}
-      className="gba:bg-gradient-to-b gba:from-background gba:to-muted gba:min-h-full gba:p-6 gba:rounded-lg"
-    >
+    <div data-testid={prefixDataTestId} className="gba:min-h-full gba:p-6 gba:rounded-lg">
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
-        <div>
-          <Title level={3} className="gba:m-0 gba:text-foreground">
+        <div className="gba:flex gba:items-center gba:gap-4">
+          <h2 className="gba:text-2xl gba:font-bold gba:leading-9 gba:text-foreground gba:m-0">
             {t('hr-analytics-structural-analysis-reports')}
-          </Title>
-          <Text className="gba:text-muted-foreground">{t('hr-analytics-structural-analysis-description')}</Text>
+          </h2>
         </div>
         <Button icon={<ReloadOutlined />} onClick={refetch} type="primary" ghost>
           {t('common-refresh-data')}
         </Button>
       </div>
 
+      {/* Description (match Workforce spacing) */}
+      <div className="gba:mb-6">
+        <p className="gba:text-muted-foreground">{t('hr-analytics-structural-analysis-description')}</p>
+      </div>
+
       {/* Tabs */}
-      <Tabs
-        activeKey={activeTab}
-        onChange={handleTabChange}
-        items={tabItems}
-        size="large"
-        className="gba:bg-primary-foreground gba:rounded-lg gba:px-6"
-      />
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:h-full" data-testid="structural-tabs">
+        <TabsList className="gba:mb-4">
+          <TabsTrigger
+            value="overview"
+            data-testid="structural-overview-tab"
+            className="gba:flex gba:items-center gba:gap-2"
+          >
+            <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
+              <Icon icon={ChartPie} size="sm" decorative />
+              {t('hr-analytics-overview-tab')}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="span-control"
+            data-testid="structural-span-control-tab"
+            className="gba:flex gba:items-center gba:gap-2"
+          >
+            <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
+              <Icon icon={ChartBar} size="sm" decorative />
+              {t('hr-analytics-span-of-control')}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="depth-analysis"
+            data-testid="structural-depth-analysis-tab"
+            className="gba:flex gba:items-center gba:gap-2"
+          >
+            <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
+              <Icon icon={Buildings} size="sm" decorative />
+              {t('hr-analytics-depth-analysis')}
+            </span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="reporting-chains"
+            data-testid="structural-reporting-chains-tab"
+            className="gba:flex gba:items-center gba:gap-2"
+          >
+            <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
+              <Icon icon={UsersThree} size="sm" decorative />
+              {t('hr-analytics-reporting-chains')}
+            </span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="gba:mt-6">
+          {renderOverviewTab()}
+        </TabsContent>
+
+        <TabsContent value="span-control" className="gba:mt-6">
+          <SpanOfControlChart
+            data={data.spanOfControlData}
+            summary={data.spanOfControlSummary}
+            prefixDataTestId={prefixDataTestId}
+          />
+        </TabsContent>
+
+        <TabsContent value="depth-analysis" className="gba:mt-6">
+          <SunburstVisualization data={data.sunburstData} prefixDataTestId={prefixDataTestId} />
+        </TabsContent>
+
+        <TabsContent value="reporting-chains" className="gba:mt-6">
+          <ReportingChainAnalysis
+            chains={data.reportingChainData}
+            summary={data.reportingChainSummary}
+            prefixDataTestId={prefixDataTestId}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
