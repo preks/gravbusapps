@@ -150,7 +150,8 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   onInviteParticipant,
   prefixDataTestId = 'rtk-group-call',
   conversationName,
-  wsClient
+  wsClient,
+  currentUserId
 }) => {
   const t = useChatTranslation()
   const localVideoRef = useRef<HTMLVideoElement>(null)
@@ -165,6 +166,9 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
 
   // Get the meeting object to access self.userId
   const meeting = useRealtimeKitSelector((m: any) => m)
+
+  // Derive current user from participants or meeting
+  const currentUser = participants.find(p => p.id === currentUserId || p.id === meeting?.self?.customParticipantId)
 
   // Helper to check if a participant has their hand raised
   // NOTE: We check BOTH userId (SDK) and customParticipantId (our DB) because:
@@ -367,106 +371,103 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
     }
   }, [wsClient, showReactionAnimation, remotePeers, meeting])
 
-  // Handler to mute a participant (moderator control)
+  // Handler to mute a participant via WebSocket (auto-mute on target side)
   const handleMuteParticipant = useCallback(
     (participantId: string, participantName: string) => {
-      if (!meeting?.participants?.joined) {
-        console.error('[MUTE] No meeting or participants available')
+      if (!wsClient || !currentUser || !meeting) {
+        console.error('[MUTE] No WebSocket client, current user, or meeting available')
         return
       }
 
-      // Get the participant from the meeting
-      const participant = meeting.participants.joined.get(participantId)
-
-      if (!participant) {
-        console.error('[MUTE] Participant not found:', participantId)
+      const socket = wsClient.getSocket()
+      if (!socket) {
+        console.error('[MUTE] Socket not available')
         return
       }
 
-      // Check if we have permission to mute (host control)
-      const canMuteAudio = meeting?.permissions?.host?.canMuteAudio
-
-      console.log('[MUTE] Permission check:', {
-        hasPermissions: !!meeting?.permissions,
-        hasHostPermissions: !!meeting?.permissions?.host,
-        canMuteAudio,
-        fullPermissions: meeting?.permissions,
-        selfRole: meeting?.self?.role
-      })
-
-      if (!canMuteAudio) {
-        console.warn('[MUTE] No permission to mute participants (canMuteAudio is false)')
-        toast.error('You do not have permission to mute other participants', {
-          duration: 3000
-        })
-        return
-      }
+      // Get the customParticipantId from the meeting peer (this is the user's DB ID)
+      const targetPeer = meeting.participants?.joined?.get(participantId)
+      const targetUserId = targetPeer?.customParticipantId || participantId
 
       try {
-        // Call the RTK API to disable participant's audio
-        participant.disableAudio()
-
-        console.log('[MUTE] Successfully muted participant:', {
-          participantId,
-          participantName
+        console.log('[MUTE] Sending mute request via WebSocket:', {
+          participantRtkId: participantId,
+          targetUserId,
+          targetParticipantName: participantName,
+          requestedBy: currentUser.id,
+          requestedByName: currentUser.odName
         })
 
-        toast.success(`Muted ${participantName}`, {
+        // Emit WebSocket event to request mute
+        // IMPORTANT: Use customParticipantId (user DB ID) not RTK peer ID for Socket.IO routing
+        socket.emit('group-call:request-mute', {
+          targetParticipantId: targetUserId, // User's DB ID for Socket.IO room routing
+          targetParticipantName: participantName,
+          requestedBy: currentUser.id,
+          requestedByName: currentUser.odName
+        })
+
+        toast.success(`Mute request sent to ${participantName}`, {
           duration: 2000
         })
       } catch (error) {
-        console.error('[MUTE] Failed to mute participant:', error)
+        console.error('[MUTE] Failed to send mute request:', error)
         toast.error(`Failed to mute ${participantName}`, {
           duration: 3000
         })
       }
     },
-    [meeting]
+    [wsClient, currentUser, meeting]
   )
 
-  // Handler to mute all participants at once (moderator control)
+  // Handler to mute all participants at once via WebSocket (auto-mute on each participant's side)
   const handleMuteAll = useCallback(() => {
-    if (!meeting?.participants) {
-      console.error('[MUTE ALL] No meeting or participants available')
+    if (!wsClient || !currentUser || !participants || participants.length === 0 || !meeting) {
+      console.error('[MUTE ALL] No WebSocket client, current user, participants, or meeting available')
       return
     }
 
-    // Check if we have permission to mute (host control)
-    const canMuteAudio = meeting?.permissions?.host?.canMuteAudio
-
-    console.log('[MUTE ALL] Permission check:', {
-      hasPermissions: !!meeting?.permissions,
-      hasHostPermissions: !!meeting?.permissions?.host,
-      canMuteAudio,
-      fullPermissions: meeting?.permissions,
-      selfRole: meeting?.self?.role
-    })
-
-    if (!canMuteAudio) {
-      console.warn('[MUTE ALL] No permission to mute participants (canMuteAudio is false)')
-      toast.error('You do not have permission to mute other participants', {
-        duration: 3000
-      })
+    const socket = wsClient.getSocket()
+    if (!socket) {
+      console.error('[MUTE ALL] Socket not available')
       return
     }
 
     try {
-      // Call the RTK API to disable all participants' audio
-      meeting.participants.disableAllAudio()
+      console.log('[MUTE ALL] Sending mute requests to all participants via WebSocket:', {
+        participantCount: participants.length,
+        requestedBy: currentUser.id,
+        requestedByName: currentUser.odName
+      })
 
-      const participantCount = meeting.participants.joined?.size || 0
-      console.log('[MUTE ALL] Successfully muted all participants:', participantCount)
+      // Send individual mute requests to each participant (excluding self)
+      participants.forEach(participant => {
+        if (participant.id !== currentUser.id) {
+          const participantName = (participant as RealtimeKitPeer).name || participant.odName || 'Unknown'
 
-      toast.success(`Muted all participants`, {
+          // Get the customParticipantId from the meeting peer (this is the user's DB ID)
+          const targetPeer = meeting.participants?.joined?.get(participant.id)
+          const targetUserId = targetPeer?.customParticipantId || participant.id
+
+          socket.emit('group-call:request-mute', {
+            targetParticipantId: targetUserId, // User's DB ID for Socket.IO room routing
+            targetParticipantName: participantName,
+            requestedBy: currentUser.id,
+            requestedByName: currentUser.odName
+          })
+        }
+      })
+
+      toast.success(`Mute requests sent to ${participants.length - 1} participants`, {
         duration: 2000
       })
     } catch (error) {
-      console.error('[MUTE ALL] Failed to mute all participants:', error)
+      console.error('[MUTE ALL] Failed to send mute requests:', error)
       toast.error('Failed to mute all participants', {
         duration: 3000
       })
     }
-  }, [meeting])
+  }, [wsClient, currentUser, participants, meeting])
 
   // Auto-play local video stream (fallback if meeting.self.videoTrack not available)
   useEffect(() => {

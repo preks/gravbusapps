@@ -111,6 +111,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     roomId: callState.roomId,
     meetingId: callState.meetingId,
     currentUser,
+    meeting, // Pass meeting for auto-mute
     onReactionReceived: reaction => {
       rtkDebug.log('[RTK] Reaction received:', reaction)
       // Could emit to UI layer if needed
