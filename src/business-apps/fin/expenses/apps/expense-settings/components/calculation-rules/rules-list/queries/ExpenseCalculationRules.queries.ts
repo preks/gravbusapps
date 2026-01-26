@@ -96,6 +96,7 @@ export const buildGetExpenseRulesQuery = (): string => {
       id
       version
       code
+      calculationTypeRef
       calculationType{
       value
       translations(where: { localeCode: { _eq: $activeUserLocale } }) {
