@@ -12,6 +12,7 @@ import {
 } from '@phosphor-icons/react'
 import { SettingsLayout } from '@/components/layout/settings-layout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import LeadDataPage from './pages/lead-data/LeadDataPage'
 import ActivityDataPage from './pages/activity-data/ActivityDataPage'
 import OpportunityDataPage from './pages/opportunity-data/OpportunityDataPage'
@@ -67,27 +68,29 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
     }
   }, [])
 
-  // Update URL when inline page changes
+  // Navigate to child page (forward) or back to settings home
   const handleInlinePageChange = (page: { key: string; tab?: string } | null) => {
+    if (page === null) {
+      // Going back to settings home - use replaceState to avoid creating new history entry
+      setInlinePage(null)
+      const settingsUrl = globalThis.location.pathname
+      globalThis.history.replaceState({}, '', settingsUrl)
+      return
+    }
+
+    // Going forward to child page - create new history entry
     setInlinePage(page)
 
     const newSearchParams = new URLSearchParams(globalThis.location.search)
-
-    if (page) {
-      newSearchParams.set('page', page.key)
-      if (page.tab) {
-        newSearchParams.set('tab', page.tab)
-      } else {
-        newSearchParams.delete('tab')
-      }
+    newSearchParams.set('page', page.key)
+    if (page.tab) {
+      newSearchParams.set('tab', page.tab)
     } else {
-      newSearchParams.delete('page')
       newSearchParams.delete('tab')
     }
 
-    // Update URL without page reload
-    const newURL = `${globalThis.location.pathname}${newSearchParams.toString() ? '?' + newSearchParams.toString() : ''}`
-    globalThis.history.replaceState({}, '', newURL)
+    const newURL = `${globalThis.location.pathname}?${newSearchParams.toString()}`
+    globalThis.history.pushState({}, '', newURL)
   }
 
   const cards = [
@@ -344,10 +347,15 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
         label: 'Investment Settings'
       }}
       headerLabel={t('crm.investment_settings', 'Investment Settings')}
+      headerDescription={t(
+        'crm.investment_settings_description',
+        'Configure and manage all investment relations management settings'
+      )}
       cards={cards}
       className={className}
       prefixDataTestId={prefixDataTestId}
       searchPlaceholder={t('common.search_placeholder', 'Search settings...')}
+      onBack={() => navigateTo('/platform/use')}
     />
   )
 }
