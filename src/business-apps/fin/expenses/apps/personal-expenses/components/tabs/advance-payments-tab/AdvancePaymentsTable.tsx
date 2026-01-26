@@ -9,7 +9,6 @@ import {
   TableCell,
   Card,
   CardContent,
-  Button,
   Sheet,
   SheetContent
 } from '@newwork/nw-design-system'
@@ -29,6 +28,7 @@ import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/uti
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
+import TablePagination, { PaginationChangeParams } from '../../../../../components/TablePagination'
 
 const DATA_TEST_ID_PREFIX = 'AdvancePaymentsTable'
 const DEFAULT_STATUS_FILTER = ['PREPARED', 'PENDING']
@@ -279,33 +279,10 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     setSelectedItem(item)
   }, [])
 
-  // Pagination handlers
-  const scrollTableIntoView = useCallback(() => {
-    const el = tableTopRef.current
-    if (!el) return
-    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-      window.requestAnimationFrame(() => el.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' }))
-    } else {
-      el.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' })
-    }
+  const handlePaginationChange = useCallback((pagination: PaginationChangeParams) => {
+    setCurrentPage(pagination.current)
+    setPageSize(pagination.pageSize)
   }, [])
-
-  const handlePageChange = useCallback(
-    (newPage: number) => {
-      setCurrentPage(newPage)
-      scrollTableIntoView()
-    },
-    [scrollTableIntoView]
-  )
-
-  const handlePageSizeChange = useCallback(
-    (newPageSize: number) => {
-      setPageSize(newPageSize)
-      setCurrentPage(1) // Reset to first page when page size changes
-      scrollTableIntoView()
-    },
-    [scrollTableIntoView]
-  )
 
   // Handle closing the details panel
   const handleCloseDetails = useCallback(() => {
@@ -638,118 +615,22 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
             </div>
 
             {/* Pagination */}
-            {totalCount > pageSize ? (
-              <div
-                className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
-                data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}
-              >
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')}{' '}
-                  {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`}{' '}
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount}{' '}
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:personal_expenses.advance_payments',
-                    getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:backoffice_expense_landing_page.advance_title',
-                      'Advance Payments'
-                    )
-                  )}
-                </div>
-                <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <p className="gba:text-sm gba:font-medium">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                    </p>
-                    <select
-                      value={pageSize}
-                      onChange={e => {
-                        const newPageSize = Number(e.target.value)
-                        handlePageSizeChange(newPageSize)
-                      }}
-                      className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                      data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
-                  </div>
-                  <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
-                    {Math.ceil(totalCount / pageSize)}
-                  </div>
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handlePageChange(1)}
-                      disabled={currentPage === 1}
-                      data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
-                    >
-                      <span className="gba:sr-only">Go to first page</span>⟪
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
-                    >
-                      <span className="gba:sr-only">Go to previous page</span>⟨
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                      data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
-                    >
-                      <span className="gba:sr-only">Go to next page</span>⟩
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handlePageChange(Math.ceil(totalCount / pageSize))}
-                      disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                      data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
-                    >
-                      <span className="gba:sr-only">Go to last page</span>
-                      ⟩⟩
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : totalCount > 0 ? (
-              <div
-                className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
-                data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}
-              >
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments')}`}
-                </div>
-                <div className="gba:flex gba:items-center gba:space-x-2">
-                  <p className="gba:text-sm gba:font-medium">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                  </p>
-                  <select
-                    value={pageSize}
-                    onChange={e => {
-                      const newPageSize = Number(e.target.value)
-                      handlePageSizeChange(newPageSize)
-                    }}
-                    className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select-single`}
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                </div>
-              </div>
-            ) : null}
+            <TablePagination
+              currentPage={currentPage}
+              pageSize={pageSize}
+              totalItems={totalCount}
+              onPageChange={handlePaginationChange}
+              entityNamePlural={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_expenses.advance_payments',
+                getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:backoffice_expense_landing_page.advance_title',
+                  'Advance Payments'
+                )
+              )}
+              dataTestIdPrefix={DATA_TEST_ID_PREFIX}
+              scrollTargetRef={tableTopRef}
+              showBorder={false}
+            />
           </CardContent>
         </Card>
       </div>
@@ -763,8 +644,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     totalCount,
     pageSize,
     currentPage,
-    handlePageChange,
-    handlePageSizeChange,
+    handlePaginationChange,
     sortField,
     sortOrder,
     handleSort,

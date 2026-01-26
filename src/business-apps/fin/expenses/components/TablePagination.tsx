@@ -7,6 +7,49 @@ export interface PaginationChangeParams {
   pageSize: number
 }
 
+const scrollIntoView = (target: HTMLElement, behavior: ScrollBehavior) => {
+  target.scrollIntoView({ block: 'start', inline: 'nearest', behavior })
+}
+
+const escapeForCssAttributeValue = (value: string): string => {
+  const cssEscape = globalThis.CSS?.escape
+  if (typeof cssEscape === 'function') {
+    return cssEscape(value)
+  }
+
+  // Fallback: escape anything that could break a CSS selector.
+  // Produces a valid CSS identifier token that can be used unquoted.
+  return value.replace(/[^a-zA-Z0-9_-]/g, ch => `\\${ch.codePointAt(0)?.toString(16)} `)
+}
+
+const buildDataTestIdSelector = (testId: string): string => `[data-testid=${escapeForCssAttributeValue(testId)}]`
+
+const findElementByTestId = (testId: string): HTMLElement | null =>
+  document.querySelector<HTMLElement>(buildDataTestIdSelector(testId))
+
+const findElementByPrefix = (prefix: string): HTMLElement | null =>
+  findElementByTestId(`${prefix}-container`) ?? findElementByTestId(`${prefix}-table`)
+
+const findNearestTableAbove = (rootEl: HTMLElement): HTMLTableElement | null => {
+  // Try previous siblings first (most common structure: table wrapper right before pagination).
+  let sibling = rootEl.previousElementSibling as HTMLElement | null
+  while (sibling) {
+    const table = sibling.querySelector<HTMLTableElement>('table')
+    if (table) return table
+    sibling = sibling.previousElementSibling as HTMLElement | null
+  }
+
+  // Then walk up the DOM: first ancestor that contains a table.
+  let parent = rootEl.parentElement as HTMLElement | null
+  while (parent && parent !== document.body) {
+    const table = parent.querySelector<HTMLTableElement>('table')
+    if (table) return table
+    parent = parent.parentElement as HTMLElement | null
+  }
+
+  return null
+}
+
 export interface TablePaginationProps {
   currentPage: number
   pageSize: number
@@ -51,69 +94,22 @@ const TablePagination: React.FC<TablePaginationProps> = ({
   scrollToTableTopOnChange = true,
   scrollBehavior = 'auto'
 }) => {
-  if (totalItems <= 0) {
-    return null
-  }
-
   const rootRef = useRef<HTMLDivElement | null>(null)
 
   const scrollTableIntoView = useCallback(() => {
     if (typeof document === 'undefined') return
 
-    // 0) Best: explicit scroll target from caller.
     const explicitTarget = scrollTargetRef?.current ?? null
-    if (explicitTarget) {
-      explicitTarget.scrollIntoView({ block: 'start', inline: 'nearest', behavior: scrollBehavior })
-      return
-    }
+    const byExplicitTestId = scrollTargetTestId ? findElementByTestId(scrollTargetTestId) : null
+    // Conventional scroll anchor used by tables: `${DATA_TEST_ID_PREFIX}-scroll-anchor`
+    const byScrollAnchorTestId = dataTestIdPrefix ? findElementByTestId(`${dataTestIdPrefix}-scroll-anchor`) : null
+    const byPrefix = dataTestIdPrefix ? findElementByPrefix(dataTestIdPrefix) : null
+    const byDomHeuristics = rootRef.current ? findNearestTableAbove(rootRef.current) : null
 
-    // 0b) Best (string-based): explicit test id from caller.
-    if (scrollTargetTestId) {
-      const el = document.querySelector(`[data-testid="${scrollTargetTestId}"]`) as HTMLElement | null
-      if (el) {
-        el.scrollIntoView({ block: 'start', inline: 'nearest', behavior: scrollBehavior })
-        return
-      }
-    }
+    const target = explicitTarget ?? byExplicitTestId ?? byScrollAnchorTestId ?? byPrefix ?? byDomHeuristics
+    if (!target) return
 
-    // 1) Preferred: stable anchor based on the shared prefix convention.
-    // Many tables use `${DATA_TEST_ID_PREFIX}-container` / `${DATA_TEST_ID_PREFIX}-table`.
-    const byTestId =
-      (dataTestIdPrefix
-        ? (document.querySelector(`[data-testid="${dataTestIdPrefix}-container"]`) as HTMLElement | null) ||
-          (document.querySelector(`[data-testid="${dataTestIdPrefix}-table"]`) as HTMLElement | null)
-        : null) ?? null
-
-    if (byTestId) {
-      byTestId.scrollIntoView({ block: 'start', inline: 'nearest', behavior: scrollBehavior })
-      return
-    }
-
-    // 2) Fallback: find the nearest table element rendered right above this pagination.
-    const rootEl = rootRef.current
-    if (!rootEl) return
-
-    // Try previous siblings first (most common structure: table wrapper right before pagination).
-    let sibling = rootEl.previousElementSibling as HTMLElement | null
-    while (sibling) {
-      const table = sibling.querySelector('table') as HTMLElement | null
-      if (table) {
-        table.scrollIntoView({ block: 'start', inline: 'nearest', behavior: scrollBehavior })
-        return
-      }
-      sibling = sibling.previousElementSibling as HTMLElement | null
-    }
-
-    // Then walk up the DOM: first ancestor that contains a table.
-    let parent = rootEl.parentElement as HTMLElement | null
-    while (parent && parent !== document.body) {
-      const table = parent.querySelector('table') as HTMLElement | null
-      if (table) {
-        table.scrollIntoView({ block: 'start', inline: 'nearest', behavior: scrollBehavior })
-        return
-      }
-      parent = parent.parentElement as HTMLElement | null
-    }
+    scrollIntoView(target, scrollBehavior)
   }, [dataTestIdPrefix, scrollBehavior, scrollTargetRef, scrollTargetTestId])
 
   const handlePageChange = useCallback(
@@ -122,14 +118,18 @@ const TablePagination: React.FC<TablePaginationProps> = ({
       if (!scrollToTableTopOnChange) return
 
       // Defer to ensure the scroll happens after state updates/render.
-      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-        window.requestAnimationFrame(scrollTableIntoView)
+      if (typeof globalThis.requestAnimationFrame === 'function') {
+        globalThis.requestAnimationFrame(scrollTableIntoView)
       } else {
         scrollTableIntoView()
       }
     },
     [onPageChange, scrollToTableTopOnChange, scrollTableIntoView]
   )
+
+  if (totalItems <= 0) {
+    return null
+  }
 
   const totalPages = Math.ceil(totalItems / pageSize)
   const startItem = (currentPage - 1) * pageSize + 1

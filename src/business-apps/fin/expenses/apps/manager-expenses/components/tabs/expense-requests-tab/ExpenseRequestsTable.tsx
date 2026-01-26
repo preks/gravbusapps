@@ -70,6 +70,8 @@ interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   endDateRange?: [Date | null, Date | null] | null
 }
 
+const DATA_TEST_ID_PREFIX = 'expense-requests'
+
 const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   const contextProps = useMemo(
     () => ({
@@ -344,7 +346,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     }
 
     return (
-      <div ref={tableTopRef} data-testid="expense-requests-scroll-anchor">
+      <div ref={tableTopRef} data-testid={`${DATA_TEST_ID_PREFIX}-scroll-anchor`}>
         <div className="gba:overflow-x-auto gba:pr-4 gba:border gba:border-border gba:rounded-md gba:relative">
           {isLoading && requests.length > 0 && (
             <div
@@ -587,7 +589,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             'lowcoder:employee_list.flows_button.expense_requests',
             'Expense Requests'
           )}
-          dataTestIdPrefix="expense-requests"
+          dataTestIdPrefix={DATA_TEST_ID_PREFIX}
         />
       </div>
     )

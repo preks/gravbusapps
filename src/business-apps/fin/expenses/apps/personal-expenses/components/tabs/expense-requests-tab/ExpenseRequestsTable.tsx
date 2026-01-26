@@ -56,6 +56,7 @@ export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
 }
 
 const DEFAULT_PAGE_SIZE = 20
+const DATA_TEST_ID_PREFIX = 'expense-requests'
 
 const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(props => {
   // Extract only the necessary props to prevent unnecessary re-renders
@@ -342,7 +343,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     }
 
     return (
-      <div className="expense-requests-table" ref={tableTopRef} data-testid="expense-requests-scroll-anchor">
+      <div className="expense-requests-table" ref={tableTopRef} data-testid={`${DATA_TEST_ID_PREFIX}-scroll-anchor`}>
         <Card data-testid="expense-requests-table-container">
           <CardContent className="gba:p-0">
             <div className="gba:overflow-x-auto">
@@ -607,7 +608,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
                 'lowcoder:employee_list.flows_button.expense_requests',
                 'Expense Requests'
               )}
-              dataTestIdPrefix="expense-requests"
+              dataTestIdPrefix={DATA_TEST_ID_PREFIX}
             />
           </CardContent>
         </Card>

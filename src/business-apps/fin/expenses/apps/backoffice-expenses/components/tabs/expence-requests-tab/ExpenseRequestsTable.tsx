@@ -66,6 +66,8 @@ import {
   useExpenseRequestTransfer
 } from './hooks'
 
+const DATA_TEST_ID_PREFIX = 'expense-requests'
+
 interface FilterData {
   organizationalUnits: OrganizationalUnit[]
   currencies: Currency[]
@@ -915,7 +917,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     if (emptyState) return emptyState
 
     return (
-      <div ref={tableTopRef} data-testid="expense-requests-scroll-anchor">
+      <div ref={tableTopRef} data-testid={`${DATA_TEST_ID_PREFIX}-scroll-anchor`}>
         <Card data-testid="expense-requests-container">
           <CardContent className="gba:p-0">
             {loading && !expenses?.length && (
