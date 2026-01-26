@@ -178,7 +178,7 @@ const JobRequestApproveForm: React.FC<JobRequestApproveFormProps> = ({ accessTok
           </div>
 
           <div>
-            <label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Description</label>
+            <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Description</div>
             <p className="gba:text-sm gba:mt-1">{getValue(jobRequest.description)}</p>
           </div>
 
@@ -190,26 +190,26 @@ const JobRequestApproveForm: React.FC<JobRequestApproveFormProps> = ({ accessTok
               </p>
             </div>
             <div>
-              <label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Status</label>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Status</div>
               <p className="gba:text-sm gba:mt-1">
                 {jobRequest.jobRequestStatus ? getJobRequestStatusLabel(jobRequest.jobRequestStatus) : '-'}
               </p>
             </div>
             <div>
-              <label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Amount</label>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Amount</div>
               <p className="gba:text-sm gba:mt-1">{getValue(jobRequest.amount)}</p>
             </div>
           </div>
 
           <div className="gba:grid gba:grid-cols-2 gba:gap-4">
             <div>
-              <label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Organizational Unit</label>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Organizational Unit</div>
               <p className="gba:text-sm gba:mt-1">
                 {jobRequest.organizationalUnit?.name || getValue(jobRequest.organizationalUnitId)}
               </p>
             </div>
             <div>
-              <label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Requester</label>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Requester</div>
               <p className="gba:text-sm gba:mt-1">
                 {jobRequest.requesterEmployee
                   ? `${jobRequest.requesterEmployee.firstName} ${jobRequest.requesterEmployee.lastName}`
@@ -220,9 +220,7 @@ const JobRequestApproveForm: React.FC<JobRequestApproveFormProps> = ({ accessTok
 
           {jobRequest.jobPosition && (
             <div>
-              <label className="gba:text-sm gba:font-medium gba:text-muted-foreground">
-                Job Position (Replacement)
-              </label>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Job Position (Replacement)</div>
               <p className="gba:text-sm gba:mt-1">
                 {jobRequest.jobPosition.name || getValue(jobRequest.jobPositionId)}
               </p>
@@ -231,9 +229,7 @@ const JobRequestApproveForm: React.FC<JobRequestApproveFormProps> = ({ accessTok
 
           {jobRequest.jobProfile && (
             <div>
-              <label className="gba:text-sm gba:font-medium gba:text-muted-foreground">
-                Job Profile (New Position)
-              </label>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Job Profile (New Position)</div>
               <p className="gba:text-sm gba:mt-1">{jobRequest.jobProfile.name || getValue(jobRequest.jobProfileId)}</p>
             </div>
           )}
@@ -259,7 +255,7 @@ const JobRequestApproveForm: React.FC<JobRequestApproveFormProps> = ({ accessTok
               <p className="gba:text-sm gba:mt-1">{jobRequest.company?.name || getValue(jobRequest.companyId)}</p>
             </div>
             <div>
-              <label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Cost Center</label>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Cost Center</div>
               <p className="gba:text-sm gba:mt-1">{jobRequest.costCenter?.name || getValue(jobRequest.costCenterId)}</p>
             </div>
             <div>
@@ -272,7 +268,7 @@ const JobRequestApproveForm: React.FC<JobRequestApproveFormProps> = ({ accessTok
 
           <div className="gba:grid gba:grid-cols-2 gba:gap-4">
             <div>
-              <label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Planned Hire Date</label>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Planned Hire Date</div>
               <p className="gba:text-sm gba:mt-1">
                 {jobRequest.plannedHireDate ? new Date(jobRequest.plannedHireDate).toLocaleDateString() : '-'}
               </p>

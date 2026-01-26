@@ -63,7 +63,7 @@ export const JobInterviewCancelPopup: React.FC<JobInterviewCancelPopupProps> = (
   }, [jobInterview?.meetingLink, accessToken, getChatApiUrl])
 
   const handleSubmit = useCallback(async () => {
-    if (!jobInterview || !jobInterview.id) {
+    if (!jobInterview?.id) {
       throw new Error(
         getTranslationFromI18nKeyAndLabel(
           'recruiting.jobInterview.cancel.error.noData',
@@ -75,7 +75,9 @@ export const JobInterviewCancelPopup: React.FC<JobInterviewCancelPopupProps> = (
     return {
       jobInterview: {
         id: jobInterview.id,
-        ...(jobInterview.version != null ? { version: jobInterview.version } : {}),
+        ...(jobInterview.version !== null && jobInterview.version !== undefined
+          ? { version: jobInterview.version }
+          : {}),
         jobInterviewStatus: JobInterviewStatus.CANCELLED
       },
       changeMode: 'UPDATE' as const

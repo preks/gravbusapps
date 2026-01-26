@@ -18,8 +18,8 @@ interface JobCandidateRecordContentProps extends BusinessAppContextProps {
 
 const JobCandidateRecordContent: React.FC<JobCandidateRecordContentProps> = ({ jobCandidateId, onBack, ...props }) => {
   const [activeTab, setActiveTab] = useState<string>(() => {
-    if (typeof globalThis === 'undefined' || !globalThis.location) return 'overview'
-    const params = new URLSearchParams(globalThis.location.search)
+    if (typeof globalThis.window === 'undefined' || !globalThis.window.location) return 'overview'
+    const params = new URLSearchParams(globalThis.window.location.search)
     return params.get('tab') || 'overview'
   })
 
@@ -33,26 +33,26 @@ const JobCandidateRecordContent: React.FC<JobCandidateRecordContentProps> = ({ j
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value)
-    if (typeof globalThis === 'undefined' || !globalThis.location) return
-    const url = new URL(globalThis.location.href)
+    if (typeof globalThis.window === 'undefined' || !globalThis.window.location) return
+    const url = new URL(globalThis.window.location.href)
     url.searchParams.set('tab', value)
     globalThis.history.replaceState(null, '', url.toString())
   }, [])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const params = new URLSearchParams(window.location.search)
+    if (typeof globalThis.window === 'undefined') return
+    const params = new URLSearchParams(globalThis.window.location.search)
     if (!params.get('tab')) {
-      const url = new URL(window.location.href)
+      const url = new URL(globalThis.window.location.href)
       url.searchParams.set('tab', activeTab)
-      window.history.replaceState(null, '', url.toString())
+      globalThis.history.replaceState(null, '', url.toString())
     }
     const onPop = () => {
-      const next = new URLSearchParams(window.location.search).get('tab') || 'overview'
+      const next = new URLSearchParams(globalThis.window.location.search).get('tab') || 'overview'
       setActiveTab(next)
     }
-    window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
+    globalThis.window.addEventListener('popstate', onPop)
+    return () => globalThis.window.removeEventListener('popstate', onPop)
   }, [activeTab])
 
   // Memoized callback for process completion
@@ -191,8 +191,8 @@ const JobCandidateRecordContent: React.FC<JobCandidateRecordContentProps> = ({ j
 const JobCandidateRecord: React.FC<BusinessAppContextProps> = ({ additionalData = {}, ...props }) => {
   const jobCandidateId =
     additionalData.jobCandidateId ||
-    (typeof globalThis !== 'undefined' && globalThis.location
-      ? new URLSearchParams(globalThis.location.search).get('jobCandidateId')
+    (typeof globalThis.window !== 'undefined' && globalThis.window.location
+      ? new URLSearchParams(globalThis.window.location.search).get('jobCandidateId')
       : null)
 
   const handleBack = () => {

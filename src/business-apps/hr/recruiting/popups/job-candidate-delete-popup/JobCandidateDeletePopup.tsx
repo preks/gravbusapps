@@ -29,7 +29,7 @@ export const JobCandidateDeletePopup: React.FC<JobCandidateDeletePopupProps> = (
   const { jobCandidate, loading, error } = useJobCandidate(accessToken || '', jobCandidateId, 'record')
 
   const handleSubmit = async () => {
-    if (!jobCandidate || !jobCandidate.id) {
+    if (!jobCandidate?.id) {
       throw new Error(
         getTranslationFromI18nKeyAndLabel(
           'recruiting.jobCandidate.delete.error.noData',
@@ -41,7 +41,9 @@ export const JobCandidateDeletePopup: React.FC<JobCandidateDeletePopupProps> = (
     return {
       jobCandidate: {
         id: jobCandidate.id,
-        ...(jobCandidate.version != null ? { version: jobCandidate.version } : {}),
+        ...(jobCandidate.version !== null && jobCandidate.version !== undefined
+          ? { version: jobCandidate.version }
+          : {}),
         isDeleted: true
       }
     }

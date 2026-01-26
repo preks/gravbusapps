@@ -46,7 +46,7 @@ const jobRequestSubmitSchema = z.object({
   description: z.string().optional(),
   plannedHireDate: z.string().optional(),
   plannedExitDate: z.string().optional(),
-  jobRequestType: z.nativeEnum(JobRequestType).optional(),
+  jobRequestType: z.enum(Object.values(JobRequestType) as [string, ...string[]]).optional(),
   contractTypeRef: z.string().optional(),
   employmentTypeRef: z.string().optional(),
   jobExperienceLevelRef: z.string().optional(),

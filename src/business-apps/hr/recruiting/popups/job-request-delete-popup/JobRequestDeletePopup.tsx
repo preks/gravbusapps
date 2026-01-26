@@ -49,7 +49,7 @@ export const JobRequestDeletePopup: React.FC<JobRequestDeletePopupProps> = ({
     return {
       jobRequest: {
         id: jobRequest.id,
-        ...(jobRequest.version != null ? { version: jobRequest.version } : {}),
+        ...(jobRequest.version !== null && jobRequest.version !== undefined ? { version: jobRequest.version } : {}),
         isDeleted: true
       }
     }

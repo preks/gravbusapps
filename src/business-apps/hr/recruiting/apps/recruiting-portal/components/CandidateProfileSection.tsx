@@ -120,17 +120,10 @@ const CandidateProfileHeader: React.FC<CandidateProfileHeaderProps> = ({
   candidateLoading
 }) => {
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="gba:p-6 gba:flex gba:items-center gba:justify-between gba:gap-4 gba:cursor-pointer gba:hover:bg-muted/50 gba:transition-colors"
+    <button
+      type="button"
+      className="gba:p-6 gba:flex gba:items-center gba:justify-between gba:gap-4 gba:cursor-pointer gba:hover:bg-muted/50 gba:transition-colors gba:w-full gba:text-left gba:bg-transparent gba:border-0"
       onClick={onToggle}
-      onKeyDown={e => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onToggle()
-        }
-      }}
       data-testid={formatDataTestId(prefixDataTestId, 'header')}
     >
       <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1">
@@ -174,7 +167,7 @@ const CandidateProfileHeader: React.FC<CandidateProfileHeaderProps> = ({
           {isExpanded ? <ChevronUp className="gba:w-5 gba:h-5" /> : <ChevronDown className="gba:w-5 gba:h-5" />}
         </Button>
       </div>
-    </div>
+    </button>
   )
 }
 
@@ -255,7 +248,9 @@ const PersonalInformationCard: React.FC<PersonalInformationCardProps> = ({ jobCa
           )}
           {renderField(
             getTranslationFromI18nKeyAndLabel('recruiting.severelyDisabilityDegree', 'Disability Degree'),
-            jobCandidate.severelyDisabilityDegree != null ? `${jobCandidate.severelyDisabilityDegree}%` : '-'
+            jobCandidate.severelyDisabilityDegree !== null && jobCandidate.severelyDisabilityDegree !== undefined
+              ? `${jobCandidate.severelyDisabilityDegree}%`
+              : '-'
           )}
         </div>
       </CardContent>
@@ -827,6 +822,39 @@ export const CandidateProfileSection: React.FC<CandidateProfileSectionProps> = (
 
   const displayName = candidateLoading ? 'Loading...' : getDisplayName()
 
+  const renderExpandedContent = () => {
+    if (candidateLoading) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
+          <Spinner size="lg" />
+        </div>
+      )
+    }
+
+    if (jobCandidate) {
+      return (
+        <div className="gba:space-y-6">
+          <NameIdentificationCard jobCandidate={jobCandidate} />
+          <PersonalInformationCard jobCandidate={jobCandidate} />
+          <QualificationsCard jobCandidate={jobCandidate} />
+          <ContactCommunicationCard jobCandidate={jobCandidate} />
+          <SkillsCard skills={jobCandidate.skills} />
+          <EducationCard educations={jobCandidate.educations} />
+          <CertificatesCard certificates={jobCandidate.certificates} />
+          <ProfessionalExperienceCard jobHistory={jobCandidate.jobHistory} />
+          <AdditionalInformationCard jobCandidate={jobCandidate} />
+          <DocumentsCard groupedDocuments={groupedDocuments} />
+        </div>
+      )
+    }
+
+    return (
+      <div className="gba:text-center gba:text-muted-foreground gba:py-8">
+        {getTranslationFromI18nKeyAndLabel('recruiting.jobCandidate.notFound', 'Job candidate not found')}
+      </div>
+    )
+  }
+
   return (
     <div
       className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:overflow-hidden"
@@ -850,28 +878,7 @@ export const CandidateProfileSection: React.FC<CandidateProfileSectionProps> = (
           className="gba:border-t gba:border-border gba:p-6"
           data-testid={formatDataTestId(prefixDataTestId, 'expanded-content')}
         >
-          {candidateLoading ? (
-            <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
-              <Spinner size="lg" />
-            </div>
-          ) : jobCandidate ? (
-            <div className="gba:space-y-6">
-              <NameIdentificationCard jobCandidate={jobCandidate} />
-              <PersonalInformationCard jobCandidate={jobCandidate} />
-              <QualificationsCard jobCandidate={jobCandidate} />
-              <ContactCommunicationCard jobCandidate={jobCandidate} />
-              <SkillsCard skills={jobCandidate.skills} />
-              <EducationCard educations={jobCandidate.educations} />
-              <CertificatesCard certificates={jobCandidate.certificates} />
-              <ProfessionalExperienceCard jobHistory={jobCandidate.jobHistory} />
-              <AdditionalInformationCard jobCandidate={jobCandidate} />
-              <DocumentsCard groupedDocuments={groupedDocuments} />
-            </div>
-          ) : (
-            <div className="gba:text-center gba:text-muted-foreground gba:py-8">
-              {getTranslationFromI18nKeyAndLabel('recruiting.jobCandidate.notFound', 'Job candidate not found')}
-            </div>
-          )}
+          {renderExpandedContent()}
         </div>
       )}
     </div>

@@ -54,6 +54,47 @@ const ApplicationDateCell: React.FC<{ info: CellContext<JobApplication, unknown>
   )
 }
 
+const JobApplicationStageCell: React.FC<{ info: CellContext<JobApplication, unknown> }> = ({ info }) => {
+  const value = info.getValue() as string
+  return value ? (
+    <Badge variant="secondary" className="gba:text-xs">
+      {value}
+    </Badge>
+  ) : (
+    <span className="gba:text-sm gba:text-muted-foreground">-</span>
+  )
+}
+
+// Helper to get initials
+const getInitials = (firstName: string, lastName: string): string => {
+  const first = firstName?.charAt(0) || ''
+  const last = lastName?.charAt(0) || ''
+  return (first + last).toUpperCase() || 'A'
+}
+
+// Candidate cell wrapper component
+const CandidateCellWrapper: React.FC<{ info: CellContext<JobApplication, unknown> }> = ({ info }) => (
+  <CandidateCell info={info} getInitials={getInitials} />
+)
+
+// Primary action component
+const JobApplicationPrimaryAction: React.FC<{ accessToken: string }> = ({ accessToken }) => (
+  <AppAction
+    variant="create-primary"
+    contexts={[
+      {
+        context: FlowContextName.jobApplicationCreate,
+        contextData: {}
+      }
+    ]}
+    accessToken={accessToken}
+    emptyState="hide"
+    data-testid="add-job-application-action"
+  >
+    {getTranslationFromI18nKeyAndLabel('recruiting.addJobApplication', 'Add Job Application')}
+  </AppAction>
+)
+
 // Row actions component
 const JobApplicationRowActions: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => {
   return (
@@ -84,6 +125,11 @@ const JobApplicationRowActions: React.FC<{ row: any; accessToken: string }> = ({
   )
 }
 
+// Row actions wrapper component
+const JobApplicationRowActionsWrapper: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => (
+  <JobApplicationRowActions row={row} accessToken={accessToken} />
+)
+
 export const JobApplicationView: React.FC<JobApplicationViewProps> = context => {
   const [search, setSearch] = useState('')
   const [sorting, setSorting] = useState<SortingState>([{ id: 'applicationDate', desc: true }])
@@ -112,37 +158,15 @@ export const JobApplicationView: React.FC<JobApplicationViewProps> = context => 
     }
   })
 
-  // Helper to get initials
-  const getInitials = (firstName: string, lastName: string): string => {
-    const first = firstName?.charAt(0) || ''
-    const last = lastName?.charAt(0) || ''
-    return (first + last).toUpperCase() || 'A'
-  }
-
   // Primary action for creating new job application
   const primaryAction = useMemo(
-    () => (
-      <AppAction
-        variant="create-primary"
-        contexts={[
-          {
-            context: FlowContextName.jobApplicationCreate,
-            contextData: {}
-          }
-        ]}
-        accessToken={context.accessToken}
-        emptyState="hide"
-        data-testid="add-job-application-action"
-      >
-        {getTranslationFromI18nKeyAndLabel('recruiting.addJobApplication', 'Add Job Application')}
-      </AppAction>
-    ),
+    () => <JobApplicationPrimaryAction accessToken={context.accessToken} />,
     [context.accessToken]
   )
 
   // Row actions
   const rowActions = useMemo(
-    () => (row: any) => <JobApplicationRowActions row={row} accessToken={context.accessToken} />,
+    () => (row: any) => <JobApplicationRowActionsWrapper row={row} accessToken={context.accessToken} />,
     [context.accessToken]
   )
 
@@ -157,7 +181,7 @@ export const JobApplicationView: React.FC<JobApplicationViewProps> = context => 
           return `${candidate.firstName || ''} ${candidate.lastName || ''}`.trim() || '-'
         },
         header: getTranslationFromI18nKeyAndLabel('recruiting.candidate', 'Candidate'),
-        cell: info => <CandidateCell info={info} getInitials={getInitials} />,
+        cell: CandidateCellWrapper,
         meta: { type: 'text' as const }
       },
       {
@@ -178,20 +202,11 @@ export const JobApplicationView: React.FC<JobApplicationViewProps> = context => 
         id: 'jobApplicationStage',
         accessorFn: row => row.jobApplicationStage?.value || row.jobApplicationStageRef || '-',
         header: getTranslationFromI18nKeyAndLabel('recruiting.jobApplicationStage', 'Current Stage'),
-        cell: info => {
-          const value = info.getValue() as string
-          return value ? (
-            <Badge variant="secondary" className="gba:text-xs">
-              {value}
-            </Badge>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
+        cell: JobApplicationStageCell,
         meta: { type: 'text' as const }
       }
     ],
-    [getInitials]
+    []
   )
 
   return (

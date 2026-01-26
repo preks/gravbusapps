@@ -477,14 +477,18 @@ const MyTeammatesTable = ({
             mode="button"
             buttonVariant="default"
             buttonSize="sm"
-            contextsArray={[FlowContextName.jobRequestSubmit]}
+            contexts={[
+              {
+                context: FlowContextName.jobRequestSubmit,
+                contextData: {
+                  organizationalUnitId: userOrgData.organizationalUnitId,
+                  costCenterId: userOrgData.costCenterId,
+                  siteLocationId: userOrgData.siteLocationId,
+                  companyId: userOrgData.companyId
+                }
+              }
+            ]}
             variant="create-primary"
-            externalContextData={{
-              organizationalUnitId: userOrgData.organizationalUnitId,
-              costCenterId: userOrgData.costCenterId,
-              siteLocationId: userOrgData.siteLocationId,
-              companyId: userOrgData.companyId
-            }}
             accessToken={accessToken}
             data-testid="manager-dashboard-teammates-submit-job-request"
           >

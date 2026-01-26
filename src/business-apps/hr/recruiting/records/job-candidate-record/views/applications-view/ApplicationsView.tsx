@@ -48,6 +48,21 @@ const ApplicationStageCell = (info: CellContext<JobApplication, unknown>) => {
   )
 }
 
+const ApplicationDateCellWrapper: React.FC<{ info: CellContext<JobApplication, unknown> }> = ({ info }) => {
+  const value = info.getValue() as string
+  return value ? (
+    <div className="gba:text-sm">{new Date(value).toLocaleDateString()}</div>
+  ) : (
+    <span className="gba:text-sm gba:text-muted-foreground">-</span>
+  )
+}
+
+// Wrapper component for JobPostingLinkCell
+const JobPostingLinkCellWrapper: React.FC<{
+  info: CellContext<JobApplication, unknown>
+  onPostingClick: (jobPostingId: string) => void
+}> = ({ info, onPostingClick }) => <JobPostingLinkCell info={info} onPostingClick={onPostingClick} />
+
 export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobCandidateId, accessToken }) => {
   const [search, setSearch] = useState('')
   const [sorting, setSorting] = useState<SortingState>([{ id: 'applicationDate', desc: true }])
@@ -80,29 +95,32 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobCandidate
     navigateTo(url)
   }, [])
 
+  // Row actions wrapper component
+  const JobApplicationRowActionsWrapper: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => (
+    <AppAction
+      data-testid={`job-application-actions-${row.original.id}`}
+      variant="table-row"
+      contexts={[
+        {
+          context: FlowContextName.jobApplicationEntity,
+          contextData: { jobApplicationId: row.original.id }
+        }
+      ]}
+      shareContext={{
+        entityType: 'jobApplication',
+        entityId: row.original.id,
+        entityName: row.original.jobPosting?.title || 'Application'
+      }}
+      prefixDataTestId="job-application-actions"
+      accessToken={accessToken}
+      lazyLoad
+      onClick={e => e.stopPropagation()}
+    />
+  )
+
   // Row actions
   const rowActions = useMemo(
-    () => (row: any) => (
-      <AppAction
-        data-testid={`job-application-actions-${row.original.id}`}
-        variant="table-row"
-        contexts={[
-          {
-            context: FlowContextName.jobApplicationEntity,
-            contextData: { jobApplicationId: row.original.id }
-          }
-        ]}
-        shareContext={{
-          entityType: 'jobApplication',
-          entityId: row.original.id,
-          entityName: row.original.jobPosting?.title || 'Application'
-        }}
-        prefixDataTestId="job-application-actions"
-        accessToken={accessToken}
-        lazyLoad
-        onClick={e => e.stopPropagation()}
-      />
-    ),
+    () => (row: any) => <JobApplicationRowActionsWrapper row={row} accessToken={accessToken} />,
     [accessToken]
   )
 
@@ -113,21 +131,14 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobCandidate
         id: 'jobPosting',
         accessorFn: row => row.jobPosting?.title || '-',
         header: getTranslationFromI18nKeyAndLabel('recruiting.jobPosting', 'Job Posting'),
-        cell: info => <JobPostingLinkCell info={info} onPostingClick={handleJobPostingClick} />,
+        cell: info => <JobPostingLinkCellWrapper info={info} onPostingClick={handleJobPostingClick} />,
         meta: { type: 'text' as const }
       },
       {
         id: 'applicationDate',
         accessorKey: 'applicationDate',
         header: getTranslationFromI18nKeyAndLabel('recruiting.applicationDate', 'Application Date'),
-        cell: info => {
-          const value = info.getValue() as string
-          return value ? (
-            <div className="gba:text-sm">{new Date(value).toLocaleDateString()}</div>
-          ) : (
-            <span className="gba:text-sm gba:text-muted-foreground">-</span>
-          )
-        },
+        cell: ApplicationDateCellWrapper,
         meta: { type: 'date' as const }
       },
       {

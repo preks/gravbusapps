@@ -169,7 +169,7 @@ export const RecruitingPortal: React.FC<RecruitingPortalProps> = ({
   }
 
   // No Job Postings State (only show if not searching)
-  if (jobPostings.length === 0 && !debouncedSearchQuery) {
+  if (jobPostings.length === 0 && debouncedSearchQuery === '') {
     return (
       <div className="gba:min-h-screen gba:bg-background">
         {/* Header */}

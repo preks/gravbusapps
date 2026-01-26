@@ -37,11 +37,11 @@ export interface EmployeeData {
   birthName: string | null
   birthPlace: string | null
   children: number | null
-  genderRef: any | null
-  nationalityRef: any | null
-  maritalStatusRef: any | null
-  ethnicityRef: any | null
-  academicTitleRef: any | null
+  genderRef: string | null
+  nationalityRef: string | null
+  maritalStatusRef: string | null
+  ethnicityRef: string | null
+  academicTitleRef: string | null
   userId: string | null
   addresses: EmployeeAddress[]
   education: EmployeeEducation[]
@@ -160,6 +160,8 @@ export const useEmployeeByUserId = ({ accessToken, userId }: UseEmployeeByUserId
     employeeId: employee?.id || null,
     loading,
     error,
-    refetch: fetchEmployeeByUserId
+    refetch: () => {
+      void fetchEmployeeByUserId()
+    }
   }
 }

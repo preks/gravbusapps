@@ -47,6 +47,24 @@ const CreatedDateCell = (info: CellContext<JobPosting, unknown>) => {
   return <div className="gba:text-sm">{date.toLocaleDateString()}</div>
 }
 
+// Primary action component
+const JobPostingPrimaryAction: React.FC<{ accessToken: string }> = ({ accessToken }) => (
+  <AppAction
+    variant="create-primary"
+    contexts={[
+      {
+        context: FlowContextName.jobPostingCreate,
+        contextData: {}
+      }
+    ]}
+    accessToken={accessToken}
+    emptyState="hide"
+    data-testid="add-job-posting-action"
+  >
+    {getTranslationFromI18nKeyAndLabel('recruiting.addJobPosting', 'Add Job Posting')}
+  </AppAction>
+)
+
 // Row actions component
 const JobPostingRowActions: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => {
   return (
@@ -74,6 +92,34 @@ const JobPostingRowActions: React.FC<{ row: any; accessToken: string }> = ({ row
     />
   )
 }
+
+// Helper to get initials
+const getInitials = (firstName: string, lastName: string): string => {
+  const first = firstName?.charAt(0) || ''
+  const last = lastName?.charAt(0) || ''
+  return (first + last).toUpperCase() || 'A'
+}
+
+// Wrapper components for cell renderers
+const createCandidateLinkCellWrapper = (
+  onCandidateClick: (jobCandidateId: string) => void
+): React.FC<{ info: CellContext<JobApplication, unknown> }> => {
+  return ({ info }) => (
+    <CandidateLinkCell application={info.row.original} onCandidateClick={onCandidateClick} getInitials={getInitials} />
+  )
+}
+
+const ApplicationDateCellWrapper: React.FC<{ info: CellContext<JobApplication, unknown> }> = ({ info }) => (
+  <ApplicationDateCell value={info.getValue() as string} />
+)
+
+const ApplicationStageCellWrapper: React.FC<{ info: CellContext<JobApplication, unknown> }> = ({ info }) => (
+  <ApplicationStageCell value={info.getValue() as string} />
+)
+
+const JobPostingRowActionsWrapper: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => (
+  <JobPostingRowActions row={row} accessToken={accessToken} />
+)
 
 // Component for candidate link in application table
 const CandidateLinkCell: React.FC<{
@@ -203,13 +249,6 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
     navigateTo(url)
   }, [])
 
-  // Helper to get initials
-  const getInitials = (firstName: string, lastName: string): string => {
-    const first = firstName?.charAt(0) || ''
-    const last = lastName?.charAt(0) || ''
-    return (first + last).toUpperCase() || 'A'
-  }
-
   // Handle candidate click to navigate to candidate record
   const handleCandidateClick = useCallback((jobCandidateId: string) => {
     const url = buildPlatformUrl('/platform/hr/recruiting/job-candidate-record', {
@@ -220,31 +259,21 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
 
   // Primary action for creating new job posting
   const primaryAction = useMemo(
-    () => (
-      <AppAction
-        variant="create-primary"
-        contexts={[
-          {
-            context: FlowContextName.jobPostingCreate,
-            contextData: {}
-          }
-        ]}
-        accessToken={context.accessToken}
-        emptyState="hide"
-        data-testid="add-job-posting-action"
-      >
-        {getTranslationFromI18nKeyAndLabel('recruiting.addJobPosting', 'Add Job Posting')}
-      </AppAction>
-    ),
+    () => <JobPostingPrimaryAction accessToken={context.accessToken} />,
     [context.accessToken]
   )
 
   const rowActions = useMemo(
-    () => (row: any) => <JobPostingRowActions row={row} accessToken={context.accessToken} />,
+    () => (row: any) => <JobPostingRowActionsWrapper row={row} accessToken={context.accessToken} />,
     [context.accessToken]
   )
 
   // Application columns for expanded rows
+  const CandidateLinkCellWrapperForColumns = useMemo(
+    () => createCandidateLinkCellWrapper(handleCandidateClick),
+    [handleCandidateClick]
+  )
+
   const applicationColumns = useMemo<ColumnDef<JobApplication>[]>(
     () => [
       {
@@ -255,31 +284,25 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
           return `${candidate.firstName || ''} ${candidate.lastName || ''}`.trim() || '-'
         },
         header: getTranslationFromI18nKeyAndLabel('recruiting.candidate', 'Candidate'),
-        cell: info => (
-          <CandidateLinkCell
-            application={info.row.original}
-            onCandidateClick={handleCandidateClick}
-            getInitials={getInitials}
-          />
-        ),
+        cell: CandidateLinkCellWrapperForColumns,
         meta: { type: 'text' as const }
       },
       {
         id: 'applicationDate',
         accessorKey: 'applicationDate',
         header: getTranslationFromI18nKeyAndLabel('recruiting.applicationDate', 'Application Date'),
-        cell: info => <ApplicationDateCell value={info.getValue() as string} />,
+        cell: ApplicationDateCellWrapper,
         meta: { type: 'date' as const }
       },
       {
         id: 'jobApplicationStage',
         accessorFn: row => row.jobApplicationStage?.value || row.jobApplicationStageRef || '-',
         header: getTranslationFromI18nKeyAndLabel('recruiting.jobApplicationStage', 'Current Stage'),
-        cell: info => <ApplicationStageCell value={info.getValue() as string} />,
+        cell: ApplicationStageCellWrapper,
         meta: { type: 'text' as const }
       }
     ],
-    [handleCandidateClick]
+    []
   )
 
   // Columns

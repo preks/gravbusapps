@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobCandidates } from '@/common/data/recruiting/hooks/useJobCandidates'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { DataDisplay, DataTable, Avatar, AvatarFallback, Badge } from '@newwork/nw-design-system'
-import type { ColumnDef, PaginationState, SortingState, ExpandedState } from '@tanstack/react-table'
+import type { ColumnDef, PaginationState, SortingState, ExpandedState, CellContext } from '@tanstack/react-table'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -82,14 +82,23 @@ const ApplicationCountCell: React.FC<{ value: number }> = ({ value }) => {
   return <div className="gba:text-sm gba:text-center">{value || 0}</div>
 }
 
-// Component for created date cell
-const CreatedDateCell: React.FC<{ value: string }> = ({ value }) => {
-  return value ? (
-    <div className="gba:text-sm">{new Date(value).toLocaleDateString()}</div>
-  ) : (
-    <span className="gba:text-sm gba:text-muted-foreground">-</span>
-  )
-}
+// Primary action component
+const JobCandidatePrimaryAction: React.FC<{ accessToken: string }> = ({ accessToken }) => (
+  <AppAction
+    variant="create-primary"
+    contexts={[
+      {
+        context: FlowContextName.jobCandidateCreate,
+        contextData: {}
+      }
+    ]}
+    accessToken={accessToken}
+    emptyState="hide"
+    data-testid="add-job-candidate-action"
+  >
+    {getTranslationFromI18nKeyAndLabel('recruiting.addJobCandidate', 'Add Job Candidate')}
+  </AppAction>
+)
 
 // Row actions component
 const JobCandidateRowActions: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => {
@@ -118,6 +127,44 @@ const JobCandidateRowActions: React.FC<{ row: any; accessToken: string }> = ({ r
     />
   )
 }
+
+// Helper to get initials
+const getInitials = (firstName: string, lastName: string): string => {
+  const first = firstName?.charAt(0) || ''
+  const last = lastName?.charAt(0) || ''
+  return (first + last).toUpperCase() || 'C'
+}
+
+// Factory function to create job posting link cell wrapper
+const createJobPostingLinkCellWrapper = (
+  onPostingClick: (jobPostingId: string) => void
+): React.FC<{ info: CellContext<JobApplication, unknown> }> => {
+  return ({ info }) => <JobPostingLinkCell application={info.row.original} onPostingClick={onPostingClick} />
+}
+
+const ApplicationDateCellWrapper: React.FC<{ info: CellContext<JobApplication, unknown> }> = ({ info }) => (
+  <ApplicationDateCell value={info.getValue() as string} />
+)
+
+const ApplicationStageCellWrapper: React.FC<{ info: CellContext<JobApplication, unknown> }> = ({ info }) => (
+  <ApplicationStageCell value={info.getValue() as string} />
+)
+
+const CandidateCellWrapper: React.FC<{ info: CellContext<JobCandidate, unknown> }> = ({ info }) => (
+  <CandidateCell candidate={info.row.original} getInitials={getInitials} />
+)
+
+const ApplicationCountCellWrapper: React.FC<{ info: CellContext<JobCandidate, unknown> }> = ({ info }) => (
+  <ApplicationCountCell value={info.getValue() as number} />
+)
+
+const CreatedDateCellWrapper: React.FC<{ info: CellContext<JobCandidate, unknown> }> = ({ info }) => (
+  <ApplicationDateCell value={info.getValue() as string} />
+)
+
+const JobCandidateRowActionsWrapper: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => (
+  <JobCandidateRowActions row={row} accessToken={accessToken} />
+)
 
 // Component to render expanded row content for candidate applications
 const ExpandedCandidateApplicationsContent: React.FC<{
@@ -200,13 +247,6 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
     }
   })
 
-  // Helper to get initials
-  const getInitials = (firstName: string, lastName: string): string => {
-    const first = firstName?.charAt(0) || ''
-    const last = lastName?.charAt(0) || ''
-    return (first + last).toUpperCase() || 'C'
-  }
-
   // Handle expanded state change
   const handleExpandedChange = useCallback((expanded: ExpandedState) => {
     setExpandedRows(expanded)
@@ -231,56 +271,46 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
 
   // Primary action for creating new job candidate
   const primaryAction = useMemo(
-    () => (
-      <AppAction
-        variant="create-primary"
-        contexts={[
-          {
-            context: FlowContextName.jobCandidateCreate,
-            contextData: {}
-          }
-        ]}
-        accessToken={context.accessToken}
-        emptyState="hide"
-        data-testid="add-job-candidate-action"
-      >
-        {getTranslationFromI18nKeyAndLabel('recruiting.addJobCandidate', 'Add Job Candidate')}
-      </AppAction>
-    ),
+    () => <JobCandidatePrimaryAction accessToken={context.accessToken} />,
     [context.accessToken]
   )
 
   const rowActions = useMemo(
-    () => (row: any) => <JobCandidateRowActions row={row} accessToken={context.accessToken} />,
+    () => (row: any) => <JobCandidateRowActionsWrapper row={row} accessToken={context.accessToken} />,
     [context.accessToken]
   )
 
   // Application columns for expanded rows
+  const JobPostingLinkCellWrapperForColumns = useMemo(
+    () => createJobPostingLinkCellWrapper(handlePostingClick),
+    [handlePostingClick]
+  )
+
   const applicationColumns = useMemo<ColumnDef<JobApplication>[]>(
     () => [
       {
         id: 'jobPosting',
         accessorFn: row => row.jobPosting?.title || '-',
         header: getTranslationFromI18nKeyAndLabel('recruiting.jobPosting', 'Job Posting'),
-        cell: info => <JobPostingLinkCell application={info.row.original} onPostingClick={handlePostingClick} />,
+        cell: JobPostingLinkCellWrapperForColumns,
         meta: { type: 'text' as const }
       },
       {
         id: 'applicationDate',
         accessorKey: 'applicationDate',
         header: getTranslationFromI18nKeyAndLabel('recruiting.applicationDate', 'Application Date'),
-        cell: info => <ApplicationDateCell value={info.getValue() as string} />,
+        cell: ApplicationDateCellWrapper,
         meta: { type: 'date' as const }
       },
       {
         id: 'jobApplicationStage',
         accessorFn: row => row.jobApplicationStage?.value || row.jobApplicationStageRef || '-',
         header: getTranslationFromI18nKeyAndLabel('recruiting.jobApplicationStage', 'Current Stage'),
-        cell: info => <ApplicationStageCell value={info.getValue() as string} />,
+        cell: ApplicationStageCellWrapper,
         meta: { type: 'text' as const }
       }
     ],
-    [handlePostingClick]
+    [JobPostingLinkCellWrapperForColumns]
   )
 
   // Columns
@@ -290,21 +320,21 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
         id: 'candidate',
         accessorFn: row => `${row.firstName} ${row.lastName}`,
         header: getTranslationFromI18nKeyAndLabel('recruiting.candidate', 'Candidate'),
-        cell: info => <CandidateCell candidate={info.row.original} getInitials={getInitials} />,
+        cell: CandidateCellWrapper,
         meta: { type: 'text' as const }
       },
       {
         id: 'applicationCount',
         accessorKey: 'applicationCount',
         header: getTranslationFromI18nKeyAndLabel('recruiting.applications', 'Applications'),
-        cell: info => <ApplicationCountCell value={info.getValue() as number} />,
+        cell: ApplicationCountCellWrapper,
         meta: { type: 'number' as const }
       },
       {
         id: 'createdAt',
         accessorKey: 'createdAt',
         header: getTranslationFromI18nKeyAndLabel('recruiting.createdAt', 'Created'),
-        cell: info => <CreatedDateCell value={info.getValue() as string} />,
+        cell: CreatedDateCellWrapper,
         meta: { type: 'date' as const }
       }
     ],

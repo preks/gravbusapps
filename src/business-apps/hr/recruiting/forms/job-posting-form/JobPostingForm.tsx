@@ -312,7 +312,7 @@ const JobPostingForm: React.FC<JobPostingFormProps> = ({ accessToken, userInfo, 
   }, [jobPosting?.id, jobPosting, form])
 
   useEffect(() => {
-    if (jobRequest && jobRequest.id) {
+    if (jobRequest?.id) {
       if (!form.getValues('jobRequestId')) {
         form.setValue('jobRequestId', jobRequest.id)
       }
@@ -576,7 +576,11 @@ const JobPostingForm: React.FC<JobPostingFormProps> = ({ accessToken, userInfo, 
                       placeholder="Enter job posting title..."
                       required
                       error={
-                        form.formState.errors.title?.message ? String(form.formState.errors.title.message) : undefined
+                        form.formState.errors.title?.message
+                          ? typeof form.formState.errors.title.message === 'string'
+                            ? form.formState.errors.title.message
+                            : String(form.formState.errors.title.message)
+                          : undefined
                       }
                       data-testid={formatDataTestId('job-posting-form', 'title-input')}
                     />
@@ -602,7 +606,9 @@ const JobPostingForm: React.FC<JobPostingFormProps> = ({ accessToken, userInfo, 
                       placeholder="Write job posting content here..."
                       error={
                         form.formState.errors.content?.message
-                          ? String(form.formState.errors.content.message)
+                          ? typeof form.formState.errors.content.message === 'string'
+                            ? form.formState.errors.content.message
+                            : String(form.formState.errors.content.message)
                           : undefined
                       }
                       quillModules={quillModules}

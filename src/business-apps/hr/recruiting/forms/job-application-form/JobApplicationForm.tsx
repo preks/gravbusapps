@@ -309,7 +309,7 @@ const JobApplicationForm: React.FC<JobApplicationFormProps> = ({ accessToken, us
                     <FormLabel>Application Stage</FormLabel>
                     <FormControl>
                       <CatalogSelect
-                        catalogIdentifier={RECRUITING_CATALOGS.APPLICATION_STAGE}
+                        catalogIdentifier={RECRUITING_CATALOGS.JOB_APPLICATION_STAGE}
                         value={field.value || null}
                         onValueChange={(v: string | string[]) =>
                           field.onChange(Array.isArray(v) ? v[0] || '' : v || '')

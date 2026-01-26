@@ -128,7 +128,7 @@ export const JobCandidateDocumentUpload: React.FC<JobCandidateDocumentUploadProp
                     layout="list"
                     preview="icon"
                     value={doc.uploadFile ? [doc.uploadFile] : []}
-                    onFilesChange={(files: any[]) => handleFileChange(doc.id, files)}
+                    onChange={(files: any[]) => handleFileChange(doc.id, files)}
                     data-testid={formatDataTestId(prefixDataTestId, `file-upload-${index}`)}
                   />
                 </div>

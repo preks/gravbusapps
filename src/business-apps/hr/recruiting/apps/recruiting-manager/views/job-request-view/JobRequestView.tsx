@@ -80,6 +80,24 @@ const DateCell = (info: CellContext<JobRequest, unknown>) => {
   )
 }
 
+// Primary action component
+const JobRequestPrimaryAction: React.FC<{ accessToken: string }> = ({ accessToken }) => (
+  <AppAction
+    variant="create-primary"
+    contexts={[
+      {
+        context: FlowContextName.jobRequestCreate,
+        contextData: {}
+      }
+    ]}
+    accessToken={accessToken}
+    emptyState="hide"
+    data-testid="add-job-request-action"
+  >
+    {getTranslationFromI18nKeyAndLabel('recruiting.addJobRequest', 'Add Job Request')}
+  </AppAction>
+)
+
 // Row actions component
 const JobRequestRowActions: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => {
   return (
@@ -107,6 +125,11 @@ const JobRequestRowActions: React.FC<{ row: any; accessToken: string }> = ({ row
     />
   )
 }
+
+// Row actions wrapper component
+const JobRequestRowActionsWrapper: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => (
+  <JobRequestRowActions row={row} accessToken={accessToken} />
+)
 
 export const JobRequestView: React.FC<JobRequestViewProps> = context => {
   const [search, setSearch] = useState('')
@@ -138,28 +161,13 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
 
   // Primary action for creating new job request
   const primaryAction = useMemo(
-    () => (
-      <AppAction
-        variant="create-primary"
-        contexts={[
-          {
-            context: FlowContextName.jobRequestCreate,
-            contextData: {}
-          }
-        ]}
-        accessToken={context.accessToken}
-        emptyState="hide"
-        data-testid="add-job-request-action"
-      >
-        {getTranslationFromI18nKeyAndLabel('recruiting.addJobRequest', 'Add Job Request')}
-      </AppAction>
-    ),
+    () => <JobRequestPrimaryAction accessToken={context.accessToken} />,
     [context.accessToken]
   )
 
   // Row actions
   const rowActions = useMemo(
-    () => (row: any) => <JobRequestRowActions row={row} accessToken={context.accessToken} />,
+    () => (row: any) => <JobRequestRowActionsWrapper row={row} accessToken={context.accessToken} />,
     [context.accessToken]
   )
 

@@ -19,20 +19,20 @@ import {
 import { Languages, X, Settings } from 'lucide-react'
 
 export interface TranslatableEditorProps {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  translations: Record<string, string>
-  onTranslationsChange: (translations: Record<string, string>) => void
-  placeholder?: string
-  required?: boolean
-  error?: string
-  defaultLanguage?: string
-  onDefaultLanguageChange?: (language: string) => void
-  className?: string
-  'data-testid'?: string
-  quillModules?: any
-  quillFormats?: string[]
+  readonly label: string
+  readonly value: string
+  readonly onChange: (value: string) => void
+  readonly translations: Record<string, string>
+  readonly onTranslationsChange: (translations: Record<string, string>) => void
+  readonly placeholder?: string
+  readonly required?: boolean
+  readonly error?: string
+  readonly defaultLanguage?: string
+  readonly onDefaultLanguageChange?: (language: string) => void
+  readonly className?: string
+  readonly 'data-testid'?: string
+  readonly quillModules?: any
+  readonly quillFormats?: string[]
 }
 
 const defaultLanguages = ['en-US', 'de-DE', 'ro-RO']

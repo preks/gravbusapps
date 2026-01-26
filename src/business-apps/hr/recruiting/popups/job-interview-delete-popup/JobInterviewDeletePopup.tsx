@@ -29,7 +29,7 @@ export const JobInterviewDeletePopup: React.FC<JobInterviewDeletePopupProps> = (
   const { jobInterview, loading, error } = useJobInterview(accessToken || '', jobInterviewId, 'record')
 
   const handleSubmit = async () => {
-    if (!jobInterview || !jobInterview.id) {
+    if (!jobInterview?.id) {
       throw new Error(
         getTranslationFromI18nKeyAndLabel(
           'recruiting.jobInterview.delete.error.noData',
@@ -41,7 +41,9 @@ export const JobInterviewDeletePopup: React.FC<JobInterviewDeletePopupProps> = (
     return {
       jobInterview: {
         id: jobInterview.id,
-        ...(jobInterview.version != null ? { version: jobInterview.version } : {}),
+        ...(jobInterview.version !== null && jobInterview.version !== undefined
+          ? { version: jobInterview.version }
+          : {}),
         isDeleted: true
       }
     }
