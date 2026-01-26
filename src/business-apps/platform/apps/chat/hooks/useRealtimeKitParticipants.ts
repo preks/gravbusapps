@@ -130,7 +130,7 @@ export const useRealtimeKitParticipants = ({
    * Creates MediaStreams from participant tracks and updates state
    */
   const updateParticipantList = useCallback(() => {
-    if (!meeting || !meeting.participants?.joined) {
+    if (!meeting?.participants?.joined) {
       return
     }
 

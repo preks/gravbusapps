@@ -40,7 +40,7 @@ export const getInitials = (name: string): string => {
  * @returns True if track appears to be a screen share
  */
 export const isVideoTrackScreenShare = (track: MediaStreamTrack): boolean => {
-  if (!track || track.kind !== 'video') return false
+  if (!track || track?.kind !== 'video') return false
   const label = track.label.toLowerCase()
   return label.includes('screen') || label.includes('window') || label.includes('tab') || label.includes('display')
 }

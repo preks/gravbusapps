@@ -77,7 +77,7 @@ export const useRealtimeKitScreenShare = ({
       } else {
         // Start screen sharing
         // Check browser support
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        if (!navigator.mediaDevices?.getDisplayMedia) {
           const error = new Error('Screen sharing is not supported in this browser')
           rtkDebug.error('[RTK] Screen share error:', error.message)
           throw error

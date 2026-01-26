@@ -587,13 +587,11 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
     // For mesh: Use 1:1 for single participant, group for multiple
     if (useRealtimeKitForGroupCalls) {
       // Check if we're already in a call for this conversation
-      if (isInGroupCall && groupCallState.roomId) {
+      if (isInGroupCall && groupCallState?.roomId) {
         // Check if the current call is for this meeting by looking up the conversationId
-        const currentCallEntry = activeConversationCalls
-          ? Array.from(activeConversationCalls.entries()).find(
-              ([convId, call]) => convId === conversationId || call.roomId === groupCallState.roomId
-            )
-          : null
+        const currentCallEntry = Array.from(activeConversationCalls?.entries() ?? []).find(
+          ([convId, call]) => convId === conversationId || call.roomId === groupCallState.roomId
+        )
 
         if (currentCallEntry) {
           const [currentConvId, currentCall] = currentCallEntry
@@ -622,7 +620,7 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
             }
           : null,
         activeConversationCallsSize: activeConversationCalls?.size || 0,
-        activeConversationCallsKeys: activeConversationCalls ? Array.from(activeConversationCalls.keys()) : [],
+        activeConversationCallsKeys: Array.from(activeConversationCalls?.keys() ?? []),
         isCurrentlyInCall: isInGroupCall,
         currentRoomId: groupCallState.roomId
       })
