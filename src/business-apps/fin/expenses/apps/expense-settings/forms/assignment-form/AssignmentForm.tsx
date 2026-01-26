@@ -33,7 +33,8 @@ import {
   FormItem,
   FormLabel,
   FormControl,
-  FormMessage
+  FormMessage,
+  Input
 } from '@newwork/nw-design-system'
 import { PiFloppyDisk, PiX, PiWarning } from 'react-icons/pi'
 import dayjs from 'dayjs'
@@ -50,6 +51,7 @@ import { assignmentFormSchema } from '../../schemas'
 
 export interface AssignmentFormData {
   id?: string
+  assignmentOrder: number
   cascading: boolean
   applicants: boolean
   activeFrom?: string // Optional - null means eternity
@@ -93,6 +95,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   const form = useForm<AssignmentFormData>({
     resolver: zodResolver(assignmentFormSchema),
     defaultValues: {
+      assignmentOrder: 1,
       cascading: false,
       applicants: false,
       expenseRuleId: '',
@@ -185,6 +188,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
           const freshData = await fetchExpenseRuleAssignmentById(initialData.id)
           if (freshData) {
             form.reset({
+              assignmentOrder: freshData.assignmentOrder || 1,
               cascading: freshData.cascading || false,
               applicants: freshData.applicants || false,
               activeFrom: freshData.activeFrom || '',
@@ -209,6 +213,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
       // Fallback: Use initial data (for creating or if fresh fetch failed)
       if (initialData) {
         form.reset({
+          assignmentOrder: initialData.assignmentOrder || 1,
           cascading: initialData.cascading || false,
           applicants: initialData.applicants || false,
           activeFrom: initialData.activeFrom || '',
@@ -225,6 +230,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
       } else {
         // Set defaults for new assignment
         form.reset({
+          assignmentOrder: 1,
           cascading: false,
           applicants: false,
           expenseRuleId: '',
@@ -248,7 +254,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
       const assignmentData: any = {
         ...(isEditing && initialData?.id ? { id: initialData.id } : {}),
         ...(initialData?.version ? { version: initialData.version } : {}),
-        assignmentOrder: initialData?.assignmentOrder || 1, // Use existing order or default to 1
+        assignmentOrder: data.assignmentOrder,
         cascading: data.cascading || false,
         applicants: data.applicants || false,
         expenseRule: data.expenseRuleId
@@ -588,12 +594,39 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:mb-4">
+                  {/* Order Field */}
+                  <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:mb-4">
+                    <FormField
+                      control={form.control}
+                      name="assignmentOrder"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            {getTranslationFromI18nKeyAndLabel('expenseSettings.assignment.order', 'Order')} *
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={1}
+                              {...field}
+                              value={field.value}
+                              onChange={e => field.onChange(parseInt(e.target.value, 10) || 1)}
+                              data-testid="assignment-form-order-input"
+                            />
+                          </FormControl>
+                          <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                            Lower numbers have higher priority
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                     <FormField
                       control={form.control}
                       name="cascading"
                       render={({ field }) => (
-                        <FormItem className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0">
+                        <FormItem className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0 gba:pt-8">
                           <FormControl>
                             <Checkbox
                               checked={field.value}
@@ -612,7 +645,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                       control={form.control}
                       name="applicants"
                       render={({ field }) => (
-                        <FormItem className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0">
+                        <FormItem className="gba:flex gba:flex-row gba:items-center gba:gap-3 gba:space-y-0 gba:pt-8">
                           <FormControl>
                             <Checkbox
                               checked={field.value}
