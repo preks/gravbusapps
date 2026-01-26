@@ -183,7 +183,7 @@ export const useRealtimeKitMedia = ({
       // The React SDK wraps the core SDK, so meeting object might expose core methods
       if (meeting) {
         try {
-          const coreClient = meeting as any
+          const coreClient = meeting
 
           // Check if there's a method to update consumer preferences
           if (typeof coreClient.updateConsumerPreferences === 'function') {
@@ -306,7 +306,7 @@ export const useRealtimeKitMedia = ({
     }
 
     // Attach event listeners if SDK supports them
-    const self = meeting.self as any
+    const self = meeting.self
     if (self && typeof self.on === 'function') {
       self.on('audioUpdate', handleAudioUpdate)
       self.on('videoUpdate', handleVideoUpdate)

@@ -134,8 +134,8 @@ export const useRealtimeKitScreenShare = ({
             screenShareTracks = values.filter((t: any): t is MediaStreamTrack => t instanceof MediaStreamTrack)
 
             // Try forEach if available
-            if (screenShareTracks.length === 0 && typeof (screenShareTracksRaw as any).forEach === 'function') {
-              ;(screenShareTracksRaw as any).forEach((value: any) => {
+            if (screenShareTracks.length === 0 && typeof screenShareTracksRaw.forEach === 'function') {
+              screenShareTracksRaw.forEach((value: any) => {
                 if (value instanceof MediaStreamTrack) {
                   screenShareTracks.push(value)
                 }
@@ -143,10 +143,7 @@ export const useRealtimeKitScreenShare = ({
             }
 
             // Try iteration if available
-            if (
-              screenShareTracks.length === 0 &&
-              typeof (screenShareTracksRaw as any)[Symbol.iterator] === 'function'
-            ) {
+            if (screenShareTracks.length === 0 && typeof screenShareTracksRaw[Symbol.iterator] === 'function') {
               try {
                 for (const value of screenShareTracksRaw as Iterable<any>) {
                   if (value instanceof MediaStreamTrack) {

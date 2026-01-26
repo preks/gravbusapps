@@ -140,8 +140,7 @@ export const useRealtimeKitParticipants = ({
 
     // Get all remote participants from SDK
     const joined = meeting.participants.joined
-    const allParticipants =
-      typeof (joined as any).toArray === 'function' ? (joined as any).toArray() : Array.from(joined.values())
+    const allParticipants = typeof joined.toArray === 'function' ? joined.toArray() : Array.from(joined.values())
 
     // Filter out self to get remote peers
     const remotePeers = allParticipants.filter((p: any) => p.id !== meeting.self?.id)
@@ -245,7 +244,7 @@ export const useRealtimeKitParticipants = ({
 
     rtkDebug.log('[RTK] Setting up participant event listeners')
 
-    const joined = meeting.participants?.joined as any
+    const joined = meeting.participants?.joined
     if (!joined || typeof joined.on !== 'function') {
       rtkDebug.warn('[RTK] Cannot attach participant listeners: SDK not ready')
       return

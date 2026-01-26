@@ -93,8 +93,7 @@ export const useRealtimeKitDiagnostics = ({
     // Subscriber info (what we're receiving from each peer)
     const joined = meeting.participants?.joined
     if (joined) {
-      const allParticipants =
-        typeof (joined as any).toArray === 'function' ? (joined as any).toArray() : Array.from(joined.values())
+      const allParticipants = typeof joined.toArray === 'function' ? joined.toArray() : Array.from(joined.values())
 
       const remotePeers = allParticipants.filter((p: any) => p.id !== meeting.self?.id)
 
