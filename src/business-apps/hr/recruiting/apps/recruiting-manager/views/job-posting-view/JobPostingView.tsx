@@ -93,6 +93,11 @@ const JobPostingRowActions: React.FC<{ row: any; accessToken: string }> = ({ row
   )
 }
 
+// Factory function to create row actions handler
+const createJobPostingRowActions = (accessToken: string) => {
+  return (row: any) => <JobPostingRowActionsWrapper row={row} accessToken={accessToken} />
+}
+
 // Helper to get initials
 const getInitials = (firstName: string, lastName: string): string => {
   const first = firstName?.charAt(0) || ''
@@ -263,10 +268,9 @@ export const JobPostingView: React.FC<JobPostingViewProps> = context => {
     [context.accessToken]
   )
 
-  const rowActions = useMemo(
-    () => (row: any) => <JobPostingRowActionsWrapper row={row} accessToken={context.accessToken} />,
-    [context.accessToken]
-  )
+  const rowActionsHandler = useMemo(() => createJobPostingRowActions(context.accessToken), [context.accessToken])
+
+  const rowActions = rowActionsHandler
 
   // Application columns for expanded rows
   const CandidateLinkCellWrapperForColumns = useMemo(

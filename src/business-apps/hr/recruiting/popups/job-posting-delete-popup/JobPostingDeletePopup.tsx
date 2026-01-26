@@ -29,7 +29,7 @@ export const JobPostingDeletePopup: React.FC<JobPostingDeletePopupProps> = ({
   const { jobPosting, loading, error } = useJobPosting(accessToken || '', jobPostingId, 'record')
 
   const handleSubmit = async () => {
-    if (!jobPosting || !jobPosting.id) {
+    if (!jobPosting?.id) {
       throw new Error(
         getTranslationFromI18nKeyAndLabel('recruiting.jobPosting.delete.error.noData', 'Job posting data not loaded')
       )

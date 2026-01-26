@@ -36,6 +36,36 @@ const DurationCell: React.FC<{ info: CellContext<JobInterview, unknown> }> = ({ 
   )
 }
 
+// Row actions wrapper component
+const InterviewRowActionsWrapper: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => (
+  <AppAction
+    data-testid={`interview-actions-${row.original.id}`}
+    variant="table-row"
+    contexts={[
+      {
+        context: FlowContextName.jobInterviewEntity,
+        contextData: { jobInterviewId: row.original.id }
+      }
+    ]}
+    shareContext={{
+      entityType: 'jobInterview',
+      entityId: row.original.id,
+      entityName: row.original.scheduledAt
+        ? `Interview on ${new Date(row.original.scheduledAt).toLocaleDateString()}`
+        : 'Interview'
+    }}
+    prefixDataTestId="interview-actions"
+    accessToken={accessToken}
+    lazyLoad
+    onClick={e => e.stopPropagation()}
+  />
+)
+
+// Factory function to create row actions handler
+const createInterviewRowActions = (accessToken: string) => {
+  return (row: any) => <InterviewRowActionsWrapper row={row} accessToken={accessToken} />
+}
+
 export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId, accessToken }) => {
   const [search, setSearch] = useState('')
   const [sorting, setSorting] = useState<SortingState>([{ id: 'scheduledAt', desc: true }])
@@ -60,36 +90,10 @@ export const InterviewsView: React.FC<InterviewsViewProps> = ({ jobApplicationId
     'list'
   )
 
-  // Row actions wrapper component
-  const InterviewRowActionsWrapper: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => (
-    <AppAction
-      data-testid={`interview-actions-${row.original.id}`}
-      variant="table-row"
-      contexts={[
-        {
-          context: FlowContextName.jobInterviewEntity,
-          contextData: { jobInterviewId: row.original.id }
-        }
-      ]}
-      shareContext={{
-        entityType: 'jobInterview',
-        entityId: row.original.id,
-        entityName: row.original.scheduledAt
-          ? `Interview on ${new Date(row.original.scheduledAt).toLocaleDateString()}`
-          : 'Interview'
-      }}
-      prefixDataTestId="interview-actions"
-      accessToken={accessToken}
-      lazyLoad
-      onClick={e => e.stopPropagation()}
-    />
-  )
-
   // Row actions
-  const rowActions = useMemo(
-    () => (row: any) => <InterviewRowActionsWrapper row={row} accessToken={accessToken} />,
-    [accessToken]
-  )
+  const rowActionsHandler = useMemo(() => createInterviewRowActions(accessToken), [accessToken])
+
+  const rowActions = rowActionsHandler
 
   // Columns
   const columns = useMemo<ColumnDef<JobInterview>[]>(

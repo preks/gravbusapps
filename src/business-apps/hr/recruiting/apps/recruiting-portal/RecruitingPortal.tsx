@@ -254,7 +254,7 @@ export const RecruitingPortal: React.FC<RecruitingPortalProps> = ({
           <div className="gba:text-sm gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel(
               'recruiting.portal.search.results',
-              `Showing ${jobPostings.length} position${jobPostings.length !== 1 ? 's' : ''}`
+              `Showing ${jobPostings.length} position${jobPostings.length === 1 ? '' : 's'}`
             )}
           </div>
         )}

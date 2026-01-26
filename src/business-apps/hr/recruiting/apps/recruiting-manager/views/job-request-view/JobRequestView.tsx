@@ -131,6 +131,11 @@ const JobRequestRowActionsWrapper: React.FC<{ row: any; accessToken: string }> =
   <JobRequestRowActions row={row} accessToken={accessToken} />
 )
 
+// Factory function to create row actions handler
+const createJobRequestRowActions = (accessToken: string) => {
+  return (row: any) => <JobRequestRowActionsWrapper row={row} accessToken={accessToken} />
+}
+
 export const JobRequestView: React.FC<JobRequestViewProps> = context => {
   const [search, setSearch] = useState('')
   const [sorting, setSorting] = useState<SortingState>([{ id: 'createdAt', desc: true }])
@@ -166,10 +171,9 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
   )
 
   // Row actions
-  const rowActions = useMemo(
-    () => (row: any) => <JobRequestRowActionsWrapper row={row} accessToken={context.accessToken} />,
-    [context.accessToken]
-  )
+  const rowActionsHandler = useMemo(() => createJobRequestRowActions(context.accessToken), [context.accessToken])
+
+  const rowActions = rowActionsHandler
 
   // Columns
   const columns = useMemo<ColumnDef<JobRequest>[]>(

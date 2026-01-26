@@ -39,7 +39,7 @@ export const JobRequestDeletePopup: React.FC<JobRequestDeletePopupProps> = ({
 
   // Handle form submission
   const handleSubmit = async () => {
-    if (!jobRequest || !jobRequest.id) {
+    if (!jobRequest?.id) {
       throw new Error(
         getTranslationFromI18nKeyAndLabel('recruiting.jobRequest.delete.error.noData', 'Job request data not loaded')
       )

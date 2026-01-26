@@ -575,13 +575,11 @@ const JobPostingForm: React.FC<JobPostingFormProps> = ({ accessToken, userInfo, 
                       onTranslationsChange={translations => form.setValue('titleI18n', translations)}
                       placeholder="Enter job posting title..."
                       required
-                      error={
-                        form.formState.errors.title?.message
-                          ? typeof form.formState.errors.title.message === 'string'
-                            ? form.formState.errors.title.message
-                            : String(form.formState.errors.title.message)
-                          : undefined
-                      }
+                      error={(() => {
+                        const errorMessage = form.formState.errors.title?.message
+                        if (!errorMessage) return undefined
+                        return typeof errorMessage === 'string' ? errorMessage : String(errorMessage)
+                      })()}
                       data-testid={formatDataTestId('job-posting-form', 'title-input')}
                     />
                   </FormControl>
@@ -604,13 +602,11 @@ const JobPostingForm: React.FC<JobPostingFormProps> = ({ accessToken, userInfo, 
                       translations={form.watch('contentI18n') || {}}
                       onTranslationsChange={translations => form.setValue('contentI18n', translations)}
                       placeholder="Write job posting content here..."
-                      error={
-                        form.formState.errors.content?.message
-                          ? typeof form.formState.errors.content.message === 'string'
-                            ? form.formState.errors.content.message
-                            : String(form.formState.errors.content.message)
-                          : undefined
-                      }
+                      error={(() => {
+                        const errorMessage = form.formState.errors.content?.message
+                        if (!errorMessage) return undefined
+                        return typeof errorMessage === 'string' ? errorMessage : String(errorMessage)
+                      })()}
                       quillModules={quillModules}
                       quillFormats={quillFormats}
                       data-testid={formatDataTestId('job-posting-form', 'content-input')}

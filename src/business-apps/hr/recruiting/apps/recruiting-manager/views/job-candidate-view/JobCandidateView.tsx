@@ -166,6 +166,11 @@ const JobCandidateRowActionsWrapper: React.FC<{ row: any; accessToken: string }>
   <JobCandidateRowActions row={row} accessToken={accessToken} />
 )
 
+// Factory function to create row actions handler
+const createJobCandidateRowActions = (accessToken: string) => {
+  return (row: any) => <JobCandidateRowActionsWrapper row={row} accessToken={accessToken} />
+}
+
 // Component to render expanded row content for candidate applications
 const ExpandedCandidateApplicationsContent: React.FC<{
   candidate: JobCandidate
@@ -275,10 +280,9 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
     [context.accessToken]
   )
 
-  const rowActions = useMemo(
-    () => (row: any) => <JobCandidateRowActionsWrapper row={row} accessToken={context.accessToken} />,
-    [context.accessToken]
-  )
+  const rowActionsHandler = useMemo(() => createJobCandidateRowActions(context.accessToken), [context.accessToken])
+
+  const rowActions = rowActionsHandler
 
   // Application columns for expanded rows
   const JobPostingLinkCellWrapperForColumns = useMemo(

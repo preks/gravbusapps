@@ -15,7 +15,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface DocumentUploadItem {
-  id: string
+  id?: string
   file?: File
   uploadFile?: UploadFile
   documentGroupRef?: string
@@ -36,31 +36,29 @@ export const JobCandidateDocumentUpload: React.FC<JobCandidateDocumentUploadProp
   prefixDataTestId = 'JobCandidateDocumentUpload'
 }) => {
   const addDocument = useCallback(() => {
-    const newDocument: DocumentUploadItem = {
-      id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
-    }
+    const newDocument: DocumentUploadItem = {}
     onChange([...documents, newDocument])
   }, [documents, onChange])
 
   const removeDocument = useCallback(
-    (id: string) => {
-      onChange(documents.filter(doc => doc.id !== id))
+    (index: number) => {
+      onChange(documents.filter((_, i) => i !== index))
     },
     [documents, onChange]
   )
 
   const updateDocument = useCallback(
-    (id: string, updates: Partial<DocumentUploadItem>) => {
-      onChange(documents.map(doc => (doc.id === id ? { ...doc, ...updates } : doc)))
+    (index: number, updates: Partial<DocumentUploadItem>) => {
+      onChange(documents.map((doc, i) => (i === index ? { ...doc, ...updates } : doc)))
     },
     [documents, onChange]
   )
 
   const handleFileChange = useCallback(
-    (id: string, files: any[]) => {
+    (index: number, files: any[]) => {
       const file = files?.[0]?.file || files?.[0]
       if (file instanceof File) {
-        updateDocument(id, {
+        updateDocument(index, {
           file,
           uploadFile: files?.[0],
           name: file.name
@@ -97,7 +95,7 @@ export const JobCandidateDocumentUpload: React.FC<JobCandidateDocumentUploadProp
       <div className="gba:space-y-4">
         {documents.map((doc, index) => (
           <div
-            key={doc.id}
+            key={doc.id || `doc-${index}`}
             className="gba:p-4 gba:border gba:border-border gba:rounded-lg gba:bg-card"
             data-testid={formatDataTestId(prefixDataTestId, `document-${index}`)}
           >
@@ -109,7 +107,7 @@ export const JobCandidateDocumentUpload: React.FC<JobCandidateDocumentUploadProp
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => removeDocument(doc.id)}
+                onClick={() => removeDocument(index)}
                 data-testid={formatDataTestId(prefixDataTestId, `remove-document-${index}-button`)}
               >
                 <X className="gba:w-4 gba:h-4" />
@@ -128,7 +126,7 @@ export const JobCandidateDocumentUpload: React.FC<JobCandidateDocumentUploadProp
                     layout="list"
                     preview="icon"
                     value={doc.uploadFile ? [doc.uploadFile] : []}
-                    onChange={(files: any[]) => handleFileChange(doc.id, files)}
+                    onChange={(files: any[]) => handleFileChange(index, files)}
                     data-testid={formatDataTestId(prefixDataTestId, `file-upload-${index}`)}
                   />
                 </div>
@@ -148,7 +146,7 @@ export const JobCandidateDocumentUpload: React.FC<JobCandidateDocumentUploadProp
                         value={doc.documentGroupRef || ''}
                         onValueChange={(v: string | string[]) => {
                           const value = Array.isArray(v) ? v[0] || '' : v || ''
-                          updateDocument(doc.id, { documentGroupRef: value })
+                          updateDocument(index, { documentGroupRef: value })
                         }}
                         data-testid={formatDataTestId(prefixDataTestId, `document-group-${index}`)}
                       />
@@ -172,7 +170,7 @@ export const JobCandidateDocumentUpload: React.FC<JobCandidateDocumentUploadProp
                         value={doc.documentTypeRef || ''}
                         onValueChange={(v: string | string[]) => {
                           const value = Array.isArray(v) ? v[0] || '' : v || ''
-                          updateDocument(doc.id, { documentTypeRef: value })
+                          updateDocument(index, { documentTypeRef: value })
                         }}
                         data-testid={formatDataTestId(prefixDataTestId, `document-type-${index}`)}
                       />
@@ -195,7 +193,7 @@ export const JobCandidateDocumentUpload: React.FC<JobCandidateDocumentUploadProp
                         type="text"
                         className="gba:flex gba:h-10 gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:ring-offset-background file:gba:border-0 file:gba:bg-transparent file:gba:text-sm file:gba:font-medium placeholder:gba:text-muted-foreground focus-visible:gba:outline-none focus-visible:gba:ring-2 focus-visible:gba:ring-ring focus-visible:gba:ring-offset-2 disabled:gba:cursor-not-allowed disabled:gba:opacity-50"
                         value={doc.name || ''}
-                        onChange={e => updateDocument(doc.id, { name: e.target.value })}
+                        onChange={e => updateDocument(index, { name: e.target.value })}
                         data-testid={formatDataTestId(prefixDataTestId, `document-name-${index}`)}
                       />
                     </FormControl>
@@ -214,7 +212,7 @@ export const JobCandidateDocumentUpload: React.FC<JobCandidateDocumentUploadProp
                       <textarea
                         className="gba:flex gba:min-h-[80px] gba:w-full gba:rounded-md gba:border gba:border-input gba:bg-background gba:px-3 gba:py-2 gba:text-sm gba:ring-offset-background placeholder:gba:text-muted-foreground focus-visible:gba:outline-none focus-visible:gba:ring-2 focus-visible:gba:ring-ring focus-visible:gba:ring-offset-2 disabled:gba:cursor-not-allowed disabled:gba:opacity-50"
                         value={doc.description || ''}
-                        onChange={e => updateDocument(doc.id, { description: e.target.value })}
+                        onChange={e => updateDocument(index, { description: e.target.value })}
                         data-testid={formatDataTestId(prefixDataTestId, `document-description-${index}`)}
                       />
                     </FormControl>

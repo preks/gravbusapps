@@ -125,6 +125,11 @@ const JobApplicationRowActions: React.FC<{ row: any; accessToken: string }> = ({
   )
 }
 
+// Factory function to create row actions handler
+const createJobApplicationRowActions = (accessToken: string) => {
+  return (row: any) => <JobApplicationRowActionsWrapper row={row} accessToken={accessToken} />
+}
+
 // Row actions wrapper component
 const JobApplicationRowActionsWrapper: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => (
   <JobApplicationRowActions row={row} accessToken={accessToken} />
@@ -165,10 +170,9 @@ export const JobApplicationView: React.FC<JobApplicationViewProps> = context => 
   )
 
   // Row actions
-  const rowActions = useMemo(
-    () => (row: any) => <JobApplicationRowActionsWrapper row={row} accessToken={context.accessToken} />,
-    [context.accessToken]
-  )
+  const rowActionsHandler = useMemo(() => createJobApplicationRowActions(context.accessToken), [context.accessToken])
+
+  const rowActions = rowActionsHandler
 
   // Columns
   const columns = useMemo<ColumnDef<JobApplication>[]>(

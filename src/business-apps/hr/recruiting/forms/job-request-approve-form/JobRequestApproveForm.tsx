@@ -240,7 +240,7 @@ const JobRequestApproveForm: React.FC<JobRequestApproveFormProps> = ({ accessTok
               <p className="gba:text-sm gba:mt-1">{getCatalogLabel(jobRequest.contractType)}</p>
             </div>
             <div>
-              <label className="gba:text-sm gba:font-medium gba:text-muted-foreground">Employment Type</label>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Employment Type</div>
               <p className="gba:text-sm gba:mt-1">{getCatalogLabel(jobRequest.employmentType)}</p>
             </div>
             <div>

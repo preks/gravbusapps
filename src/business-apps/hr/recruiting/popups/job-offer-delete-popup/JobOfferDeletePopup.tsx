@@ -29,7 +29,7 @@ export const JobOfferDeletePopup: React.FC<JobOfferDeletePopupProps> = ({
   const { jobOffer, loading, error } = useJobOffer(accessToken || '', jobOfferId, 'record')
 
   const handleSubmit = async () => {
-    if (!jobOffer || !jobOffer.id) {
+    if (!jobOffer?.id) {
       throw new Error(
         getTranslationFromI18nKeyAndLabel('recruiting.jobOffer.delete.error.noData', 'Job offer data not loaded')
       )

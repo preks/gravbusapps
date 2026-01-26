@@ -18,7 +18,7 @@ interface JobCandidateRecordContentProps extends BusinessAppContextProps {
 
 const JobCandidateRecordContent: React.FC<JobCandidateRecordContentProps> = ({ jobCandidateId, onBack, ...props }) => {
   const [activeTab, setActiveTab] = useState<string>(() => {
-    if (typeof globalThis.window === 'undefined' || !globalThis.window.location) return 'overview'
+    if (globalThis.window === undefined || !globalThis.window?.location) return 'overview'
     const params = new URLSearchParams(globalThis.window.location.search)
     return params.get('tab') || 'overview'
   })
@@ -33,14 +33,14 @@ const JobCandidateRecordContent: React.FC<JobCandidateRecordContentProps> = ({ j
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value)
-    if (typeof globalThis.window === 'undefined' || !globalThis.window.location) return
+    if (globalThis.window === undefined || !globalThis.window?.location) return
     const url = new URL(globalThis.window.location.href)
     url.searchParams.set('tab', value)
     globalThis.history.replaceState(null, '', url.toString())
   }, [])
 
   useEffect(() => {
-    if (typeof globalThis.window === 'undefined') return
+    if (globalThis.window === undefined) return
     const params = new URLSearchParams(globalThis.window.location.search)
     if (!params.get('tab')) {
       const url = new URL(globalThis.window.location.href)
@@ -191,7 +191,7 @@ const JobCandidateRecordContent: React.FC<JobCandidateRecordContentProps> = ({ j
 const JobCandidateRecord: React.FC<BusinessAppContextProps> = ({ additionalData = {}, ...props }) => {
   const jobCandidateId =
     additionalData.jobCandidateId ||
-    (typeof globalThis.window !== 'undefined' && globalThis.window.location
+    (globalThis.window !== undefined && globalThis.window?.location
       ? new URLSearchParams(globalThis.window.location.search).get('jobCandidateId')
       : null)
 

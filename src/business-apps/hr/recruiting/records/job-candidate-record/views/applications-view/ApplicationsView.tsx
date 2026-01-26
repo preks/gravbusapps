@@ -63,6 +63,41 @@ const JobPostingLinkCellWrapper: React.FC<{
   onPostingClick: (jobPostingId: string) => void
 }> = ({ info, onPostingClick }) => <JobPostingLinkCell info={info} onPostingClick={onPostingClick} />
 
+// Row actions wrapper component
+const JobApplicationRowActionsWrapper: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => (
+  <AppAction
+    data-testid={`job-application-actions-${row.original.id}`}
+    variant="table-row"
+    contexts={[
+      {
+        context: FlowContextName.jobApplicationEntity,
+        contextData: { jobApplicationId: row.original.id }
+      }
+    ]}
+    shareContext={{
+      entityType: 'jobApplication',
+      entityId: row.original.id,
+      entityName: row.original.jobPosting?.title || 'Application'
+    }}
+    prefixDataTestId="job-application-actions"
+    accessToken={accessToken}
+    lazyLoad
+    onClick={e => e.stopPropagation()}
+  />
+)
+
+// Factory function to create row actions handler
+const createJobApplicationRowActions = (accessToken: string) => {
+  return (row: any) => <JobApplicationRowActionsWrapper row={row} accessToken={accessToken} />
+}
+
+// Factory function to create job posting link cell wrapper
+const createJobPostingLinkCellWrapper = (onPostingClick: (jobPostingId: string) => void) => {
+  return (info: CellContext<JobApplication, unknown>) => (
+    <JobPostingLinkCellWrapper info={info} onPostingClick={onPostingClick} />
+  )
+}
+
 export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobCandidateId, accessToken }) => {
   const [search, setSearch] = useState('')
   const [sorting, setSorting] = useState<SortingState>([{ id: 'applicationDate', desc: true }])
@@ -95,33 +130,15 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobCandidate
     navigateTo(url)
   }, [])
 
-  // Row actions wrapper component
-  const JobApplicationRowActionsWrapper: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => (
-    <AppAction
-      data-testid={`job-application-actions-${row.original.id}`}
-      variant="table-row"
-      contexts={[
-        {
-          context: FlowContextName.jobApplicationEntity,
-          contextData: { jobApplicationId: row.original.id }
-        }
-      ]}
-      shareContext={{
-        entityType: 'jobApplication',
-        entityId: row.original.id,
-        entityName: row.original.jobPosting?.title || 'Application'
-      }}
-      prefixDataTestId="job-application-actions"
-      accessToken={accessToken}
-      lazyLoad
-      onClick={e => e.stopPropagation()}
-    />
-  )
-
   // Row actions
-  const rowActions = useMemo(
-    () => (row: any) => <JobApplicationRowActionsWrapper row={row} accessToken={accessToken} />,
-    [accessToken]
+  const rowActionsHandler = useMemo(() => createJobApplicationRowActions(accessToken), [accessToken])
+
+  const rowActions = rowActionsHandler
+
+  // Job posting link cell wrapper
+  const JobPostingLinkCellWrapperForColumns = useMemo(
+    () => createJobPostingLinkCellWrapper(handleJobPostingClick),
+    [handleJobPostingClick]
   )
 
   // Columns
@@ -131,7 +148,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobCandidate
         id: 'jobPosting',
         accessorFn: row => row.jobPosting?.title || '-',
         header: getTranslationFromI18nKeyAndLabel('recruiting.jobPosting', 'Job Posting'),
-        cell: info => <JobPostingLinkCellWrapper info={info} onPostingClick={handleJobPostingClick} />,
+        cell: JobPostingLinkCellWrapperForColumns,
         meta: { type: 'text' as const }
       },
       {
@@ -149,7 +166,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({ jobCandidate
         meta: { type: 'text' as const }
       }
     ],
-    [handleJobPostingClick]
+    [JobPostingLinkCellWrapperForColumns]
   )
 
   return (
