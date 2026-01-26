@@ -49,6 +49,7 @@ export const initialFormState: FormState = {
 type FormAction =
   | { type: 'SET_FIELD'; field: keyof FormState; value: any }
   | { type: 'HYDRATE'; payload: Partial<FormState> }
+  | { type: 'RESET' }
 
 const formReducer = (state: FormState, action: FormAction): FormState => {
   switch (action.type) {
@@ -56,6 +57,8 @@ const formReducer = (state: FormState, action: FormAction): FormState => {
       return { ...state, [action.field]: action.value } as FormState
     case 'HYDRATE':
       return { ...state, ...action.payload } as FormState
+    case 'RESET':
+      return { ...initialFormState, validFrom: new Date(), validTo: new Date('9999-12-31') }
     default:
       return state
   }
@@ -111,6 +114,24 @@ export const useCreateCalculationRuleForm = ({ accessToken, navigationPayload, o
 
   const isUpdate = !!navigationPayload?.id
   const graphqlClient = useGraphQLClient(accessToken)
+
+  // CREATE MODE: Reset form when opening in create mode (not update mode)
+  useEffect(() => {
+    if (!open || isUpdate) return
+
+    // Reset form to initial state for new rule creation
+    dispatch({ type: 'RESET' })
+    dispatchTouched({ type: 'RESET' })
+    setFormSubmitted(false)
+    setHasInteracted(false)
+    setStandardValidationFailed(false)
+    setLastRuleId(null)
+    setExistingFlag(null)
+    setPrefilledRule(null)
+    setFlagsLoaded(false)
+    setIsRuleUsed(false)
+    initialSnapshotRef.current = null
+  }, [open, isUpdate])
 
   // EDIT MODE: Immediately hydrate form from navigationPayload (data already passed from list)
   useEffect(() => {
