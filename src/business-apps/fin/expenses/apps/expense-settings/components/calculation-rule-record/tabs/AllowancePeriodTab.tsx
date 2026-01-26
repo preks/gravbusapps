@@ -399,15 +399,8 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
 
     setIsDeleting(true)
     try {
-      await expenseSettingsClient.saveExpenseRuleAllowancePeriod({
-        id: itemToDelete.id,
-        version: itemToDelete.version,
-        expenseRuleId: ruleId,
-        code: itemToDelete.code,
-        name: itemToDelete.name,
-        activeFrom: itemToDelete.validFrom,
-        isDeleted: true
-      })
+      // Use deleteExpenseRuleAllowancePeriod which sends changeMode: 'DELETE'
+      await expenseSettingsClient.deleteExpenseRuleAllowancePeriod(itemToDelete.id, itemToDelete.version)
 
       toast.success('Allowance period deleted successfully')
       setDeleteDialogOpen(false)
