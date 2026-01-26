@@ -431,15 +431,16 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
 
   // Filter region rules based on selected travel region set
   useEffect(() => {
-    // Sort function for alphabetical ordering by name
-    const sortByName = (a: AllowanceRegionRule, b: AllowanceRegionRule) =>
-      (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' })
+    // Natural sort function - handles numbers within strings correctly (e.g., "Austria 2" before "Austria 10")
+    // Sorts in descending order as requested
+    const naturalSortDesc = (a: AllowanceRegionRule, b: AllowanceRegionRule) =>
+      (b.name || '').localeCompare(a.name || '', undefined, { numeric: true, sensitivity: 'base' })
 
     if (filterTravelRegionSetId) {
-      // Filter region rules by selected travel region set and sort alphabetically
+      // Filter region rules by selected travel region set and sort naturally (descending)
       const filtered = allowanceRegionRules
         .filter(rule => rule.travelRegionSetRef === filterTravelRegionSetId)
-        .sort(sortByName)
+        .sort(naturalSortDesc)
       setFilteredRegionRules(filtered)
 
       // Clear region rule selection if it's not in the filtered list
@@ -448,8 +449,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         form.setValue('firstAllowanceRegionRuleId', '')
       }
     } else {
-      // If no travel region set selected, show all region rules sorted alphabetically
-      setFilteredRegionRules([...allowanceRegionRules].sort(sortByName))
+      // If no travel region set selected, show all region rules sorted naturally (descending)
+      setFilteredRegionRules([...allowanceRegionRules].sort(naturalSortDesc))
     }
   }, [filterTravelRegionSetId, allowanceRegionRules, form])
 
