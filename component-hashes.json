@@ -287,6 +287,7 @@
   "sales-demo/sales-order/apps/sales-order-overview": "5a4b41bc8e56f677015da8a44dd11a25",
   "sales-demo/sales-order/apps/sales-performance-report": "5c2f2b4df26a761637c8e67c6ae6a2e1",
   "sales-demo/sales-order/forms/sales-order-creation-form": "d7db7bbea9069da62a5ca78e1214680c",
-  "ser/apps/service-desk": "2b1ca53e10854cf06719c4c1c1803ead",
-  "ser/apps/service-portal": "bd0f42dde0eadf362aac2051c8eddc26"
+  "ser/apps/service-desk": "837ededa8b2729859c924a0f0a6f07db",
+  "ser/apps/service-portal": "bd0f42dde0eadf362aac2051c8eddc26",
+  "ser/apps/warranty-service": "ac49eba97c7d9b32701e0a5bcb3363c8"
 }
