@@ -186,21 +186,29 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
         try {
           const freshData = await fetchExpenseRuleAssignmentById(initialData.id)
           if (freshData) {
-            form.reset({
+            // Format dates to YYYY-MM-DD for DateInput component
+            const formatDateForForm = (date: string | null | undefined): string => {
+              if (!date) return ''
+              return dayjs(date).format('YYYY-MM-DD')
+            }
+
+            const formValues = {
               assignmentOrder: freshData.assignmentOrder || 1,
               cascading: freshData.cascading || false,
               applicants: freshData.applicants || false,
-              activeFrom: freshData.activeFrom || dayjs().format('YYYY-MM-DD'),
-              activeTo: freshData.activeTo || '9999-12-31',
-              expenseRuleId: freshData.expenseRuleId || '',
-              employeeId: freshData.employeeId || '',
-              companyId: freshData.companyId || '',
-              organizationalUnitId: freshData.organizationalUnitId || '',
-              siteLocationId: freshData.siteLocationId || '',
-              employmentTypeRef: freshData.employmentType?.id || '',
-              contractTypeRef: freshData.contractType?.id || '',
+              activeFrom: formatDateForForm(freshData.activeFrom) || dayjs().format('YYYY-MM-DD'),
+              activeTo: formatDateForForm(freshData.activeTo) || '9999-12-31',
+              expenseRuleId: freshData.expenseRuleId || freshData.expenseRule?.id || '',
+              employeeId: freshData.employeeId || freshData.employee?.id || '',
+              companyId: freshData.companyId || freshData.company?.id || '',
+              organizationalUnitId: freshData.organizationalUnitId || freshData.organizationalUnit?.id || '',
+              siteLocationId: freshData.siteLocationId || freshData.siteLocation?.id || '',
+              employmentTypeRef: freshData.employmentTypeRef || freshData.employmentType?.id || '',
+              contractTypeRef: freshData.contractTypeRef || freshData.contractType?.id || '',
               id: freshData.id
-            })
+            }
+            console.log('📝 Form reset with fresh data:', formValues)
+            form.reset(formValues)
             return
           }
         } catch (error) {
@@ -211,21 +219,29 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
 
       // Fallback: Use initial data (for creating or if fresh fetch failed)
       if (initialData) {
-        form.reset({
+        // Format dates to YYYY-MM-DD for DateInput component
+        const formatDateForForm = (date: string | null | undefined): string => {
+          if (!date) return ''
+          return dayjs(date).format('YYYY-MM-DD')
+        }
+
+        const fallbackValues = {
           assignmentOrder: initialData.assignmentOrder || 1,
           cascading: initialData.cascading || false,
           applicants: initialData.applicants || false,
-          activeFrom: initialData.activeFrom || dayjs().format('YYYY-MM-DD'),
-          activeTo: initialData.activeTo || '9999-12-31',
-          expenseRuleId: initialData.expenseRuleId || '',
-          employeeId: initialData.employeeId || '',
-          companyId: initialData.companyId || '',
-          organizationalUnitId: initialData.organizationalUnitId || '',
-          siteLocationId: initialData.siteLocationId || '',
-          employmentTypeRef: initialData.employmentType?.id || '',
-          contractTypeRef: initialData.contractType?.id || '',
+          activeFrom: formatDateForForm(initialData.activeFrom) || dayjs().format('YYYY-MM-DD'),
+          activeTo: formatDateForForm(initialData.activeTo) || '9999-12-31',
+          expenseRuleId: initialData.expenseRuleId || initialData.expenseRule?.id || '',
+          employeeId: initialData.employeeId || initialData.employee?.id || '',
+          companyId: initialData.companyId || initialData.company?.id || '',
+          organizationalUnitId: initialData.organizationalUnitId || initialData.organizationalUnit?.id || '',
+          siteLocationId: initialData.siteLocationId || initialData.siteLocation?.id || '',
+          employmentTypeRef: initialData.employmentTypeRef || initialData.employmentType?.id || '',
+          contractTypeRef: initialData.contractTypeRef || initialData.contractType?.id || '',
           id: initialData.id
-        })
+        }
+        console.log('📝 Form reset with initial data (fallback):', fallbackValues)
+        form.reset(fallbackValues)
       } else {
         // Set defaults for new assignment
         form.reset({
@@ -248,7 +264,14 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     loadData()
   }, [initialData?.id, isEditing, fetchExpenseRuleAssignmentById, form])
 
+  // Log form errors for debugging
+  const onFormError = (errors: any) => {
+    console.error('❌ Form validation errors:', errors)
+    console.log('📋 Current form values:', form.getValues())
+  }
+
   const handleSubmit = async (data: AssignmentFormData) => {
+    console.log('✅ Form submitted with data:', data)
     try {
       setIsSubmitting(true)
 
@@ -317,7 +340,11 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
       <Card>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleSubmit)} data-testid="assignment-form" className="gba:space-y-6">
+            <form
+              onSubmit={form.handleSubmit(handleSubmit, onFormError)}
+              data-testid="assignment-form"
+              className="gba:space-y-6"
+            >
               {/* Rule Selection */}
               <Card className="gba:mb-4">
                 <CardHeader>
