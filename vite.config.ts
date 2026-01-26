@@ -596,14 +596,46 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
     }
   }
 
+  // Rate limiter for expensive operations
+  class RateLimiter {
+    private lastRequestTime = 0
+    private inProgress = false
+    private readonly minIntervalMs: number
+    private readonly maxConcurrent: number
+
+    constructor(minIntervalMs: number, maxConcurrent = 1) {
+      this.minIntervalMs = minIntervalMs
+      this.maxConcurrent = maxConcurrent
+    }
+
+    tryAcquire(): { allowed: boolean; reason?: string } {
+      const now = Date.now()
+
+      if (this.inProgress && this.maxConcurrent <= 1) {
+        return { allowed: false, reason: 'A request is already in progress. Please wait for it to complete.' }
+      }
+
+      if (now - this.lastRequestTime < this.minIntervalMs) {
+        const waitTime = Math.ceil((this.minIntervalMs - (now - this.lastRequestTime)) / 1000)
+        return { allowed: false, reason: `Too many requests. Please wait ${waitTime} seconds.` }
+      }
+
+      this.lastRequestTime = now
+      this.inProgress = true
+      return { allowed: true }
+    }
+
+    release(): void {
+      this.inProgress = false
+    }
+  }
+
   // Plugin to expose publish-screen endpoint in dev server
   const publishScreenPlugin = {
     name: 'publish-screen-endpoint',
     configureServer(server: any) {
-      // Simple rate limiting: track last publish time and enforce minimum interval
-      let lastPublishTime = 0
-      const MIN_PUBLISH_INTERVAL_MS = 5000 // 5 seconds between publishes
-      let isPublishInProgress = false
+      // Rate limiter: 5 seconds between requests, max 1 concurrent
+      const rateLimiter = new RateLimiter(5000, 1)
 
       server.middlewares.use('/__publish-screen', async (req: any, res: any) => {
         if (req.method !== 'POST') {
@@ -612,20 +644,12 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
           return
         }
 
-        // Rate limiting check
-        const now = Date.now()
-        if (now - lastPublishTime < MIN_PUBLISH_INTERVAL_MS) {
+        // Check rate limit before processing
+        const rateCheck = rateLimiter.tryAcquire()
+        if (!rateCheck.allowed) {
           res.statusCode = 429
           res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({ error: 'Too many requests. Please wait a few seconds before publishing again.' }))
-          return
-        }
-
-        // Prevent concurrent publishes
-        if (isPublishInProgress) {
-          res.statusCode = 409
-          res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({ error: 'A publish is already in progress. Please wait for it to complete.' }))
+          res.end(JSON.stringify({ error: rateCheck.reason }))
           return
         }
 
@@ -640,18 +664,21 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
           const parsed = JSON.parse(body)
           screenPath = parsed.screenPath
         } catch {
+          rateLimiter.release()
           res.statusCode = 400
           res.end(JSON.stringify({ error: 'Invalid JSON body' }))
           return
         }
 
         if (!screenPath) {
+          rateLimiter.release()
           res.statusCode = 400
           res.end(JSON.stringify({ error: 'screenPath is required' }))
           return
         }
 
         if (!fs.existsSync(path.join(projectRootDir, 'src', 'business-apps', screenPath, 'index.ts'))) {
+          rateLimiter.release()
           res.statusCode = 400
           res.end(JSON.stringify({ error: 'Screen not found' }))
           return
@@ -660,6 +687,7 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
         // Execute the publish script
         const publishScript = path.join(projectRootDir, 'scripts', 'publish-dev-screen.js')
         if (!fs.existsSync(publishScript)) {
+          rateLimiter.release()
           res.statusCode = 500
           res.end(JSON.stringify({ error: 'Publish script not found' }))
           return
@@ -670,10 +698,6 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
         // Set CORS headers
         res.setHeader('Content-Type', 'application/json')
         res.setHeader('Access-Control-Allow-Origin', '*')
-
-        // Update rate limiting state
-        lastPublishTime = Date.now()
-        isPublishInProgress = true
 
         // Timeout for the publish process (2 minutes max)
         const PUBLISH_TIMEOUT_MS = 2 * 60 * 1000
@@ -731,7 +755,7 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
 
           child.on('close', (code: number | null, signal: string | null) => {
             clearTimeout(timeoutId)
-            isPublishInProgress = false
+            rateLimiter.release()
 
             if (hasResponded) return
             hasResponded = true
@@ -770,7 +794,7 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
 
           child.on('error', (err: Error) => {
             clearTimeout(timeoutId)
-            isPublishInProgress = false
+            rateLimiter.release()
 
             if (hasResponded) return
             hasResponded = true
@@ -785,7 +809,7 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
             )
           })
         } catch (err: any) {
-          isPublishInProgress = false
+          rateLimiter.release()
           console.error('[Publish Screen Plugin] Error:', err)
           res.statusCode = 500
           res.end(
