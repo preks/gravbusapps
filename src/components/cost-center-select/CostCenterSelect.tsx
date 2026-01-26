@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, useState, useEffect } from 'react'
 import { Combobox, Alert, AlertDescription, Avatar, AvatarFallback } from '@newwork/nw-design-system'
-import { CurrencyDollar } from '@phosphor-icons/react'
+import { CoinsIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
@@ -133,7 +133,7 @@ const CostCenterSelect = React.forwardRef<HTMLButtonElement, CostCenterSelectPro
             <div className="gba:flex gba:items-start gba:gap-3 gba:w-full gba:min-w-0">
               <Avatar className="gba:self-center gba:flex-shrink-0" size="sm">
                 <AvatarFallback className="gba:text-xs">
-                  <CurrencyDollar className="gba:w-4 gba:h-4" />
+                  <CoinsIcon className="gba:w-4 gba:h-4" />
                 </AvatarFallback>
               </Avatar>
               <div className="gba:flex gba:flex-col gba:min-w-0 gba:flex-1 gba:overflow-hidden">

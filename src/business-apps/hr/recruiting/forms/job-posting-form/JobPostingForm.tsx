@@ -580,9 +580,11 @@ const JobPostingForm: React.FC<JobPostingFormProps> = ({ accessToken, userInfo, 
                         if (!errorMessage) return undefined
                         if (typeof errorMessage === 'string') return errorMessage
                         if (errorMessage && typeof errorMessage === 'object' && 'message' in errorMessage) {
-                          return String(errorMessage.message)
+                          const nestedMessage = errorMessage.message
+                          if (typeof nestedMessage === 'string') return nestedMessage
+                          return undefined
                         }
-                        return String(errorMessage)
+                        return undefined
                       })()}
                       data-testid={formatDataTestId('job-posting-form', 'title-input')}
                     />
@@ -611,9 +613,11 @@ const JobPostingForm: React.FC<JobPostingFormProps> = ({ accessToken, userInfo, 
                         if (!errorMessage) return undefined
                         if (typeof errorMessage === 'string') return errorMessage
                         if (errorMessage && typeof errorMessage === 'object' && 'message' in errorMessage) {
-                          return String(errorMessage.message)
+                          const nestedMessage = errorMessage.message
+                          if (typeof nestedMessage === 'string') return nestedMessage
+                          return undefined
                         }
-                        return String(errorMessage)
+                        return undefined
                       })()}
                       quillModules={quillModules}
                       quillFormats={quillFormats}
