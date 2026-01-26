@@ -62,10 +62,10 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
   }
 
   return (
-    <>
+    <div className="gba:flex gba:flex-col gba:flex-1 gba:h-0 gba:w-full gba:gap-2" style={{ border: '2px solid blue' }}>
       {/* Participant Grid */}
       <div
-        className="gba:flex-1 gba:grid gba:gap-3 gba:min-h-0"
+        className="gba:flex-1 gba:w-full gba:grid gba:gap-3 gba:min-h-0"
         style={{
           gridTemplateColumns: `repeat(${gridLayout.cols}, 1fr)`,
           gridTemplateRows: `repeat(${gridLayout.rows}, 1fr)`
@@ -129,6 +129,6 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
           </button>
         </div>
       )}
-    </>
+    </div>
   )
 }

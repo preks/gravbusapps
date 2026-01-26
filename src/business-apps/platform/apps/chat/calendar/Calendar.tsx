@@ -166,6 +166,7 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
     localStream: groupLocalStream,
     remoteStreams: groupRemoteStreams,
     participants: groupParticipants,
+    pendingInvites: groupPendingInvites,
     activeConversationCalls: groupActiveConversationCalls,
     startCall: startGroupCall,
     joinCall: joinGroupCall,
@@ -174,7 +175,8 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
     toggleVideo: toggleGroupVideo,
     toggleScreenShare: toggleGroupScreenShare,
     toggleMinimize: toggleGroupMinimize,
-    toggleBackground: toggleGroupBackground
+    toggleBackground: toggleGroupBackground,
+    inviteToCall: inviteToGroupCall
   } = groupCall
 
   // For mesh implementation, activeConversationCalls might not exist, so provide fallback
@@ -219,6 +221,45 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
   const [createModalInitialHour, setCreateModalInitialHour] = useState<number | undefined>()
   const [editingMeeting, setEditingMeeting] = useState<CalendarEvent | null>(null)
   const [enrichedSelectedEvent, setEnrichedSelectedEvent] = useState<CalendarEvent | null>(null)
+
+  // Build available participants from the currently selected event for inviting during the call
+  const availableParticipantsForCall = useMemo(() => {
+    if (!enrichedSelectedEvent?.participants || !currentUser) return []
+
+    const participants: CallParticipant[] = []
+
+    // Add all event participants except current user
+    for (const p of enrichedSelectedEvent.participants) {
+      if (p.id !== currentUser.id && p.status !== 'declined') {
+        participants.push({
+          id: p.id,
+          odId: p.id,
+          odName: p.displayName || `${p.firstName || ''} ${p.lastName || ''}`.trim() || p.email || 'Unknown',
+          avatarUrl: p.avatarUrl
+        })
+      }
+    }
+
+    // Add organizer if not already included
+    if (
+      enrichedSelectedEvent.organizer &&
+      enrichedSelectedEvent.organizer.id !== currentUser.id &&
+      !participants.find(p => p.id === enrichedSelectedEvent.organizer.id)
+    ) {
+      participants.push({
+        id: enrichedSelectedEvent.organizer.id,
+        odId: enrichedSelectedEvent.organizer.id,
+        odName:
+          enrichedSelectedEvent.organizer.displayName ||
+          `${enrichedSelectedEvent.organizer.firstName || ''} ${enrichedSelectedEvent.organizer.lastName || ''}`.trim() ||
+          enrichedSelectedEvent.organizer.email ||
+          'Unknown',
+        avatarUrl: enrichedSelectedEvent.organizer.avatarUrl
+      })
+    }
+
+    return participants
+  }, [enrichedSelectedEvent, currentUser])
 
   // Avatar fetching hook with caching
   const { fetchAvatarsSync, requestAvatars } = useEmployeeAvatarsCache(accessToken)
@@ -581,6 +622,7 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
             }
           : null,
         activeConversationCallsSize: activeConversationCalls?.size || 0,
+        activeConversationCallsKeys: activeConversationCalls ? Array.from(activeConversationCalls.keys()) : [],
         isCurrentlyInCall: isInGroupCall,
         currentRoomId: groupCallState.roomId
       })
@@ -596,10 +638,17 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
       } else {
         // Wait a short time for WebSocket events to arrive (in case another user just started a call)
         // The backend will also check for existing meetings, so this is just an optimization
+        rtkDebug.log('[Calendar] No existing call found, waiting 300ms for potential WebSocket events...')
         await new Promise(resolve => setTimeout(resolve, 300))
 
         // Check again after the delay
         const existingCallAfterDelay = activeConversationCalls?.get(conversationId)
+        rtkDebug.log('[Calendar] Rechecking after delay:', {
+          existingCallAfterDelay: existingCallAfterDelay
+            ? { roomId: existingCallAfterDelay.roomId, callType: existingCallAfterDelay.callType }
+            : null
+        })
+
         if (existingCallAfterDelay && existingCallAfterDelay.roomId) {
           rtkDebug.log('[Calendar] Found existing call after delay, joining:', {
             conversationId,
@@ -838,6 +887,8 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
               localStream={groupLocalStream}
               remoteStreams={groupRemoteStreams}
               participants={groupParticipants}
+              pendingInvites={groupPendingInvites}
+              availableParticipants={availableParticipantsForCall}
               onEndCall={leaveGroupCall}
               onToggleMute={toggleGroupMute}
               onToggleVideo={toggleGroupVideo}
@@ -845,10 +896,11 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
               onToggleMinimize={toggleGroupMinimize}
               onToggleBackground={toggleGroupBackground}
               onInviteParticipant={(participant: CallParticipant) => {
-                // RealtimeKit inviteToCall if available
-                if ('inviteToCall' in groupCall && typeof groupCall.inviteToCall === 'function') {
-                  groupCall.inviteToCall([participant])
-                }
+                // Use RealtimeKit inviteToCall with conversation name
+                inviteToGroupCall(
+                  [participant],
+                  realtimeKitGroupCall.currentCallConversationName || enrichedSelectedEvent?.title
+                )
               }}
               accessToken={accessToken}
               currentUserId={currentUser?.id || null}
@@ -857,6 +909,7 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
                 realtimeKitGroupCall.incomingInvite?.conversationName ||
                 (enrichedSelectedEvent ? enrichedSelectedEvent.title : undefined)
               }
+              wsClient={wsClient}
             />
           </RealtimeKitProvider>
         ) : (

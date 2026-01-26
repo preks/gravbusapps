@@ -336,7 +336,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
         // Update state
         // Start duration timer
-        startTimeRef.current = Date.now()
+        const callStartTime = Date.now()
+        startTimeRef.current = callStartTime
         startDurationTimer()
 
         setCallState(prev => ({
@@ -345,7 +346,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           roomId: conversationId,
           meetingId,
           callType,
-          callStartTime: Date.now(),
+          callStartTime,
           conversationName
         }))
 
@@ -392,7 +393,31 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           })
         }
 
-        // Emit joined event to notify backend we joined
+        // CRITICAL: Emit start event FIRST so backend creates activeCalls entry
+        // This must happen before joined event so backend knows about the call
+        if (wsClient?.getSocket()) {
+          wsClient.getSocket()?.emit('rtk-group-call:start', {
+            conversationId,
+            meetingId,
+            callType,
+            conversationName,
+            from: {
+              id: currentUser.id,
+              odId: currentUser.id,
+              odName: currentUser.odName,
+              avatarUrl: currentUser.avatarUrl
+            },
+            participants: participants.map(p => ({
+              id: p.id,
+              odId: p.odId,
+              odName: p.odName,
+              avatarUrl: p.avatarUrl
+            }))
+          })
+          rtkDebug.log('[RTK] Emitted rtk-group-call:start event')
+        }
+
+        // Then emit joined event to notify backend we joined
         if (wsClient?.getSocket()) {
           wsClient.getSocket()?.emit('rtk-group-call:joined', {
             conversationId,
@@ -432,7 +457,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
    * Join an existing call
    */
   const joinCall = useCallback(
-    async (roomId: string, callType: CallType, meetingId?: string) => {
+    async (roomId: string, callType: CallType, meetingId?: string, conversationName?: string) => {
       if (!currentUser || !apiClient) {
         rtkDebug.error('[RTK] Cannot join call: missing currentUser or apiClient')
         return
@@ -443,6 +468,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           roomId,
           callType,
           meetingId: meetingId || 'will-generate',
+          conversationName,
           currentStatus: callState.status
         })
 
@@ -561,8 +587,9 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
         // Start duration timer (only set startTime if not already synced from global)
         joinCallConversationIdRef.current = roomId
+        const callStartTime = Date.now()
         if (!startTimeRef.current) {
-          startTimeRef.current = Date.now()
+          startTimeRef.current = callStartTime
           rtkDebug.log('[RTK] ⏱️ Set local start time (no global sync yet)')
         } else {
           rtkDebug.log('[RTK] ⏱️ Keeping synced global start time:', {
@@ -579,7 +606,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           roomId,
           meetingId: finalMeetingId,
           callType,
-          callStartTime: Date.now()
+          callStartTime: startTimeRef.current, // Use the ref, not Date.now()!
+          conversationName
         }))
 
         // Save to localStorage
@@ -617,17 +645,20 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       conversationId: incomingInvite.conversationId,
       meetingId: incomingInvite.roomId,
       callType: incomingInvite.callType,
+      conversationName: incomingInvite.conversationName,
       from: incomingInvite.from.odName
     })
 
     // CRITICAL: Call internal joinCall directly with proper IDs from invite
     // - conversationId from invite.conversationId
     // - meetingId from invite.roomId (backend meeting ID)
+    // - conversationName from invite.conversationName
     // Don't use the wrapper because invite has all the info we need!
     await joinCall(
       incomingInvite.conversationId || incomingInvite.roomId, // conversationId
       incomingInvite.callType,
-      incomingInvite.roomId // meetingId (stored in roomId field of invite)
+      incomingInvite.roomId, // meetingId (stored in roomId field of invite)
+      incomingInvite.conversationName // conversationName
     )
     setIncomingInvite(null)
   }, [incomingInvite, joinCall])
@@ -733,6 +764,22 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         participants: [],
         hostId: null
       }))
+
+      // CRITICAL: Clear the activeConversationCalls entry for this conversation
+      // This prevents stale data when restarting a call after everyone has left
+      const conversationIdToClean = callState.roomId
+      if (conversationIdToClean) {
+        setActiveConversationCalls(prev => {
+          const newMap = new Map(prev)
+          newMap.delete(conversationIdToClean)
+          rtkDebug.log('[RTK] 🧹 Cleared activeConversationCalls entry on leave:', {
+            conversationId: conversationIdToClean,
+            hadEntry: prev.has(conversationIdToClean),
+            remainingEntries: newMap.size
+          })
+          return newMap
+        })
+      }
 
       // Clear localStorage
       preferences.clearActiveCall()
@@ -867,7 +914,9 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         roomId: data.roomId,
         callType: data.callType,
         participantCount: data.participantIds.length,
-        startedAt: data.startedAt
+        startedAt: data.startedAt,
+        currentStartTimeRef: startTimeRef.current,
+        isInCall: isInCallRef.current
       })
 
       // Update activeConversationCalls
@@ -878,24 +927,74 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           callType: data.callType,
           participantIds: data.participantIds,
           startedBy: data.startedBy.id,
-          startedAt: data.startedAt
+          startedAt: data.startedAt,
+          conversationName: data.conversationName
         })
         return newMap
       })
 
       // Global Call Timer Synchronization
-      // Sync timer if we have startedAt and either this is for the current call OR we're not in a call yet
-      if (data.startedAt && (data.roomId === callStateRoomIdRef.current || !isInCallRef.current)) {
+      // Sync timer if we have startedAt and this event is for the current call
+      // Check both roomId (conversationId) and meetingId to handle different call scenarios
+      if (
+        data.startedAt &&
+        (data.roomId === callStateRoomIdRef.current ||
+          data.roomId === meetingIdRef.current ||
+          data.conversationId === callStateRoomIdRef.current ||
+          !isInCallRef.current)
+      ) {
         const globalStartTime = new Date(data.startedAt).getTime()
-        // Only update if we don't have a start time yet or if backend time is earlier
-        if (!startTimeRef.current || globalStartTime < startTimeRef.current) {
-          rtkDebug.log('[RTK] ⏱️ ✅ Syncing to global call timer:', {
+
+        rtkDebug.log('[RTK] 📥 Received conversation:call-started event', {
+          roomId: data.roomId,
+          conversationId: data.conversationId,
+          startedAt: data.startedAt,
+          globalStartTime,
+          currentRoomId: callStateRoomIdRef.current,
+          currentMeetingId: meetingIdRef.current,
+          currentStartTime: startTimeRef.current,
+          isInCall: isInCallRef.current,
+          matchesCurrentCall:
+            data.roomId === callStateRoomIdRef.current ||
+            data.roomId === meetingIdRef.current ||
+            data.conversationId === callStateRoomIdRef.current
+        })
+
+        // CRITICAL FIX: Always update to the backend's time for this call
+        // Don't keep old timer from previous calls!
+        const shouldUpdate =
+          !startTimeRef.current ||
+          globalStartTime < startTimeRef.current ||
+          Math.abs(globalStartTime - startTimeRef.current) > 60000 // More than 1 minute difference = different call
+
+        if (shouldUpdate) {
+          rtkDebug.log('[RTK] ⏱️ Synced global start time:', {
             previousStartTime: startTimeRef.current,
+            globalStartTime,
+            diff: startTimeRef.current ? (startTimeRef.current - globalStartTime) / 1000 : 0,
+            reason: !startTimeRef.current
+              ? 'no-current-time'
+              : globalStartTime < startTimeRef.current
+                ? 'backend-earlier'
+                : 'time-gap-detected'
+          })
+          startTimeRef.current = globalStartTime
+        } else {
+          rtkDebug.log('[RTK] ⏱️ ⏭️ Skipping timer sync - within acceptable range:', {
+            currentStartTime: startTimeRef.current,
             globalStartTime,
             diff: startTimeRef.current ? (startTimeRef.current - globalStartTime) / 1000 : 0
           })
-          startTimeRef.current = globalStartTime
         }
+      } else {
+        rtkDebug.log('[RTK] ⏱️ ⏭️ Skipping timer sync - not for current call or no startedAt:', {
+          hasStartedAt: !!data.startedAt,
+          eventRoomId: data.roomId,
+          eventConversationId: data.conversationId,
+          currentRoomId: callStateRoomIdRef.current,
+          currentMeetingId: meetingIdRef.current,
+          isInCall: isInCallRef.current
+        })
       }
     }
 
@@ -930,14 +1029,16 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   useEffect(() => {
     if (!callState.roomId || !isInCall) return
 
-    // Find the call info by roomId in activeConversationCalls
+    // Find the call info by matching conversationId (callState.roomId) OR backend roomId
     for (const [conversationId, callInfo] of activeConversationCalls.entries()) {
-      if (callInfo.roomId === callState.roomId && callInfo.startedAt) {
+      // Match by conversationId OR by backend's roomId
+      if ((conversationId === callState.roomId || callInfo.roomId === callState.roomId) && callInfo.startedAt) {
         const globalStartTime = new Date(callInfo.startedAt).getTime()
         if (!startTimeRef.current || globalStartTime < startTimeRef.current) {
           rtkDebug.log('[RTK] ⏱️ 🔄 Syncing timer from activeConversationCalls:', {
             conversationId,
             roomId: callState.roomId,
+            backendRoomId: callInfo.roomId,
             previousStartTime: startTimeRef.current,
             globalStartTime
           })
@@ -1000,13 +1101,14 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     //   - roomId = existingCall.roomId (which is actually the backend meetingId from activeCalls)
     //   - initialParticipants = undefined
     //
-    // We need to resolve this to get BOTH conversationId AND meetingId
+    // We need to resolve this to get BOTH conversationId AND meetingId AND conversationName
     // because the internal joinCall needs conversationId for WebSocket events
     joinCall: async (roomIdOrMeetingId: string, callType: CallType, _initialParticipants?: CallParticipant[]) => {
       if (_initialParticipants === undefined) {
-        // Joining existing call: need to resolve conversationId and meetingId
+        // Joining existing call: need to resolve conversationId, meetingId, and conversationName
         let resolvedConversationId: string = roomIdOrMeetingId
         let resolvedMeetingId: string | undefined = undefined
+        let resolvedConversationName: string | undefined = undefined
 
         // Strategy: Check activeConversationCalls to map between IDs
         // activeConversationCalls: Map<conversationId, { roomId: meetingId, ... }>
@@ -1015,19 +1117,23 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
             // Input is a meeting ID → resolve to conversation ID
             resolvedConversationId = convId
             resolvedMeetingId = roomIdOrMeetingId
+            resolvedConversationName = call.conversationName
             rtkDebug.log('[RTK] joinCall wrapper: Resolved meetingId to conversationId', {
               input: roomIdOrMeetingId,
               conversationId: convId,
-              meetingId: call.roomId
+              meetingId: call.roomId,
+              conversationName: call.conversationName
             })
           } else if (convId === roomIdOrMeetingId) {
             // Input is a conversation ID → resolve to meeting ID
             resolvedConversationId = convId
             resolvedMeetingId = call.roomId
+            resolvedConversationName = call.conversationName
             rtkDebug.log('[RTK] joinCall wrapper: Resolved conversationId to meetingId', {
               input: roomIdOrMeetingId,
               conversationId: convId,
-              meetingId: call.roomId
+              meetingId: call.roomId,
+              conversationName: call.conversationName
             })
           }
         })
@@ -1054,10 +1160,11 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           input: roomIdOrMeetingId,
           conversationId: resolvedConversationId,
           meetingId: resolvedMeetingId || 'undefined',
+          conversationName: resolvedConversationName,
           callType
         })
 
-        await joinCall(resolvedConversationId, callType, resolvedMeetingId)
+        await joinCall(resolvedConversationId, callType, resolvedMeetingId, resolvedConversationName)
       } else {
         // This path shouldn't be used for RealtimeKit (use startCall instead)
         rtkDebug.warn('[RTK] joinCall called with initialParticipants - this is not supported. Use startCall instead.')

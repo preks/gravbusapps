@@ -240,9 +240,11 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
 
       {/* Avatar (shown when no video) */}
       {!hasVideoTrack && (
-        <Avatar className="gba:w-24 gba:h-24">
-          <AvatarFallback className="gba:text-2xl">{getInitials(peerName)}</AvatarFallback>
-        </Avatar>
+        <div className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full">
+          <Avatar className="gba:w-[min(60%,300px)] gba:h-[min(60%,300px)]">
+            <AvatarFallback className="gba:text-7xl gba:font-bold">{getInitials(peerName)}</AvatarFallback>
+          </Avatar>
+        </div>
       )}
 
       {/* Name overlay */}

@@ -1337,7 +1337,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
       {createPortal(
         <Dialog open={isOpen} onOpenChange={() => {}}>
           <DialogContent
-            className="gba:max-w-6xl gba:h-[80vh] gba:p-0 gba:overflow-hidden gba:flex"
+            className="gba:max-w-6xl gba:h-[80vh] gba:p-0 gba:overflow-hidden gba:flex gba:flex-col"
             data-testid={`${prefixDataTestId}-modal`}
           >
             <style>{`
@@ -1371,7 +1371,10 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                 />
 
                 {/* Main Content Area - Unified Grid Layout */}
-                <div className="gba:flex gba:flex-col gba:flex-1 gba:p-4 gba:bg-muted/30 gba:gap-4 gba:min-h-0 gba:overflow-y-auto">
+                <div
+                  className="gba:flex gba:flex-col gba:flex-1 gba:p-4 gba:bg-muted/30 gba:gap-4 gba:min-h-0"
+                  style={{ border: '2px solid red' }}
+                >
                   <VideoGrid
                     gridItems={paginatedGridItems.items.map(item => {
                       const isFocused = item.isFocusedScreenShare
@@ -1381,8 +1384,8 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                       return (
                         <div
                           key={item.id}
-                          style={{ gridColumn, gridRow }}
-                          className="gba:relative"
+                          style={{ gridColumn, gridRow, border: '2px solid green' }}
+                          className="gba:relative gba:w-full gba:h-full"
                           data-testid={`${prefixDataTestId}-grid-item-${item.id}`}
                         >
                           <ParticipantVideoTile
