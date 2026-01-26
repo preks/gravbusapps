@@ -230,23 +230,15 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
             {availableValues.filter(v => v.active).length === 0 ? (
               <div className="gba:text-sm gba:text-muted-foreground">{t('placeholder-no-values')}</div>
             ) : (
-              <div className="gba:flex gba:flex-wrap gba:gap-6">
-                {availableValues
-                  .filter(v => v.active)
-                  .map(v => (
-                    <label key={v.id} className="gba:flex gba:items-center gba:gap-2">
-                      <Checkbox
-                        checked={selectedValueIds.includes(v.id)}
-                        onCheckedChange={(checked: boolean) =>
-                          setSelectedValueIds(prev =>
-                            checked ? Array.from(new Set([...prev, v.id])) : prev.filter(id => id !== v.id)
-                          )
-                        }
-                      />
-                      <span>{v.title}</span>
-                    </label>
-                  ))}
-              </div>
+              <Combobox
+                mode="multiple"
+                value={selectedValueIds}
+                onValueChange={(ids: string[]) => setSelectedValueIds(ids)}
+                options={availableValues.filter(v => v.active).map(v => ({ label: v.title, value: v.id }))}
+                placeholder="Select values"
+                searchPlaceholder="Type to search values..."
+                emptyText="No results"
+              />
             )}
           </div>
 

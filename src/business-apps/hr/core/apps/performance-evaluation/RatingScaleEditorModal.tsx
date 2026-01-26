@@ -8,8 +8,10 @@ import {
   Button,
   Input,
   Label,
-  Combobox
+  Combobox,
+  useTranslation
 } from '@newwork/nw-design-system'
+import translations from './_i18n'
 
 export interface RatingScaleValues {
   id?: string
@@ -33,6 +35,7 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
   onSave,
   initialValues
 }) => {
+  const { t } = useTranslation(translations)
   const [name, setName] = useState(initialValues?.name || '')
   // Determine defaults from initial values when editing
   const defaultCount = initialValues?.values?.length ? Math.min(Math.max(initialValues.values.length, 2), 10) : 5
@@ -67,10 +70,10 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
   }
 
   const displayModeOptions = [
-    { label: 'Numeric (1..N)', value: 'value' as DisplayMode },
-    { label: 'Letters (A..)', value: 'letters' as DisplayMode },
-    { label: 'Stars (★)', value: 'stars' as DisplayMode },
-    { label: 'Custom labels', value: 'custom' as DisplayMode }
+    { label: t('scale-display-numeric'), value: 'value' as DisplayMode },
+    { label: t('scale-display-letters'), value: 'letters' as DisplayMode },
+    { label: t('scale-display-stars'), value: 'stars' as DisplayMode },
+    { label: t('scale-display-custom'), value: 'custom' as DisplayMode }
   ]
 
   const generatedValues: string[] = useMemo(() => {
@@ -108,39 +111,39 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent data-testid="rating-scale-editor-modal">
         <DialogHeader>
-          <DialogTitle>{initialValues ? 'Edit Rating Scale' : 'Add Rating Scale'}</DialogTitle>
-          <DialogDescription>Generate a rating scale by length and display style.</DialogDescription>
+          <DialogTitle>{initialValues ? t('scale-title-edit') : t('scale-title-add')}</DialogTitle>
+          <DialogDescription>{t('scale-description')}</DialogDescription>
         </DialogHeader>
 
         <div className="gba:space-y-4">
           <div className="gba:space-y-2">
-            <Label htmlFor="scale-name">Name</Label>
+            <Label htmlFor="scale-name">{t('scale-field-name')}</Label>
             <Input
               id="scale-name"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="e.g., 1–5, 1–10, A–E"
+              placeholder={t('scale-placeholder-name')}
             />
           </div>
 
           <div className="gba:space-y-2">
-            <Label>Scale length (2–10)</Label>
+            <Label>{t('scale-field-length')}</Label>
             <Input type="number" min={2} max={10} value={count} onChange={e => handleCountChange(e.target.value)} />
           </div>
 
           <div className="gba:space-y-2">
-            <Label>Display</Label>
+            <Label>{t('scale-field-display')}</Label>
             <Combobox
               value={displayMode}
               onValueChange={v => setDisplayMode((v as DisplayMode) || 'value')}
               options={displayModeOptions}
-              placeholder="Choose display style"
+              placeholder={t('scale-display-placeholder')}
             />
           </div>
 
           {displayMode === 'custom' ? (
             <div className="gba:space-y-2">
-              <Label>Custom labels (ordered)</Label>
+              <Label>{t('scale-field-custom-labels')}</Label>
               <div className="gba:space-y-2">
                 {Array.from({ length: count }, (_, i) => (
                   <div key={`custom-${i}`} className="gba:flex gba:items-center gba:gap-2">
@@ -155,7 +158,7 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
                           return next
                         })
                       }}
-                      placeholder={`Label for ${i + 1}`}
+                      placeholder={`${t('scale-custom-label-placeholder-prefix')} ${i + 1}`}
                     />
                   </div>
                 ))}
@@ -163,7 +166,7 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
             </div>
           ) : (
             <div className="gba:space-y-2">
-              <Label>Preview</Label>
+              <Label>{t('scale-preview')}</Label>
               <div className="gba:flex gba:flex-wrap gba:gap-2">
                 {generatedValues.map((v, i) => (
                   <div key={`prev-${i}`} className="gba:border gba:rounded-lg gba:px-2 gba:py-1 gba:text-sm">
@@ -176,10 +179,10 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
 
           <div className="gba:flex gba:justify-end gba:gap-2">
             <Button variant="secondary" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('button-cancel')}
             </Button>
             <Button variant="default" onClick={handleSave} disabled={!name.trim() || generatedValues.length === 0}>
-              Save
+              {t('button-save')}
             </Button>
           </div>
         </div>

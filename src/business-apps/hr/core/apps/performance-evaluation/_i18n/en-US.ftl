@@ -35,6 +35,7 @@ label-evaluation-participants = Evaluation Participants
 field-values = Values
 field-title = Title
 field-description = Description
+field-active = Active
 
 placeholder-name = e.g., 2026 Annual Performance
 placeholder-select-frequency = Select a frequency
@@ -48,7 +49,16 @@ scale-title-edit = Edit Rating Scale
 scale-description = Define a named rating scale and its ordered values.
 scale-field-name = Name
 scale-field-values = Values (ordered)
-scale-placeholder-value = Enter value (e.g., 1 or A)
+scale-placeholder-name = e.g., 1–5, 1–10, A–E
+scale-field-length = Scale length (2–10)
+scale-field-display = Display
+scale-display-numeric = Numeric (1..N)
+scale-display-letters = Letters (A..)
+scale-display-stars = Stars (★)
+scale-display-custom = Custom labels
+scale-display-placeholder = Choose display style
+scale-field-custom-labels = Custom labels (ordered)
+scale-custom-label-placeholder-prefix = Label for
 scale-button-add = Add
 scale-preview = Preview
 

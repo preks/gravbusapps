@@ -73,7 +73,7 @@ const ValuesEditorModal: React.FC<ValuesEditorModalProps> = ({ open, onOpenChang
             </div>
             <label className="gba:flex gba:items-center gba:gap-2">
               <Checkbox checked={active} onCheckedChange={(v: boolean) => setActive(!!v)} />
-              <span>{t('table-status')}</span>
+              <span>{t('field-active')}</span>
             </label>
           </div>
 

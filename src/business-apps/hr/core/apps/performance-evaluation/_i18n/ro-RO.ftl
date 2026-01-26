@@ -35,6 +35,7 @@ label-evaluation-participants = Participanți la evaluare
 field-values = Valori
 field-title = Titlu
 field-description = Descriere
+field-active = Activ
 
 placeholder-name = ex.: 2026 Evaluare anuală a performanței
 placeholder-select-frequency = Selectează o frecvență
@@ -49,6 +50,16 @@ scale-description = Definește o scală denumită și valorile ei ordonate.
 scale-field-name = Nume
 scale-field-values = Valori (ordonate)
 scale-placeholder-value = Introdu valoarea (ex.: 1 sau A)
+scale-placeholder-name = ex.: 1–5, 1–10, A–E
+scale-field-length = Lungimea scalei (2–10)
+scale-field-display = Afișare
+scale-display-numeric = Numeric (1..N)
+scale-display-letters = Litere (A..)
+scale-display-stars = Stele (★)
+scale-display-custom = Etichete personalizate
+scale-display-placeholder = Alege tipul de afișare
+scale-field-custom-labels = Etichete personalizate (ordonate)
+scale-custom-label-placeholder-prefix = Etichetă pentru
 scale-button-add = Adaugă
 scale-preview = Previzualizare
 

@@ -35,6 +35,7 @@ label-evaluation-participants = Bewertungsteilnehmer
 field-values = Werte
 field-title = Titel
 field-description = Beschreibung
+field-active = Aktiv
 
 placeholder-name = z. B. 2026 jährliche Leistungsbewertung
 placeholder-select-frequency = Häufigkeit wählen
@@ -49,6 +50,16 @@ scale-description = Benannte Bewertungsskala und ihre Reihenfolge definieren.
 scale-field-name = Name
 scale-field-values = Werte (geordnet)
 scale-placeholder-value = Wert eingeben (z. B. 1 oder A)
+scale-placeholder-name = z. B. 1–5, 1–10, A–E
+scale-field-length = Skalenlänge (2–10)
+scale-field-display = Darstellung
+scale-display-numeric = Numerisch (1..N)
+scale-display-letters = Buchstaben (A..)
+scale-display-stars = Sterne (★)
+scale-display-custom = Benutzerdefinierte Bezeichnungen
+scale-display-placeholder = Darstellungsart auswählen
+scale-field-custom-labels = Benutzerdefinierte Bezeichnungen (geordnet)
+scale-custom-label-placeholder-prefix = Bezeichnung für
 scale-button-add = Hinzufügen
 scale-preview = Vorschau
 

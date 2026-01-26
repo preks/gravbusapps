@@ -316,7 +316,6 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
                   className: 'gba:text-base',
                   icon: <WarningIcon size={18} weight="fill" className="gba:text-warning" />
                 })
-                return
               }
               setEditing(null)
               setIsModalOpen(true)
