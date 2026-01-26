@@ -2,7 +2,7 @@ import { useCallback, useState, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
-  buildAdvancePaymentsQuery,
+  buildAdvancePaymentsListQuery,
   validateFilters,
   AdvancePaymentFilters
 } from '../../personal-expenses/utils/advancePaymentsQueryBuilder'
@@ -17,147 +17,22 @@ export interface AdvancePayment {
   description: string | null
   amount: number
   currencyRef: string
-  currency: {
-    code: string
-  }
-  costCenter: {
-    name: string
-  }
+  currency?: { code?: string } | null
   status: string
-  paymentMethod: string
-  expensePlan: {
-    id: string
-    code: string
-    reimbursableAmount: number
-    startDate: string | null
-    endDate: string | null
-    planDate: string | null
-    decisionDate: string | null
-    status: string
-    title: string
-    totalAmount: number
-    requestTypeRef: any
-    createdAt: string
-    employeeDocumentId: string | null
-    advancePaymentPaidAmount: number
-    advancePaymentInTransitAmount: number
-    currencyRef: any
-    description: string
-    currency: {
-      type: string
-      translations: Array<{
-        localeCode: string
-        value: string
-      }>
-      catalog: {
-        defaultLocale: string
-      }
-      value: string
-      id: string
-      code: string
-    }
-    requestType: {
-      value: string
-      translations: Array<{
-        localeCode: string
-        value: string
-      }>
-      catalog: {
-        defaultLocale: string
-      }
-    }
-    expensePlanItem: Array<{
-      title: string
-      status: string
-      totalAmount: number
-      expenseDate: string
-    }>
-    advancePayment: Array<{
-      id: string
-      amount: number
-      status: string
-      currency: {
-        code: string
-        translations: Array<{
-          localeCode: string
-          value: string
-        }>
-        catalog: {
-          defaultLocale: string
-        }
-      }
-    }>
-    expenseRequestTrip: Array<{
-      tripDateTime: string
-    }>
-    expenseRequest?: Array<{
-      id: string
-      code: string
-      title: string
-      description: string
-      startDate: string | null
-      endDate: string | null
-      requestDate: string | null
-      decisionDate: string | null
-      totalAmount: number
-      currencyRef: string
-      status: string
-      reimbursableAmount: number
-      nonReimbursableAmount: number
-      additionalProperties: any
-      currency: {
-        value: string
-        translations: Array<{
-          localeCode: string
-          value: string
-        }>
-        catalog: {
-          defaultLocale: string
-        }
-      }
-      requestType: {
-        value: string
-        translations: Array<{
-          localeCode: string
-          value: string
-        }>
-        catalog: {
-          defaultLocale: string
-        }
-      }
-      costCenter: {
-        name: string
-      }
-      project: {
-        name: string
-      }
-      employee: {
-        fullName: string
-        employeePosition: {
-          supervisor: {
-            fullName: string
-          }
-        }
-      }
-    }>
-    employee: {
-      id: string
-      code: string
-      firstName: string
-      lastName: string
-      employeePosition: {
-        siteLocation: {
-          name: string
-        }
-        organizationalUnit: {
-          name: string
-        }
-        firstName: string
-        lastName: string
-      }
-    }
+  paymentMethod?: unknown
+  costCenter?: { name?: string } | null
+  project?: { name?: string } | null
+  expensePlan?: {
+    id?: string
+    code?: string
+    title?: string
+    totalAmount?: number | null
+    currency?: { code?: string } | null
+    costCenter?: { name?: string } | null
+    project?: { name?: string } | null
+    expenseRequest?: Array<{ id?: string | null }> | null
   } | null
-  expensePlanId: string
+  expensePlanId?: string | null
 }
 
 export interface FetchItemsOptions {
@@ -355,6 +230,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   interface BuildVariablesOptions {
     employeeId: string
     searchTerm: string
+    includeSearch: boolean
     page: number
     pageSize: number
     sortField?: SortField
@@ -363,17 +239,34 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     filterState?: ReturnType<typeof validateFilters>
   }
 
-  const buildVariables = useCallback((options: BuildVariablesOptions): any => {
-    const { employeeId, searchTerm, page, pageSize, sortField, sortOrder, filters, filterState } = options
-    const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`
+  interface GraphQLVariables {
+    employeeId: string
+    limit: number
+    offset: number
+    orderBy: Array<Record<string, string>>
+    searchTerm?: string
+    statusFilter?: string[]
+    amountMin?: number
+    amountMax?: number
+    advanceMin?: number
+    advanceMax?: number
+    currencyRef?: string
+  }
+
+  const buildVariables = useCallback((options: BuildVariablesOptions): GraphQLVariables => {
+    const { employeeId, searchTerm, includeSearch, page, pageSize, sortField, sortOrder, filters, filterState } =
+      options
     const offset = (page - 1) * pageSize
 
-    const variables: any = {
+    const variables: GraphQLVariables = {
       employeeId,
-      searchTerm: formattedSearchTerm,
       limit: pageSize,
       offset: offset,
       orderBy: buildOrderBy(sortField, sortOrder)
+    }
+
+    if (includeSearch) {
+      variables.searchTerm = `%${searchTerm}%`
     }
 
     if (filterState && filters) {
@@ -384,26 +277,22 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   }, [])
 
   // Helper function to process and cache response data
-  const processResponseData = (result: any, cacheKey: string): void => {
+  interface GraphQLResponse {
+    AdvancePayment?: AdvancePayment[]
+    AdvancePaymentAggregate?: {
+      aggregate?: {
+        count?: number
+      }
+    }
+  }
+
+  const processResponseData = (result: GraphQLResponse, cacheKey: string): void => {
     const fetchedItems = result?.AdvancePayment ?? []
     const count = result?.AdvancePaymentAggregate?.aggregate?.count ?? 0
 
     pageCacheRef.current.set(cacheKey, { items: fetchedItems, totalCount: count })
     setTotalCount(count)
     setItems(fetchedItems)
-  }
-
-  interface FetchItemsOptions {
-    searchTerm?: string
-    page?: number
-    pageSize?: number
-    statusFilter?: string[]
-    amountRange?: { min?: number; max?: number } | null
-    advanceRange?: { min?: number; max?: number } | null
-    sortField?: SortField
-    sortOrder?: SortOrder
-    currencyRef?: string | null
-    force?: boolean
   }
 
   const fetchItems = useCallback(
@@ -426,6 +315,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
       }
 
       const { employeeId } = validated
+      const includeSearch = (searchTerm || '').trim() !== ''
       const cacheKey = generateCacheKey({
         searchTerm,
         page,
@@ -444,6 +334,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
 
       const callSignature = JSON.stringify({
         searchTerm,
+        includeSearch,
         page,
         pageSize,
         statusFilter,
@@ -483,10 +374,11 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         }
 
         const filterState = validateFilters(filters)
-        const query = buildAdvancePaymentsQuery(filters)
+        const query = buildAdvancePaymentsListQuery(filters, { includeSearch })
         const variables = buildVariables({
           employeeId,
           searchTerm,
+          includeSearch,
           page,
           pageSize,
           sortField: sortField || null,
@@ -495,9 +387,11 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
           filterState
         })
 
-        const requestPromise = graphqlClient.request<any>(query, variables).finally(() => {
-          inflightRef.current.delete(requestKey)
-        })
+        const requestPromise = graphqlClient
+          .request<any>(query, variables, { signal: controller.signal })
+          .finally(() => {
+            inflightRef.current.delete(requestKey)
+          })
 
         inflightRef.current.set(requestKey, requestPromise)
         const result = await requestPromise
@@ -513,11 +407,16 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         if (abortControllerRef.current !== controller || controller.signal.aborted) {
           return
         }
+        if (err instanceof Error && err.name === 'AbortError') {
+          return
+        }
         setError(err instanceof Error ? err : new Error(String(err)))
         setItems([])
         setTotalCount(0)
       } finally {
-        setIsLoading(false)
+        if (abortControllerRef.current === controller) {
+          setIsLoading(false)
+        }
       }
     },
     [

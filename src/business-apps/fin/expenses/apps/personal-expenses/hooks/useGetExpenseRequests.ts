@@ -256,15 +256,20 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       try {
         const variables = buildVariables(employeeId, filters, page, pageSize, sortField, sortOrder)
 
-        const requestPromise = client.request(GET_EXPENSE_REQUESTS_BY_EMPLOYEE, variables).finally(() => {
-          inflightRef.current.delete(requestKey)
-        })
+        const requestPromise = client
+          .request(GET_EXPENSE_REQUESTS_BY_EMPLOYEE, variables, { signal: controller.signal })
+          .finally(() => {
+            inflightRef.current.delete(requestKey)
+          })
 
         inflightRef.current.set(requestKey, requestPromise)
         const data = await requestPromise
 
         processResponseData(data, cacheKey)
       } catch (err) {
+        if (abortControllerRef.current !== controller || controller.signal.aborted) {
+          return
+        }
         if (err instanceof Error && err.name === 'AbortError') {
           return
         }
@@ -272,7 +277,9 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
         setItems([])
         setTotalCount(0)
       } finally {
-        setIsLoading(false)
+        if (abortControllerRef.current === controller) {
+          setIsLoading(false)
+        }
       }
     },
     [
