@@ -294,8 +294,16 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
             availableAbsenceTypes.map(absenceType => (
               <div
                 key={absenceType.id}
+                role="menuitem"
+                tabIndex={0}
                 className="gba:px-3 gba:py-2 gba:cursor-pointer gba:hover:bg-accent gba:text-sm gba:min-h-[2.5rem] gba:flex gba:items-center"
                 onClick={() => handleAbsenceTypeClick(absenceType.id, absenceType.flowType)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleAbsenceTypeClick(absenceType.id, absenceType.flowType)
+                  }
+                }}
                 data-testid={`absence-type-${absenceType.id}`}
               >
                 {absenceType.name}
@@ -416,28 +424,38 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                   }
                 })()
 
+                const handleDayClick = () => {
+                  if (!enableSelection) return
+                  if (!isCurrentMonth) return
+                  if (!selectedStartDate || (selectedStartDate && selectedEndDate)) {
+                    setSelectedStartDate(currentDay.startOf('day'))
+                    setSelectedEndDate(null)
+                    return
+                  }
+                  if (currentDay.isBefore(selectedStartDate, 'day')) {
+                    setSelectedStartDate(currentDay.startOf('day'))
+                    setSelectedEndDate(null)
+                  } else if (currentDay.isSame(selectedStartDate, 'day')) {
+                    setSelectedEndDate(currentDay.startOf('day'))
+                  } else {
+                    setSelectedEndDate(currentDay.startOf('day'))
+                  }
+                }
+
                 return (
                   <div
                     key={idx}
+                    role={enableSelection && isCurrentMonth ? 'button' : undefined}
+                    tabIndex={enableSelection && isCurrentMonth ? 0 : -1}
                     className={`gba:calendar-day gba:p-2 gba:min-h-16 gba:border gba:border-border gba:rounded 
                       ${isSelectedStart || isSelectedEnd ? 'gba:bg-info-secondary gba:border-info' : isInSelectedRange ? 'gba:bg-info-secondary/20' : isToday ? 'gba:bg-info-secondary/20 gba:border-info' : isHoliday ? 'gba:bg-card gba:border-warning' : 'gba:bg-card'} 
                       ${!isCurrentMonth ? 'gba:opacity-40' : enableSelection ? 'gba:cursor-pointer' : ''}`}
                     data-testid={`calendar-day-${currentDay.date()}`}
-                    onClick={() => {
-                      if (!enableSelection) return
-                      if (!isCurrentMonth) return
-                      if (!selectedStartDate || (selectedStartDate && selectedEndDate)) {
-                        setSelectedStartDate(currentDay.startOf('day'))
-                        setSelectedEndDate(null)
-                        return
-                      }
-                      if (currentDay.isBefore(selectedStartDate, 'day')) {
-                        setSelectedStartDate(currentDay.startOf('day'))
-                        setSelectedEndDate(null)
-                      } else if (currentDay.isSame(selectedStartDate, 'day')) {
-                        setSelectedEndDate(currentDay.startOf('day'))
-                      } else {
-                        setSelectedEndDate(currentDay.startOf('day'))
+                    onClick={handleDayClick}
+                    onKeyDown={e => {
+                      if (enableSelection && isCurrentMonth && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault()
+                        handleDayClick()
                       }
                     }}
                     onContextMenu={e => {
