@@ -645,16 +645,16 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
 
   // Debug helper: Expose call controls to window for console debugging
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      ;(window as any).rtkLeaveCall = () => {
+    if (typeof globalThis.window !== 'undefined') {
+      ;(globalThis as any).rtkLeaveCall = () => {
         rtkDebug.log('[RTK Debug] Leaving call via console command')
         onEndCall()
       }
-      ;(window as any).rtkToggleMute = () => {
+      ;(globalThis as any).rtkToggleMute = () => {
         rtkDebug.log('[RTK Debug] Toggling mute via console command')
         onToggleMute()
       }
-      ;(window as any).rtkToggleVideo = () => {
+      ;(globalThis as any).rtkToggleVideo = () => {
         rtkDebug.log('[RTK Debug] Toggling video via console command')
         onToggleVideo()
       }
@@ -668,10 +668,10 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
 
     return () => {
       // Clean up on unmount
-      if (typeof window !== 'undefined') {
-        delete (window as any).rtkLeaveCall
-        delete (window as any).rtkToggleMute
-        delete (window as any).rtkToggleVideo
+      if (typeof globalThis.window !== 'undefined') {
+        delete (globalThis as any).rtkLeaveCall
+        delete (globalThis as any).rtkToggleMute
+        delete (globalThis as any).rtkToggleVideo
       }
     }
   }, [onEndCall, onToggleMute, onToggleVideo])

@@ -1063,21 +1063,21 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
    * Debug helpers (expose to window in development)
    */
   useEffect(() => {
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-      ;(window as any).rtkLeaveCall = leaveCall
-      ;(window as any).rtkToggleMute = media.toggleMute
-      ;(window as any).rtkToggleVideo = media.toggleVideo
-      ;(window as any).rtkCallState = combinedCallState
-      ;(window as any).rtkLogSimulcastInfo = diagnostics.logSimulcastInfo
+    if (typeof globalThis.window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      ;(globalThis as any).rtkLeaveCall = leaveCall
+      ;(globalThis as any).rtkToggleMute = media.toggleMute
+      ;(globalThis as any).rtkToggleVideo = media.toggleVideo
+      ;(globalThis as any).rtkCallState = combinedCallState
+      ;(globalThis as any).rtkLogSimulcastInfo = diagnostics.logSimulcastInfo
       rtkDebug.log('[RTK] 🔧 Debug functions exposed to console')
     }
     return () => {
-      if (typeof window !== 'undefined') {
-        delete (window as any).rtkLeaveCall
-        delete (window as any).rtkToggleMute
-        delete (window as any).rtkToggleVideo
-        delete (window as any).rtkCallState
-        delete (window as any).rtkLogSimulcastInfo
+      if (typeof globalThis.window !== 'undefined') {
+        delete (globalThis as any).rtkLeaveCall
+        delete (globalThis as any).rtkToggleMute
+        delete (globalThis as any).rtkToggleVideo
+        delete (globalThis as any).rtkCallState
+        delete (globalThis as any).rtkLogSimulcastInfo
       }
     }
   }, [leaveCall, media.toggleMute, media.toggleVideo, combinedCallState, diagnostics.logSimulcastInfo])

@@ -8,7 +8,7 @@
  */
 
 const isDebugEnabled = (): boolean => {
-  if (typeof window === 'undefined') return false
+  if (typeof globalThis.window === 'undefined') return false
 
   try {
     return (
@@ -51,7 +51,7 @@ export const rtkDebug = {
  * Enable/disable RTK debug logging at runtime
  */
 export const setRtkDebug = (enabled: boolean) => {
-  if (typeof window !== 'undefined') {
+  if (typeof globalThis.window !== 'undefined') {
     try {
       if (enabled) {
         localStorage.setItem('RTK_DEBUG', 'true')
@@ -67,7 +67,7 @@ export const setRtkDebug = (enabled: boolean) => {
 }
 
 // Expose helper functions to window for easy access in console
-if (typeof window !== 'undefined') {
-  ;(window as any).enableRtkDebug = () => setRtkDebug(true)
-  ;(window as any).disableRtkDebug = () => setRtkDebug(false)
+if (typeof globalThis.window !== 'undefined') {
+  ;(globalThis as any).enableRtkDebug = () => setRtkDebug(true)
+  ;(globalThis as any).disableRtkDebug = () => setRtkDebug(false)
 }
