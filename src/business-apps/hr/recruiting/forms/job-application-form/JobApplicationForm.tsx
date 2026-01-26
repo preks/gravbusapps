@@ -23,8 +23,8 @@ import {
 } from '@newwork/nw-design-system'
 import { RECRUITING_CATALOGS } from '@/common/data/recruiting/constants/recruitingConstants'
 import { EmployeeSelect } from '@/components/employee-select'
-import { JobPostingSelect } from '@/components/job-posting-select'
-import { JobCandidateSelect } from '@/components/job-candidate-select'
+import { JobPostingSelect } from '@/common/components/recruiting/form-components/job-posting-select'
+import { JobCandidateSelect } from '@/common/components/recruiting/form-components/job-candidate-select'
 import { useJobPosting } from '@/common/data/recruiting/hooks/useJobPosting'
 import { useJobCandidate } from '@/common/data/recruiting/hooks/useJobCandidate'
 

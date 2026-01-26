@@ -27,8 +27,8 @@ import {
   SelectItem
 } from '@newwork/nw-design-system'
 import { EmployeeSelect } from '@/components/employee-select'
-import { JobPositionSelect } from '@/components/job-position-select'
-import { JobProfileSelect } from '@/components/job-profile-select'
+import { JobPositionSelect } from '@/common/components/recruiting/form-components/job-position-select'
+import { JobProfileSelect } from '@/common/components/recruiting/form-components/job-profile-select'
 import { OrganizationalUnitSelect } from '@/components/organizational-unit-select'
 import { RECRUITING_CATALOGS } from '@/common/data/recruiting/constants/recruitingConstants'
 import {
