@@ -5,6 +5,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
   Label,
   Textarea,
   toast,
@@ -29,7 +31,7 @@ import {
   Badge,
   Switch
 } from '@newwork/nw-design-system'
-import { Gear, Info, Clock, Warning, CheckCircle, XCircle } from '@phosphor-icons/react'
+import { Gear, Info, Clock, Warning, CheckCircle, XCircle, CloudArrowUp, CircleNotch } from '@phosphor-icons/react'
 import { IDEMainMenu, BusinessAppInfo } from '@/components/ide-main-menu'
 import { IDERenderer } from '@/components/ide-renderer'
 import { UserInfoProps } from './common/BusinessAppContext'
@@ -321,6 +323,71 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     remainingTime: string
     variant: 'success' | 'warning' | 'destructive' | 'secondary'
   } | null>(null)
+
+  // Publish screen state
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [publishConfirmDialogVisible, setPublishConfirmDialogVisible] = useState(false)
+
+  // Open the publish confirmation dialog
+  const handlePublishButtonClick = useCallback(() => {
+    if (!selectedApp) {
+      toast.error('No screen selected', {
+        description: 'Please select a screen to publish',
+        position: 'top-right'
+      })
+      return
+    }
+    setPublishConfirmDialogVisible(true)
+  }, [selectedApp])
+
+  // Actually publish the screen after confirmation
+  const handleConfirmPublish = useCallback(async () => {
+    if (!selectedApp) return
+
+    setPublishConfirmDialogVisible(false)
+    setIsPublishing(true)
+
+    try {
+      const response = await fetch('/__publish-screen', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ screenPath: selectedApp.screenKey })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast.success('Screen published successfully', {
+          description: (
+            <span className="gba:text-foreground">
+              <code className="gba:font-medium">{selectedApp.screenKey}</code>
+            </span>
+          ),
+          position: 'top-right'
+        })
+        // Update last published date
+        setLastPublishedDate(new Date().toLocaleString())
+      } else {
+        toast.error('Publish failed', {
+          description: <span className="gba:text-foreground">{result.error || 'An unknown error occurred'}</span>,
+          position: 'top-right'
+        })
+        console.error('Publish error details:', result)
+      }
+    } catch (error) {
+      console.error('Publish error:', error)
+      toast.error('Publish failed', {
+        description: (
+          <span className="gba:text-foreground">{error instanceof Error ? error.message : 'Network error'}</span>
+        ),
+        position: 'top-right'
+      })
+    } finally {
+      setIsPublishing(false)
+    }
+  }, [selectedApp])
 
   // Utility function to decode and analyze JWT token
   const analyzeToken = useCallback((token: string) => {
@@ -1000,6 +1067,30 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                             </Tooltip>
                           </TooltipProvider>
                         )}
+                        {selectedApp && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={handlePublishButtonClick}
+                                  disabled={isPublishing}
+                                  className="gba:gap-1.5"
+                                  data-testid="PublishScreenButton"
+                                >
+                                  {isPublishing ? (
+                                    <CircleNotch size={14} className="gba:animate-spin" />
+                                  ) : (
+                                    <CloudArrowUp size={14} />
+                                  )}
+                                  <span className="gba:text-xs">Publish Screen</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Publish {selectedApp.name} to dev</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -1233,6 +1324,39 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                         <Button onClick={() => setPerformanceModalVisible(false)}>Close</Button>
                       </div>
                     </div>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Publish Confirmation Dialog */}
+                <Dialog open={publishConfirmDialogVisible} onOpenChange={setPublishConfirmDialogVisible}>
+                  <DialogContent className="gba:max-w-[450px]">
+                    <DialogHeader>
+                      <DialogTitle>Publish Screen</DialogTitle>
+                      <DialogDescription>Publish this screen to dev?</DialogDescription>
+                    </DialogHeader>
+                    {selectedApp && (
+                      <div className="gba:bg-muted gba:p-3 gba:rounded-lg gba:space-y-1">
+                        <div className="gba:text-sm">
+                          <span className="gba:text-muted-foreground">Screen: </span>
+                          <span className="gba:font-medium">{selectedApp.name}</span>
+                        </div>
+                        <div className="gba:text-sm">
+                          <span className="gba:text-muted-foreground">Path: </span>
+                          <code className="gba:text-xs gba:bg-background gba:px-1 gba:py-0.5 gba:rounded">
+                            {selectedApp.screenKey}
+                          </code>
+                        </div>
+                      </div>
+                    )}
+                    <DialogFooter className="gba:gap-2">
+                      <Button variant="outline" onClick={() => setPublishConfirmDialogVisible(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleConfirmPublish}>
+                        <CloudArrowUp size={14} className="gba:mr-1.5" />
+                        Publish
+                      </Button>
+                    </DialogFooter>
                   </DialogContent>
                 </Dialog>
 

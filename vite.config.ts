@@ -8,7 +8,7 @@ import { readFile, rename as fsRename } from 'fs/promises' // For asynchronous f
 import crypto from 'crypto'
 import path from 'path'
 import dotenv from '@dotenvx/dotenvx'
-import { execSync } from 'child_process'
+import { execSync, spawn } from 'child_process'
 
 // Function to get dynamic entries for Vite build using synchronous fs methods
 function getDynamicEntries(projectRootDir: string): Record<string, string> {
@@ -281,6 +281,7 @@ export default defineConfig(({ command, mode }) => {
       : null
 
   const appBuildInfoObject = {
+    screen: targetEntryKey?.split('/').pop() || 'N/A',
     gitUser: gitUserForBanner,
     publishTime: publishTimeForBanner,
     prUrl: prUrl,
@@ -324,6 +325,7 @@ if (globalThis.__APP_BUILD_INFO__) {
   console.log('---------------------------------------');
   console.log('       Screen Build Information');
   console.log('---------------------------------------');
+  console.log('  Screen:      ' + buildInfo.screen);
   console.log('  Built by:    ' + buildInfo.gitUser);
   console.log('  Build time:  ' + formattedBuildTime);
   if (extraLines.length > 0) {
@@ -594,6 +596,209 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
     }
   }
 
+  // Plugin to expose publish-screen endpoint in dev server
+  const publishScreenPlugin = {
+    name: 'publish-screen-endpoint',
+    configureServer(server: any) {
+      // Simple rate limiting: track last publish time and enforce minimum interval
+      let lastPublishTime = 0
+      const MIN_PUBLISH_INTERVAL_MS = 5000 // 5 seconds between publishes
+      let isPublishInProgress = false
+
+      server.middlewares.use('/__publish-screen', async (req: any, res: any) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405
+          res.end(JSON.stringify({ error: 'Method not allowed' }))
+          return
+        }
+
+        // Rate limiting check
+        const now = Date.now()
+        if (now - lastPublishTime < MIN_PUBLISH_INTERVAL_MS) {
+          res.statusCode = 429
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ error: 'Too many requests. Please wait a few seconds before publishing again.' }))
+          return
+        }
+
+        // Prevent concurrent publishes
+        if (isPublishInProgress) {
+          res.statusCode = 409
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ error: 'A publish is already in progress. Please wait for it to complete.' }))
+          return
+        }
+
+        // Parse request body
+        let body = ''
+        for await (const chunk of req) {
+          body += chunk.toString()
+        }
+
+        let screenPath: string
+        try {
+          const parsed = JSON.parse(body)
+          screenPath = parsed.screenPath
+        } catch {
+          res.statusCode = 400
+          res.end(JSON.stringify({ error: 'Invalid JSON body' }))
+          return
+        }
+
+        if (!screenPath) {
+          res.statusCode = 400
+          res.end(JSON.stringify({ error: 'screenPath is required' }))
+          return
+        }
+
+        if (!fs.existsSync(path.join(projectRootDir, 'src', 'business-apps', screenPath, 'index.ts'))) {
+          res.statusCode = 400
+          res.end(JSON.stringify({ error: 'Screen not found' }))
+          return
+        }
+
+        // Execute the publish script
+        const publishScript = path.join(projectRootDir, 'scripts', 'publish-dev-screen.js')
+        if (!fs.existsSync(publishScript)) {
+          res.statusCode = 500
+          res.end(JSON.stringify({ error: 'Publish script not found' }))
+          return
+        }
+
+        console.log(`[Publish Screen Plugin] Publishing screen: ${screenPath}`)
+
+        // Set CORS headers
+        res.setHeader('Content-Type', 'application/json')
+        res.setHeader('Access-Control-Allow-Origin', '*')
+
+        // Update rate limiting state
+        lastPublishTime = Date.now()
+        isPublishInProgress = true
+
+        // Timeout for the publish process (2 minutes max)
+        const PUBLISH_TIMEOUT_MS = 2 * 60 * 1000
+        // Max output buffer size to prevent OOM (1MB)
+        const MAX_OUTPUT_SIZE = 1024 * 1024
+
+        try {
+          // Use spawn with memory limit to prevent OOM
+          const child = spawn(
+            'node',
+            ['--max-old-space-size=2048', publishScript, `/${screenPath}`, '--no-interaction'],
+            {
+              cwd: projectRootDir,
+              env: { ...process.env },
+              stdio: ['pipe', 'pipe', 'pipe']
+            }
+          )
+
+          let stdout = ''
+          let stderr = ''
+          let hasResponded = false
+
+          // Set a timeout to kill the process if it takes too long
+          const timeoutId = setTimeout(() => {
+            if (!hasResponded) {
+              console.error('[Publish Screen Plugin] Publish process timed out, killing...')
+              child.kill('SIGTERM')
+              // Give it a moment to terminate gracefully, then force kill
+              setTimeout(() => {
+                if (!child.killed) {
+                  child.kill('SIGKILL')
+                }
+              }, 5000)
+            }
+          }, PUBLISH_TIMEOUT_MS)
+
+          child.stdout.on('data', (data: Buffer) => {
+            const text = data.toString()
+            // Only buffer output up to max size to prevent OOM
+            if (stdout.length < MAX_OUTPUT_SIZE) {
+              stdout += text.slice(0, MAX_OUTPUT_SIZE - stdout.length)
+            }
+            // Always log to console for real-time feedback
+            console.log(text)
+          })
+
+          child.stderr.on('data', (data: Buffer) => {
+            const text = data.toString()
+            // Only buffer output up to max size to prevent OOM
+            if (stderr.length < MAX_OUTPUT_SIZE) {
+              stderr += text.slice(0, MAX_OUTPUT_SIZE - stderr.length)
+            }
+            console.error(text)
+          })
+
+          child.on('close', (code: number | null, signal: string | null) => {
+            clearTimeout(timeoutId)
+            isPublishInProgress = false
+
+            if (hasResponded) return
+            hasResponded = true
+
+            if (signal === 'SIGTERM' || signal === 'SIGKILL') {
+              res.statusCode = 500
+              res.end(
+                JSON.stringify({
+                  success: false,
+                  error: 'Publish process timed out or was killed',
+                  output: stdout.slice(-10000), // Last 10KB of output
+                  stderr: stderr.slice(-10000)
+                })
+              )
+            } else if (code === 0) {
+              res.statusCode = 200
+              res.end(
+                JSON.stringify({
+                  success: true,
+                  message: `Screen ${screenPath} published successfully`,
+                  output: stdout.slice(-10000) // Last 10KB of output
+                })
+              )
+            } else {
+              res.statusCode = 500
+              res.end(
+                JSON.stringify({
+                  success: false,
+                  error: `Publish failed with exit code ${code}`,
+                  output: stdout.slice(-10000),
+                  stderr: stderr.slice(-10000)
+                })
+              )
+            }
+          })
+
+          child.on('error', (err: Error) => {
+            clearTimeout(timeoutId)
+            isPublishInProgress = false
+
+            if (hasResponded) return
+            hasResponded = true
+
+            console.error('[Publish Screen Plugin] Failed to start publish process:', err)
+            res.statusCode = 500
+            res.end(
+              JSON.stringify({
+                success: false,
+                error: `Failed to start publish process: ${err.message}`
+              })
+            )
+          })
+        } catch (err: any) {
+          isPublishInProgress = false
+          console.error('[Publish Screen Plugin] Error:', err)
+          res.statusCode = 500
+          res.end(
+            JSON.stringify({
+              success: false,
+              error: err.message
+            })
+          )
+        }
+      })
+    }
+  }
+
   // Create wrapped versions of all entries (only for non-development builds)
   const wrappedEntries: Record<string, string> = {}
 
@@ -699,6 +904,8 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
       virtualModulePlugin,
       prependBuildInfoBannerPlugin, // Use the updated banner plugin
       wrapInIIFEPlugin,
+      // Publish screen endpoint for IDE (only in dev mode)
+      ...(command === 'serve' ? [publishScreenPlugin] : []),
       ...(shouldHashFilesForDeployment ? [sha256ContentHashPlugin(shouldHashFilesForDeployment)] : []),
       ...extraPlugins
     ].filter(Boolean),
