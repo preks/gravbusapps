@@ -14,11 +14,6 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Button,
   Checkbox,
   Alert,
@@ -366,25 +361,24 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                             )}{' '}
                             *
                           </FormLabel>
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <FormControl>
-                              <SelectTrigger data-testid="assignment-form-rule-select">
-                                <SelectValue
-                                  placeholder={getTranslationFromI18nKeyAndLabel(
-                                    'expenseSettings.assignment.selectRule',
-                                    'Select expense rule'
-                                  )}
-                                />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {availableRules.map(rule => (
-                                <SelectItem key={rule.id} value={rule.id}>
-                                  {rule.code} {rule.name && ` - ${rule.name}`}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <SearchableSelect
+                              placeholder={getTranslationFromI18nKeyAndLabel(
+                                'expenseSettings.assignment.selectRule',
+                                'Select expense rule'
+                              )}
+                              value={field.value}
+                              onChange={field.onChange}
+                              options={availableRules.map(rule => ({
+                                id: rule.id,
+                                value: rule.id,
+                                label: `${rule.code}${rule.name ? ` - ${rule.name}` : ''}`,
+                                name: rule.name || rule.code,
+                                code: rule.code
+                              }))}
+                              data-testid="assignment-form-rule-select"
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -552,25 +546,24 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                               'Employment Type'
                             )}
                           </FormLabel>
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <FormControl>
-                              <SelectTrigger data-testid="assignment-form-employment-type-select">
-                                <SelectValue
-                                  placeholder={getTranslationFromI18nKeyAndLabel(
-                                    'expenseSettings.assignment.selectEmploymentType',
-                                    'Select employment type'
-                                  )}
-                                />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {catalogs.employmentTypes.map(type => (
-                                <SelectItem key={type.id} value={type.id}>
-                                  {type.value}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <SearchableSelect
+                              placeholder={getTranslationFromI18nKeyAndLabel(
+                                'expenseSettings.assignment.selectEmploymentType',
+                                'Select employment type'
+                              )}
+                              value={field.value}
+                              onChange={field.onChange}
+                              options={catalogs.employmentTypes.map(type => ({
+                                id: type.id,
+                                value: type.id,
+                                label: type.value,
+                                name: type.value
+                              }))}
+                              loading={catalogsLoading}
+                              data-testid="assignment-form-employment-type-select"
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -587,25 +580,24 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                               'Contract Type'
                             )}
                           </FormLabel>
-                          <Select value={field.value} onValueChange={field.onChange}>
-                            <FormControl>
-                              <SelectTrigger data-testid="assignment-form-contract-type-select">
-                                <SelectValue
-                                  placeholder={getTranslationFromI18nKeyAndLabel(
-                                    'expenseSettings.assignment.selectContractType',
-                                    'Select contract type'
-                                  )}
-                                />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {catalogs.contractTypes.map(type => (
-                                <SelectItem key={type.id} value={type.id}>
-                                  {type.value}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <SearchableSelect
+                              placeholder={getTranslationFromI18nKeyAndLabel(
+                                'expenseSettings.assignment.selectContractType',
+                                'Select contract type'
+                              )}
+                              value={field.value}
+                              onChange={field.onChange}
+                              options={catalogs.contractTypes.map(type => ({
+                                id: type.id,
+                                value: type.id,
+                                label: type.value,
+                                name: type.value
+                              }))}
+                              loading={catalogsLoading}
+                              data-testid="assignment-form-contract-type-select"
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}

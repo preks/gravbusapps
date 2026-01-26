@@ -1,21 +1,12 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Input,
-  Spinner
-} from '@newwork/nw-design-system'
-import { PiMagnifyingGlass } from 'react-icons/pi'
-import { debounce } from 'lodash'
+import React, { useMemo, useCallback, useState, useEffect } from 'react'
+import { Combobox } from '@newwork/nw-design-system'
 
 export interface SelectOption {
   id: string
   value: string
   label: string
   name: string
+  code?: string
   [key: string]: any
 }
 
@@ -40,16 +31,14 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   options,
   loading = false,
   hasMore = false,
-  showSearch = true,
   onSearch,
+  onLoadMore,
   onChange,
   'data-testid': dataTestId,
   disabled = false
 }) => {
-  const [searchTerm, setSearchTerm] = useState('')
   // Store selected option so we can display it even when not in current options
   const [selectedOption, setSelectedOption] = useState<SelectOption | null>(null)
-  const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Update selected option when value changes or options update
   useEffect(() => {
@@ -67,28 +56,17 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     }
   }, [value, options, selectedOption?.value])
 
-  // Debounced search
-  const debouncedSearch = useCallback(
-    debounce((term: string) => {
-      if (onSearch) {
-        onSearch(term)
-      }
-    }, 300),
-    [onSearch]
-  )
-
-  // Handle search input change
-  const handleSearchChange = useCallback(
-    (searchValue: string) => {
-      setSearchTerm(searchValue)
-      debouncedSearch(searchValue)
-    },
-    [debouncedSearch]
-  )
-
   // Handle selection change
   const handleChange = useCallback(
-    (selectedValue: string) => {
+    (selectedValue: string | null) => {
+      if (!selectedValue) {
+        setSelectedOption(null)
+        if (onChange) {
+          onChange('')
+        }
+        return
+      }
+
       // Find the selected option and store it
       const selected = options.find(opt => opt.value === selectedValue)
       if (selected) {
@@ -98,84 +76,70 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
       if (onChange) {
         onChange(selectedValue)
       }
-      // Clear search after selection
-      setSearchTerm('')
-      if (onSearch) {
-        onSearch('')
-      }
     },
-    [onChange, onSearch, options]
+    [onChange, options]
   )
 
-  // Get display value - use stored selected option if available
-  const getDisplayValue = () => {
-    if (selectedOption) {
-      return selectedOption.label
+  // Handle search
+  const handleSearch = useCallback(
+    (searchTerm: string) => {
+      if (onSearch) {
+        onSearch(searchTerm)
+      }
+    },
+    [onSearch]
+  )
+
+  // Handle load more (infinite scroll)
+  const handleLoadMore = useCallback(() => {
+    if (onLoadMore) {
+      onLoadMore()
     }
-    return undefined
-  }
+  }, [onLoadMore])
+
+  // Build options for Combobox with proper labels
+  const comboboxOptions = useMemo(() => {
+    // Include selected option if not in current list
+    let allOptions = [...options]
+    if (selectedOption && !options.find(opt => opt.value === selectedOption.value)) {
+      allOptions = [selectedOption, ...options]
+    }
+
+    return allOptions.map(option => ({
+      value: option.value,
+      label: (
+        <div className="gba:flex gba:flex-col gba:min-w-0 gba:w-full">
+          <div className="gba:text-sm gba:font-medium gba:truncate">{option.label}</div>
+          {option.code && <div className="gba:text-xs gba:text-muted-foreground gba:truncate">Code: {option.code}</div>}
+        </div>
+      )
+    }))
+  }, [options, selectedOption])
+
+  // Empty text based on loading state
+  const emptyText = loading ? 'Loading...' : 'No options found'
 
   return (
-    <Select value={value} onValueChange={handleChange} disabled={disabled}>
-      <SelectTrigger data-testid={dataTestId} className="gba:w-full">
-        <SelectValue placeholder={placeholder}>{getDisplayValue()}</SelectValue>
-      </SelectTrigger>
-      <SelectContent className="gba:max-h-[300px] gba:overflow-y-auto">
-        {showSearch && (
-          <div className="gba:p-2 gba:border-b gba:border-border gba:sticky gba:top-0 gba:bg-popover gba:z-10">
-            <div className="gba:relative">
-              <PiMagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
-              <Input
-                ref={searchInputRef}
-                placeholder="Type to search..."
-                value={searchTerm}
-                onChange={e => handleSearchChange(e.target.value)}
-                onKeyDown={e => e.stopPropagation()}
-                className="gba:pl-10"
-                data-testid={dataTestId ? `${dataTestId}-search-input` : 'searchable-select-search-input'}
-              />
-            </div>
-          </div>
-        )}
-
-        {loading ? (
-          <div className="gba:p-4 gba:text-center">
-            <Spinner size="sm" className="gba:mr-2" />
-            Loading...
-          </div>
-        ) : options.length === 0 ? (
-          <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
-            {searchTerm ? 'No matching results' : 'No options available'}
-          </div>
-        ) : (
-          <>
-            {options.map(option => (
-              <SelectItem key={option.id} value={option.value}>
-                <div>
-                  <div>{option.label}</div>
-                  {option.name !== option.label && (
-                    <div className="gba:text-xs gba:text-muted-foreground">{option.name}</div>
-                  )}
-                </div>
-              </SelectItem>
-            ))}
-
-            {hasMore && !loading && (
-              <div className="gba:p-2 gba:text-center gba:text-muted-foreground gba:border-t gba:border-border gba:text-sm">
-                Scroll down for more...
-              </div>
-            )}
-
-            {loading && (
-              <div className="gba:p-2 gba:text-center gba:border-t gba:border-border">
-                <Spinner size="sm" className="gba:mr-2" />
-                Loading more...
-              </div>
-            )}
-          </>
-        )}
-      </SelectContent>
-    </Select>
+    <div className="gba:w-full gba:max-w-full gba:overflow-hidden">
+      <Combobox
+        className="gba:w-full"
+        options={comboboxOptions as any}
+        value={value || ''}
+        onValueChange={handleChange}
+        placeholder={placeholder}
+        searchPlaceholder="Type to search..."
+        emptyText={emptyText}
+        onSearch={handleSearch}
+        onLoadMore={handleLoadMore}
+        hasMore={hasMore}
+        searchDebounce={300}
+        loading={loading}
+        disabled={disabled}
+        data-testid={dataTestId}
+        align="start"
+        popoverContentClassName="gba:max-h-[300px] gba:overflow-y-auto"
+      />
+    </div>
   )
 }
 

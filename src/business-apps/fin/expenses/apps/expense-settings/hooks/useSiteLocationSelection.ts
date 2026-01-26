@@ -82,29 +82,28 @@ export const useSiteLocationSelection = (
       }))
 
       try {
-        const whereCondition: any = {
-          isDeleted: { _eq: false }
-        }
-
-        // Add structure filter - always required in production
-        const structureId = getCurrentActiveStructureId()
+        // NEWWORK DEV structureId for local development fallback
+        const DEV_STRUCTURE_ID = '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf'
+        const structureId = getCurrentActiveStructureId() || DEV_STRUCTURE_ID
         console.log('📍 useSiteLocationSelection - structureId:', structureId)
-        if (structureId) {
-          whereCondition.structureId = { _eq: structureId }
-        } else {
-          console.warn('⚠️ useSiteLocationSelection - No structureId available, data may be unfiltered')
+
+        // Build where condition with required structureId filter (matching employee pattern)
+        const whereCondition: any = {
+          _and: [{ isDeleted: { _eq: false } }, { structureId: { _eq: structureId } }]
         }
 
         // Add search conditions
         if (search.trim()) {
-          whereCondition._or = [
-            { name: { _ilike: `%${search.trim()}%` } },
-            { code: { _ilike: `%${search.trim()}%` } },
-            { locality: { _ilike: `%${search.trim()}%` } },
-            { postalCode: { _ilike: `%${search.trim()}%` } },
-            { country: { value: { _ilike: `%${search.trim()}%` } } },
-            { region: { value: { _ilike: `%${search.trim()}%` } } }
-          ]
+          whereCondition._and.push({
+            _or: [
+              { name: { _ilike: `%${search.trim()}%` } },
+              { code: { _ilike: `%${search.trim()}%` } },
+              { locality: { _ilike: `%${search.trim()}%` } },
+              { postalCode: { _ilike: `%${search.trim()}%` } },
+              { country: { value: { _ilike: `%${search.trim()}%` } } },
+              { region: { value: { _ilike: `%${search.trim()}%` } } }
+            ]
+          })
         }
 
         const variables = {

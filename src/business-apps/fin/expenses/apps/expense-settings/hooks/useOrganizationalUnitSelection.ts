@@ -77,25 +77,27 @@ export const useOrganizationalUnitSelection = (
       }))
 
       try {
-        const whereCondition: any = {
-          isDeleted: { _eq: false }
-        }
+        // NEWWORK DEV structureId for local development fallback
+        const DEV_STRUCTURE_ID = '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf'
+        const structureId = getCurrentActiveStructureId() || DEV_STRUCTURE_ID
+        console.log('🏛️ useOrganizationalUnitSelection - structureId:', structureId)
 
-        // Add structure filter only if available (not available in local dev)
-        const structureId = getCurrentActiveStructureId()
-        if (structureId) {
-          whereCondition.structureId = { _eq: structureId }
+        // Build where condition with required structureId filter (matching employee pattern)
+        const whereCondition: any = {
+          _and: [{ isDeleted: { _eq: false } }, { structureId: { _eq: structureId } }]
         }
 
         // Add search conditions
         if (search.trim()) {
-          whereCondition._or = [
-            { name: { _ilike: `%${search.trim()}%` } },
-            { code: { _ilike: `%${search.trim()}%` } },
-            { description: { _ilike: `%${search.trim()}%` } },
-            { type: { _ilike: `%${search.trim()}%` } },
-            { company: { name: { _ilike: `%${search.trim()}%` } } }
-          ]
+          whereCondition._and.push({
+            _or: [
+              { name: { _ilike: `%${search.trim()}%` } },
+              { code: { _ilike: `%${search.trim()}%` } },
+              { description: { _ilike: `%${search.trim()}%` } },
+              { type: { _ilike: `%${search.trim()}%` } },
+              { company: { name: { _ilike: `%${search.trim()}%` } } }
+            ]
+          })
         }
 
         const variables = {
