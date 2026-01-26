@@ -136,29 +136,29 @@ const getInitials = (firstName: string, lastName: string): string => {
 }
 
 // Factory function to create job posting link cell wrapper
-const createJobPostingLinkCellWrapper = (
-  onPostingClick: (jobPostingId: string) => void
-): React.FC<{ info: CellContext<JobApplication, unknown> }> => {
-  return ({ info }) => <JobPostingLinkCell application={info.row.original} onPostingClick={onPostingClick} />
+const createJobPostingLinkCellWrapper = (onPostingClick: (jobPostingId: string) => void) => {
+  return (info: CellContext<JobApplication, unknown>) => (
+    <JobPostingLinkCell application={info.row.original} onPostingClick={onPostingClick} />
+  )
 }
 
-const ApplicationDateCellWrapper: React.FC<{ info: CellContext<JobApplication, unknown> }> = ({ info }) => (
+const ApplicationDateCellWrapper = (info: CellContext<JobApplication, unknown>) => (
   <ApplicationDateCell value={info.getValue() as string} />
 )
 
-const ApplicationStageCellWrapper: React.FC<{ info: CellContext<JobApplication, unknown> }> = ({ info }) => (
+const ApplicationStageCellWrapper = (info: CellContext<JobApplication, unknown>) => (
   <ApplicationStageCell value={info.getValue() as string} />
 )
 
-const CandidateCellWrapper: React.FC<{ info: CellContext<JobCandidate, unknown> }> = ({ info }) => (
+const CandidateCellWrapper = (info: CellContext<JobCandidate, unknown>) => (
   <CandidateCell candidate={info.row.original} getInitials={getInitials} />
 )
 
-const ApplicationCountCellWrapper: React.FC<{ info: CellContext<JobCandidate, unknown> }> = ({ info }) => (
+const ApplicationCountCellWrapper = (info: CellContext<JobCandidate, unknown>) => (
   <ApplicationCountCell value={info.getValue() as number} />
 )
 
-const CreatedDateCellWrapper: React.FC<{ info: CellContext<JobCandidate, unknown> }> = ({ info }) => (
+const CreatedDateCellWrapper = (info: CellContext<JobCandidate, unknown>) => (
   <ApplicationDateCell value={info.getValue() as string} />
 )
 
