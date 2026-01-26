@@ -258,6 +258,13 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         })
 
         // Generate session ID from backend with display name
+        rtkDebug.log('[RTK] Requesting meeting creation from backend...', {
+          conversationId,
+          callType,
+          displayName: currentUser?.odName,
+          conversationName
+        })
+
         const sessionResponse = await apiClient.createMeeting(
           conversationId,
           callType,
@@ -272,11 +279,21 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         rtkDebug.log('[RTK] ✅ Backend meeting created:', {
           conversationId,
           meetingId,
+          hasAuthToken: !!authToken,
+          authTokenLength: authToken?.length,
           callType,
           conversationName
         })
 
         // Initialize meeting with SDK
+        rtkDebug.log('[RTK] Initializing meeting with SDK...', {
+          hasAuthToken: !!authToken,
+          authTokenLength: authToken?.length,
+          callType,
+          audioEnabled: true,
+          videoEnabled: callType === 'video'
+        })
+
         const initializedMeeting = await initMeeting({
           authToken,
           defaults: {
@@ -290,7 +307,14 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           }
         })
 
+        rtkDebug.log('[RTK] initMeeting result:', {
+          hasInitializedMeeting: !!initializedMeeting,
+          meetingType: typeof initializedMeeting,
+          meetingKeys: initializedMeeting ? Object.keys(initializedMeeting) : []
+        })
+
         if (!initializedMeeting) {
+          rtkDebug.error('[RTK] ❌ initMeeting returned null/undefined')
           throw new Error('Failed to initialize meeting')
         }
 
@@ -486,7 +510,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
               await apiClient.addParticipant(
                 meetingId,
                 undefined, // userId (optional - backend uses requesting user)
-                'participant',
+                'host', // Give all participants host permissions for moderation
                 currentUser?.odName, // displayName
                 undefined, // firstName
                 undefined // lastName

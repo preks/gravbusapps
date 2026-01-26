@@ -10,8 +10,27 @@
  */
 
 import React, { useState } from 'react'
-import { X, Search, Mic, MicOff, Video, VideoOff, Hand, Monitor, Phone, MoreVertical } from 'lucide-react'
-import { Avatar, AvatarFallback } from '@newwork/nw-design-system'
+import {
+  XIcon,
+  MagnifyingGlassIcon,
+  MicrophoneIcon,
+  MicrophoneSlashIcon,
+  VideoCameraIcon,
+  VideoCameraSlashIcon,
+  HandIcon,
+  MonitorIcon,
+  PhoneIcon,
+  DotsThreeVerticalIcon,
+  SpeakerXIcon
+} from '@phosphor-icons/react'
+import {
+  Avatar,
+  AvatarFallback,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@newwork/nw-design-system'
 import { useRealtimeKitSelector } from '@cloudflare/realtimekit-react'
 import { getInitials } from '../../utils/callUtils'
 import type { PendingInvite } from '../../hooks/useGroupCall'
@@ -43,6 +62,10 @@ export interface ParticipantsPanelProps {
   pendingInvites?: Map<string, PendingInvite>
   /** Callback to invite a participant */
   onInviteParticipant?: (participant: CallParticipant) => void
+  /** Callback to mute a specific participant */
+  onMuteParticipant?: (participantId: string, participantName: string) => void
+  /** Callback to mute all participants */
+  onMuteAll?: () => void
   /** Map of remote participant IDs to hand raised state */
   remoteHandsRaised?: Record<string, boolean>
   /** Local user's hand raised state */
@@ -61,6 +84,8 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   availableParticipants = [],
   pendingInvites,
   onInviteParticipant,
+  onMuteParticipant,
+  onMuteAll,
   remoteHandsRaised = {},
   localHandRaised = false,
   localUserId,
@@ -145,24 +170,43 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   if (!isOpen) return null
 
   return (
-    <div className="gba:flex gba:flex-col gba:h-full" data-testid={`${prefixDataTestId}-participants-panel`}>
+    <div
+      className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden"
+      data-testid={`${prefixDataTestId}-participants-panel`}
+    >
       {/* Header */}
       <div className="gba:p-4 gba:border-b gba:flex-shrink-0">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
           <h3 className="gba:font-semibold gba:text-lg">Participants ({totalCount})</h3>
-          <button
-            onClick={onClose}
-            className="gba:p-1 hover:gba:bg-muted gba:rounded gba:transition-colors"
-            aria-label="Close"
-            data-testid={`${prefixDataTestId}-participants-panel-close`}
-          >
-            <X className="gba:h-5 gba:w-5" />
-          </button>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            {onMuteAll && activeParticipants.length > 0 && (
+              <button
+                onClick={onMuteAll}
+                className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive-secondary gba:text-destructive-secondary-foreground hover:gba:bg-destructive gba:rounded gba:transition-colors"
+                aria-label="Mute all participants"
+                data-testid={`${prefixDataTestId}-mute-all-btn`}
+              >
+                <SpeakerXIcon className="gba:h-4 gba:w-4 gba:inline gba:mr-1" weight="fill" />
+                Mute All
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="gba:p-1 hover:gba:bg-muted gba:rounded gba:transition-colors"
+              aria-label="Close"
+              data-testid={`${prefixDataTestId}-participants-panel-close`}
+            >
+              <XIcon className="gba:h-5 gba:w-5" />
+            </button>
+          </div>
         </div>
 
         {/* Search Input */}
         <div className="gba:relative">
-          <Search className="gba:absolute gba:left-3 gba:top-2.5 gba:h-4 gba:w-4 gba:text-muted-foreground" />
+          <MagnifyingGlassIcon
+            className="gba:absolute gba:left-3 gba:top-2.5 gba:h-4 gba:w-4 gba:text-muted-foreground"
+            weight="bold"
+          />
           <input
             type="text"
             placeholder="Search participants..."
@@ -175,7 +219,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
       </div>
 
       {/* Participants List */}
-      <div className="gba:overflow-y-auto gba:flex-1">
+      <div className="gba:overflow-y-auto gba:flex-1 gba:min-h-0">
         {/* No Results */}
         {filteredActiveParticipants.length === 0 &&
         filteredPendingInvites.length === 0 &&
@@ -210,31 +254,49 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                         </p>
                         <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
                           {participant.audioEnabled ? (
-                            <Mic className="gba:h-3 gba:w-3 gba:text-success" />
+                            <MicrophoneIcon className="gba:h-3 gba:w-3 gba:text-success" weight="fill" />
                           ) : (
-                            <MicOff className="gba:h-3 gba:w-3 gba:text-destructive" />
+                            <MicrophoneSlashIcon className="gba:h-3 gba:w-3 gba:text-destructive" weight="fill" />
                           )}
                           {participant.videoEnabled ? (
-                            <Video className="gba:h-3 gba:w-3 gba:text-success" />
+                            <VideoCameraIcon className="gba:h-3 gba:w-3 gba:text-success" weight="fill" />
                           ) : (
-                            <VideoOff className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
+                            <VideoCameraSlashIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground" weight="fill" />
                           )}
                           {(isHandRaised(participant.userId) ||
                             isHandRaised(participant.customParticipantId) ||
                             isHandRaised(participant.id)) && (
-                            <Hand className="gba:h-3 gba:w-3 gba:text-warning gba:animate-pulse" />
+                            <HandIcon className="gba:h-3 gba:w-3 gba:text-warning gba:animate-pulse" weight="fill" />
                           )}
-                          {participant.screenShareEnabled && <Monitor className="gba:h-3 gba:w-3 gba:text-primary" />}
+                          {participant.screenShareEnabled && (
+                            <MonitorIcon className="gba:h-3 gba:w-3 gba:text-primary" weight="fill" />
+                          )}
                         </div>
                       </div>
                     </div>
-                    <button
-                      className="gba:p-1 hover:gba:bg-muted gba:rounded gba:flex-shrink-0 gba:transition-colors"
-                      aria-label="More actions"
-                      data-testid={`${prefixDataTestId}-participant-menu-${participant.id}`}
-                    >
-                      <MoreVertical className="gba:h-4 gba:w-4" />
-                    </button>
+                    {/* Show actions menu only for other participants (not yourself) */}
+                    {participant.id !== meeting?.self?.id && onMuteParticipant && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            className="gba:p-1 hover:gba:bg-muted gba:rounded gba:flex-shrink-0 gba:transition-colors"
+                            aria-label="More actions"
+                            data-testid={`${prefixDataTestId}-participant-menu-${participant.id}`}
+                          >
+                            <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" weight="bold" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => onMuteParticipant(participant.id, participant.name || 'Unknown')}
+                            data-testid={`${prefixDataTestId}-participant-mute-${participant.id}`}
+                          >
+                            <SpeakerXIcon className="gba:h-4 gba:w-4 gba:mr-2" weight="fill" />
+                            Mute participant
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 ))}
               </div>
@@ -296,7 +358,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                         aria-label={`Invite ${participant.odName}`}
                         data-testid={`${prefixDataTestId}-invite-btn-${participant.odId}`}
                       >
-                        <Phone className="gba:h-3 gba:w-3" />
+                        <PhoneIcon className="gba:h-3 gba:w-3" weight="fill" />
                         Invite
                       </button>
                     )}

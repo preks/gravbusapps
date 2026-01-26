@@ -9,7 +9,17 @@
  */
 
 import React, { useState } from 'react'
-import { Mic, MicOff, Video, VideoOff, Monitor, Image, Hand, PhoneOff, Smile } from 'lucide-react'
+import {
+  Microphone,
+  MicrophoneSlash,
+  VideoCamera,
+  VideoCameraSlash,
+  Monitor,
+  Image,
+  PhoneDisconnect,
+  Smiley,
+  Hand
+} from '@phosphor-icons/react'
 import { Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
 
 export interface CallControlsBarProps {
@@ -83,7 +93,11 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
             aria-label={isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
             title={isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
           >
-            {isMuted ? <MicOff className="gba:w-5 gba:h-5" /> : <Mic className="gba:w-5 gba:h-5" />}
+            {isMuted ? (
+              <MicrophoneSlash className="gba:w-5 gba:h-5" weight="fill" />
+            ) : (
+              <Microphone className="gba:w-5 gba:h-5" weight="fill" />
+            )}
           </button>
 
           {/* Video toggle button */}
@@ -99,7 +113,11 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
               aria-label={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
               title={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
             >
-              {isVideoEnabled ? <Video className="gba:w-5 gba:h-5" /> : <VideoOff className="gba:w-5 gba:h-5" />}
+              {isVideoEnabled ? (
+                <VideoCamera className="gba:w-5 gba:h-5" weight="fill" />
+              ) : (
+                <VideoCameraSlash className="gba:w-5 gba:h-5" weight="fill" />
+              )}
             </button>
           )}
         </div>
@@ -126,7 +144,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                 isScreenSharing ? t('chat-stopSharing') || 'Stop sharing' : t('chat-shareScreen') || 'Share screen'
               }
             >
-              <Monitor className="gba:w-5 gba:h-5" />
+              <Monitor className="gba:w-5 gba:h-5" weight="fill" />
             </button>
           )}
 
@@ -151,7 +169,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                   : t('groupCall-enableBackground') || 'Enable background'
               }
             >
-              <Image className="gba:w-5 gba:h-5" />
+              <Image className="gba:w-5 gba:h-5" weight="fill" />
             </button>
           )}
 
@@ -168,7 +186,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
               aria-label={handRaised ? 'Lower hand' : 'Raise hand'}
               title={handRaised ? 'Lower hand' : 'Raise hand'}
             >
-              <Hand className="gba:w-5 gba:h-5" />
+              <Hand className="gba:w-5 gba:h-5" weight="fill" />
             </button>
           )}
 
@@ -182,7 +200,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                   aria-label="Send reaction"
                   title="Send reaction"
                 >
-                  <Smile className="gba:w-5 gba:h-5" />
+                  <Smiley className="gba:w-5 gba:h-5" weight="fill" />
                 </button>
               </PopoverTrigger>
               <PopoverContent
@@ -223,7 +241,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
           aria-label={t('groupCall-endCall')}
           title={t('groupCall-endCall')}
         >
-          <PhoneOff className="gba:w-4 gba:h-4" />
+          <PhoneDisconnect className="gba:w-4 gba:h-4" weight="fill" />
           <span className="gba:text-sm">{t('groupCall-endCall') || 'End call'}</span>
         </button>
       </div>

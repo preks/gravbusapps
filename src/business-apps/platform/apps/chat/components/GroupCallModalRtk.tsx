@@ -10,7 +10,7 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRealtimeKitSelector } from '@cloudflare/realtimekit-react'
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@newwork/nw-design-system'
+import { Dialog, DialogContent, DialogTitle, DialogDescription, toast } from '@newwork/nw-design-system'
 import type { GroupCallParticipant, VideoQuality } from '../services/groupWebrtcClient'
 import type { GroupCallUIState, PendingInvite } from '../hooks/useGroupCall'
 import type { CallParticipant } from '../services/webrtcClient'
@@ -127,6 +127,9 @@ const getScreenShareTrack = (peer: any): MediaStreamTrack | null => {
 
   return null
 }
+
+// Stable empty function for missing callbacks
+const NOOP = () => {}
 
 export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   callState,
@@ -363,6 +366,107 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
       rtkDebug.log('[RTK Modal] WebSocket listener removed for reactions')
     }
   }, [wsClient, showReactionAnimation, remotePeers, meeting])
+
+  // Handler to mute a participant (moderator control)
+  const handleMuteParticipant = useCallback(
+    (participantId: string, participantName: string) => {
+      if (!meeting?.participants?.joined) {
+        console.error('[MUTE] No meeting or participants available')
+        return
+      }
+
+      // Get the participant from the meeting
+      const participant = meeting.participants.joined.get(participantId)
+
+      if (!participant) {
+        console.error('[MUTE] Participant not found:', participantId)
+        return
+      }
+
+      // Check if we have permission to mute (host control)
+      const canMuteAudio = meeting?.permissions?.host?.canMuteAudio
+
+      console.log('[MUTE] Permission check:', {
+        hasPermissions: !!meeting?.permissions,
+        hasHostPermissions: !!meeting?.permissions?.host,
+        canMuteAudio,
+        fullPermissions: meeting?.permissions,
+        selfRole: meeting?.self?.role
+      })
+
+      if (!canMuteAudio) {
+        console.warn('[MUTE] No permission to mute participants (canMuteAudio is false)')
+        toast.error('You do not have permission to mute other participants', {
+          duration: 3000
+        })
+        return
+      }
+
+      try {
+        // Call the RTK API to disable participant's audio
+        participant.disableAudio()
+
+        console.log('[MUTE] Successfully muted participant:', {
+          participantId,
+          participantName
+        })
+
+        toast.success(`Muted ${participantName}`, {
+          duration: 2000
+        })
+      } catch (error) {
+        console.error('[MUTE] Failed to mute participant:', error)
+        toast.error(`Failed to mute ${participantName}`, {
+          duration: 3000
+        })
+      }
+    },
+    [meeting]
+  )
+
+  // Handler to mute all participants at once (moderator control)
+  const handleMuteAll = useCallback(() => {
+    if (!meeting?.participants) {
+      console.error('[MUTE ALL] No meeting or participants available')
+      return
+    }
+
+    // Check if we have permission to mute (host control)
+    const canMuteAudio = meeting?.permissions?.host?.canMuteAudio
+
+    console.log('[MUTE ALL] Permission check:', {
+      hasPermissions: !!meeting?.permissions,
+      hasHostPermissions: !!meeting?.permissions?.host,
+      canMuteAudio,
+      fullPermissions: meeting?.permissions,
+      selfRole: meeting?.self?.role
+    })
+
+    if (!canMuteAudio) {
+      console.warn('[MUTE ALL] No permission to mute participants (canMuteAudio is false)')
+      toast.error('You do not have permission to mute other participants', {
+        duration: 3000
+      })
+      return
+    }
+
+    try {
+      // Call the RTK API to disable all participants' audio
+      meeting.participants.disableAllAudio()
+
+      const participantCount = meeting.participants.joined?.size || 0
+      console.log('[MUTE ALL] Successfully muted all participants:', participantCount)
+
+      toast.success(`Muted all participants`, {
+        duration: 2000
+      })
+    } catch (error) {
+      console.error('[MUTE ALL] Failed to mute all participants:', error)
+      toast.error('Failed to mute all participants', {
+        duration: 3000
+      })
+    }
+  }, [meeting])
 
   // Auto-play local video stream (fallback if meeting.self.videoTrack not available)
   useEffect(() => {
@@ -1185,6 +1289,9 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
     return remotePeers.map(p => (p as RealtimeKitPeer).audioTrack?.id || null).join(',')
   }, [remotePeers])
 
+  // Track previous audio track IDs to prevent unnecessary re-runs
+  const prevAudioTrackIdsRef = useRef<string>('')
+
   // Build stream from peer's tracks (RealtimeKit doesn't use remoteStreams Map)
   const buildStreamFromPeer = useCallback((peer: RealtimeKitPeer | null): MediaStream | null => {
     if (!peer) return null
@@ -1229,16 +1336,23 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   useEffect(() => {
     if (!callState.isMinimized) {
       // Clean up audio elements when not minimized
-      console.log('[Minimized] Cleaning up audio elements, count:', pipAudioRefs.current.size)
+      rtkDebug.log('[Minimized] Cleaning up audio elements, count:', pipAudioRefs.current.size)
       pipAudioRefs.current.forEach(audio => {
         audio.pause()
         audio.srcObject = null
       })
       pipAudioRefs.current.clear()
+      prevAudioTrackIdsRef.current = ''
       return
     }
 
-    console.log('[Minimized] Setting up audio for remote peers:', {
+    // Skip if audio track IDs haven't changed (prevent unnecessary re-runs)
+    if (prevAudioTrackIdsRef.current === remoteAudioTrackIds) {
+      return
+    }
+    prevAudioTrackIdsRef.current = remoteAudioTrackIds
+
+    rtkDebug.log('[Minimized] Setting up audio for remote peers:', {
       remotePeersCount: remotePeers.length,
       remotePeerIds: remotePeers.map(p => p.id),
       existingAudioCount: pipAudioRefs.current.size
@@ -1254,7 +1368,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
 
         if (!existingAudio) {
           // Create new audio element
-          console.log('[Minimized] Creating audio element for peer:', peerName, {
+          rtkDebug.log('[Minimized] Creating audio element for peer:', peerName, {
             hasAudioTracks: stream.getAudioTracks().length,
             audioTracksInfo: stream.getAudioTracks().map(t => ({
               id: t.id,
@@ -1305,7 +1419,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
         pipAudioRefs.current.delete(peerId)
       }
     })
-  }, [callState.isMinimized, remotePeers, remoteAudioTrackIds, buildStreamFromPeer])
+  }, [callState.isMinimized, remoteAudioTrackIds, remotePeers, buildStreamFromPeer])
 
   const isOpen =
     callState.status === 'connected' || callState.status === 'joining' || callState.status === 'reconnecting'
@@ -1334,7 +1448,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
         isVideoEnabled={callState.isVideoEnabled}
         onToggleMute={onToggleMute}
         onToggleVideo={onToggleVideo}
-        onExpand={onToggleMinimize || (() => {})}
+        onExpand={onToggleMinimize || NOOP}
         onEndCall={onEndCall}
         prefixDataTestId={prefixDataTestId}
         t={t}
@@ -1498,7 +1612,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
 
               {/* Participants Panel - Sidebar (smooth transition) */}
               {showParticipantsPanel && (
-                <div className="gba:w-80 gba:bg-card gba:shadow-xl gba:flex gba:flex-col gba:border-l gba:flex-shrink-0 gba:transition-all gba:duration-300">
+                <div className="gba:w-80 gba:bg-card gba:shadow-xl gba:flex gba:flex-col gba:border-l gba:flex-shrink-0 gba:transition-all gba:duration-300 gba:h-full gba:overflow-hidden">
                   <ParticipantsPanel
                     meeting={meeting}
                     isOpen={showParticipantsPanel}
@@ -1507,6 +1621,8 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                     availableParticipants={availableParticipants}
                     pendingInvites={pendingInvites}
                     onInviteParticipant={onInviteParticipant}
+                    onMuteParticipant={handleMuteParticipant}
+                    onMuteAll={handleMuteAll}
                     remoteHandsRaised={callState.remoteHandsRaised}
                     localHandRaised={callState.handRaised}
                     localUserId={meeting?.self?.userId}

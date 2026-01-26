@@ -13,7 +13,7 @@
  */
 
 import React, { useRef, useEffect } from 'react'
-import { Monitor, Maximize2, ZoomIn, Hand } from 'lucide-react'
+import { Monitor, ArrowsOutSimple, MagnifyingGlassPlus, MicrophoneSlash, Hand } from '@phosphor-icons/react'
 import { Avatar, AvatarFallback } from '@newwork/nw-design-system'
 import { getInitials } from '../../utils/callUtils'
 import { ReactionsOverlay, Reaction } from './ReactionsOverlay'
@@ -105,7 +105,7 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
 
   // Log reaction filtering for debugging
   if (reactions.length > 0) {
-    console.log(`[RTK VideoTile] 🎨 Reaction filtering for ${peerName}:`, {
+    rtkDebug.log(`[RTK VideoTile] 🎨 Reaction filtering for ${peerName}:`, {
       peerName,
       peerId,
       userId,
@@ -174,7 +174,7 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
         {isFocusedScreenShare && (
           <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:opacity-0 hover:gba:opacity-100 gba:transition-opacity gba:bg-black/40 gba:pointer-events-none">
             <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-black/80 gba:text-white gba:text-sm gba:flex gba:items-center gba:gap-2">
-              <Maximize2 className="gba:w-4 gba:h-4" />
+              <ArrowsOutSimple className="gba:w-4 gba:h-4" weight="bold" />
               <span>Click to expand fullscreen</span>
             </div>
           </div>
@@ -191,7 +191,7 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
             title="Make larger"
             data-testid={`${prefixDataTestId}-focus-screenshare-${peerId}`}
           >
-            <ZoomIn className="gba:w-4 gba:h-4" />
+            <MagnifyingGlassPlus className="gba:w-4 gba:h-4" weight="bold" />
           </button>
         )}
       </div>
@@ -252,15 +252,18 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
 
       {/* Name overlay (only shown when video is on) */}
       {hasVideoTrack && (
-        <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm">
-          {peerName} {isLocal ? '(You)' : ''} {isMuted && '🔇'}
+        <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm gba:flex gba:items-center gba:gap-1">
+          <span>
+            {peerName} {isLocal ? '(You)' : ''}
+          </span>
+          {isMuted && <MicrophoneSlash className="gba:w-3.5 gba:h-3.5" weight="fill" />}
         </div>
       )}
 
       {/* Raised hand indicator */}
       {isHandRaised && (
         <div className="gba:absolute gba:top-2 gba:right-2 gba:px-2 gba:py-1 gba:rounded-full gba:bg-warning gba:text-warning-foreground gba:shadow-lg gba:animate-pulse">
-          <Hand className="gba:h-5 gba:w-5" />
+          <Hand className="gba:h-5 gba:w-5" weight="fill" />
         </div>
       )}
 

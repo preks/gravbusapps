@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo, startTransition, memo } from 'react'
-import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Spinner, Toaster } from '@newwork/nw-design-system'
 import { RealtimeKitProvider } from '@cloudflare/realtimekit-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
@@ -1866,6 +1866,7 @@ const ChatInner: React.FC<ChatProps> = memo(
 export const Chat: React.FC<ChatProps> = props => {
   return (
     <TranslationProvider>
+      <Toaster />
       <ChatInner {...props} />
     </TranslationProvider>
   )
