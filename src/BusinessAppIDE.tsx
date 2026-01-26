@@ -31,7 +31,16 @@ import {
   Badge,
   Switch
 } from '@newwork/nw-design-system'
-import { Gear, Info, Clock, Warning, CheckCircle, XCircle, CloudArrowUp, CircleNotch } from '@phosphor-icons/react'
+import {
+  GearIcon,
+  InfoIcon,
+  ClockIcon,
+  WarningIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  CloudArrowUpIcon,
+  CircleNotchIcon
+} from '@phosphor-icons/react'
 import { IDEMainMenu, BusinessAppInfo } from '@/components/ide-main-menu'
 import { IDERenderer } from '@/components/ide-renderer'
 import { UserInfoProps } from './common/BusinessAppContext'
@@ -1021,11 +1030,11 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                                   data-testid="TokenStatusBadge"
                                 >
                                   {tokenStatus.isExpired ? (
-                                    <XCircle size={14} weight="fill" />
+                                    <XCircleIcon size={14} weight="fill" />
                                   ) : tokenStatus.variant === 'warning' ? (
-                                    <Warning size={14} weight="fill" />
+                                    <WarningIcon size={14} weight="fill" />
                                   ) : (
-                                    <CheckCircle size={14} weight="fill" />
+                                    <CheckCircleIcon size={14} weight="fill" />
                                   )}
                                   <span className="gba:text-xs gba:font-medium">{tokenStatus.remainingTime}</span>
                                 </Badge>
@@ -1054,7 +1063,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                                   onClick={handleTokenBadgeClick}
                                   data-testid="TokenStatusBadge-Invalid"
                                 >
-                                  <Clock size={14} />
+                                  <ClockIcon size={14} />
                                   <span className="gba:text-xs gba:font-medium">Invalid Token</span>
                                 </Badge>
                               </TooltipTrigger>
@@ -1080,9 +1089,9 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                                   data-testid="PublishScreenButton"
                                 >
                                   {isPublishing ? (
-                                    <CircleNotch size={14} className="gba:animate-spin" />
+                                    <CircleNotchIcon size={14} className="gba:animate-spin" />
                                   ) : (
-                                    <CloudArrowUp size={14} />
+                                    <CloudArrowUpIcon size={14} />
                                   )}
                                   <span className="gba:text-xs">Publish Screen</span>
                                 </Button>
@@ -1095,7 +1104,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button variant="ghost" size="icon" onClick={() => setSettingsModalVisible(true)}>
-                                <Gear size={16} />
+                                <GearIcon size={16} />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>Settings</TooltipContent>
@@ -1105,7 +1114,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button variant="ghost" size="icon" onClick={() => setPerformanceModalVisible(true)}>
-                                <Info size={16} />
+                                <InfoIcon size={16} />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>Performance Metrics</TooltipContent>
@@ -1177,11 +1186,11 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                           >
                             <div className="gba:flex-shrink-0 gba:mt-0.5">
                               {tokenStatus.isExpired ? (
-                                <XCircle size={18} weight="fill" />
+                                <XCircleIcon size={18} weight="fill" />
                               ) : tokenStatus.variant === 'warning' ? (
-                                <Warning size={18} weight="fill" />
+                                <WarningIcon size={18} weight="fill" />
                               ) : (
-                                <CheckCircle size={18} weight="fill" />
+                                <CheckCircleIcon size={18} weight="fill" />
                               )}
                             </div>
                             <div className="gba:flex-1 gba:space-y-1">
@@ -1211,7 +1220,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                             data-testid="TokenStatusInfo-Invalid"
                           >
                             <div className="gba:flex-shrink-0 gba:mt-0.5">
-                              <Clock size={18} />
+                              <ClockIcon size={18} />
                             </div>
                             <div className="gba:flex-1">
                               <div className="gba:font-semibold gba:text-sm">Invalid Token Format</div>
@@ -1353,7 +1362,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                         Cancel
                       </Button>
                       <Button onClick={handleConfirmPublish}>
-                        <CloudArrowUp size={14} className="gba:mr-1.5" />
+                        <CloudArrowUpIcon size={14} className="gba:mr-1.5" />
                         Publish
                       </Button>
                     </DialogFooter>
