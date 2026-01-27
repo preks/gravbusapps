@@ -44,6 +44,8 @@ export interface ParticipantVideoTileProps {
   totalScreenShares?: number
   /** Whether participant's hand is raised */
   isHandRaised?: boolean
+  /** Whether participant is the active speaker */
+  isActiveSpeaker?: boolean
   /** Active reactions to display */
   reactions?: Reaction[]
   /** Callback when screen share is clicked */
@@ -73,6 +75,7 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
   isFocusedScreenShare = false,
   totalScreenShares = 0,
   isHandRaised = false,
+  isActiveSpeaker = false,
   reactions = [],
   onScreenShareClick,
   onScreenShareFocus,
@@ -200,7 +203,11 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
 
   // Video/Audio/Avatar Tile
   return (
-    <div className="gba:relative gba:flex gba:items-center gba:justify-center gba:bg-muted gba:overflow-hidden gba:rounded-lg gba:w-full gba:h-full">
+    <div
+      className={`gba:relative gba:flex gba:items-center gba:justify-center gba:bg-muted gba:overflow-hidden gba:rounded-lg gba:w-full gba:h-full ${
+        isActiveSpeaker ? 'gba:ring-4 gba:ring-primary gba:ring-offset-2 gba:ring-offset-background' : ''
+      }`}
+    >
       {/* Video element (or hidden for audio-only) */}
       <video
         ref={videoRef}

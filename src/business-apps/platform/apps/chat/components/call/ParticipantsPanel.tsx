@@ -72,6 +72,10 @@ export interface ParticipantsPanelProps {
   localHandRaised?: boolean
   /** Current user's ID */
   localUserId?: string
+  /** Current active speaker ID */
+  activeSpeakerId?: string | null
+  /** Recent speakers for sorting */
+  activeSpeakerHistory?: string[]
   /** Translation function */
   t?: (key: string) => string
 }
@@ -89,6 +93,8 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   remoteHandsRaised = {},
   localHandRaised = false,
   localUserId,
+  activeSpeakerId,
+  activeSpeakerHistory = [],
   t = (key: string) => key
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
@@ -120,7 +126,36 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
       }
     }
 
-    return participants
+    // Sort: Active speaker first, then by history, then alphabetically
+    const sortedParticipants = participants.slice().sort((a, b) => {
+      const aId = a.id || a.participantId
+      const bId = b.id || b.participantId
+
+      // Local user always first
+      if (aId === 'local' || a.userId === localUserId) return -1
+      if (bId === 'local' || b.userId === localUserId) return 1
+
+      // Active speaker second
+      if (aId === activeSpeakerId) return -1
+      if (bId === activeSpeakerId) return 1
+
+      // Then by speaker history
+      const aHistoryIndex = activeSpeakerHistory.indexOf(aId)
+      const bHistoryIndex = activeSpeakerHistory.indexOf(bId)
+
+      if (aHistoryIndex !== -1 && bHistoryIndex !== -1) {
+        return aHistoryIndex - bHistoryIndex
+      }
+      if (aHistoryIndex !== -1) return -1
+      if (bHistoryIndex !== -1) return 1
+
+      // Finally alphabetically
+      const aName = a.name || a.displayName || ''
+      const bName = b.name || b.displayName || ''
+      return aName.localeCompare(bName)
+    })
+
+    return sortedParticipants
   })
 
   // Get IDs of participants currently in call
@@ -235,70 +270,85 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                 <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:sticky gba:top-0">
                   In Call ({filteredActiveParticipants.length})
                 </div>
-                {filteredActiveParticipants.map((participant: any) => (
-                  <div
-                    key={participant.id}
-                    className="gba:p-3 gba:flex gba:items-center gba:justify-between hover:gba:bg-muted/50 gba:border-b gba:transition-colors"
-                    data-testid={`${prefixDataTestId}-participant-active-${participant.id}`}
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:min-w-0">
-                      <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
-                        <AvatarFallback className="gba:text-xs">
-                          {getInitials(participant.name || 'Unknown')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="gba:flex-1 gba:min-w-0">
-                        <p className="gba:text-sm gba:font-medium gba:truncate">
-                          {participant.name || 'Unknown'}
-                          {participant.id === meeting?.self?.id && ' (You)'}
-                        </p>
-                        <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
-                          {participant.audioEnabled ? (
-                            <MicrophoneIcon className="gba:h-3 gba:w-3 gba:text-success" weight="fill" />
-                          ) : (
-                            <MicrophoneSlashIcon className="gba:h-3 gba:w-3 gba:text-destructive" weight="fill" />
-                          )}
-                          {participant.videoEnabled ? (
-                            <VideoCameraIcon className="gba:h-3 gba:w-3 gba:text-success" weight="fill" />
-                          ) : (
-                            <VideoCameraSlashIcon className="gba:h-3 gba:w-3 gba:text-muted-foreground" weight="fill" />
-                          )}
-                          {(isHandRaised(participant.userId) ||
-                            isHandRaised(participant.customParticipantId) ||
-                            isHandRaised(participant.id)) && (
-                            <HandIcon className="gba:h-3 gba:w-3 gba:text-warning gba:animate-pulse" weight="fill" />
-                          )}
-                          {participant.screenShareEnabled && (
-                            <MonitorIcon className="gba:h-3 gba:w-3 gba:text-primary" weight="fill" />
-                          )}
+                {filteredActiveParticipants.map((participant: any) => {
+                  const isActiveSpeakerNow = activeSpeakerId === participant.id
+                  return (
+                    <div
+                      key={participant.id}
+                      className={`gba:p-3 gba:flex gba:items-center gba:justify-between hover:gba:bg-muted/50 gba:border-b gba:transition-colors ${
+                        isActiveSpeakerNow ? 'gba:bg-primary/10' : ''
+                      }`}
+                      data-testid={`${prefixDataTestId}-participant-active-${participant.id}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:min-w-0">
+                        <Avatar
+                          className={`gba:h-8 gba:w-8 gba:flex-shrink-0 ${
+                            isActiveSpeakerNow ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2' : ''
+                          }`}
+                        >
+                          <AvatarFallback className="gba:text-xs">
+                            {getInitials(participant.name || 'Unknown')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="gba:flex-1 gba:min-w-0">
+                          <p className="gba:text-sm gba:font-medium gba:truncate">
+                            {participant.name || 'Unknown'}
+                            {participant.id === meeting?.self?.id && ' (You)'}
+                            {isActiveSpeakerNow && (
+                              <span className="gba:ml-2 gba:text-xs gba:text-primary gba:font-semibold">Speaking</span>
+                            )}
+                          </p>
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
+                            {participant.audioEnabled ? (
+                              <MicrophoneIcon className="gba:h-3 gba:w-3 gba:text-success" weight="fill" />
+                            ) : (
+                              <MicrophoneSlashIcon className="gba:h-3 gba:w-3 gba:text-destructive" weight="fill" />
+                            )}
+                            {participant.videoEnabled ? (
+                              <VideoCameraIcon className="gba:h-3 gba:w-3 gba:text-success" weight="fill" />
+                            ) : (
+                              <VideoCameraSlashIcon
+                                className="gba:h-3 gba:w-3 gba:text-muted-foreground"
+                                weight="fill"
+                              />
+                            )}
+                            {(isHandRaised(participant.userId) ||
+                              isHandRaised(participant.customParticipantId) ||
+                              isHandRaised(participant.id)) && (
+                              <HandIcon className="gba:h-3 gba:w-3 gba:text-warning gba:animate-pulse" weight="fill" />
+                            )}
+                            {participant.screenShareEnabled && (
+                              <MonitorIcon className="gba:h-3 gba:w-3 gba:text-primary" weight="fill" />
+                            )}
+                          </div>
                         </div>
                       </div>
+                      {/* Show actions menu only for other participants (not yourself) */}
+                      {participant.id !== meeting?.self?.id && onMuteParticipant && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              className="gba:p-1 hover:gba:bg-muted gba:rounded gba:flex-shrink-0 gba:transition-colors"
+                              aria-label="More actions"
+                              data-testid={`${prefixDataTestId}-participant-menu-${participant.id}`}
+                            >
+                              <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" weight="bold" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => onMuteParticipant(participant.id, participant.name || 'Unknown')}
+                              data-testid={`${prefixDataTestId}-participant-mute-${participant.id}`}
+                            >
+                              <SpeakerXIcon className="gba:h-4 gba:w-4 gba:mr-2" weight="fill" />
+                              Mute participant
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
-                    {/* Show actions menu only for other participants (not yourself) */}
-                    {participant.id !== meeting?.self?.id && onMuteParticipant && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button
-                            className="gba:p-1 hover:gba:bg-muted gba:rounded gba:flex-shrink-0 gba:transition-colors"
-                            aria-label="More actions"
-                            data-testid={`${prefixDataTestId}-participant-menu-${participant.id}`}
-                          >
-                            <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" weight="bold" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => onMuteParticipant(participant.id, participant.name || 'Unknown')}
-                            data-testid={`${prefixDataTestId}-participant-mute-${participant.id}`}
-                          >
-                            <SpeakerXIcon className="gba:h-4 gba:w-4 gba:mr-2" weight="fill" />
-                            Mute participant
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
 

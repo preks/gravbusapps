@@ -20,6 +20,7 @@ import { useRealtimeKitWebSocket } from './useRealtimeKitWebSocket'
 import { useRealtimeKitParticipants } from './useRealtimeKitParticipants'
 import { useRealtimeKitScreenShare } from './useRealtimeKitScreenShare'
 import { useRealtimeKitMedia } from './useRealtimeKitMedia'
+import { useRealtimeKitActiveSpeaker } from './useRealtimeKitActiveSpeaker'
 import { rtkDebug } from '../utils/rtkDebug'
 
 export interface UseRealtimeKitGroupCallOptions {
@@ -137,6 +138,11 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     participants: participantsHook.participants,
     isInCall: callState.status === 'connected',
     callStatus: callState.status
+  })
+
+  // Active speaker tracking
+  const activeSpeaker = useRealtimeKitActiveSpeaker({
+    meeting
   })
 
   // Derived state
@@ -1120,6 +1126,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     incomingInvite,
     activeConversationCalls,
     currentCallConversationName: callState.conversationName,
+    activeSpeakerId: activeSpeaker.activeSpeakerId, // Active speaker tracking
+    activeSpeakerHistory: activeSpeaker.activeSpeakerHistory, // Recent speakers for sorting
     startCall,
     // Wrap joinCall to match interface signature from old useGroupCall
     // IMPORTANT: When joining existing call, Chat.tsx passes:

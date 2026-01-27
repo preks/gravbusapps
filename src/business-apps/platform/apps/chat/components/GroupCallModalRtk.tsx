@@ -50,6 +50,8 @@ interface GroupCallModalRtkProps {
   remoteStreams: Map<string, MediaStream>
   participants: GroupCallParticipant[]
   pendingInvites?: Map<string, PendingInvite>
+  activeSpeakerId?: string | null // Current active speaker RTK peer ID
+  activeSpeakerHistory?: string[] // Recent speakers for sorting
   onEndCall: () => void
   onToggleMute: () => void
   onToggleVideo: () => void
@@ -139,6 +141,8 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
   participants,
   pendingInvites,
   availableParticipants,
+  activeSpeakerId, // Current active speaker
+  activeSpeakerHistory, // Recent speakers for sorting
   onEndCall,
   onToggleMute,
   onToggleVideo,
@@ -876,6 +880,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
       isMuted: boolean
       isVideoEnabled: boolean
       isFocusedScreenShare?: boolean
+      isActiveSpeaker?: boolean // Active speaker highlighting
     }> = []
 
     // Add focused screen share first (if exists) - will be larger in grid
@@ -913,7 +918,8 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
       hasAudioTrack: !!localAudioTrack, // Audio needs video element too!
       isLocal: true,
       isMuted: callState.isMuted,
-      isVideoEnabled: callState.isVideoEnabled
+      isVideoEnabled: callState.isVideoEnabled,
+      isActiveSpeaker: activeSpeakerId === 'local' // Check if local is active speaker
     })
 
     // Add ALL non-focused screen shares (from allScreenShares array)
@@ -951,26 +957,65 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
         hasAudioTrack: !!peer.audioTrack, // Audio needs video element too!
         isLocal: false,
         isMuted: !peer.audioEnabled,
-        isVideoEnabled: peer.videoEnabled || false
+        isVideoEnabled: peer.videoEnabled || false,
+        isActiveSpeaker: activeSpeakerId === peer.id // Check if this peer is active speaker
       })
     })
 
+    // Sort items: Active speaker first (after focused screen share), then by history
+    const focusedScreenShareCount = focusedScreenShare ? 1 : 0
+    const localItem = items.find(i => i.isLocal)
+    const activeSpeakerItems = items
+      .slice(focusedScreenShareCount)
+      .filter(item => item.isActiveSpeaker && !item.isLocal)
+    const historyItems = items
+      .slice(focusedScreenShareCount)
+      .filter(item => !item.isActiveSpeaker && !item.isLocal && activeSpeakerHistory?.includes(item.peerId))
+      .sort((a, b) => {
+        const aIndex = activeSpeakerHistory?.indexOf(a.peerId) ?? -1
+        const bIndex = activeSpeakerHistory?.indexOf(b.peerId) ?? -1
+        return aIndex - bIndex
+      })
+    const otherItems = items
+      .slice(focusedScreenShareCount)
+      .filter(
+        item =>
+          !item.isActiveSpeaker &&
+          !item.isLocal &&
+          item.type !== 'screen-share' &&
+          !activeSpeakerHistory?.includes(item.peerId)
+      )
+    const screenShareItems = items.slice(focusedScreenShareCount).filter(i => i.type === 'screen-share')
+
+    // Reconstruct: focused screen share (if any) + local + active speaker + history + others + screen shares
+    const sortedItems = [
+      ...items.slice(0, focusedScreenShareCount), // Keep focused screen share first
+      ...(localItem ? [localItem] : []),
+      ...activeSpeakerItems,
+      ...historyItems,
+      ...otherItems,
+      ...screenShareItems
+    ]
+
     rtkDebug.log(`[RTK Modal] Grid items built:`, {
-      totalItems: items.length,
-      screenShares: items.filter(i => i.type === 'screen-share').length,
+      totalItems: sortedItems.length,
+      screenShares: sortedItems.filter(i => i.type === 'screen-share').length,
       focusedScreenShare: focusedScreenShare?.peerId,
-      items: items.map(i => ({
+      activeSpeakerId,
+      activeSpeakerCount: activeSpeakerItems.length,
+      items: sortedItems.map(i => ({
         id: i.id,
         type: i.type,
         peerId: i.peerId,
         userId: i.userId, // SDK userId
         customParticipantId: i.customParticipantId, // Our DB user ID
         peerName: i.peerName,
-        isFocused: i.isFocusedScreenShare
+        isFocused: i.isFocusedScreenShare,
+        isActiveSpeaker: i.isActiveSpeaker
       }))
     })
 
-    return items
+    return sortedItems
   }, [
     focusedScreenShare,
     allScreenShares,
@@ -979,7 +1024,9 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
     callState.isMuted,
     callState.isScreenSharing,
     participants,
-    meeting?.self
+    meeting?.self,
+    activeSpeakerId,
+    activeSpeakerHistory
   ])
 
   // Paginate grid items
@@ -1280,10 +1327,42 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
     return () => document.removeEventListener('keydown', handleEscape)
   }, [expandedScreenShare])
 
-  // Get first remote peer for minimized view
+  // Debounced active speaker for minimized view (prevent flickering)
+  const [debouncedActiveSpeaker, setDebouncedActiveSpeaker] = useState<string | null>(null)
+  const activeSpeakerTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    // Clear existing timeout
+    if (activeSpeakerTimeoutRef.current) {
+      clearTimeout(activeSpeakerTimeoutRef.current)
+    }
+
+    // If there's an active speaker, debounce the update
+    if (activeSpeakerId) {
+      activeSpeakerTimeoutRef.current = setTimeout(() => {
+        setDebouncedActiveSpeaker(activeSpeakerId)
+      }, 800) // Wait 0.8 seconds before switching to prevent flickering
+    }
+
+    return () => {
+      if (activeSpeakerTimeoutRef.current) {
+        clearTimeout(activeSpeakerTimeoutRef.current)
+      }
+    }
+  }, [activeSpeakerId])
+
+  // Get first remote peer for minimized view - prioritize debounced active speaker
   const firstRemotePeer = useMemo(() => {
+    // If there's a debounced active speaker, show their video
+    if (debouncedActiveSpeaker) {
+      const activeSpeaker = remotePeers.find(peer => peer.id === debouncedActiveSpeaker)
+      if (activeSpeaker) {
+        return activeSpeaker
+      }
+    }
+    // Fallback to first peer if no active speaker
     return remotePeers[0] || null
-  }, [remotePeers])
+  }, [remotePeers, debouncedActiveSpeaker])
 
   // Track audio track IDs to trigger effect when they change
   const remoteAudioTrackIds = useMemo(() => {
@@ -1529,6 +1608,7 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                             isFocusedScreenShare={isFocused}
                             totalScreenShares={allScreenShares.length}
                             isHandRaised={isParticipantHandRaised(item.userId, item.customParticipantId)}
+                            isActiveSpeaker={item.isActiveSpeaker}
                             reactions={activeReactions}
                             onScreenShareClick={() => {
                               if (item.screenShareTrack) {
@@ -1624,6 +1704,8 @@ export const GroupCallModalRtk: React.FC<GroupCallModalRtkProps> = ({
                     onInviteParticipant={onInviteParticipant}
                     onMuteParticipant={handleMuteParticipant}
                     onMuteAll={handleMuteAll}
+                    activeSpeakerId={activeSpeakerId}
+                    activeSpeakerHistory={activeSpeakerHistory}
                     remoteHandsRaised={callState.remoteHandsRaised}
                     localHandRaised={callState.handRaised}
                     localUserId={meeting?.self?.userId}
