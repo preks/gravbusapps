@@ -318,6 +318,7 @@ employee-form-email = Email
 employee-form-organizational-unit = Organizational Unit
 employee-form-job-position = Job Position
 employee-form-hire-date = Hire Date
+employee-form-fixed-term-until = Fixed Term until
 employee-form-preferred-name = Preferred Name
 employee-form-employment-type = Employment Type
 employee-form-contract-type = Contract Type

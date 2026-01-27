@@ -487,6 +487,16 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                       : 'N/A'
                   }
                 />
+                {/* Fixed Term until */}
+                <ProfileInfoItem
+                  icon={<PiCalendar className="gba:h-4 gba:w-4" />}
+                  label={'Fixed Term until'}
+                  value={
+                    employee.workingCondition[0]?.exitDate
+                      ? dayjs(employee.workingCondition[0].exitDate).format('MMM D, YYYY')
+                      : 'N/A'
+                  }
+                />
               </div>
 
               {/* Teams, Capabilities and Skills (scroll with the left column) */}

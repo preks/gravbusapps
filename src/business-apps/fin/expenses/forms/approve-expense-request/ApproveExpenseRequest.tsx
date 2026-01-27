@@ -27,6 +27,8 @@ import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/compon
 import { useEntityDates } from '@/common/data/common/hooks/useEntityDates'
 import { useApproverData } from '@/common/data/employee/hooks/useApproverData'
 import { formatDateTime } from '@/common/utils/dateFormatter'
+import { useExpenseRequestAnalysis } from '../../common/hooks/useExpenseRequestAnalysis'
+import AIAnalysisSection from '../../common/components/AIAnalysisSection'
 
 // Component imports
 import {
@@ -108,6 +110,18 @@ const ApproveExpenseRequestContent: React.FC<ApproveExpenseRequestProps> = ({
     accessToken,
     payloadData: payloadExpenseRequest // Pass payload data to avoid unnecessary GraphQL query
   })
+
+  // AI Analysis for expense request
+  const {
+    analysis: aiAnalysis,
+    loading: aiAnalysisLoading,
+    error: aiAnalysisError,
+    refetch: refetchAiAnalysis
+  } = useExpenseRequestAnalysis({
+    expenseRequestId: expenseId || null,
+    accessToken
+  })
+
   const processMetadata = additionalData?.psi_processMetadata || {}
   const taskStatus = additionalData?.psi_taskStatus || processMetadata?.status || 'IN_PROGRESS'
   const taskCompletedAt = processMetadata?.completedAt || extendedAdditionalData?.psi_taskCompletedAt
@@ -314,6 +328,10 @@ const ApproveExpenseRequestContent: React.FC<ApproveExpenseRequestProps> = ({
   const handleReject = async () => {
     // Require comment for rejection
     if (!comment.trim()) {
+      // Auto-fill comment from AI insights if available (WARNING type)
+      if (aiAnalysis?.type === 'WARNING' && aiAnalysis.user_text) {
+        setComment(aiAnalysis.user_text)
+      }
       setShowComment(true)
       return
     }
@@ -527,6 +545,10 @@ const ApproveExpenseRequestContent: React.FC<ApproveExpenseRequestProps> = ({
           formatCurrency={formatCurrency}
           getCatalogValue={getCatalogValue}
           t={t}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          additionalData={additionalData}
+          employeeId={expenseRequest?.employee?.id}
         />
       )}
 
@@ -589,7 +611,15 @@ const ApproveExpenseRequestContent: React.FC<ApproveExpenseRequestProps> = ({
         />
       )}
 
-      {/* 7. Comment Section - Only for active tasks */}
+      {/* 7. AI Analysis Section */}
+      <AIAnalysisSection
+        analysis={aiAnalysis}
+        loading={aiAnalysisLoading}
+        error={aiAnalysisError}
+        onRefresh={refetchAiAnalysis}
+      />
+
+      {/* 8. Comment Section - Only for active tasks */}
       {!isTaskCompleted && (
         <div ref={commentSectionRef} data-testid="approve-expense-request-comment-section">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">

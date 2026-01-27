@@ -16,17 +16,16 @@ import {
   Badge,
   Spinner
 } from '@newwork/nw-design-system'
-import { Upload, Link as LinkIcon, FileText, ExternalLink, Trash2, Plus, BookOpen } from 'lucide-react'
-import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import { Upload, Link as LinkIcon, FileText, ExternalLink, Trash2, Plus, BookOpen, Database } from 'lucide-react'
 import type { KnowledgeSource } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { ContentEntrySelector } from './ContentEntrySelector'
+import { CatalogSelector } from './CatalogSelector'
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-interface KnowledgeSourcesPanelProps {
-  promptId?: string // Only available when editing existing prompt
+interface KnowledgeSourcesPanelProps extends BusinessAppContextProps {
+  promptId?: string // For reference only, not used for immediate saves
   sources: KnowledgeSource[]
   onSourcesChange: (sources: KnowledgeSource[]) => void
-  accessToken: string
-  allowLocalOnly?: boolean // Allow adding sources locally before save (for create mode)
   'data-testid'?: string
 }
 
@@ -34,11 +33,9 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
   promptId,
   sources,
   onSourcesChange,
-  accessToken,
-  allowLocalOnly = false,
-  'data-testid': testId = 'knowledge-sources-panel'
+  'data-testid': testId = 'knowledge-sources-panel',
+  ...context
 }) => {
-  const client = usePromptManagerClient(accessToken)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [showUrlInput, setShowUrlInput] = useState(false)
@@ -46,6 +43,7 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
   const [urlName, setUrlName] = useState('')
   const [urlDescription, setUrlDescription] = useState('')
   const [showContentSelector, setShowContentSelector] = useState(false)
+  const [showCatalogSelector, setShowCatalogSelector] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileUpload = useCallback(
@@ -59,25 +57,19 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
         const uploadedSources: KnowledgeSource[] = []
 
         for (const file of Array.from(files)) {
-          if (promptId) {
-            // Edit mode - upload to backend
-            const source = await client.uploadKnowledgeSource(promptId, file, `Uploaded from ${file.name}`)
-            uploadedSources.push(source)
-          } else if (allowLocalOnly) {
-            // Create mode - store locally
-            const source: KnowledgeSource = {
-              id: `temp-${Date.now()}-${file.name}`,
-              type: 'document',
-              name: file.name,
-              description: `Uploaded from ${file.name}`,
-              fileName: file.name,
-              fileSize: file.size,
-              mimeType: file.type,
-              lastUpdated: new Date().toISOString(),
-              createdAt: new Date().toISOString()
-            }
-            uploadedSources.push(source)
+          // Always store locally - the TaskExpertEditor handles backend save
+          const source: KnowledgeSource = {
+            id: `document-${Date.now()}-${file.name}`,
+            type: 'document',
+            name: file.name,
+            description: `Uploaded from ${file.name}`,
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.type,
+            lastUpdated: new Date().toISOString(),
+            createdAt: new Date().toISOString()
           }
+          uploadedSources.push(source)
         }
 
         onSourcesChange([...sources, ...uploadedSources])
@@ -87,7 +79,7 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
         setIsUploading(false)
       }
     },
-    [promptId, allowLocalOnly, client, sources, onSourcesChange]
+    [sources, onSourcesChange]
   )
 
   const handleAddUrl = useCallback(async () => {
@@ -97,24 +89,15 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
     setUploadError(null)
 
     try {
-      let source: KnowledgeSource
-
-      if (promptId) {
-        // Edit mode - add to backend
-        source = await client.addKnowledgeSourceUrl(promptId, urlInput, urlName, urlDescription)
-      } else if (allowLocalOnly) {
-        // Create mode - store locally
-        source = {
-          id: `temp-${Date.now()}-url`,
-          type: 'url',
-          name: urlName,
-          description: urlDescription,
-          url: urlInput,
-          lastUpdated: new Date().toISOString(),
-          createdAt: new Date().toISOString()
-        }
-      } else {
-        return
+      // Always store locally - the TaskExpertEditor handles backend save
+      const source: KnowledgeSource = {
+        id: `url-${Date.now()}`,
+        type: 'url',
+        name: urlName,
+        description: urlDescription,
+        url: urlInput,
+        lastUpdated: new Date().toISOString(),
+        createdAt: new Date().toISOString()
       }
 
       onSourcesChange([...sources, source])
@@ -129,7 +112,7 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
     } finally {
       setIsUploading(false)
     }
-  }, [promptId, allowLocalOnly, urlInput, urlName, urlDescription, client, sources, onSourcesChange])
+  }, [urlInput, urlName, urlDescription, sources, onSourcesChange])
 
   const handleAddContentEntries = useCallback(
     async (entries: Array<{ id: string; title: string; contentType?: { value: string } }>) => {
@@ -140,56 +123,73 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
         const addedSources: KnowledgeSource[] = []
 
         for (const entry of entries) {
-          if (promptId) {
-            // If we have a promptId (edit mode), upload to backend
-            const source = await client.addKnowledgeSourceContent(
-              promptId,
-              entry.id,
-              entry.title,
-              entry.contentType?.value || 'Internal Content'
-            )
-            addedSources.push(source)
-          } else if (allowLocalOnly) {
-            // Create mode - store locally until save
-            const source: KnowledgeSource = {
-              id: `temp-${Date.now()}-${entry.id}`,
-              type: 'content_entry',
-              name: entry.title,
-              description: entry.contentType?.value || 'Internal Content',
-              contentEntryId: entry.id,
-              lastUpdated: new Date().toISOString(),
-              createdAt: new Date().toISOString()
-            }
-            addedSources.push(source)
+          // Always store locally - the TaskExpertEditor handles backend save
+          const source: KnowledgeSource = {
+            id: entry.id,
+            type: 'content_entry',
+            name: entry.title,
+            description: entry.contentType?.value || 'Internal Content',
+            contentEntryId: entry.id,
+            lastUpdated: new Date().toISOString(),
+            createdAt: new Date().toISOString()
           }
+          addedSources.push(source)
         }
 
         onSourcesChange([...sources, ...addedSources])
+        setShowContentSelector(false)
       } catch (error) {
         setUploadError(error instanceof Error ? error.message : 'Failed to add content')
       } finally {
         setIsUploading(false)
       }
     },
-    [promptId, allowLocalOnly, client, sources, onSourcesChange]
+    [sources, onSourcesChange]
+  )
+
+  const handleAddCatalogs = useCallback(
+    async (
+      catalogs: Array<{ id: string; identifier: string; version: string; name: string; entriesCount?: number }>
+    ) => {
+      setIsUploading(true)
+      setUploadError(null)
+
+      try {
+        const addedSources: KnowledgeSource[] = []
+
+        for (const catalog of catalogs) {
+          // Always store locally - the TaskExpertEditor handles backend save
+          const source: KnowledgeSource = {
+            id: catalog.id,
+            type: 'catalog',
+            name: catalog.name,
+            description: `Catalog: ${catalog.identifier} (${catalog.entriesCount || 0} entries)`,
+            catalogIdentifier: catalog.identifier,
+            catalogVersion: catalog.version,
+            catalogEntryCount: catalog.entriesCount,
+            lastUpdated: new Date().toISOString(),
+            createdAt: new Date().toISOString()
+          }
+          addedSources.push(source)
+        }
+
+        onSourcesChange([...sources, ...addedSources])
+        setShowCatalogSelector(false)
+      } catch (error) {
+        setUploadError(error instanceof Error ? error.message : 'Failed to add catalogs')
+      } finally {
+        setIsUploading(false)
+      }
+    },
+    [sources, onSourcesChange]
   )
 
   const handleRemoveSource = useCallback(
     async (sourceId: string) => {
-      if (!promptId) {
-        // For new prompts, just remove from local state
-        onSourcesChange(sources.filter(s => s.id !== sourceId))
-        return
-      }
-
-      try {
-        await client.removeKnowledgeSource(promptId, sourceId)
-        onSourcesChange(sources.filter(s => s.id !== sourceId))
-      } catch (error) {
-        console.error('Failed to remove knowledge source:', error)
-      }
+      // Always remove locally only - the TaskExpertEditor handles backend save
+      onSourcesChange(sources.filter(s => s.id !== sourceId))
     },
-    [promptId, client, sources, onSourcesChange]
+    [sources, onSourcesChange]
   )
 
   const formatFileSize = (bytes: number): string => {
@@ -210,7 +210,7 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
         </p>
 
         {/* Upload Actions */}
-        {promptId || allowLocalOnly ? (
+        {true ? (
           <>
             <div className="gba:flex gba:gap-2 gba:flex-wrap">
               <Button
@@ -222,6 +222,16 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
               >
                 <BookOpen className="gba:w-4 gba:h-4 gba:mr-2" />
                 From Knowledge Base
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCatalogSelector(true)}
+                disabled={isUploading}
+                data-testid={`${testId}-add-catalog-button`}
+              >
+                <Database className="gba:w-4 gba:h-4 gba:mr-2" />
+                Add Catalog
               </Button>
               <Button
                 variant="outline"
@@ -254,15 +264,6 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
                 className="gba:hidden"
               />
             </div>
-            {!promptId && allowLocalOnly && (
-              <div className="gba:bg-info/10 gba:border gba:border-info/20 gba:rounded-lg gba:p-3">
-                <p className="gba:text-xs gba:text-info-foreground">
-                  💡 <strong>Knowledge Sources:</strong>
-                  <br />• Add from Knowledge Base and External URLs now
-                  <br />• Upload Documents after saving the expert (Edit mode)
-                </p>
-              </div>
-            )}
           </>
         ) : (
           <div className="gba:bg-warning/10 gba:border gba:border-warning/20 gba:rounded-lg gba:p-3">
@@ -357,6 +358,8 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
                       <ExternalLink className="gba:w-4 gba:h-4 gba:text-primary" />
                     ) : source.type === 'content_entry' ? (
                       <BookOpen className="gba:w-4 gba:h-4 gba:text-primary" />
+                    ) : source.type === 'catalog' ? (
+                      <Database className="gba:w-4 gba:h-4 gba:text-primary" />
                     ) : (
                       <FileText className="gba:w-4 gba:h-4 gba:text-primary" />
                     )}
@@ -372,6 +375,11 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
                         {source.type === 'document' && source.fileSize && (
                           <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
                             {formatFileSize(source.fileSize)}
+                          </p>
+                        )}
+                        {source.type === 'catalog' && source.catalogEntryCount !== undefined && (
+                          <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                            {source.catalogIdentifier} ({source.catalogEntryCount} entries)
                           </p>
                         )}
                       </div>
@@ -412,7 +420,9 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
           <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
             <FileText className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-2 gba:opacity-50" />
             <p className="gba:text-sm">No knowledge sources yet</p>
-            <p className="gba:text-xs gba:mt-1">Add from knowledge base, upload documents, or add external URLs</p>
+            <p className="gba:text-xs gba:mt-1">
+              Add from knowledge base, catalogs, upload documents, or add external URLs
+            </p>
           </div>
         )}
       </CardContent>
@@ -420,9 +430,18 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
       {/* Content Entry Selector Dialog */}
       <ContentEntrySelector
         isOpen={showContentSelector}
-        onClose={() => setShowContentSelector(false)}
         onSelect={handleAddContentEntries}
-        accessToken={accessToken}
+        accessToken={context.accessToken}
+        onClose={() => setShowContentSelector(false)}
+      />
+
+      {/* Catalog Selector Dialog */}
+      <CatalogSelector
+        isOpen={showCatalogSelector}
+        onSelect={handleAddCatalogs}
+        existingSources={sources}
+        {...context}
+        onClose={() => setShowCatalogSelector(false)}
       />
     </Card>
   )

@@ -17,7 +17,7 @@ import {
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTaskExperts } from '../hooks/useTaskExperts'
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { TaskExpertEditor } from './TaskExpertEditor'
 import { TaskExpertTestPanel } from './TaskExpertTestPanel'
 
@@ -35,19 +35,63 @@ export const TaskExpertsSpace: React.FC<BusinessAppContextProps> = context => {
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null)
   const [testingPromptId, setTestingPromptId] = useState<string | null>(null)
 
+  // Handle URL parameter for direct expert access
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const expertId = urlParams.get('expertId')
+    if (expertId && !editingPromptId && !isCreateOpen) {
+      if (expertId === 'new') {
+        setIsCreateOpen(true)
+      } else {
+        setEditingPromptId(expertId)
+      }
+    }
+  }, [])
+
+  const updateUrl = useCallback((expertId: string | null) => {
+    const urlParams = new URLSearchParams(window.location.search)
+    if (expertId) {
+      urlParams.set('expertId', expertId)
+    } else {
+      urlParams.delete('expertId')
+    }
+    const newUrl = urlParams.toString()
+      ? `${window.location.pathname}?${urlParams.toString()}`
+      : window.location.pathname
+    window.history.pushState({}, '', newUrl)
+  }, [])
+
   const onSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value)
   }, [])
 
-  const onCreateTaskExpert = useCallback(() => setIsCreateOpen(true), [])
+  const onCreateTaskExpert = useCallback(() => {
+    setIsCreateOpen(true)
+    updateUrl('new')
+  }, [updateUrl])
+
   const onCreated = useCallback(
     () => reload({ search, limit, offset, returnTotalRecords: true }),
     [reload, search, limit, offset]
   )
-  const onEditPrompt = useCallback((id: string) => setEditingPromptId(id), [])
-  const onEditorClosed = useCallback(() => setEditingPromptId(null), [])
-  const onEditorSaved = useCallback(() => {
+
+  const onEditPrompt = useCallback(
+    (id: string) => {
+      setEditingPromptId(id)
+      updateUrl(id)
+    },
+    [updateUrl]
+  )
+
+  const onEditorClosed = useCallback(() => {
     setEditingPromptId(null)
+    setIsCreateOpen(false)
+    updateUrl(null)
+  }, [updateUrl])
+
+  const onEditorSaved = useCallback(() => {
+    // Don't close editor or clear URL - user stays in editor after save
+    // Just reload the list in background
     reload({ search, limit, offset, returnTotalRecords: true })
   }, [reload, search, limit, offset])
 
@@ -80,7 +124,7 @@ export const TaskExpertsSpace: React.FC<BusinessAppContextProps> = context => {
       <TaskExpertEditor
         {...context}
         mode="create"
-        prompt={null}
+        promptId={null}
         onClose={() => setIsCreateOpen(false)}
         onSaved={() => {
           setIsCreateOpen(false)
@@ -95,7 +139,7 @@ export const TaskExpertsSpace: React.FC<BusinessAppContextProps> = context => {
       <TaskExpertEditor
         {...context}
         mode="edit"
-        prompt={prompts.find(p => (p._id || '') === editingPromptId)}
+        promptId={editingPromptId}
         onClose={onEditorClosed}
         onSaved={onEditorSaved}
       />
