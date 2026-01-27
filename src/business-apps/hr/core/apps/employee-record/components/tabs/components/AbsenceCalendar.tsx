@@ -402,8 +402,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
 
                 // Calculate day styling classes
                 const getDayClassName = () => {
-                  const baseClasses =
-                    'gba:calendar-day gba:p-2 gba:min-h-16 gba:border gba:border-border gba:rounded gba:w-full gba:text-left gba:outline-none gba:focus:outline-none gba:focus:ring-0 gba:appearance-none'
+                  const baseClasses = 'gba:calendar-day gba:p-2 gba:min-h-16 gba:border gba:border-border gba:rounded'
 
                   let bgClass = 'gba:bg-card'
                   if (isSelectedStart || isSelectedEnd) {
@@ -416,7 +415,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                     bgClass = 'gba:bg-card gba:border-warning'
                   }
 
-                  const opacityClass = !isCurrentMonth ? 'gba:opacity-40' : ''
+                  const opacityClass = isCurrentMonth ? '' : 'gba:opacity-40'
                   const cursorClass = enableSelection ? 'gba:cursor-pointer' : ''
 
                   return `${baseClasses} ${bgClass} ${opacityClass} ${cursorClass}`.trim()
@@ -429,7 +428,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                   <div
                     key={dayKey}
                     role={isInteractive ? 'button' : undefined}
-                    tabIndex={isInteractive ? 0 : -1}
+                    tabIndex={isInteractive ? 0 : undefined}
                     className={getDayClassName()}
                     data-testid={`calendar-day-${currentDay.date()}`}
                     onClick={isInteractive ? handleDayClick : undefined}
