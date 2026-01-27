@@ -18,11 +18,7 @@ export class GraphQLClient {
     this.headers['Authorization'] = setAccessTokenToAuthorizationHeader(accessToken)
   }
 
-  async request<T = any>(
-    query: string,
-    variables?: Record<string, any>,
-    options?: { signal?: AbortSignal }
-  ): Promise<T> {
+  async request<T = any>(query: string, variables?: Record<string, any>): Promise<T> {
     if (!this.endpoint) {
       throw new Error(
         'GraphQL endpoint is not configured. Please check NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK environment variable.'
@@ -33,7 +29,6 @@ export class GraphQLClient {
       method: 'POST',
       credentials: 'same-origin',
       mode: 'cors',
-      signal: options?.signal,
       headers: {
         'Content-Type': 'application/json',
         ...this.headers
@@ -68,14 +63,6 @@ export class GraphQLClient {
     }
 
     return result.data
-  }
-  catch(err: unknown) {
-    // Handle AbortError gracefully - it's expected when requests are cancelled
-    if (err instanceof Error && err.name === 'AbortError') {
-      throw err
-    }
-    // Re-throw other errors
-    throw err
   }
 }
 

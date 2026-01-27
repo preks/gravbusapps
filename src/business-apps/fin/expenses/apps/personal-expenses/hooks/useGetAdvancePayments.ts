@@ -276,6 +276,46 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
     return variables
   }, [])
 
+  // Helper function to make a request cancellable using AbortController
+  const makeCancellableRequest = <T>(requestPromise: Promise<T>, controller: AbortController): Promise<T> => {
+    return new Promise((resolve, reject) => {
+      // Check if already aborted before starting
+      if (controller.signal.aborted) {
+        const abortError = new Error('Request aborted')
+        abortError.name = 'AbortError'
+        reject(abortError)
+        return
+      }
+
+      // Set up abort listener
+      const abortHandler = () => {
+        const abortError = new Error('Request aborted')
+        abortError.name = 'AbortError'
+        reject(abortError)
+      }
+
+      controller.signal.addEventListener('abort', abortHandler, { once: true })
+
+      // Execute the request
+      requestPromise
+        .then(result => {
+          // Check if aborted after request completes
+          if (controller.signal.aborted) {
+            const abortError = new Error('Request aborted')
+            abortError.name = 'AbortError'
+            reject(abortError)
+            return
+          }
+          controller.signal.removeEventListener('abort', abortHandler)
+          resolve(result)
+        })
+        .catch(error => {
+          controller.signal.removeEventListener('abort', abortHandler)
+          reject(error)
+        })
+    })
+  }
+
   // Helper function to process and cache response data
   interface GraphQLResponse {
     AdvancePayment?: AdvancePayment[]
@@ -387,11 +427,10 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
           filterState
         })
 
-        const requestPromise = graphqlClient
-          .request<any>(query, variables, { signal: controller.signal })
-          .finally(() => {
-            inflightRef.current.delete(requestKey)
-          })
+        const baseRequestPromise = graphqlClient.request<any>(query, variables)
+        const requestPromise = makeCancellableRequest(baseRequestPromise, controller).finally(() => {
+          inflightRef.current.delete(requestKey)
+        })
 
         inflightRef.current.set(requestKey, requestPromise)
         const result = await requestPromise
@@ -403,11 +442,11 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
 
         processResponseData(result, cacheKey)
       } catch (err) {
-        // We can't abort the underlying fetch without client support; ignore stale results instead.
-        if (abortControllerRef.current !== controller || controller.signal.aborted) {
+        // Ignore errors from cancelled/stale requests
+        if (err instanceof Error && err.name === 'AbortError') {
           return
         }
-        if (err instanceof Error && err.name === 'AbortError') {
+        if (abortControllerRef.current !== controller) {
           return
         }
         setError(err instanceof Error ? err : new Error(String(err)))

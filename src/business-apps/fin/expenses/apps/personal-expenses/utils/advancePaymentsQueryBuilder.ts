@@ -125,7 +125,7 @@ const buildSearchCondition = (): string => `
     {status: {_ilike: $searchTerm}}
     {paymentMethod: {_ilike: $searchTerm}}
     {expensePlan: {title: {_ilike: $searchTerm}}}
-  ],
+  ]
 `
 
 /**
@@ -149,10 +149,7 @@ const buildWhereConditions = (
   if (statusConditionString) conditions.push(statusConditionString)
   if (currencyConditionString) conditions.push(currencyConditionString)
   if (advancePaymentConditionString) conditions.push(advancePaymentConditionString)
-  if (searchConditionString) {
-    const trimmed = searchConditionString.trim().replace(/,$/, '')
-    if (trimmed) conditions.push(trimmed)
-  }
+  if (searchConditionString) conditions.push(searchConditionString.trim())
 
   return conditions.join(',\n          ')
 }
