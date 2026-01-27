@@ -142,20 +142,43 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
     // If a range is already selected, check if clicked day is within the range
     // If clicked day is outside the range, deselect range and select the clicked day
     // Otherwise, preserve the range
+    let dateRangeToCheck = { start: day, end: day }
     if (selectedStartDate && selectedEndDate) {
       // Check if clicked day is within the selected range (inclusive on both ends)
       const isInRange = day.isBetween(selectedStartDate, selectedEndDate, 'day', '[]')
 
-      if (!isInRange) {
+      if (isInRange) {
+        // If clicking within the range, check the entire range for absences
+        dateRangeToCheck = { start: selectedStartDate, end: selectedEndDate }
+      } else {
         // Clicked day is outside range - deselect range and select this day
         setSelectedStartDate(day.startOf('day'))
         setSelectedEndDate(null)
+        dateRangeToCheck = { start: day, end: day }
       }
-      // If in range, don't update selection state, keep the existing range
     } else {
       // No range selected or only start date - right-click always selects just this day (single day, no range)
       setSelectedStartDate(day.startOf('day'))
       setSelectedEndDate(null)
+      dateRangeToCheck = { start: day, end: day }
+    }
+
+    // Check if the day(s) have any existing absences - if so, don't allow right-click to create new ones
+    const hasExistingAbsences = absenceList.some((absence: any) => {
+      const absenceStart = dayjs(absence.startDate)
+      const absenceEnd = dayjs(absence.endDate)
+      // Check if the absence overlaps with the date range we're checking
+      return (
+        dateRangeToCheck.start.isBetween(absenceStart, absenceEnd, null, '[]') ||
+        dateRangeToCheck.end.isBetween(absenceStart, absenceEnd, null, '[]') ||
+        absenceStart.isBetween(dateRangeToCheck.start, dateRangeToCheck.end, null, '[]') ||
+        absenceEnd.isBetween(dateRangeToCheck.start, dateRangeToCheck.end, null, '[]')
+      )
+    })
+
+    if (hasExistingAbsences) {
+      // Day(s) already have absences booked, prevent context menu
+      return
     }
 
     // Calculate menu dimensions (fixed list of 4 items)
@@ -309,8 +332,8 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
               for (let i = 1; i <= 7; i++) {
                 weekdays.push(dayjsWithLocale.day(i).format('dddd'))
               }
-              return weekdays.map((day: string, index: number) => (
-                <div key={index} className="gba:text-center gba:font-medium gba:text-muted-foreground gba:py-2">
+              return weekdays.map((day: string) => (
+                <div key={day} className="gba:text-center gba:font-medium gba:text-muted-foreground gba:py-2">
                   {day}
                 </div>
               ))
@@ -357,11 +380,16 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                 const handleDayClick = () => {
                   if (!enableSelection) return
                   if (!isCurrentMonth) return
-                  if (!selectedStartDate || (selectedStartDate && selectedEndDate)) {
+
+                  // If no selection or both dates selected, start new selection
+                  const hasBothDates = selectedStartDate && selectedEndDate
+                  if (!selectedStartDate || hasBothDates) {
                     setSelectedStartDate(currentDay.startOf('day'))
                     setSelectedEndDate(null)
                     return
                   }
+
+                  // Handle range selection
                   if (currentDay.isBefore(selectedStartDate, 'day')) {
                     setSelectedStartDate(currentDay.startOf('day'))
                     setSelectedEndDate(null)
@@ -372,18 +400,41 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                   }
                 }
 
+                // Calculate day styling classes
+                const getDayClassName = () => {
+                  const baseClasses =
+                    'gba:calendar-day gba:p-2 gba:min-h-16 gba:border gba:border-border gba:rounded gba:w-full gba:text-left gba:outline-none gba:focus:outline-none gba:focus:ring-0 gba:appearance-none'
+
+                  let bgClass = 'gba:bg-card'
+                  if (isSelectedStart || isSelectedEnd) {
+                    bgClass = 'gba:bg-info-secondary gba:border-info'
+                  } else if (isInSelectedRange) {
+                    bgClass = 'gba:bg-info-secondary/20'
+                  } else if (isToday) {
+                    bgClass = 'gba:bg-info-secondary/20 gba:border-info'
+                  } else if (isHoliday) {
+                    bgClass = 'gba:bg-card gba:border-warning'
+                  }
+
+                  const opacityClass = !isCurrentMonth ? 'gba:opacity-40' : ''
+                  const cursorClass = enableSelection ? 'gba:cursor-pointer' : ''
+
+                  return `${baseClasses} ${bgClass} ${opacityClass} ${cursorClass}`.trim()
+                }
+
+                const dayKey = currentDay.format('YYYY-MM-DD')
+                const isInteractive = enableSelection && isCurrentMonth
+
                 return (
                   <div
-                    key={idx}
-                    role={enableSelection && isCurrentMonth ? 'button' : undefined}
-                    tabIndex={enableSelection && isCurrentMonth ? 0 : -1}
-                    className={`gba:calendar-day gba:p-2 gba:min-h-16 gba:border gba:border-border gba:rounded 
-                      ${isSelectedStart || isSelectedEnd ? 'gba:bg-info-secondary gba:border-info' : isInSelectedRange ? 'gba:bg-info-secondary/20' : isToday ? 'gba:bg-info-secondary/20 gba:border-info' : isHoliday ? 'gba:bg-card gba:border-warning' : 'gba:bg-card'} 
-                      ${!isCurrentMonth ? 'gba:opacity-40' : enableSelection ? 'gba:cursor-pointer' : ''}`}
+                    key={dayKey}
+                    role={isInteractive ? 'button' : undefined}
+                    tabIndex={isInteractive ? 0 : -1}
+                    className={getDayClassName()}
                     data-testid={`calendar-day-${currentDay.date()}`}
-                    onClick={handleDayClick}
+                    onClick={isInteractive ? handleDayClick : undefined}
                     onKeyDown={e => {
-                      if (enableSelection && isCurrentMonth && (e.key === 'Enter' || e.key === ' ')) {
+                      if (isInteractive && (e.key === 'Enter' || e.key === ' ')) {
                         e.preventDefault()
                         handleDayClick()
                       }
@@ -394,7 +445,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                       e.stopPropagation()
 
                       // Only show our context menu for current month days with selection enabled
-                      if (!enableSelection || !isCurrentMonth) return
+                      if (!isInteractive) return
 
                       handleContextMenu(e, currentDay, isCurrentMonth)
                     }}
