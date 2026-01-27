@@ -43,6 +43,12 @@ export const GET_EXPENSE_REQUEST_FOR_APPROVAL = `
           }
         }
       }
+      employeeDocument {
+        id
+        file
+        name
+        mimeType
+      }
       expensePlan {
         totalAmount
         advancePaymentTotalAmount
@@ -107,6 +113,12 @@ export const GET_EXPENSE_REQUEST_FOR_APPROVAL = `
             defaultLocale
           }
           code
+        }
+        expenseItemFile(where: {isDeleted: {_eq: false}}) {
+          id
+          fileType
+          fileUrl
+          fileName
         }
         expensePosition(where: {isDeleted: {_eq: false}}) {
           expenseGroup {

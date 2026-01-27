@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
 import { Spinner, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import {
@@ -19,6 +19,8 @@ import { useGetExpenseRequestRecord } from './hooks/useGetExpenseRequestRecord'
 import { getExpenseRequestStatusDisplay } from './utils'
 import { formatCurrencyDisplay } from '../expense-plan-record/utils/currency'
 import { BackButton } from '@/components/back-button'
+import { useFileClient } from '@/common/network/files/useFileClient'
+import TravelOrderAttachmentPreview from '../../common/components/TravelOrderAttachmentPreview'
 
 // Import tab components
 import ExpenseRequestItems from './components/ExpenseRequestItems.tsx'
@@ -29,7 +31,9 @@ import ExpenseRequestComments from './components/ExpenseRequestComments.tsx'
 
 // Using DS-styled markup instead of antd Typography
 
-const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData = {} }) => {
+const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo, additionalData = {} }) => {
+  const fileClient = useFileClient({ accessToken, userInfo, additionalData })
+
   const expenseRequestId =
     additionalData.expenseRequestId ||
     new URLSearchParams(window.location.search).get('expenseRequestId') ||
@@ -106,6 +110,38 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
     expenseRequestId
   })
 
+  // Fetch PDF for travel order preview
+  const fetchPdf = useCallback(
+    async (record: any): Promise<{ success: boolean; pdfUrl?: string; error?: string }> => {
+      if (!record?.employeeDocument?.file) {
+        return { success: false, error: 'No document available' }
+      }
+
+      try {
+        const employeeId = record?.employee?.id
+        if (!employeeId) {
+          return { success: false, error: 'No employee ID available' }
+        }
+
+        const fileId = record.employeeDocument.file?.split('/').pop()
+        if (!fileId) {
+          return { success: false, error: 'No file ID available' }
+        }
+
+        const blob = await fileClient.getFile(
+          { accessScope: 'tenant', fileId },
+          { appName: 'employee-profile', folderPath: `/documents/${employeeId}` }
+        )
+
+        const objectUrl = URL.createObjectURL(blob)
+        return { success: true, pdfUrl: objectUrl }
+      } catch (err) {
+        return { success: false, error: err instanceof Error ? err.message : 'Failed to load document' }
+      }
+    },
+    [fileClient]
+  )
+
   // Update active tab when expense request data is loaded
   useEffect(() => {
     if (expenseRequest) {
@@ -180,6 +216,9 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
         <ExpenseRequestItems
           expenseRequestItems={expenseRequest?.expenseRequestItem || []}
           currencyCode={expenseRequest?.currency?.code}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          expenseOwnerEmployeeId={expenseRequest?.employee?.id}
         />
       )
     },
@@ -347,6 +386,14 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
             <span>{formatCurrencyDisplay(expenseRequest?.totalAmount, expenseRequest?.currency?.code)}</span>
           </div>
         </div>
+        {/* Travel Order Document */}
+        <div className="gba:mt-6">
+          <TravelOrderAttachmentPreview
+            record={expenseRequest}
+            fetchPdf={fetchPdf}
+            dataTestIdPrefix="expense-request-record"
+          />
+        </div>
       </div>
     )
   }
@@ -454,7 +501,7 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
             <Card className="gba:w-3/4">
               <div className="gba:mt-2" data-testid="expense-request-record-tabs">
                 <Tabs value={activeTab} onValueChange={handleTabChange}>
-                  <TabsList className="gba:grid gba:grid-cols-5 gba:w-full gba:ml-6 gba:mr-6">
+                  <TabsList className="gba:inline-flex gba:w-auto gba:mx-6">
                     {tabItems.map(t => (
                       <TabsTrigger key={t.key} value={t.key}>
                         {t.label}
@@ -462,7 +509,7 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
                     ))}
                   </TabsList>
                   {tabItems.map(t => (
-                    <TabsContent key={t.key} value={t.key} className="gba:mt-4">
+                    <TabsContent key={t.key} value={t.key} className="gba:mt-4 gba:mx-6">
                       <div className="gba:overflow-y-auto gba:overflow-x-hidden" style={{ maxHeight: 600 }}>
                         {t.children}
                       </div>

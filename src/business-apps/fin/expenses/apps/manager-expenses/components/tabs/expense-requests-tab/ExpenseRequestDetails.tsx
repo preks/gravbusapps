@@ -154,6 +154,8 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
           </div>
         </>
       }
+      expenseRequestId={request?.id}
+      accessToken={contextProps.accessToken}
     />
   )
 }

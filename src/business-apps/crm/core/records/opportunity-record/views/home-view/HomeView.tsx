@@ -60,7 +60,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     <>
       {/* Account Information - 1/4 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'account-section',
@@ -105,7 +105,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {/* Contact Information - 1/4 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'contact-section',
@@ -145,7 +145,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {/* Stage Condition Card - 2/4 width (half) - matching IRM Lead Investment Section position */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'stage-condition-section',

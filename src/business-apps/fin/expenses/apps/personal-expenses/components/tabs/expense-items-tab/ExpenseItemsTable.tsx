@@ -85,6 +85,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
   const [pageSize, setPageSize] = useState(20)
   // Preserve the page index before user starts searching, so we can restore it after clearing search
   const savedPageBeforeSearchRef = useRef<number | null>(null)
+  // Deterministic scroll target for pagination (top of table)
+  const tableTopRef = useRef<HTMLDivElement | null>(null)
 
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps, { autoFetch: false })
 
@@ -541,7 +543,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
         }}
         contentBackground="white"
         dataBody={
-          <div className="">
+          <div className="" ref={tableTopRef} data-testid={`${DATA_TEST_ID_PREFIX}-scroll-anchor`}>
             <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
               <CardContent className="gba:p-0">
                 <div className="gba:overflow-x-auto">
@@ -781,6 +783,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                   pageSize={pageSize}
                   totalItems={totalCount}
                   onPageChange={handleTablePaginationChange}
+                  scrollTargetRef={tableTopRef}
                   entityNamePlural={getTranslationFromI18nKeyAndLabel(
                     'lowcoder:personal_expenses.expense_items_count',
                     'Expense Items'
@@ -796,14 +799,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
       />
 
       {/* Sheet for details */}
-      <Sheet
-        open={isSheetOpen}
-        onOpenChange={setIsSheetOpen}
-        title={
-          selectedItem?.title ||
-          getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_item_details', 'Expense Item Details')
-        }
-      >
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
           <ExpenseDetailsShell
             title={
