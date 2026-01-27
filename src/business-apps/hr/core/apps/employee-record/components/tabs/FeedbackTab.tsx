@@ -113,7 +113,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   employeeFeedback = [],
   isSelfView = false // Default to false if not provided
 }) => {
-  console.log(employeeFeedback, 'employeeFeedback  ')
   // State variables for feedback and requests
   const [localFeedback, setLocalFeedback] = useState<ExtendedEmployeeFeedback[]>([])
   // No local state needed for approval tasks in this column
@@ -189,12 +188,11 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       const baseOffset = (requestedCurrentPage - 1) * requestedPageSize
       let allFilteredRows: any[] = []
       let currentOffset = baseOffset
-      let hasMore = true
       let totalCount: number | undefined
       const maxIterations = 10 // Safety limit to prevent infinite loops
 
       // Keep fetching until we have enough non-COMPLETED items
-      for (let i = 0; i < maxIterations && allFilteredRows.length < requestedPageSize && hasMore; i++) {
+      for (let i = 0; i < maxIterations && allFilteredRows.length < requestedPageSize; i++) {
         const res = await graphQLClient.request<any>(EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT, {
           idEmployee: employee.id,
           limit: fetchLimit,
@@ -207,11 +205,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           totalCount = res?.EmployeeFeedbackRequestAggregate?.aggregate?.count
         }
 
-        if (rows.length === 0) {
-          hasMore = false
-          break
-        }
-
         // Filter out COMPLETED items
         const filteredRows = rows.filter(
           (r: any) => !r.statusRef || r.statusRef !== 'EmployeeFeedbackRequestStatus:v1:COMPLETED'
@@ -219,11 +212,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
         allFilteredRows = [...allFilteredRows, ...filteredRows]
         currentOffset += rows.length
-
-        // If we got fewer items than requested, we've reached the end
-        if (rows.length < fetchLimit) {
-          hasMore = false
-        }
       }
 
       // Set total count (includes COMPLETED, so pagination may show more pages than non-COMPLETED items)
