@@ -86,7 +86,7 @@ export const useRequestEmployeeBenefitForm = ({
         setProvider(selectedBenefit.availableProviders[0].id)
       }
     }
-  }, [benefitProviders, selectedBenefit, provider])
+  }, [benefitProviders, selectedBenefit])
 
   const {
     includedValueDisplay,
