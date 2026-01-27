@@ -15,6 +15,7 @@ export interface EmployeeByPk {
   userId?: string
   version?: number
   salutationRef?: string | null
+  salutation?: CatalogEntry | null
   title?: string
   firstName?: string
   lastName?: string
@@ -25,11 +26,16 @@ export interface EmployeeByPk {
   birthDate?: string | null
   birthPlace?: string
   genderRef?: string | null
+  gender?: CatalogEntry | null
   nationalityRef?: string | null
+  nationality?: CatalogEntry | null
   languageRef?: string | null
+  language?: CatalogEntry | null
   maritalStatusRef?: string | null
+  maritalStatus?: CatalogEntry | null
   severelyDisabilityDegree?: string | number | null
   schoolQualificationRef?: string | null
+  schoolQualification?: CatalogEntry | null
   academicTitleRef?: string[] | string | null
   notes?: string
   employeeId?: string
