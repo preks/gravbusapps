@@ -12,43 +12,37 @@ interface UseCompensationPermissionsParams {
   isManager: boolean
   hasEmployeeGrowthPermission: boolean
   hasEmployeeRecordAllHrBackoffice: boolean
-  hasEmployeeRecordAllEmployees: boolean
 }
 
 /**
  * Centralized hook for compensation permission logic
  *
  * Permission Rules:
- * - Tab Visibility: Self-view users + authorized managers/HR admins + HR with all-employees permission
- * - Action Permissions: Authorized managers/HR admins + HR with all-employees permission (excludes self-view)
+ * - Tab Visibility: Self-view users + authorized managers/HR admins ONLY
+ * - Action Permissions: Authorized managers/HR admins ONLY (excludes self-view)
+ *
+ * SECURITY NOTE:
+ * - employee-record-all-employees permission is NOT used here
+ * - That permission grants access to basic employee profiles, NOT sensitive compensation data
+ * - Only managers with employee-growth OR HR with employee-record-all-hr-backoffice can access
  */
 export const useCompensationPermissions = ({
   isSelfView,
   isManager,
   hasEmployeeGrowthPermission,
-  hasEmployeeRecordAllHrBackoffice,
-  hasEmployeeRecordAllEmployees
+  hasEmployeeRecordAllHrBackoffice
 }: UseCompensationPermissionsParams): CompensationPermissions => {
   return useMemo(() => {
     // Base permission: Manager with employee-growth OR HR admin
     const hasManagerEmployeeGrowthPermission = isManager && hasEmployeeGrowthPermission
     const hasBasePermission = hasManagerEmployeeGrowthPermission || hasEmployeeRecordAllHrBackoffice
 
-    // Extended permission includes all-employees HR permission
-    const hasExtendedPermission = hasBasePermission || hasEmployeeRecordAllEmployees
-
     return {
-      // Tab visibility: Includes self-view + authorized users + HR with all-employees permission
-      canViewCompensationTab: isSelfView || hasExtendedPermission,
+      // Tab visibility: Self-view + managers with employee-growth + HR admins ONLY
+      canViewCompensationTab: isSelfView || hasBasePermission,
 
-      // Action permissions: Only authorized users (excludes self-view), includes HR with all-employees
-      canManageCompensation: !isSelfView && hasExtendedPermission
+      // Action permissions: Only authorized users (excludes self-view)
+      canManageCompensation: !isSelfView && hasBasePermission
     }
-  }, [
-    isSelfView,
-    isManager,
-    hasEmployeeGrowthPermission,
-    hasEmployeeRecordAllHrBackoffice,
-    hasEmployeeRecordAllEmployees
-  ])
+  }, [isSelfView, isManager, hasEmployeeGrowthPermission, hasEmployeeRecordAllHrBackoffice])
 }
