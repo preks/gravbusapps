@@ -12,12 +12,12 @@ export interface EveryApiConfig {
 }
 
 export function getCflowEndpoint(): string {
-  const endpoint = env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+  const endpoint = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
   return endpoint
 }
 
 export function getFlowMetricsEndpoint(): string {
-  const endpoint = env('NEXT_PUBLIC_BASE_URL')
+  const endpoint = env('NEXT_PUBLIC_FLOW_METRICS_ENDPOINT') || env('NEXT_PUBLIC_BASE_URL')
   if (!endpoint) {
     // Fallback to same-origin for microfrontend contexts
     const origin =
