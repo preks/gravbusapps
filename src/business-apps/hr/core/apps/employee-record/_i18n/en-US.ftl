@@ -86,6 +86,7 @@ benefit-pending-request-notice = A request for this benefit is currently pending
 benefit-request-employee-id-missing = Employee ID not available. Cannot initiate benefit request.
 benefit-already-scheduled = Scheduled
 benefit-deactivate-button = Deactivate
+benefit-deactivation-pending-button = Pending
 benefit-view-details = View Details
 benefit-provider = Provider
 benefit-value-yearly = Yearly Value

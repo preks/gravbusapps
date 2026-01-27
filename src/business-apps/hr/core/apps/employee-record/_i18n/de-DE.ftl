@@ -86,6 +86,7 @@ benefit-pending-request-notice = Eine Anfrage für diese Zusatzleistung wartet d
 benefit-request-employee-id-missing = Mitarbeiter-ID nicht verfügbar. Kann Leistungsanfrage nicht initiieren.
 benefit-already-scheduled = Geplant
 benefit-deactivate-button = Deaktivieren
+benefit-deactivation-pending-button = Ausstehend
 benefit-view-details = Details anzeigen
 benefit-provider = Anbieter
 benefit-value-yearly = Jahreswert

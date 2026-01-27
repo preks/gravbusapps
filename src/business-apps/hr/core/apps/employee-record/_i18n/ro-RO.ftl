@@ -86,6 +86,7 @@ benefit-pending-request-notice = O solicitare pentru acest beneficiu este în a�
 benefit-request-employee-id-missing = ID-ul angajatului nu este disponibil. Nu se poate iniția solicitarea de beneficiu.
 benefit-already-scheduled = Programat
 benefit-deactivate-button = Dezactivează
+benefit-deactivation-pending-button = În așteptare
 benefit-view-details = Vezi detalii
 benefit-provider = Furnizor
 benefit-value-yearly = Valoare anuală
