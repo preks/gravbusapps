@@ -1,4 +1,4 @@
-export const EMPLOYEE_DATA_QUERY = `query fetchEmployee($idEmployee: uuid!) {
+export const EMPLOYEE_DATA_QUERY = `query fetchEmployee($idEmployee: uuid!, $activeUserLocale: String!) {
   EmployeeByPk(id: $idEmployee) {
     id
     version
@@ -15,13 +15,56 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployee($idEmployee: uuid!) {
     schoolQualificationRef
     maritalStatusRef
     nationalityRef
+    languageRef
     displayName
     preferredName
     salutationRef
-    languageRef
     picture
     pictureThumbnail
     userId
+    
+    salutation {
+      value
+      id
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        value
+      }
+    }
+    maritalStatus {
+      id
+      value
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        value
+      }
+    }
+    gender {
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        value
+      }
+      value
+      id
+    }
+    nationality {
+      id
+      value
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        value
+      }
+    }
+    language {
+      id
+      value
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        value
+      }
+    }
+    schoolQualification {
+      id
+      value
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        value
+      }
+    }
   }
   EmployeePosition(where: {employeeId: {_eq: $idEmployee}}) {
     siteLocation {
