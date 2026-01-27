@@ -8,6 +8,7 @@ import { useTeamBirthdays } from './hooks/useTeamBirthdays'
 import { useTeamAnniversaries } from './hooks/useTeamAnniversaries'
 import { useOpenJobPositions, JobPosition } from './hooks/useOpenJobPositions'
 import { useCurrentUserProfile } from './hooks/useCurrentUserProfile'
+import { useCurrentUserOrgData } from './hooks/useCurrentUserOrgData'
 import { useTeamAvailability } from './hooks/useTeamAvailability'
 import { useTeamProjectAllocation } from './hooks/useTeamProjectAllocation'
 import { useTeamPerformance } from './hooks/useTeamPerformance'
@@ -221,6 +222,11 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
     employeeId: employeeId || ''
   })
 
+  const { orgData: userOrgData } = useCurrentUserOrgData({
+    accessToken: accessToken || '',
+    employeeId: employeeId || ''
+  })
+
   const mainContent = (
     <div className="gba:p-6 gba:h-full gba:flex gba:flex-col" data-testid="manager-dashboard-content">
       <div className="gba:mb-6" data-testid="manager-dashboard-header-section">
@@ -308,6 +314,8 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
           loadingAvailability={loadingAvailability}
           onNavigateToTeammates={handleNavigateToTeammates}
           onNavigateToEmployee={handleNavigateToEmployee}
+          accessToken={accessToken || ''}
+          userOrgData={userOrgData || undefined}
         />
       </div>
 
@@ -359,6 +367,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
         accessToken={accessToken || ''}
         onNavigateBack={handleNavigateBackToDashboard}
         onNavigateToEmployee={handleNavigateToEmployee}
+        userOrgData={userOrgData || undefined}
       />
     )
   }

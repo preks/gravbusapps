@@ -59,6 +59,16 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   // HR
   '/platform/employee-record': 'hr/core/apps/employee-record',
   '/platform/hr/absences/manager-absences': 'hr/absences/apps/manager-absences',
+
+  /// Recruiting: Apps
+  '/platform/hr/recruiting/recruiting-manager': 'hr/recruiting/apps/recruiting-manager',
+  '/platform/hr/recruiting/recruiting-portal': 'hr/recruiting/apps/recruiting-portal',
+
+  /// Recruiting: Records
+  '/platform/hr/recruiting/job-posting-record': 'hr/recruiting/records/job-posting-record',
+  '/platform/hr/recruiting/job-candidate-record': 'hr/recruiting/records/job-candidate-record',
+  '/platform/hr/recruiting/job-application-record': 'hr/recruiting/records/job-application-record',
+
   '/platform/sales-demo/service-desk': 'ser/apps/service-desk',
   '/platform/sales-demo/service-launcher': 'ser/apps/service-portal',
   '/platform/mdm/pipeline-data': 'mdm/apps/pipeline-data',

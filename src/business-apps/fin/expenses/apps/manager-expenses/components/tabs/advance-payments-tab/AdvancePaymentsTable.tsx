@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useRef } from 'react'
 import {
   Table,
   TableBody,
@@ -57,6 +57,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     }),
     [props.accessToken, props.userInfo]
   )
+
+  // Deterministic scroll target for pagination (top of table)
+  const tableTopRef = useRef<HTMLDivElement | null>(null)
 
   // Use data from props if provided (from parent Tab), otherwise fall back to local hook
   const payments = props.advancePayments
@@ -147,7 +150,11 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
   const renderTableContent = useCallback(() => {
     return (
-      <div className="gba:border gba:border-border gba:rounded-md">
+      <div
+        className="gba:border gba:border-border gba:rounded-md"
+        ref={tableTopRef}
+        data-testid="advance-payments-scroll-anchor"
+      >
         {/* Table with horizontal scrolling */}
         <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-border">
           <Table data-testid="advance-payments-table" className="gba:w-full">
@@ -467,6 +474,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           pageSize={pageSize}
           totalItems={totalCount}
           onPageChange={handleTablePaginationChange}
+          scrollTargetRef={tableTopRef}
           entityNamePlural={getTranslationFromI18nKeyAndLabel(
             'lowcoder:backoffice_expense_landing_page.advance_title',
             'Advance Payments'
