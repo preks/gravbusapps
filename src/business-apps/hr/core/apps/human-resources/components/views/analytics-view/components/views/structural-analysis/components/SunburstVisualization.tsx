@@ -99,6 +99,7 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
       <div
         className="gba:min-h-[600px]"
         ref={containerRef}
+        role="presentation"
         onMouseMove={e => {
           if (!containerRef.current) return
           const rect = containerRef.current.getBoundingClientRect()
