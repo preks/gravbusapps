@@ -13,7 +13,7 @@
  */
 
 import React, { useRef, useEffect } from 'react'
-import { Monitor, Maximize2, ZoomIn, Hand } from 'lucide-react'
+import { Monitor, ArrowsOutSimple, MagnifyingGlassPlus, MicrophoneSlash, HandIcon } from '@phosphor-icons/react'
 import { Avatar, AvatarFallback } from '@newwork/nw-design-system'
 import { getInitials } from '../../utils/callUtils'
 import { ReactionsOverlay, Reaction } from './ReactionsOverlay'
@@ -44,6 +44,8 @@ export interface ParticipantVideoTileProps {
   totalScreenShares?: number
   /** Whether participant's hand is raised */
   isHandRaised?: boolean
+  /** Whether participant is the active speaker */
+  isActiveSpeaker?: boolean
   /** Active reactions to display */
   reactions?: Reaction[]
   /** Callback when screen share is clicked */
@@ -58,6 +60,8 @@ export interface ParticipantVideoTileProps {
   prefixDataTestId?: string
   /** Translation function */
   t?: (key: string) => string
+  /** Whether the call view is minimized */
+  isMinimized?: boolean
 }
 
 export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
@@ -73,6 +77,7 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
   isFocusedScreenShare = false,
   totalScreenShares = 0,
   isHandRaised = false,
+  isActiveSpeaker = false,
   reactions = [],
   onScreenShareClick,
   onScreenShareFocus,
@@ -105,7 +110,7 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
 
   // Log reaction filtering for debugging
   if (reactions.length > 0) {
-    console.log(`[RTK VideoTile] 🎨 Reaction filtering for ${peerName}:`, {
+    rtkDebug.log(`[RTK VideoTile] 🎨 Reaction filtering for ${peerName}:`, {
       peerName,
       peerId,
       userId,
@@ -174,7 +179,7 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
         {isFocusedScreenShare && (
           <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:opacity-0 hover:gba:opacity-100 gba:transition-opacity gba:bg-black/40 gba:pointer-events-none">
             <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-black/80 gba:text-white gba:text-sm gba:flex gba:items-center gba:gap-2">
-              <Maximize2 className="gba:w-4 gba:h-4" />
+              <ArrowsOutSimple className="gba:w-4 gba:h-4" weight="bold" />
               <span>Click to expand fullscreen</span>
             </div>
           </div>
@@ -191,7 +196,7 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
             title="Make larger"
             data-testid={`${prefixDataTestId}-focus-screenshare-${peerId}`}
           >
-            <ZoomIn className="gba:w-4 gba:h-4" />
+            <MagnifyingGlassPlus className="gba:w-4 gba:h-4" weight="bold" />
           </button>
         )}
       </div>
@@ -200,7 +205,11 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
 
   // Video/Audio/Avatar Tile
   return (
-    <div className="gba:relative gba:flex gba:items-center gba:justify-center gba:bg-muted gba:overflow-hidden gba:rounded-lg gba:w-full gba:h-full">
+    <div
+      className={`gba:relative gba:flex gba:items-center gba:justify-center gba:bg-muted gba:overflow-hidden gba:rounded-lg gba:w-full gba:h-full ${
+        isActiveSpeaker ? 'gba:ring-4 gba:ring-primary gba:ring-offset-2 gba:ring-offset-background' : ''
+      }`}
+    >
       {/* Video element (or hidden for audio-only) */}
       <video
         ref={videoRef}
@@ -252,15 +261,18 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
 
       {/* Name overlay (only shown when video is on) */}
       {hasVideoTrack && (
-        <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm">
-          {peerName} {isLocal ? '(You)' : ''} {isMuted && '🔇'}
+        <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm gba:flex gba:items-center gba:gap-1">
+          <span>
+            {peerName} {isLocal ? '(You)' : ''}
+          </span>
+          {isMuted && <MicrophoneSlash className="gba:w-3.5 gba:h-3.5" weight="fill" />}
         </div>
       )}
 
       {/* Raised hand indicator */}
       {isHandRaised && (
         <div className="gba:absolute gba:top-2 gba:right-2 gba:px-2 gba:py-1 gba:rounded-full gba:bg-warning gba:text-warning-foreground gba:shadow-lg gba:animate-pulse">
-          <Hand className="gba:h-5 gba:w-5" />
+          <HandIcon className="gba:h-5 gba:w-5" weight="fill" />
         </div>
       )}
 
@@ -271,3 +283,32 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
     </div>
   )
 }
+
+/**
+ * Memoized ParticipantVideoTile
+ * Only re-renders when data props change, not when callback references change
+ */
+export const MemoizedParticipantVideoTile = React.memo(ParticipantVideoTile, (prevProps, nextProps) => {
+  // Compare data props only (ignore function references)
+  const dataPropsEqual =
+    prevProps.peerId === nextProps.peerId &&
+    prevProps.peerName === nextProps.peerName &&
+    prevProps.userId === nextProps.userId &&
+    prevProps.customParticipantId === nextProps.customParticipantId &&
+    prevProps.isLocal === nextProps.isLocal &&
+    prevProps.isMuted === nextProps.isMuted &&
+    prevProps.hasVideoTrack === nextProps.hasVideoTrack &&
+    prevProps.hasAudioTrack === nextProps.hasAudioTrack &&
+    prevProps.screenShareTrack?.id === nextProps.screenShareTrack?.id &&
+    prevProps.isFocusedScreenShare === nextProps.isFocusedScreenShare &&
+    prevProps.totalScreenShares === nextProps.totalScreenShares &&
+    prevProps.isHandRaised === nextProps.isHandRaised &&
+    prevProps.isActiveSpeaker === nextProps.isActiveSpeaker &&
+    prevProps.isMinimized === nextProps.isMinimized &&
+    // Compare reactions array by length and content
+    prevProps.reactions?.length === nextProps.reactions?.length &&
+    JSON.stringify(prevProps.reactions) === JSON.stringify(nextProps.reactions)
+
+  // Return true if props are equal (skip re-render), false if different (re-render)
+  return dataPropsEqual
+})

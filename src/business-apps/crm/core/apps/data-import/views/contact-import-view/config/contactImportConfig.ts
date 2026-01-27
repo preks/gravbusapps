@@ -1,0 +1,46 @@
+/**
+ * Contact Import Configuration
+ */
+
+import { TargetFieldDefinition, ImportConfig } from '@/common/data/customer/agents/types'
+
+export const contactTargetFields: TargetFieldDefinition[] = [
+  // Personal Information
+  { value: 'salutationRef', label: 'Salutation (Catalog)', type: 'catalog', catalog: 'Salutation' },
+  { value: 'academicTitleRef', label: 'Academic Title (Catalog)', type: 'catalog', catalog: 'AcademicTitle' },
+  { value: 'firstName', label: 'First Name', type: 'direct' },
+  { value: 'lastName', label: 'Last Name', type: 'direct' },
+  { value: 'birthDate', label: 'Birth Date', type: 'direct' },
+  { value: 'jobPosition', label: 'Job Position', type: 'direct' },
+  { value: 'department', label: 'Department', type: 'direct' },
+
+  // Contact Information
+  { value: 'email', label: 'Email', type: 'direct' },
+  { value: 'phoneNumber', label: 'Phone Number', type: 'direct' },
+
+  // Language
+  { value: 'languageRef', label: 'Language (Catalog)', type: 'catalog', catalog: 'Language' },
+
+  // Address/Location
+  { value: 'addressLine', label: 'Address Line', type: 'direct' },
+  { value: 'city', label: 'City', type: 'direct' },
+  { value: 'postalCode', label: 'Postal Code', type: 'direct' },
+  { value: 'countryRef', label: 'Country (Catalog)', type: 'catalog', catalog: 'Country' },
+  { value: 'regionRef', label: 'Region (Catalog)', type: 'catalog', catalog: 'Region' },
+
+  // Owner
+  { value: 'ownerEmployeeId', label: 'Owner Employee ID', type: 'direct' },
+
+  // Additional
+  { value: 'type', label: 'Contact Type', type: 'direct' },
+  { value: 'code', label: 'Contact Code', type: 'direct' },
+  { value: 'description', label: 'Description', type: 'direct' },
+  { value: 'notesSummary', label: 'Notes Summary', type: 'direct' }
+]
+
+export const contactImportConfig: ImportConfig = {
+  entityType: 'contact',
+  aiAgentName: 'ContactImportAnalyzer',
+  targetFields: contactTargetFields,
+  requiredCatalogs: ['Salutation', 'AcademicTitle', 'Language', 'Country']
+}

@@ -127,7 +127,7 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
             {filteredCards.map((card: SettingsCard, idx: number) => (
               <Card
                 key={`${idx}-${card.title}`}
-                className="gba:shadow-md hover:gba:shadow-lg gba:transition-shadow gba:duration-200 gba:rounded-xl gba:border gba:border-slate-200 gba:overflow-hidden"
+                className="gba:shadow-md hover:gba:shadow-lg gba:transition-shadow gba:duration-200 gba:rounded-xl gba:border gba:border-slate-200 gba:overflow-hidden gba:flex gba:flex-col gba:min-h-[280px]"
                 data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Card-${idx}`}
               >
                 {/* Card Header */}
@@ -146,7 +146,7 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
 
                   {/* Card Description */}
                   {card.description && (
-                    <p className="gba:text-xs gba:text-slate-600 gba:leading-relaxed">{card.description}</p>
+                    <p className="gba:text-xs gba:text-slate-600 gba:leading-relaxed gba:mb-4">{card.description}</p>
                   )}
                 </div>
 
@@ -155,7 +155,7 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
 
                 {/* Card Entries */}
                 {card.entries && card.entries.length > 0 && (
-                  <div className="gba:px-4 gba:pb-4">
+                  <div className="gba:px-4 gba:pb-4 gba:mt-auto">
                     <div className="gba:space-y-1">
                       {card.entries.map((entry, entryIndex) => (
                         <div
