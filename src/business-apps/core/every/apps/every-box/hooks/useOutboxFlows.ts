@@ -5,10 +5,10 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { env } from '@/common/env/EnvUtils'
 import { Flow, FlowStatus } from '../types'
+import { getCflowEndpoint } from '../../every-api/utils/config'
 
-const FLOW_ENGINE_API = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+const FLOW_ENGINE_API = getCflowEndpoint()
 
 export const useOutboxFlows = (context: BusinessAppContextProps) => {
   const [flows, setFlows] = useState<Flow[]>([])
