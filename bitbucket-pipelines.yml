@@ -423,3 +423,27 @@ pipelines:
           artifacts:
             - component-hashes.json
             - component-hashes-prod.json
+
+    claude-execute-only:
+      - variables:
+          - name: BATCH_ID
+            default: "1"
+          - name: CLAUDE_VERBOSE
+            default: "false"
+      - step: *install_dependencies
+      - step:
+          name: Claude Execute (plan.md only)
+          runs-on:
+            - 'self.hosted'
+            - 'do.global.runner.size2'
+          size: 2x
+          clone:
+            enabled: true
+            depth: full
+          caches:
+            - nodecustom
+          script:
+            - bash scripts/claude/execute_batch.sh
+          artifacts:
+            - claude_execute_verbose.log
+            - pr_response.json

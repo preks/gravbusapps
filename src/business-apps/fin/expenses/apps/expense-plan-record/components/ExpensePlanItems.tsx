@@ -202,8 +202,8 @@ const ExpensePlanItems: React.FC<ExpensePlanItemsProps> = ({ expensePlanItems, c
   )
 
   return (
-    <Card data-testid="expense-plan-items" className="gba:p-8 gba:m-6">
-      <CardHeader className="gba:border-b gba:border-gray-200">
+    <Card data-testid="expense-plan-items" className="gba:p-0 gba:border-none">
+      <CardHeader className="gba:px-0">
         <CardTitle className="gba:text-lg gba:font-semibold gba:mb-4">
           {getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.expense_plan_items', 'Expense Plan Items')}
         </CardTitle>
