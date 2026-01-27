@@ -74,6 +74,20 @@ export const useRequestEmployeeBenefitForm = ({
     }
   }, [startDate])
 
+  // Auto-select first provider if available (from either benefitProviders or selectedBenefit.availableProviders)
+  useEffect(() => {
+    if (!provider) {
+      // Try benefitProviders first (from context)
+      if (benefitProviders.length > 0) {
+        setProvider(benefitProviders[0].id)
+      }
+      // Fallback to selectedBenefit.availableProviders
+      else if (selectedBenefit?.availableProviders && selectedBenefit.availableProviders.length > 0) {
+        setProvider(selectedBenefit.availableProviders[0].id)
+      }
+    }
+  }, [benefitProviders, selectedBenefit, provider])
+
   const {
     includedValueDisplay,
     resolvedPeriodDisplay,
@@ -108,11 +122,19 @@ export const useRequestEmployeeBenefitForm = ({
 
   const isFormValid = useMemo(() => {
     const trimmedJustification = justification.trim()
-    return (
-      startDate.length > 0 &&
-      trimmedJustification.length >= BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH &&
-      trimmedJustification.length <= BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH
-    )
+    // Start date is required
+    if (startDate.length === 0) return false
+
+    // Justification is optional, but if provided, must meet min/max length requirements
+    if (trimmedJustification.length > 0) {
+      return (
+        trimmedJustification.length >= BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH &&
+        trimmedJustification.length <= BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH
+      )
+    }
+
+    // Form is valid if start date is present and justification is empty or meets requirements
+    return true
   }, [startDate, justification])
 
   const buildSubmitPayload = useCallback(
