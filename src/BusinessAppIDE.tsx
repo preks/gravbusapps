@@ -259,7 +259,7 @@ const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
     `Process: ${processName}`,
     processInstanceId ? `ID: ${processInstanceId}` : null,
     builderType ? `Builder: ${builderType}` : null,
-    skipScreen !== undefined ? `Skip Screen: ${skipScreen}` : null,
+    skipScreen === undefined ? null : `Skip Screen: ${skipScreen}`,
     `Process body: ${startProcessBody ? JSON.stringify(startProcessBody) : 'No process body'}`
   ].filter(Boolean)
 
