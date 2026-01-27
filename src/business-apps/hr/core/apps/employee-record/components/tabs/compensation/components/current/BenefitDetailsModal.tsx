@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Sheet, SheetContent } from '@newwork/nw-design-system'
+import { Sheet, SheetContent, Alert, AlertDescription } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
 import { getTranslatedBenefitType } from '../../utils/benefitTranslationUtils'
@@ -91,6 +91,12 @@ const BenefitDetailsModal: React.FC<BenefitDetailsModalProps> = ({
         <BenefitHeader title={title} benefit={benefit} t={t} locale={locale} />
 
         <div className="gba:mt-6 gba:px-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+          {benefit.isPending && (
+            <Alert variant="default" className="gba:mb-4" data-testid="benefit-pending-alert">
+              <AlertDescription>{t('benefit-pending-request-notice')}</AlertDescription>
+            </Alert>
+          )}
+
           <div className="gba:space-y-6">
             {showFullDetails ? (
               <ActiveBenefitContent
