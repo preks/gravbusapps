@@ -100,7 +100,7 @@ export const BreakTypeDetails: React.FC<BreakTypeDetailsProps> = ({
   const tableColumns = useMemo(
     () => (
       <>
-        <TableHead className="gba:w-[6%]">Order</TableHead>
+        <TableHead className="gba:w-[6%]">Priority</TableHead>
         <TableHead className="gba:w-[12%]">Kind</TableHead>
         <TableHead className="gba:w-[10%]">Start</TableHead>
         <TableHead className="gba:w-[10%]">End</TableHead>

@@ -43,28 +43,43 @@ interface EmployeeInsight {
 }
 
 const GET_EMPLOYEE_INSIGHTS = `
-query GetEmployeeInsights {
-  Employee(where: {isDeleted: {_eq: false}}) {
-    id
-    firstName
-    lastName
-    fullName
-    birthDate
-    pictureThumbnail
-    workingCondition(limit: 1, orderBy: {createdAt: DESC}) {
-      hireDate
-      probationEnd
-      exitDate
-      contractStatus
+query GetEmployeeInsights($asOf: timestamp!) {
+  EmployeePosition(
+    where: {
+      _and: [
+        { _or: [{ hireDate: { _lte: $asOf } }, { hireDate: { _isNull: true } }] }
+        { _or: [{ exitDate: { _isNull: true } }, { exitDate: { _gt: $asOf } }] }
+        { employee: { isDeleted: { _eq: false } } }
+      ]
     }
-    employeePosition {
-      organizationalUnit {
-        name
-      }
-      jobPosition {
-        name
+    orderBy: { createdAt: DESC }
+  ) {
+    employee {
+      id
+      firstName
+      lastName
+      fullName
+      birthDate
+      pictureThumbnail
+      workingCondition(
+        where: {
+          _and: [
+            { _or: [{ hireDate: { _lte: $asOf } }, { hireDate: { _isNull: true } }] }
+            { _or: [{ exitDate: { _isNull: true } }, { exitDate: { _gt: $asOf } }] }
+            { isDeleted: { _eq: false } }
+          ]
+        }
+        limit: 1
+        orderBy: { createdAt: DESC }
+      ) {
+        hireDate
+        probationEnd
+        exitDate
+        contractStatus
       }
     }
+    organizationalUnit { name }
+    jobPosition { name }
   }
 }
 `
@@ -84,23 +99,31 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
     setLoading(true)
     setError(null)
     try {
-      const data: any = await client.request(GET_EMPLOYEE_INSIGHTS)
-      const employees = data.Employee.map((emp: any) => ({
-        id: emp.id,
-        firstName: emp.firstName,
-        lastName: emp.lastName,
-        fullName: emp.fullName,
-        birthDate: emp.birthDate,
-        contract_status: emp.workingCondition?.[0]?.contractStatus,
-        pictureThumbnail: emp.pictureThumbnail,
-        hireDate: emp.workingCondition?.[0]?.hireDate,
-        probationEnd: emp.workingCondition?.[0]?.probationEnd,
-        exitDate: emp.workingCondition?.[0]?.exitDate,
-        jobPositionName: emp.employeePosition?.jobPosition?.name,
-        organizationalUnitName: emp.employeePosition?.organizationalUnit?.name
-      }))
-        // As additional safety, filter out records where both criteria are met
-        .filter((emp: any) => !(emp.exitDate && String(emp.contract_status || '').toUpperCase() === 'INACTIVE'))
+      const asOf = new Date().toISOString()
+      const data: any = await client.request(GET_EMPLOYEE_INSIGHTS, { asOf })
+      const now = new Date()
+      const employees = (data.EmployeePosition || [])
+        .map((ep: any) => ({
+          id: ep.employee?.id,
+          firstName: ep.employee?.firstName,
+          lastName: ep.employee?.lastName,
+          fullName: ep.employee?.fullName,
+          birthDate: ep.employee?.birthDate,
+          contract_status: ep.employee?.workingCondition?.[0]?.contractStatus,
+          pictureThumbnail: ep.employee?.pictureThumbnail,
+          hireDate: ep.employee?.workingCondition?.[0]?.hireDate,
+          probationEnd: ep.employee?.workingCondition?.[0]?.probationEnd,
+          exitDate: ep.employee?.workingCondition?.[0]?.exitDate,
+          jobPositionName: ep.jobPosition?.name,
+          organizationalUnitName: ep.organizationalUnit?.name
+        }))
+        // Active-as-of safeguard (server already filters positions)
+        .filter((emp: any) => {
+          const hireOk = !emp.hireDate || parseISO(emp.hireDate) <= now
+          const exitOk = !emp.exitDate || parseISO(emp.exitDate) > now
+          const notInactiveWithExit = !(emp.exitDate && String(emp.contract_status || '').toUpperCase() === 'INACTIVE')
+          return hireOk && exitOk && notInactiveWithExit
+        })
 
       const today = new Date()
       const startWindow = addDays(today, -30)

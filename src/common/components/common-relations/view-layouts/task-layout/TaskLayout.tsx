@@ -171,6 +171,9 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
   }, [config.baseFilterConfig, config.descriptors, filterGroups])
 
   // Query Variables
+  // Build query variables from filter state
+  // NOTE: Deliberately NOT including config.buildQueryVariables in deps - function is stable
+  // We only want to rebuild when actual query params (pagination, filters, etc.) change
   const queryVariables = useMemo(
     () =>
       config.buildQueryVariables({
@@ -180,10 +183,12 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
         sorting,
         userInfo
       }),
-    [pagination, searchTerm, selectedFilters, sorting, config, userInfo]
+    [pagination, searchTerm, selectedFilters, sorting, userInfo]
   )
 
   // Load Tasks
+  // NOTE: Deliberately NOT including config.fetchTasks in deps - function is stable
+  // We only want to recreate when accessToken or queryVariables actually change
   const loadTasks = useCallback(
     async (showLoading: boolean = true) => {
       if (!accessToken) return
@@ -202,20 +207,23 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
         setIsInitialLoad(false)
       }
     },
-    [accessToken, config, queryVariables]
+    [accessToken, queryVariables]
   )
 
   // Initial load
+  // NOTE: Deliberately NOT including loadTasks in deps - we only want initial load once when mounted
   useEffect(() => {
     if (!accessToken || !isInitialLoad) return
     loadTasks(true)
-  }, [accessToken, isInitialLoad, loadTasks])
+  }, [accessToken, isInitialLoad])
 
   // Reload data when filters/search/sort change (skip initial load)
+  // NOTE: Deliberately NOT including loadTasks or isInitialLoad in deps
+  // isInitialLoad is used as a guard but shouldn't trigger re-runs
   useEffect(() => {
     if (isInitialLoad || !accessToken) return
     loadTasks(false)
-  }, [queryVariables, isInitialLoad, accessToken, loadTasks])
+  }, [queryVariables, accessToken])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
@@ -370,6 +378,8 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
         buildReferenceUrl={config.buildReferenceUrl}
         data-testid={`${dataTestId}-detail-sheet`}
         businessAppContext={context}
+        accessToken={accessToken}
+        flowContext={config.rowActionsContextArray?.[0]}
       />
     </div>
   )

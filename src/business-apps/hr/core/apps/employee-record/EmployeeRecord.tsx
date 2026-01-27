@@ -323,6 +323,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   )
 
   // Centralized compensation permissions
+  // SECURITY: Only managers with employee-growth OR HR with employee-record-all-hr-backoffice can access
+  // employee-record-all-employees is NOT used for compensation (it's for basic profile access only)
   const compensationPermissions = useCompensationPermissions({
     isSelfView,
     isManager,

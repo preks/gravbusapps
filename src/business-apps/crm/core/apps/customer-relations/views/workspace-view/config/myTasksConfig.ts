@@ -81,12 +81,17 @@ const buildReferenceUrl = (reference: TaskReference): string => {
 /**
  * CRM My Tasks Configuration Builder
  * Creates the configuration for My Tasks view in CRM workspace
+ *
+ * @param context - Business app context
+ * @param customerTasksHook - Hook result from useCustomerTasks
+ * @param taskStatistics - Hook result from useCustomerTaskStatistics
  */
 export const buildCrmMyTasksConfig = (
-  context: BusinessAppContextProps
+  context: BusinessAppContextProps,
+  customerTasksHook: ReturnType<typeof useCustomerTasks>,
+  taskStatistics: ReturnType<typeof useCustomerTaskStatistics>
 ): MyTasksViewConfig<CustomerTask, CustomerTaskQueryVariables> => {
-  const { fetchCustomerTasks } = useCustomerTasks(context)
-  const taskStatistics = useCustomerTaskStatistics(context)
+  const { fetchCustomerTasks } = customerTasksHook
 
   return {
     fetchMyTasks: async (variables: CustomerTaskQueryVariables) => {

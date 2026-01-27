@@ -21,7 +21,7 @@ export interface PromptContent {
 
 export interface KnowledgeSource {
   id: string
-  type: 'document' | 'url' | 'content_entry' // content_entry = internal knowledge base
+  type: 'document' | 'url' | 'content_entry' | 'catalog' // content_entry = internal knowledge base, catalog = catalog entries
   name: string
   description?: string
   url?: string
@@ -30,6 +30,9 @@ export interface KnowledgeSource {
   fileSize?: number
   mimeType?: string
   contentEntryId?: string // For internal content
+  catalogIdentifier?: string // For catalog sources (e.g., "ContentCategory")
+  catalogVersion?: string // For catalog sources (e.g., "v1")
+  catalogEntryCount?: number // Number of entries in the catalog
   extractedContent?: string // Extracted text from documents (parsed by FlowBot)
   lastUpdated: string
   createdAt: string
@@ -633,6 +636,24 @@ export class PromptManagerClient extends RestClient {
   ): Promise<KnowledgeSource> {
     return this.post<KnowledgeSource>(`/api/v1/prompts/${encodeURIComponent(promptId)}/knowledge-sources/content`, {
       contentEntryId,
+      name,
+      description
+    })
+  }
+
+  /**
+   * Add catalog as a knowledge source
+   */
+  async addKnowledgeSourceCatalog(
+    promptId: string,
+    catalogIdentifier: string,
+    catalogVersion: string,
+    name: string,
+    description?: string
+  ): Promise<KnowledgeSource> {
+    return this.post<KnowledgeSource>(`/api/v1/prompts/${encodeURIComponent(promptId)}/knowledge-sources/catalog`, {
+      catalogIdentifier,
+      catalogVersion,
       name,
       description
     })

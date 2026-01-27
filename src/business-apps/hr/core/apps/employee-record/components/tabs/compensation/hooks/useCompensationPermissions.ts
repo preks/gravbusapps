@@ -18,8 +18,13 @@ interface UseCompensationPermissionsParams {
  * Centralized hook for compensation permission logic
  *
  * Permission Rules:
- * - Tab Visibility: Self-view users + authorized managers/HR admins
- * - Action Permissions: Only authorized managers/HR admins (excludes self-view)
+ * - Tab Visibility: Self-view users + authorized managers/HR admins ONLY
+ * - Action Permissions: Authorized managers/HR admins ONLY (excludes self-view)
+ *
+ * SECURITY NOTE:
+ * - employee-record-all-employees permission is NOT used here
+ * - That permission grants access to basic employee profiles, NOT sensitive compensation data
+ * - Only managers with employee-growth OR HR with employee-record-all-hr-backoffice can access
  */
 export const useCompensationPermissions = ({
   isSelfView,
@@ -28,12 +33,12 @@ export const useCompensationPermissions = ({
   hasEmployeeRecordAllHrBackoffice
 }: UseCompensationPermissionsParams): CompensationPermissions => {
   return useMemo(() => {
-    // Base permission: Manager with employee-growth OR HR admin (regardless of other permissions)
+    // Base permission: Manager with employee-growth OR HR admin
     const hasManagerEmployeeGrowthPermission = isManager && hasEmployeeGrowthPermission
     const hasBasePermission = hasManagerEmployeeGrowthPermission || hasEmployeeRecordAllHrBackoffice
 
     return {
-      // Tab visibility: Includes self-view + authorized users
+      // Tab visibility: Self-view + managers with employee-growth + HR admins ONLY
       canViewCompensationTab: isSelfView || hasBasePermission,
 
       // Action permissions: Only authorized users (excludes self-view)

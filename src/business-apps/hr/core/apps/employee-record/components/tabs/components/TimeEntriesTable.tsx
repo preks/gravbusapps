@@ -41,6 +41,20 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
   const formatTime = (iso?: string) =>
     iso ? new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) : '-'
 
+  const formatDate = (iso: string): string => {
+    const d = new Date(iso)
+    const loc = String(locale || 'en-US').toLowerCase()
+    // Ensure dd.mm.yyyy format for German and Romanian locales
+    if (loc.startsWith('de') || loc.startsWith('ro')) {
+      const day = String(d.getDate()).padStart(2, '0')
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const year = d.getFullYear()
+      return `${day}.${month}.${year}`
+    }
+    // For other locales, use the standard locale formatting
+    return d.toLocaleDateString(locale || 'en-US')
+  }
+
   const getLocationLabel = (loc?: string) => {
     switch (loc) {
       case 'IS_NEAR_HOME':
@@ -93,7 +107,7 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
             entries.map(e => (
               <TableRow key={e.id} data-testid={`time-tracking-table-row-${e.id}`}>
                 <TableCell data-testid={`time-tracking-table-date-cell-${e.id}`}>
-                  {new Date(e.attendanceDateISO).toLocaleDateString(locale)}
+                  {formatDate(e.attendanceDateISO)}
                 </TableCell>
                 <TableCell data-testid={`time-tracking-table-start-cell-${e.id}`}>
                   {formatTime(e.startTimeISO)}

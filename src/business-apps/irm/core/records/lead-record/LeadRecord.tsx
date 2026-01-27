@@ -273,7 +273,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     const hasReasons = rejectionReasons.length > 0
     const badgeVariant = hasReasons ? 'destructive' : 'secondary'
     const badgeText = hasReasons
-      ? getTranslationFromI18nKeyAndLabel('rejection.badge.rejected', 'Rejected')
+      ? getTranslationFromI18nKeyAndLabel('rejection.badge.rejected', 'Rejection Reasons')
       : getTranslationFromI18nKeyAndLabel('rejection.badge.noReasons', 'No Rejection Reason')
 
     return (

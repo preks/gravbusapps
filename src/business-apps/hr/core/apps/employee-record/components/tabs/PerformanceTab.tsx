@@ -195,7 +195,12 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
         <AppAction
           variant="update-primary"
           data-testid="employee-goal-add-button"
-          contexts={[{ context: FlowContextName.employeePerformanceGoal, contextData: { employeeId: employee?.id } }]}
+          contexts={[
+            {
+              context: FlowContextName.employeePerformanceGoal,
+              contextData: { employeeId: employee?.id, employee: employee }
+            }
+          ]}
           prefixDataTestId="employee-goal-add"
           accessToken={accessToken}
           autoExecute={true}

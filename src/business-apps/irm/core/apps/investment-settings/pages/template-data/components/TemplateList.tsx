@@ -8,9 +8,10 @@ import {
   CardDescription,
   CardContent,
   Alert,
-  Spinner
+  Spinner,
+  EmptyState
 } from '@newwork/nw-design-system'
-import { PencilSimpleIcon, TrashIcon, FileHtmlIcon, EyeIcon } from '@phosphor-icons/react'
+import { PencilSimpleIcon, TrashIcon, EyeIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DocumentTemplate } from '../types'
 
@@ -63,15 +64,11 @@ export const TemplateList: React.FC<TemplateListProps> = ({
 
   if (templates.length === 0) {
     return (
-      <div
-        className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-12 gba:text-center"
-        data-testid={`${prefixDataTestId}-empty`}
-      >
-        <FileHtmlIcon className="gba:w-16 gba:h-16 gba:text-muted-foreground gba:mb-4" />
-        <h3 className="gba:text-lg gba:font-semibold">No templates yet</h3>
-        <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">
-          Create your first document template to get started
-        </p>
+      <div className="gba:py-12" data-testid={`${prefixDataTestId}-empty`}>
+        <EmptyState
+          title="No document templates yet"
+          description="Create your first document template to get started"
+        />
       </div>
     )
   }

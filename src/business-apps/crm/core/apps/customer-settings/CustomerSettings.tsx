@@ -1,12 +1,25 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { UsersIcon, FlowArrowIcon, AddressBookIcon, ListChecksIcon, CalendarIcon } from '@phosphor-icons/react'
+import {
+  UsersIcon,
+  FlowArrowIcon,
+  AddressBookIcon,
+  ListChecksIcon,
+  CalendarIcon,
+  BuildingsIcon,
+  FileTextIcon,
+  MegaphoneIcon
+} from '@phosphor-icons/react'
 import { SettingsLayout } from '@/components/layout/settings-layout'
+import { navigateTo } from '@/common/utils/navigationUtils'
 // inline pipeline card rendering moved to PipelineDataPage
 import LeadDataPage from './pages/lead-data/LeadDataPage'
 import EngagementDataPage from './pages/engagement-data/EngagementDataPage'
-import PipelineDataPage from './pages/pipeline-data/PipelineDataPage'
+import OpportunityDataPage from './pages/opportunity-data/OpportunityDataPage'
+import AccountDataPage from './pages/account-data/AccountDataPage'
 import TaskTemplateDataPage from './pages/task-template-data/TaskTemplateDataPage'
+import DocumentDataPage from './pages/document-data/DocumentDataPage'
+import CampaignDataPage from './pages/campaign-data/CampaignDataPage'
 import { FolderTemplateDataPage, ModuleType } from '@/common/components/common-relations/setting-pages/folder-templates'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -21,36 +34,122 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
   const { t } = useTranslation()
   const [inlinePage, setInlinePage] = React.useState<{ key: string; tab?: string } | null>(null)
 
+  // Handle query parameters on component mount and browser back/forward
+  React.useEffect(() => {
+    const parseUrlAndSetPage = () => {
+      const urlParams = new URLSearchParams(globalThis.location.search)
+      const page = urlParams.get('page')
+      const tab = urlParams.get('tab')
+
+      if (page) {
+        setInlinePage({ key: page, tab: tab || undefined })
+      } else {
+        setInlinePage(null)
+      }
+    }
+
+    // Initial mount
+    parseUrlAndSetPage()
+
+    // Handle browser back/forward navigation
+    const handlePopState = () => {
+      parseUrlAndSetPage()
+    }
+
+    globalThis.addEventListener('popstate', handlePopState)
+
+    return () => {
+      globalThis.removeEventListener('popstate', handlePopState)
+    }
+  }, [])
+
+  // Navigate to child page (forward) or back to settings home
+  const handleInlinePageChange = (page: { key: string; tab?: string } | null) => {
+    if (page === null) {
+      // Going back to settings home - use replaceState to avoid creating new history entry
+      setInlinePage(null)
+      const settingsUrl = globalThis.location.pathname
+      globalThis.history.replaceState({}, '', settingsUrl)
+      return
+    }
+
+    // Going forward to child page - create new history entry
+    setInlinePage(page)
+
+    const newSearchParams = new URLSearchParams(globalThis.location.search)
+    newSearchParams.set('page', page.key)
+    if (page.tab) {
+      newSearchParams.set('tab', page.tab)
+    } else {
+      newSearchParams.delete('tab')
+    }
+
+    const newURL = `${globalThis.location.pathname}?${newSearchParams.toString()}`
+    globalThis.history.pushState({}, '', newURL)
+  }
+
   const cards = [
     {
-      title: t('crm.opportunity_pipelines', 'Opportunity Pipelines'),
-      description: t('crm.opportunity_pipelines_description', 'Manage opportunity pipelines and sales processes'),
+      title: t('crm.opportunity_data', 'Opportunity Data'),
+      description: t('crm.opportunity_data_description', 'Manage opportunity pipelines, statuses, and forecasts'),
       icon: FlowArrowIcon,
       iconSize: 'md' as const,
       entries: [
         {
           label: t('crm.pipelines', 'Pipelines'),
-          onClick: () => setInlinePage({ key: 'pipeline' })
+          onClick: () => handleInlinePageChange({ key: 'opportunity-data', tab: 'pipelines' })
+        },
+        {
+          label: t('crm.opportunity_statuses', 'Statuses'),
+          onClick: () => handleInlinePageChange({ key: 'opportunity-data', tab: 'statuses' })
+        },
+        {
+          label: t('crm.opportunity_forecasts', 'Forecasts'),
+          onClick: () => handleInlinePageChange({ key: 'opportunity-data', tab: 'forecasts' })
+        }
+      ]
+    },
+    {
+      title: t('crm.account_data', 'Account Data'),
+      description: t('crm.account_data_description', 'Manage account priorities and types'),
+      icon: BuildingsIcon,
+      iconSize: 'md' as const,
+      entries: [
+        {
+          label: t('crm.account_priorities', 'Priorities'),
+          onClick: () => handleInlinePageChange({ key: 'account-data', tab: 'priorities' })
+        },
+        {
+          label: t('crm.account_types', 'Types'),
+          onClick: () => handleInlinePageChange({ key: 'account-data', tab: 'types' })
         }
       ]
     },
     {
       title: t('crm.templates', 'Templates'),
-      description: t('crm.templates_description', 'Manage document and task templates for customers'),
+      description: t('crm.templates_description', 'Manage folder and task templates for customers'),
       icon: CalendarIcon,
       iconSize: 'md' as const,
       entries: [
         {
-          label: t('crm.document_templates', 'Document Templates'),
-          onClick: () => setInlinePage({ key: 'document-templates' })
-        },
-        {
           label: t('crm.folder_templates', 'Folder Templates'),
-          onClick: () => setInlinePage({ key: 'folder-templates' })
+          onClick: () => handleInlinePageChange({ key: 'folder-templates' })
         },
         {
           label: t('crm.task_templates', 'Task Templates'),
-          onClick: () => setInlinePage({ key: 'task-templates' })
+          onClick: () => handleInlinePageChange({ key: 'task-templates' })
+        }
+      ]
+    },
+    {
+      title: t('crm.document_data', 'Document Data'),
+      description: t('crm.document_data_description', 'Manage document groups and types'),
+      icon: FileTextIcon,
+      iconSize: 'md' as const,
+      entries: [
+        {
+          label: t('crm.document_groups_and_types', 'Groups & Types'),
+          onClick: () => handleInlinePageChange({ key: 'document-data' })
         }
       ]
     },
@@ -62,39 +161,47 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
       entries: [
         {
           label: t('crm.lead_ratings', 'Ratings'),
-          onClick: () => setInlinePage({ key: 'lead', tab: 'ratings' })
+          onClick: () => handleInlinePageChange({ key: 'lead', tab: 'ratings' })
         },
         {
           label: t('crm.lead_statuses', 'Statuses'),
-          onClick: () => setInlinePage({ key: 'lead', tab: 'statuses' })
+          onClick: () => handleInlinePageChange({ key: 'lead', tab: 'statuses' })
         },
         {
           label: t('crm.lead_sources', 'Sources'),
-          onClick: () => setInlinePage({ key: 'lead', tab: 'sources' })
+          onClick: () => handleInlinePageChange({ key: 'lead', tab: 'sources' })
         }
       ]
     },
     {
       title: t('crm.engagement_data', 'Engagement Data'),
-      description: t('crm.engagement_description', 'Manage activity types, task types, priorities, and statuses'),
+      description: t('crm.engagement_description', 'Manage activity types, task types, and priorities'),
       icon: ListChecksIcon,
       iconSize: 'md' as const,
       entries: [
         {
           label: t('crm.activity_types', 'Activity Types'),
-          onClick: () => setInlinePage({ key: 'engagement', tab: 'activity-types' })
+          onClick: () => handleInlinePageChange({ key: 'engagement', tab: 'activity-types' })
         },
         {
           label: t('crm.task_types', 'Task Types'),
-          onClick: () => setInlinePage({ key: 'engagement', tab: 'task-types' })
+          onClick: () => handleInlinePageChange({ key: 'engagement', tab: 'task-types' })
         },
         {
           label: t('crm.task_priorities', 'Task Priorities'),
-          onClick: () => setInlinePage({ key: 'engagement', tab: 'task-priorities' })
-        },
+          onClick: () => handleInlinePageChange({ key: 'engagement', tab: 'task-priorities' })
+        }
+      ]
+    },
+    {
+      title: t('crm.campaign_data', 'Campaign Data'),
+      description: t('crm.campaign_data_description', 'Manage campaign types'),
+      icon: MegaphoneIcon,
+      iconSize: 'md' as const,
+      entries: [
         {
-          label: t('crm.task_statuses', 'Task Statuses'),
-          onClick: () => setInlinePage({ key: 'engagement', tab: 'task-statuses' })
+          label: t('crm.campaign_types', 'Campaign Types'),
+          onClick: () => handleInlinePageChange({ key: 'campaign-data' })
         }
       ]
     }
@@ -106,7 +213,7 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
         {...context}
         prefixDataTestId={`${prefixDataTestId || ''}-CustomerLeadSettings`}
         initialTab={(inlinePage.tab as any) || 'ratings'}
-        onBack={() => setInlinePage(null)}
+        onBack={() => handleInlinePageChange(null)}
       />
     )
   }
@@ -116,17 +223,31 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
       <EngagementDataPage
         {...context}
         prefixDataTestId={`${prefixDataTestId || ''}-CustomerEngagementSettings`}
-        onBack={() => setInlinePage(null)}
+        onBack={() => handleInlinePageChange(null)}
       />
     )
   }
 
-  if (inlinePage?.key === 'pipeline') {
+  if (inlinePage?.key === 'opportunity-data') {
+    const initialTab = inlinePage.tab as 'pipelines' | 'statuses' | 'forecasts' | undefined
     return (
-      <PipelineDataPage
+      <OpportunityDataPage
         {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-CustomerPipelineSettings`}
-        onBack={() => setInlinePage(null)}
+        prefixDataTestId={`${prefixDataTestId || ''}-CustomerOpportunitySettings`}
+        onBack={() => handleInlinePageChange(null)}
+        initialTab={initialTab || 'pipelines'}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'account-data') {
+    const initialTab = inlinePage.tab as 'priorities' | 'types' | undefined
+    return (
+      <AccountDataPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-CustomerAccountSettings`}
+        onBack={() => handleInlinePageChange(null)}
+        initialTab={initialTab || 'priorities'}
       />
     )
   }
@@ -136,7 +257,7 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
       <TaskTemplateDataPage
         {...context}
         prefixDataTestId={`${prefixDataTestId || ''}-CustomerTaskTemplateSettings`}
-        onBack={() => setInlinePage(null)}
+        onBack={() => handleInlinePageChange(null)}
       />
     )
   }
@@ -147,7 +268,27 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
         accessToken={context.accessToken}
         moduleType={ModuleType.CRM}
         prefixDataTestId={`${prefixDataTestId || ''}-CustomerFolderTemplateSettings`}
-        onBack={() => setInlinePage(null)}
+        onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'document-data') {
+    return (
+      <DocumentDataPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-CustomerDocumentSettings`}
+        onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'campaign-data') {
+    return (
+      <CampaignDataPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-CustomerCampaignSettings`}
+        onBack={() => handleInlinePageChange(null)}
       />
     )
   }
@@ -161,10 +302,15 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDa
         label: 'Customer Settings'
       }}
       headerLabel={t('crm.customer_settings', 'Customer Settings')}
+      headerDescription={t(
+        'crm.customer_settings_description',
+        'Configure and manage all customer relationship management settings'
+      )}
       cards={cards}
       className={className}
       prefixDataTestId={prefixDataTestId}
       searchPlaceholder={t('common.search_placeholder', 'Search settings...')}
+      onBack={() => navigateTo('/platform/use')}
     />
   )
 }
