@@ -34,18 +34,32 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
   const validTabs = new Set<AnalysisTab>(['overview', 'span-control', 'depth-analysis', 'reporting-chains'])
   const defaultTab: AnalysisTab = 'overview'
 
-  // Get content from URL query parameter or use default
-  const getInitialTab = (): AnalysisTab => {
+  // Helper function to get tab from URL
+  const getTabFromUrl = (): AnalysisTab | null => {
     const urlParams = new URLSearchParams(window.location.search)
     const contentFromUrl = urlParams.get('content') as AnalysisTab
+    return validTabs.has(contentFromUrl) ? contentFromUrl : null
+  }
 
-    if (validTabs.has(contentFromUrl)) {
-      return contentFromUrl
+  // Helper function to update URL with tab
+  const updateUrlWithTab = (tab: AnalysisTab, replace: boolean = false) => {
+    const url = new URL(window.location.href)
+    url.searchParams.set('content', tab)
+    if (replace) {
+      window.history.replaceState({}, '', url.toString())
+    } else {
+      window.history.pushState({}, '', url.toString())
+    }
+  }
+
+  // Get content from URL query parameter or use default
+  const getInitialTab = (): AnalysisTab => {
+    const tabFromUrl = getTabFromUrl()
+    if (tabFromUrl) {
+      return tabFromUrl
     } else {
       // No valid content in URL, set default content in URL
-      const url = new URL(window.location.href)
-      url.searchParams.set('content', defaultTab)
-      window.history.replaceState({}, '', url.toString())
+      updateUrlWithTab(defaultTab, true)
       return defaultTab
     }
   }
@@ -58,17 +72,14 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
   const handleTabChange = (key: string) => {
     const newTab = key as AnalysisTab
     setActiveTab(newTab)
-    const url = new URL(window.location.href)
-    url.searchParams.set('content', newTab)
-    window.history.pushState({}, '', url.toString())
+    updateUrlWithTab(newTab)
   }
 
   // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
-      const urlParams = new URLSearchParams(window.location.search)
-      const contentFromUrl = urlParams.get('content') as AnalysisTab
-      const newTab = validTabs.has(contentFromUrl) ? contentFromUrl : defaultTab
+      const tabFromUrl = getTabFromUrl()
+      const newTab = tabFromUrl ?? defaultTab
       setActiveTab(newTab)
     }
 
