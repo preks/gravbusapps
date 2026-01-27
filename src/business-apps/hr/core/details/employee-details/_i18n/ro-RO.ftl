@@ -13,6 +13,7 @@ employee-details-no-manager = Fără manager
 employee-details-job-position = Poziție
 employee-details-cost-center = Centru de cost
 employee-details-hire-date = Data angajării
+employee-details-fixed-term-until = Termen fix până la
 employee-details-employment-type = Tip de angajare
 employee-details-contract-type = Tip de contract
 employee-details-teams = Echipe

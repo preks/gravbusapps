@@ -47,9 +47,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
 }) => {
   return (
     <>
-      {/* Account Section - 1/3 width */}
+      {/* Account Section - 1/4 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'account-section',
@@ -65,9 +65,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         data-testid="lead-account-section-wrapper"
       />
 
-      {/* Contact Section - 1/3 width */}
+      {/* Contact Section - 1/4 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'contact-section',
@@ -83,9 +83,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         data-testid="lead-contact-section-wrapper"
       />
 
-      {/* Activities Section - 1/3 width, full height */}
+      {/* Activities & Notes Section - 1/2 width, spans 2 rows */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-5"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2 gba:min-h-196 gba:max-h-196"
         sections={[
           {
             id: 'activities-section',
@@ -109,14 +109,34 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 emptyStateBehavior: 'enable'
               }
             }
+          },
+          {
+            id: 'notes-section',
+            component: NoteSection,
+            props: {
+              ...props,
+              accessToken,
+              notes: notes,
+              noteActionProps: {
+                ...noteActionProps,
+                emptyStateBehavior: 'enable'
+              },
+              noteEntityActionProps: {
+                contextsArray: [FlowContextName.customerNoteEntity],
+                externalContextData: { leadId },
+                prefixDataTestId: 'lead-note-entity',
+                emptyStateBehavior: 'enable'
+              },
+              'data-testid': 'lead-notes-section'
+            }
           }
         ]}
-        data-testid="lead-activities-section-wrapper"
+        data-testid="lead-activities-notes-section-wrapper"
       />
 
-      {/* Tasks & Approvals - 2/3 width, spans 2 rows */}
+      {/* Tasks & Approvals - 1/2 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'tasks-section',
@@ -165,34 +185,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
           }
         ]}
         data-testid="lead-tasks-approvals-section-wrapper"
-      />
-
-      {/* Notes Section - 2/3 width, spans 3 rows */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-3"
-        sections={[
-          {
-            id: 'notes-section',
-            component: NoteSection,
-            props: {
-              ...props,
-              accessToken,
-              notes: notes,
-              noteActionProps: {
-                ...noteActionProps,
-                emptyStateBehavior: 'enable'
-              },
-              noteEntityActionProps: {
-                contextsArray: [FlowContextName.customerNoteEntity],
-                externalContextData: { leadId },
-                prefixDataTestId: 'lead-note-entity',
-                emptyStateBehavior: 'enable'
-              },
-              'data-testid': 'lead-notes-section'
-            }
-          }
-        ]}
-        data-testid="lead-notes-section-wrapper"
       />
     </>
   )

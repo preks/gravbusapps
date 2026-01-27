@@ -136,7 +136,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
     <>
       {/* Account Section - 1/4 width - EXACT MATCH TO LEAD */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'account-section',
@@ -158,7 +158,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
 
       {/* Contact Section - 1/4 width - EXACT MATCH TO LEAD */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'contact-section',

@@ -17,8 +17,6 @@ const escapeForCssAttributeValue = (value: string): string => {
     return cssEscape(value)
   }
 
-  // Fallback: escape anything that could break a CSS selector.
-  // Produces a valid CSS identifier token that can be used unquoted.
   return value.replace(/[^a-zA-Z0-9_-]/g, ch => `\\${ch.codePointAt(0)?.toString(16)} `)
 }
 
