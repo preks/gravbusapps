@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React from 'react'
 import { SunburstChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { SunburstNode } from '../types/structuralTypes'
 import { useTranslation } from '@newwork/nw-design-system'
@@ -79,8 +79,6 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
   prefixDataTestId = 'StructuralAnalysis'
 }) => {
   const { t } = useTranslation(hrTranslations)
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | undefined>(undefined)
   // Enhanced data validation
   const hasValidData = data && typeof data === 'object' && data.name && typeof data.value === 'number' && data.value > 0
 
@@ -96,16 +94,7 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
         <p className="gba:text-muted-foreground gba:text-sm">{t('hr-analytics-sunburst-description')}</p>
       </div>
 
-      <div
-        className="gba:min-h-[600px]"
-        ref={containerRef}
-        onMouseMove={e => {
-          if (!containerRef.current) return
-          const rect = containerRef.current.getBoundingClientRect()
-          setTooltipPos({ x: e.clientX - rect.left + 12, y: e.clientY - rect.top + 12 })
-        }}
-        onMouseLeave={() => setTooltipPos(undefined)}
-      >
+      <div className="gba:min-h-[600px]">
         {hasValidData ? (
           <ResponsiveContainer height={450} width="100%">
             <SunburstChart
@@ -130,7 +119,6 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
               <Tooltip
                 content={<SunburstTooltip />}
                 isAnimationActive={false}
-                position={tooltipPos}
                 wrapperStyle={{ transition: 'none' }}
                 allowEscapeViewBox={{ x: true, y: true }}
                 cursor={{ fill: 'rgba(0,0,0,0.04)' }}
