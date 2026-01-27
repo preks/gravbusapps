@@ -6,6 +6,8 @@ import {
   validateFilters,
   AdvancePaymentFilters
 } from '../../personal-expenses/utils/advancePaymentsQueryBuilder'
+import { makeCancellableRequest } from '../utils/cancellableRequest'
+import { normalize, handleCachedData as handleCachedDataUtil } from '../utils/cacheUtils'
 
 // Type aliases for union types
 type SortField = string | null
@@ -68,22 +70,6 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   const pageCacheRef = useRef<Map<string, { items: AdvancePayment[]; totalCount: number }>>(new Map())
   const inflightRef = useRef<Map<string, Promise<any>>>(new Map())
 
-  const normalize = useCallback((val: any): any => {
-    if (Array.isArray(val)) {
-      return val.map(normalize)
-    }
-    if (val && typeof val === 'object') {
-      const sorted: any = {}
-      Object.keys(val)
-        .sort((a, b) => a.localeCompare(b))
-        .forEach(k => {
-          sorted[k] = normalize(val[k])
-        })
-      return sorted
-    }
-    return val
-  }, [])
-
   const generateCacheKey = useCallback(
     (params: {
       searchTerm: string
@@ -110,7 +96,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         })
       )}`
     },
-    [normalize]
+    []
   )
 
   // Helper function to validate and get required values
@@ -126,17 +112,17 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   }
 
   // Helper function to handle cached data
-  const handleCachedData = (cacheKey: string, options?: { force?: boolean }): boolean => {
-    const cachedData = pageCacheRef.current.get(cacheKey)
-    if (cachedData && !options?.force) {
-      setItems(cachedData.items)
-      setTotalCount(cachedData.totalCount)
-      setIsLoading(false)
-      setError(null)
-      return true
-    }
-    return false
-  }
+  const handleCachedData = useCallback((cacheKey: string, options?: { force?: boolean }): boolean => {
+    return handleCachedDataUtil(
+      cacheKey,
+      pageCacheRef.current,
+      options,
+      setItems,
+      setTotalCount,
+      setIsLoading,
+      setError
+    )
+  }, [])
 
   // Helper function to check and update call signature
   const checkCallSignature = (callSignature: string, options?: { force?: boolean }): boolean => {
@@ -275,46 +261,6 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
 
     return variables
   }, [])
-
-  // Helper function to make a request cancellable using AbortController
-  const makeCancellableRequest = <T>(requestPromise: Promise<T>, controller: AbortController): Promise<T> => {
-    return new Promise((resolve, reject) => {
-      // Check if already aborted before starting
-      if (controller.signal.aborted) {
-        const abortError = new Error('Request aborted')
-        abortError.name = 'AbortError'
-        reject(abortError)
-        return
-      }
-
-      // Set up abort listener
-      const abortHandler = () => {
-        const abortError = new Error('Request aborted')
-        abortError.name = 'AbortError'
-        reject(abortError)
-      }
-
-      controller.signal.addEventListener('abort', abortHandler, { once: true })
-
-      // Execute the request
-      requestPromise
-        .then(result => {
-          // Check if aborted after request completes
-          if (controller.signal.aborted) {
-            const abortError = new Error('Request aborted')
-            abortError.name = 'AbortError'
-            reject(abortError)
-            return
-          }
-          controller.signal.removeEventListener('abort', abortHandler)
-          resolve(result)
-        })
-        .catch(error => {
-          controller.signal.removeEventListener('abort', abortHandler)
-          reject(error)
-        })
-    })
-  }
 
   // Helper function to process and cache response data
   interface GraphQLResponse {
