@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useRef } from 'react'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
 import {
@@ -70,6 +70,8 @@ interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   endDateRange?: [Date | null, Date | null] | null
 }
 
+const DATA_TEST_ID_PREFIX = 'expense-requests'
+
 const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   const contextProps = useMemo(
     () => ({
@@ -85,6 +87,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   const [printModalOpen, setPrintModalOpen] = useState<boolean>(false)
   const [printPdfUrl, setPrintPdfUrl] = useState<string>('')
   const [printLoading, setPrintLoading] = useState<boolean>(false)
+  // Deterministic scroll target for pagination (top of table)
+  const tableTopRef = useRef<HTMLDivElement | null>(null)
 
   const [sorting, setSorting] = useState<{
     field: SortField | null
@@ -342,7 +346,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     }
 
     return (
-      <div>
+      <div ref={tableTopRef} data-testid={`${DATA_TEST_ID_PREFIX}-scroll-anchor`}>
         <div className="gba:overflow-x-auto gba:pr-4 gba:border gba:border-border gba:rounded-md gba:relative">
           {isLoading && requests.length > 0 && (
             <div
@@ -580,11 +584,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           pageSize={pageSize}
           totalItems={totalCount}
           onPageChange={handleTablePaginationChange}
+          scrollTargetRef={tableTopRef}
           entityNamePlural={getTranslationFromI18nKeyAndLabel(
             'lowcoder:employee_list.flows_button.expense_requests',
             'Expense Requests'
           )}
-          dataTestIdPrefix="expense-requests"
+          dataTestIdPrefix={DATA_TEST_ID_PREFIX}
         />
       </div>
     )

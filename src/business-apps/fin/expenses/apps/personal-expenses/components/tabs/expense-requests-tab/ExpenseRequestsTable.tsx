@@ -56,6 +56,7 @@ export interface ExpenseRequestsTableProps extends BusinessAppContextProps {
 }
 
 const DEFAULT_PAGE_SIZE = 20
+const DATA_TEST_ID_PREFIX = 'expense-requests'
 
 const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(props => {
   // Extract only the necessary props to prevent unnecessary re-renders
@@ -100,6 +101,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
   // Preserve page index across search clear
   const savedPageBeforeSearchRef = useRef<number | null>(null)
   const prevDebouncedSearchRef = useRef<string>('')
+  // Deterministic scroll target for pagination (top of table)
+  const tableTopRef = useRef<HTMLDivElement | null>(null)
 
   // Selected item for details panel
   const [selectedItem, setSelectedItem] = useState<(typeof items)[0] | null>(null)
@@ -340,7 +343,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
     }
 
     return (
-      <div className="expense-requests-table">
+      <div className="expense-requests-table" ref={tableTopRef} data-testid={`${DATA_TEST_ID_PREFIX}-scroll-anchor`}>
         <Card data-testid="expense-requests-table-container">
           <CardContent className="gba:p-0">
             <div className="gba:overflow-x-auto">
@@ -600,11 +603,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
               pageSize={pageSize}
               totalItems={totalCount}
               onPageChange={handleTablePaginationChange}
+              scrollTargetRef={tableTopRef}
               entityNamePlural={getTranslationFromI18nKeyAndLabel(
                 'lowcoder:employee_list.flows_button.expense_requests',
                 'Expense Requests'
               )}
-              dataTestIdPrefix="expense-requests"
+              dataTestIdPrefix={DATA_TEST_ID_PREFIX}
             />
           </CardContent>
         </Card>
@@ -692,13 +696,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
       <Sheet
         open={!!selectedItem}
         onOpenChange={open => !open && handleCloseDetails()}
-        title={
-          selectedItem?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details',
-            'Expense Request Details'
-          )
-        }
         data-testid="expense-request-details-sheet"
       >
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">

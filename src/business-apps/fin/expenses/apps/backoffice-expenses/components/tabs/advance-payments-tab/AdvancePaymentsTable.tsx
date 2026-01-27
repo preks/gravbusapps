@@ -3,7 +3,7 @@
  * Displays a table of advance payments with filtering and view capabilities
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useAdvancePayments } from '../../../hooks/useAdvancePayment'
 import { useDebounce } from '@/common/hooks/useDebounce'
@@ -45,6 +45,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   const [searchText, setSearchText] = useState(search || '')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
+  // Deterministic scroll target for pagination (top of table)
+  const tableTopRef = useRef<HTMLDivElement | null>(null)
 
   // Filter states
   const [statusFilter, setStatusFilter] = useState<string[]>([])
@@ -400,173 +402,176 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     }
 
     return (
-      <Card data-testid="advance-payments-container">
-        <CardContent className="gba:p-0">
-          {isLoading && (
-            <div className="gba:flex gba:justify-center gba:p-4">
-              <Spinner />
-            </div>
-          )}
-
-          <div className="gba:overflow-x-auto gba:max-w-full gba:px-6">
-            <Table data-testid="advance-payments-data-table" className="gba:min-w-[1400px] gba:w-full">
-              <TableHeader>
-                <TableRow className="gba:border-b gba:bg-muted">
-                  <TableHead className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_profile.employee_tabs.flows_button.actions',
-                      'Actions'
-                    )}
-                  </TableHead>
-                  <TableHead className="gba:w-[20%]">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:manager_expense_request_list.expense_table.title',
-                      'Title'
-                    )}
-                  </TableHead>
-                  <TableHead className="gba:w-[15%]">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:manager_expense_request_list.expense_table.reporter',
-                      'Reporter'
-                    )}
-                  </TableHead>
-                  <TableHead className="gba:w-[15%]">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_config_calculation_rule_list.expense_config_expense_assignement_modal.org_unit_label',
-                      'Org Unit'
-                    )}
-                  </TableHead>
-                  <TableHead className="gba:w-[12%]">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_request_overview.side_bar.request_cost_center',
-                      'Cost Center'
-                    )}
-                  </TableHead>
-                  <TableHead className="gba:w-[10%]">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_list_backoffice.plan_id', 'Plan Id')}
-                  </TableHead>
-                  <TableHead className="gba:w-[10%]">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_request_list.expense_plan_table.status',
-                      'Status'
-                    )}
-                  </TableHead>
-                  <TableHead className="gba:w-[12%] gba:text-right">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_request_list.expense_plan_table.amount',
-                      'Amount'
-                    )}
-                  </TableHead>
-                  <TableHead className="gba:w-[12%] gba:text-right">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:manager_expense_request_list.expense_table.advance',
-                      'Advance'
-                    )}
-                  </TableHead>
-                  <TableHead className="gba:w-[12%]">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:create_expense_request.add_request_trip_details.payment_method',
-                      'Payment Method'
-                    )}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isShowingEmptyState ? (
-                  <TableRow>
-                    <TableCell colSpan={10} className="gba:py-8 gba:text-center">
-                      <div className="gba:text-gray-500">{getEmptyStateMessage()}</div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  payments.map((record: any) => {
-                    const status = getAdvancePaymentStatusDisplay(record.status || 'N/A')
-                    const currencyCode = record.currency?.code || record.expensePlan?.currency?.code || ''
-
-                    return (
-                      <TableRow
-                        key={record.id}
-                        onClick={e => handleRowClick(e, record)}
-                        className="gba:cursor-pointer gba:hover:bg-muted"
-                      >
-                        <TableCell className="gba:w-[60px]">
-                          <div
-                            className="gba:flex gba:justify-center gba:items-center"
-                            onClick={e => e.stopPropagation()}
-                          >
-                            <AppActionButton
-                              data-testid={`advance-payments-update-button-${record.id}`}
-                              size="icon"
-                              staticFlowData={buildActionButtonFlowData(record)}
-                              prefixDataTestId="advance-payments-update"
-                              accessToken={props.accessToken}
-                              emptyStateBehavior="enable"
-                              deferMainContextRequestsUntilClick
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div data-testid="advance-payment-title-cell">
-                            {record.title || record.description || 'N/A'}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div data-testid="advance-payment-reporter-cell">{record.employeeFullName || 'N/A'}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div data-testid="advance-payment-org-unit-cell">
-                            {record.expensePlan?.employee?.employeePosition?.organizationalUnit?.name || 'N/A'}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div data-testid="advance-payment-cost-center-cell">{record.costCenter?.name || 'N/A'}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div data-testid="advance-payment-plan-id-cell">{record.expensePlan?.code || 'N/A'}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div data-testid="advance-payment-status-cell">
-                            <Badge variant={(status as any).badgeVariant || 'outline'}>{status.label}</Badge>
-                          </div>
-                        </TableCell>
-                        <TableCell className="gba:text-right">
-                          <span data-testid="advance-payment-amount-cell">
-                            {formatNumberFunction(String(record.expensePlan?.totalAmount ?? '0'))} {currencyCode}
-                          </span>
-                        </TableCell>
-                        <TableCell className="gba:text-right">
-                          <span data-testid="advance-payment-advance-cell">
-                            {formatNumberFunction(String(record.amount ?? '0'))} {currencyCode}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div data-testid="advance-payment-method-cell">
-                            {getPaymentMethodLabel(record.paymentMethod)}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* Pagination */}
-          <TablePagination
-            currentPage={currentPage}
-            pageSize={pageSize}
-            totalItems={totalCount}
-            onPageChange={handleTablePaginationChange}
-            entityNamePlural={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:backoffice_expense_landing_page.advance_title',
-              'Advance Payments'
+      <div ref={tableTopRef} data-testid="advance-payments-scroll-anchor">
+        <Card data-testid="advance-payments-container">
+          <CardContent className="gba:p-0">
+            {isLoading && (
+              <div className="gba:flex gba:justify-center gba:p-4">
+                <Spinner />
+              </div>
             )}
-            dataTestIdPrefix="advance-payments"
-            showBorder={false}
-          />
-        </CardContent>
-      </Card>
+
+            <div className="gba:overflow-x-auto gba:max-w-full gba:px-6">
+              <Table data-testid="advance-payments-data-table" className="gba:min-w-[1400px] gba:w-full">
+                <TableHeader>
+                  <TableRow className="gba:border-b gba:bg-muted">
+                    <TableHead className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:employee_profile.employee_tabs.flows_button.actions',
+                        'Actions'
+                      )}
+                    </TableHead>
+                    <TableHead className="gba:w-[20%]">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:manager_expense_request_list.expense_table.title',
+                        'Title'
+                      )}
+                    </TableHead>
+                    <TableHead className="gba:w-[15%]">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:manager_expense_request_list.expense_table.reporter',
+                        'Reporter'
+                      )}
+                    </TableHead>
+                    <TableHead className="gba:w-[15%]">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_config_calculation_rule_list.expense_config_expense_assignement_modal.org_unit_label',
+                        'Org Unit'
+                      )}
+                    </TableHead>
+                    <TableHead className="gba:w-[12%]">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_request_overview.side_bar.request_cost_center',
+                        'Cost Center'
+                      )}
+                    </TableHead>
+                    <TableHead className="gba:w-[10%]">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_list_backoffice.plan_id', 'Plan Id')}
+                    </TableHead>
+                    <TableHead className="gba:w-[10%]">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_request_list.expense_plan_table.status',
+                        'Status'
+                      )}
+                    </TableHead>
+                    <TableHead className="gba:w-[12%] gba:text-right">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_request_list.expense_plan_table.amount',
+                        'Amount'
+                      )}
+                    </TableHead>
+                    <TableHead className="gba:w-[12%] gba:text-right">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:manager_expense_request_list.expense_table.advance',
+                        'Advance'
+                      )}
+                    </TableHead>
+                    <TableHead className="gba:w-[12%]">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:create_expense_request.add_request_trip_details.payment_method',
+                        'Payment Method'
+                      )}
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isShowingEmptyState ? (
+                    <TableRow>
+                      <TableCell colSpan={10} className="gba:py-8 gba:text-center">
+                        <div className="gba:text-gray-500">{getEmptyStateMessage()}</div>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    payments.map((record: any) => {
+                      const status = getAdvancePaymentStatusDisplay(record.status || 'N/A')
+                      const currencyCode = record.currency?.code || record.expensePlan?.currency?.code || ''
+
+                      return (
+                        <TableRow
+                          key={record.id}
+                          onClick={e => handleRowClick(e, record)}
+                          className="gba:cursor-pointer gba:hover:bg-muted"
+                        >
+                          <TableCell className="gba:w-[60px]">
+                            <div
+                              className="gba:flex gba:justify-center gba:items-center"
+                              onClick={e => e.stopPropagation()}
+                            >
+                              <AppActionButton
+                                data-testid={`advance-payments-update-button-${record.id}`}
+                                size="icon"
+                                staticFlowData={buildActionButtonFlowData(record)}
+                                prefixDataTestId="advance-payments-update"
+                                accessToken={props.accessToken}
+                                emptyStateBehavior="enable"
+                                deferMainContextRequestsUntilClick
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div data-testid="advance-payment-title-cell">
+                              {record.title || record.description || 'N/A'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div data-testid="advance-payment-reporter-cell">{record.employeeFullName || 'N/A'}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div data-testid="advance-payment-org-unit-cell">
+                              {record.expensePlan?.employee?.employeePosition?.organizationalUnit?.name || 'N/A'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div data-testid="advance-payment-cost-center-cell">{record.costCenter?.name || 'N/A'}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div data-testid="advance-payment-plan-id-cell">{record.expensePlan?.code || 'N/A'}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div data-testid="advance-payment-status-cell">
+                              <Badge variant={(status as any).badgeVariant || 'outline'}>{status.label}</Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell className="gba:text-right">
+                            <span data-testid="advance-payment-amount-cell">
+                              {formatNumberFunction(String(record.expensePlan?.totalAmount ?? '0'))} {currencyCode}
+                            </span>
+                          </TableCell>
+                          <TableCell className="gba:text-right">
+                            <span data-testid="advance-payment-advance-cell">
+                              {formatNumberFunction(String(record.amount ?? '0'))} {currencyCode}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div data-testid="advance-payment-method-cell">
+                              {getPaymentMethodLabel(record.paymentMethod)}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Pagination */}
+            <TablePagination
+              currentPage={currentPage}
+              pageSize={pageSize}
+              totalItems={totalCount}
+              onPageChange={handleTablePaginationChange}
+              scrollTargetRef={tableTopRef}
+              entityNamePlural={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:backoffice_expense_landing_page.advance_title',
+                'Advance Payments'
+              )}
+              dataTestIdPrefix="advance-payments"
+              showBorder={false}
+            />
+          </CardContent>
+        </Card>
+      </div>
     )
   }, [
     payments,
