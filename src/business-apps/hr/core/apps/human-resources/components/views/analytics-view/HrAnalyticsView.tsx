@@ -225,7 +225,7 @@ export const HrAnalyticsView: React.FC<BusinessAppContextProps> = context => {
               data-testid={`analytics-${option.key}-tab`}
               className="gba:flex gba:flex-row gba:items-center gba:gap-2"
             >
-              <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
+              <span className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
                 {option.icon}
                 {option.label}
               </span>

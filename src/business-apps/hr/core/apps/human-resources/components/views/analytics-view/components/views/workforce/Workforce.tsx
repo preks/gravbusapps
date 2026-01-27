@@ -143,7 +143,7 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
             className="gba:flex gba:flex-row gba:items-center gba:justify-center gba:gap-2"
             title={t('hr-analytics-headcount-trends')}
           >
-            <span className="gba:inline-flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
+            <span className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
               <PiTrendUp />
               {t('hr-analytics-headcount-trends')}
             </span>
@@ -154,7 +154,7 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
             className="gba:flex gba:flex-row gba:items-center gba:justify-center gba:gap-2"
             title={t('hr-analytics-turnover-retention')}
           >
-            <span className="gba:inline-flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
+            <span className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
               <PiUsers />
               {t('hr-analytics-turnover-retention')}
             </span>
@@ -165,7 +165,7 @@ const Workforce: React.FC<BusinessAppContextProps> = context => {
             className="gba:flex gba:flex-row gba:items-center gba:justify-center gba:gap-2"
             title={t('hr-analytics-employment')}
           >
-            <span className="gba:inline-flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
+            <span className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
               <PiBriefcase />
               {t('hr-analytics-employment')}
             </span>
