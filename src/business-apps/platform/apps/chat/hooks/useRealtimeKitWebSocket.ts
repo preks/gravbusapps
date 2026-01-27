@@ -2,10 +2,11 @@
  * useRealtimeKitWebSocket Hook
  *
  * Manages WebSocket event coordination for RealtimeKit calls.
- * Handles raise hand, reactions, and other real-time communication between participants.
+ * Handles raise hand, reactions, mute requests, and other real-time communication between participants.
  */
 
 import { useCallback, useEffect, useState } from 'react'
+import { toast } from '@newwork/nw-design-system'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import type { CallParticipant } from '../services/webrtcClient'
 import { rtkDebug } from '../utils/rtkDebug'
@@ -15,8 +16,10 @@ export interface UseRealtimeKitWebSocketOptions {
   roomId: string | null
   meetingId: string | null
   currentUser: CallParticipant | null
+  meeting: any // RealtimeKitMeeting instance for auto-mute
   onHandUpdate?: (participantId: string, handRaised: boolean) => void
   onReactionReceived?: (reaction: { participantId: string; participantName: string; emoji: string }) => void
+  onMuteRequested?: (requestedByName: string) => void
 }
 
 export interface UseRealtimeKitWebSocketReturn {
@@ -48,8 +51,10 @@ export const useRealtimeKitWebSocket = ({
   roomId,
   meetingId,
   currentUser,
+  meeting,
   onHandUpdate,
-  onReactionReceived
+  onReactionReceived,
+  onMuteRequested
 }: UseRealtimeKitWebSocketOptions): UseRealtimeKitWebSocketReturn => {
   // Track hand raised states
   const [handRaised, setHandRaised] = useState(false)
@@ -258,6 +263,64 @@ export const useRealtimeKitWebSocket = ({
       rtkDebug.log('[RTK] WebSocket listener removed for reactions')
     }
   }, [wsClient, meetingId, onReactionReceived])
+
+  /**
+   * Set up WebSocket event listener for mute requests with auto-mute
+   */
+  useEffect(() => {
+    rtkDebug.log('[RTK] Mute listener useEffect triggered', {
+      hasSocket: !!wsClient?.getSocket(),
+      hasMeetingId: !!meetingId,
+      hasMeeting: !!meeting,
+      hasMeetingSelf: !!meeting?.self,
+      hasDisableAudio: !!meeting?.self?.disableAudio
+    })
+
+    const socket = wsClient?.getSocket()
+    if (!socket || !meetingId || !meeting) {
+      rtkDebug.warn('[RTK] ⚠️ Cannot attach mute listener', {
+        hasSocket: !!socket,
+        hasMeetingId: !!meetingId,
+        hasMeeting: !!meeting
+      })
+      return
+    }
+
+    const handleMuteRequested = (data: { requestedBy: string; requestedByName: string }) => {
+      rtkDebug.log('[RTK] 🔇 Received mute request from:', data.requestedByName)
+
+      try {
+        // Auto-mute self via RTK
+        if (meeting?.self?.disableAudio) {
+          meeting.self.disableAudio()
+          rtkDebug.log('[RTK] ✅ Auto-muted self via RTK')
+
+          // Show toast notification
+          toast.info(`You were muted by ${data.requestedByName}`, {
+            duration: 3000
+          })
+        } else {
+          rtkDebug.error('[RTK] ❌ meeting.self.disableAudio not available')
+        }
+
+        // Notify via callback if provided
+        onMuteRequested?.(data.requestedByName)
+      } catch (error) {
+        rtkDebug.error('[RTK] ❌ Failed to auto-mute:', error)
+        toast.error('Failed to mute your microphone', {
+          duration: 3000
+        })
+      }
+    }
+
+    socket.on('group-call:mute-requested', handleMuteRequested)
+    rtkDebug.log('[RTK] ✅ WebSocket listener attached for mute requests')
+
+    return () => {
+      socket.off('group-call:mute-requested', handleMuteRequested)
+      rtkDebug.log('[RTK] WebSocket listener removed for mute requests')
+    }
+  }, [wsClient, meetingId, meeting, onMuteRequested])
 
   return {
     emitSocketEvent,
