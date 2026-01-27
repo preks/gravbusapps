@@ -36,19 +36,19 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
 
   // Helper function to get tab from URL
   const getTabFromUrl = (): AnalysisTab | null => {
-    const urlParams = new URLSearchParams(window.location.search)
+    const urlParams = new URLSearchParams(globalThis.location.search)
     const contentFromUrl = urlParams.get('content') as AnalysisTab
     return validTabs.has(contentFromUrl) ? contentFromUrl : null
   }
 
   // Helper function to update URL with tab
   const updateUrlWithTab = (tab: AnalysisTab, replace: boolean = false) => {
-    const url = new URL(window.location.href)
+    const url = new URL(globalThis.location.href)
     url.searchParams.set('content', tab)
     if (replace) {
-      window.history.replaceState({}, '', url.toString())
+      globalThis.history.replaceState({}, '', url.toString())
     } else {
-      window.history.pushState({}, '', url.toString())
+      globalThis.history.pushState({}, '', url.toString())
     }
   }
 
