@@ -174,8 +174,14 @@ const SectionWrapper = <T = Record<string, any>,>({
       if (!config.config.children || !React.isValidElement(config.config.children)) {
         return null
       }
+      // Use externalContextData and contextsArray as key to force re-render when context changes
+      const contextKey = JSON.stringify({
+        contexts: config.config.contextsArray,
+        data: config.config.externalContextData || {}
+      })
       return (
         <AppAction
+          key={`app-action-${contextKey}`}
           accessToken={accessToken}
           contextsArray={config.config.contextsArray}
           externalContextData={config.config.externalContextData}
@@ -241,7 +247,10 @@ const SectionWrapper = <T = Record<string, any>,>({
   const activeSectionAccessToken = activeSection ? (activeSection.props as any).accessToken : undefined
 
   return (
-    <Card className={`${className} gba:flex-col gba:h-full`} data-testid={dataTestId || 'section-wrapper-tabs'}>
+    <Card
+      className={`${className} gba:flex gba:flex-col gba:h-full`}
+      data-testid={dataTestId || 'section-wrapper-tabs'}
+    >
       <CardHeader>
         <div className="gba:flex gba:justify-between gba:items-center gba:w-full">
           <div>
@@ -264,12 +273,16 @@ const SectionWrapper = <T = Record<string, any>,>({
           {activeSectionInfo && renderActionButton(activeSectionInfo.actionButtonConfig, activeSectionAccessToken)}
         </div>
       </CardHeader>
-      <CardContent className="gba:overflow-auto gba:h-full gba:relative">
+      <CardContent className="gba:overflow-auto gba:flex-1 gba:relative">
         {sections.map(section => {
           if (activeTab !== section.id) return null
           const currentPageIndex = carouselStates[section.id] || 0
           const sectionInfo = getSectionInfo(section, currentPageIndex)
-          return <div key={section.id}>{sectionInfo.content}</div>
+          return (
+            <div key={section.id} className="gba:h-full">
+              {sectionInfo.content}
+            </div>
+          )
         })}
         {/* Carousel Navigation - Bottom Right (for active section) */}
         {activeSectionInfo && activeSectionInfo.hasCarousel && activeSectionInfo.pages.length > 1 && (

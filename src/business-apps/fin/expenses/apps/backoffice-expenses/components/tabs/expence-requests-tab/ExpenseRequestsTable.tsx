@@ -67,7 +67,6 @@ import {
 } from './hooks'
 
 const DATA_TEST_ID_PREFIX = 'expense-requests'
-
 interface FilterData {
   organizationalUnits: OrganizationalUnit[]
   currencies: Currency[]
@@ -1937,6 +1936,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                     </div>
                   </>
                 }
+                expenseRequestId={selectedExpense?.id}
+                accessToken={accessToken}
               />
             ) : null}
           </ExpenseDetailsShell>
