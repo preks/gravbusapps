@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE, GET_EXPENSE_ITEM_BY_ID } from '../queries/expenseItems'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { normalize } from '../utils/cacheUtils'
 
 // Type aliases for union types
 type SortField = string | null
@@ -99,23 +100,6 @@ export const useGetExpenseItems = (
   const pageCacheRef = useRef<Map<string, { items: ExpenseItem[]; totalCount: number }>>(new Map())
   const inflightRef = useRef<Map<string, Promise<any>>>(new Map()) // Track in-flight requests
 
-  // Helper to normalize objects for stable cache keys
-  const normalize = useCallback((val: any): any => {
-    if (Array.isArray(val)) {
-      return val.map(normalize)
-    }
-    if (val && typeof val === 'object') {
-      const sorted: any = {}
-      Object.keys(val)
-        .sort((a, b) => a.localeCompare(b))
-        .forEach(k => {
-          sorted[k] = normalize(val[k])
-        })
-      return sorted
-    }
-    return val
-  }, [])
-
   // Generate cache key for a specific page (includes all parameters that affect the query)
   const generateCacheKey = useCallback(
     (
@@ -128,7 +112,7 @@ export const useGetExpenseItems = (
     ) => {
       return `cache:${JSON.stringify(normalize({ searchTerm, page, pageSize, filter, sortField, sortOrder }))}`
     },
-    [normalize]
+    []
   )
 
   // Helper function to build base where clause
