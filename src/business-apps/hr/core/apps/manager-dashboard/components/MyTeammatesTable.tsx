@@ -18,6 +18,7 @@ import {
 import { Users, GitFork } from 'lucide-react'
 import { Employee } from '@/business-apps/hr/core/hooks/useGetEmployees'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { memo, useMemo } from 'react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -211,6 +212,12 @@ type MyTeammatesTableProps = {
   matrixTeamsError: Error | null
   onSelectEmployee: (_employee: Employee) => void
   accessToken: string
+  userOrgData?: {
+    organizationalUnitId?: string
+    costCenterId?: string
+    siteLocationId?: string
+    companyId?: string
+  }
 }
 
 const MyTeammatesTable = ({
@@ -223,7 +230,8 @@ const MyTeammatesTable = ({
   directReportsError,
   matrixTeamsError,
   onSelectEmployee,
-  accessToken
+  accessToken,
+  userOrgData
 }: MyTeammatesTableProps) => {
   const handleRetry = () => {
     globalThis.location.reload()
@@ -432,36 +440,62 @@ const MyTeammatesTable = ({
       onValueChange={value => setActiveTeamTab(value as 'my-team' | 'my-teams')}
       className="gba:flex-1 gba:flex gba:flex-col"
     >
-      <TabsList className="gba:grid gba:w-full gba:grid-cols-2 gba:mb-6">
-        <TabsTrigger value="my-team" className="gba:flex gba:items-center gba:space-x-2">
-          <div className="gba:flex gba:w-full gba:items-center gba:justify-center">
-            <Users size={16} className="gba:mr-0.5" />
-            <span>
-              {getTranslationFromI18nKeyAndLabel(
-                'master-data:hr.manager_dashboard.my_direct_reports_title',
-                'My Direct Reports'
-              )}
-            </span>
-            <Badge variant="secondary" className="gba:ml-1">
-              {directReports.length}
-            </Badge>
-          </div>
-        </TabsTrigger>
-        <TabsTrigger value="my-teams" className="gba:flex gba:items-center gba:space-x-2">
-          <div className="gba:flex gba:w-full gba:items-center gba:justify-center">
-            <GitFork size={16} className="gba:mr-0.5" />
-            <span>
-              {getTranslationFromI18nKeyAndLabel(
-                'master-data:hr.manager_dashboard.my_matrix_teams_title',
-                'My Matrix Teams'
-              )}
-            </span>
-            <Badge variant="secondary" className="gba:ml-1">
-              {matrixTeamMembers.length}
-            </Badge>
-          </div>
-        </TabsTrigger>
-      </TabsList>
+      <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
+        <TabsList className="gba:grid gba:grid-cols-2">
+          <TabsTrigger value="my-team" className="gba:flex gba:items-center gba:space-x-2">
+            <div className="gba:flex gba:w-full gba:items-center gba:justify-center">
+              <Users size={16} className="gba:mr-0.5" />
+              <span>
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.manager_dashboard.my_direct_reports_title',
+                  'My Direct Reports'
+                )}
+              </span>
+              <Badge variant="secondary" className="gba:ml-1">
+                {directReports.length}
+              </Badge>
+            </div>
+          </TabsTrigger>
+          <TabsTrigger value="my-teams" className="gba:flex gba:items-center gba:space-x-2">
+            <div className="gba:flex gba:w-full gba:items-center gba:justify-center">
+              <GitFork size={16} className="gba:mr-0.5" />
+              <span>
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.manager_dashboard.my_matrix_teams_title',
+                  'My Matrix Teams'
+                )}
+              </span>
+              <Badge variant="secondary" className="gba:ml-1">
+                {matrixTeamMembers.length}
+              </Badge>
+            </div>
+          </TabsTrigger>
+        </TabsList>
+
+        {accessToken && userOrgData && (
+          <AppAction
+            mode="button"
+            buttonVariant="default"
+            buttonSize="sm"
+            contexts={[
+              {
+                context: FlowContextName.jobRequestSubmit,
+                contextData: {
+                  organizationalUnitId: userOrgData.organizationalUnitId,
+                  costCenterId: userOrgData.costCenterId,
+                  siteLocationId: userOrgData.siteLocationId,
+                  companyId: userOrgData.companyId
+                }
+              }
+            ]}
+            variant="create-primary"
+            accessToken={accessToken}
+            data-testid="manager-dashboard-teammates-submit-job-request"
+          >
+            Submit Job Request
+          </AppAction>
+        )}
+      </div>
 
       <div className="gba:flex-1 gba:overflow-hidden">
         <TabsContent value="my-team" className="gba:h-full gba:overflow-y-auto">
