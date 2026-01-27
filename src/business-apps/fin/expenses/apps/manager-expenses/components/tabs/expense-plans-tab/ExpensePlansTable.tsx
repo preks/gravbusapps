@@ -13,37 +13,22 @@ import {
   Spinner,
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  Badge
 } from '@newwork/nw-design-system'
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 import { ExpensePlan, SortField } from '../../../hooks/useMainViewExpensePlans'
 import { getExpensePlanStatusDisplay, ExpenseStatus } from '../../../utils'
-
-// Status → token classes (design-system)
-const PLAN_STATUS_CLASSES: Record<string, string> = {
-  success: 'gba:bg-success gba:text-success-foreground',
-  warning: 'gba:bg-warning gba:text-warning-foreground',
-  info: 'gba:bg-info gba:text-info-foreground',
-  destructive: 'gba:bg-destructive gba:text-destructive-foreground',
-  offline: 'gba:bg-offline gba:text-offline-foreground',
-  draft: 'gba:bg-muted gba:text-muted-foreground',
-  completed: 'gba:bg-success gba:text-success-foreground',
-  waiting: 'gba:bg-info gba:text-info-foreground',
-  task: 'gba:bg-warning gba:text-warning-foreground',
-  error: 'gba:bg-destructive gba:text-destructive-foreground',
-  preparing: 'gba:bg-muted gba:text-muted-foreground'
-}
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { useExpensePlanFileService } from '../../../../personal-expenses/utils/expensePlanFileService'
+import { useExpensePlanFileService } from '../../../../../common/files/useExpensePlanFileService'
 import ExpensePlanDetails from './ExpensePlanDetails'
 import { ensureShortDateFormat } from '../../../utils/dateUtils'
 import { TablePagination } from '../../../../../components'
@@ -67,6 +52,12 @@ interface ExpensePlansTableProps extends BusinessAppContextProps {
   updateSorting: (field: SortField) => void
   pageSize: number
   setPageSize: (size: number) => void
+  // Additional filter props for comprehensive active filter detection
+  effectiveDateRange?: [Date | null, Date | null] | null
+  planDateRange?: [Date | null, Date | null] | null
+  startDateRange?: [Date | null, Date | null] | null
+  endDateRange?: [Date | null, Date | null] | null
+  planTypeFilter?: string[]
 }
 
 const DATA_TEST_ID_PREFIX = 'ExpensePlansTable'
@@ -113,11 +104,27 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
   const hasActiveFilters = useMemo(() => {
     const hasSearch = (props.search || '').trim() !== ''
     const hasStatusFilters = Array.isArray(props.activeFilter) && props.activeFilter.length > 0
-    return hasSearch || hasStatusFilters
-  }, [props.search, props.activeFilter])
+    const hasPlanTypeFilters = Array.isArray(props.planTypeFilter) && props.planTypeFilter.length > 0
+    const hasDateRangeFilters =
+      (props.effectiveDateRange && (props.effectiveDateRange[0] || props.effectiveDateRange[1])) ||
+      (props.planDateRange && (props.planDateRange[0] || props.planDateRange[1])) ||
+      (props.startDateRange && (props.startDateRange[0] || props.startDateRange[1])) ||
+      (props.endDateRange && (props.endDateRange[0] || props.endDateRange[1]))
+    return hasSearch || hasStatusFilters || hasPlanTypeFilters || hasDateRangeFilters
+  }, [
+    props.search,
+    props.activeFilter,
+    props.planTypeFilter,
+    props.effectiveDateRange,
+    props.planDateRange,
+    props.startDateRange,
+    props.endDateRange
+  ])
 
   // Reset page to 1 when filter changes (fixes pagination issue when switching filters)
   const prevFilterRef = useRef<ExpenseStatus[] | null>(null)
+  // Deterministic scroll target for pagination (top of table)
+  const tableTopRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     const currentFilterStr = JSON.stringify(currentStatusFilter)
     const prevFilterStr = JSON.stringify(prevFilterRef.current)
@@ -157,33 +164,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
       setPrintModalOpen(true)
 
       try {
-        // Map manager-expenses ExpensePlan to personal-expenses format
-        const mappedPlan = {
-          ...plan,
-          reimbursableAmount: plan.totalAmount,
-          decisionDate: null,
-          requestTypeRef: null,
-          employeeDocumentId: plan.employeeDocument?.id || null,
-          advancePaymentPaidAmount: 0,
-          advancePaymentInTransitAmount: 0,
-          employeeDocument: plan.employeeDocument,
-          requestType: null,
-          expensePlanItem: [],
-          advancePayment: null,
-          expenseRequestTrip: null,
-          currencyRef: `Currency:v1:${plan.currency}`,
-          expenseRequest: [],
-          currency: { value: plan.currency, label: plan.currency } as any,
-          description: plan.description || '',
-          employee: {
-            ...plan.employee,
-            code: plan.employee.id,
-            firstName: plan.employee.displayName?.split(' ')[0] || '',
-            lastName: plan.employee.displayName?.split(' ').slice(1).join(' ') || ''
-          }
-        }
-
-        const result = await printExpensePlan(mappedPlan)
+        const result = await printExpensePlan(plan as any)
 
         if (result.success && result.pdfUrl && isMounted.current) {
           setPrintPdfUrl(result.pdfUrl)
@@ -191,7 +172,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
           console.error('[Print Error]', result.error)
         }
       } catch (error) {
-        console.error('[Print Exception]', error)
+        console.error('[Print Exception]', error instanceof Error ? error.message : 'Unknown error')
       } finally {
         if (isMounted.current) {
           setPrintLoading(false)
@@ -262,7 +243,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
   }
 
   return (
-    <div data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
+    <div data-testid={`${DATA_TEST_ID_PREFIX}-container`} ref={tableTopRef}>
       {/* Table with border containing both table and pagination */}
       <div className="gba:border gba:border-border gba:rounded-md">
         {/* Table with horizontal scrolling and fixed height */}
@@ -505,14 +486,12 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
                         </span>
                       </TableCell>
                       <TableCell className="gba:pr-6 gba:w-[20%]">
-                        <span
-                          className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
-                            PLAN_STATUS_CLASSES[String(display.type).toLowerCase()] || PLAN_STATUS_CLASSES.draft
-                          }`}
+                        <Badge
+                          variant={(display as any).badgeVariant || 'outline'}
                           data-testid={`status-pill-${String(display.type).toLowerCase()}`}
                         >
                           {display.label}
-                        </span>
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   )
@@ -528,6 +507,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
           pageSize={pageSize}
           totalItems={totalCount}
           onPageChange={handleTablePaginationChange}
+          scrollTargetRef={tableTopRef}
           entityNamePlural={getTranslationFromI18nKeyAndLabel(
             'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
             'Expense Plans'
@@ -583,29 +563,24 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
         </DialogContent>
       </Dialog>
 
-      {/* Expense Plan Details Sheet - title is required by DS Sheet props */}
+      {/* Expense Plan Details Sheet */}
       <Sheet
         open={!!selectedItem}
         onOpenChange={open => !open && handleCloseDetails()}
-        title={
-          selectedItem?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:approve_expense_plan.expense_subtitle_details',
-            'Expense Plan Details'
-          )
-        }
+        data-testid="expense-plan-details-sheet"
       >
-        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedItem?.title ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:approve_expense_plan.expense_subtitle_details',
-                  'Expense Plan Details'
-                )}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+        <SheetContent side="right" className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
+          <ExpenseDetailsShell
+            title={
+              selectedItem?.title ||
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:approve_expense_plan.expense_subtitle_details',
+                'Expense Plan Details'
+              )
+            }
+            onClose={handleCloseDetails}
+            dataTestIdPrefix="expense-plan-details"
+          >
             {selectedItem && (
               <ExpensePlanDetails
                 selectedItem={selectedItem}
@@ -614,7 +589,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
                 userInfo={contextProps.userInfo}
               />
             )}
-          </div>
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
     </div>

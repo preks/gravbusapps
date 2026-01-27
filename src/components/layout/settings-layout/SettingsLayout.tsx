@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Input, Card, PageHeader, IconAvatar } from '@newwork/nw-design-system'
+import { Input, Card, PageLayout, IconAvatar } from '@newwork/nw-design-system'
 import { PiCaretRight } from 'react-icons/pi'
 import { cn } from '@/common/utils/cn'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -30,10 +30,12 @@ export interface SettingsLayoutProps {
     label?: string
   }
   headerLabel: string
+  headerDescription?: string
   cards: SettingsCard[]
   className?: string
   prefixDataTestId?: string
   searchPlaceholder?: string
+  onBack?: () => void
 }
 
 const DATA_TEST_ID = 'SettingsLayout'
@@ -41,10 +43,12 @@ const DATA_TEST_ID = 'SettingsLayout'
 export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
   headerPhosphorIcon,
   headerLabel,
+  headerDescription,
   cards,
   className,
   prefixDataTestId,
-  searchPlaceholder
+  searchPlaceholder,
+  onBack
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const { t } = useTranslation()
@@ -90,29 +94,27 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
   }, [cards, searchTerm])
 
   return (
-    <div
-      className={cn('gba:min-h-screen gba:bg-gradient-to-b gba:from-slate-50 gba:to-slate-100', className)}
+    <PageLayout
+      headerIcon={headerPhosphorIcon.icon}
+      headerTitle={headerLabel}
+      headerDescription={headerDescription}
+      onBack={onBack}
+      className={className}
       data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
     >
-      {/* Header */}
-      <PageHeader
-        phosphorIcon={headerPhosphorIcon}
-        title={headerLabel}
-        actions={
-          <div>
-            <Input
-              placeholder={searchPlaceholder || t('common.search_placeholder', 'Search settings...')}
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="gba:w-full"
-              data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Search-Input`}
-            />
-          </div>
-        }
-      />
+      {/* Search Bar */}
+      <div className="gba:mb-6">
+        <Input
+          placeholder={searchPlaceholder || t('common.search_placeholder', 'Search settings...')}
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          className="gba:w-full gba:max-w-md"
+          data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Search-Input`}
+        />
+      </div>
 
       {/* Content */}
-      <div className="gba:px-6 gba:py-8">
+      <div>
         {filteredCards.length === 0 ? (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-64 gba:text-center">
             <h4 className="gba:text-lg gba:font-medium gba:text-slate-600 gba:mb-2">
@@ -121,11 +123,11 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
             <p className="gba:text-slate-500">{t('common.try_different_search', 'Try a different search term')}</p>
           </div>
         ) : (
-          <div className="gba:flex gba:flex-wrap gba:gap-6 gba:justify-start">
+          <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6">
             {filteredCards.map((card: SettingsCard, idx: number) => (
               <Card
                 key={`${idx}-${card.title}`}
-                className="gba:max-w-96 gba:flex-1 gba:min-w-80 gba:shadow-md hover:gba:shadow-lg gba:transition-shadow gba:duration-200 gba:rounded-xl gba:border gba:border-slate-200 gba:overflow-hidden"
+                className="gba:shadow-md hover:gba:shadow-lg gba:transition-shadow gba:duration-200 gba:rounded-xl gba:border gba:border-slate-200 gba:overflow-hidden"
                 data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Card-${idx}`}
               >
                 {/* Card Header */}
@@ -204,6 +206,6 @@ export const SettingsLayout: React.FC<SettingsLayoutProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </PageLayout>
   )
 }

@@ -7,6 +7,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCustomerLead } from '@/common/data/customer/hooks/useCustomerLead'
 import type { CustomerLead } from '@/common/data/customer/types/customerLeadTypes'
 import { LeadLayout, leadSchema } from '@/common/components/common-relations/form-layouts/lead-layout'
+import { useLeadAccountAutocomplete } from '@/common/components/common-relations/form-layouts/lead-layout/hooks/useLeadAccountAutocomplete'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { mapToFormValues } from '@/common/utils/formMappingUtils'
@@ -21,6 +22,7 @@ import {
   ANNUAL_REVENUE
 } from '@/common/data/customer/constants/customerCatalogs'
 import { ErrorAlert } from '@/components/error-alert'
+import { useCustomerAccounts } from '@/common/data/customer/hooks/useCustomerAccounts'
 
 // CRM-specific schema extension (adds salesCampaignId)
 export const customerLeadSchema = leadSchema.extend({
@@ -36,6 +38,9 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
   // Fetch lead data using declarative hook
   const { lead, loading, error } = useCustomerLead(accessToken || '', leadId)
 
+  // Account search hook
+  const { fetchCustomerAccounts } = useCustomerAccounts({ accessToken, userInfo, additionalData })
+
   // ALL HOOKS MUST BE CALLED BEFORE EARLY RETURN (Rules of Hooks)
   // Initialize React Hook Form with CRM-specific schema
   const form = useForm({
@@ -43,6 +48,22 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
     defaultValues: mapToFormValues(lead || {}, customerLeadSchema) as any,
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
+  })
+
+  // Account autocomplete hook (shared between CRM and IRM)
+  const {
+    accountSearchOptions,
+    accountSearchLoading,
+    autoFilledFields,
+    expandCompanySection,
+    handleAccountSearch,
+    handleAccountSelect,
+    handleFieldChange,
+    setAutoFilledFields,
+    setExpandCompanySection
+  } = useLeadAccountAutocomplete({
+    form,
+    fetchAccounts: fetchCustomerAccounts
   })
 
   // Sync form when lead changes
@@ -55,18 +76,26 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
   }, [lead?.id, lead, form])
 
   // Handle form submission - returns payload for AppActionForm
-  const handleSubmit = useCallback(async (data: any) => {
-    try {
-      const payload = buildCustomerLeadPayload(data)
-      return {
-        ...payload,
-        changeMode: data.id ? 'UPDATE' : 'INSERT'
+  const handleSubmit = useCallback(
+    async (data: any) => {
+      // Clear auto-filled fields marking on submit
+      setAutoFilledFields(new Set())
+      // Reset company section expansion
+      setExpandCompanySection(false)
+
+      try {
+        const payload = buildCustomerLeadPayload(data)
+        return {
+          ...payload,
+          changeMode: data.id ? 'UPDATE' : 'INSERT'
+        }
+      } catch (error) {
+        console.error('Error submitting lead:', error)
+        throw error
       }
-    } catch (error) {
-      console.error('Error submitting lead:', error)
-      throw error
-    }
-  }, [])
+    },
+    [setAutoFilledFields, setExpandCompanySection]
+  )
 
   // Collect all errors for centralized early return (AFTER all hooks)
   const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
@@ -152,6 +181,13 @@ const LeadForm: React.FC<LeadFormProps> = ({ accessToken, userInfo, additionalDa
           annualRevenueCatalogIdentifier={ANNUAL_REVENUE}
           leadInformationCustomFields={salesCampaignSelect}
           loading={loading && !!leadId}
+          accountSearchOptions={accountSearchOptions}
+          onAccountSearch={handleAccountSearch}
+          onAccountSelect={handleAccountSelect}
+          accountSearchLoading={accountSearchLoading}
+          autoFilledFields={autoFilledFields}
+          expandCompanySection={expandCompanySection}
+          onFieldChange={handleFieldChange}
         />
       </AppActionForm>
     </CatalogSelect.Provider>

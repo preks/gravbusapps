@@ -179,6 +179,9 @@ label-country = Land
 label-city = Stadt
 label-currency = Währung
 
+# Common Text
+common-characters = Zeichen
+
 # Benefit Summary Card Translations
 benefit-provider = Anbieter
 benefit-value-yearly = Jahreswert
@@ -297,3 +300,51 @@ working-conditions-unit-year = { $count ->
 complete-notification = Die Anfrage wird zur Genehmigung an den Manager gesendet
 notification-working-conditions-updated-success = Aktualisierungen der Arbeitsbedingungen zur Genehmigung an die Personalabteilung gesendet
 notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
+notification-feedback-request-sent-success = Ihre Feedbackanfrage wurde gesendet
+
+# ============================================
+# Create Employee Form
+# ============================================
+
+# Section Headers
+employee-form-personal-information = Persönliche Informationen
+employee-form-employment-information = Beschäftigungsinformationen
+employee-form-additional-attributes = Zusätzliche Attribute
+
+# Field Labels
+employee-form-first-name = Vorname
+employee-form-last-name = Nachname
+employee-form-email = E-Mail
+employee-form-organizational-unit = Organisationseinheit
+employee-form-job-position = Stelle
+employee-form-hire-date = Einstellungsdatum
+employee-form-fixed-term-until = Befristet bis
+employee-form-preferred-name = Bevorzugter Name
+employee-form-employment-type = Beschäftigungsart
+employee-form-contract-type = Vertragsart
+
+# Validation Messages
+employee-form-email-invalid = Bitte geben Sie eine gültige E-Mail-Adresse ein
+
+# Empty States
+employee-form-no-results = Keine Ergebnisse gefunden
+employee-form-no-positions = Keine Stellen verfügbar
+employee-form-no-vacant-positions = Keine freien Stellen in der ausgewählten Organisationseinheit verfügbar
+
+# Tooltips
+employee-form-create-job-position-tooltip = Neue Stelle erstellen
+employee-form-select-org-unit-first = Bitte zuerst eine Organisationseinheit auswählen
+
+# Buttons
+employee-form-create-employee = Mitarbeiter erstellen
+employee-form-update-employee = Mitarbeiter aktualisieren
+
+# ============================================
+# Create Job Position Modal
+# ============================================
+
+create-job-position-title = Stelle erstellen
+create-job-position-name = Name
+create-job-position-total-open = Anzahl offener Stellen
+create-job-position-organizational-unit = Organisationseinheit
+create-job-position-error = Stelle konnte nicht erstellt werden. Bitte versuchen Sie es erneut.

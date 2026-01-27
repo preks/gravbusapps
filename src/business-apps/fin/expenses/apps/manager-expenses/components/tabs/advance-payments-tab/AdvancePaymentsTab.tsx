@@ -40,9 +40,14 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   // Use the main data hook to fetch advance payments data for the table
   // Local overview-driven paging + sorting
   const [currentPage, setCurrentPage] = useState<number>(1)
-  const [sorting, setSorting] = useState<{ field: string | null; order: 'ASC' | 'DESC' | null }>({
-    field: null,
-    order: null
+  const [sorting, setSorting] = useState<{
+    field: string | null
+    order: 'ASC' | 'DESC' | null
+    lastField?: string | null
+  }>({
+    field: 'createdAt',
+    order: 'DESC',
+    lastField: 'createdAt'
   })
 
   const payOrderBy = useMemo(() => {
@@ -125,6 +130,11 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
       currencyRef: p.currencyRef,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
+      paymentMethod: p.paymentMethod,
+      decisionDate: p.decisionDate,
+      transactionDate: p.transactionDate,
+      costCenter: p.costCenter,
+      project: p.project,
       expensePlan: p.expensePlan
     }))
   }, [overview.data?.advancePayments])

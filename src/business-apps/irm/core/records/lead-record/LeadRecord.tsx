@@ -7,7 +7,9 @@ import {
   Tooltip,
   TooltipProvider,
   TooltipTrigger,
-  TooltipContent
+  TooltipContent,
+  IconAvatar,
+  HeaderSlot
 } from '@newwork/nw-design-system'
 import { UsersIcon, FileTextIcon, AddressBookIcon, RobotIcon, FlagIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -271,7 +273,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     const hasReasons = rejectionReasons.length > 0
     const badgeVariant = hasReasons ? 'destructive' : 'secondary'
     const badgeText = hasReasons
-      ? getTranslationFromI18nKeyAndLabel('rejection.badge.rejected', 'Rejected')
+      ? getTranslationFromI18nKeyAndLabel('rejection.badge.rejected', 'Rejection Reasons')
       : getTranslationFromI18nKeyAndLabel('rejection.badge.noReasons', 'No Rejection Reason')
 
     return (
@@ -683,16 +685,18 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     <div data-testid="investment-lead-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={AddressBookIcon}
-        headerCategory={getTranslationFromI18nKeyAndLabel('crm.lead.category', 'LEAD')}
+        headerAvatar={<IconAvatar icon={AddressBookIcon} variant="decorative" size="xl" />}
+        headerOverline={getTranslationFromI18nKeyAndLabel('crm.lead.category', 'LEAD')}
         onBack={onBack}
         headerTitle={headerTitle}
         headerMeta={headerMeta}
-        headerDetailGroups={headerDetailGroups}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
-        headerContent={headerContent}
-        subViews={subViewsConfig}
+        headerSlotAfter={headerContent}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

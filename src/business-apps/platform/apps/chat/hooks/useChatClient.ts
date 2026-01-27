@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, startTransition } from 'react'
+import { useState, useEffect, useCallback, useRef, startTransition, useMemo } from 'react'
 import type { ActiveCall, Conversation, Message, User, TypingIndicator } from '../types'
 import { MessageType } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
@@ -6,7 +6,8 @@ import { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import { useConversations } from './useConversations'
 import { useMessages } from './useMessages'
 import { useTypingIndicator } from './useTypingIndicator'
-import { usePresence } from './usePresence'
+import { usePresence, type PresenceState } from './usePresence'
+import { rtkDebug } from '../utils/rtkDebug'
 
 // Shared WebSocket client to prevent duplicate connections
 // Multiple Chat instances (e.g., forceMount tabs) will share ONE WebSocket
@@ -153,12 +154,73 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
   })
 
-  // Presence tracking hook
-  const presenceHook = usePresence({
+  // Presence tracking hook (with global cache)
+  // IMPORTANT: Reuses the existing WebSocket connection from useChatClient
+  const presence = usePresence({
     wsClient: wsClientRef.current,
-    apiClient: apiClientRef.current,
-    isConnected
+    currentUserId: currentUser?.id || null
   })
+
+  // Build presence map for efficient lookups (memoized by presenceVersion)
+  const presenceMap = useMemo(() => {
+    const map = new Map<string, { status: 'online' | 'offline'; lastSeen?: string }>()
+    const rawMap = presence.getPresenceMap()
+
+    rawMap.forEach((data, userId) => {
+      map.set(userId, {
+        status: data.state === 'online' ? 'online' : 'offline',
+        lastSeen: data.lastSeen
+      })
+    })
+
+    return map
+  }, [presence.presenceVersion, presence.getPresenceMap])
+
+  // Adapter layer - keep functions for backward compatibility, but recommend using presenceMap
+  const presenceHook = {
+    // RECOMMENDED: Use presenceMap directly for best performance
+    presenceMap,
+    presenceVersion: presence.presenceVersion,
+
+    // Legacy methods (kept for backward compatibility, but prefer presenceMap)
+    getUserPresence: useCallback(
+      (userId: string): { status: 'online' | 'offline'; lastSeen?: string } => {
+        // Direct lookup from memoized map
+        return presenceMap.get(userId) || { status: 'offline' }
+      },
+      [presenceMap]
+    ),
+    isUserOnline: useCallback(
+      (userId: string): boolean => {
+        const data = presenceMap.get(userId)
+        return data?.status === 'online'
+      },
+      [presenceMap]
+    ),
+    updatePresence: useCallback(
+      (userId: string, presenceStatus: { status: 'online' | 'offline' }) => {
+        presence.updatePresence(userId, presenceStatus.status)
+      },
+      [presence]
+    ),
+    // Backward compatibility method
+    updatePresenceFromUser: useCallback(
+      (userId: string, lastSeen?: Date | string, isOnline?: boolean) => {
+        const state: PresenceState = isOnline ? 'online' : 'offline'
+        // Convert Date to ISO string if needed
+        const lastSeenString = lastSeen instanceof Date ? lastSeen.toISOString() : lastSeen
+
+        if (process.env.NODE_ENV === 'development') {
+          // Updating presence from user data
+        }
+
+        presence.updatePresence(userId, state, lastSeenString)
+      },
+      [presence]
+    ),
+    // Remove legacy empty map
+    clearPresence: () => {}
+  }
 
   // Keep hook refs up to date
   useEffect(() => {
@@ -214,7 +276,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     sharedWsKey = key
     sharedWsRefCount = 1 // Initialize ref count to 1
     wsClientRef.current = client
-
     const socket = client.connect(accessToken)
 
     // CRITICAL FIX: Define handlers as named functions so we can properly clean them up
@@ -242,11 +303,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleDisconnect = () => {
+      console.warn('[useChatClient] ⚠️ WebSocket disconnected')
       setIsConnected(false)
       setIsOffline(true)
     }
 
-    const handleError = () => {
+    const handleError = (error: any) => {
+      console.error('[useChatClient] ❌ WebSocket error:', error)
       setIsOffline(true)
       // Don't set full error for WebSocket issues, just mark as offline
     }
@@ -395,10 +458,14 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
               }
             }
 
-            // If message already exists with same real ID and has a status, skip entirely
-            if (existingMessage && existingMessage.id === message.id && existingMessage.status) {
-              // Message already exists with real ID - duplicate event, skip it
-              return
+            // If message already exists (either real ID or temp ID match), handle carefully
+            if (existingMessage) {
+              // If exact ID match and message already has status, it's a duplicate - skip it
+              if (existingMessage.id === message.id && existingMessage.status) {
+                return
+              }
+              // If it's a temp message being replaced, we'll let addMessage handle it
+              // addMessage has proper logic to replace temp with real message
             }
 
             // Preserve better status if it exists (delivered > sent, read > delivered)
@@ -425,6 +492,10 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
         // Create updated message with correct status
         const messageWithStatus = { ...message, status: messageStatus }
+
+        if (process.env.NODE_ENV === 'development' && isOwnMessage) {
+          // Processing own message with status
+        }
 
         // OPTIMIZATION: Defer ALL UI updates to not block the message handler
         // Use startTransition to make conversation list updates non-blocking
@@ -475,6 +546,10 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
     const handleMessageDelivered = (data: { messageId: string; conversationId: string; deliveredTo: string }) => {
       // When someone receives your message (delivered), update status to 'delivered' (gray double checkmarks)
+      if (process.env.NODE_ENV === 'development') {
+        // message:delivered event received
+      }
+
       const currentUser = currentUserRef.current
       if (currentUser && data.deliveredTo !== currentUser.id) {
         const messages = messagesHookRef.current?.messages || []
@@ -490,6 +565,10 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           return false
         })
 
+        if (process.env.NODE_ENV === 'development') {
+          // Found message for delivery update
+        }
+
         if (message && message.senderId === currentUser.id) {
           // Update message status immediately (no startTransition for status updates - they're important!)
           // Use the real message ID from the event data, not the found message's ID (which might be temp)
@@ -501,6 +580,10 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
             id: data.messageId, // Use real ID from event
             status: 'delivered'
           })
+
+          if (process.env.NODE_ENV === 'development') {
+            // Updated message status to delivered
+          }
         }
       }
     }
@@ -597,6 +680,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleConversationCallStarted = (data: ActiveCall) => {
+      rtkDebug.log('[CHAT CLIENT] 📞 Received conversation:call-started:', data)
       setActiveCalls(prev => ({ ...prev, [data.conversationId]: data }))
       conversationsHookRef.current?.updateConversation?.(data.conversationId, {
         activeCall: data
@@ -604,9 +688,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleConversationCallEnded = (data: { conversationId: string; roomId: string }) => {
+      rtkDebug.log('[CHAT CLIENT] 📴 Received conversation:call-ended:', data)
       setActiveCalls(prev => {
+        rtkDebug.log('[CHAT CLIENT] ActiveCalls BEFORE remove:', prev)
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [data.conversationId]: _removed, ...rest } = prev
+        rtkDebug.log('[CHAT CLIENT] ActiveCalls AFTER remove:', rest)
         return rest
       })
       conversationsHookRef.current?.updateConversation?.(data.conversationId, {
@@ -963,6 +1050,10 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         }
       }
 
+      // NOTE: Backend handles read receipts when conversation is opened
+      // Frontend relies on participant.lastReadAt timestamps for message status calculation
+      // WebSocket events (message:delivered, message:read) update status in real-time
+
       // OPTIMIZATION: Defer expensive API calls and enrichment
       // Do this in the background without blocking the click handler
       if (apiClientRef.current && conversation.id) {
@@ -1036,51 +1127,104 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     []
   )
 
-  return {
-    // State
-    isConnected,
-    isOffline,
-    currentUser,
-    activeConversation,
-    activeConversationId,
-    error,
-    // Conversations
-    conversations: conversationsHook.conversations,
-    conversationsLoading: conversationsHook.isLoading,
-    conversationsLoadingMore: conversationsHook.isLoadingMore,
-    conversationsHasMore: conversationsHook.hasMore,
-    conversationsError: conversationsHook.error,
-    // Messages
-    messages: messagesHook.messages,
-    messagesLoading: messagesHook.isLoading,
-    messagesError: messagesHook.error,
-    hasMoreMessages: messagesHook.hasMore,
-    // Typing
-    typingUsers: typingHook.typingUsers,
-    // Presence
-    presenceMap: presenceHook.presenceMap,
-    getUserPresence: presenceHook.getUserPresence,
-    isUserOnline: presenceHook.isUserOnline,
-    updatePresenceFromUser: presenceHook.updatePresenceFromUser,
-    // Actions
-    sendMessage,
-    createDirectConversation,
-    createContextConversation,
-    createAiAgentConversation,
-    createGroupConversation,
-    setActiveConversation,
-    closeConversation,
-    loadMoreMessages: messagesHook.loadMoreMessages,
-    loadMoreConversations: conversationsHook.loadMoreConversations,
-    refreshConversations: conversationsHook.loadConversations,
-    refreshMessages: messagesHook.refresh,
-    startTyping: typingHook.startTyping,
-    stopTyping: typingHook.stopTyping,
-    sendNudge,
-    registerNudgeCallback,
-    // Clients (for advanced usage)
-    apiClient: apiClientRef.current,
-    wsClient: wsClientRef.current,
-    activeCalls
-  }
+  // PERFORMANCE: Memoize the return object to prevent unnecessary re-renders in Chat component
+  // Only recreate when actual values change, not on every render
+  return useMemo(
+    () => ({
+      // State
+      isConnected,
+      isOffline,
+      currentUser,
+      activeConversation,
+      activeConversationId,
+      error,
+      // Conversations
+      conversations: conversationsHook.conversations,
+      conversationsLoading: conversationsHook.isLoading,
+      conversationsLoadingMore: conversationsHook.isLoadingMore,
+      conversationsHasMore: conversationsHook.hasMore,
+      conversationsError: conversationsHook.error,
+      // Messages
+      messages: messagesHook.messages,
+      messagesLoading: messagesHook.isLoading,
+      messagesError: messagesHook.error,
+      hasMoreMessages: messagesHook.hasMore,
+      // Typing
+      typingUsers: typingHook.typingUsers,
+      // Presence
+      presenceMap: presenceHook.presenceMap,
+      presenceVersion: presenceHook.presenceVersion,
+      getUserPresence: presenceHook.getUserPresence,
+      isUserOnline: presenceHook.isUserOnline,
+      updatePresenceFromUser: presenceHook.updatePresenceFromUser,
+      // Actions
+      sendMessage,
+      createDirectConversation,
+      createContextConversation,
+      createAiAgentConversation,
+      createGroupConversation,
+      setActiveConversation,
+      closeConversation,
+      loadMoreMessages: messagesHook.loadMore,
+      loadMoreConversations: conversationsHook.loadMoreConversations,
+      refreshConversations: conversationsHook.loadConversations,
+      refreshMessages: messagesHook.refresh,
+      startTyping: typingHook.startTyping,
+      stopTyping: typingHook.stopTyping,
+      sendNudge,
+      registerNudgeCallback,
+      // Clients (for advanced usage)
+      apiClient: apiClientRef.current,
+      wsClient: wsClientRef.current,
+      activeCalls
+    }),
+    [
+      // State dependencies
+      isConnected,
+      isOffline,
+      currentUser,
+      activeConversation,
+      activeConversationId,
+      error,
+      // Conversations
+      conversationsHook.conversations,
+      conversationsHook.isLoading,
+      conversationsHook.isLoadingMore,
+      conversationsHook.hasMore,
+      conversationsHook.error,
+      // Messages
+      messagesHook.messages,
+      messagesHook.isLoading,
+      messagesHook.error,
+      messagesHook.hasMore,
+      // Typing
+      typingHook.typingUsers,
+      // Presence (callbacks are stable from useCallback)
+      presenceHook.presenceMap,
+      presenceHook.presenceVersion,
+      presenceHook.getUserPresence,
+      presenceHook.isUserOnline,
+      presenceHook.updatePresenceFromUser,
+      // Actions (all are useCallback and stable)
+      sendMessage,
+      createDirectConversation,
+      createContextConversation,
+      createAiAgentConversation,
+      createGroupConversation,
+      setActiveConversation,
+      closeConversation,
+      messagesHook.loadMore,
+      conversationsHook.loadMoreConversations,
+      conversationsHook.loadConversations,
+      messagesHook.refresh,
+      typingHook.startTyping,
+      typingHook.stopTyping,
+      sendNudge,
+      registerNudgeCallback,
+      // Clients (refs are stable)
+      apiClientRef.current,
+      wsClientRef.current,
+      activeCalls
+    ]
+  )
 }

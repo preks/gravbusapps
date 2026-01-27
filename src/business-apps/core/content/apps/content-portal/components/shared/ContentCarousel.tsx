@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react'
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import type { ContentEntry } from '@/common/data/content/types/contentEntryTypes'
 import { ChevronLeft, ChevronRight, MessageCircle, Share2 } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -11,92 +11,8 @@ import {
   buildContentRecordUrl
 } from '@/business-apps/core/content/utils/shareUtils'
 import { buildReactionSummaryFromCounts } from '@/common/data/content/utils/reactionUtils'
-import { buildFileUrl } from '@/common/utils/fileUtils'
-
-// Helper component to handle async blob URL for carousel images
-const CarouselImage: React.FC<{ picture: any; accessToken?: string; alt: string }> = ({
-  picture,
-  accessToken,
-  alt
-}) => {
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
-  const blobUrlRef = useRef<string | null>(null)
-
-  useEffect(() => {
-    // Clean up previous blob URL if it exists
-    if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
-      URL.revokeObjectURL(blobUrlRef.current)
-      blobUrlRef.current = null
-    }
-
-    if (!picture) {
-      setImageUrl(null)
-      return
-    }
-
-    let fileInfo: any = null
-    try {
-      fileInfo = typeof picture === 'string' ? JSON.parse(picture) : picture
-    } catch {
-      if (typeof picture === 'string' && picture.startsWith('data:')) {
-        setImageUrl(picture)
-        return
-      }
-      setImageUrl(picture)
-      return
-    }
-
-    if (!fileInfo?.path) {
-      setImageUrl(null)
-      return
-    }
-
-    if (accessToken) {
-      let isCancelled = false
-
-      const fetchImage = async () => {
-        try {
-          const blobUrl = await buildFileUrl(fileInfo, accessToken)
-          if (!isCancelled) {
-            blobUrlRef.current = blobUrl
-            setImageUrl(blobUrl)
-          } else {
-            URL.revokeObjectURL(blobUrl)
-          }
-        } catch (error) {
-          if (!isCancelled) {
-            console.error('[ContentCarousel] Error fetching image:', error)
-            setImageUrl(null)
-          }
-        }
-      }
-
-      fetchImage()
-
-      return () => {
-        isCancelled = true
-        if (blobUrlRef.current && blobUrlRef.current.startsWith('blob:')) {
-          URL.revokeObjectURL(blobUrlRef.current)
-          blobUrlRef.current = null
-        }
-      }
-    } else {
-      setImageUrl(buildFileUrl(fileInfo))
-    }
-  }, [picture, accessToken])
-
-  if (imageUrl) {
-    return (
-      <img
-        src={imageUrl}
-        alt={alt}
-        className="gba:w-full gba:h-full gba:object-cover gba:transition-transform gba:hover:scale-105 gba:duration-300"
-      />
-    )
-  }
-
-  return null
-}
+import { ContentImage } from './ContentImage'
+import { EmployeePopover } from '@/components/employee-popover'
 
 interface ContentCarouselProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
   articles: ContentEntry[]
@@ -234,7 +150,12 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
                   >
                     <div className="gba:w-2/5 gba:h-64 gba:overflow-hidden gba:rounded-lg gba:shrink-0 gba:relative">
                       {article.picture ? (
-                        <CarouselImage picture={article.picture} accessToken={accessToken} alt={article.title || ''} />
+                        <ContentImage
+                          picture={article.picture}
+                          accessToken={accessToken!}
+                          alt={article.title || ''}
+                          className="gba:w-full gba:h-full gba:transition-transform gba:hover:scale-105 gba:duration-300"
+                        />
                       ) : (
                         <div className="gba:w-full gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-gradient-to-r gba:from-[#376399] gba:to-[#648eca]">
                           <span className="gba:text-4xl gba:font-bold gba:text-white gba:mb-2">
@@ -266,11 +187,17 @@ const ContentCarousel: React.FC<ContentCarouselProps> = ({
                         </p>
                       </div>
                       <div className="gba:flex gba:items-center gba:mb-3">
-                        {article.creatorEmployee && (
+                        {article.creatorEmployee && accessToken ? (
+                          <EmployeePopover employee={article.creatorEmployee} accessToken={accessToken}>
+                            <span className="gba:text-sm gba:text-muted-foreground gba:cursor-pointer hover:gba:text-primary hover:gba:underline">
+                              {article.creatorEmployee.displayName || article.creatorEmployee.fullName}
+                            </span>
+                          </EmployeePopover>
+                        ) : article.creatorEmployee ? (
                           <span className="gba:text-sm gba:text-muted-foreground">
                             {article.creatorEmployee.displayName || article.creatorEmployee.fullName}
                           </span>
-                        )}
+                        ) : null}
                       </div>
 
                       {/* Stats - Reactions, Comments, Share */}

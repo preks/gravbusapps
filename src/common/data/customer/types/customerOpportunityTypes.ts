@@ -230,6 +230,13 @@ export function toCustomerOpportunity(raw: any): CustomerOpportunity {
       }))
     : raw.opportunityContacts
 
+  // Map opportunityStageConditions: each item needs salesPipelineStageCondition → opportunityPipelineStageCondition
+  const mappedOpportunityStageConditions = raw.opportunityStageConditions
+    ? raw.opportunityStageConditions.map((sc: any) => toCustomerOpportunityStageCondition(sc))
+    : stageConditionStatuses
+      ? stageConditionStatuses.map((sc: any) => toCustomerOpportunityStageCondition(sc))
+      : raw.opportunityStageConditions
+
   return {
     ...rest,
     opportunityAccounts: mappedOpportunityAccounts,
@@ -238,7 +245,7 @@ export function toCustomerOpportunity(raw: any): CustomerOpportunity {
     opportunityPipelineRef: raw.opportunityPipelineRef ?? salesPipelineRef,
     opportunityPipelineStage: raw.opportunityPipelineStage ?? salesPipelineStage,
     opportunityPipelineStageRef: raw.opportunityPipelineStageRef ?? salesPipelineStageRef,
-    opportunityStageConditions: raw.opportunityStageConditions ?? stageConditionStatuses,
+    opportunityStageConditions: mappedOpportunityStageConditions,
     opportunityContacts: raw.opportunityContacts ?? mappedOpportunityContacts,
     documents: raw.documents ?? crmDocument,
     notes: raw.notes ?? crmNote

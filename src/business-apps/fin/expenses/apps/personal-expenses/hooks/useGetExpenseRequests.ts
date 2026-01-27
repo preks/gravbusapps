@@ -3,6 +3,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_EXPENSE_REQUESTS_BY_EMPLOYEE } from '../queries/expenseRequests'
 import { CatalogEntry } from './useGetExpensePlans'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { makeCancellableRequest } from '../utils/cancellableRequest'
+import { normalize, handleCachedData as handleCachedDataUtil } from '../utils/cacheUtils'
 
 // Type aliases for union types
 type SortField = string | null
@@ -30,6 +32,7 @@ export interface ExpenseRequest {
   }
   employeeDocument?: {
     file: string
+    name?: string
   }
   expensePlan?: {
     advancePaymentAggregate?: {
@@ -70,22 +73,6 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
   const accessToken = context?.accessToken || ''
   const client = useGraphqlClient(accessToken)
 
-  const normalize = useCallback((val: any): any => {
-    if (Array.isArray(val)) {
-      return val.map(normalize)
-    }
-    if (val && typeof val === 'object') {
-      const sorted: any = {}
-      Object.keys(val)
-        .sort((a, b) => a.localeCompare(b))
-        .forEach(k => {
-          sorted[k] = normalize(val[k])
-        })
-      return sorted
-    }
-    return val
-  }, [])
-
   const generateCacheKey = useCallback(
     (filters: any, page: number, pageSize: number, sortField: SortField, sortOrder: SortOrder) => {
       return `cache:${JSON.stringify(
@@ -98,7 +85,7 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
         })
       )}`
     },
-    [normalize]
+    []
   )
 
   // Helper function to validate and get required values
@@ -126,17 +113,17 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
   }
 
   // Helper function to handle cached data
-  const handleCachedData = (cacheKey: string, options?: { force?: boolean }): boolean => {
-    const cachedData = pageCacheRef.current.get(cacheKey)
-    if (cachedData && !options?.force) {
-      setItems(cachedData.items)
-      setTotalCount(cachedData.totalCount)
-      setIsLoading(false)
-      setError(null)
-      return true
-    }
-    return false
-  }
+  const handleCachedData = useCallback((cacheKey: string, options?: { force?: boolean }): boolean => {
+    return handleCachedDataUtil(
+      cacheKey,
+      pageCacheRef.current,
+      options,
+      setItems,
+      setTotalCount,
+      setIsLoading,
+      setError
+    )
+  }, [])
 
   // Helper function to handle inflight requests
   const handleInflightRequest = async (requestKey: string, cacheKey: string): Promise<boolean> => {
@@ -255,23 +242,35 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
       try {
         const variables = buildVariables(employeeId, filters, page, pageSize, sortField, sortOrder)
 
-        const requestPromise = client.request(GET_EXPENSE_REQUESTS_BY_EMPLOYEE, variables).finally(() => {
+        const baseRequestPromise = client.request(GET_EXPENSE_REQUESTS_BY_EMPLOYEE, variables)
+        const requestPromise = makeCancellableRequest(baseRequestPromise, controller).finally(() => {
           inflightRef.current.delete(requestKey)
         })
 
         inflightRef.current.set(requestKey, requestPromise)
         const data = await requestPromise
 
+        // If a newer request started, ignore this response.
+        if (abortControllerRef.current !== controller) {
+          return
+        }
+
         processResponseData(data, cacheKey)
       } catch (err) {
+        // Ignore errors from cancelled/stale requests
         if (err instanceof Error && err.name === 'AbortError') {
+          return
+        }
+        if (abortControllerRef.current !== controller) {
           return
         }
         setError(err instanceof Error ? err : new Error(String(err)))
         setItems([])
         setTotalCount(0)
       } finally {
-        setIsLoading(false)
+        if (abortControllerRef.current === controller) {
+          setIsLoading(false)
+        }
       }
     },
     [

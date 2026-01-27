@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Button, Spinner, RecordLayout } from '@newwork/nw-design-system'
-import { FileTextIcon, UserIcon, UsersIcon, CurrencyDollarIcon, RobotIcon } from '@phosphor-icons/react'
+import { Button, Spinner, RecordLayout, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
+import {
+  FileTextIcon,
+  UserIcon,
+  CurrencyDollarIcon,
+  RobotIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  CakeIcon,
+  GlobeIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -192,26 +201,26 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
             value:
               getEmailChannel(contactData?.communicationChannels)?.value ||
               getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: UsersIcon
+            icon: EnvelopeIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.phone', 'Phone'),
             value:
               getPhoneChannel(contactData?.communicationChannels)?.value ||
               getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: UsersIcon
+            icon: PhoneIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.birthday', 'Birthday'),
             value: contactData?.birthDate
               ? new Date(contactData.birthDate).toLocaleDateString('en-GB')
               : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: UsersIcon
+            icon: CakeIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.language', 'Language'),
             value: contactData?.language?.value || getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: UsersIcon
+            icon: GlobeIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
@@ -410,14 +419,16 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     <div data-testid="investment-contact-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={UserIcon}
-        headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.contact', 'CONTACT')}
+        headerAvatar={<IconAvatar icon={UserIcon} variant="decorative" size="xl" />}
+        headerOverline={getTranslationFromI18nKeyAndLabel('crm.common.contact', 'CONTACT')}
         onBack={onBack}
         headerTitle={headerTitle}
-        headerDetailGroups={headerDetailGroups}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
-        subViews={subViewsConfig}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

@@ -269,6 +269,11 @@ const QuestionView: React.FC<QuestionViewProps> = ({
     })
   }, [answers, reactionsByArticle])
 
+  // Check if there's any accepted answer
+  const hasAcceptedAnswer = useMemo(() => {
+    return sortedAnswers.some(answer => answer.accepted || false)
+  }, [sortedAnswers])
+
   const handleVoteSuccess = () => {
     refetchReactions()
     refetch()
@@ -574,13 +579,15 @@ const QuestionView: React.FC<QuestionViewProps> = ({
                     {/* Action Buttons */}
                     <div className="gba:flex gba:items-center gba:gap-3">
                       {/* Accept Answer Button - Only visible to question author */}
-                      {isQuestionAuthor && (
+                      {/* Hide all accept buttons if there's an accepted answer, except for the accepted one */}
+                      {isQuestionAuthor && (!hasAcceptedAnswer || isAccepted) && (
                         <AcceptAnswerButton
                           answerId={answer.id || ''}
                           questionId={item.id || ''}
                           isAccepted={isAccepted}
                           accessToken={accessToken || ''}
                           employeeId={employeeId || ''}
+                          version={answer.version}
                           onAcceptComplete={handleVoteSuccess}
                           data-testid={`accept-answer-${answer.id}`}
                         />

@@ -7,7 +7,9 @@ import {
   Tooltip,
   TooltipProvider,
   TooltipTrigger,
-  TooltipContent
+  TooltipContent,
+  IconAvatar,
+  HeaderSlot
 } from '@newwork/nw-design-system'
 import {
   UserIcon,
@@ -16,7 +18,9 @@ import {
   TrashIcon,
   PencilSimpleIcon,
   StarIcon,
-  RobotIcon
+  RobotIcon,
+  CalendarIcon,
+  CurrencyDollarIcon
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -103,13 +107,12 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   const [stageConditionStatuses, setStageConditionStatuses] = useState<any[]>([])
 
   // Use shared hook for fetching pipeline stages and catalog conditions
-  const { opportunityStages, catalogStageConditions, loadingStages, stagesError, fetchOpportunityStages } =
-    useOpportunityPipelineStages({
-      opportunityData: opportunityData ?? undefined,
-      stageConditionCatalog: 'InvestmentOpportunityPipelineStageCondition',
-      accessToken: props.accessToken,
-      contextLabel: 'investment'
-    })
+  const { opportunityStages, loadingStages, stagesError, fetchOpportunityStages } = useOpportunityPipelineStages({
+    opportunityData: opportunityData ?? undefined,
+    stageConditionCatalog: 'InvestmentOpportunityPipelineStageCondition',
+    accessToken: props.accessToken,
+    contextLabel: 'investment'
+  })
 
   // Divestment investment data (fetched separately for DIVESTMENT_DEAL using declarative hook)
   const divestmentId = opportunityData?.dealType === 'DIVESTMENT_DEAL' ? opportunityData?.divestmentId : undefined
@@ -142,31 +145,27 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   }, [opportunityData?.dealType])
 
   // Helper function to extract IRM stage conditions (reduces cognitive complexity)
-  const extractIrmStageConditions = useCallback(
-    (stageConditionStatuses: any[], stage: Stage): StageCondition[] => {
-      const stageCatalogConditions = catalogStageConditions.filter(
-        catalogCondition => catalogCondition.parentEntryId === stage.id
-      )
+  // Filters stageConditionStatuses directly by parentEntryId (like ConditionSection does)
+  const extractIrmStageConditions = useCallback((stageConditionStatuses: any[], stage: Stage): StageCondition[] => {
+    // Filter stageConditionStatuses directly by parentEntryId (like ConditionSection does)
+    const stageConditionStatusesForStage = stageConditionStatuses.filter(
+      statusData => statusData.opportunityPipelineStageCondition?.parentEntryId === stage.id
+    )
 
-      return stageCatalogConditions.map(catalogCondition => {
-        const statusRecord = stageConditionStatuses.find(
-          statusData => statusData.opportunityPipelineStageConditionRef === catalogCondition.id
-        )
+    return stageConditionStatusesForStage.map(statusData => {
+      const conditionEntry = statusData.opportunityPipelineStageCondition
+      const config = statusData.configSnapshot || conditionEntry?.objectValue || {}
+      const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
 
-        const config = statusRecord?.configSnapshot || catalogCondition.objectValue || {}
-        const checkedType = config.check_type === 'MANUAL' ? 'User' : 'Automated'
-
-        return {
-          id: catalogCondition.id,
-          title: catalogCondition.value || 'Unknown Condition',
-          isCompleted: statusRecord?.completed || false,
-          checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
-          completedBy: statusRecord?.completedByEmployee ? getEmployeeName(statusRecord.completedByEmployee) : null
-        }
-      })
-    },
-    [catalogStageConditions]
-  )
+      return {
+        id: conditionEntry?.id || statusData.id,
+        title: conditionEntry?.value || 'Unknown Condition',
+        isCompleted: statusData.completed || false,
+        checkedType: checkedType as 'Automated' | 'User' | 'Manager' | 'Owner',
+        completedBy: statusData.completedByEmployee ? getEmployeeName(statusData.completedByEmployee) : null
+      }
+    })
+  }, [])
 
   // IRM-specific configuration for OpportunityStageProgression
   const irmPipelineConfig: OpportunityPipelineContextConfig = useMemo(
@@ -517,7 +516,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     const hasReasons = rejectionReasons.length > 0
     const badgeVariant = hasReasons ? 'destructive' : 'secondary'
     const badgeText = hasReasons
-      ? getTranslationFromI18nKeyAndLabel('rejection.badge.rejected', 'Rejected')
+      ? getTranslationFromI18nKeyAndLabel('rejection.badge.rejected', 'Rejection Reasons')
       : getTranslationFromI18nKeyAndLabel('rejection.badge.noReasons', 'No Rejection Reason')
 
     return (
@@ -712,13 +711,15 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   // Fallback: if formatDate returns ISO format, manually format the date
                   return formatted?.includes('T') ? dateOnly : formatted
                 })()
-              : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+              : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            icon: CalendarIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.estimatedAmount', 'Estimated Amount'),
             value: opportunityData?.estimatedAmount
               ? formatCurrency(opportunityData.estimatedAmount, opportunityData.currency?.id || 'Currency:v1:EUR')
-              : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+              : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            icon: CurrencyDollarIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
@@ -1002,7 +1003,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
 
             {/* Stage Conditions - 1/2 of left side, row span 2 */}
             <SectionWrapper
-              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-2"
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-2 gba:min-h-96 gba:max-h-96"
               key={`condition-section-${opportunityId}-${stageConditionStatuses.length}-${stageConditionStatuses.filter(s => s.completed).length}`}
               sections={[
                 {
@@ -1024,7 +1025,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
 
             {/* Tasks/Approvals Tabbed - 1/2 of left side, row span 2 */}
             <SectionWrapper
-              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-2"
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-2 gba:min-h-96 gba:max-h-96"
               sections={[
                 {
                   id: 'tasks-section',
@@ -1068,9 +1069,9 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
               data-testid="opportunity-tasks-approvals-section-wrapper"
             />
 
-            {/* Activities - Right aligned, row span 4, starts same row as conditions/tasks */}
+            {/* Activities & Notes - Right aligned, row span 2, matches individual card height */}
             <SectionWrapper
-              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-4"
+              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-2 gba:min-h-96 gba:max-h-96"
               sections={[
                 {
                   id: 'activities-section',
@@ -1091,15 +1092,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                       emptyStateBehavior: 'enable'
                     }
                   }
-                }
-              ]}
-              data-testid="opportunity-activities-section-wrapper"
-            />
-
-            {/* Notes - Full width of left side (2/2) */}
-            <SectionWrapper
-              className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
-              sections={[
+                },
                 {
                   id: 'notes-section',
                   component: NoteSection,
@@ -1117,7 +1110,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                   }
                 }
               ]}
-              data-testid="opportunity-notes-section-wrapper"
+              data-testid="opportunity-activities-notes-section-wrapper"
             />
           </>
         )
@@ -1186,16 +1179,18 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     <div className="gba:opportunity-details-container" data-testid="investment-opportunity-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={LightbulbIcon}
-        headerCategory="OPPORTUNITY"
+        headerAvatar={<IconAvatar icon={LightbulbIcon} variant="decorative" size="xl" />}
+        headerOverline="OPPORTUNITY"
         onBack={handleDealTypeBack}
         headerTitle={opportunityData?.name || ''}
         headerMeta={headerMeta}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
-        headerDetailGroups={headerDetailGroups}
-        headerContent={headerContent}
-        subViews={subViewsConfig}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+        headerSlotAfter={headerContent}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

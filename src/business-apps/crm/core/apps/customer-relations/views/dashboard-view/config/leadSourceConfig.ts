@@ -2,5 +2,6 @@ import { LeadSourceConfig } from '@/common/components/common-relations/view-layo
 
 export const crmLeadSourceConfig: LeadSourceConfig = {
   leadTable: 'Lead',
-  leadAggregateTable: 'LeadAggregate'
+  leadAggregateTable: 'LeadAggregate',
+  leadStatusPrefix: 'SalesLeadStatus'
 }

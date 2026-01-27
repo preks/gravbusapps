@@ -288,8 +288,8 @@ notification-expense-created-success = Expense created successfully
 notification-sick-leave-reported-success = Sick leave reported successfully
 notification-special-leave-requested-success = Special leave requested successfully
 notification-vacation-requested-success = Vacation requested successfully
- notification-working-conditions-updated-success = Working conditions updates are sent for HR approval
- notification-working-hours-updated-success = Working hours updates are sent for HR approval
+notification-working-conditions-updated-success = Working conditions updates are sent for HR approval
+notification-working-hours-updated-success = Working hours updates are sent for HR approval
 
 # HR approval phrasing (profile updates)
 notification-address-updated-success = Address updates sent to be approved by the HR department.

@@ -11,6 +11,7 @@ interface AcceptAnswerButtonProps {
   isAccepted: boolean
   accessToken: string
   employeeId: string
+  version?: number
   onAcceptComplete?: () => void
   'data-testid'?: string
 }
@@ -25,6 +26,7 @@ export const AcceptAnswerButton: React.FC<AcceptAnswerButtonProps> = ({
   isAccepted,
   accessToken,
   employeeId,
+  version,
   onAcceptComplete,
   'data-testid': dataTestId = 'accept-answer-button'
 }) => {
@@ -56,7 +58,8 @@ export const AcceptAnswerButton: React.FC<AcceptAnswerButtonProps> = ({
           answerId,
           questionId,
           accepted: !optimisticAccepted,
-          employeeId
+          employeeId,
+          version
         })
       }
     >

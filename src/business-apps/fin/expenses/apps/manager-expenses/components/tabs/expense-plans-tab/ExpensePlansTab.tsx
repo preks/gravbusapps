@@ -10,7 +10,8 @@ import ExpensePlanStatisticsDisplay from './ExpensePlanStatistics'
 import ExpensePlansTable from './ExpensePlansTable'
 import ExpensePlanDetails from './ExpensePlanDetails'
 import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
-import { standardizeCurrencyRef } from '../../../utils/currencyUtils'
+import { standardizeCurrencyRef, extractCurrencyCode } from '../../../utils/currencyUtils'
+import dayjs from 'dayjs'
 
 interface ExpensePlansTabProps extends BusinessAppContextProps {
   employeeId?: string
@@ -29,7 +30,14 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     primaryCurrency, // Use primaryCurrency instead of currencyFilter
     filterGroups,
     handleDataFilterChange,
-    filterLabelMap
+    filterLabelMap,
+    effectiveDateRange,
+    planDateRange,
+    startDateRange,
+    endDateRange,
+    planTypeFilter,
+    getAllSelectedFilters,
+    removeFilter
   } = useExpensePlanFilters({
     accessToken: props.accessToken,
     managerId
@@ -47,36 +55,54 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   // Local paging + sorting state for overview-driven list
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [sorting, setSorting] = useState<{ field: any; order: 'ASC' | 'DESC' | null; lastField?: any }>({
-    field: null,
-    order: null
+    field: 'createdAt',
+    order: 'DESC',
+    lastField: 'createdAt'
   })
+
+  // Helper to build order by clause - reduces cognitive complexity
+  const buildOrderByClause = useCallback((field: string, order: 'ASC' | 'DESC') => {
+    if (field === 'employee.fullName') {
+      return [{ employee: { fullName: order } } as any]
+    }
+    return [{ [field]: order } as any]
+  }, [])
 
   const planOrderBy = useMemo(() => {
     if (!sorting.field || !sorting.order) return [{ planDate: 'DESC' } as any]
-    const dir = sorting.order
-    switch (sorting.field) {
-      case 'title':
-        return [{ title: dir } as any]
-      case 'startDate':
-        return [{ startDate: dir } as any]
-      case 'endDate':
-        return [{ endDate: dir } as any]
-      case 'employee.fullName':
-        return [{ employee: { fullName: dir } } as any]
-      case 'createdAt':
-        return [{ createdAt: dir } as any]
-      case 'totalAmount':
-        return [{ totalAmount: dir } as any]
-      case 'status':
-        return [{ status: dir } as any]
-      default:
-        return [{ planDate: 'DESC' } as any]
-    }
-  }, [sorting])
+    return buildOrderByClause(sorting.field, sorting.order)
+  }, [sorting, buildOrderByClause])
 
   const currencyRef = useMemo(
     () => (primaryCurrency ? standardizeCurrencyRef(primaryCurrency) : undefined),
     [primaryCurrency]
+  )
+
+  // Helper function to convert date range to GraphQL format - reduces duplication
+  const convertDateRangeToGraphQL = useCallback((dateRange: [Date | null, Date | null] | null) => {
+    if (!dateRange || (!dateRange[0] && !dateRange[1])) return null
+    return {
+      from: dateRange[0] ? dayjs(dateRange[0]).startOf('day').format('YYYY-MM-DD HH:mm:ss') : null,
+      to: dateRange[1] ? dayjs(dateRange[1]).endOf('day').format('YYYY-MM-DD HH:mm:ss') : null
+    }
+  }, [])
+
+  // Convert date ranges to ISO string format for GraphQL
+  const plansEffectiveDateRange = useMemo(
+    () => convertDateRangeToGraphQL(effectiveDateRange),
+    [effectiveDateRange, convertDateRangeToGraphQL]
+  )
+  const plansStartDateRange = useMemo(
+    () => convertDateRangeToGraphQL(startDateRange),
+    [startDateRange, convertDateRangeToGraphQL]
+  )
+  const plansEndDateRange = useMemo(
+    () => convertDateRangeToGraphQL(endDateRange),
+    [endDateRange, convertDateRangeToGraphQL]
+  )
+  const plansPlanDateRange = useMemo(
+    () => convertDateRangeToGraphQL(planDateRange),
+    [planDateRange, convertDateRangeToGraphQL]
   )
 
   const overview = useManagerExpensesOverview(props, {
@@ -86,7 +112,12 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     plans: { limit: pageSize, offset: (currentPage - 1) * pageSize, orderBy: planOrderBy },
     plansStatus: statusFilter,
     requests: { limit: 0, offset: 0 },
-    payments: { limit: 0, offset: 0 }
+    payments: { limit: 0, offset: 0 },
+    plansEffectiveDateRange,
+    plansStartDateRange,
+    plansEndDateRange,
+    plansPlanDateRange,
+    plansTypeFilter: planTypeFilter
   })
 
   // Use ref to keep the last valid stats to prevent flickering/height changes
@@ -120,11 +151,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const expensePlans: ExpensePlan[] = useMemo(() => {
     const rows = overview.data?.expensePlans || []
     return rows.map((p: any) => {
-      // Extract currency code from currencyRef (format: "Currency:v1:EUR" -> "EUR")
-      let currency: string | undefined
-      if (typeof p?.currencyRef === 'string') {
-        currency = p.currencyRef.includes(':') ? p.currencyRef.split(':').pop() : p.currencyRef
-      }
+      // Extract currency code from currencyRef
+      const currency = p?.currencyRef ? extractCurrencyCode(p.currencyRef) : undefined
 
       return {
         id: p.id,
@@ -137,8 +165,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         planDate: p.planDate,
         totalAmount: Number(p.totalAmount ?? 0),
         currency: currency || primaryCurrency || 'EUR',
+        currencyRef: p.currencyRef,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
+        requestType: p.requestType,
         expenseRequest: Array.isArray(p.expenseRequest) ? p.expenseRequest : [],
         employeeDocument: p.employeeDocument || null,
         employee: p.employee
@@ -157,14 +187,28 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     const signature = JSON.stringify({
       searchTerm,
       statusFilter,
-      primaryCurrency
+      primaryCurrency,
+      effectiveDateRange,
+      planDateRange,
+      startDateRange,
+      endDateRange,
+      planTypeFilter
     })
     const prev = prevFilterSignatureRef.current
     if (prev !== null && prev !== signature) {
       setCurrentPage(1)
     }
     prevFilterSignatureRef.current = signature
-  }, [searchTerm, statusFilter, primaryCurrency])
+  }, [
+    searchTerm,
+    statusFilter,
+    primaryCurrency,
+    effectiveDateRange,
+    planDateRange,
+    startDateRange,
+    endDateRange,
+    planTypeFilter
+  ])
 
   const updateSorting = useCallback((field: any) => {
     setSorting(prev => {
@@ -181,23 +225,10 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   // State for selected plan details
   const [selectedPlan, setSelectedPlan] = useState<ExpensePlan | null>(null)
 
-  // Handle plan selection for details panel
-  const handleViewDetails = useCallback((plan: ExpensePlan) => {
-    setSelectedPlan(plan)
-  }, [])
-
-  // Handle closing details panel
-  const handleCloseDetails = useCallback(() => {
-    setSelectedPlan(null)
-  }, [])
-
-  // Handle search term changes
-  const handleSearchChange = useCallback(
-    (search: string) => {
-      setSearchTerm(search)
-    },
-    [setSearchTerm]
-  )
+  // Handle plan selection and details panel
+  const handleViewDetails = useCallback((plan: ExpensePlan) => setSelectedPlan(plan), [])
+  const handleCloseDetails = useCallback(() => setSelectedPlan(null), [])
+  const handleSearchChange = useCallback((search: string) => setSearchTerm(search), [setSearchTerm])
 
   // No need for separate status filter handler as we use handleDataFilterChange
 
@@ -233,45 +264,39 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
           search: searchTerm,
           // Always keep filter chips in sync with the active filters,
           // even when there are no results (so users can see/clear them).
-          filter: buildDeduplicatedFilters(statusFilter, primaryCurrency),
+          filter: buildDeduplicatedFilters(getAllSelectedFilters, primaryCurrency),
           setSearch: handleSearchChange,
           setFilter: newFilters => {
-            // Separate currency and status filters
+            // Handle removing filters via pills - extracted to reduce complexity
+            const allCurrentFilters = buildDeduplicatedFilters(getAllSelectedFilters, primaryCurrency)
+            const removedFilters = allCurrentFilters.filter(f => !newFilters.includes(f))
+            removedFilters.forEach(filterId => removeFilter(filterId))
+
+            // Separate filters by type
             const currencyFilters = newFilters.filter(f => f.startsWith('currency:'))
             const statusFiltersIncoming = newFilters.filter(f => !f.startsWith('currency:'))
 
-            // Convert current status filters to string IDs for comparison
-            const currentFilters = statusFilter.map(status => status as unknown as string)
-            const incomingFilters = statusFiltersIncoming.map(status => status as unknown as string)
-
-            // Find status filters to remove and add
-            const filtersToRemove = currentFilters.filter(f => !incomingFilters.includes(f))
-            const filtersToAdd = incomingFilters.filter(f => !currentFilters.includes(f))
-
             // Apply status filter changes
-            for (const filter of filtersToRemove) {
-              handleDataFilterChange(filter, false)
-            }
-            for (const filter of filtersToAdd) {
-              handleDataFilterChange(filter, true)
-            }
+            const currentStatusFilters = statusFilter.map(status => status as unknown as string)
+            const incomingFilters = statusFiltersIncoming.map(status => status as unknown as string)
+            const filtersToRemove = currentStatusFilters.filter(f => !incomingFilters.includes(f))
+            const filtersToAdd = incomingFilters.filter(f => !currentStatusFilters.includes(f))
 
-            // Handle currency filter changes
-            // Note: Currency filter should remain even when "Clear all filters" is clicked
-            const hasCurrency = currencyFilters.length > 0
+            filtersToRemove.forEach(filter => handleDataFilterChange(filter, false))
+            filtersToAdd.forEach(filter => handleDataFilterChange(filter, true))
 
-            // Only process currency change if user explicitly selected a different one
-            if (hasCurrency && currencyFilters[0] !== `currency:${primaryCurrency}`) {
-              // User selected a different currency
+            // Handle currency filter changes (only if explicitly changed)
+            if (currencyFilters.length > 0 && currencyFilters[0] !== `currency:${primaryCurrency}`) {
               const newCurrencyCode = currencyFilters[0].replace('currency:', '')
               handleDataFilterChange(`currency:${newCurrencyCode}`, true)
             }
-            // Don't clear currency when clearing all filters - currency always stays selected
           },
 
           filterLabelMap: {
             ...filterLabelMap,
-            ...(primaryCurrency ? { [`currency:${primaryCurrency}`]: primaryCurrency } : {})
+            ...(primaryCurrency
+              ? { [`currency:${primaryCurrency}`]: primaryCurrency.split(':').pop()?.toUpperCase() || primaryCurrency }
+              : {})
           },
           listTitle: (
             <div className="gba:flex gba:items-center gba:gap-4">
@@ -303,6 +328,12 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
               employeeId={props.employeeId}
               onViewDetails={handleViewDetails}
               currencyFilter={primaryCurrency}
+              // Pass date range and plan type filters for active filter detection
+              effectiveDateRange={effectiveDateRange}
+              planDateRange={planDateRange}
+              startDateRange={startDateRange}
+              endDateRange={endDateRange}
+              planTypeFilter={planTypeFilter}
               // Pass data from the main hook
               expensePlans={expensePlans}
               loading={plansLoading}

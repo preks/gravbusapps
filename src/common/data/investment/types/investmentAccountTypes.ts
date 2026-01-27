@@ -69,7 +69,22 @@ export const InvestmentAccountFields = {
  * Adds IRM-specific fields that don't exist in Common/CRM
  */
 export const INVESTMENT_ACCOUNT_DESCRIPTORS: Descriptor[] = [
-  ...createAccountDescriptors(InvestmentAccountFields as Record<keyof typeof AccountFields, string>),
+  ...createAccountDescriptors(InvestmentAccountFields as Record<keyof typeof AccountFields, string>).map(descriptor => {
+    // Disable search/sort for opportunities field - it's not a direct field on InvestmentAccount
+    // investmentOpportunity is not directly queryable on InvestmentAccount in GraphQL schema
+    // (Opportunities link TO accounts via opportunityAccounts junction table, not the other way)
+    if (descriptor.key === 'opportunities') {
+      return {
+        ...descriptor,
+        enableSearch: false,
+        enableSort: false,
+        searchPaths: [],
+        sortPath: undefined,
+        sortPaths: []
+      }
+    }
+    return descriptor
+  }),
 
   // IRM-specific fields (not in Common/CRM)
   // Note: investmentInvestmentAccount is a relationship from Investment TO InvestmentAccount
