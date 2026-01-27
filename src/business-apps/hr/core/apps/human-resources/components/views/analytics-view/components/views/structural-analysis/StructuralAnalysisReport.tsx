@@ -9,7 +9,7 @@ import { ReportingChainAnalysis } from './components/ReportingChainAnalysis'
 import { AnalysisTab } from './types/structuralTypes'
 
 import { Tabs, TabsList, TabsTrigger, TabsContent, useTranslation, Icon } from '@newwork/nw-design-system'
-import { ChartPie, ChartBar, Buildings, UsersThree } from '@phosphor-icons/react'
+import { PieChart, BarChart, Building, Users } from '@phosphor-icons/react'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Text } = Typography
@@ -23,7 +23,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
   const { t } = useTranslation(hrTranslations)
 
   // Define valid tabs
-  const validTabs: AnalysisTab[] = ['overview', 'span-control', 'depth-analysis', 'reporting-chains']
+  const validTabs = new Set<AnalysisTab>(['overview', 'span-control', 'depth-analysis', 'reporting-chains'])
   const defaultTab: AnalysisTab = 'overview'
 
   // Get content from URL query parameter or use default
@@ -31,7 +31,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
     const urlParams = new URLSearchParams(window.location.search)
     const contentFromUrl = urlParams.get('content') as AnalysisTab
 
-    if (validTabs.includes(contentFromUrl)) {
+    if (validTabs.has(contentFromUrl)) {
       return contentFromUrl
     } else {
       // No valid content in URL, set default content in URL
@@ -60,7 +60,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
     const handlePopState = () => {
       const urlParams = new URLSearchParams(window.location.search)
       const contentFromUrl = urlParams.get('content') as AnalysisTab
-      const newTab = validTabs.includes(contentFromUrl) ? contentFromUrl : defaultTab
+      const newTab = validTabs.has(contentFromUrl) ? contentFromUrl : defaultTab
       setActiveTab(newTab)
     }
 
@@ -233,7 +233,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
             className="gba:flex gba:items-center gba:gap-2"
           >
             <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
-              <Icon icon={ChartPie} size="sm" decorative />
+              <Icon icon={PieChart} size="sm" decorative />
               {t('hr-analytics-overview-tab')}
             </span>
           </TabsTrigger>
@@ -243,7 +243,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
             className="gba:flex gba:items-center gba:gap-2"
           >
             <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
-              <Icon icon={ChartBar} size="sm" decorative />
+              <Icon icon={BarChart} size="sm" decorative />
               {t('hr-analytics-span-of-control')}
             </span>
           </TabsTrigger>
@@ -253,7 +253,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
             className="gba:flex gba:items-center gba:gap-2"
           >
             <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
-              <Icon icon={Buildings} size="sm" decorative />
+              <Icon icon={Building} size="sm" decorative />
               {t('hr-analytics-depth-analysis')}
             </span>
           </TabsTrigger>
@@ -263,7 +263,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
             className="gba:flex gba:items-center gba:gap-2"
           >
             <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
-              <Icon icon={UsersThree} size="sm" decorative />
+              <Icon icon={Users} size="sm" decorative />
               {t('hr-analytics-reporting-chains')}
             </span>
           </TabsTrigger>
