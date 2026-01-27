@@ -164,7 +164,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
   // i18n translations
   const amountPercentageHelperText = getTranslationFromI18nKeyAndLabel(
     'expense-settings:amount_percentage_helper',
-    'Either Amount or Percentage (above 0%) is required, but not both'
+    'Either Amount or Percentage is required, but not both'
   )
 
   const form = useForm<AllowanceCodeFormData>({
@@ -1025,18 +1025,23 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                         className="gba:text-center"
                         data-testid={`allowance-code-percentage-cell-${record.id}`}
                       >
-                        <Badge
-                          variant={
-                            (record.firstAllowanceRegionRulePercent || 0) > 0
-                              ? 'default'
-                              : (record.firstAllowanceRegionRulePercent || 0) < 0
-                                ? 'destructive'
-                                : 'secondary'
-                          }
-                          data-testid={`allowance-code-percentage-badge-${record.id}`}
-                        >
-                          {record.firstAllowanceRegionRulePercent || 0}%
-                        </Badge>
+                        {record.firstAllowanceRegionRulePercent !== undefined &&
+                        record.firstAllowanceRegionRulePercent !== null &&
+                        record.firstAllowanceRegionRulePercent !== 0 ? (
+                          <Badge
+                            variant={record.firstAllowanceRegionRulePercent > 0 ? 'default' : 'destructive'}
+                            data-testid={`allowance-code-percentage-badge-${record.id}`}
+                          >
+                            {record.firstAllowanceRegionRulePercent}%
+                          </Badge>
+                        ) : (
+                          <span
+                            className="gba:text-muted-foreground"
+                            data-testid={`allowance-code-percentage-empty-${record.id}`}
+                          >
+                            -
+                          </span>
+                        )}
                       </TableCell>
 
                       {/* Calculation Column */}
