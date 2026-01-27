@@ -424,31 +424,121 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                 const dayKey = currentDay.format('YYYY-MM-DD')
                 const isInteractive = enableSelection && isCurrentMonth
 
+                const commonProps = {
+                  key: dayKey,
+                  'data-testid': `calendar-day-${currentDay.date()}`,
+                  onContextMenu: (e: React.MouseEvent) => {
+                    // Always prevent browser context menu on calendar days
+                    e.preventDefault()
+                    e.stopPropagation()
+
+                    // Only show our context menu for current month days with selection enabled
+                    if (!isInteractive) return
+
+                    handleContextMenu(e, currentDay, isCurrentMonth)
+                  }
+                }
+
+                if (isInteractive) {
+                  return (
+                    <button
+                      type="button"
+                      {...commonProps}
+                      tabIndex={0}
+                      onClick={handleDayClick}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          handleDayClick()
+                        }
+                      }}
+                      className={`${getDayClassName()} gba:appearance-none gba:m-0 gba:font-inherit gba:text-inherit gba:w-full gba:text-left`}
+                    >
+                      <div
+                        className={`gba:day-number gba:text-right 
+                      ${isSelectedStart || isSelectedEnd ? 'gba:font-bold gba:text-decorative' : ''} 
+                      ${!isCurrentMonth ? 'gba:text-muted-foreground' : ''}`}
+                      >
+                        {currentDay.date()}
+                      </div>
+                      {isCurrentMonth && isHoliday && (
+                        <div className="gba:flex gba:gap-1 gba:mt-1">
+                          <div className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:min-h-4 gba:px-1 gba:w-full gba:bg-warning-secondary/80">
+                            <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
+                              {t('holiday')}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {isCurrentMonth && isToday && (
+                        <div className="gba:flex gba:gap-1 gba:mt-1">
+                          <div className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:min-h-4 gba:px-1 gba:w-full gba:bg-info-secondary/80">
+                            <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
+                              {t('today')}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {isCurrentMonth &&
+                        (() => {
+                          const overlappingAbsences = absenceList.filter((absence: any) => {
+                            const absenceStart = dayjs(absence.startDate)
+                            const absenceEnd = dayjs(absence.endDate)
+                            return currentDay.isBetween(absenceStart, absenceEnd, null, '[]')
+                          })
+
+                          if (overlappingAbsences.length === 0) return null
+
+                          // Render small colored segments for each overlapping absence (max 3)
+                          const maxSegments = 3
+                          const segments = overlappingAbsences.slice(0, maxSegments)
+                          const segmentWidth = `${100 / segments.length}%`
+
+                          const resolveSegmentBgClass = (a: any): string => {
+                            // When consumer provides planned/effective minutes (e.g., DailyLog)
+                            if (typeof a?.plannedMinutes === 'number' && typeof a?.effectiveMinutes === 'number') {
+                              if (a.effectiveMinutes >= a.plannedMinutes) {
+                                return getBadgeVariantBackgroundClass('success')
+                              }
+                              return getBadgeVariantBackgroundClass('warning')
+                            }
+                            return getAbsenceStatusBackgroundClass(a.originalStatus || a.status)
+                          }
+
+                          return (
+                            <div className="gba:flex gba:gap-1 gba:mt-1">
+                              {segments.map((a: any, idx: number) => (
+                                <Tooltip
+                                  key={`seg-${idx}`}
+                                  title={getAbsenceTooltipContent(a, {
+                                    showStatus: showStatusInTooltip,
+                                    showDuration: showDurationInTooltip
+                                  })}
+                                  placement="top"
+                                  mouseEnterDelay={0.3}
+                                  overlayStyle={{ zIndex: 9999 }}
+                                >
+                                  <div
+                                    className={`gba:flex gba:items-center gba:justify-center gba:rounded-full gba:cursor-help gba:transition-all gba:duration-200 hover:gba:h-6 gba:min-h-4 gba:px-1 ${resolveSegmentBgClass(a)}`}
+                                    style={{
+                                      width: segmentWidth
+                                    }}
+                                  >
+                                    <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
+                                      {a.type}
+                                    </span>
+                                  </div>
+                                </Tooltip>
+                              ))}
+                            </div>
+                          )
+                        })()}
+                    </button>
+                  )
+                }
+
                 return (
-                  <div
-                    key={dayKey}
-                    role={isInteractive ? 'button' : undefined}
-                    tabIndex={isInteractive ? 0 : undefined}
-                    className={getDayClassName()}
-                    data-testid={`calendar-day-${currentDay.date()}`}
-                    onClick={isInteractive ? handleDayClick : undefined}
-                    onKeyDown={e => {
-                      if (isInteractive && (e.key === 'Enter' || e.key === ' ')) {
-                        e.preventDefault()
-                        handleDayClick()
-                      }
-                    }}
-                    onContextMenu={e => {
-                      // Always prevent browser context menu on calendar days
-                      e.preventDefault()
-                      e.stopPropagation()
-
-                      // Only show our context menu for current month days with selection enabled
-                      if (!isInteractive) return
-
-                      handleContextMenu(e, currentDay, isCurrentMonth)
-                    }}
-                  >
+                  <div {...commonProps} className={getDayClassName()}>
                     <div
                       className={`gba:day-number gba:text-right 
                       ${isSelectedStart || isSelectedEnd ? 'gba:font-bold gba:text-decorative' : ''} 
