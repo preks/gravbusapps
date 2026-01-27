@@ -145,16 +145,21 @@ export const useBenefitsCatalog = (
         const isEmployeeBenefitCancelled = employeeBenefit?.status === 'CANCELLED_COMPENSATION'
 
         // Check if benefit is active (includes date validation)
-        // CRITICAL: Pending and cancelled benefits should never be classified as active - they need approval first
+        // CRITICAL DISTINCTION:
+        // - Pending ACTIVATION (benefitStatus != ACTIVE_BENEFIT): Should NOT be active - needs approval first
+        // - Pending DEACTIVATION (benefitStatus = ACTIVE_BENEFIT + status = PENDING_COMPENSATION): SHOULD be active until deactivation is approved
+        const isPendingActivation = isEmployeeBenefitPending && employeeBenefit?.benefitStatus !== BenefitStatus.ACTIVE
+
         const isActive =
-          employeeBenefit && !isEmployeeBenefitPending && !isEmployeeBenefitCancelled
+          employeeBenefit && !isPendingActivation && !isEmployeeBenefitCancelled
             ? isBenefitActive(employeeBenefit)
             : false
 
         // Check if benefit is scheduled to start in the future (approved but not started yet)
-        // CRITICAL: Pending and cancelled benefits should never be classified as scheduled - they need approval first
+        // CRITICAL: Pending activation and cancelled benefits should never be classified as scheduled - they need approval first
+        // But pending deactivation benefits can still be scheduled if they have a future start date
         const isScheduled =
-          employeeBenefit && !isEmployeeBenefitPending && !isEmployeeBenefitCancelled
+          employeeBenefit && !isPendingActivation && !isEmployeeBenefitCancelled
             ? isBenefitScheduledForStart(employeeBenefit)
             : false
 
