@@ -318,6 +318,7 @@ employee-form-email = E-Mail
 employee-form-organizational-unit = Organisationseinheit
 employee-form-job-position = Stelle
 employee-form-hire-date = Einstellungsdatum
+employee-form-fixed-term-until = Befristet bis
 employee-form-preferred-name = Bevorzugter Name
 employee-form-employment-type = Beschäftigungsart
 employee-form-contract-type = Vertragsart
