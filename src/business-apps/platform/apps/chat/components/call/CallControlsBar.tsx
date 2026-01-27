@@ -18,7 +18,7 @@ import {
   Image,
   PhoneDisconnect,
   Smiley,
-  Hand
+  HandIcon
 } from '@phosphor-icons/react'
 import { Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
 
@@ -186,7 +186,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
               aria-label={handRaised ? 'Lower hand' : 'Raise hand'}
               title={handRaised ? 'Lower hand' : 'Raise hand'}
             >
-              <Hand className="gba:w-5 gba:h-5" weight="fill" />
+              <HandIcon className="gba:w-5 gba:h-5" weight="fill" />
             </button>
           )}
 

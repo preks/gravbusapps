@@ -259,8 +259,40 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
         {filteredActiveParticipants.length === 0 &&
         filteredPendingInvites.length === 0 &&
         filteredNotInCallParticipants.length === 0 ? (
-          <div className="gba:p-4 gba:text-center gba:text-muted-foreground">
-            {searchQuery ? 'No participants found' : t('groupCall-noParticipants') || 'No participants'}
+          <div className="gba:p-8 gba:text-center">
+            {searchQuery ? (
+              // No search results
+              <div className="gba:flex gba:flex-col gba:items-center gba:gap-3">
+                <MagnifyingGlassIcon className="gba:h-12 gba:w-12 gba:text-muted-foreground/50" weight="light" />
+                <div>
+                  <p className="gba:font-medium gba:text-foreground gba:mb-1">No results found</p>
+                  <p className="gba:text-sm gba:text-muted-foreground gba:mb-3">
+                    Try a different search term or browse all participants
+                  </p>
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="gba:px-4 gba:py-2 gba:bg-secondary gba:text-secondary-foreground hover:gba:bg-secondary/80 gba:rounded gba:text-sm gba:font-medium gba:transition-colors"
+                    data-testid={`${prefixDataTestId}-clear-search-btn`}
+                  >
+                    Clear Search
+                  </button>
+                </div>
+              </div>
+            ) : notInCallParticipants.length === 0 && activeParticipants.length > 0 ? (
+              // All conversation members are in the call
+              <div className="gba:flex gba:flex-col gba:items-center gba:gap-3">
+                <div className="gba:text-4xl">🎉</div>
+                <div>
+                  <p className="gba:font-medium gba:text-foreground gba:mb-1">Everyone's here!</p>
+                  <p className="gba:text-sm gba:text-muted-foreground">
+                    All conversation members are either in the call or have been invited.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              // Generic no participants
+              <p className="gba:text-muted-foreground">{t('groupCall-noParticipants') || 'No participants'}</p>
+            )}
           </div>
         ) : (
           <>
@@ -271,7 +303,9 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                   In Call ({filteredActiveParticipants.length})
                 </div>
                 {filteredActiveParticipants.map((participant: any) => {
-                  const isActiveSpeakerNow = activeSpeakerId === participant.id
+                  const isLocalUser = participant.id === meeting?.self?.id
+                  // Don't highlight yourself as active speaker (industry standard)
+                  const isActiveSpeakerNow = !isLocalUser && activeSpeakerId === participant.id
                   return (
                     <div
                       key={participant.id}
@@ -293,7 +327,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                         <div className="gba:flex-1 gba:min-w-0">
                           <p className="gba:text-sm gba:font-medium gba:truncate">
                             {participant.name || 'Unknown'}
-                            {participant.id === meeting?.self?.id && ' (You)'}
+                            {isLocalUser && ' (You)'}
                             {isActiveSpeakerNow && (
                               <span className="gba:ml-2 gba:text-xs gba:text-primary gba:font-semibold">Speaking</span>
                             )}
@@ -324,7 +358,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                         </div>
                       </div>
                       {/* Show actions menu only for other participants (not yourself) */}
-                      {participant.id !== meeting?.self?.id && onMuteParticipant && (
+                      {!isLocalUser && onMuteParticipant && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button
@@ -381,7 +415,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
             {/* Section 3: Available (Not in Call) */}
             {filteredNotInCallParticipants.length > 0 && (
               <div>
-                <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase">
+                <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:sticky gba:top-0">
                   Available ({filteredNotInCallParticipants.length})
                 </div>
                 {filteredNotInCallParticipants.map(participant => (

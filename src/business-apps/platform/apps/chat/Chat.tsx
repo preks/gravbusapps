@@ -402,6 +402,14 @@ const ChatInner: React.FC<ChatProps> = memo(
       pendingInvites: groupPendingInvites
     } = groupCall
 
+    // Stable callback for inviting participants - prevents GroupCallModalRtk re-renders
+    const handleInviteParticipant = useCallback(
+      (participant: CallParticipant) => {
+        inviteToGroupCall([participant], activeConversation?.name)
+      },
+      [inviteToGroupCall, activeConversation?.name]
+    )
+
     // Combined in-call state
     const isInAnyCall = isInCall || isInGroupCall
 
@@ -1822,7 +1830,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                 backgroundEnabled={groupCallState.backgroundEnabled}
                 prefixDataTestId={`${prefixDataTestId}-rtk-group-call`}
                 availableParticipants={availableParticipantsForCall}
-                onInviteParticipant={participant => inviteToGroupCall([participant], activeConversation?.name)}
+                onInviteParticipant={handleInviteParticipant}
                 onReconnectParticipant={reconnectGroupParticipant}
                 getConnectionDiagnostics={getGroupConnectionDiagnostics}
                 accessToken={accessToken}

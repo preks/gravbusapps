@@ -17,10 +17,12 @@ import {
   VideoCameraIcon,
   VideoCameraSlashIcon,
   ArrowsOutSimpleIcon,
-  PhoneDisconnectIcon
+  PhoneDisconnectIcon,
+  HandIcon
 } from '@phosphor-icons/react'
 import { Avatar, AvatarFallback } from '@newwork/nw-design-system'
 import { formatDuration, getInitials } from '../../utils/callUtils'
+import { ReactionsOverlay, Reaction } from './ReactionsOverlay'
 
 export interface MinimizedCallViewProps {
   /** First remote participant */
@@ -40,6 +42,12 @@ export interface MinimizedCallViewProps {
   isMuted: boolean
   /** Whether local video is enabled */
   isVideoEnabled: boolean
+  /** Whether first remote peer has raised hand */
+  isHandRaised?: boolean
+  /** Whether first remote peer is muted */
+  isRemotePeerMuted?: boolean
+  /** Active reactions to display for first remote peer */
+  reactions?: Reaction[]
   /** Callback to toggle mute */
   onToggleMute: () => void
   /** Callback to toggle video */
@@ -62,6 +70,9 @@ export const MinimizedCallView: React.FC<MinimizedCallViewProps> = React.memo(
     duration,
     isMuted,
     isVideoEnabled,
+    isHandRaised = false,
+    isRemotePeerMuted = false,
+    reactions = [],
     onToggleMute,
     onToggleVideo,
     onExpand,
@@ -72,9 +83,26 @@ export const MinimizedCallView: React.FC<MinimizedCallViewProps> = React.memo(
     const videoRef = useRef<HTMLVideoElement>(null)
 
     // Attach stream to video element
+    // CRITICAL: Only update srcObject if the video track ID actually changed to prevent flicker
     useEffect(() => {
-      if (videoRef.current && firstRemoteStream) {
-        videoRef.current.srcObject = firstRemoteStream
+      if (!videoRef.current || !firstRemoteStream) {
+        return
+      }
+
+      const videoElement = videoRef.current
+      const currentStream = videoElement.srcObject as MediaStream | null
+      const currentVideoTrackId = currentStream?.getVideoTracks()[0]?.id
+      const newVideoTrackId = firstRemoteStream.getVideoTracks()[0]?.id
+
+      // Only update if the video track ID is different
+      if (currentVideoTrackId !== newVideoTrackId) {
+        console.log('[MinimizedCallView] Updating video stream', {
+          oldTrackId: currentVideoTrackId,
+          newTrackId: newVideoTrackId
+        })
+        videoElement.srcObject = firstRemoteStream
+      } else {
+        console.log('[MinimizedCallView] Video stream already correct, skipping update')
       }
     }, [firstRemoteStream])
 
@@ -101,9 +129,14 @@ export const MinimizedCallView: React.FC<MinimizedCallViewProps> = React.memo(
                       {getInitials(firstRemotePeer.name || firstRemotePeer.odName || '')}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="gba:text-sm gba:text-foreground">
-                    {firstRemotePeer.name || firstRemotePeer.odName}
-                  </span>
+                  <div className="gba:flex gba:items-center gba:gap-1">
+                    <span className="gba:text-sm gba:text-foreground">
+                      {firstRemotePeer.name || firstRemotePeer.odName}
+                    </span>
+                    {isRemotePeerMuted && (
+                      <MicrophoneSlashIcon className="gba:w-3.5 gba:h-3.5 gba:text-foreground" weight="fill" />
+                    )}
+                  </div>
                 </>
               ) : (
                 <span className="gba:text-muted-foreground gba:text-xs">
@@ -116,9 +149,14 @@ export const MinimizedCallView: React.FC<MinimizedCallViewProps> = React.memo(
           {/* Participant name overlay (when video is shown) */}
           {firstRemotePeer && hasRemoteVideo && (
             <div className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:bg-gradient-to-t gba:from-black/60 gba:to-transparent gba:p-2">
-              <span className="gba:text-white gba:text-xs gba:truncate">
-                {firstRemotePeer.name || firstRemotePeer.odName}
-              </span>
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <span className="gba:text-white gba:text-xs gba:truncate">
+                  {firstRemotePeer.name || firstRemotePeer.odName}
+                </span>
+                {isRemotePeerMuted && (
+                  <MicrophoneSlashIcon className="gba:w-3.5 gba:h-3.5 gba:text-white" weight="fill" />
+                )}
+              </div>
             </div>
           )}
 
@@ -132,6 +170,18 @@ export const MinimizedCallView: React.FC<MinimizedCallViewProps> = React.memo(
           <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-black/60 gba:px-2 gba:py-1 gba:rounded-full">
             <span className="gba:text-white gba:text-xs gba:font-mono">{formatDuration(duration)}</span>
           </div>
+
+          {/* Raised hand indicator */}
+          {isHandRaised && (
+            <div className="gba:absolute gba:bottom-2 gba:right-2 gba:px-2 gba:py-1 gba:rounded-full gba:bg-warning gba:text-warning-foreground gba:shadow-lg gba:animate-pulse">
+              <HandIcon className="gba:h-4 gba:w-4" weight="fill" />
+            </div>
+          )}
+
+          {/* Reactions */}
+          {reactions.length > 0 && (
+            <ReactionsOverlay reactions={reactions} prefixDataTestId={`${prefixDataTestId}-minimized`} />
+          )}
         </div>
 
         {/* Mini controls */}

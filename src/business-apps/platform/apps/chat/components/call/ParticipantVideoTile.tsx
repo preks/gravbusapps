@@ -13,7 +13,7 @@
  */
 
 import React, { useRef, useEffect } from 'react'
-import { Monitor, ArrowsOutSimple, MagnifyingGlassPlus, MicrophoneSlash, Hand } from '@phosphor-icons/react'
+import { Monitor, ArrowsOutSimple, MagnifyingGlassPlus, MicrophoneSlash, HandIcon } from '@phosphor-icons/react'
 import { Avatar, AvatarFallback } from '@newwork/nw-design-system'
 import { getInitials } from '../../utils/callUtils'
 import { ReactionsOverlay, Reaction } from './ReactionsOverlay'
@@ -60,6 +60,8 @@ export interface ParticipantVideoTileProps {
   prefixDataTestId?: string
   /** Translation function */
   t?: (key: string) => string
+  /** Whether the call view is minimized */
+  isMinimized?: boolean
 }
 
 export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
@@ -270,7 +272,7 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
       {/* Raised hand indicator */}
       {isHandRaised && (
         <div className="gba:absolute gba:top-2 gba:right-2 gba:px-2 gba:py-1 gba:rounded-full gba:bg-warning gba:text-warning-foreground gba:shadow-lg gba:animate-pulse">
-          <Hand className="gba:h-5 gba:w-5" weight="fill" />
+          <HandIcon className="gba:h-5 gba:w-5" weight="fill" />
         </div>
       )}
 
@@ -281,3 +283,32 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
     </div>
   )
 }
+
+/**
+ * Memoized ParticipantVideoTile
+ * Only re-renders when data props change, not when callback references change
+ */
+export const MemoizedParticipantVideoTile = React.memo(ParticipantVideoTile, (prevProps, nextProps) => {
+  // Compare data props only (ignore function references)
+  const dataPropsEqual =
+    prevProps.peerId === nextProps.peerId &&
+    prevProps.peerName === nextProps.peerName &&
+    prevProps.userId === nextProps.userId &&
+    prevProps.customParticipantId === nextProps.customParticipantId &&
+    prevProps.isLocal === nextProps.isLocal &&
+    prevProps.isMuted === nextProps.isMuted &&
+    prevProps.hasVideoTrack === nextProps.hasVideoTrack &&
+    prevProps.hasAudioTrack === nextProps.hasAudioTrack &&
+    prevProps.screenShareTrack?.id === nextProps.screenShareTrack?.id &&
+    prevProps.isFocusedScreenShare === nextProps.isFocusedScreenShare &&
+    prevProps.totalScreenShares === nextProps.totalScreenShares &&
+    prevProps.isHandRaised === nextProps.isHandRaised &&
+    prevProps.isActiveSpeaker === nextProps.isActiveSpeaker &&
+    prevProps.isMinimized === nextProps.isMinimized &&
+    // Compare reactions array by length and content
+    prevProps.reactions?.length === nextProps.reactions?.length &&
+    JSON.stringify(prevProps.reactions) === JSON.stringify(nextProps.reactions)
+
+  // Return true if props are equal (skip re-render), false if different (re-render)
+  return dataPropsEqual
+})
