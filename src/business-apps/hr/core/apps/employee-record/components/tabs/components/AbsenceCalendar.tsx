@@ -424,63 +424,6 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                 const dayKey = currentDay.format('YYYY-MM-DD')
                 const isInteractive = enableSelection && isCurrentMonth
 
-                // Render absence segments for the current day
-                const renderAbsenceSegments = () => {
-                  if (!isCurrentMonth) return null
-
-                  const overlappingAbsences = absenceList.filter((absence: any) => {
-                    const absenceStart = dayjs(absence.startDate)
-                    const absenceEnd = dayjs(absence.endDate)
-                    return currentDay.isBetween(absenceStart, absenceEnd, null, '[]')
-                  })
-
-                  if (overlappingAbsences.length === 0) return null
-
-                  // Render small colored segments for each overlapping absence (max 3)
-                  const maxSegments = 3
-                  const segments = overlappingAbsences.slice(0, maxSegments)
-                  const segmentWidth = `${100 / segments.length}%`
-
-                  const resolveSegmentBgClass = (a: any): string => {
-                    // When consumer provides planned/effective minutes (e.g., DailyLog)
-                    if (typeof a?.plannedMinutes === 'number' && typeof a?.effectiveMinutes === 'number') {
-                      if (a.effectiveMinutes >= a.plannedMinutes) {
-                        return getBadgeVariantBackgroundClass('success')
-                      }
-                      return getBadgeVariantBackgroundClass('warning')
-                    }
-                    return getAbsenceStatusBackgroundClass(a.originalStatus || a.status)
-                  }
-
-                  return (
-                    <div className="gba:flex gba:gap-1 gba:mt-1">
-                      {segments.map((a: any, idx: number) => (
-                        <Tooltip
-                          key={`seg-${idx}`}
-                          title={getAbsenceTooltipContent(a, {
-                            showStatus: showStatusInTooltip,
-                            showDuration: showDurationInTooltip
-                          })}
-                          placement="top"
-                          mouseEnterDelay={0.3}
-                          overlayStyle={{ zIndex: 9999 }}
-                        >
-                          <div
-                            className={`gba:flex gba:items-center gba:justify-center gba:rounded-full gba:cursor-help gba:transition-all gba:duration-200 hover:gba:h-6 gba:min-h-4 gba:px-1 ${resolveSegmentBgClass(a)}`}
-                            style={{
-                              width: segmentWidth
-                            }}
-                          >
-                            <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
-                              {a.type}
-                            </span>
-                          </div>
-                        </Tooltip>
-                      ))}
-                    </div>
-                  )
-                }
-
                 // Render day content (shared between button and div)
                 const renderDayContent = () => {
                   return (
@@ -510,7 +453,60 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                           </div>
                         </div>
                       )}
-                      {renderAbsenceSegments()}
+                      {isCurrentMonth &&
+                        (() => {
+                          const overlappingAbsences = absenceList.filter((absence: any) => {
+                            const absenceStart = dayjs(absence.startDate)
+                            const absenceEnd = dayjs(absence.endDate)
+                            return currentDay.isBetween(absenceStart, absenceEnd, null, '[]')
+                          })
+
+                          if (overlappingAbsences.length === 0) return null
+
+                          // Render small colored segments for each overlapping absence (max 3)
+                          const maxSegments = 3
+                          const segments = overlappingAbsences.slice(0, maxSegments)
+                          const segmentWidth = `${100 / segments.length}%`
+
+                          const resolveSegmentBgClass = (a: any): string => {
+                            // When consumer provides planned/effective minutes (e.g., DailyLog)
+                            if (typeof a?.plannedMinutes === 'number' && typeof a?.effectiveMinutes === 'number') {
+                              if (a.effectiveMinutes >= a.plannedMinutes) {
+                                return getBadgeVariantBackgroundClass('success')
+                              }
+                              return getBadgeVariantBackgroundClass('warning')
+                            }
+                            return getAbsenceStatusBackgroundClass(a.originalStatus || a.status)
+                          }
+
+                          return (
+                            <div className="gba:flex gba:gap-1 gba:mt-1">
+                              {segments.map((a: any, idx: number) => (
+                                <Tooltip
+                                  key={`seg-${idx}`}
+                                  title={getAbsenceTooltipContent(a, {
+                                    showStatus: showStatusInTooltip,
+                                    showDuration: showDurationInTooltip
+                                  })}
+                                  placement="top"
+                                  mouseEnterDelay={0.3}
+                                  overlayStyle={{ zIndex: 9999 }}
+                                >
+                                  <div
+                                    className={`gba:flex gba:items-center gba:justify-center gba:rounded-full gba:cursor-help gba:transition-all gba:duration-200 hover:gba:h-6 gba:min-h-4 gba:px-1 ${resolveSegmentBgClass(a)}`}
+                                    style={{
+                                      width: segmentWidth
+                                    }}
+                                  >
+                                    <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
+                                      {a.type}
+                                    </span>
+                                  </div>
+                                </Tooltip>
+                              ))}
+                            </div>
+                          )
+                        })()}
                     </>
                   )
                 }
