@@ -609,7 +609,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   // For Blink tasks, use the simple view from every-box
   if (isBlinkTask) {
     return (
-      <div className="gba:flex gba:flex-col gba:h-full gba:px-6" data-testid="universal-cflow-task-details">
+      <div className="gba:flex gba:flex-col gba:h-full" data-testid="universal-cflow-task-details">
         {/* Task Header */}
         <TaskDetailHeader
           title={taskTitle}
@@ -631,7 +631,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
         />
 
         {/* Scrollable Content - Simple Blink Task View */}
-        <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0">
+        <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0 gba:px-6">
           {/* Completion Details - Only show for completed tasks */}
           {isCompleted && (
             <Card className="gba:border-success/50 gba:bg-success/5">
@@ -794,7 +794,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
   // For non-Blink cFlow tasks, use the full form view
   return (
-    <div className="gba:flex gba:flex-col gba:h-full gba:px-6" data-testid="universal-cflow-task-details">
+    <div className="gba:flex gba:flex-col gba:h-full" data-testid="universal-cflow-task-details">
       {/* Task Header - Using shared TaskDetailHeader component */}
       <TaskDetailHeader
         title={taskTitle}
@@ -815,7 +815,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
         onClose={onClose}
       />
 
-      <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0">
+      <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0 gba:px-6">
         {/* Completion Details - Only show for completed tasks */}
         {isCompleted && (
           <Card className="gba:border-success/50 gba:bg-success/5">
