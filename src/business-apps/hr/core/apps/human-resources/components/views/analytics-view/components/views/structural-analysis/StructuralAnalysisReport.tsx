@@ -83,8 +83,8 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       setActiveTab(newTab)
     }
 
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    globalThis.addEventListener('popstate', handlePopState)
+    return () => globalThis.removeEventListener('popstate', handlePopState)
   }, [])
 
   // Show loading state
@@ -250,46 +250,44 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:h-full" data-testid="structural-tabs">
         <TabsList className="gba:mb-4">
-          <TabsTrigger
-            value="overview"
-            data-testid="structural-overview-tab"
-            className="gba:flex gba:items-center gba:gap-2"
-          >
-            <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
-              <Icon icon={ChartPieIcon} size="sm" decorative />
-              {t('hr-analytics-overview-tab')}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="span-control"
-            data-testid="structural-span-control-tab"
-            className="gba:flex gba:items-center gba:gap-2"
-          >
-            <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
-              <Icon icon={ChartBarIcon} size="sm" decorative />
-              {t('hr-analytics-span-of-control')}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="depth-analysis"
-            data-testid="structural-depth-analysis-tab"
-            className="gba:flex gba:items-center gba:gap-2"
-          >
-            <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
-              <Icon icon={BuildingsIcon} size="sm" decorative />
-              {t('hr-analytics-depth-analysis')}
-            </span>
-          </TabsTrigger>
-          <TabsTrigger
-            value="reporting-chains"
-            data-testid="structural-reporting-chains-tab"
-            className="gba:flex gba:items-center gba:gap-2"
-          >
-            <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
-              <Icon icon={UsersIcon} size="sm" decorative />
-              {t('hr-analytics-reporting-chains')}
-            </span>
-          </TabsTrigger>
+          {[
+            {
+              value: 'overview',
+              icon: ChartPieIcon,
+              label: 'hr-analytics-overview-tab',
+              testId: 'structural-overview-tab'
+            },
+            {
+              value: 'span-control',
+              icon: ChartBarIcon,
+              label: 'hr-analytics-span-of-control',
+              testId: 'structural-span-control-tab'
+            },
+            {
+              value: 'depth-analysis',
+              icon: BuildingsIcon,
+              label: 'hr-analytics-depth-analysis',
+              testId: 'structural-depth-analysis-tab'
+            },
+            {
+              value: 'reporting-chains',
+              icon: UsersIcon,
+              label: 'hr-analytics-reporting-chains',
+              testId: 'structural-reporting-chains-tab'
+            }
+          ].map(tab => (
+            <TabsTrigger
+              key={tab.value}
+              value={tab.value}
+              data-testid={tab.testId}
+              className="gba:flex gba:items-center gba:gap-2"
+            >
+              <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
+                <Icon icon={tab.icon} size="sm" decorative />
+                {t(tab.label)}
+              </span>
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         <TabsContent value="overview" className="gba:mt-6">
