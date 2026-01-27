@@ -1,11 +1,8 @@
 import React, { useRef, useState } from 'react'
-import { Card, Typography } from 'antd'
 import { SunburstChart, ResponsiveContainer, Tooltip } from 'recharts'
 import { SunburstNode } from '../types/structuralTypes'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-
-const { Title, Text } = Typography
 
 interface SunburstVisualizationProps {
   data: SunburstNode
@@ -91,16 +88,16 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
   const sunburstData = hasValidData ? transformToSunburstFormat(data) : createFallbackData()
 
   return (
-    <Card data-testid={`${prefixDataTestId}-SunburstVisualization`} className="gba:h-[600px]">
-      <div className="gba:p-4 gba:border-b">
-        <Title level={4} className="gba:m-0 gba:text-foreground">
+    <div data-testid={`${prefixDataTestId}-SunburstVisualization`} className="gba:grid gba:gap-6">
+      <div>
+        <h3 className="gba:m-0 gba:mb-4 gba:text-foreground gba:text-xl gba:font-semibold">
           {t('hr-analytics-organizational-hierarchy-sunburst')}
-        </Title>
-        <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">{t('hr-analytics-sunburst-description')}</Text>
+        </h3>
+        <p className="gba:text-muted-foreground gba:text-sm">{t('hr-analytics-sunburst-description')}</p>
       </div>
 
       <div
-        className="gba:p-4"
+        className="gba:min-h-[600px]"
         ref={containerRef}
         onMouseMove={e => {
           if (!containerRef.current) return
@@ -153,6 +150,6 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
           </div>
         )}
       </div>
-    </Card>
+    </div>
   )
 }

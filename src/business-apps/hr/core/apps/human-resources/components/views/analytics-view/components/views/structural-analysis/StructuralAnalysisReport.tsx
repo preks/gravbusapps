@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { Spin, Alert, Button, Typography, Space } from 'antd'
-import { ReloadOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useStructuralAnalysisDataIntegration } from '../../../hooks/useStructuralAnalysisDataIntegration'
 import { SunburstVisualization } from './components/SunburstVisualization'
@@ -8,11 +6,21 @@ import { SpanOfControlChart } from './components/SpanOfControlChart'
 import { ReportingChainAnalysis } from './components/ReportingChainAnalysis'
 import { AnalysisTab } from './types/structuralTypes'
 
-import { Tabs, TabsList, TabsTrigger, TabsContent, useTranslation, Icon } from '@newwork/nw-design-system'
-import { PieChart, BarChart, Building, Users } from '@phosphor-icons/react'
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  useTranslation,
+  Icon,
+  Spinner,
+  Card,
+  CardContent,
+  Button
+} from '@newwork/nw-design-system'
+import { ChartPieIcon, ChartBarIcon, BuildingsIcon, UsersIcon } from '@phosphor-icons/react'
+import { PiArrowClockwise } from 'react-icons/pi'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-
-const { Text } = Typography
 
 interface StructuralAnalysisReportProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -73,12 +81,10 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
     return (
       <div
         data-testid={`${prefixDataTestId}-Loading`}
-        className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px] gba:bg-gradient-to-b gba:from-background gba:to-muted gba:rounded-lg"
+        className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px] gba:bg-gradient-to-b gba:from-background gba:to-muted gba:rounded-lg gba:flex-col"
       >
-        <Space direction="vertical" align="center">
-          <Spin size="large" />
-          <Text>{t('hr-analytics-structural-loading')}</Text>
-        </Space>
+        <Spinner className="gba:w-8 gba:h-8" />
+        <p className="gba:mt-4 gba:text-muted-foreground">{t('hr-analytics-structural-loading')}</p>
       </div>
     )
   }
@@ -90,17 +96,22 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
         data-testid={`${prefixDataTestId}-Error`}
         className="gba:bg-gradient-to-b gba:from-background gba:to-muted gba:min-h-[400px] gba:p-6 gba:rounded-lg"
       >
-        <Alert
-          message={t('hr-analytics-structural-error-title')}
-          description={error}
-          type="error"
-          showIcon
-          action={
-            <Button size="small" icon={<ReloadOutlined />} onClick={refetch}>
-              {t('common-retry')}
-            </Button>
-          }
-        />
+        <Card className="gba:border-destructive-secondary-foreground gba:bg-destructive-secondary-foreground/25">
+          <CardContent className="gba:p-6">
+            <div className="gba:flex gba:items-center gba:gap-4">
+              <div className="gba:flex-1">
+                <h3 className="gba:text-destructive-secondary gba:font-medium gba:mb-2">
+                  {t('hr-analytics-structural-error-title')}
+                </h3>
+                <p className="gba:text-destructive-secondary">{error}</p>
+              </div>
+              <Button variant="outline" onClick={refetch} className="gba:flex gba:items-center gba:gap-2">
+                <PiArrowClockwise />
+                {t('common-retry')}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -112,12 +123,12 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
         data-testid={`${prefixDataTestId}-NoData`}
         className="gba:bg-gradient-to-b gba:from-background gba:to-muted gba:min-h-[400px] gba:p-6 gba:rounded-lg"
       >
-        <Alert
-          message={t('hr-analytics-no-data-available')}
-          description={t('hr-analytics-structural-no-data-description')}
-          type="info"
-          showIcon
-        />
+        <Card className="gba:border-info-secondary-foreground gba:bg-info-secondary-foreground/25">
+          <CardContent className="gba:p-6">
+            <h3 className="gba:text-info-secondary gba:font-medium gba:mb-2">{t('hr-analytics-no-data-available')}</h3>
+            <p className="gba:text-info-secondary">{t('hr-analytics-structural-no-data-description')}</p>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -173,31 +184,31 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
         </h3>
         <div className="gba:grid gba:gap-3">
           <div className="gba:p-3 gba:bg-success-secondary/40 gba:rounded gba:border-l-4 gba:border-l-success">
-            <Text strong className="gba:text-success-secondary-foreground">
+            <p className="gba:font-semibold gba:text-success-secondary-foreground">
               {t('hr-analytics-span-of-control-label')}: {data.spanOfControlSummary.optimalCount} {t('hr-analytics-of')}{' '}
               {data.spanOfControlSummary.totalManagers} {t('hr-analytics-managers-have-optimal-span')}
-            </Text>
+            </p>
           </div>
           {data.spanOfControlSummary.overBurdenedCount > 0 && (
             <div className="gba:p-3 gba:bg-destructive-secondary/40 gba:rounded gba:border-l-4 gba:border-l-destructive">
-              <Text strong className="gba:text-destructive-secondary-foreground">
+              <p className="gba:font-semibold gba:text-destructive-secondary-foreground">
                 {t('hr-analytics-alert')}: {data.spanOfControlSummary.overBurdenedCount}{' '}
                 {t('hr-analytics-managers-overburdened')}
-              </Text>
+              </p>
             </div>
           )}
           <div className="gba:p-3 gba:bg-info-secondary/40 gba:rounded gba:border-l-4 gba:border-l-info">
-            <Text strong className="gba:text-info-secondary-foreground">
+            <p className="gba:font-semibold gba:text-info-secondary-foreground">
               {t('hr-analytics-organizational-depth-label')}: {t('hr-analytics-maximum-hierarchy-depth-is')}{' '}
               {data.structuralStatistics.hierarchyDepth} {t('hr-analytics-levels')}
-            </Text>
+            </p>
           </div>
           {data.reportingChainSummary.bottlenecks.length > 0 && (
             <div className="gba:p-3 gba:bg-warning-secondary gba:rounded gba:border-l-4 gba:border-l-warning">
-              <Text strong className="gba:text-warning-secondary-foreground">
+              <p className="gba:font-semibold gba:text-warning-secondary-foreground">
                 {t('hr-analytics-warning')}: {data.reportingChainSummary.bottlenecks.length}{' '}
                 {t('hr-analytics-management-bottlenecks-identified')}
-              </Text>
+              </p>
             </div>
           )}
         </div>
@@ -214,7 +225,8 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
             {t('hr-analytics-structural-analysis-reports')}
           </h2>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={refetch} type="primary" ghost>
+        <Button variant="outline" onClick={refetch} className="gba:flex gba:items-center gba:gap-2">
+          <PiArrowClockwise />
           {t('common-refresh-data')}
         </Button>
       </div>
@@ -233,7 +245,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
             className="gba:flex gba:items-center gba:gap-2"
           >
             <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
-              <Icon icon={PieChart} size="sm" decorative />
+              <Icon icon={ChartPieIcon} size="sm" decorative />
               {t('hr-analytics-overview-tab')}
             </span>
           </TabsTrigger>
@@ -243,7 +255,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
             className="gba:flex gba:items-center gba:gap-2"
           >
             <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
-              <Icon icon={BarChart} size="sm" decorative />
+              <Icon icon={ChartBarIcon} size="sm" decorative />
               {t('hr-analytics-span-of-control')}
             </span>
           </TabsTrigger>
@@ -253,7 +265,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
             className="gba:flex gba:items-center gba:gap-2"
           >
             <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
-              <Icon icon={Building} size="sm" decorative />
+              <Icon icon={BuildingsIcon} size="sm" decorative />
               {t('hr-analytics-depth-analysis')}
             </span>
           </TabsTrigger>
@@ -263,7 +275,7 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
             className="gba:flex gba:items-center gba:gap-2"
           >
             <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
-              <Icon icon={Users} size="sm" decorative />
+              <Icon icon={UsersIcon} size="sm" decorative />
               {t('hr-analytics-reporting-chains')}
             </span>
           </TabsTrigger>
