@@ -145,87 +145,92 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
   }
 
   // Overview Tab Content
-  const renderOverviewTab = () => (
-    <div className="gba:grid gba:gap-6">
-      {/* Key Statistics */}
-      <div>
-        <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold">
-          {t('hr-analytics-structural-health-overview')}
-        </h3>
-        <div className="gba:grid gba:grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gba:gap-5">
-          <div className="gba:text-center gba:p-5 gba:bg-muted gba:rounded-lg">
-            <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-              {data.structuralStatistics.totalEmployees}
-            </div>
-            <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t('hr-analytics-total-employees')}</div>
-          </div>
-          <div className="gba:text-center gba:p-5 gba:bg-muted gba:rounded-lg">
-            <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-              {data.structuralStatistics.totalManagers}
-            </div>
-            <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t('hr-analytics-total-managers')}</div>
-          </div>
-          <div className="gba:text-center gba:p-5 gba:bg-muted gba:rounded-lg">
-            <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-              {data.structuralStatistics.hierarchyDepth}
-            </div>
-            <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t('hr-analytics-hierarchy-depth')}</div>
-          </div>
-          <div className="gba:text-center gba:p-5 gba:bg-muted gba:rounded-lg">
-            <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-              {data.structuralStatistics.averageSpanOfControl.toFixed(1)}
-            </div>
-            <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-              {t('hr-analytics-avg-span-of-control')}
-            </div>
-          </div>
-          <div className="gba:text-center gba:p-5 gba:bg-muted gba:rounded-lg">
-            <div className="gba:text-3xl gba:font-bold gba:text-foreground">
-              {data.structuralStatistics.averageReportingChainLength.toFixed(1)}
-            </div>
-            <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t('hr-analytics-avg-chain-length')}</div>
-          </div>
-        </div>
-      </div>
+  const renderOverviewTab = () => {
+    // Stat cards configuration
+    const statCards = [
+      { value: data.structuralStatistics.totalEmployees, label: 'hr-analytics-total-employees' },
+      { value: data.structuralStatistics.totalManagers, label: 'hr-analytics-total-managers' },
+      { value: data.structuralStatistics.hierarchyDepth, label: 'hr-analytics-hierarchy-depth' },
+      {
+        value: data.structuralStatistics.averageSpanOfControl.toFixed(1),
+        label: 'hr-analytics-avg-span-of-control'
+      },
+      {
+        value: data.structuralStatistics.averageReportingChainLength.toFixed(1),
+        label: 'hr-analytics-avg-chain-length'
+      }
+    ]
 
-      {/* Quick Insights */}
-      <div>
-        <h3 className="gba:m-0 gba:mb-4 gba:text-foreground gba:text-xl gba:font-semibold">
-          {t('hr-analytics-key-insights')}
-        </h3>
-        <div className="gba:grid gba:gap-3">
-          <div className="gba:p-3 gba:bg-success-secondary/40 gba:rounded gba:border-l-4 gba:border-l-success">
-            <p className="gba:font-semibold gba:text-success-secondary-foreground">
-              {t('hr-analytics-span-of-control-label')}: {data.spanOfControlSummary.optimalCount} {t('hr-analytics-of')}{' '}
-              {data.spanOfControlSummary.totalManagers} {t('hr-analytics-managers-have-optimal-span')}
-            </p>
+    // Insight cards configuration
+    const insightCards = [
+      {
+        type: 'success' as const,
+        content: `${t('hr-analytics-span-of-control-label')}: ${data.spanOfControlSummary.optimalCount} ${t('hr-analytics-of')} ${data.spanOfControlSummary.totalManagers} ${t('hr-analytics-managers-have-optimal-span')}`
+      },
+      ...(data.spanOfControlSummary.overBurdenedCount > 0
+        ? [
+            {
+              type: 'destructive' as const,
+              content: `${t('hr-analytics-alert')}: ${data.spanOfControlSummary.overBurdenedCount} ${t('hr-analytics-managers-overburdened')}`
+            }
+          ]
+        : []),
+      {
+        type: 'info' as const,
+        content: `${t('hr-analytics-organizational-depth-label')}: ${t('hr-analytics-maximum-hierarchy-depth-is')} ${data.structuralStatistics.hierarchyDepth} ${t('hr-analytics-levels')}`
+      },
+      ...(data.reportingChainSummary.bottlenecks.length > 0
+        ? [
+            {
+              type: 'warning' as const,
+              content: `${t('hr-analytics-warning')}: ${data.reportingChainSummary.bottlenecks.length} ${t('hr-analytics-management-bottlenecks-identified')}`
+            }
+          ]
+        : [])
+    ]
+
+    return (
+      <div className="gba:grid gba:gap-6">
+        {/* Key Statistics */}
+        <div>
+          <h3 className="gba:m-0 gba:mb-6 gba:text-foreground gba:text-xl gba:font-semibold">
+            {t('hr-analytics-structural-health-overview')}
+          </h3>
+          <div className="gba:grid gba:grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gba:gap-5">
+            {statCards.map((stat, index) => (
+              <div key={index} className="gba:text-center gba:p-5 gba:bg-muted gba:rounded-lg">
+                <div className="gba:text-3xl gba:font-bold gba:text-foreground">{stat.value}</div>
+                <div className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t(stat.label)}</div>
+              </div>
+            ))}
           </div>
-          {data.spanOfControlSummary.overBurdenedCount > 0 && (
-            <div className="gba:p-3 gba:bg-destructive-secondary/40 gba:rounded gba:border-l-4 gba:border-l-destructive">
-              <p className="gba:font-semibold gba:text-destructive-secondary-foreground">
-                {t('hr-analytics-alert')}: {data.spanOfControlSummary.overBurdenedCount}{' '}
-                {t('hr-analytics-managers-overburdened')}
-              </p>
-            </div>
-          )}
-          <div className="gba:p-3 gba:bg-info-secondary/40 gba:rounded gba:border-l-4 gba:border-l-info">
-            <p className="gba:font-semibold gba:text-info-secondary-foreground">
-              {t('hr-analytics-organizational-depth-label')}: {t('hr-analytics-maximum-hierarchy-depth-is')}{' '}
-              {data.structuralStatistics.hierarchyDepth} {t('hr-analytics-levels')}
-            </p>
+        </div>
+
+        {/* Quick Insights */}
+        <div>
+          <h3 className="gba:m-0 gba:mb-4 gba:text-foreground gba:text-xl gba:font-semibold">
+            {t('hr-analytics-key-insights')}
+          </h3>
+          <div className="gba:grid gba:gap-3">
+            {insightCards.map((insight, index) => {
+              const colorClasses = {
+                success: 'gba:bg-success-secondary/40 gba:border-l-success gba:text-success-secondary-foreground',
+                destructive:
+                  'gba:bg-destructive-secondary/40 gba:border-l-destructive gba:text-destructive-secondary-foreground',
+                info: 'gba:bg-info-secondary/40 gba:border-l-info gba:text-info-secondary-foreground',
+                warning: 'gba:bg-warning-secondary gba:border-l-warning gba:text-warning-secondary-foreground'
+              }
+              return (
+                <div key={index} className={`gba:p-3 gba:rounded gba:border-l-4 ${colorClasses[insight.type]}`}>
+                  <p className="gba:font-semibold">{insight.content}</p>
+                </div>
+              )
+            })}
           </div>
-          {data.reportingChainSummary.bottlenecks.length > 0 && (
-            <div className="gba:p-3 gba:bg-warning-secondary gba:rounded gba:border-l-4 gba:border-l-warning">
-              <p className="gba:font-semibold gba:text-warning-secondary-foreground">
-                {t('hr-analytics-warning')}: {data.reportingChainSummary.bottlenecks.length}{' '}
-                {t('hr-analytics-management-bottlenecks-identified')}
-              </p>
-            </div>
-          )}
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   return (
     <div data-testid={prefixDataTestId} className="gba:min-h-full gba:p-6 gba:rounded-lg">
@@ -290,29 +295,40 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
           ))}
         </TabsList>
 
-        <TabsContent value="overview" className="gba:mt-6">
-          {renderOverviewTab()}
-        </TabsContent>
-
-        <TabsContent value="span-control" className="gba:mt-6">
-          <SpanOfControlChart
-            data={data.spanOfControlData}
-            summary={data.spanOfControlSummary}
-            prefixDataTestId={prefixDataTestId}
-          />
-        </TabsContent>
-
-        <TabsContent value="depth-analysis" className="gba:mt-6">
-          <SunburstVisualization data={data.sunburstData} prefixDataTestId={prefixDataTestId} />
-        </TabsContent>
-
-        <TabsContent value="reporting-chains" className="gba:mt-6">
-          <ReportingChainAnalysis
-            chains={data.reportingChainData}
-            summary={data.reportingChainSummary}
-            prefixDataTestId={prefixDataTestId}
-          />
-        </TabsContent>
+        {[
+          {
+            value: 'overview',
+            content: renderOverviewTab()
+          },
+          {
+            value: 'span-control',
+            content: (
+              <SpanOfControlChart
+                data={data.spanOfControlData}
+                summary={data.spanOfControlSummary}
+                prefixDataTestId={prefixDataTestId}
+              />
+            )
+          },
+          {
+            value: 'depth-analysis',
+            content: <SunburstVisualization data={data.sunburstData} prefixDataTestId={prefixDataTestId} />
+          },
+          {
+            value: 'reporting-chains',
+            content: (
+              <ReportingChainAnalysis
+                chains={data.reportingChainData}
+                summary={data.reportingChainSummary}
+                prefixDataTestId={prefixDataTestId}
+              />
+            )
+          }
+        ].map(tab => (
+          <TabsContent key={tab.value} value={tab.value} className="gba:mt-6">
+            {tab.content}
+          </TabsContent>
+        ))}
       </Tabs>
     </div>
   )
