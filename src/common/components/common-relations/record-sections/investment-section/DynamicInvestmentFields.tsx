@@ -516,10 +516,10 @@ const DynamicInvestmentFields: React.FC<DynamicInvestmentFieldsProps> = ({ inves
       {formattedFields.map((field, index) => (
         <div
           key={field.name || index}
-          className="gba:flex gba:flex-col gba:items-start gba:justify-center gba:px-4 gba:py-3 gba:rounded-md gba:bg-ext-1-secondary/30"
+          className="gba:flex gba:flex-col gba:items-start gba:justify-center gba:px-4 gba:py-3 gba:rounded-md gba:bg-info-secondary/30"
           data-testid={`dynamic-field-${field.name || index}`}
         >
-          <div className="gba:text-sm gba:font-normal gba:text-ext-1-on-card gba:leading-5 gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap gba:w-full">
+          <div className="gba:text-sm gba:font-normal gba:text-info-on-card gba:leading-5 gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap gba:w-full">
             {field.label}
           </div>
           <div className="gba:text-sm gba:font-medium gba:leading-5 gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap gba:w-full">

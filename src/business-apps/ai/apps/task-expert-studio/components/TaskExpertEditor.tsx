@@ -602,7 +602,12 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
                   <Label>
                     Name <span className="gba:text-destructive">*</span>
                   </Label>
-                  <Input value={name} onChange={e => setName(e.target.value)} data-testid="task-expert-editor-name" />
+                  <Input
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    disabled={mode === 'edit'}
+                    data-testid="task-expert-editor-name"
+                  />
                 </div>
                 <div className="gba:space-y-2">
                   <Label>Description</Label>
@@ -616,7 +621,12 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
                   <Label>
                     Workspace <span className="gba:text-destructive">*</span>
                   </Label>
-                  <Select value={workspaceId} onValueChange={setWorkspaceId} data-testid="task-expert-editor-workspace">
+                  <Select
+                    value={workspaceId}
+                    onValueChange={setWorkspaceId}
+                    disabled={mode === 'edit'}
+                    data-testid="task-expert-editor-workspace"
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select workspace" />
                     </SelectTrigger>

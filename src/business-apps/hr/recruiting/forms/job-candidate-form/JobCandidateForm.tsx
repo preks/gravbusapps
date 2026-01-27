@@ -25,7 +25,14 @@ import {
 import { useEmployeeByUserId } from '@/common/data/employee/hooks/useEmployeeByUserId'
 import { ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { JobCandidateDocumentUpload, type DocumentUploadItem } from './components/JobCandidateDocumentUpload'
+import { EducationArrayField } from './components/EducationArrayField'
+import { CertificatesArrayField } from './components/CertificatesArrayField'
+import { SkillsArrayField } from './components/SkillsArrayField'
+import { JobHistoryArrayField } from './components/JobHistoryArrayField'
+import { HobbiesArrayField } from './components/HobbiesArrayField'
 import { fileClient } from '@/common/network/files/FileClient'
+import { CommunicationSegment } from '@/common/components/common-relations/form-segments/communication-segment'
+import { AddressSegment } from '@/common/components/common-relations/form-segments/address-segment'
 
 const jobCandidateSchema = z.object({
   id: z.string().nullish(),
@@ -55,11 +62,80 @@ const jobCandidateSchema = z.object({
   sourceRef: z.string().nullish(),
   candidateStatusRef: z.string().nullish(),
   notes: z.string().nullish(),
-  // Jsonb fields (simplified for now - full editors can be added later)
-  communicationChannels: z.any().optional(),
-  addresses: z.any().optional(),
-  educations: z.any().optional(),
-  certificates: z.any().optional(),
+  // Jsonb fields with proper typing
+  communicationChannels: z
+    .array(
+      z.object({
+        communicationChannelRef: z.string().nullish(),
+        value: z.string().nullish(),
+        valueExtension: z.string().nullish()
+      })
+    )
+    .optional(),
+  addresses: z
+    .array(
+      z.object({
+        addressLine: z.any().optional(),
+        postalCode: z.string().nullish(),
+        locality: z.string().nullish(),
+        regionRef: z.string().nullish(),
+        countryRef: z.string().nullish()
+      })
+    )
+    .optional(),
+  educations: z
+    .array(
+      z.object({
+        title: z.string().nullish(),
+        institute: z.string().nullish(),
+        degree: z.string().nullish(),
+        startDate: z.string().nullish(),
+        endDate: z.string().nullish(),
+        locality: z.string().nullish(),
+        regionRef: z.string().nullish(),
+        countryRef: z.string().nullish()
+      })
+    )
+    .optional(),
+  certificates: z
+    .array(
+      z.object({
+        title: z.string().nullish(),
+        institute: z.string().nullish(),
+        validFrom: z.string().nullish(),
+        validTo: z.string().nullish(),
+        locality: z.string().nullish()
+      })
+    )
+    .optional(),
+  skills: z
+    .array(
+      z.object({
+        skillId: z.string().nullish(),
+        skillName: z.string().nullish(),
+        level: z.string().nullish()
+      })
+    )
+    .optional(),
+  jobHistory: z
+    .array(
+      z.object({
+        jobPosition: z.string().nullish(),
+        company: z.string().nullish(),
+        hireDate: z.string().nullish(),
+        exitDate: z.string().nullish()
+      })
+    )
+    .optional(),
+  hobbies: z
+    .array(
+      z.object({
+        hobby: z.string().nullish()
+      })
+    )
+    .optional(),
+  picture: z.any().optional(),
+  pictureThumbnail: z.string().nullish(),
   additionalProperties: z.any().optional()
 })
 
@@ -286,6 +362,35 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
               </div>
             )}
 
+            {/* Profile Picture Upload */}
+            <FormField
+              control={form.control}
+              name="picture"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Profile Picture</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={e => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          const reader = new FileReader()
+                          reader.onloadend = () => {
+                            field.onChange(reader.result)
+                          }
+                          reader.readAsDataURL(file)
+                        }
+                      }}
+                      data-testid={formatDataTestId('job-candidate-form', 'picture-input')}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             {/* Personal Information */}
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <FormField
@@ -483,6 +588,43 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <FormField
                 control={form.control}
+                name="salutationRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Salutation</FormLabel>
+                    <FormControl>
+                      <CatalogSelect
+                        catalogIdentifier="Salutation"
+                        value={field.value || ''}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-candidate-form', 'salutation-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Title</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid={formatDataTestId('job-candidate-form', 'title-input')} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                control={form.control}
                 name="ethnicityRef"
                 render={({ field }) => (
                   <FormItem>
@@ -536,6 +678,69 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
                       value={field.value || ''}
                       onValueChange={(v: string | string[]) => field.onChange(Array.isArray(v) ? v[0] || '' : v || '')}
                       data-testid={formatDataTestId('job-candidate-form', 'veteranStatus-select')}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="languageRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Language</FormLabel>
+                    <FormControl>
+                      <CatalogSelect
+                        catalogIdentifier="Languages"
+                        value={field.value || ''}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-candidate-form', 'language-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="schoolQualificationRef"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>School Qualification</FormLabel>
+                    <FormControl>
+                      <CatalogSelect
+                        catalogIdentifier="SchoolQualification"
+                        value={field.value || ''}
+                        onValueChange={(v: string | string[]) =>
+                          field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
+                        }
+                        data-testid={formatDataTestId('job-candidate-form', 'schoolQualification-select')}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="severelyDisabilityDegree"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Severely Disability Degree</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      {...field}
+                      onChange={e => field.onChange(e.target.value ? Number.parseInt(e.target.value, 10) : null)}
+                      data-testid={formatDataTestId('job-candidate-form', 'severelyDisabilityDegree-input')}
                     />
                   </FormControl>
                   <FormMessage />
@@ -609,6 +814,43 @@ const JobCandidateForm: React.FC<JobCandidateFormProps> = ({ accessToken, userIn
                 />
               </>
             )}
+
+            {/* Communication Channels Section */}
+            <div className="gba:mt-6">
+              <h3 className="gba:text-lg gba:font-semibold gba:mb-4">Contact Information</h3>
+              <CommunicationSegment />
+            </div>
+
+            {/* Address Section */}
+            <div className="gba:mt-6">
+              <h3 className="gba:text-lg gba:font-semibold gba:mb-4">Addresses</h3>
+              <AddressSegment />
+            </div>
+
+            {/* Education Section */}
+            <div className="gba:mt-6">
+              <EducationArrayField />
+            </div>
+
+            {/* Certificates Section */}
+            <div className="gba:mt-6">
+              <CertificatesArrayField />
+            </div>
+
+            {/* Skills Section */}
+            <div className="gba:mt-6">
+              <SkillsArrayField />
+            </div>
+
+            {/* Job History Section */}
+            <div className="gba:mt-6">
+              <JobHistoryArrayField />
+            </div>
+
+            {/* Hobbies Section */}
+            <div className="gba:mt-6">
+              <HobbiesArrayField />
+            </div>
 
             {/* Document Upload Section */}
             <div className="gba:mt-6">

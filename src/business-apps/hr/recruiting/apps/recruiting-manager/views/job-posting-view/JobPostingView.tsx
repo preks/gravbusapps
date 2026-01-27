@@ -106,19 +106,17 @@ const getInitials = (firstName: string, lastName: string): string => {
 }
 
 // Wrapper components for cell renderers
-const createCandidateLinkCellWrapper = (
-  onCandidateClick: (jobCandidateId: string) => void
-): React.FC<{ info: CellContext<JobApplication, unknown> }> => {
-  return ({ info }) => (
+const createCandidateLinkCellWrapper = (onCandidateClick: (jobCandidateId: string) => void) => {
+  return (info: CellContext<JobApplication, unknown>) => (
     <CandidateLinkCell application={info.row.original} onCandidateClick={onCandidateClick} getInitials={getInitials} />
   )
 }
 
-const ApplicationDateCellWrapper: React.FC<{ info: CellContext<JobApplication, unknown> }> = ({ info }) => (
+const ApplicationDateCellWrapper = (info: CellContext<JobApplication, unknown>) => (
   <ApplicationDateCell value={info.getValue() as string} />
 )
 
-const ApplicationStageCellWrapper: React.FC<{ info: CellContext<JobApplication, unknown> }> = ({ info }) => (
+const ApplicationStageCellWrapper = (info: CellContext<JobApplication, unknown>) => (
   <ApplicationStageCell value={info.getValue() as string} />
 )
 
