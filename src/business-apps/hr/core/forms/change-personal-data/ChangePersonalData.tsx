@@ -103,10 +103,10 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
       ? String(employee.schoolQualification.id)
       : (employee?.schoolQualificationRef ?? null),
     academicTitleRefs: Array.isArray(employee?.academicTitleRef)
-      ? employee.academicTitleRef.map(ref => String(ref))
+      ? employee.academicTitleRef.map(String)
       : employee?.academicTitleRef
-        ? [String(employee.academicTitleRef)]
-        : [],
+      ? [String(employee.academicTitleRef)]
+      : [],
     comment: employee?.notes ?? ''
   }
 
@@ -146,7 +146,9 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
         String(e?.translations?.[0]?.value) === currentStr
     )
 
-    return match ? String(match.id) : current ? String(current) : null
+    if (match) return String(match.id)
+    if (current) return String(current)
+    return null
   }
 
   const normalizedDefaults: PersonalDataFormValues = {
@@ -170,25 +172,31 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
   const initialRef = useRef<PersonalDataFormValues>(normalizedDefaults)
   const hasUserInteractedRef = useRef(false)
 
-  const normalizeForCompare = (v: PersonalDataFormValues) => ({
-    salutationRef: v.salutationRef || null,
-    title: v.title || '',
-    firstName: v.firstName || '',
-    lastName: v.lastName || '',
-    displayName: v.displayName || '',
-    preferredName: v.preferredName || '',
-    birthName: v.birthName || '',
-    birthDate: v.birthDate || '',
-    birthPlace: v.birthPlace || '',
-    genderRef: v.genderRef || null,
-    nationalityRef: v.nationalityRef || null,
-    languageRef: v.languageRef || null,
-    maritalStatusRef: v.maritalStatusRef || null,
-    severelyDisabilityDegree: v.severelyDisabilityDegree === '' ? '' : v.severelyDisabilityDegree,
-    schoolQualificationRef: v.schoolQualificationRef || null,
-    academicTitleRefs: Array.isArray(v.academicTitleRefs) ? v.academicTitleRefs.sort() : [],
-    comment: v.comment || ''
-  })
+  const normalizeForCompare = (v: PersonalDataFormValues) => {
+    const sortedAcademicTitles = Array.isArray(v.academicTitleRefs)
+      ? [...v.academicTitleRefs].sort((a, b) => String(a).localeCompare(String(b)))
+      : []
+
+    return {
+      salutationRef: v.salutationRef || null,
+      title: v.title || '',
+      firstName: v.firstName || '',
+      lastName: v.lastName || '',
+      displayName: v.displayName || '',
+      preferredName: v.preferredName || '',
+      birthName: v.birthName || '',
+      birthDate: v.birthDate || '',
+      birthPlace: v.birthPlace || '',
+      genderRef: v.genderRef || null,
+      nationalityRef: v.nationalityRef || null,
+      languageRef: v.languageRef || null,
+      maritalStatusRef: v.maritalStatusRef || null,
+      severelyDisabilityDegree: v.severelyDisabilityDegree === '' ? '' : v.severelyDisabilityDegree,
+      schoolQualificationRef: v.schoolQualificationRef || null,
+      academicTitleRefs: sortedAcademicTitles,
+      comment: v.comment || ''
+    }
+  }
 
   const watchedValues = form.watch()
 
