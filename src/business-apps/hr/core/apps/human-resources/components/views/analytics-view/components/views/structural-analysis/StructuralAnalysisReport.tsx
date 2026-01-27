@@ -285,9 +285,10 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
               key={tab.value}
               value={tab.value}
               data-testid={tab.testId}
-              className="gba:flex gba:items-center gba:gap-2"
+              className="gba:flex gba:flex-row gba:items-center gba:justify-center gba:gap-2"
+              title={t(tab.label)}
             >
-              <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
+              <span className="gba:inline-flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
                 <Icon icon={tab.icon} size="sm" decorative />
                 {t(tab.label)}
               </span>
