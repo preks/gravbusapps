@@ -60,7 +60,7 @@ export async function submitUploadDocument(
     )
 
     // 2. Validate upload response before building payload
-    if (!uploadResp || !uploadResp.fileInfo || !uploadResp.fileInfo.fileId) {
+    if (!uploadResp?.fileInfo?.fileId) {
       throw new Error('File upload failed: missing file ID in response')
     }
 
