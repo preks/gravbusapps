@@ -163,7 +163,34 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
       dateRangeToCheck = { start: day, end: day }
     }
 
-    // Check if the day(s) have any existing absences - if so, don't allow right-click to create new ones
+    // Check if any day in the range has a holiday
+    const hasHoliday = (() => {
+      try {
+        if (!Array.isArray(holidayDates) || holidayDates.length === 0) return false
+        // Check each day in the range for holidays
+        let currentCheckDay = dateRangeToCheck.start
+        while (
+          currentCheckDay.isBefore(dateRangeToCheck.end, 'day') ||
+          currentCheckDay.isSame(dateRangeToCheck.end, 'day')
+        ) {
+          const key = currentCheckDay.format('YYYY-MM-DD')
+          if (holidayDates.includes(key)) {
+            return true
+          }
+          currentCheckDay = currentCheckDay.add(1, 'day')
+        }
+        return false
+      } catch {
+        return false
+      }
+    })()
+
+    if (hasHoliday) {
+      // Day(s) have holidays, prevent context menu
+      return
+    }
+
+    // Check if the day(s) have any existing absences (vacations or other absences) - if so, don't allow right-click to create new ones
     const hasExistingAbsences = absenceList.some((absence: any) => {
       const absenceStart = dayjs(absence.startDate)
       const absenceEnd = dayjs(absence.endDate)
@@ -275,6 +302,11 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
       <div
         className="gba:calendar-view gba:bg-card gba:rounded gba:border gba:border-border gba:shadow-sm"
         data-testid="absence-calendar-view"
+        onContextMenu={e => {
+          // Prevent browser context menu on calendar borders
+          e.preventDefault()
+          e.stopPropagation()
+        }}
       >
         <div className="gba:calendar-header gba:flex gba:justify-between gba:items-center gba:p-4 gba:border-b gba:border-border">
           <div className="gba:calendar-month-year gba:font-medium gba:text-lg">
@@ -321,7 +353,14 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
         </div>
 
         {/* Calendar Grid */}
-        <div className="gba:calendar-grid gba:p-4">
+        <div
+          className="gba:calendar-grid gba:p-4"
+          onContextMenu={e => {
+            // Prevent browser context menu on empty spaces between calendar days
+            e.preventDefault()
+            e.stopPropagation()
+          }}
+        >
           {/* Weekday Headers */}
           <div className="gba:grid gba:grid-cols-7 gba:gap-1 gba:mb-2">
             {(() => {
