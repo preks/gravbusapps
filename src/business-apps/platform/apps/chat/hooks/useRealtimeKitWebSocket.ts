@@ -210,6 +210,11 @@ export const useRealtimeKitWebSocket = ({
    * Listens for hand-update events and updates local/remote hand states
    */
   useEffect(() => {
+    // Early return if not in an active call - this is expected on page load
+    if (!meeting) {
+      return
+    }
+
     rtkDebug.log('[RTK] Raise hand useEffect triggered', {
       hasSocket: !!wsClient?.getSocket(),
       roomId,
@@ -219,7 +224,7 @@ export const useRealtimeKitWebSocket = ({
 
     const socket = wsClient?.getSocket()
     if (!socket || !meetingId || !currentUser) {
-      rtkDebug.warn('[RTK] ⚠️ Cannot attach raise hand listener', {
+      rtkDebug.log('[RTK] Cannot attach raise hand listener yet', {
         hasSocket: !!socket,
         hasMeetingId: !!meetingId,
         hasCurrentUser: !!currentUser
@@ -415,7 +420,7 @@ export const useRealtimeKitWebSocket = ({
       socket.off('group-call:hand-update', handleHandUpdate)
       rtkDebug.log('[RTK] WebSocket listener removed for raise hand')
     }
-  }, [wsClient, meetingId, currentUser, onHandUpdate])
+  }, [wsClient, meetingId, currentUser, meeting, onHandUpdate])
 
   /**
    * Set up WebSocket event listener for reactions (if callback provided)
@@ -453,6 +458,11 @@ export const useRealtimeKitWebSocket = ({
    * Set up WebSocket event listener for mute requests with auto-mute
    */
   useEffect(() => {
+    // Early return if not in an active call - this is expected on page load
+    if (!meeting) {
+      return
+    }
+
     rtkDebug.log('[RTK] Mute listener useEffect triggered', {
       hasSocket: !!wsClient?.getSocket(),
       hasMeetingId: !!meetingId,
@@ -462,11 +472,10 @@ export const useRealtimeKitWebSocket = ({
     })
 
     const socket = wsClient?.getSocket()
-    if (!socket || !meetingId || !meeting) {
-      rtkDebug.warn('[RTK] ⚠️ Cannot attach mute listener', {
+    if (!socket || !meetingId) {
+      rtkDebug.log('[RTK] Cannot attach mute listener yet', {
         hasSocket: !!socket,
-        hasMeetingId: !!meetingId,
-        hasMeeting: !!meeting
+        hasMeetingId: !!meetingId
       })
       return
     }
