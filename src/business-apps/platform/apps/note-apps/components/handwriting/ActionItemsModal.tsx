@@ -161,6 +161,8 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
   const [items, setItems] = useState<ActionItem[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [activeItemId, setActiveItemId] = useState<string | null>(null)
+  const [bulkAssignOpen, setBulkAssignOpen] = useState(false)
+  const [bulkAssignee, setBulkAssignee] = useState<EmployeeLiteOption | null>(null)
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
   const [editingText, setEditingText] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -179,6 +181,8 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
         }))
       )
       setActiveItemId(null)
+      setBulkAssignOpen(false)
+      setBulkAssignee(null)
       setSearchTerm('')
       setEditingItemId(null)
       setEditingText('')
@@ -241,6 +245,34 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
 
   const assignEmployee = useCallback((itemId: string, employee: EmployeeLiteOption) => {
     setItems(prev => prev.map(item => (item.id === itemId ? { ...item, assignee: employee } : item)))
+    setActiveItemId(null)
+    setBulkAssignOpen(false)
+    setSearchTerm('')
+  }, [])
+
+  const openBulkAssign = useCallback(() => {
+    setActiveItemId(null)
+    setBulkAssignOpen(true)
+    setSearchTerm('')
+  }, [])
+
+  const closeBulkAssign = useCallback(() => {
+    setBulkAssignOpen(false)
+    setSearchTerm('')
+  }, [])
+
+  const assignAllEmployees = useCallback((employee: EmployeeLiteOption) => {
+    setBulkAssignee(employee)
+    setItems(prev => prev.map(item => ({ ...item, assignee: employee })))
+    setBulkAssignOpen(false)
+    setActiveItemId(null)
+    setSearchTerm('')
+  }, [])
+
+  const clearAllAssignees = useCallback(() => {
+    setBulkAssignee(null)
+    setItems(prev => prev.map(item => ({ ...item, assignee: undefined })))
+    setBulkAssignOpen(false)
     setActiveItemId(null)
     setSearchTerm('')
   }, [])
@@ -350,6 +382,128 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
               <Plus className="gba:w-4 gba:h-4" />
               Add
             </Button>
+          </div>
+
+          {/* Bulk assignment */}
+          <div className="gba:rounded-lg gba:border gba:border-border gba:bg-muted/20 gba:p-3 gba:space-y-2">
+            <div className="gba:flex gba:items-start gba:justify-between gba:gap-2">
+              <div className="gba:min-w-0">
+                <div className="gba:text-sm gba:font-medium gba:text-foreground">Assign all</div>
+                <div className="gba:text-xs gba:text-muted-foreground">
+                  Apply one assignee to all action items (you can still change per item).
+                </div>
+              </div>
+
+              {bulkAssignee ? (
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:bg-background gba:rounded-md gba:px-2 gba:py-1.5 gba:border gba:border-border">
+                    <Avatar className="gba:w-6 gba:h-6">
+                      {bulkAssignee.pictureThumbnail && <AvatarImage src={bulkAssignee.pictureThumbnail} />}
+                      <AvatarFallback className="gba:text-[10px] gba:bg-muted">
+                        {bulkAssignee.displayName?.substring(0, 2).toUpperCase() || '?'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="gba:text-sm gba:font-medium gba:max-w-[180px] gba:truncate">
+                      {bulkAssignee.displayName}
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gba:h-8 gba:w-8 gba:p-0"
+                    onClick={clearAllAssignees}
+                    data-testid={`${testId}-assign-all-clear`}
+                    title="Clear all assignees"
+                  >
+                    <X className="gba:w-4 gba:h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openBulkAssign}
+                  className="gba:gap-2"
+                  data-testid={`${testId}-assign-all-open`}
+                >
+                  <User className="gba:w-4 gba:h-4" />
+                  Assign all to…
+                </Button>
+              )}
+            </div>
+
+            {bulkAssignOpen && (
+              <div className="gba:space-y-2">
+                <div className="gba:relative">
+                  <Search className="gba:absolute gba:left-2 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search employees..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="gba:w-full gba:pl-8 gba:pr-3 gba:py-1.5 gba:text-sm gba:rounded-md gba:border gba:border-border gba:bg-background gba:outline-none gba:focus:ring-1 gba:focus:ring-primary"
+                    autoFocus
+                    data-testid={`${testId}-assign-all-search`}
+                  />
+                </div>
+
+                <div className="gba:max-h-40 gba:overflow-y-auto gba:bg-background gba:rounded-md gba:border gba:border-border">
+                  {employeesLoading && employees.length === 0 ? (
+                    <div className="gba:flex gba:items-center gba:justify-center gba:py-3">
+                      <Spinner className="gba:w-4 gba:h-4" />
+                    </div>
+                  ) : employees.length === 0 ? (
+                    <div className="gba:text-center gba:py-3 gba:text-sm gba:text-muted-foreground">
+                      No employees found
+                    </div>
+                  ) : (
+                    <>
+                      {employees.map(emp => (
+                        <button
+                          key={emp.id}
+                          onClick={() => assignAllEmployees(emp)}
+                          className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1.5 gba:text-left gba:hover:bg-muted gba:transition-colors"
+                          data-testid={`${testId}-assign-all-option-${emp.userId}`}
+                        >
+                          <Avatar className="gba:w-6 gba:h-6">
+                            {emp.pictureThumbnail && <AvatarImage src={emp.pictureThumbnail} />}
+                            <AvatarFallback className="gba:text-[10px] gba:bg-muted">
+                              {emp.displayName?.substring(0, 2).toUpperCase() || '?'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="gba:flex-1 gba:min-w-0">
+                            <div className="gba:text-sm gba:font-medium gba:truncate">{emp.displayName}</div>
+                            {emp.jobPositionName && (
+                              <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
+                                {emp.jobPositionName}
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                      {hasMore && (
+                        <button
+                          onClick={loadMore}
+                          className="gba:w-full gba:py-2 gba:text-xs gba:text-primary gba:hover:underline"
+                          disabled={employeesLoading}
+                          data-testid={`${testId}-assign-all-load-more`}
+                        >
+                          {employeesLoading ? 'Loading...' : 'Load more'}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <button
+                  onClick={closeBulkAssign}
+                  className="gba:text-xs gba:text-muted-foreground gba:hover:text-foreground"
+                  data-testid={`${testId}-assign-all-cancel`}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
 
           {items.length === 0 ? (
@@ -521,7 +675,10 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
                         </div>
                       ) : (
                         <button
-                          onClick={() => setActiveItemId(item.id)}
+                          onClick={() => {
+                            setBulkAssignOpen(false)
+                            setActiveItemId(item.id)
+                          }}
                           disabled={!item.selected}
                           className={`gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:px-2 gba:py-1 gba:rounded-md gba:border gba:border-dashed gba:transition-colors ${
                             item.selected
