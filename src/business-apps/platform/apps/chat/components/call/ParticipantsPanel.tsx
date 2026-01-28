@@ -21,7 +21,8 @@ import {
   MonitorIcon,
   PhoneIcon,
   DotsThreeVerticalIcon,
-  SpeakerXIcon
+  SpeakerXIcon,
+  CircleNotch
 } from '@phosphor-icons/react'
 import {
   Avatar,
@@ -101,6 +102,71 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   t = (key: string) => key
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
+  const [invitingParticipantId, setInvitingParticipantId] = useState<string | null>(null)
+  const inviteTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+  const previousPendingIdsRef = React.useRef<Set<string>>(new Set())
+
+  // Handler for inviting a participant with loading state
+  const handleInviteClick = async (participant: CallParticipant) => {
+    if (!onInviteParticipant || invitingParticipantId) return
+
+    setInvitingParticipantId(participant.odId)
+
+    // Set a timeout as fallback to clear the inviting state after 5 seconds
+    if (inviteTimeoutRef.current) {
+      clearTimeout(inviteTimeoutRef.current)
+    }
+    inviteTimeoutRef.current = setTimeout(() => {
+      setInvitingParticipantId(null)
+    }, 5000)
+
+    try {
+      await onInviteParticipant(participant)
+    } catch (error) {
+      console.error('Failed to invite participant:', error)
+      if (inviteTimeoutRef.current) {
+        clearTimeout(inviteTimeoutRef.current)
+      }
+      setInvitingParticipantId(null)
+    }
+  }
+
+  // Track pending invites changes to detect when participant is added (success) or removed (declined)
+  React.useEffect(() => {
+    if (!invitingParticipantId) return
+
+    const currentPendingIds = pendingInvites ? new Set(Array.from(pendingInvites.keys())) : new Set<string>()
+    const wasInPrevious = previousPendingIdsRef.current.has(invitingParticipantId)
+    const isInCurrent = currentPendingIds.has(invitingParticipantId)
+
+    // Case 1: Participant just appeared in pending invites (invite accepted/ringing)
+    if (!wasInPrevious && isInCurrent) {
+      if (inviteTimeoutRef.current) {
+        clearTimeout(inviteTimeoutRef.current)
+      }
+      setInvitingParticipantId(null)
+    }
+
+    // Case 2: Participant was in pending but now removed (declined)
+    if (wasInPrevious && !isInCurrent) {
+      if (inviteTimeoutRef.current) {
+        clearTimeout(inviteTimeoutRef.current)
+      }
+      setInvitingParticipantId(null)
+    }
+
+    // Update previous state
+    previousPendingIdsRef.current = currentPendingIds
+  }, [invitingParticipantId, pendingInvites])
+
+  // Cleanup timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (inviteTimeoutRef.current) {
+        clearTimeout(inviteTimeoutRef.current)
+      }
+    }
+  }, [])
 
   // Helper to check if a participant has their hand raised
   const isHandRaised = (participantId: string) => {
@@ -455,13 +521,23 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                     </div>
                     {onInviteParticipant && (
                       <button
-                        onClick={() => onInviteParticipant(participant)}
-                        className="gba:px-3 gba:py-1.5 gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90 gba:rounded gba:flex gba:items-center gba:gap-2 gba:text-xs gba:font-medium gba:transition-colors gba:flex-shrink-0"
+                        onClick={() => handleInviteClick(participant)}
+                        disabled={invitingParticipantId === participant.odId}
+                        className="gba:px-3 gba:py-1.5 gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90 disabled:gba:bg-primary/60 disabled:gba:cursor-not-allowed gba:rounded gba:flex gba:items-center gba:gap-2 gba:text-xs gba:font-medium gba:transition-colors gba:flex-shrink-0"
                         aria-label={`Invite ${participant.odName}`}
                         data-testid={`${prefixDataTestId}-invite-btn-${participant.odId}`}
                       >
-                        <PhoneIcon className="gba:h-3 gba:w-3" weight="fill" />
-                        Invite
+                        {invitingParticipantId === participant.odId ? (
+                          <>
+                            <CircleNotch className="gba:h-3 gba:w-3 gba:animate-spin" weight="bold" />
+                            Inviting...
+                          </>
+                        ) : (
+                          <>
+                            <PhoneIcon className="gba:h-3 gba:w-3" weight="fill" />
+                            Invite
+                          </>
+                        )}
                       </button>
                     )}
                   </div>
