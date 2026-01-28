@@ -3,11 +3,10 @@ import { Typography } from 'antd'
 import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
 import { UsersIcon, CalendarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { WorkingConditionKpi } from '../../../../../hooks/useWorkingConditionForecast'
-import { useWorkingConditionForecast } from '../../../../../hooks/useWorkingConditionForecast'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 import { useState, useEffect, useCallback } from 'react'
 import HeadcountChangesChart from '../HeadcountChangesChart'
+import { useMonthlyHeadcountChanges } from '../../../../../hooks/useMonthlyHeadcountChanges'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
@@ -18,8 +17,9 @@ interface WorkforceForecastingProps extends BusinessAppContextProps {
 
 export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props => {
   const { prefixDataTestId = 'WorkforceForecasting' } = props
-  const kpiData = useWorkingConditionForecast(props)
   const { t } = useTranslation(hrTranslations)
+  const currentYear = new Date().getFullYear()
+  const { data: monthlyChanges, loading: monthlyChangesLoading } = useMonthlyHeadcountChanges(props, currentYear)
 
   // Add authoritative employee count hook
   const [totalEmployeeCount, setTotalEmployeeCount] = useState<number>(0)
@@ -51,10 +51,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
 
   // Calculate Workforce-related KPI metrics
   const workforceKpiCards: KpiCardData[] = useMemo(() => {
-    const { loading, data } = kpiData
-    const employees: WorkingConditionKpi[] = data as WorkingConditionKpi[]
-
-    if (loading || isLoadingEmployeeCount) {
+    if (monthlyChangesLoading || isLoadingEmployeeCount) {
       return [
         {
           id: 'current-headcount',
@@ -101,18 +98,13 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
       ]
     }
 
-    // Calculate metrics using working condition data for hire/departure calculations
-    const today = new Date()
-    const startOfYear = new Date(today.getFullYear(), 0, 1)
+    // KPI semantics: YTD = from Jan 1 to today (not end-of-year)
+    const now = new Date()
+    const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-    const ytdHires = employees.filter(
-      wc => wc.hireDate && new Date(wc.hireDate) >= startOfYear && new Date(wc.hireDate) <= today
-    ).length
-
-    const ytdDepartures = employees.filter(
-      wc => wc.exitDate && new Date(wc.exitDate) >= startOfYear && new Date(wc.exitDate) <= today
-    ).length
-
+    const ytdRows = monthlyChanges.filter(r => r.month >= `${currentYear}-01` && r.month <= currentYm)
+    const ytdHires = ytdRows.reduce((sum, r) => sum + (Number(r.newHires) || 0), 0)
+    const ytdDepartures = ytdRows.reduce((sum, r) => sum + (Number(r.departures) || 0), 0)
     const netChange = ytdHires - ytdDepartures
 
     // Use authoritative total employee count for headcount and calculations
@@ -171,7 +163,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
         footer: t('hr-analytics-year-to-date-growth')
       }
     ]
-  }, [kpiData, isLoadingEmployeeCount, totalEmployeeCount])
+  }, [monthlyChanges, monthlyChangesLoading, isLoadingEmployeeCount, totalEmployeeCount, t, currentYear])
 
   return (
     <div data-testid={prefixDataTestId} className="gba:flex gba:flex-col gba:gap-6">
