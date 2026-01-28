@@ -78,7 +78,7 @@ export const useContexts = (context: BusinessAppContextProps, params?: GetContex
 
   // Helper function to check if error is 401
   const is401Error = useCallback((err: any): boolean => {
-    return err?.response?.status === 401 || err?.status === 401 || (err?.message && err.message.includes('401'))
+    return err?.response?.status === 401 || err?.status === 401 || err?.message?.includes('401')
   }, [])
 
   const fetchContexts = useCallback(

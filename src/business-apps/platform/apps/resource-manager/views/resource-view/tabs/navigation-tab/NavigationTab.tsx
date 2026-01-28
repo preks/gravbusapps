@@ -64,7 +64,7 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
 
   // Get initial view from URL or default to 'items'
   const getInitialView = useCallback(() => {
-    if (typeof globalThis.window === 'undefined') return 'items'
+    if (globalThis.window === undefined) return 'items'
     const urlParams = new URLSearchParams(globalThis.window.location.search)
     const viewFromUrl = urlParams.get('subview')
 
@@ -223,27 +223,20 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
     features: false
   })
 
-  // Preload roles/features ONCE if any navigation has them
+  // Preload roles/features ONCE when navigations are loaded (same as ActionTab)
+  // Load always when navigations are present, not just when they have roles/features
   useEffect(() => {
-    if (!isActive || currentView !== 'urls' || navigations.length === 0) return
+    if (!isActive || currentView !== 'items' || navigations.length === 0) return
 
-    const hasRoles = navigations.some(nav => nav.roles && nav.roles.length > 0)
-    const hasFeatures = navigations.some(nav => nav.features && nav.features.length > 0)
-
+    // Always preload roles/features if not already loaded (like ActionTab does)
     // Only preload once if no error and data not already loaded
-    if (hasRoles && !preloadedRef.current.roles && roleOptions.length === 0 && !rolesLoading && !rolesError) {
+    if (!preloadedRef.current.roles && roleOptions.length === 0 && !rolesLoading && !rolesError) {
       preloadedRef.current.roles = true
       refetchRoles().catch(() => {
         // Silently handle errors - hasError flag will prevent retries
       })
     }
-    if (
-      hasFeatures &&
-      !preloadedRef.current.features &&
-      featureOptions.length === 0 &&
-      !featuresLoading &&
-      !featuresError
-    ) {
+    if (!preloadedRef.current.features && featureOptions.length === 0 && !featuresLoading && !featuresError) {
       preloadedRef.current.features = true
       refetchFeatures().catch(() => {
         // Silently handle errors - hasError flag will prevent retries

@@ -111,6 +111,24 @@ export const ActionTable: React.FC<ActionTableProps> = ({
   const editableState = useEditableState<ActionDTO>(actionEntries)
   const { updateAction } = useUpdateAction(context)
 
+  // Track what has been preloaded to prevent duplicate requests
+  const preloadedScreenComponentsRef = useRef(false)
+
+  // Preload screen components ONCE when actions are loaded
+  // Load always when actions are present, not just when they have targetDesktop/targetMobile
+  useEffect(() => {
+    if (allActions.length === 0) return
+
+    // Always preload screen components if not already loaded
+    // Only preload once if data not already loaded
+    if (!preloadedScreenComponentsRef.current && screenComponentOptions.length === 0 && !screenResourcesLoading) {
+      preloadedScreenComponentsRef.current = true
+      refetchScreenResources().catch(() => {
+        // Silently handle errors
+      })
+    }
+  }, [allActions.length, screenComponentOptions.length, screenResourcesLoading, refetchScreenResources])
+
   // Description dialog state
   const [descriptionDialogOpen, setDescriptionDialogOpen] = useState(false)
   const [descriptionActionId, setDescriptionActionId] = useState<string | null>(null)
@@ -122,7 +140,8 @@ export const ActionTable: React.FC<ActionTableProps> = ({
       action: {
         id: draftId,
         flowName: '',
-        flowType: '',
+        flowId: '',
+        flowType: 'ACTION',
         processName: '',
         domain: '',
         targetDesktop: '',
@@ -130,8 +149,7 @@ export const ActionTable: React.FC<ActionTableProps> = ({
         description: '',
         builderType: 'NATIVE_SCREEN'
       } as ActionDTO,
-      roleContexts: [],
-      featureContexts: []
+      contexts: []
     }
 
     setDraftActions(prev => [draftAction, ...prev])
@@ -139,7 +157,7 @@ export const ActionTable: React.FC<ActionTableProps> = ({
     // Seed edits so Save/Discard buttons appear
     editableState.setState(prev => {
       const newEdited = new Map(prev.editedEntries)
-      newEdited.set(draftId, { flowName: '', flowType: '' })
+      newEdited.set(draftId, { flowName: '', flowType: 'ACTION' })
       const newDrafts = new Set(prev.draftEntryIds)
       newDrafts.add(draftId)
       return {
@@ -473,7 +491,7 @@ export const ActionTable: React.FC<ActionTableProps> = ({
                 </div>
               </TableHead>
               <TableHead
-                style={{ width: '216px' }}
+                style={{ width: '250px' }}
                 onClick={() => handleSort('targetDesktop')}
                 className="gba:select-none gba:cursor-pointer gba:px-2"
               >
@@ -483,7 +501,7 @@ export const ActionTable: React.FC<ActionTableProps> = ({
                 </div>
               </TableHead>
               <TableHead
-                style={{ width: '216px' }}
+                style={{ width: '250px' }}
                 onClick={() => handleSort('targetMobile')}
                 className="gba:select-none gba:cursor-pointer gba:px-2"
               >

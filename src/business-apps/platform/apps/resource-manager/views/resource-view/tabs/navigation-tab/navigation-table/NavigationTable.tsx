@@ -70,7 +70,6 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
   onAddNavigationRef,
   ...context
 }) => {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [descriptionDialogOpen, setDescriptionDialogOpen] = useState(false)
   const [descriptionNavigationId, setDescriptionNavigationId] = useState<string | null>(null)
 
@@ -142,6 +141,38 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
     }
   }, [onAddNavigationRef, handleAddNavigation])
 
+  // Helper to build navigation update data from edits
+  const buildNavigationUpdateData = useCallback(
+    (edits: Record<string, unknown>): Partial<NavigationDTO> => {
+      const updateData: Partial<NavigationDTO> = {}
+      if (edits.code !== undefined) updateData.code = edits.code as string
+      if (edits.name !== undefined) updateData.name = edits.name as string
+      if (edits.url !== undefined) updateData.url = edits.url as string
+      if (edits.name_i18n !== undefined) updateData.name_i18n = edits.name_i18n as Record<string, string>
+      if (edits.description !== undefined) updateData.description = edits.description as string
+      if (edits.description_i18n !== undefined)
+        updateData.description_i18n = edits.description_i18n as Record<string, string>
+
+      if (edits.roles !== undefined) {
+        updateData.roles = (edits.roles as string[]).map((roleId: string) => {
+          const role = roleOptions.find(r => r.id === roleId)
+          return role?.name || roleId
+        })
+      }
+
+      if (edits.features !== undefined) {
+        updateData.features = (edits.features as string[]).map((featureId: string) => {
+          const feature = featureOptions.find(f => f.id === featureId)
+          return feature?.name || featureId
+        })
+      }
+
+      if (edits.isSearchable !== undefined) updateData.isSearchable = edits.isSearchable as boolean
+      return updateData
+    },
+    [roleOptions, featureOptions]
+  )
+
   // Handle save entry
   const handleSaveEntry = useCallback(
     async (navigationId: string) => {
@@ -157,30 +188,7 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
 
         if (isDraft) {
           // Create new navigation via API
-          const updateData: Partial<NavigationDTO> = {}
-          if (edits.code !== undefined) updateData.code = edits.code as string
-          if (edits.name !== undefined) updateData.name = edits.name as string
-          if (edits.url !== undefined) updateData.url = edits.url as string
-          if (edits.name_i18n !== undefined) updateData.name_i18n = edits.name_i18n as Record<string, string>
-          if (edits.description !== undefined) updateData.description = edits.description as string
-          if (edits.description_i18n !== undefined)
-            updateData.description_i18n = edits.description_i18n as Record<string, string>
-          if (edits.roles !== undefined) {
-            // Map role IDs to names for API
-            updateData.roles = (edits.roles as string[]).map(roleId => {
-              const role = roleOptions.find(r => r.id === roleId)
-              return { name: role?.name || roleId }
-            })
-          }
-          if (edits.features !== undefined) {
-            // Map feature IDs to names for API
-            updateData.features = (edits.features as string[]).map(featureId => {
-              const feature = featureOptions.find(f => f.id === featureId)
-              return { name: feature?.name || featureId }
-            })
-          }
-          if (edits.isSearchable !== undefined) updateData.isSearchable = edits.isSearchable as boolean
-
+          const updateData = buildNavigationUpdateData(edits)
           await createNavigation(updateData)
 
           // Remove draft from local state
@@ -195,31 +203,7 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
           await refetchNavigations()
         } else {
           // Update existing navigation
-          const updateData: Partial<NavigationDTO> = {}
-
-          if (edits.code !== undefined) updateData.code = edits.code as string
-          if (edits.name !== undefined) updateData.name = edits.name as string
-          if (edits.url !== undefined) updateData.url = edits.url as string
-          if (edits.name_i18n !== undefined) updateData.name_i18n = edits.name_i18n as Record<string, string>
-          if (edits.description !== undefined) updateData.description = edits.description as string
-          if (edits.description_i18n !== undefined)
-            updateData.description_i18n = edits.description_i18n as Record<string, string>
-          if (edits.roles !== undefined) {
-            // Map role IDs to names for API
-            updateData.roles = (edits.roles as string[]).map(roleId => {
-              const role = roleOptions.find(r => r.id === roleId)
-              return { name: role?.name || roleId }
-            })
-          }
-          if (edits.features !== undefined) {
-            // Map feature IDs to names for API
-            updateData.features = (edits.features as string[]).map(featureId => {
-              const feature = featureOptions.find(f => f.id === featureId)
-              return { name: feature?.name || featureId }
-            })
-          }
-          if (edits.isSearchable !== undefined) updateData.isSearchable = edits.isSearchable as boolean
-
+          const updateData = buildNavigationUpdateData(edits)
           await updateNavigation(navigationId, updateData)
           await refetchNavigations()
           editableState.onDiscardEntry(navigationId)
@@ -230,7 +214,7 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
         editableState.setSaving(navigationId, false)
       }
     },
-    [editableState, updateNavigation, createNavigation, refetchNavigations, roleOptions, featureOptions]
+    [editableState, updateNavigation, createNavigation, refetchNavigations, buildNavigationUpdateData]
   )
 
   // Handle discard entry
@@ -245,19 +229,6 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
     },
     [editableState]
   )
-
-  // Toggle expansion
-  const handleToggleExpansion = useCallback((navId: string) => {
-    setExpanded(prev => {
-      const next = new Set(prev)
-      if (next.has(navId)) {
-        next.delete(navId)
-      } else {
-        next.add(navId)
-      }
-      return next
-    })
-  }, [])
 
   // Handle column sort
   const handleSort = useCallback(
@@ -409,20 +380,17 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
               </TableRow>
             ) : (
               allEnrichedNavigations.map(nav => {
-                const allMenuItems = nav.allMenuItems || [...(nav.hubs || []), ...(nav.menuItems || [])]
-                const isExpanded = expanded.has(nav.id)
+                const navId = nav.id || ''
 
                 return (
-                  <React.Fragment key={nav.id}>
+                  <React.Fragment key={navId}>
                     <NavigationTableRow
                       navigation={nav}
                       editableState={editableState}
-                      onFieldEdit={editableState.onFieldEdit}
+                      onFieldEdit={editableState.onFieldEdit as (navId: string, field: string, value: any) => void}
                       onSaveEntry={handleSaveEntry}
                       onDiscardEntry={handleDiscardEntry}
                       onDelete={onDelete}
-                      onToggleExpansion={handleToggleExpansion}
-                      isExpanded={isExpanded}
                       isDeleting={isDeleting}
                       setDescriptionNavigationId={setDescriptionNavigationId}
                       setDescriptionDialogOpen={setDescriptionDialogOpen}
@@ -434,35 +402,8 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
                       featuresError={featuresError}
                       refetchRoles={refetchRoles}
                       refetchFeatures={refetchFeatures}
-                      dataTestId={dataTestId}
+                      dataTestId={`navigation-table-row-${navId}`}
                     />
-                    {isExpanded && allMenuItems.length > 0 && (
-                      <TableRow>
-                        <TableCell colSpan={10} className="gba:bg-muted/30 gba:p-4">
-                          <h4 className="gba:font-semibold gba:mb-3 gba:text-sm">Menu Items for {nav.name}</h4>
-                          <div className="gba:space-y-2">
-                            {allMenuItems.map(item => (
-                              <div
-                                key={item.id}
-                                className="gba:flex gba:items-center gba:gap-2 gba:py-2 gba:px-3 gba:bg-background gba:rounded gba:border"
-                              >
-                                <span className="gba:font-medium gba:text-sm">{item.name}</span>
-                                {item.code && (
-                                  <code className="gba:text-xs gba:bg-muted gba:px-2 gba:py-1 gba:rounded">
-                                    {item.code}
-                                  </code>
-                                )}
-                                {item.type && (
-                                  <span className="gba:text-xs gba:px-2 gba:py-0.5 gba:bg-muted gba:rounded">
-                                    {item.type}
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
                   </React.Fragment>
                 )
               })

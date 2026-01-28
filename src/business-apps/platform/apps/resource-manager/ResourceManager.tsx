@@ -37,7 +37,7 @@ const ResourceManagerContent: React.FC<ResourceManagerProps & { dataTestId: stri
 
   // Get initial view from URL or default to first view
   const getInitialView = useCallback(() => {
-    if (typeof globalThis.window === 'undefined') return 'components'
+    if (globalThis.window === undefined) return 'components'
     const urlParams = new URLSearchParams(globalThis.window.location.search)
     const viewFromUrl = urlParams.get('view')
 
@@ -53,7 +53,7 @@ const ResourceManagerContent: React.FC<ResourceManagerProps & { dataTestId: stri
 
   // Update URL when view changes
   const updateUrl = useCallback((view: string) => {
-    if (typeof globalThis.window === 'undefined') return
+    if (globalThis.window === undefined) return
     const urlParams = new URLSearchParams(globalThis.window.location.search)
 
     urlParams.set('view', view)
@@ -79,7 +79,7 @@ const ResourceManagerContent: React.FC<ResourceManagerProps & { dataTestId: stri
 
   // Ensure URL always has view parameter on initial load
   useEffect(() => {
-    if (typeof globalThis.window === 'undefined') return
+    if (globalThis.window === undefined) return
     const urlParams = new URLSearchParams(globalThis.window.location.search)
     if (!urlParams.has('view')) {
       updateUrl(activeView)
@@ -88,7 +88,7 @@ const ResourceManagerContent: React.FC<ResourceManagerProps & { dataTestId: stri
 
   // Listen for browser back/forward navigation
   useEffect(() => {
-    if (typeof globalThis.window === 'undefined') return
+    if (globalThis.window === undefined) return
     const handlePopState = () => {
       const newView = getInitialView()
       setActiveView(newView)

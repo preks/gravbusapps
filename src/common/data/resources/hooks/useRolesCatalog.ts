@@ -44,10 +44,12 @@ export const useRolesCatalog = (context: BusinessAppContextProps): UseRolesCatal
       const rolesData = await resourceClient.action.getRoles({ limit: 200, offset: 0 })
 
       if (rolesData && Array.isArray(rolesData) && rolesData.length > 0) {
-        const processedRoles = rolesData.map((role: any) => ({
-          id: role.id || role.code || role.name,
-          name: role.name || role.code || role.id
-        }))
+        const processedRoles = rolesData
+          .map((role: any) => ({
+            id: role.id || role.code || role.name,
+            name: role.name || role.code || role.id
+          }))
+          .toSorted((a, b) => a.name.localeCompare(b.name))
         setRoles(processedRoles)
         setHasError(false)
       } else {

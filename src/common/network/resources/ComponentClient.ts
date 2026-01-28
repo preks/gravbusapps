@@ -4,7 +4,7 @@ import type { ResourceClient } from './ResourceClient'
 import type { Component, ComponentApiResponse } from '@/common/data/resources/types/component.types'
 
 export class ComponentClient {
-  constructor(private resourceClient: ResourceClient) {}
+  constructor(private readonly resourceClient: ResourceClient) {}
 
   private get baseUrl(): string {
     const screenManagementBaseUrl = env('NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API') ?? ''

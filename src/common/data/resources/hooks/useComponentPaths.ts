@@ -30,24 +30,64 @@ export const useComponentPaths = (
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Helper to get Azure credentials
+  const getAzureCredentials = useCallback((targetEnv: 'dev' | 'prod') => {
+    const accountName =
+      targetEnv === 'prod'
+        ? env('NEXT_PUBLIC_AZURE_STORAGE_ACCOUNT_PROD')
+        : env('NEXT_PUBLIC_AZURE_STORAGE_ACCOUNT_DEV')
+
+    const sasToken =
+      targetEnv === 'prod'
+        ? env('NEXT_PUBLIC_AZURE_STORAGE_SAS_TOKEN_PROD')
+        : env('NEXT_PUBLIC_AZURE_STORAGE_SAS_TOKEN_DEV')
+
+    const containerName = env('NEXT_PUBLIC_AZURE_BLOB_CONTAINER_NAME') || 'screens'
+
+    return { accountName, sasToken, containerName }
+  }, [])
+
+  // Helper to process blob element
+  const processBlobElement = useCallback((blobElement: Element, versionsMap: Map<string, ComponentPathVersionInfo>) => {
+    const nameElement = blobElement.getElementsByTagName('Name')[0]
+    if (!nameElement || !nameElement.textContent) return
+
+    const blobName = nameElement.textContent
+
+    const indexVersionRegex = /^(.+)\/index-(\d+)\.js$/
+    const indexUnversionedRegex = /^(.+)\/index\.js$/
+    const indexVersionMatch = indexVersionRegex.exec(blobName)
+    const indexUnversionedMatch = indexUnversionedRegex.exec(blobName)
+
+    if (indexVersionMatch) {
+      const componentPath = indexVersionMatch[1]
+      const version = indexVersionMatch[2]
+
+      if (!versionsMap.has(componentPath)) {
+        versionsMap.set(componentPath, { versions: [], hasUnversioned: false })
+      }
+
+      const info = versionsMap.get(componentPath)!
+      if (!info.versions.includes(version)) {
+        info.versions.push(version)
+      }
+    } else if (indexUnversionedMatch) {
+      const componentPath = indexUnversionedMatch[1]
+
+      if (!versionsMap.has(componentPath)) {
+        versionsMap.set(componentPath, { versions: [], hasUnversioned: true })
+      } else {
+        versionsMap.get(componentPath)!.hasUnversioned = true
+      }
+    }
+  }, [])
+
   const fetchComponentPathVersions = useCallback(async () => {
     setIsLoading(true)
     setError(null)
 
     try {
-      // Get Azure Storage credentials from environment using env() function (same pattern as other clients)
-      // Support both DEV and PROD variants
-      const accountName =
-        environment === 'prod'
-          ? env('NEXT_PUBLIC_AZURE_STORAGE_ACCOUNT_PROD')
-          : env('NEXT_PUBLIC_AZURE_STORAGE_ACCOUNT_DEV')
-
-      const sasToken =
-        environment === 'prod'
-          ? env('NEXT_PUBLIC_AZURE_STORAGE_SAS_TOKEN_PROD')
-          : env('NEXT_PUBLIC_AZURE_STORAGE_SAS_TOKEN_DEV')
-
-      const containerName = env('NEXT_PUBLIC_AZURE_BLOB_CONTAINER_NAME') || 'screens'
+      const { accountName, sasToken, containerName } = getAzureCredentials(environment)
 
       if (!accountName || !sasToken) {
         throw new Error(
@@ -55,15 +95,7 @@ export const useComponentPaths = (
         )
       }
 
-      // Use Azure Storage REST API directly (same pattern as BusinessAppIDE.tsx)
-      // Format: https://{accountName}.blob.core.windows.net/{containerName}?restype=container&comp=list&{sasToken}
-      // Note: CORS must be enabled on Azure Storage to allow these requests
-      // Azure Storage List Blobs API returns max 5000 blobs per request, so we need to paginate
-
       const versionsMap = new Map<string, ComponentPathVersionInfo>()
-      let blobCount = 0
-      const sampleBlobNames: string[] = []
-      const indexBlobNames: string[] = []
       let marker: string | null = null
 
       // Paginate through all blobs using NextMarker continuation token
@@ -103,55 +135,8 @@ export const useComponentPaths = (
         const blobElements = xmlDoc.getElementsByTagName('Blob')
 
         // Iterate through all blobs from this page
-        for (let i = 0; i < blobElements.length; i++) {
-          const blobElement = blobElements[i]
-          const nameElement = blobElement.getElementsByTagName('Name')[0]
-          if (!nameElement || !nameElement.textContent) continue
-
-          const blobName = nameElement.textContent
-          blobCount++
-
-          // Log first 20 blob names to understand the format
-          if (blobCount <= 20) {
-            sampleBlobNames.push(blobName)
-          }
-
-          // Collect all blobs containing "index" for debugging
-          if (blobName.includes('index')) {
-            indexBlobNames.push(blobName)
-          }
-
-          // Match patterns:
-          // 1. {componentPath}/index-{version}.js (versioned - can have multiple)
-          // 2. {componentPath}/index.js (unversioned)
-          const indexVersionMatch = blobName.match(/^(.+)\/index-(\d+)\.js$/)
-          const indexUnversionedMatch = blobName.match(/^(.+)\/index\.js$/)
-
-          if (indexVersionMatch) {
-            const componentPath = indexVersionMatch[1]
-            const version = indexVersionMatch[2]
-
-            // Initialize if doesn't exist
-            if (!versionsMap.has(componentPath)) {
-              versionsMap.set(componentPath, { versions: [], hasUnversioned: false })
-            }
-
-            // Add version to array (avoid duplicates)
-            const info = versionsMap.get(componentPath)!
-            if (!info.versions.includes(version)) {
-              info.versions.push(version)
-            }
-          } else if (indexUnversionedMatch) {
-            const componentPath = indexUnversionedMatch[1]
-
-            // Initialize if doesn't exist
-            if (!versionsMap.has(componentPath)) {
-              versionsMap.set(componentPath, { versions: [], hasUnversioned: false })
-            }
-
-            // Mark as having unversioned index.js
-            versionsMap.get(componentPath)!.hasUnversioned = true
-          }
+        for (const blobElement of Array.from(blobElements)) {
+          processBlobElement(blobElement, versionsMap)
         }
       } while (marker)
 
@@ -163,7 +148,7 @@ export const useComponentPaths = (
     } finally {
       setIsLoading(false)
     }
-  }, [environment])
+  }, [environment, getAzureCredentials, processBlobElement])
 
   // Don't load automatically - only when refetch() is called
   // This enables lazy loading for comboboxes

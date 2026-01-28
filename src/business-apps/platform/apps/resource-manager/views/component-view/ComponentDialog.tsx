@@ -36,6 +36,11 @@ import {
   parseFormScreenKey
 } from '../../utils/componentKeyUtils'
 
+// Helper function to get submit button text based on mode
+const getSubmitButtonText = (mode: 'create' | 'update'): string => {
+  return mode === 'create' ? 'Create' : 'Update'
+}
+
 interface ComponentDialogProps extends BusinessAppContextProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -424,7 +429,7 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
                             value={field.value}
                             onValueChange={field.onChange}
                             options={processOptions.map(p => ({ value: p.name, label: p.name }))}
-                            placeholder={!selectedDomain ? 'Select domain first' : 'Select process'}
+                            placeholder={selectedDomain ? 'Select process' : 'Select domain first'}
                             searchPlaceholder="Search processes..."
                             emptyText="No processes found"
                             disabled={!selectedDomain}
@@ -600,7 +605,7 @@ export const ComponentDialog: React.FC<ComponentDialogProps> = ({
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting} data-testid={`${dataTestId}-submit-button`}>
-                {isSubmitting ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
+                {isSubmitting ? 'Saving...' : getSubmitButtonText(mode)}
               </Button>
             </DialogFooter>
           </form>

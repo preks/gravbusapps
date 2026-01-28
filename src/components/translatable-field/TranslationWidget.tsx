@@ -15,13 +15,13 @@ import { X, Settings } from 'lucide-react'
 import { DEFAULT_LANGUAGES, getAllLanguageCodes, getLanguageDisplayName } from './utils'
 
 export interface TranslationWidgetProps {
-  translations: Record<string, string>
-  defaultLanguage: string
-  variant: 'input' | 'textarea'
-  onTranslationChange: (langCode: string, translationValue: string) => void
-  onDefaultLanguageChange: (newLanguage: string) => void
-  onRemoveLanguage: (langToRemove: string) => void
-  onDefaultLanguageChangeProp?: (language: string) => void
+  readonly translations: Record<string, string>
+  readonly defaultLanguage: string
+  readonly variant: 'input' | 'textarea'
+  readonly onTranslationChange: (langCode: string, translationValue: string) => void
+  readonly onDefaultLanguageChange: (newLanguage: string) => void
+  readonly onRemoveLanguage: (langToRemove: string) => void
+  readonly onDefaultLanguageChangeProp?: (language: string) => void
 }
 
 export function TranslationWidget({

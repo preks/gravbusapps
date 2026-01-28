@@ -164,35 +164,36 @@ export function useMenuTreeDnd(props: UseMenuTreeDndProps): UseMenuTreeDndReturn
     [overId, flattenedItems, expandedItems, setExpandedItems]
   )
 
+  // Helper to reset drag state after drag end
+  const resetDragState = useCallback(() => {
+    setActiveId(null)
+    setOverId(null)
+    setOffsetLeft(0)
+    setIsDragging(false)
+    document.body.style.setProperty('cursor', '')
+
+    if (expandTimeoutRef.current) {
+      clearTimeout(expandTimeoutRef.current)
+      expandTimeoutRef.current = null
+    }
+
+    if (autoExpandedItemsRef.current.size > 0) {
+      setExpandedItems(prev => {
+        const newSet = new Set(prev)
+        autoExpandedItemsRef.current.forEach(id => newSet.delete(id))
+        return newSet
+      })
+      autoExpandedItemsRef.current.clear()
+    }
+  }, [setExpandedItems])
+
   // Drag end handler - following example pattern: flatten -> arrayMove -> buildTree
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
       const { active, over } = event
 
       // Reset state
-      setActiveId(null)
-      setOverId(null)
-      setOffsetLeft(0)
-      setIsDragging(false)
-
-      // Reset cursor
-      document.body.style.setProperty('cursor', '')
-
-      // Clear expand timeout
-      if (expandTimeoutRef.current) {
-        clearTimeout(expandTimeoutRef.current)
-        expandTimeoutRef.current = null
-      }
-
-      // Close auto-expanded items
-      if (autoExpandedItemsRef.current.size > 0) {
-        setExpandedItems(prev => {
-          const newSet = new Set(prev)
-          autoExpandedItemsRef.current.forEach(id => newSet.delete(id))
-          return newSet
-        })
-        autoExpandedItemsRef.current.clear()
-      }
+      resetDragState()
 
       // If just canceling drag (no drop), restore previous state
       // BUT: Allow drop if depth changed (even if overId === activeId)

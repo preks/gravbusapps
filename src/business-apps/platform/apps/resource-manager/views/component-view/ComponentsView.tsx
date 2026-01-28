@@ -40,6 +40,45 @@ const isAzureConfigured = (): boolean => {
   return hasDevConfig || hasProdConfig
 }
 
+// Type badge cell component
+const TypeBadgeCell: React.FC<{ component: ComponentResource }> = ({ component }) => {
+  const builderType = component.screenComponents?.builderType || 'NATIVE_SCREEN'
+  const screenType = component.type || 'SCREEN'
+  const combinedType = combineBuildAndScreenType(builderType, screenType)
+
+  const typeConfig: Record<string, { label: string; color: string }> = {
+    'native-screen': { label: 'Native Screen', color: 'gba:bg-blue-100 gba:text-blue-700 gba:border-blue-200' },
+    'native-form': { label: 'Native Form', color: 'gba:bg-green-100 gba:text-green-700 gba:border-green-200' },
+    'native-popup': {
+      label: 'Native Popup',
+      color: 'gba:bg-purple-100 gba:text-purple-700 gba:border-purple-200'
+    },
+    'native-window': { label: 'Native Window', color: 'gba:bg-cyan-100 gba:text-cyan-700 gba:border-cyan-200' },
+    'lowcoder-screen': {
+      label: 'Lowcoder Screen',
+      color: 'gba:bg-orange-100 gba:text-orange-700 gba:border-orange-200'
+    },
+    'lowcoder-form': {
+      label: 'Lowcoder Form',
+      color: 'gba:bg-yellow-100 gba:text-yellow-700 gba:border-yellow-200'
+    },
+    'formio-form': { label: 'FormIO Form', color: 'gba:bg-pink-100 gba:text-pink-700 gba:border-pink-200' }
+  }
+
+  const config = typeConfig[combinedType] || {
+    label: combinedType,
+    color: 'gba:bg-muted gba:text-foreground gba:border-border'
+  }
+
+  return (
+    <span
+      className={`gba:inline-flex gba:items-center gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:border gba:truncate ${config.color}`}
+    >
+      {config.label}
+    </span>
+  )
+}
+
 export const ComponentsView: React.FC<ComponentsViewProps> = ({
   'data-testid': dataTestId = 'components-view',
   ...context
@@ -208,44 +247,7 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
         header: 'Type',
         size: 130,
         enableResizing: false,
-        cell: ({ row }: { row: { original: ComponentResource } }) => {
-          const builderType = row.original.screenComponents?.builderType || 'NATIVE_SCREEN'
-          const screenType = row.original.type || 'SCREEN'
-          const combinedType = combineBuildAndScreenType(builderType, screenType)
-
-          // Map combined type to label and color
-          const typeConfig: Record<string, { label: string; color: string }> = {
-            'native-screen': { label: 'Native Screen', color: 'gba:bg-blue-100 gba:text-blue-700 gba:border-blue-200' },
-            'native-form': { label: 'Native Form', color: 'gba:bg-green-100 gba:text-green-700 gba:border-green-200' },
-            'native-popup': {
-              label: 'Native Popup',
-              color: 'gba:bg-purple-100 gba:text-purple-700 gba:border-purple-200'
-            },
-            'native-window': { label: 'Native Window', color: 'gba:bg-cyan-100 gba:text-cyan-700 gba:border-cyan-200' },
-            'lowcoder-screen': {
-              label: 'Lowcoder Screen',
-              color: 'gba:bg-orange-100 gba:text-orange-700 gba:border-orange-200'
-            },
-            'lowcoder-form': {
-              label: 'Lowcoder Form',
-              color: 'gba:bg-yellow-100 gba:text-yellow-700 gba:border-yellow-200'
-            },
-            'formio-form': { label: 'FormIO Form', color: 'gba:bg-pink-100 gba:text-pink-700 gba:border-pink-200' }
-          }
-
-          const config = typeConfig[combinedType] || {
-            label: combinedType,
-            color: 'gba:bg-muted gba:text-foreground gba:border-border'
-          }
-
-          return (
-            <span
-              className={`gba:inline-flex gba:items-center gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:border gba:truncate ${config.color}`}
-            >
-              {config.label}
-            </span>
-          )
-        }
+        cell: ({ row }: { row: { original: ComponentResource } }) => <TypeBadgeCell component={row.original} />
       },
       {
         id: 'name',

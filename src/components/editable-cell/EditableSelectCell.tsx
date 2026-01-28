@@ -45,7 +45,6 @@ export const EditableSelectCell: React.FC<EditableSelectCellProps> = ({
   return (
     <div
       className="gba:w-full"
-      role="presentation"
       onClick={e => e.stopPropagation()}
       onMouseDown={e => e.stopPropagation()}
       onKeyDown={handleKeyDown}

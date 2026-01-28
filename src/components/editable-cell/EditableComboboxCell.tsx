@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { Combobox } from '@newwork/nw-design-system'
+import { Combobox, Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@newwork/nw-design-system'
 
 export interface EditableComboboxCellProps {
   // Union type: single select (string) or multi select (string[])
@@ -89,9 +89,25 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
     }
   }, [value, multiple])
 
-  // Convert options to Combobox format
+  // Convert options to Combobox format with truncate and tooltip
   const comboboxOptions = useMemo(() => {
-    const opts = options.map(opt => ({ value: opt.id, label: opt.name }))
+    const createLabel = (text: string) => (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="gba:text-xs gba:truncate gba:block gba:w-full gba:text-left">{text}</span>
+          </TooltipTrigger>
+          <TooltipContent side="right" align="start">
+            <span className="gba:text-xs">{text}</span>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+
+    const opts = options.map(opt => ({
+      value: opt.id,
+      label: createLabel(opt.name)
+    }))
 
     if (multiple) {
       // Add selected values that are not yet in options
@@ -100,7 +116,7 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
         if (val && !opts.some(opt => opt.value === val)) {
           opts.push({
             value: val,
-            label: val
+            label: createLabel(val)
           })
         }
       })
@@ -110,7 +126,7 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
       if (singleValue?.trim() && !opts.some(opt => opt.value === singleValue)) {
         opts.push({
           value: singleValue,
-          label: singleValue
+          label: createLabel(singleValue)
         })
       }
     }
@@ -196,7 +212,6 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
   return (
     <div
       ref={wrapperRef}
-      role="presentation"
       className={multiple ? 'gba:min-w-[200px]' : 'gba:min-w-[100px]'}
       onClick={e => e.stopPropagation()}
       onMouseDown={e => e.stopPropagation()}

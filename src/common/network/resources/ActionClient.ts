@@ -37,7 +37,7 @@ export class ActionClient {
       '/flow-items',
       {
         ...options,
-        params: actionParams as Record<string, string | number | boolean>,
+        params: actionParams as ActionClientParams,
         withCredentials: false
       },
       this.baseUrl
@@ -55,7 +55,7 @@ export class ActionClient {
       }
     }
 
-    return response as ActionPage
+    return response
   }
 
   public async getAction(id: string, options: Omit<RequestOptions, 'body'> = {}): Promise<ActionDTO | null> {
@@ -142,7 +142,7 @@ export class ActionClient {
       }
     }
 
-    return response as ContextPage
+    return response
   }
 
   public async getContext(id: string, options: Omit<RequestOptions, 'body'> = {}): Promise<ContextDTO | null> {
@@ -280,7 +280,7 @@ export class ActionClient {
       }
     }
 
-    return response as ActionAssignmentPage
+    return response
   }
 
   public async getActionAssignment(
@@ -363,7 +363,7 @@ export class ActionClient {
       // Extract domains from the response
       const domains = Array.isArray(response) ? response.map(item => item.domain) : []
 
-      return domains.sort().map(domain => ({ id: domain, name: domain }))
+      return domains.toSorted((a, b) => a.localeCompare(b)).map(domain => ({ id: domain, name: domain }))
     } catch (error) {
       console.error('ActionClient: Error getting services:', error)
       return []
@@ -388,11 +388,13 @@ export class ActionClient {
       // Find the domain in the response and return its processes
       const domainData = Array.isArray(response) ? response.find(item => item.domain === domain) : null
 
-      if (!domainData || !domainData.processes) {
+      if (!domainData?.processes) {
         return []
       }
 
-      return domainData.processes.sort().map(processName => ({ id: processName, name: processName }))
+      return domainData.processes
+        .toSorted((a, b) => a.localeCompare(b))
+        .map(processName => ({ id: processName, name: processName }))
     } catch (error) {
       console.error('ActionClient: Error getting processes for domain:', error)
       return []

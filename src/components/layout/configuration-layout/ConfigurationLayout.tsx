@@ -50,7 +50,7 @@ export const ConfigurationLayout: React.FC<ConfigurationLayoutProps> = ({
       data-testid={dataTestId}
     >
       <TabSwitch
-        {...(currentView !== undefined ? { value: currentView } : {})}
+        {...(currentView === undefined ? {} : { value: currentView })}
         defaultValue={defaultView ?? views[0]?.value}
         onValueChange={onViewChange}
         className="gba:flex gba:flex-col gba:flex-1"

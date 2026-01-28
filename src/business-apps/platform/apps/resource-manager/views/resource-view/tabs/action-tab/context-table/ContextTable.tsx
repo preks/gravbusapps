@@ -156,6 +156,33 @@ export const ContextTable: React.FC<ContextTableProps> = ({
     })
   }, [])
 
+  // Helper to prepare context data for API
+  const prepareContextData = (
+    contextDataEdit: unknown,
+    fallbackData: ContextDataDTO[] | undefined
+  ): ContextDataDTO[] => {
+    return ((contextDataEdit as ContextDataDTO[]) ?? fallbackData ?? [])
+      .filter(data => data.contextDataName && data.contextDataType)
+      .map(data => ({
+        contextDataName: data.contextDataName,
+        contextDataType: data.contextDataType,
+        mainContext: data.mainContext ?? false
+      })) as ContextDataDTO[]
+  }
+
+  // Helper to build full context DTO for draft creation
+  const buildDraftContextDTO = (
+    edits: Record<string, unknown>,
+    draftContext: ContextDTO
+  ): Omit<ContextDTO, 'id' | 'rank' | 'version'> => {
+    const contextData = prepareContextData(edits.contextData, draftContext.contextData)
+    return {
+      contextName: (edits.contextName as string) ?? draftContext.contextName ?? '',
+      contextData: contextData,
+      permissionSchema: (edits.permissionSchema as string) ?? draftContext.permissionSchema
+    }
+  }
+
   // Handle save entry
   const handleSaveEntry = useCallback(
     async (contextId: string) => {
@@ -178,23 +205,7 @@ export const ContextTable: React.FC<ContextTableProps> = ({
           const draftActionsForContext = draftActions.get(contextId) || []
           const actionIds = draftActionsForContext.map(da => da.action.id)
 
-          // Merge draft context with edits to create full ContextDTO (without id, rank, version)
-          // Remove all IDs from contextData (including temp IDs) and exclude id, rank, version from payload
-          const contextData = ((edits.contextData as ContextDataDTO[]) ?? draftContext.contextData ?? [])
-            .filter(data => data.contextDataName && data.contextDataType) // Only include valid entries
-            .map(data => ({
-              contextDataName: data.contextDataName,
-              contextDataType: data.contextDataType,
-              mainContext: data.mainContext ?? false
-            }))
-
-          const fullContextData: Omit<ContextDTO, 'id' | 'rank' | 'version'> & {
-            contextData: Array<Omit<ContextDataDTO, 'id'>>
-          } = {
-            contextName: (edits.contextName as string) ?? draftContext.contextName ?? '',
-            contextData: contextData,
-            permissionSchema: (edits.permissionSchema as string) ?? draftContext.permissionSchema
-          }
+          const fullContextData = buildDraftContextDTO(edits, draftContext)
 
           // Create context first, then create assignment with draft actions
           await onCreateContext(
@@ -756,14 +767,14 @@ export const ContextTable: React.FC<ContextTableProps> = ({
             allContexts.find(c => c.context.id === contextDataDialogOpen)?.context.contextData ||
             []
           }
-          onSave={async contextData => {
+          onSave={contextData => {
             if (contextDataDialogOpen) {
               editableState.onFieldEdit(contextDataDialogOpen, 'contextData', contextData)
               setContextDataDialogOpen(null)
             }
           }}
           isSaving={editableState.state.savingEntryId === contextDataDialogOpen && editableState.state.isSaving}
-          data-testid={`${dataTestId}-context-data-dialog`}
+          dataTestId={`${dataTestId}-context-data-dialog`}
         />
       )}
 
@@ -771,7 +782,7 @@ export const ContextTable: React.FC<ContextTableProps> = ({
         <AddActionDialog
           open={true}
           onOpenChange={open => !open && setAddActionDialogOpen(null)}
-          onAddActions={actionPermissions => {
+          onAddActions={async actionPermissions => {
             if (addActionDialogOpen) {
               handleAddActions(addActionDialogOpen, actionPermissions)
               setAddActionDialogOpen(null)

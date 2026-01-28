@@ -366,19 +366,25 @@ const editableStateChanged = (
   if (!prevEdited && !nextEdited) return false
   if (!prevEdited || !nextEdited) return true
 
-  // Deep compare edited entries
+  return hasEditedEntriesChanged(prevEdited, nextEdited)
+}
+
+// Helper to compare edited entry objects
+const hasEditedEntriesChanged = (prevEdited: any, nextEdited: any): boolean => {
   const prevKeys = Object.keys(prevEdited)
   const nextKeys = Object.keys(nextEdited)
   if (prevKeys.length !== nextKeys.length) return true
 
   for (const key of prevKeys) {
-    if (prevEdited[key] !== nextEdited[key]) {
-      // For arrays, compare by reference (they should be stable)
-      if (Array.isArray(prevEdited[key]) && Array.isArray(nextEdited[key])) {
-        if (!arraysEqual(prevEdited[key], nextEdited[key])) return true
-      } else {
-        return true
-      }
+    const prevValue = prevEdited[key]
+    const nextValue = nextEdited[key]
+
+    if (prevValue === nextValue) continue
+
+    if (Array.isArray(prevValue) && Array.isArray(nextValue)) {
+      if (!arraysEqual(prevValue, nextValue)) return true
+    } else {
+      return true
     }
   }
 

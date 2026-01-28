@@ -35,7 +35,7 @@ export function useEditableState<T extends { id: string }>(entries: T[]): UseEdi
       if (!entry) return undefined
 
       const editedValue = state.editedEntries.get(entryId)?.[field]
-      return editedValue !== undefined ? editedValue : entry[field]
+      return editedValue ?? entry[field]
     },
     [entries, state.editedEntries]
   )

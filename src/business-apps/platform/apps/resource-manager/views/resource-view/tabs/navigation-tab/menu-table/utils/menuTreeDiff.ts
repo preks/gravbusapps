@@ -377,6 +377,71 @@ export function calculateFullDiff(
     return a === b
   }
 
+  // Helper to check structural changes
+  const checkStructuralChanges = (
+    targetItem: EnrichedMenuItem,
+    sourceItem: EnrichedMenuItem | null,
+    targetRank: number
+  ): { changes: Partial<MenuItemChange>; hasChanges: boolean } => {
+    const itemChanges: Partial<MenuItemChange> = {}
+    let hasChanges = false
+
+    // Rank change (compare with loadedRank from source)
+    if (sourceItem && targetRank !== sourceItem.loadedRank) {
+      itemChanges.rank = targetRank
+      hasChanges = true
+    }
+
+    // Structural changes (use isEqual to treat undefined and null as same)
+    if (sourceItem) {
+      const targetLevel = targetItem.level ?? 0
+      const sourceLevel = sourceItem.level ?? 0
+      const levelChanged = targetLevel !== sourceLevel
+
+      if (!isEqual(targetItem.parentId, sourceItem.parentId)) {
+        itemChanges.parentId = targetItem.parentId
+        hasChanges = true
+      }
+      if (!isEqual(targetItem.hubId, sourceItem.hubId)) {
+        itemChanges.hubId = targetItem.hubId
+        hasChanges = true
+      }
+      if (levelChanged) {
+        itemChanges.level = targetLevel
+        hasChanges = true
+      }
+
+      // Hub type changes
+      if (targetLevel === 0 && targetItem.type !== sourceItem.type) {
+        itemChanges.type = targetItem.type
+        hasChanges = true
+      }
+
+      if (targetLevel > 0 && targetItem.type !== sourceItem.type) {
+        itemChanges.type = targetItem.type
+        hasChanges = true
+      }
+
+      // When level changes, ensure proper cleanup of fields
+      if (levelChanged) {
+        if (targetLevel === 0) {
+          if (!('parentId' in itemChanges)) itemChanges.parentId = undefined
+          if (!('hubId' in itemChanges)) itemChanges.hubId = undefined
+          if (!('type' in itemChanges)) itemChanges.type = targetItem.type
+        } else if (targetLevel === 1) {
+          if (!('parentId' in itemChanges)) itemChanges.parentId = null
+          if (!('hubId' in itemChanges)) itemChanges.hubId = targetItem.hubId
+          if (!('type' in itemChanges)) itemChanges.type = undefined
+        } else {
+          if (!('hubId' in itemChanges)) itemChanges.hubId = null
+          if (!('type' in itemChanges)) itemChanges.type = undefined
+        }
+      }
+    }
+
+    return { changes: itemChanges, hasChanges }
+  }
+
   // Helper to process siblings and detect rank changes
   const processSiblings = (itemIds: string[]) => {
     itemIds.forEach(itemId => {
@@ -409,78 +474,22 @@ export function calculateFullDiff(
       if (targetRank === -1) return
 
       // Check for changes
-      const itemChanges: Partial<MenuItemChange> = {}
-      let hasChanges = false
-
-      // Rank change (compare with loadedRank from source)
-      if (sourceItem && targetRank !== sourceItem.loadedRank) {
-        itemChanges.rank = targetRank
-        hasChanges = true
-      }
-
-      // Structural changes (use isEqual to treat undefined and null as same)
-      if (sourceItem) {
-        // Check for level change first - this determines what fields need to be set/cleared
-        const levelChanged = targetItem.level !== sourceItem.level
-
-        if (!isEqual(targetItem.parentId, sourceItem.parentId)) {
-          itemChanges.parentId = targetItem.parentId
-          hasChanges = true
-        }
-        if (!isEqual(targetItem.hubId, sourceItem.hubId)) {
-          itemChanges.hubId = targetItem.hubId
-          hasChanges = true
-        }
-        if (levelChanged) {
-          itemChanges.level = targetItem.level
-          hasChanges = true
-        }
-
-        // Hub type changes (e.g., moving hub to different space)
-        // For hubs (level 0), type is ALWAYS required and must be tracked
-        if (targetItem.level === 0 && targetItem.type !== sourceItem.type) {
-          itemChanges.type = targetItem.type
-          hasChanges = true
-        }
-
-        // For menu items, type should be cleared/undefined
-        if (targetItem.level > 0 && targetItem.type !== sourceItem.type) {
-          itemChanges.type = targetItem.type
-          hasChanges = true
-        }
-
-        // When level changes, ensure proper cleanup of fields
-        if (levelChanged) {
-          if (targetItem.level === 0) {
-            // Moving to hub level: clear parentId/hubId if not already in changes
-            if (!('parentId' in itemChanges)) itemChanges.parentId = undefined
-            if (!('hubId' in itemChanges)) itemChanges.hubId = undefined
-            if (!('type' in itemChanges)) itemChanges.type = targetItem.type
-          } else if (targetItem.level === 1) {
-            // Moving to level 1 (under hub): parentId = null, clear type
-            if (!('parentId' in itemChanges)) itemChanges.parentId = null
-            if (!('hubId' in itemChanges)) itemChanges.hubId = targetItem.hubId
-            if (!('type' in itemChanges)) itemChanges.type = undefined
-          } else {
-            // Moving to level 2+ (nested): parentId is set, hubId = null, clear type
-            if (!('hubId' in itemChanges)) itemChanges.hubId = null
-            if (!('type' in itemChanges)) itemChanges.type = undefined
-          }
-        }
-      }
+      const { changes: structuralChanges, hasChanges: hasStructuralChanges } = checkStructuralChanges(
+        targetItem,
+        sourceItem,
+        targetRank
+      )
 
       // Field edits
       const fieldEdits = checkFieldEdits(itemId)
-      if (fieldEdits) {
-        Object.assign(itemChanges, fieldEdits)
-        hasChanges = true
-      }
+      const hasChanges = hasStructuralChanges || Boolean(fieldEdits)
 
       if (hasChanges) {
         changes.push({
           id: itemId,
           isHub: targetItem.level === 0,
-          ...itemChanges
+          ...structuralChanges,
+          ...(fieldEdits || {})
         })
       }
     })

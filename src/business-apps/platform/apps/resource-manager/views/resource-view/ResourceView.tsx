@@ -26,7 +26,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
 }) => {
   // Get initial tab from URL or default to first tab
   const getInitialTab = useCallback((): TabKey => {
-    if (typeof globalThis.window === 'undefined') return 'navigations'
+    if (globalThis.window === undefined) return 'navigations'
     const urlParams = new URLSearchParams(globalThis.window.location.search)
     const tabFromUrl = urlParams.get('tab')
 
@@ -41,7 +41,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
 
   // Get initial navigation subview from URL or default
   const getInitialNavSubview = useCallback((): NavSubView => {
-    if (typeof globalThis.window === 'undefined') return 'items'
+    if (globalThis.window === undefined) return 'items'
     const urlParams = new URLSearchParams(globalThis.window.location.search)
     const subviewFromUrl = urlParams.get('subview')
 
@@ -54,7 +54,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
 
   // Get initial action subview from URL or default
   const getInitialActionSubview = useCallback((): ActionSubView => {
-    if (typeof globalThis.window === 'undefined') return 'items'
+    if (globalThis.window === undefined) return 'items'
     const urlParams = new URLSearchParams(globalThis.window.location.search)
     const subviewFromUrl = urlParams.get('subview')
 
@@ -111,7 +111,6 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
   const [addAction, setAddAction] = useState<(() => void) | null>(null)
   const [addContext, setAddContext] = useState<(() => void) | null>(null)
   const [addNavigation, setAddNavigation] = useState<(() => void) | null>(null)
-  const [, setAddMenuItem] = useState<(() => void) | null>(null)
   const [menuSaveAll, setMenuSaveAll] = useState<(() => Promise<void>) | null>(null)
   const [menuDiscardAll, setMenuDiscardAll] = useState<(() => void) | null>(null)
   const [menuHasChanges, setMenuHasChanges] = useState(false)
@@ -119,7 +118,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
 
   // Update URL when tab or subview changes
   const updateUrl = useCallback((tab: string, subview?: string) => {
-    if (typeof globalThis.window === 'undefined') return
+    if (globalThis.window === undefined) return
     const urlParams = new URLSearchParams(globalThis.window.location.search)
 
     // Always set the tab parameter
@@ -171,7 +170,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
 
   // Ensure URL always has tab parameter on initial load
   useEffect(() => {
-    if (typeof globalThis.window === 'undefined') return
+    if (globalThis.window === undefined) return
     const urlParams = new URLSearchParams(globalThis.window.location.search)
     // Only set tab if we're in the resources view (view parameter should be set by parent)
     const viewParam = urlParams.get('view')
@@ -184,7 +183,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
 
   // Listen for browser back/forward navigation
   useEffect(() => {
-    if (typeof globalThis.window === 'undefined') return
+    if (globalThis.window === undefined) return
     const handlePopState = () => {
       const newTab = getInitialTab()
       setActiveSection(newTab)
@@ -403,10 +402,6 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
     setAddNavigation(() => addNavigationFn)
   }, [])
 
-  const handleAddMenuItemChange = useCallback((addMenuItemFn: () => void) => {
-    setAddMenuItem(() => addMenuItemFn)
-  }, [])
-
   const handleMenuSaveAllChange = useCallback((saveAllFn: () => Promise<void>) => {
     setMenuSaveAll(() => saveAllFn)
   }, [])
@@ -521,7 +516,6 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
               onViewLoadingChange={handleNavigationViewLoadingChange}
               onRefetchChange={handleNavigationRefetchChange}
               onAddNavigationChange={handleAddNavigationChange}
-              onAddMenuItemChange={handleAddMenuItemChange}
               onMenuSaveAllChange={handleMenuSaveAllChange}
               onMenuDiscardAllChange={handleMenuDiscardAllChange}
               onMenuHasChangesChange={handleMenuHasChangesChange}

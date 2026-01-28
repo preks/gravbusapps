@@ -44,10 +44,12 @@ export const useFeaturesCatalog = (context: BusinessAppContextProps): UseFeature
       const featuresData = await resourceClient.action.getFeatures()
 
       if (featuresData && Array.isArray(featuresData) && featuresData.length > 0) {
-        const processedFeatures = featuresData.map((feature: string) => ({
-          id: feature,
-          name: feature
-        }))
+        const processedFeatures = featuresData
+          .map((feature: string) => ({
+            id: feature,
+            name: feature
+          }))
+          .toSorted((a, b) => a.name.localeCompare(b.name))
         setFeatures(processedFeatures)
         setHasError(false)
       } else {

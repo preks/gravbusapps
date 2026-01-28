@@ -66,7 +66,7 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
 
   // Get initial view from URL or default to 'items'
   const getInitialView = useCallback(() => {
-    if (typeof globalThis.window === 'undefined') return 'items'
+    if (globalThis.window === undefined) return 'items'
     const urlParams = new URLSearchParams(globalThis.window.location.search)
     const viewFromUrl = urlParams.get('subview')
 

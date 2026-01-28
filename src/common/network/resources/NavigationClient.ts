@@ -4,8 +4,10 @@ import type { ResourceClient } from './ResourceClient'
 import type { NavigationDTO, GetNavigationsParams } from '@/common/data/resources/types/navigation.types'
 import type { MenuItemDTO, MenuItemUpsertRequestDTO } from '@/common/data/resources/types/menuItem.types'
 
+type HubType = 'USE' | 'CREATE' | 'MANAGE'
+
 export class NavigationClient {
-  constructor(private resourceClient: ResourceClient) {}
+  constructor(private readonly resourceClient: ResourceClient) {}
 
   private get baseUrl(): string {
     const navigationBaseUrl = env('NEXT_PUBLIC_NAVIGATION_SERVICE_API') ?? ''
@@ -127,7 +129,7 @@ export class NavigationClient {
   }
 
   public async getMenuItems(
-    params?: { hubType?: 'USE' | 'CREATE' | 'MANAGE' },
+    params?: { hubType?: HubType },
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<MenuItemDTO[]> {
     // Fetch hubs - they already contain all menu items nested in hub.menuItems
@@ -259,97 +261,156 @@ export class NavigationClient {
     }
   }
 
+  public async createHub(
+    data: MenuItemUpsertRequestDTO,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<MenuItemDTO> {
+    // If parentId starts with 'SPACE_', extract the space type
+    const spaceType = data.parentId?.startsWith('SPACE_')
+      ? (data.parentId.replace('SPACE_', '') as 'USE' | 'CREATE' | 'MANAGE')
+      : undefined
+
+    const hubData: any = {
+      name: data.name,
+      icon: data.icon,
+      description: data.description,
+      rank: data.rank,
+      nameTranslated: data.nameTranslated,
+      descriptionTranslated: data.descriptionTranslated,
+      resourceUrlId: data.resourceUrlId,
+      code: data.code
+    }
+
+    // Set type from spaceType (extracted from parentId) or data.type
+    if (spaceType) {
+      hubData.type = spaceType
+    } else if (data.type) {
+      hubData.type = data.type
+    }
+
+    const hubResponse = await this.resourceClient['post']<{
+      id: string
+      name: string
+      icon?: string
+      description?: string
+      rank?: number
+      nameTranslated?: Record<string, string>
+      descriptionTranslated?: Record<string, string>
+      resourceUrlId?: string
+      resourceUrl?: any
+      menuItems?: MenuItemDTO[]
+      code?: string
+      type?: 'USE' | 'CREATE' | 'MANAGE'
+      hasChildren?: boolean
+      codeTranslated?: Record<string, string>
+    }>(
+      '/hubs',
+      hubData,
+      {
+        ...options,
+        withCredentials: false
+      },
+      this.baseUrl
+    )
+
+    return this.hubToMenuItem(hubResponse, 0)
+  }
+
+  public async createMenuItemChild(
+    data: MenuItemUpsertRequestDTO,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<MenuItemDTO> {
+    const menuItemData: any = {
+      name: data.name,
+      icon: data.icon,
+      description: data.description,
+      rank: data.rank,
+      nameTranslated: data.nameTranslated,
+      descriptionTranslated: data.descriptionTranslated,
+      resourceUrlId: data.resourceUrlId
+    }
+
+    // If parentId is set and doesn't start with 'SPACE_', it's a menu item or hub ID
+    if (data.parentId && !data.parentId.startsWith('SPACE_')) {
+      menuItemData.parentId = data.parentId
+    } else if (data.hubId) {
+      menuItemData.hubId = data.hubId
+    }
+
+    const menuItemResponse = await this.resourceClient['post']<MenuItemDTO>(
+      '/menuItems',
+      menuItemData,
+      {
+        ...options,
+        withCredentials: false
+      },
+      this.baseUrl
+    )
+
+    return this.menuItemToMenuItem(menuItemResponse, menuItemResponse.hubId ? 1 : 0)
+  }
+
   public async createMenuItem(
     data: MenuItemUpsertRequestDTO,
     isHub: boolean,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<MenuItemDTO> {
-    if (isHub) {
-      // Create as Hub
-      // If parentId starts with 'SPACE_', extract the space type
-      const spaceType = data.parentId?.startsWith('SPACE_')
-        ? (data.parentId.replace('SPACE_', '') as 'USE' | 'CREATE' | 'MANAGE')
-        : undefined
+    return isHub ? this.createHub(data, options) : this.createMenuItemChild(data, options)
+  }
 
-      const hubData: any = {
-        name: data.name,
-        icon: data.icon,
-        description: data.description,
-        rank: data.rank,
-        nameTranslated: data.nameTranslated,
-        descriptionTranslated: data.descriptionTranslated,
-        resourceUrlId: data.resourceUrlId,
-        code: data.code
-      }
-
-      // Set type from spaceType (extracted from parentId) or data.type
-      if (spaceType) {
-        hubData.type = spaceType
-      } else if (data.type) {
-        hubData.type = data.type
-      }
-
-      const hubResponse = await this.resourceClient['post']<{
-        id: string
-        name: string
-        icon?: string
-        description?: string
-        rank?: number
-        nameTranslated?: Record<string, string>
-        descriptionTranslated?: Record<string, string>
-        resourceUrlId?: string
-        resourceUrl?: any
-        menuItems?: MenuItemDTO[]
-        code?: string
-        type?: 'USE' | 'CREATE' | 'MANAGE'
-        hasChildren?: boolean
-        codeTranslated?: Record<string, string>
-      }>(
-        '/hubs',
-        hubData,
-        {
-          ...options,
-          withCredentials: false
-        },
-        this.baseUrl
-      )
-
-      return this.hubToMenuItem(hubResponse, 0)
-    } else {
-      // Create as Menu Item
-      // Determine if parent is a hub or another menu item
-      const menuItemData: any = {
-        name: data.name,
-        icon: data.icon,
-        description: data.description,
-        rank: data.rank,
-        nameTranslated: data.nameTranslated,
-        descriptionTranslated: data.descriptionTranslated,
-        resourceUrlId: data.resourceUrlId
-      }
-
-      // If parentId is set and doesn't start with 'SPACE_', it's a menu item or hub ID
-      if (data.parentId && !data.parentId.startsWith('SPACE_')) {
-        // Check if parent is a hub (level 0) or menu item
-        // For now, we'll use parentId for menu items and hubId for hubs
-        // The backend should handle this correctly
-        menuItemData.parentId = data.parentId
-      } else if (data.hubId) {
-        menuItemData.hubId = data.hubId
-      }
-
-      const menuItemResponse = await this.resourceClient['post']<MenuItemDTO>(
-        '/menuItems',
-        menuItemData,
-        {
-          ...options,
-          withCredentials: false
-        },
-        this.baseUrl
-      )
-
-      return this.menuItemToMenuItem(menuItemResponse, menuItemResponse.hubId ? 1 : 0)
+  public async updateHub(
+    id: string,
+    data: Partial<MenuItemUpsertRequestDTO>,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<MenuItemDTO | undefined> {
+    const hubResponse = await this.resourceClient['put']<{
+      id: string
+      name: string
+      icon?: string
+      description?: string
+      rank?: number
+      nameTranslated?: Record<string, string>
+      descriptionTranslated?: Record<string, string>
+      resourceUrlId?: string
+      resourceUrl?: any
+      menuItems?: MenuItemDTO[]
+      code?: string
+      type?: 'USE' | 'CREATE' | 'MANAGE'
+      hasChildren?: boolean
+      codeTranslated?: Record<string, string>
+    }>(
+      `/hubs/${id}`,
+      data,
+      {
+        ...options,
+        withCredentials: false
+      },
+      this.baseUrl
+    )
+    if (!hubResponse) {
+      return undefined
     }
+    return this.hubToMenuItem(hubResponse, 0)
+  }
+
+  public async updateMenuItemChild(
+    id: string,
+    data: Partial<MenuItemUpsertRequestDTO>,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<MenuItemDTO | undefined> {
+    const menuItemResponse = await this.resourceClient['put']<MenuItemDTO>(
+      `/menuItems/${id}`,
+      data,
+      {
+        ...options,
+        withCredentials: false
+      },
+      this.baseUrl
+    )
+    if (!menuItemResponse) {
+      return undefined
+    }
+    return this.menuItemToMenuItem(menuItemResponse, menuItemResponse.hubId ? 1 : 0)
   }
 
   public async updateMenuItem(
@@ -358,76 +419,33 @@ export class NavigationClient {
     isHub: boolean,
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<MenuItemDTO | undefined> {
-    if (isHub) {
-      // Update as Hub
-      const hubResponse = await this.resourceClient['put']<{
-        id: string
-        name: string
-        icon?: string
-        description?: string
-        rank?: number
-        nameTranslated?: Record<string, string>
-        descriptionTranslated?: Record<string, string>
-        resourceUrlId?: string
-        resourceUrl?: any
-        menuItems?: MenuItemDTO[]
-        code?: string
-        type?: 'USE' | 'CREATE' | 'MANAGE'
-        hasChildren?: boolean
-        codeTranslated?: Record<string, string>
-      }>(
-        `/hubs/${id}`,
-        data,
-        {
-          ...options,
-          withCredentials: false
-        },
-        this.baseUrl
-      )
-      if (!hubResponse) {
-        return undefined
-      }
-      return this.hubToMenuItem(hubResponse, 0)
-    } else {
-      // Update as Menu Item
-      const menuItemResponse = await this.resourceClient['put']<MenuItemDTO>(
-        `/menuItems/${id}`,
-        data,
-        {
-          ...options,
-          withCredentials: false
-        },
-        this.baseUrl
-      )
-      if (!menuItemResponse) {
-        return undefined
-      }
-      return this.menuItemToMenuItem(menuItemResponse, menuItemResponse.hubId ? 1 : 0)
-    }
+    return isHub ? this.updateHub(id, data, options) : this.updateMenuItemChild(id, data, options)
+  }
+
+  public async deleteHub(id: string, options: Omit<RequestOptions, 'body'> = {}): Promise<void> {
+    return this.resourceClient['delete'](
+      `/hubs/${id}`,
+      {
+        ...options,
+        withCredentials: false
+      },
+      this.baseUrl
+    )
+  }
+
+  public async deleteMenuItemChild(id: string, options: Omit<RequestOptions, 'body'> = {}): Promise<void> {
+    return this.resourceClient['delete'](
+      `/menuItems/${id}`,
+      {
+        ...options,
+        withCredentials: false
+      },
+      this.baseUrl
+    )
   }
 
   public async deleteMenuItem(id: string, isHub: boolean, options: Omit<RequestOptions, 'body'> = {}): Promise<void> {
-    if (isHub) {
-      // Delete as Hub
-      return this.resourceClient['delete'](
-        `/hubs/${id}`,
-        {
-          ...options,
-          withCredentials: false
-        },
-        this.baseUrl
-      )
-    } else {
-      // Delete as Menu Item
-      return this.resourceClient['delete'](
-        `/menuItems/${id}`,
-        {
-          ...options,
-          withCredentials: false
-        },
-        this.baseUrl
-      )
-    }
+    return isHub ? this.deleteHub(id, options) : this.deleteMenuItemChild(id, options)
   }
 
   private hubToMenuItem(

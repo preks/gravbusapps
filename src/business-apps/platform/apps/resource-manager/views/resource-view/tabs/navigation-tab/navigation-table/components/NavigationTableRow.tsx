@@ -233,21 +233,11 @@ const arraysEqual = (a: any[] | undefined, b: any[] | undefined): boolean => {
   return true // Assume arrays are stable references
 }
 
-// Helper to check if editableState changed for this specific entry
-const editableStateChanged = (
-  prevState: UseEditableStateResult<any>,
-  nextState: UseEditableStateResult<any>,
-  entryId: string
+// Helper to check if edits object changed
+const editsObjectChanged = (
+  prevEdited: Record<string, unknown> | undefined,
+  nextEdited: Record<string, unknown> | undefined
 ): boolean => {
-  const prevEdited = prevState.state.editedEntries.get(entryId)
-  const nextEdited = nextState.state.editedEntries.get(entryId)
-  const prevIsDraft = prevState.state.draftEntryIds.has(entryId)
-  const nextIsDraft = nextState.state.draftEntryIds.has(entryId)
-  const prevIsSaving = prevState.state.savingEntryId === entryId
-  const nextIsSaving = nextState.state.savingEntryId === entryId
-
-  if (prevIsDraft !== nextIsDraft || prevIsSaving !== nextIsSaving) return true
-
   if (prevEdited === nextEdited) return false
   if (!prevEdited && !nextEdited) return false
   if (!prevEdited || !nextEdited) return true
@@ -269,6 +259,24 @@ const editableStateChanged = (
   }
 
   return false
+}
+
+// Helper to check if editableState changed for this specific entry
+const editableStateChanged = (
+  prevState: UseEditableStateResult<any>,
+  nextState: UseEditableStateResult<any>,
+  entryId: string
+): boolean => {
+  const prevEdited = prevState.state.editedEntries.get(entryId)
+  const nextEdited = nextState.state.editedEntries.get(entryId)
+  const prevIsDraft = prevState.state.draftEntryIds.has(entryId)
+  const nextIsDraft = nextState.state.draftEntryIds.has(entryId)
+  const prevIsSaving = prevState.state.savingEntryId === entryId
+  const nextIsSaving = nextState.state.savingEntryId === entryId
+
+  if (prevIsDraft !== nextIsDraft || prevIsSaving !== nextIsSaving) return true
+
+  return editsObjectChanged(prevEdited, nextEdited)
 }
 
 export const NavigationTableRow = React.memo(NavigationTableRowComponent, (prevProps, nextProps) => {

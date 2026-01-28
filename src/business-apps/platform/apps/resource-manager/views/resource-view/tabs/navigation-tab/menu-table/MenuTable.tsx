@@ -329,10 +329,9 @@ export const MenuTable: React.FC<MenuTableProps> = ({
 
       return (
         <div key={spaceType} className="gba:mb-4" data-testid={`${dataTestId}-space-${spaceType}`}>
-          <div
-            role="button"
-            tabIndex={0}
-            className="gba:flex gba:items-center gba:gap-2 gba:py-3 gba:px-4 gba:bg-muted gba:rounded-t-md gba:border-b gba:border-border gba:cursor-pointer gba:hover:bg-muted/80 gba:transition-colors"
+          <button
+            type="button"
+            className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:py-3 gba:px-4 gba:bg-muted gba:rounded-t-md gba:border-b gba:border-border gba:cursor-pointer gba:hover:bg-muted/80 gba:transition-colors"
             onClick={() => treeState.toggleSpaceExpansion(spaceType)}
             onKeyDown={e => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -378,7 +377,7 @@ export const MenuTable: React.FC<MenuTableProps> = ({
                 <PlusIcon className="gba:h-4 gba:w-4" />
               </Button>
             )}
-          </div>
+          </button>
           {(isExpanded || isDraggingHubOverSpace) && (
             <div className="gba:border gba:border-t-0 gba:rounded-b-md gba:bg-background">
               {itemsToRender.length === 0 && !isDraggingHubOverSpace ? (

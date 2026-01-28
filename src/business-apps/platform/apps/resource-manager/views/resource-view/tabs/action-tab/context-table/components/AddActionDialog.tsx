@@ -29,6 +29,17 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useActions } from '@/common/data/resources/hooks/useActions'
 import type { ActionDTO } from '@/common/data/resources/types/action.types'
 
+// Helper function to determine empty state message
+const getEmptyStateMessage = (existingActionIds: readonly string[], searchValue: string): string => {
+  if (existingActionIds.length > 0) {
+    return 'All available actions are already assigned to this context.'
+  }
+  if (searchValue) {
+    return 'No actions found matching your search.'
+  }
+  return 'No actions available.'
+}
+
 interface AddActionDialogProps extends BusinessAppContextProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -250,15 +261,7 @@ export const AddActionDialog: React.FC<AddActionDialogProps> = ({
             </div>
           ) : availableActions.length === 0 ? (
             <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
-              {(() => {
-                if (existingActionIds.length > 0) {
-                  return 'All available actions are already assigned to this context.'
-                }
-                if (searchValue) {
-                  return 'No actions found matching your search.'
-                }
-                return 'No actions available.'
-              })()}
+              {getEmptyStateMessage(existingActionIds, searchValue)}
             </div>
           ) : (
             <div className="gba:flex-1 gba:min-h-0 gba:flex gba:flex-col">

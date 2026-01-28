@@ -87,8 +87,8 @@ export const normalToKebab = (str: string): string => {
   return str
     .toLowerCase()
     .replaceAll(/[^a-z0-9]+/g, '-')
-    .replaceAll(/^-+/, '')
-    .replaceAll(/-+$/, '')
+    .replace(/^-+/, '')
+    .replace(/-+$/, '')
 }
 
 /**

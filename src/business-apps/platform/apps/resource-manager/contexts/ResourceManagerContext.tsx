@@ -58,18 +58,20 @@ export const ResourceManagerProvider: React.FC<ResourceManagerProviderProps> = (
 
   // Transform domain processes to domain options (unique domains)
   const domains = useMemo<DomainOption[]>(() => {
-    return domainProcesses.map(dp => ({
-      id: dp.domain,
-      name: dp.domain,
-      processes: dp.processes.map(p => ({ id: p, name: p }))
-    }))
+    return domainProcesses
+      .map(dp => ({
+        id: dp.domain,
+        name: dp.domain,
+        processes: dp.processes.map(p => ({ id: p, name: p }))
+      }))
+      .toSorted((a, b) => a.name.localeCompare(b.name))
   }, [domainProcesses])
 
   // Client-side filtering function to get processes for a specific domain
   const getProcessesForDomain = useCallback(
     (domain: string): ProcessOption[] => {
       const found = domainProcesses.find(dp => dp.domain === domain)
-      return found?.processes.map(p => ({ id: p, name: p })) || []
+      return found?.processes.map(p => ({ id: p, name: p })).toSorted((a, b) => a.name.localeCompare(b.name)) || []
     },
     [domainProcesses]
   )

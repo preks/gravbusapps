@@ -22,19 +22,19 @@ import {
 import { TranslationWidget } from './TranslationWidget'
 
 export interface TranslatableFieldProps {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  translations: Record<string, string>
-  onTranslationsChange: (translations: Record<string, string>) => void
-  placeholder?: string
-  required?: boolean
-  error?: string
-  defaultLanguage?: string
-  onDefaultLanguageChange?: (language: string) => void
-  className?: string
-  variant?: 'input' | 'textarea'
-  'data-testid'?: string
+  readonly label: string
+  readonly value: string
+  readonly onChange: (value: string) => void
+  readonly translations: Record<string, string>
+  readonly onTranslationsChange: (translations: Record<string, string>) => void
+  readonly placeholder?: string
+  readonly required?: boolean
+  readonly error?: string
+  readonly defaultLanguage?: string
+  readonly onDefaultLanguageChange?: (language: string) => void
+  readonly className?: string
+  readonly variant?: 'input' | 'textarea'
+  readonly 'data-testid'?: string
 }
 
 export function TranslatableField({
