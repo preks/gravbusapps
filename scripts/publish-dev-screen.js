@@ -170,7 +170,7 @@ async function uploadDirectory(buildOutputDir, azureDestinationPath) {
       await blockBlobClient.uploadFile(localFilePath, {
         blobHTTPHeaders: {
           blobContentType: contentType,
-          blobCacheControl: 'no-cache, no-store, must-revalidate'
+          blobCacheControl: 'no-cache'
         }
       })
     } catch (error) {

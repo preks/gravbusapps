@@ -45,6 +45,10 @@ interface OpportunityLayoutProps {
 
   // Hide related entities (account/contact) sections - useful in Lead Convert context
   hideRelatedEntities?: boolean
+
+  // Show dynamic stage required indicator (for conditional validation - IRM)
+  // Set to false when stage is always required (CRM)
+  showDynamicStageRequired?: boolean
 }
 
 const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
@@ -68,7 +72,8 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
   opportunityPipelineCustomFields,
   customSegments = [],
   loading = false,
-  hideRelatedEntities = false
+  hideRelatedEntities = false,
+  showDynamicStageRequired = true
 }) => {
   const { t } = useTranslation(translations)
 
@@ -118,6 +123,7 @@ const OpportunityLayout: React.FC<OpportunityLayoutProps> = ({
           stageCatalogIdentifier={stageCatalogIdentifier}
           opportunityStatusCatalogIdentifier={opportunityStatusCatalogIdentifier}
           customFields={opportunityPipelineCustomFields}
+          showDynamicStageRequired={showDynamicStageRequired}
         />
       </FormSection>
       {customSegments.map(segment => (

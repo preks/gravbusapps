@@ -351,8 +351,8 @@ const InvestmentLauncher: React.FC<InvestmentLauncherProps> = context => {
   const handleQuickAction = (action: InvestmentQuickAction) => {
     if (action.action === 'create-lead') {
       startProcess({
-        domain: 'customer-relations',
-        processName: 'createLead',
+        domain: 'investment-relations',
+        processName: 'createInvestmentLead',
         builderType: 'NATIVE_SCREEN',
         payload: {
           accessToken: context.accessToken
