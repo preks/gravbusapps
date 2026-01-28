@@ -32,7 +32,7 @@
 @import '@newwork/nw-design-system/colors';
 @import '@newwork/nw-design-system/effects';
 @import '@newwork/nw-design-system/spacing';
-@import '@newwork/nw-design-system/high-contrast';
+/* @import '@newwork/nw-design-system/high-contrast'; */ /* Commented out - not available in current design system version */
 
 @import 'tailwindcss/theme' layer(gravity-business-apps-theme) prefix(gba);
 @import 'tailwindcss/preflight' layer(gravity-business-apps-base) prefix(gba);

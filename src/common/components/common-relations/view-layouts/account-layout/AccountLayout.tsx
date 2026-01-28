@@ -177,13 +177,13 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
   useEffect(() => {
     if (!context?.accessToken || !isInitialLoad) return
     loadData(true)
-  }, [context?.accessToken, isInitialLoad, loadData])
+  }, [context?.accessToken, isInitialLoad])
 
   // Reload data when filters/search/sort change (skip initial load)
   useEffect(() => {
     if (isInitialLoad || !context?.accessToken) return
     loadData(false)
-  }, [queryVariables, isInitialLoad, context?.accessToken, loadData])
+  }, [queryVariables, context?.accessToken, loadData])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
