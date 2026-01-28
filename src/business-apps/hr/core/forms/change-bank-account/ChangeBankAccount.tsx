@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useCallback } from 'react'
+import React, { useEffect, useMemo, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
@@ -19,10 +19,6 @@ import DefaultFields from './components/DefaultFields'
 import UsFields from './components/UsFields'
 import NonUsFields from './components/NonUsFields'
 import { buildBankAccountPayload, isUnchangedExistingBankAccount } from './utils'
-import { usePendingProcessCheck, EMPLOYEE_PROCESS_CONFIGS } from '@/common/hooks/usePendingProcessCheck'
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { PendingSubmissionMessage } from '@/components/pending-submission-message'
-import translations from '../_i18n'
 import appTranslations from '../../apps/employee-record/_i18n'
 
 interface BankAccountFormValues {
@@ -40,43 +36,12 @@ interface BankAccountFormValues {
   comment?: string
 }
 
-const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo, additionalData, accessToken }) => {
+const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo, additionalData }) => {
   const { data } = useChangeBankAccount()
-  const { t } = useTranslation(translations)
   const { t: tApp } = useTranslation(appTranslations)
 
   const employee = useMemo(() => (data?.employee as any)?.Employee?.[0], [data])
   const employeePosition = useMemo(() => (data?.employee as any)?.EmployeePosition?.[0], [data])
-  const employeeId = useMemo(
-    () =>
-      (additionalData as any)?.psi_taskPayload?.psi_initialParameters?.employeeId ||
-      userInfo?.employeeDetails?.employeeId ||
-      (data?.employee as any)?.Employee?.[0]?.id ||
-      '',
-    [additionalData, userInfo, data]
-  )
-
-  // Check for pending bank account change process
-  const {
-    hasPendingProcess,
-    pendingProcessMetadata,
-    isLoading: checkingPendingProcess
-  } = usePendingProcessCheck({
-    ...EMPLOYEE_PROCESS_CONFIGS.CHANGE_BANK_ACCOUNT,
-    employeeId,
-    accessToken,
-    enabled: !!employeeId && !!accessToken,
-    displayConfig: {
-      processType: t('change-bank-account-process-title'),
-      statusMessage: t('change-bank-account-pending-status')
-    }
-  })
-
-  // Handler for closing pending message - dispatches pause event to cancel orphan task
-  const handleClosePendingMessage = useCallback(() => {
-    // Dispatch pause event to abort the task (modal doesn't unmount, so we dispatch directly)
-    dispatchProcessContinueEvent('pse_pause', {})
-  }, [])
 
   const form = useForm<BankAccountFormValues>({
     defaultValues: {
@@ -210,45 +175,10 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
     return disabled
   }, [isUSAndNoAddress, hasValidationErrors, isUnchangedExisting])
 
-  // Wait for data and pending check before rendering
-  // Platform's spinner stays visible until we render content
-  if (!data || checkingPendingProcess) {
+  if (!data) {
     return null
   }
 
-  // Show pending submission message if there's a pending process
-  if (hasPendingProcess && pendingProcessMetadata) {
-    return (
-      <div
-        className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[800px]"
-        data-testid="change-bank-account-form-container"
-      >
-        <FormHeader
-          title={title}
-          flowIconUrl={flowIconUrl}
-          employee={
-            employee
-              ? {
-                  firstName: employee.firstName,
-                  lastName: employee.lastName,
-                  pictureThumbnail: employee.pictureThumbnail,
-                  jobTitle: employeePosition?.jobPosition?.name
-                }
-              : undefined
-          }
-        />
-        <PendingSubmissionMessage
-          processType={pendingProcessMetadata.processType || 'Request'}
-          processId={pendingProcessMetadata.processId}
-          statusMessage={pendingProcessMetadata.statusMessage || 'Pending'}
-          onClose={handleClosePendingMessage}
-          data-testid="pending-bank-account-message"
-        />
-      </div>
-    )
-  }
-
-  // Show normal form
   return (
     <div
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[800px]"
