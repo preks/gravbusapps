@@ -178,6 +178,56 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     }
   }, [])
 
+  // Stable video ref callback factory to prevent video element recreation on every render
+  // This ref callback Map is stable across renders and prevents React from destroying/recreating video elements
+  const videoRefCallbacksRef = useRef<Map<string, (el: HTMLVideoElement | null) => void>>(new Map())
+
+  const getVideoRefCallback = useCallback(
+    (peerId: string, peerName: string, isLocal: boolean) => {
+      // Return existing callback if available (stable reference)
+      if (videoRefCallbacksRef.current.has(peerId)) {
+        return videoRefCallbacksRef.current.get(peerId)!
+      }
+
+      // Create new stable callback for this peer
+      const callback = (el: HTMLVideoElement | null) => {
+        if (el) {
+          rtkDebug.log(`[RTK Modal] 📹 Video element created for ${isLocal ? 'local' : 'peer'}`, {
+            peerId,
+            peerName,
+            isLocal,
+            isMinimized: callState.isMinimized,
+            wasAttached: attachedPeersRef.current.has(peerId),
+            timestamp: Date.now()
+          })
+          if (isLocal) {
+            setLocalVideoRef(el)
+          } else {
+            remoteVideoRefs.current.set(peerId, el)
+            setVideoElementsVersion(v => v + 1)
+          }
+        } else {
+          rtkDebug.log(`[RTK Modal] 🗑️ Video element destroyed for ${isLocal ? 'local' : 'peer'}`, {
+            peerId,
+            peerName,
+            isLocal,
+            isMinimized: callState.isMinimized,
+            timestamp: Date.now()
+          })
+          if (isLocal) {
+            setLocalVideoRef(null)
+          } else {
+            remoteVideoRefs.current.delete(peerId)
+          }
+        }
+      }
+
+      videoRefCallbacksRef.current.set(peerId, callback)
+      return callback
+    },
+    [setLocalVideoRef, callState.isMinimized]
+  )
+
   const [focusedScreenShareId, setFocusedScreenShareId] = useState<string | null>(null)
   const [expandedScreenShare, setExpandedScreenShare] = useState<{
     peerId: string
@@ -196,26 +246,104 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   // - WebSocket events use customParticipantId (from our user database)
   // - SDK assigns its own userId (different from our DB ID)
   // - Both IDs must be checked to match participants across systems
-  const isParticipantHandRaised = useCallback(
-    (participantUserId: string | undefined, participantCustomId: string | undefined) => {
-      if (!participantUserId && !participantCustomId) return false
+  // Helper to check if a peerId represents the local user
+  const isLocalUser = (checkPeerId: string | undefined) => {
+    if (!checkPeerId) return false
+    return checkPeerId === meeting?.self?.id || checkPeerId === 'local'
+  }
 
-      // Check if it's the local user
-      if (participantUserId === meeting?.self?.userId) {
-        return callState.handRaised
-      }
+  // Helper to check if a participant's hand is raised
+  // NOT memoized - always reads latest callState to avoid stale closures
+  const isParticipantHandRaised = (
+    peerId: string | undefined,
+    participantUserId: string | undefined,
+    participantCustomId: string | undefined
+  ) => {
+    if (!peerId && !participantUserId && !participantCustomId) return false
 
-      // Check remote participants - try BOTH userId and customParticipantId
-      const isRaisedByUserId = participantUserId ? callState.remoteHandsRaised?.[participantUserId] || false : false
-      const isRaisedByCustomId = participantCustomId
-        ? callState.remoteHandsRaised?.[participantCustomId] || false
-        : false
-      const isRaised = isRaisedByUserId || isRaisedByCustomId
+    // Check if it's the local user
+    if (participantUserId === meeting?.self?.userId || isLocalUser(peerId)) {
+      return callState.handRaised
+    }
 
-      return isRaised
-    },
-    [callState.handRaised, callState.remoteHandsRaised, meeting?.self?.userId]
-  )
+    // Check remote participants - try ALL three IDs (same pattern as reactions)
+    const remoteHands = callState.remoteHandsRaised || {}
+    const isRaisedByPeerId = peerId ? remoteHands[peerId] === true : false
+    const isRaisedByUserId = participantUserId ? remoteHands[participantUserId] === true : false
+    const isRaisedByCustomId = participantCustomId ? remoteHands[participantCustomId] === true : false
+    const isRaised = isRaisedByPeerId || isRaisedByUserId || isRaisedByCustomId
+
+    rtkDebug.log('[RTK Modal] 🖐️ isParticipantHandRaised check:', {
+      peerId,
+      participantUserId,
+      participantCustomId,
+      remoteHandsRaisedObject: remoteHands,
+      remoteHandsRaisedKeys: Object.keys(remoteHands),
+      valuesByKey: {
+        byPeerId: peerId ? remoteHands[peerId] : 'N/A',
+        byUserId: participantUserId ? remoteHands[participantUserId] : 'N/A',
+        byCustomId: participantCustomId ? remoteHands[participantCustomId] : 'N/A'
+      },
+      isRaisedByPeerId,
+      isRaisedByUserId,
+      isRaisedByCustomId,
+      finalResult: isRaised
+    })
+
+    return isRaised
+  }
+
+  // Helper to get the hand raise order number for a participant
+  // Match reactions pattern - check ALL three IDs (same as isParticipantHandRaised)
+  // NOT memoized - always reads latest callState to avoid stale closures
+  const getHandRaisedOrderNumber = (
+    peerId: string | undefined,
+    participantUserId: string | undefined,
+    participantCustomId: string | undefined
+  ): number | undefined => {
+    if (!peerId && !participantUserId && !participantCustomId) return undefined
+
+    const handRaisedOrder = callState.handRaisedOrder || {}
+
+    // Try all three IDs (same pattern as reactions)
+    let foundOrder: number | undefined
+    if (peerId && handRaisedOrder[peerId]) {
+      foundOrder = handRaisedOrder[peerId].order
+      rtkDebug.log('[RTK Modal] 🔢 Found order by peerId:', {
+        peerId,
+        order: foundOrder,
+        timestamp: handRaisedOrder[peerId].timestamp,
+        allKeys: Object.keys(handRaisedOrder),
+        allValues: handRaisedOrder
+      })
+      return foundOrder
+    }
+    if (participantUserId && handRaisedOrder[participantUserId]) {
+      foundOrder = handRaisedOrder[participantUserId].order
+      rtkDebug.log('[RTK Modal] 🔢 Found order by userId:', {
+        participantUserId,
+        order: foundOrder,
+        timestamp: handRaisedOrder[participantUserId].timestamp,
+        allKeys: Object.keys(handRaisedOrder),
+        allValues: handRaisedOrder
+      })
+      return foundOrder
+    }
+    if (participantCustomId && handRaisedOrder[participantCustomId]) {
+      foundOrder = handRaisedOrder[participantCustomId].order
+      rtkDebug.log('[RTK Modal] 🔢 Found order by customId:', {
+        participantCustomId,
+        order: foundOrder,
+        timestamp: handRaisedOrder[participantCustomId].timestamp,
+        allKeys: Object.keys(handRaisedOrder),
+        allValues: handRaisedOrder
+      })
+      return foundOrder
+    }
+
+    return undefined
+  }
+
   const [currentPage, setCurrentPage] = useState(0)
   const [showParticipantsPanel, setShowParticipantsPanel] = useState(false)
   const [activeReactions, setActiveReactions] = useState<
@@ -515,43 +643,108 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     }
   }, [wsClient, currentUser, participants, meeting])
 
-  // Auto-play local video stream (fallback if meeting.self.videoTrack not available)
+  // Track local video element initialization
+  const localVideoInitializedRef = useRef(false)
+  const localVideoTrackIdRef = useRef<string | null>(null)
+  const localAudioTrackIdRef = useRef<string | null>(null)
+
+  // Auto-play local video stream with optimized track updates
   useEffect(() => {
     const videoElement = localVideoRef.current
     if (!videoElement) return
 
+    const localVideoTrack = meeting?.self?.videoTrack
+    const localAudioTrack = meeting?.self?.audioTrack
+    const currentVideoTrackId = localVideoTrack?.id || null
+    const currentAudioTrackId = localAudioTrack?.id || null
+
     rtkDebug.log('[RTK Modal] 🔄 Local video stream attachment effect running', {
       hasVideoElement: !!videoElement,
-      hasVideoTrack: !!meeting?.self?.videoTrack,
-      hasAudioTrack: !!meeting?.self?.audioTrack,
+      hasVideoTrack: !!localVideoTrack,
+      hasAudioTrack: !!localAudioTrack,
       isVideoEnabled: callState.isVideoEnabled,
-      hasLocalStream: !!localStream
+      hasLocalStream: !!localStream,
+      isInitialized: localVideoInitializedRef.current,
+      videoTrackChanged: localVideoTrackIdRef.current !== currentVideoTrackId,
+      audioTrackChanged: localAudioTrackIdRef.current !== currentAudioTrackId
     })
 
-    // Prefer meeting.self.videoTrack if available, otherwise use localStream
-    const localVideoTrack = meeting?.self?.videoTrack
-    if (localVideoTrack && callState.isVideoEnabled) {
+    // Initial attachment
+    if (!localVideoInitializedRef.current && (localVideoTrack || localAudioTrack)) {
       const stream = new MediaStream()
-      stream.addTrack(localVideoTrack)
-      if (meeting?.self?.audioTrack) {
-        stream.addTrack(meeting.self.audioTrack)
-      }
+      if (localVideoTrack) stream.addTrack(localVideoTrack)
+      if (localAudioTrack) stream.addTrack(localAudioTrack)
+
       videoElement.srcObject = stream
-      rtkDebug.log('[RTK Modal] ✅ Local video stream attached from meeting.self', {
-        hasVideo: true,
-        hasAudio: !!meeting?.self?.audioTrack
+      localVideoInitializedRef.current = true
+      localVideoTrackIdRef.current = currentVideoTrackId
+      localAudioTrackIdRef.current = currentAudioTrackId
+
+      rtkDebug.log('[RTK Modal] ✅ Local video stream initially attached', {
+        hasVideo: !!localVideoTrack,
+        hasAudio: !!localAudioTrack
       })
-    } else if (localStream) {
-      videoElement.srcObject = localStream
-      rtkDebug.log('[RTK Modal] ✅ Local video stream attached from localStream')
+      return
     }
-  }, [
-    localStream,
-    meeting?.self?.videoTrack,
-    meeting?.self?.audioTrack,
-    callState.isVideoEnabled,
-    videoElementsVersion
-  ])
+
+    // Track updates for initialized stream
+    if (localVideoInitializedRef.current && videoElement.srcObject instanceof MediaStream) {
+      const stream = videoElement.srcObject
+      const videoTrackChanged = localVideoTrackIdRef.current !== currentVideoTrackId
+      const audioTrackChanged = localAudioTrackIdRef.current !== currentAudioTrackId
+
+      if (videoTrackChanged || audioTrackChanged) {
+        rtkDebug.log('[RTK Modal] 🔄 Local track changed', {
+          videoChanged: videoTrackChanged,
+          audioChanged: audioTrackChanged,
+          oldVideoId: localVideoTrackIdRef.current,
+          newVideoId: currentVideoTrackId,
+          oldAudioId: localAudioTrackIdRef.current,
+          newAudioId: currentAudioTrackId
+        })
+
+        try {
+          // Update video track if changed
+          if (videoTrackChanged) {
+            stream.getVideoTracks().forEach(track => stream.removeTrack(track))
+            if (localVideoTrack && callState.isVideoEnabled) {
+              stream.addTrack(localVideoTrack)
+            }
+            localVideoTrackIdRef.current = currentVideoTrackId
+            rtkDebug.log('[RTK Modal] 📹 Updated local video track')
+          }
+
+          // Update audio track if changed
+          if (audioTrackChanged) {
+            stream.getAudioTracks().forEach(track => stream.removeTrack(track))
+            if (localAudioTrack) {
+              stream.addTrack(localAudioTrack)
+            }
+            localAudioTrackIdRef.current = currentAudioTrackId
+            rtkDebug.log('[RTK Modal] 🔊 Updated local audio track')
+          }
+
+          rtkDebug.log('[RTK Modal] ✅ Local tracks updated dynamically', {
+            hasVideo: !!localVideoTrack && callState.isVideoEnabled,
+            hasAudio: !!localAudioTrack,
+            streamVideoTracks: stream.getVideoTracks().length,
+            streamAudioTracks: stream.getAudioTracks().length
+          })
+        } catch (error) {
+          rtkDebug.warn('[RTK Modal] ⚠️ Local track update failed, falling back to full replacement:', error)
+
+          // Fallback to full replacement
+          const newStream = new MediaStream()
+          if (localVideoTrack && callState.isVideoEnabled) newStream.addTrack(localVideoTrack)
+          if (localAudioTrack) newStream.addTrack(localAudioTrack)
+
+          videoElement.srcObject = newStream
+          localVideoTrackIdRef.current = currentVideoTrackId
+          localAudioTrackIdRef.current = currentAudioTrackId
+        }
+      }
+    }
+  }, [meeting?.self?.videoTrack, meeting?.self?.audioTrack, callState.isVideoEnabled, videoElementsVersion])
 
   // Track which peers have had streams attached to avoid flickering
   const attachedPeersRef = useRef<Set<string>>(new Set())
@@ -730,53 +923,94 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           }
 
           /**
-           * CRITICAL WORKAROUND: HTML Video Element Track Update Issue
+           * OPTIMIZED TRACK UPDATE: Minimize Video Flicker
            *
-           * Issue: When remote peer's tracks change (e.g., video OFF then ON), simply
-           * updating srcObject doesn't reliably refresh the video/audio playback.
-           * Audio particularly fails to resume even though the track exists and is enabled.
+           * Strategy: Update only the changed track(s) in the existing MediaStream
+           * instead of resetting the entire srcObject. This prevents video flashing
+           * when only audio changes (mute/unmute).
            *
-           * Root Cause: Browsers (Chrome/Firefox) aggressively cache MediaStream state
-           * in the HTMLVideoElement. When tracks are replaced in the stream, the element
-           * doesn't automatically detect the change and re-establish playback.
+           * Cases handled:
+           * 1. Audio only changed (mute/unmute) → Update audio track only, keep video
+           * 2. Video only changed (video on/off) → Update video track only, keep audio
+           * 3. Both changed → Update both tracks
            *
-           * Solution: Force complete refresh by:
-           * 1. Set srcObject = null to clear cached stream state
-           * 2. Wait 10ms for browser to process the null (triggers internal cleanup)
-           * 3. Set srcObject = newStream with fresh tracks
-           * 4. Explicitly set muted = false (browser might auto-mute on stream changes)
-           * 5. Call play() to ensure playback resumes (might be auto-paused)
-           *
-           * Note: This is a documented browser behavior issue, not a Cloudflare SDK bug.
-           * See: https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/srcObject
+           * Fallback: If updating individual tracks fails (edge case), fall back to
+           * full stream replacement with the null-then-set workaround.
            */
-          const newStream = new MediaStream()
-          if (cameraVideoTrack) newStream.addTrack(cameraVideoTrack)
-          if (peer.audioTrack) newStream.addTrack(peer.audioTrack)
 
           // Debounced update to prevent flickering from rapid track changes
           const timer = setTimeout(() => {
-            videoElement.srcObject = null
+            try {
+              const stream = videoElement.srcObject as MediaStream
 
-            setTimeout(() => {
-              videoElement.srcObject = newStream
+              // Update audio track if changed
+              if (audioTrackChanged) {
+                // Remove old audio track(s)
+                stream.getAudioTracks().forEach(track => stream.removeTrack(track))
+
+                // Add new audio track if available
+                if (peer.audioTrack) {
+                  stream.addTrack(peer.audioTrack)
+                }
+
+                rtkDebug.log(`[RTK Modal] 🔊 Updated audio track for peer ${peer.name || peer.id}`, {
+                  hasAudio: !!peer.audioTrack,
+                  audioTrackId: peer.audioTrack?.id
+                })
+              }
+
+              // Update video track if changed
+              if (videoTrackChanged) {
+                // Remove old video track(s)
+                stream.getVideoTracks().forEach(track => stream.removeTrack(track))
+
+                // Add new video track if available
+                if (cameraVideoTrack) {
+                  stream.addTrack(cameraVideoTrack)
+                }
+
+                rtkDebug.log(`[RTK Modal] 📹 Updated video track for peer ${peer.name || peer.id}`, {
+                  hasVideo: !!cameraVideoTrack,
+                  videoTrackId: cameraVideoTrack?.id
+                })
+              }
+
+              // Ensure playback continues
               videoElement.muted = false
-
               videoElement.play().catch(err => {
                 rtkDebug.warn(`[RTK Modal] Could not auto-play peer ${peer.name || peer.id}:`, err)
               })
 
-              rtkDebug.log(`[RTK Modal] ✅ Updated stream for peer ${peer.name || peer.id}`, {
+              rtkDebug.log(`[RTK Modal] ✅ Updated tracks for peer ${peer.name || peer.id}`, {
                 hasVideo: !!cameraVideoTrack,
                 hasAudio: !!peer.audioTrack,
                 videoElementMuted: videoElement.muted,
-                streamAudioTracks: newStream.getAudioTracks().length,
-                streamVideoTracks: newStream.getVideoTracks().length
+                streamAudioTracks: stream.getAudioTracks().length,
+                streamVideoTracks: stream.getVideoTracks().length
               })
+            } catch (error) {
+              // Fallback: Full stream replacement if track update fails
+              rtkDebug.warn(
+                `[RTK Modal] ⚠️ Track update failed for peer ${peer.name || peer.id}, falling back to full stream replacement:`,
+                error
+              )
 
-              // Clean up timer reference
-              trackUpdateTimersRef.current.delete(peer.id)
-            }, 10)
+              const newStream = new MediaStream()
+              if (cameraVideoTrack) newStream.addTrack(cameraVideoTrack)
+              if (peer.audioTrack) newStream.addTrack(peer.audioTrack)
+
+              videoElement.srcObject = null
+              setTimeout(() => {
+                videoElement.srcObject = newStream
+                videoElement.muted = false
+                videoElement.play().catch(err => {
+                  rtkDebug.warn(`[RTK Modal] Could not auto-play peer ${peer.name || peer.id}:`, err)
+                })
+              }, 10)
+            }
+
+            // Clean up timer reference
+            trackUpdateTimersRef.current.delete(peer.id)
           }, 50) // 50ms debounce to batch rapid updates
 
           trackUpdateTimersRef.current.set(peer.id, timer)
@@ -902,6 +1136,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       peer: any
     }> = []
 
+    const seenPeerIds = new Set<string>()
+
     // Find screen shares from remote peers
     stableRemotePeers?.forEach((peer: any) => {
       // Check multiple ways to detect screen share
@@ -909,6 +1145,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       const hasScreenShareEnabled = peer.screenShareEnabled === true
 
       rtkDebug.log(`[RTK Modal] Checking peer ${peer.name || peer.id} for screen share:`, {
+        peerId: peer.id,
         hasScreenShareTrack: !!screenShareTrack,
         screenShareEnabled: hasScreenShareEnabled,
         screenShareTracks: peer.screenShareTracks,
@@ -916,13 +1153,18 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       })
 
       if (screenShareTrack) {
-        shares.push({
-          peerId: peer.id,
-          peerName: peer.name || peer.displayName || peer.customParticipantId || 'Unknown',
-          screenShareTrack,
-          trackId: screenShareTrack.id,
-          peer
-        })
+        if (!seenPeerIds.has(peer.id)) {
+          shares.push({
+            peerId: peer.id,
+            peerName: peer.name || peer.displayName || peer.customParticipantId || 'Unknown',
+            screenShareTrack,
+            trackId: screenShareTrack.id,
+            peer
+          })
+          seenPeerIds.add(peer.id)
+        } else {
+          rtkDebug.warn(`[RTK Modal] ⚠️ Duplicate screen share for peer ${peer.id} - skipping`)
+        }
       } else if (hasScreenShareEnabled) {
         // Screen share is enabled but track not found yet - might be initializing
         rtkDebug.warn(`[RTK Modal] Peer ${peer.name || peer.id} has screenShareEnabled=true but no track found`)
@@ -931,13 +1173,19 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
     // Add local screen share if active
     if (callState.isScreenSharing && localScreenShareTrack) {
-      shares.push({
-        peerId: 'local',
-        peerName: participants[0]?.odName || 'You',
-        screenShareTrack: localScreenShareTrack,
-        trackId: localScreenShareTrack.id,
-        peer: null
-      })
+      const localPeerId = meeting?.self?.id || 'local' // Use actual peer ID
+      if (!seenPeerIds.has(localPeerId)) {
+        shares.push({
+          peerId: localPeerId,
+          peerName: participants[0]?.odName || 'You',
+          screenShareTrack: localScreenShareTrack,
+          trackId: localScreenShareTrack.id,
+          peer: null
+        })
+        seenPeerIds.add('local')
+      } else {
+        rtkDebug.warn(`[RTK Modal] ⚠️ Duplicate screen share for local peer - skipping`)
+      }
     }
 
     rtkDebug.log(
@@ -989,20 +1237,30 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       isFocusedScreenShare?: boolean
       isActiveSpeaker?: boolean // Active speaker highlighting
     }> = []
+    const seenIds = new Set<string>()
 
     // Add focused screen share first (if exists) - will be larger in grid
     if (focusedScreenShare) {
-      items.push({
-        id: `screen-share-${focusedScreenShare.peerId}`,
-        type: 'screen-share',
-        peerId: focusedScreenShare.peerId,
-        peerName: focusedScreenShare.peerName,
-        screenShareTrack: focusedScreenShare.screenShareTrack,
-        isLocal: focusedScreenShare.peerId === 'local',
-        isMuted: focusedScreenShare.peerId === 'local' ? callState.isMuted : false,
-        isVideoEnabled: true,
-        isFocusedScreenShare: true
-      })
+      const itemId = `screen-share-${focusedScreenShare.peerId}`
+      if (!seenIds.has(itemId)) {
+        items.push({
+          id: itemId,
+          type: 'screen-share',
+          peerId: focusedScreenShare.peerId,
+          peerName: focusedScreenShare.peerName,
+          screenShareTrack: focusedScreenShare.screenShareTrack,
+          isLocal: isLocalUser(focusedScreenShare.peerId),
+          isMuted: isLocalUser(focusedScreenShare.peerId) ? callState.isMuted : false,
+          isVideoEnabled: true,
+          isFocusedScreenShare: true
+        })
+        seenIds.add(itemId)
+        rtkDebug.log('[RTK Modal] 🖥️ Added focused screen share:', {
+          itemId,
+          peerId: focusedScreenShare.peerId,
+          peerName: focusedScreenShare.peerName
+        })
+      }
     }
 
     // Add local participant (video or avatar) - ALWAYS show, even when screen sharing
@@ -1012,38 +1270,58 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     const localHasVideo = callState.isVideoEnabled && !!localVideoTrack
 
     // Always add local participant - screen share is a separate item
-    items.push({
-      id: 'local-participant',
-      type: localHasVideo ? 'video' : 'avatar',
-      peerId: 'local',
-      peerName: participants[0]?.odName || 'You',
-      userId: meeting?.self?.userId, // For checking hand-raised state
-      customParticipantId: meeting?.self?.customParticipantId, // Our DB user ID - for checking reactions
-      videoTrack: localVideoTrack,
-      audioTrack: localAudioTrack,
-      hasVideoTrack: localHasVideo, // For rendering decision
-      hasAudioTrack: !!localAudioTrack, // Audio needs video element too!
-      isLocal: true,
-      isMuted: callState.isMuted,
-      isVideoEnabled: callState.isVideoEnabled,
-      // Don't highlight yourself as active speaker (industry standard UX)
-      // You already know you're speaking - more useful to see who ELSE is speaking
-      isActiveSpeaker: false // Could make this: activeSpeakerId === 'local' to show self-highlight
-    })
+    const localParticipantId = 'local-participant'
+    if (!seenIds.has(localParticipantId)) {
+      items.push({
+        id: localParticipantId,
+        type: localHasVideo ? 'video' : 'avatar',
+        peerId: meeting?.self?.id || 'local', // Use actual peer ID from SDK (fallback to 'local' for safety)
+        peerName: participants[0]?.odName || 'You',
+        userId: meeting?.self?.userId, // For checking hand-raised state
+        customParticipantId: meeting?.self?.customParticipantId, // Our DB user ID - for checking reactions
+        videoTrack: localVideoTrack,
+        audioTrack: localAudioTrack,
+        hasVideoTrack: localHasVideo, // For rendering decision
+        hasAudioTrack: !!localAudioTrack, // Audio needs video element too!
+        isLocal: true,
+        isMuted: callState.isMuted,
+        isVideoEnabled: callState.isVideoEnabled,
+        // Don't highlight yourself as active speaker (industry standard UX)
+        // You already know you're speaking - more useful to see who ELSE is speaking
+        isActiveSpeaker: false // Could make this: activeSpeakerId === 'local' to show self-highlight
+      })
+      seenIds.add(localParticipantId)
+    }
 
     // Add ALL non-focused screen shares (from allScreenShares array)
+    // CRITICAL: Skip the focused one - it's already added above!
     allScreenShares.forEach(share => {
-      if (share.peerId !== focusedScreenShare?.peerId) {
+      // Skip if this is the focused screen share (already added above)
+      if (focusedScreenShare && share.peerId === focusedScreenShare.peerId) {
+        rtkDebug.log('[RTK Modal] ⏭️ Skipping focused screen share (already added):', share.peerId)
+        return
+      }
+
+      const shareId = `screen-share-${share.peerId}`
+      if (!seenIds.has(shareId)) {
         items.push({
-          id: `screen-share-${share.peerId}`,
+          id: shareId,
           type: 'screen-share',
           peerId: share.peerId,
           peerName: share.peerName,
           screenShareTrack: share.screenShareTrack,
-          isLocal: share.peerId === 'local',
-          isMuted: share.peerId === 'local' ? callState.isMuted : false,
+          isLocal: isLocalUser(share.peerId),
+          isMuted: isLocalUser(share.peerId) ? callState.isMuted : false,
           isVideoEnabled: true
         })
+        seenIds.add(shareId)
+        rtkDebug.log('[RTK Modal] 🖥️ Added non-focused screen share:', {
+          shareId,
+          peerId: share.peerId,
+          peerName: share.peerName
+        })
+      } else {
+        rtkDebug.warn('[RTK Modal] ⚠️ Skipping duplicate screen share:', shareId)
       }
     })
 
@@ -1053,22 +1331,34 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       const cameraVideoTrack = peer.videoTrack && !isVideoTrackScreenShare(peer.videoTrack) ? peer.videoTrack : null
       const hasVideo = peer.videoEnabled && !!cameraVideoTrack
 
-      items.push({
-        id: `participant-${peer.id}`,
-        type: hasVideo ? 'video' : 'avatar',
-        peerId: peer.id,
-        peerName: peer.name || peer.displayName || peer.customParticipantId || 'Unknown',
-        userId: peer.userId, // SDK userId - for checking hand-raised state
-        customParticipantId: peer.customParticipantId, // Our DB user ID - for checking hand-raised state
-        videoTrack: cameraVideoTrack,
-        audioTrack: peer.audioTrack,
-        hasVideoTrack: hasVideo, // For rendering decision
-        hasAudioTrack: !!peer.audioTrack, // Audio needs video element too!
-        isLocal: false,
-        isMuted: !peer.audioEnabled,
-        isVideoEnabled: peer.videoEnabled || false,
-        isActiveSpeaker: activeSpeakerId === peer.id // Check if this peer is active speaker
-      })
+      const participantId = `participant-${peer.id}`
+      if (!seenIds.has(participantId)) {
+        items.push({
+          id: participantId,
+          type: hasVideo ? 'video' : 'avatar',
+          peerId: peer.id,
+          peerName: peer.name || peer.displayName || peer.customParticipantId || 'Unknown',
+          userId: peer.userId, // SDK userId - for checking hand-raised state
+          customParticipantId: peer.customParticipantId, // Our DB user ID - for checking hand-raised state
+          videoTrack: cameraVideoTrack,
+          audioTrack: peer.audioTrack,
+          hasVideoTrack: hasVideo, // For rendering decision
+          hasAudioTrack: !!peer.audioTrack, // Audio needs video element too!
+          isLocal: false,
+          isMuted: !peer.audioEnabled,
+          isVideoEnabled: peer.videoEnabled || false,
+          isActiveSpeaker: activeSpeakerId === peer.id // Check if this peer is active speaker
+        })
+        seenIds.add(participantId)
+      } else {
+        rtkDebug.warn('[RTK Modal] ⚠️ Skipping duplicate participant:', participantId)
+      }
+    })
+
+    rtkDebug.log(`[RTK Modal] 📋 Raw items before sorting:`, {
+      totalItems: items.length,
+      itemIds: items.map(i => i.id),
+      duplicateIds: items.map(i => i.id).filter((id, index, arr) => arr.indexOf(id) !== index)
     })
 
     // Sort items: Active speaker first (after focused screen share), then by history
@@ -1112,6 +1402,13 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       focusedScreenShare: focusedScreenShare?.peerId,
       activeSpeakerId,
       activeSpeakerCount: activeSpeakerItems.length,
+      handRaisedDeps: {
+        localHandRaised: callState.handRaised,
+        remoteHandsRaisedKeys: Object.keys(callState.remoteHandsRaised || {}),
+        remoteHandsRaisedValues: callState.remoteHandsRaised,
+        handRaisedOrderKeys: Object.keys(callState.handRaisedOrder || {}),
+        handRaisedOrderValues: callState.handRaisedOrder
+      },
       items: sortedItems.map(i => ({
         id: i.id,
         type: i.type,
@@ -1120,8 +1417,13 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         customParticipantId: i.customParticipantId, // Our DB user ID
         peerName: i.peerName,
         isFocused: i.isFocusedScreenShare,
-        isActiveSpeaker: i.isActiveSpeaker
-      }))
+        isActiveSpeaker: i.isActiveSpeaker,
+        isLocal: i.isLocal
+      })),
+      duplicateCheck: {
+        allIds: sortedItems.map(i => i.id),
+        duplicates: sortedItems.map(i => i.id).filter((id, index, arr) => arr.indexOf(id) !== index)
+      }
     })
 
     return sortedItems
@@ -1132,6 +1434,9 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     callState.isVideoEnabled,
     callState.isMuted,
     callState.isScreenSharing,
+    callState.handRaised, // Needed for rendering hand indicator on local tile
+    callState.remoteHandsRaised, // Needed for rendering hand indicators on remote tiles
+    callState.handRaisedOrder, // Needed for hand-raise order numbers
     participants,
     meeting?.self?.videoTrack?.id, // Only depend on track ID, not entire object
     meeting?.self?.audioTrack?.id, // Only depend on track ID, not entire object
@@ -1140,6 +1445,19 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     activeSpeakerId,
     activeSpeakerHistory
   ])
+
+  // Clean up stale video ref callbacks when participants leave
+  useEffect(() => {
+    const currentPeerIds = new Set(gridItems.map(item => item.peerId))
+    const callbackPeerIds = Array.from(videoRefCallbacksRef.current.keys())
+
+    callbackPeerIds.forEach(peerId => {
+      if (!currentPeerIds.has(peerId)) {
+        videoRefCallbacksRef.current.delete(peerId)
+        rtkDebug.log(`[RTK Modal] 🧹 Cleaned up video ref callback for departed peer: ${peerId}`)
+      }
+    })
+  }, [gridItems])
 
   // Paginate grid items
   const paginatedGridItems = useMemo(() => {
@@ -1599,7 +1917,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
     // Check if first remote peer has raised hand
     const isFirstPeerHandRaised = rtkFirstPeer
-      ? isParticipantHandRaised(rtkFirstPeer.userId, rtkFirstPeer.customParticipantId)
+      ? isParticipantHandRaised(rtkFirstPeer.id, rtkFirstPeer.userId, rtkFirstPeer.customParticipantId)
       : false
 
     // Check if first remote peer is muted (audioEnabled is false means muted)
@@ -1622,15 +1940,20 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       document.body.appendChild(portalContainer)
     }
 
+    const firstPeerHandRaisedOrderNumber = rtkFirstPeer
+      ? getHandRaisedOrderNumber(rtkFirstPeer.id, rtkFirstPeer.userId, rtkFirstPeer.customParticipantId)
+      : undefined
+
     return createPortal(
       <MinimizedCallView
         firstRemotePeer={rtkFirstPeer}
         firstRemoteStream={firstRemoteStream}
         remotePeerCount={stableRemotePeers.length}
-        duration={callState.duration}
+        callStartTime={callState.startTime}
         isMuted={callState.isMuted}
         isVideoEnabled={callState.isVideoEnabled}
         isHandRaised={isFirstPeerHandRaised}
+        handRaisedOrderNumber={firstPeerHandRaisedOrderNumber}
         isRemotePeerMuted={isFirstPeerMuted}
         reactions={firstPeerReactions}
         onToggleMute={onToggleMute}
@@ -1676,7 +1999,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                 {/* Header */}
                 <CallHeader
                   conversationName={conversationName}
-                  duration={callState.duration}
+                  callStartTime={callState.startTime}
                   participantCount={stableRemotePeers.length + 1}
                   availableParticipantsCount={availableParticipants?.length || 0}
                   callType={callState.callType}
@@ -1715,7 +2038,12 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                             screenShareTrack={item.screenShareTrack}
                             isFocusedScreenShare={isFocused}
                             totalScreenShares={allScreenShares.length}
-                            isHandRaised={isParticipantHandRaised(item.userId, item.customParticipantId)}
+                            isHandRaised={isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId)}
+                            handRaisedOrderNumber={getHandRaisedOrderNumber(
+                              item.peerId,
+                              item.userId,
+                              item.customParticipantId
+                            )}
                             isActiveSpeaker={item.isActiveSpeaker}
                             reactions={activeReactions}
                             isMinimized={callState.isMinimized}
@@ -1741,44 +2069,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                               rtkDebug.log(`[RTK Modal] 🎯 Focus button clicked for ${item.peerId}`)
                               setFocusedScreenShareId(item.peerId)
                             }}
-                            videoRef={el => {
-                              if (el) {
-                                rtkDebug.log(
-                                  `[RTK Modal] 📹 Video element created for ${item.isLocal ? 'local' : 'peer'}`,
-                                  {
-                                    peerId: item.peerId,
-                                    peerName: item.peerName,
-                                    isLocal: item.isLocal,
-                                    isMinimized: callState.isMinimized,
-                                    wasAttached: attachedPeersRef.current.has(item.peerId),
-                                    timestamp: Date.now()
-                                  }
-                                )
-                                if (item.isLocal) {
-                                  setLocalVideoRef(el)
-                                } else {
-                                  remoteVideoRefs.current.set(item.peerId, el)
-                                  // Trigger stream attachment effect when video element is created
-                                  setVideoElementsVersion(v => v + 1)
-                                }
-                              } else {
-                                rtkDebug.log(
-                                  `[RTK Modal] 🗑️ Video element destroyed for ${item.isLocal ? 'local' : 'peer'}`,
-                                  {
-                                    peerId: item.peerId,
-                                    peerName: item.peerName,
-                                    isLocal: item.isLocal,
-                                    isMinimized: callState.isMinimized,
-                                    timestamp: Date.now()
-                                  }
-                                )
-                                if (item.isLocal) {
-                                  setLocalVideoRef(null)
-                                } else {
-                                  remoteVideoRefs.current.delete(item.peerId)
-                                }
-                              }
-                            }}
+                            videoRef={getVideoRefCallback(item.peerId, item.peerName, item.isLocal)}
                             screenShareVideoRef={
                               item.screenShareTrack
                                 ? el => {
@@ -1843,6 +2134,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                     activeSpeakerId={activeSpeakerId}
                     activeSpeakerHistory={activeSpeakerHistory}
                     remoteHandsRaised={callState.remoteHandsRaised}
+                    handRaisedOrder={callState.handRaisedOrder}
                     localHandRaised={callState.handRaised}
                     localUserId={meeting?.self?.userId}
                   />
@@ -1916,6 +2208,8 @@ export const GroupCallModalRtk = React.memo(GroupCallModalRtkComponent, (prevPro
   if (prevState.videoQuality !== nextState.videoQuality) changedStateProps.push('videoQuality')
   if (prevState.backgroundEnabled !== nextState.backgroundEnabled) changedStateProps.push('backgroundEnabled')
   if (prevState.handRaised !== nextState.handRaised) changedStateProps.push('handRaised')
+  if (prevState.remoteHandsRaised !== nextState.remoteHandsRaised) changedStateProps.push('remoteHandsRaised')
+  if (prevState.handRaisedOrder !== nextState.handRaisedOrder) changedStateProps.push('handRaisedOrder')
   if (prevState.participants.length !== nextState.participants.length) changedStateProps.push('participants.length')
   if (prevState.callType !== nextState.callType) changedStateProps.push('callType')
   if (prevState.callImplementation !== nextState.callImplementation) changedStateProps.push('callImplementation')

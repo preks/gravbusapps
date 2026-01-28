@@ -44,6 +44,8 @@ export interface ParticipantVideoTileProps {
   totalScreenShares?: number
   /** Whether participant's hand is raised */
   isHandRaised?: boolean
+  /** Order number for hand raise (1-based) */
+  handRaisedOrderNumber?: number
   /** Whether participant is the active speaker */
   isActiveSpeaker?: boolean
   /** Active reactions to display */
@@ -77,6 +79,7 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
   isFocusedScreenShare = false,
   totalScreenShares = 0,
   isHandRaised = false,
+  handRaisedOrderNumber,
   isActiveSpeaker = false,
   reactions = [],
   onScreenShareClick,
@@ -269,10 +272,13 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
         </div>
       )}
 
-      {/* Raised hand indicator */}
+      {/* Raised hand indicator with order number */}
       {isHandRaised && (
-        <div className="gba:absolute gba:top-2 gba:right-2 gba:px-2 gba:py-1 gba:rounded-full gba:bg-warning gba:text-warning-foreground gba:shadow-lg gba:animate-pulse">
+        <div className="gba:absolute gba:top-2 gba:right-2 gba:px-2 gba:py-1 gba:rounded-full gba:bg-warning gba:text-warning-foreground gba:shadow-lg gba:animate-pulse gba:flex gba:items-center gba:gap-1">
           <HandIcon className="gba:h-5 gba:w-5" weight="fill" />
+          {handRaisedOrderNumber !== undefined && (
+            <span className="gba:text-sm gba:font-bold">{handRaisedOrderNumber}</span>
+          )}
         </div>
       )}
 
@@ -303,6 +309,7 @@ export const MemoizedParticipantVideoTile = React.memo(ParticipantVideoTile, (pr
     prevProps.isFocusedScreenShare === nextProps.isFocusedScreenShare &&
     prevProps.totalScreenShares === nextProps.totalScreenShares &&
     prevProps.isHandRaised === nextProps.isHandRaised &&
+    prevProps.handRaisedOrderNumber === nextProps.handRaisedOrderNumber &&
     prevProps.isActiveSpeaker === nextProps.isActiveSpeaker &&
     prevProps.isMinimized === nextProps.isMinimized &&
     // Compare reactions array by length and content

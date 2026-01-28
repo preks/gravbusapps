@@ -5,7 +5,7 @@
  * Handles raise hand, reactions, mute requests, and other real-time communication between participants.
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState, useRef } from 'react'
 import { toast } from '@newwork/nw-design-system'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import type { CallParticipant } from '../services/webrtcClient'
@@ -28,6 +28,7 @@ export interface UseRealtimeKitWebSocketReturn {
   sendReaction: (emoji: string) => Promise<void>
   handRaised: boolean
   remoteHandsRaised: Record<string, boolean>
+  handRaisedOrder: Record<string, { order: number; timestamp: number }>
 }
 
 /**
@@ -56,9 +57,14 @@ export const useRealtimeKitWebSocket = ({
   onReactionReceived,
   onMuteRequested
 }: UseRealtimeKitWebSocketOptions): UseRealtimeKitWebSocketReturn => {
-  // Track hand raised states
+  // Track hand raised states and order
   const [handRaised, setHandRaised] = useState(false)
   const [remoteHandsRaised, setRemoteHandsRaised] = useState<Record<string, boolean>>({})
+  const [handRaisedOrder, setHandRaisedOrder] = useState<Record<string, { order: number; timestamp: number }>>({})
+
+  // Track if user has intentionally toggled their hand (to ignore spurious events on join)
+  const userIntentionallyToggledRef = useRef(false)
+  const joinTimeRef = useRef<number>(0)
 
   /**
    * Helper to emit WebSocket events
@@ -103,6 +109,9 @@ export const useRealtimeKitWebSocket = ({
       try {
         const newHandRaisedState = !currentHandRaised
 
+        // Mark that user intentionally toggled their hand
+        userIntentionallyToggledRef.current = true
+
         rtkDebug.log('[RTK] ✋ Emitting raise-hand WebSocket event', {
           roomId: meetingId,
           participantId: currentUser.id,
@@ -115,7 +124,8 @@ export const useRealtimeKitWebSocket = ({
         emitSocketEvent('group-call:raise-hand', {
           roomId: meetingId,
           participantId: currentUser.id,
-          handRaised: newHandRaisedState
+          handRaised: newHandRaisedState,
+          timestamp: Date.now()
         })
 
         // Return new state (actual state will be updated via WebSocket event listener)
@@ -177,6 +187,25 @@ export const useRealtimeKitWebSocket = ({
   )
 
   /**
+   * Track join time to implement grace period for spurious hand-raised events
+   * Reset when meetingId changes (new call)
+   */
+  useEffect(() => {
+    if (!meetingId) return
+
+    // Record join time
+    joinTimeRef.current = Date.now()
+    userIntentionallyToggledRef.current = false
+
+    rtkDebug.log('[RTK] 🚫 Just joined - will ignore spurious hand-raised events for 500ms')
+
+    return () => {
+      joinTimeRef.current = 0
+      userIntentionallyToggledRef.current = false
+    }
+  }, [meetingId]) // Only depend on meetingId
+
+  /**
    * Set up WebSocket event listeners for raise hand updates
    * Listens for hand-update events and updates local/remote hand states
    */
@@ -199,24 +228,180 @@ export const useRealtimeKitWebSocket = ({
     }
 
     // Handle raise hand state updates
-    const handleHandUpdate = (data: { participantId: string; handRaised: boolean }) => {
+    const handleHandUpdate = (data: { participantId: string; handRaised: boolean; timestamp?: number }) => {
       rtkDebug.log('[RTK] ✋ Received hand-update event:', data)
+
+      // CRITICAL: Prevent spurious hand-raised events on join (only for local user)
+      // If local user hasn't explicitly toggled their hand AND it's within 500ms of joining,
+      // AND the event is trying to raise their hand → ignore it (likely backend sending stale state)
+      const isLocalUser = currentUser && data.participantId === currentUser.id
+      const isWithinGracePeriod = Date.now() - joinTimeRef.current < 500
+      const hasNotToggledYet = !userIntentionallyToggledRef.current
+
+      if (isLocalUser && data.handRaised && isWithinGracePeriod && hasNotToggledYet) {
+        rtkDebug.warn('[RTK] 🚫 Ignoring spurious hand-raised event on join (within 500ms grace period):', data)
+        return
+      }
+
+      const timestamp = data.timestamp || Date.now()
+
+      // Resolve ALL possible IDs for this participant (like reactions approach)
+      let participantPeerId: string | undefined
+      let participantUserId: string | undefined
+      let participantCustomId: string | undefined = data.participantId
+
+      if (isLocalUser) {
+        // For local user, use self IDs (DO NOT use 'local' string - causes collisions between users)
+        participantPeerId = meeting?.self?.id // Use actual peer ID, not 'local'
+        participantUserId = meeting?.self?.userId
+        participantCustomId = meeting?.self?.customParticipantId || currentUser.id
+      } else if (meeting?.participants?.joined) {
+        // For remote user, find in participants list
+        const joined = Array.from(meeting.participants.joined.values())
+        const matchingPeer: any = joined.find(
+          (p: any) =>
+            p.customParticipantId === data.participantId ||
+            p.userId === data.participantId ||
+            p.id === data.participantId
+        )
+        if (matchingPeer) {
+          participantPeerId = matchingPeer.id
+          participantUserId = matchingPeer.userId
+          participantCustomId = matchingPeer.customParticipantId
+        }
+      }
 
       if (data.participantId === currentUser.id) {
         // Update local user's hand state
-        rtkDebug.log('[RTK] ✋ Updating own hand raise state:', data.handRaised)
+        rtkDebug.log('[RTK] ✋ Updating own hand raise state:', {
+          handRaised: data.handRaised,
+          participantId: data.participantId
+        })
         setHandRaised(data.handRaised)
       } else {
         // Update remote participant's hand state
         rtkDebug.log('[RTK] ✋ Updating remote participant hand state:', {
           participantId: data.participantId,
-          handRaised: data.handRaised
+          handRaised: data.handRaised,
+          localUserId: currentUser.id,
+          resolvedIds: { peerId: participantPeerId, userId: participantUserId, customId: participantCustomId }
         })
-        setRemoteHandsRaised(prev => ({
-          ...prev,
-          [data.participantId]: data.handRaised
-        }))
+
+        setRemoteHandsRaised(prev => {
+          const updated = { ...prev }
+          // Store under ALL possible keys (same approach as reactions filtering)
+          if (participantPeerId) updated[participantPeerId] = data.handRaised
+          if (participantUserId) updated[participantUserId] = data.handRaised
+          if (participantCustomId) updated[participantCustomId] = data.handRaised
+
+          rtkDebug.log('[RTK] ✋ Remote hands raised state after update:', updated)
+          return updated
+        })
       }
+
+      // Update hand raise order tracking (store under all IDs like remoteHandsRaised)
+      setHandRaisedOrder(prev => {
+        if (data.handRaised) {
+          // Hand raised - first remove any existing entries for this participant to avoid duplicates
+          const updated = { ...prev }
+
+          rtkDebug.log('[RTK] 🔍 BEFORE deletion:', {
+            prevKeys: Object.keys(prev),
+            prevEntries: prev,
+            willDelete: { participantPeerId, participantUserId, participantCustomId }
+          })
+
+          if (participantPeerId) delete updated[participantPeerId]
+          if (participantUserId) delete updated[participantUserId]
+          if (participantCustomId) delete updated[participantCustomId]
+
+          rtkDebug.log('[RTK] 🔍 AFTER deletion:', {
+            updatedKeys: Object.keys(updated),
+            updatedEntries: updated
+          })
+
+          // Get all unique timestamps from remaining participants
+          const allTimestamps = new Set<number>()
+          Object.values(updated).forEach(entry => allTimestamps.add(entry.timestamp))
+
+          // Sort timestamps to get order (oldest = 1, newest = N)
+          const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b)
+
+          // Calculate order for this new timestamp (position + 1)
+          const order = sortedTimestamps.length + 1
+
+          rtkDebug.log('[RTK] ✋ Assigning hand raise order:', {
+            participantId: data.participantId,
+            timestamp,
+            order,
+            existingCount: sortedTimestamps.length,
+            allTimestamps: Array.from(allTimestamps)
+          })
+
+          const orderData = { order, timestamp }
+          if (participantPeerId) updated[participantPeerId] = orderData
+          if (participantUserId) updated[participantUserId] = orderData
+          if (participantCustomId) updated[participantCustomId] = orderData
+          return updated
+        } else {
+          // Hand lowered - remove from tracking and recalculate order numbers
+          const updated = { ...prev }
+
+          rtkDebug.log('[RTK] 🔍 RECALC BEFORE deletion:', {
+            prevKeys: Object.keys(prev),
+            prevEntries: prev,
+            willDelete: { participantPeerId, participantUserId, participantCustomId }
+          })
+
+          if (participantPeerId) delete updated[participantPeerId]
+          if (participantUserId) delete updated[participantUserId]
+          if (participantCustomId) delete updated[participantCustomId]
+
+          rtkDebug.log('[RTK] 🔍 RECALC AFTER deletion:', {
+            updatedKeys: Object.keys(updated),
+            updatedEntries: updated
+          })
+
+          // Recalculate order numbers for remaining hands (preserve timestamp order)
+          const uniqueEntries = new Map<number, { order: number; timestamp: number }>()
+          Object.values(updated).forEach(entry => {
+            if (!uniqueEntries.has(entry.timestamp)) {
+              uniqueEntries.set(entry.timestamp, entry)
+            }
+          })
+
+          rtkDebug.log('[RTK] 🔍 RECALC unique timestamps:', {
+            uniqueCount: uniqueEntries.size,
+            timestamps: Array.from(uniqueEntries.keys())
+          })
+
+          // Sort by timestamp and reassign sequential order numbers
+          const sortedEntries = Array.from(uniqueEntries.entries()).sort((a, b) => a[0] - b[0])
+          sortedEntries.forEach(([timestamp], index) => {
+            const newOrder = index + 1
+            // Update all entries with this timestamp
+            Object.keys(updated).forEach(key => {
+              if (updated[key].timestamp === timestamp) {
+                rtkDebug.log('[RTK] 🔍 RECALC updating key:', {
+                  key,
+                  timestamp,
+                  newOrder,
+                  oldOrder: updated[key].order
+                })
+                updated[key] = { ...updated[key], order: newOrder }
+              }
+            })
+          })
+
+          rtkDebug.log('[RTK] ✋ Recalculated order after hand lowered:', {
+            participantId: data.participantId,
+            remainingCount: uniqueEntries.size,
+            finalEntries: updated
+          })
+
+          return updated
+        }
+      })
 
       // Notify parent if callback provided
       onHandUpdate?.(data.participantId, data.handRaised)
@@ -322,11 +507,62 @@ export const useRealtimeKitWebSocket = ({
     }
   }, [wsClient, meetingId, meeting, onMuteRequested])
 
+  // Clear hand raise state when roomId changes (new call starts)
+  const prevRoomIdRef = useRef<string | null>(null)
+  React.useEffect(() => {
+    // If roomId changed from a previous value, clear stale hand raise state
+    if (prevRoomIdRef.current !== null && prevRoomIdRef.current !== roomId) {
+      rtkDebug.log('[RTK] 🧹 Clearing hand raise state - new call starting', {
+        prevRoomId: prevRoomIdRef.current,
+        newRoomId: roomId
+      })
+      setHandRaised(false)
+      setRemoteHandsRaised({})
+      setHandRaisedOrder({})
+    }
+    prevRoomIdRef.current = roomId
+  }, [roomId])
+
+  // Calculate order numbers based on UNIQUE timestamps
+  // Multiple keys (peerId, userId, customId) can have the same timestamp = same participant
+  const calculatedOrder = React.useMemo(() => {
+    // Group by unique timestamps
+    const timestampToEntries = new Map<number, Array<[string, { order: number; timestamp: number }]>>()
+    Object.entries(handRaisedOrder).forEach(([participantId, data]) => {
+      if (!timestampToEntries.has(data.timestamp)) {
+        timestampToEntries.set(data.timestamp, [])
+      }
+      timestampToEntries.get(data.timestamp)!.push([participantId, data])
+    })
+
+    // Sort unique timestamps
+    const sortedTimestamps = Array.from(timestampToEntries.keys()).sort((a, b) => a - b)
+
+    // Assign same order to all keys with the same timestamp
+    const orderMap: Record<string, { order: number; timestamp: number }> = {}
+    sortedTimestamps.forEach((timestamp, index) => {
+      const order = index + 1 // 1-based order
+      const entries = timestampToEntries.get(timestamp)!
+      entries.forEach(([participantId, data]) => {
+        orderMap[participantId] = { order, timestamp: data.timestamp }
+      })
+    })
+
+    rtkDebug.log('[RTK] 🔢 Calculated order from unique timestamps:', {
+      uniqueTimestamps: sortedTimestamps.length,
+      totalKeys: Object.keys(handRaisedOrder).length,
+      orderMap
+    })
+
+    return orderMap
+  }, [handRaisedOrder])
+
   return {
     emitSocketEvent,
     toggleRaiseHand,
     sendReaction,
     handRaised,
-    remoteHandsRaised
+    remoteHandsRaised,
+    handRaisedOrder: calculatedOrder
   }
 }

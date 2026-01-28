@@ -68,6 +68,8 @@ export interface ParticipantsPanelProps {
   onMuteAll?: () => void
   /** Map of remote participant IDs to hand raised state */
   remoteHandsRaised?: Record<string, boolean>
+  /** Map of participant IDs to hand raise order */
+  handRaisedOrder?: Record<string, { order: number; timestamp: number }>
   /** Local user's hand raised state */
   localHandRaised?: boolean
   /** Current user's ID */
@@ -91,6 +93,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   onMuteParticipant,
   onMuteAll,
   remoteHandsRaised = {},
+  handRaisedOrder = {},
   localHandRaised = false,
   localUserId,
   activeSpeakerId,
@@ -105,6 +108,11 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
       return localHandRaised
     }
     return remoteHandsRaised[participantId] || false
+  }
+
+  // Helper to get hand raise order number
+  const getHandRaiseOrderNumber = (participantId: string): number | undefined => {
+    return handRaisedOrder[participantId]?.order
   }
 
   // Get active call participants from SDK
@@ -349,7 +357,17 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                             {(isHandRaised(participant.userId) ||
                               isHandRaised(participant.customParticipantId) ||
                               isHandRaised(participant.id)) && (
-                              <HandIcon className="gba:h-3 gba:w-3 gba:text-warning gba:animate-pulse" weight="fill" />
+                              <div className="gba:flex gba:items-center gba:gap-0.5">
+                                <HandIcon
+                                  className="gba:h-3 gba:w-3 gba:text-warning gba:animate-pulse"
+                                  weight="fill"
+                                />
+                                <span className="gba:text-xs gba:font-bold gba:text-warning">
+                                  {getHandRaiseOrderNumber(participant.userId) ||
+                                    getHandRaiseOrderNumber(participant.customParticipantId) ||
+                                    getHandRaiseOrderNumber(participant.id)}
+                                </span>
+                              </div>
                             )}
                             {participant.screenShareEnabled && (
                               <MonitorIcon className="gba:h-3 gba:w-3 gba:text-primary" weight="fill" />

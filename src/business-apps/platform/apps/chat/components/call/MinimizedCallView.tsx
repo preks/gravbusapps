@@ -9,7 +9,7 @@
  * - Quick controls (mute, video, expand, end call)
  */
 
-import React, { useRef, useEffect, useMemo } from 'react'
+import React, { useRef, useEffect, useMemo, useState } from 'react'
 import {
   UserIcon,
   MicrophoneIcon,
@@ -36,14 +36,16 @@ export interface MinimizedCallViewProps {
   firstRemoteStream?: MediaStream | null
   /** Total number of remote peers */
   remotePeerCount: number
-  /** Call duration in seconds */
-  duration: number
+  /** Call start timestamp (Unix ms) - used to calculate live duration */
+  callStartTime: number | null
   /** Whether local mic is muted */
   isMuted: boolean
   /** Whether local video is enabled */
   isVideoEnabled: boolean
   /** Whether first remote peer has raised hand */
   isHandRaised?: boolean
+  /** Order number for hand raise (1-based) */
+  handRaisedOrderNumber?: number
   /** Whether first remote peer is muted */
   isRemotePeerMuted?: boolean
   /** Active reactions to display for first remote peer */
@@ -67,10 +69,11 @@ export const MinimizedCallView: React.FC<MinimizedCallViewProps> = React.memo(
     firstRemotePeer,
     firstRemoteStream,
     remotePeerCount,
-    duration,
+    callStartTime,
     isMuted,
     isVideoEnabled,
     isHandRaised = false,
+    handRaisedOrderNumber,
     isRemotePeerMuted = false,
     reactions = [],
     onToggleMute,
@@ -81,6 +84,27 @@ export const MinimizedCallView: React.FC<MinimizedCallViewProps> = React.memo(
     t = (key: string) => key
   }) => {
     const videoRef = useRef<HTMLVideoElement>(null)
+
+    // Calculate live duration independently to avoid parent re-renders
+    const [duration, setDuration] = useState(0)
+
+    useEffect(() => {
+      if (!callStartTime) {
+        setDuration(0)
+        return
+      }
+
+      // Calculate initial duration
+      const calculateDuration = () => Math.floor((Date.now() - callStartTime) / 1000)
+      setDuration(calculateDuration())
+
+      // Update every second
+      const timer = setInterval(() => {
+        setDuration(calculateDuration())
+      }, 1000)
+
+      return () => clearInterval(timer)
+    }, [callStartTime])
 
     // Attach stream to video element
     // CRITICAL: Only update srcObject if the video track ID actually changed to prevent flicker
@@ -171,10 +195,13 @@ export const MinimizedCallView: React.FC<MinimizedCallViewProps> = React.memo(
             <span className="gba:text-white gba:text-xs gba:font-mono">{formatDuration(duration)}</span>
           </div>
 
-          {/* Raised hand indicator */}
+          {/* Raised hand indicator with order number */}
           {isHandRaised && (
-            <div className="gba:absolute gba:bottom-2 gba:right-2 gba:px-2 gba:py-1 gba:rounded-full gba:bg-warning gba:text-warning-foreground gba:shadow-lg gba:animate-pulse">
+            <div className="gba:absolute gba:bottom-2 gba:right-2 gba:px-2 gba:py-1 gba:rounded-full gba:bg-warning gba:text-warning-foreground gba:shadow-lg gba:animate-pulse gba:flex gba:items-center gba:gap-1">
               <HandIcon className="gba:h-4 gba:w-4" weight="fill" />
+              {handRaisedOrderNumber !== undefined && (
+                <span className="gba:text-xs gba:font-bold">{handRaisedOrderNumber}</span>
+              )}
             </div>
           )}
 

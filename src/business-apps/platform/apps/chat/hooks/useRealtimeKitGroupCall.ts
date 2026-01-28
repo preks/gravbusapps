@@ -105,6 +105,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     backgroundEnabled: false,
     handRaised: false,
     remoteHandsRaised: {},
+    handRaisedOrder: {},
     startTime: null,
     duration: 0,
     callImplementation: 'realtime-kit'
@@ -256,8 +257,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   }
 
   // Combined call state for compatibility
-  const combinedCallState: GroupCallUIState = useMemo(
-    () => ({
+  const combinedCallState: GroupCallUIState = useMemo(() => {
+    const state = {
       roomId: callState.roomId,
       callType: callState.callType,
       status: callState.status,
@@ -269,31 +270,41 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       backgroundEnabled: media.backgroundEnabled,
       handRaised: websocket.handRaised,
       remoteHandsRaised: websocket.remoteHandsRaised || {},
+      handRaisedOrder: websocket.handRaisedOrder || {},
       participants: participantsHook.participants,
       hostId: callState.hostId,
       startTime: callState.callStartTime,
       duration: callState.duration,
-      callImplementation: 'realtime-kit'
-    }),
-    [
-      callState.roomId,
-      callState.callType,
-      callState.status,
-      callState.isMinimized,
-      callState.hostId,
-      callState.callStartTime,
-      // CRITICAL: callState.duration REMOVED - it updates every second and would cause
-      // combinedCallState to be recreated every second, triggering re-renders
-      media.isMuted,
-      media.isVideoEnabled,
-      screenShare.isScreenSharing,
-      media.videoQuality,
-      media.backgroundEnabled,
-      websocket.handRaised,
-      websocket.remoteHandsRaised,
-      participantsHook.participants
-    ]
-  )
+      callImplementation: 'realtime-kit' as const
+    }
+
+    rtkDebug.log('[RTK] 🔄 combinedCallState recomputed:', {
+      handRaised: state.handRaised,
+      remoteHandsRaisedKeys: Object.keys(state.remoteHandsRaised),
+      remoteHandsRaisedValues: state.remoteHandsRaised,
+      handRaisedOrderKeys: Object.keys(state.handRaisedOrder)
+    })
+
+    return state
+  }, [
+    callState.roomId,
+    callState.callType,
+    callState.status,
+    callState.isMinimized,
+    callState.hostId,
+    callState.callStartTime,
+    // CRITICAL: callState.duration REMOVED - it updates every second and would cause
+    // combinedCallState to be recreated every second, triggering re-renders
+    media.isMuted,
+    media.isVideoEnabled,
+    screenShare.isScreenSharing,
+    media.videoQuality,
+    media.backgroundEnabled,
+    websocket.handRaised,
+    websocket.remoteHandsRaised,
+    websocket.handRaisedOrder,
+    participantsHook.participants
+  ])
 
   /**
    * Start the duration timer - updates every second
@@ -1263,7 +1274,20 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
   /**
    * Stable callbacks - wrap in useCallback to prevent re-creating on every render
+   * CRITICAL: These wrappers prevent video element destruction/recreation
    */
+  const stableToggleMute = useCallback(() => {
+    return media.toggleMute()
+  }, [media.toggleMute])
+
+  const stableToggleVideo = useCallback(() => {
+    return media.toggleVideo()
+  }, [media.toggleVideo])
+
+  const stableToggleBackground = useCallback(() => {
+    return media.toggleBackground()
+  }, [media.toggleBackground])
+
   const stableToggleRaiseHand = useCallback(async () => {
     // Pass the current hand raised state from callState, not websocket.handRaised
     return await websocket.toggleRaiseHand(combinedCallState.handRaised)
@@ -1367,12 +1391,12 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     acceptInvite,
     declineInvite,
     leaveCall,
-    toggleMute: media.toggleMute,
-    toggleVideo: media.toggleVideo,
+    toggleMute: stableToggleMute, // Stable callback - prevents video flashing
+    toggleVideo: stableToggleVideo, // Stable callback - prevents video flashing
     toggleScreenShare: screenShare.toggleScreenShare,
     setVideoQuality: media.setVideoQuality,
     toggleMinimize,
-    toggleBackground: media.toggleBackground,
+    toggleBackground: stableToggleBackground, // Stable callback - prevents video flashing
     toggleRaiseHand: stableToggleRaiseHand, // Stable callback
     sendReaction: websocket.sendReaction,
     inviteToCall: participantsHook.inviteToCall,

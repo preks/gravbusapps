@@ -9,15 +9,15 @@
  * - Action buttons (participants panel, minimize, close)
  */
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Users, Minimize2 } from 'lucide-react'
 import { formatDuration } from '../../utils/callUtils'
 
 export interface CallHeaderProps {
   /** Call title or conversation name */
   conversationName?: string
-  /** Call duration in seconds */
-  duration: number
+  /** Call start timestamp (Unix ms) - used to calculate live duration */
+  callStartTime: number | null
   /** Number of participants in the call */
   participantCount: number
   /** Number of available participants that can be added */
@@ -40,7 +40,7 @@ export interface CallHeaderProps {
 
 export const CallHeader: React.FC<CallHeaderProps> = ({
   conversationName,
-  duration,
+  callStartTime,
   participantCount,
   callType,
   showParticipantsPanel = false,
@@ -49,6 +49,27 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
   prefixDataTestId = 'rtk-group-call',
   t = (key: string) => key
 }) => {
+  // Calculate live duration independently to avoid parent re-renders
+  const [duration, setDuration] = useState(0)
+
+  useEffect(() => {
+    if (!callStartTime) {
+      setDuration(0)
+      return
+    }
+
+    // Calculate initial duration
+    const calculateDuration = () => Math.floor((Date.now() - callStartTime) / 1000)
+    setDuration(calculateDuration())
+
+    // Update every second
+    const timer = setInterval(() => {
+      setDuration(calculateDuration())
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [callStartTime])
+
   return (
     <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-b gba:bg-muted/30 gba:flex-shrink-0">
       {/* Left side - Title and info */}
@@ -59,7 +80,7 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
         <div>
           <h3 className="gba:font-semibold gba:text-lg">{conversationName || t('groupCall-title') || 'Group Call'}</h3>
           <div className="gba:flex gba:items-center gba:gap-3 gba:text-sm gba:text-muted-foreground">
-            {/* Duration */}
+            {/* Duration - updates independently */}
             <span className="gba:flex gba:items-center gba:gap-1">
               <span className="gba:font-mono gba:font-medium">{formatDuration(duration)}</span>
             </span>

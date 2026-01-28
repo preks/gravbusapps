@@ -359,8 +359,8 @@ export const useRealtimeKitMedia = ({
   }, [callStatus, isVideoEnabled, backgroundEnabled, meeting])
 
   /**
-   * Recreate local stream from SDK tracks
-   * Updates whenever SDK audio/video tracks change
+   * Manage local stream with optimized track updates
+   * Updates tracks dynamically instead of recreating stream to prevent video flashing
    */
   useEffect(() => {
     if (!meeting?.self) {
@@ -368,26 +368,82 @@ export const useRealtimeKitMedia = ({
       return
     }
 
-    const stream = new MediaStream()
+    const currentAudioTrack = meeting.self.audioTrack
+    const currentVideoTrack = meeting.self.videoTrack
 
-    // Add audio track if available
-    if (meeting.self.audioTrack) {
-      stream.addTrack(meeting.self.audioTrack)
-      rtkDebug.log('[RTK] Added local audio track to stream')
-    }
+    // Update existing stream if we have one, otherwise create new
+    setLocalStream(prevStream => {
+      // If no tracks available, clear stream
+      if (!currentAudioTrack && !currentVideoTrack) {
+        rtkDebug.log('[RTK Media] No tracks available, clearing local stream')
+        return null
+      }
 
-    // Add video track if available
-    if (meeting.self.videoTrack) {
-      stream.addTrack(meeting.self.videoTrack)
-      rtkDebug.log('[RTK] Added local video track to stream')
-    }
+      // If we don't have a stream yet, create one
+      if (!prevStream) {
+        const newStream = new MediaStream()
+        if (currentVideoTrack) {
+          newStream.addTrack(currentVideoTrack)
+          rtkDebug.log('[RTK Media] Added local video track to new stream')
+        }
+        if (currentAudioTrack) {
+          newStream.addTrack(currentAudioTrack)
+          rtkDebug.log('[RTK Media] Added local audio track to new stream')
+        }
+        rtkDebug.log('[RTK Media] Created new local stream with', newStream.getTracks().length, 'tracks')
+        return newStream
+      }
 
-    if (stream.getTracks().length > 0) {
-      setLocalStream(stream)
-      rtkDebug.log('[RTK] Local stream updated with', stream.getTracks().length, 'tracks')
-    } else {
-      setLocalStream(null)
-    }
+      // We have an existing stream - update tracks dynamically to prevent flashing
+      const existingVideoTrack = prevStream.getVideoTracks()[0]
+      const existingAudioTrack = prevStream.getAudioTracks()[0]
+
+      let streamUpdated = false
+
+      // Update video track if changed
+      if (existingVideoTrack?.id !== currentVideoTrack?.id) {
+        // Remove old video track
+        if (existingVideoTrack) {
+          prevStream.removeTrack(existingVideoTrack)
+          rtkDebug.log('[RTK Media] Removed old video track:', existingVideoTrack.id)
+        }
+
+        // Add new video track
+        if (currentVideoTrack) {
+          prevStream.addTrack(currentVideoTrack)
+          rtkDebug.log('[RTK Media] Added new video track:', currentVideoTrack.id)
+        }
+
+        streamUpdated = true
+      }
+
+      // Update audio track if changed
+      if (existingAudioTrack?.id !== currentAudioTrack?.id) {
+        // Remove old audio track
+        if (existingAudioTrack) {
+          prevStream.removeTrack(existingAudioTrack)
+          rtkDebug.log('[RTK Media] Removed old audio track:', existingAudioTrack.id)
+        }
+
+        // Add new audio track
+        if (currentAudioTrack) {
+          prevStream.addTrack(currentAudioTrack)
+          rtkDebug.log('[RTK Media] Added new audio track:', currentAudioTrack.id)
+        }
+
+        streamUpdated = true
+      }
+
+      if (streamUpdated) {
+        rtkDebug.log('[RTK Media] Local stream tracks updated dynamically', {
+          videoTracks: prevStream.getVideoTracks().length,
+          audioTracks: prevStream.getAudioTracks().length
+        })
+      }
+
+      // Return the same stream reference (updated in place) to prevent unnecessary re-renders
+      return prevStream
+    })
   }, [meeting?.self?.audioTrack, meeting?.self?.videoTrack])
 
   return {
