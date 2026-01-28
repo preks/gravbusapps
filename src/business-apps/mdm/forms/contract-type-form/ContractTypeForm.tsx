@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
+import { useFormContext } from 'react-hook-form'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import {
@@ -36,32 +37,120 @@ const PROBATION_UNIT_OPTIONS = [
   { value: 'month', label: 'Month(s)' }
 ] as const
 
+// Component for Probation Period fields with shared error message
+const ProbationPeriodFields: React.FC<{ dataTestId: string }> = ({ dataTestId }) => {
+  const form = useFormContext()
+  const probationUnitError = form.formState.errors.probationUnit?.message as string | undefined
+
+  return (
+    <div className="gba:space-y-2">
+      <FormLabel>Probation Period</FormLabel>
+      <div className="gba:flex gba:gap-3">
+        <FormField
+          name="probationValue"
+          render={({ field }) => (
+            <FormItem className="gba:flex-1">
+              <FormControl>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Enter value"
+                  {...field}
+                  data-testid={`${dataTestId}-probation-value-input`}
+                  onChange={e => {
+                    const value = e.target.value
+                    // Only allow digits, no leading zeros (except empty), max 4 digits
+                    if (value === '' || /^[1-9][0-9]{0,3}$/.test(value)) {
+                      field.onChange(value)
+                    }
+                  }}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          name="probationUnit"
+          render={({ field, fieldState }) => (
+            <FormItem className="gba:flex-1">
+              <FormControl>
+                <Select onValueChange={field.onChange} value={field.value || undefined}>
+                  <SelectTrigger
+                    data-testid={`${dataTestId}-probation-unit-select`}
+                    className={fieldState.error ? 'gba:border-destructive' : ''}
+                  >
+                    <SelectValue placeholder="Select unit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROBATION_UNIT_OPTIONS.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormControl>
+            </FormItem>
+          )}
+        />
+      </div>
+      {probationUnitError && (
+        <p className="gba:text-sm gba:text-destructive" role="alert">
+          {probationUnitError}
+        </p>
+      )}
+    </div>
+  )
+}
+
 // Helper to validate no leading whitespace (trailing will be trimmed on submit)
 const noLeadingWhitespace = (value: string) => value === value.trimStart()
 const noLeadingWhitespaceMessage = 'Cannot start with whitespace'
 
 // Zod validation schema
-const contractTypeFormSchema = z.object({
-  value: z
-    .string({ message: 'Please enter contract type name' })
-    .min(1, 'Please enter contract type name')
-    .max(64, 'Contract type name must be less than 64 characters')
-    .refine(noLeadingWhitespace, noLeadingWhitespaceMessage),
-  code: z.string().optional(),
-  description: z
-    .string()
-    .max(100, 'Description must be less than 100 characters')
-    .refine(val => !val || noLeadingWhitespace(val), noLeadingWhitespaceMessage)
-    .optional(),
-  probationValue: z
-    .string()
-    .refine(val => !val || /^[1-9][0-9]*$/.test(val), 'Must be a positive number')
-    .optional(),
-  probationUnit: z.enum(['day', 'week', 'month', '']).optional()
-})
+const contractTypeFormSchema = z
+  .object({
+    value: z
+      .string({ message: 'Please enter contract type name' })
+      .min(1, 'Please enter contract type name')
+      .max(64, 'Contract type name must be less than 64 characters')
+      .refine(noLeadingWhitespace, noLeadingWhitespaceMessage),
+    code: z.string().optional(),
+    description: z
+      .string()
+      .max(100, 'Description must be less than 100 characters')
+      .refine(val => !val || noLeadingWhitespace(val), noLeadingWhitespaceMessage)
+      .optional(),
+    probationValue: z
+      .string()
+      .refine(val => !val || /^[1-9][0-9]{0,3}$/.test(val), 'Must be a positive number with maximum 4 digits')
+      .optional(),
+    probationUnit: z.enum(['day', 'week', 'month', '']).optional()
+  })
+  .superRefine((data, ctx) => {
+    // If probationValue is provided, probationUnit must be provided and not empty
+    const hasValue = data.probationValue && data.probationValue.trim() !== ''
+    if (hasValue) {
+      // probationUnit must be one of the valid units (not undefined, not empty string)
+      const validUnits: ('day' | 'week' | 'month')[] = ['day', 'week', 'month']
+      const hasValidUnit =
+        data.probationUnit !== undefined &&
+        data.probationUnit !== '' &&
+        validUnits.includes(data.probationUnit as 'day' | 'week' | 'month')
+
+      if (!hasValidUnit) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Time unit is required when a value is entered. Either remove the value or select a time unit.',
+          path: ['probationUnit']
+        })
+      }
+    }
+  })
 
 // Schema for creating new contract type (code is required)
-const createContractTypeFormSchema = contractTypeFormSchema.extend({
+const createContractTypeFormSchema = contractTypeFormSchema.safeExtend({
   code: z
     .string({ message: 'Please enter contract type code' })
     .min(1, 'Please enter contract type code')
@@ -108,11 +197,16 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
     }
 
     // Build probation period JSON for additionalValue2
+    // Only save if both value and unit are provided, or if neither is provided
+    const hasProbationValue = trimmedData.probationValue && trimmedData.probationValue.trim() !== ''
+    const hasProbationUnit = trimmedData.probationUnit && trimmedData.probationUnit.trim() !== ''
+
     const probationPeriod: ProbationPeriod = {
-      value: trimmedData.probationValue ? Number(trimmedData.probationValue) : null,
-      unit: trimmedData.probationUnit || ''
+      value: hasProbationValue ? Number(trimmedData.probationValue) : null,
+      unit: hasProbationUnit ? trimmedData.probationUnit : ''
     }
-    const additionalValue2 = probationPeriod.value && probationPeriod.unit ? JSON.stringify(probationPeriod) : ''
+    // Only save if both are provided
+    const additionalValue2 = hasProbationValue && hasProbationUnit ? JSON.stringify(probationPeriod) : ''
 
     const payload = {
       ...(contractType ? { id: contractType.id } : {}),
@@ -186,6 +280,7 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
       setCodeError={setCodeError}
       resolver={resolver}
       schema={contractType ? contractTypeFormSchema : createContractTypeFormSchema}
+      validateBeforeSubmit={false}
     >
       <FormField
         name="value"
@@ -240,51 +335,7 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
         )}
       />
 
-      <div className="gba:space-y-2">
-        <FormLabel>Probation Period</FormLabel>
-        <div className="gba:flex gba:gap-3">
-          <FormField
-            name="probationValue"
-            render={({ field }) => (
-              <FormItem className="gba:flex-1">
-                <FormControl>
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="Enter value"
-                    {...field}
-                    data-testid={`${dataTestId}-probation-value-input`}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            name="probationUnit"
-            render={({ field }) => (
-              <FormItem className="gba:flex-1">
-                <FormControl>
-                  <Select onValueChange={field.onChange} value={field.value || undefined}>
-                    <SelectTrigger data-testid={`${dataTestId}-probation-unit-select`}>
-                      <SelectValue placeholder="Select unit" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PROBATION_UNIT_OPTIONS.map(option => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-      </div>
+      <ProbationPeriodFields dataTestId={dataTestId} />
     </FormWrapperModal>
   )
 }

@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Card, CardContent, Input, Spinner, DataTable, Icon, Badge, toast } from '@newwork/nw-design-system'
-import { EyeIcon, PlusIcon, PencilSimpleLineIcon, FileCodeIcon, TagIcon, InfoIcon } from '@phosphor-icons/react'
+import { Button, Card, CardContent, Spinner, DataTable, Icon, Badge, toast } from '@newwork/nw-design-system'
+import {
+  EyeIcon,
+  PlusIcon,
+  PencilSimpleLineIcon,
+  FileCodeIcon,
+  TagIcon,
+  InfoIcon,
+  MagnifyingGlassIcon
+} from '@phosphor-icons/react'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
@@ -16,6 +24,7 @@ import {
   CONTRACT_TYPE_CATALOG,
   CONTRACT_TYPE_VERSION
 } from '@/business-apps/hr/core/forms/job-position/hooks/useContractTypes'
+import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 
 export interface ContractType {
   id: string
@@ -177,7 +186,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
         cell: ({ getValue }) => {
           const name = getValue()
           return (
-            <div className="gba:flex gba:items-center gba:w-[150px] gba:md:w-[250px] gba:lg:w-[350px] gba:xl:w-[450px] gba:2xl:w-[500px]">
+            <div className="gba:flex gba:items-center gba:w-[150px] gba:md:w-[250px] gba:lg:370px] gba:xl:w-[420px] gba:2xl:w-[420px]">
               <div className="gba:w-full gba:truncate gba:font-semibold">{name as string}</div>
             </div>
           )
@@ -190,7 +199,12 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
         cell: ({ getValue }) => {
           const description = getValue()
           return (
-            <div className="gba:flex gba:items-center gba:w-[100px] gba:md:w-[150px] gba:lg:w-[200px] gba:xl:w-[260px] gba:2xl:w-[300px]">
+            <div
+              className="gba:flex gba:items-center gba:w-[100px] gba:md:w-[150px] gba:lg:w-[200px] gba:xl:w-[310px]"
+              style={{
+                width: 'clamp(310px, 35vw, 700px)'
+              }}
+            >
               <div className="gba:w-full gba:truncate" title={description as string}>
                 {(description as string) ?? '-'}
               </div>
@@ -304,13 +318,22 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
       )}
 
       <CardContent>
-        <div className="gba:mb-6 gba:relative gba:max-w-sm">
-          <Input
-            placeholder="Search contract types..."
+        <div className="gba:mb-6 gba:pt-4 gba:relative gba:max-w-sm">
+          <DebouncedInput
+            key="search-input"
             value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="gba:pl-10"
-            data-testid={`${dataTestId}-search-input`}
+            onChange={value => setSearchTerm(value)}
+            placeholder="Search contract types..."
+            className="gba:w-full gba:pr-10"
+            debounceDelay={300}
+            ariaLabel="Search contract types..."
+            data-testid="asset-search-input"
+            icon={
+              <MagnifyingGlassIcon
+                className="gba:w-4 gba:h-4 gba:text-muted-foreground"
+                data-testid="asset-search-icon"
+              />
+            }
           />
         </div>
 
