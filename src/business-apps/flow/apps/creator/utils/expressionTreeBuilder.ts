@@ -508,6 +508,15 @@ const buildOrgChartNode = (): TreeNode => {
           isArrayReturn: true
         },
         children: createFieldNodes('directReports', true)
+      },
+      {
+        id: 'orgchart-userid-by-employeeid',
+        label: 'Convert to User ID',
+        type: 'orgchart-field' as const,
+        icon: 'arrow-right',
+        description: 'Convert employeeId to userId (for assignments)',
+        dataType: 'string',
+        expressionTemplate: '{{$orgchart.userIdByEmployeeId[ID_PLACEHOLDER]}}'
       }
     ]
   }

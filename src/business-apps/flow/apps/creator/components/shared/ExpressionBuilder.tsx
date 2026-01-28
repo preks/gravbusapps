@@ -158,7 +158,8 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
   const { testExpression, testResult, isTesting, clearResult } = useExpressionTesting(
     template,
     stepIndex,
-    context.accessToken
+    context.accessToken,
+    context.userInfo?.id // Pass authenticated user ID for orgchart expression testing
   )
 
   // Sync local value with prop
@@ -1177,6 +1178,16 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
                           </span>
                         </code>
                       </div>
+                      <div className="gba:mt-3 gba:space-y-2">
+                        <h5 className="gba:font-medium gba:mb-1 gba:text-sm gba:text-blue-700">ID Conversion</h5>
+                        <code className="gba:block gba:p-3 gba:bg-gray-100 gba:rounded gba:font-mono gba:text-xs">
+                          {'{{$orgchart.userIdByEmployeeId[$steps.step_0.formData.selectedEmployee]}}'}
+                          <br />
+                          <span className="gba:text-gray-600" style={{ fontSize: '10px' }}>
+                            → Convert employeeId from form to userId (for assignments)
+                          </span>
+                        </code>
+                      </div>
                     </div>
 
                     {/* Catalog & Entity Section */}
@@ -1249,13 +1260,23 @@ export const ExpressionBuilder: React.FC<ExpressionBuilderProps> = ({
               </AlertTitle>
               <AlertDescription className="nw:mt-2">
                 {testResult.success ? (
-                  <div className="nw:space-y-1">
+                  <div className="nw:space-y-2">
+                    {testResult.info && (
+                      <div className="nw:text-xs nw:bg-blue-50 nw:px-2 nw:py-1 nw:rounded nw:text-blue-800">
+                        ℹ️ {testResult.info}
+                      </div>
+                    )}
                     <div className="nw:flex nw:items-start nw:gap-2">
                       <span className="nw:text-xs nw:text-muted-foreground nw:shrink-0">Resolved to:</span>
                       <code className="nw:bg-muted nw:px-2 nw:py-1 nw:rounded nw:text-sm nw:flex-1 nw:break-all">
                         {testResult.resolvedValue}
                       </code>
                     </div>
+                    {testResult.warning && (
+                      <div className="nw:text-xs nw:bg-yellow-50 nw:px-2 nw:py-1 nw:rounded nw:text-yellow-800">
+                        ⚠️ {testResult.warning}
+                      </div>
+                    )}
                     <div className="nw:text-muted-foreground nw:text-xs nw:italic">
                       Resolved in {testResult.resolvedIn} using sample data
                     </div>

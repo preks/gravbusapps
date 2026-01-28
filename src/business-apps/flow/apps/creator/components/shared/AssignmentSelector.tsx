@@ -13,17 +13,13 @@ import {
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger,
-  Label,
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-  TooltipProvider
+  TabsTrigger
 } from '@newwork/nw-design-system'
-import { X, UserCircle, Users, Building2, MapPin, DollarSign, FileCheck, AlertTriangle, Info } from 'lucide-react'
+import { X, UserCircle, Users, Building2, MapPin, DollarSign, FileCheck, AlertTriangle } from 'lucide-react'
 import { useMockData } from '../../../../providers/MockDataProvider'
 import { useOrgDirectory } from '@/common/network/org-directory'
 import { ExpressionInput } from './ExpressionInput'
+import { OrgChartWizard } from './OrgChartWizard'
 import { FlowTemplate } from '../../types/flowTemplate'
 
 // Mock data can be enabled via MockDataProvider for development/testing
@@ -751,6 +747,11 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
                 OR Logic (Any condition can match)
               </Badge>
             )}
+            {assignmentMode === AssignmentMode.ASSIGN_DEFERRED && (
+              <Badge variant="outline" className="gba:text-xs">
+                Deferred - Resolves after previous steps
+              </Badge>
+            )}
           </div>
           {teammates.length > 0 && (
             <div className="gba:text-xs gba:text-gray-500">
@@ -810,88 +811,51 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
 
             {Object.entries(fieldConfigGroups).map(([groupKey, configs]) => (
               <TabsContent key={groupKey} value={groupKey} className="gba:space-y-4 gba:mt-4">
-                {/* Expression-based assignment - only show in People tab, when template is provided, and NOT in CLAIM mode */}
+                {/* OrgChart Wizard and Expression-based assignment - only show in People tab */}
                 {groupKey === 'people' && template && assignmentMode !== AssignmentMode.CLAIM && (
-                  <div className="gba:space-y-2 gba:pb-4 gba:border-b gba:border-gray-200">
-                    <TooltipProvider>
-                      <Label className="gba:text-sm gba:font-medium gba:flex gba:items-center gba:gap-2">
-                        <UserCircle className="gba:w-4 gba:h-4" />
-                        Dynamic User Assignment (Expressions)
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="gba:w-4 gba:h-4 gba:text-blue-600 gba:cursor-help hover:gba:text-blue-700" />
-                          </TooltipTrigger>
-                          <TooltipContent className="gba:max-w-md gba:p-4 gba:bg-slate-900 gba:border-slate-700">
-                            <div className="gba:space-y-3 gba:text-xs gba:text-white">
-                              <p className="gba:font-semibold gba:text-sm gba:text-white">
-                                How OrgChart Expressions Work in Assignments
-                              </p>
-                              <p className="gba:text-slate-200">
-                                Expressions are evaluated <strong className="gba:text-white">at runtime</strong> when
-                                the workflow is executed, using the actual workflow initiator and context data.
-                              </p>
-                              <div className="gba:space-y-2">
-                                <p className="gba:font-semibold gba:text-white">Common Examples:</p>
-                                <ul className="gba:space-y-2">
-                                  <li className="gba:space-y-1">
-                                    <code className="gba:bg-slate-800 gba:text-blue-300 gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:block gba:font-mono">
-                                      {'{{$orgchart.managerByUserId[$workflow.initiator]}}'}
-                                    </code>
-                                    <span className="gba:text-slate-300 gba:block gba:ml-1">
-                                      Assigns to the manager of the person who started the workflow
-                                    </span>
-                                  </li>
-                                  <li className="gba:space-y-1">
-                                    <code className="gba:bg-slate-800 gba:text-blue-300 gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:block gba:font-mono">
-                                      {'{{$orgchart.skipLevelManagerByUserId[$workflow.initiator]}}'}
-                                    </code>
-                                    <span className="gba:text-slate-300 gba:block gba:ml-1">
-                                      Assigns to the skip-level manager (manager's manager)
-                                    </span>
-                                  </li>
-                                  <li className="gba:space-y-1">
-                                    <code className="gba:bg-slate-800 gba:text-blue-300 gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:block gba:font-mono">
-                                      {'{{$orgchart.directReportsByUserId[$workflow.initiator]}}'}
-                                    </code>
-                                    <span className="gba:text-slate-300 gba:block gba:ml-1">
-                                      Assigns to all direct reports of the initiator
-                                    </span>
-                                  </li>
-                                </ul>
-                              </div>
-                              <p className="gba:text-slate-400 gba:italic gba:text-xs">
-                                Note: Use the Expression Builder to explore all available fields and test expressions.
-                              </p>
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      </Label>
-                    </TooltipProvider>
-                    <p className="gba:text-xs gba:text-gray-600 gba:mb-2">
-                      Use expressions to dynamically assign users based on workflow context (e.g., manager, team
-                      members)
-                    </p>
-                    <ExpressionInput
-                      value={userExpression}
-                      onChange={setUserExpression}
-                      mode="expression"
-                      placeholder="e.g., {{$orgchart.managerByUserId[$workflow.initiator]}}"
+                  <div className="gba:space-y-3 gba:pb-4 gba:border-b gba:border-gray-200">
+                    {/* OrgChart Wizard - Collapsible */}
+                    <OrgChartWizard
                       template={template}
                       stepIndex={stepIndex}
-                      useTreeBuilder={true}
-                      context={{ accessToken, userInfo }}
-                      data-testid={`${testId}-expression-input`}
+                      assignmentMode={assignmentMode}
+                      onExpressionGenerated={expression => {
+                        handleAddValue('users', expression)
+                      }}
+                      data-testid={`${testId}-orgchart-wizard`}
                     />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleAddExpression}
-                      disabled={!userExpression.trim()}
-                      data-testid={`${testId}-add-expression`}
-                      type="button"
-                    >
-                      Add Expression
-                    </Button>
+
+                    {/* Manual Expression Input - Always available */}
+                    <div className="gba:space-y-2">
+                      <div className="gba:text-sm gba:font-medium gba:text-gray-700 gba:flex gba:items-center gba:gap-2">
+                        <UserCircle className="gba:w-4 gba:h-4" />
+                        Manual Expression Input
+                      </div>
+                      <p className="gba:text-xs gba:text-gray-600">
+                        Type any expression manually or use the Expression Builder for validation and testing
+                      </p>
+                      <ExpressionInput
+                        value={userExpression}
+                        onChange={setUserExpression}
+                        mode="expression"
+                        placeholder="e.g., {{$orgchart.managerByUserId[$workflow.initiator]}}"
+                        template={template}
+                        stepIndex={stepIndex}
+                        useTreeBuilder={true}
+                        context={{ accessToken, userInfo }}
+                        data-testid={`${testId}-expression-input`}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddExpression}
+                        disabled={!userExpression.trim()}
+                        data-testid={`${testId}-add-expression`}
+                        type="button"
+                      >
+                        Add Expression
+                      </Button>
+                    </div>
                   </div>
                 )}
 

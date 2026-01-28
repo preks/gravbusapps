@@ -30,7 +30,8 @@ export enum InputType {
 
 export enum AssignmentMode {
   CLAIM = 'CLAIM',
-  ASSIGN = 'ASSIGN'
+  ASSIGN = 'ASSIGN',
+  ASSIGN_DEFERRED = 'ASSIGN_DEFERRED'
 }
 
 export interface InputOption {

@@ -120,6 +120,14 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
         : '{{$orgchart.manager[$workflow.input.employeeId]}}',
       icon: <User className="gba:h-4 gba:w-4" />,
       description: 'Manager of specific employee'
+    },
+    {
+      label: 'Convert Employee to User ID',
+      expression: firstFieldName
+        ? `{{$orgchart.userIdByEmployeeId[$steps.step_0.formData.${firstFieldName}]}}`
+        : '{{$orgchart.userIdByEmployeeId[$steps.step_0.formData.employeeId]}}',
+      icon: <User className="gba:h-4 gba:w-4" />,
+      description: 'Convert employeeId to userId for assignment'
     }
   ]
 
