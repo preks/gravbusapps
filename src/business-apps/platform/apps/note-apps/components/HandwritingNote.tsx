@@ -14,6 +14,7 @@ import {
   HandwritingToolbar,
   TransformMenu,
   SummaryPanel,
+  TranslationPanel,
   ActionItemsModal,
   ActionItemsList
 } from './handwriting'
@@ -21,7 +22,11 @@ import type { PaperStyle, StrokeData } from './handwriting'
 import type { TransformType } from './handwriting/TransformMenu'
 import { TransformService } from '../services/TransformService'
 import type { NoteActionItemFlow } from '../types'
+import type { NoteTranslation, TranslationLanguage } from '../types/translation'
+import { TRANSLATION_LANGUAGE_NAMES } from '../types/translation'
 import { useActionItemFlowStatusSync } from '../hooks/useActionItemFlowStatusSync'
+import { useActionItemAssigneeEnrichment } from '../hooks/useActionItemAssigneeEnrichment'
+import { FlowEngineApiService } from '../services/FlowEngineApiService'
 
 export interface HandwritingNoteUserInfo {
   id?: string
@@ -34,12 +39,14 @@ export interface HandwritingNoteProps extends Partial<BusinessAppContextProps> {
   initialStrokes?: StrokeData[]
   initialPaperStyle?: PaperStyle
   initialSummary?: string | null
+  initialTranslations?: NoteTranslation[]
   initialActionItemFlows?: NoteActionItemFlow[]
   onPersist: (params: {
     title: string
     strokes: StrokeData[]
     paperStyle: PaperStyle
     summary: string | null
+    translations: NoteTranslation[]
     actionItemFlows: NoteActionItemFlow[]
   }) => Promise<void>
   onBack: () => void
@@ -59,6 +66,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
   initialStrokes = [],
   initialPaperStyle = 'lined',
   initialSummary = null,
+  initialTranslations = [],
   initialActionItemFlows = [],
   onPersist,
   onBack,
@@ -84,6 +92,10 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
   // Summary panel state (persisted in note)
   const [currentSummary, setCurrentSummary] = useState<string | null>(initialSummary)
   const summaryRef = useRef<string | null>(initialSummary)
+
+  // Translation history (persisted in note)
+  const [translations, setTranslations] = useState<NoteTranslation[]>(initialTranslations)
+  const translationsRef = useRef<NoteTranslation[]>(initialTranslations)
 
   // Action items modal state
   const [actionItemsModalOpen, setActionItemsModalOpen] = useState(false)
@@ -117,6 +129,10 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
   }, [currentSummary])
 
   useEffect(() => {
+    translationsRef.current = translations
+  }, [translations])
+
+  useEffect(() => {
     actionItemFlowsRef.current = actionItemFlows
   }, [actionItemFlows])
 
@@ -134,7 +150,10 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
   const buildPersistSignature = useCallback((): string => {
     const summarySig = summaryRef.current ? summaryRef.current.slice(0, 80) : ''
     const flowsSig = actionItemFlowsRef.current.map(f => `${f.workflowId}:${f.status}:${f.completedAt || ''}`).join('|')
-    return [noteTitle, paperStyleRef.current, strokesRef.current.length, summarySig, flowsSig].join('::')
+    const translationsSig = translationsRef.current.map(t => `${t.id}:${t.targetLanguage}`).join('|')
+    return [noteTitle, paperStyleRef.current, strokesRef.current.length, summarySig, flowsSig, translationsSig].join(
+      '::'
+    )
   }, [noteTitle])
 
   // Initialize persisted signature so we don't immediately re-save on open
@@ -155,6 +174,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
           strokes: strokesRef.current,
           paperStyle: paperStyleRef.current,
           summary: summaryRef.current,
+          translations: translationsRef.current,
           actionItemFlows: actionItemFlowsRef.current
         })
         lastPersistSignatureRef.current = signature
@@ -203,6 +223,10 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
   }, [queuePersist, currentSummary])
 
   useEffect(() => {
+    queuePersist(800)
+  }, [queuePersist, translations])
+
+  useEffect(() => {
     // Status polling updates will also flow through here
     queuePersist(1200)
   }, [queuePersist, actionItemFlows])
@@ -222,15 +246,73 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
     onFlowsUpdated: next => setActionItemFlows(next)
   })
 
+  // Fill missing avatar/name for older flows
+  useActionItemAssigneeEnrichment({
+    accessToken,
+    flows: actionItemFlows,
+    setFlows: next => setActionItemFlows(next)
+  })
+
   // Sync once when opening the note (no background polling)
   useEffect(() => {
     void syncFlowStatuses()
   }, [syncFlowStatuses])
 
+  // Recovery: older notes may have sent blinks but never persisted `actionItemFlows`.
+  // If empty, fetch existing quick-task flows from flow-engine by tags and persist.
+  const hasRecoveredRef = useRef(false)
+  useEffect(() => {
+    if (!accessToken) return
+    if (hasRecoveredRef.current) return
+    if (actionItemFlowsRef.current.length > 0) return
+
+    hasRecoveredRef.current = true
+    const run = async () => {
+      try {
+        const service = new FlowEngineApiService(accessToken)
+        const recovered = await service.listBlinksForNote({ noteId, entityType: 'handwriting-note-action' })
+        if (recovered.length > 0) {
+          setActionItemFlows(recovered)
+          showFeedback('success', `Loaded ${recovered.length} existing action item${recovered.length > 1 ? 's' : ''}`)
+        }
+      } catch {
+        // ignore (best-effort)
+      }
+    }
+
+    void run()
+  }, [accessToken, noteId, showFeedback])
+
   // Handle save (manual)
   const handleSave = useCallback(async () => {
     await persistNow({ showBusy: true })
   }, [persistNow])
+
+  const handleDismissSummary = useCallback(() => {
+    summaryRef.current = null
+    setCurrentSummary(null)
+    // Persist immediately so deletion isn't lost on quick navigation
+    queuePersist(0)
+  }, [queuePersist])
+
+  const handleDeleteTranslation = useCallback(
+    (id: string) => {
+      setTranslations(prev => {
+        const next = prev.filter(t => t.id !== id)
+        translationsRef.current = next
+        return next
+      })
+      queuePersist(0)
+      showFeedback('success', '✓ Translation deleted')
+    },
+    [queuePersist, showFeedback]
+  )
+
+  const handleBackClick = useCallback(() => {
+    // Best-effort flush before leaving (don't block navigation)
+    void persistNow()
+    onBack()
+  }, [onBack, persistNow])
 
   // Handle title change
   const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -271,7 +353,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
 
   // Handle transform
   const handleTransform = useCallback(
-    async (type: TransformType) => {
+    async (type: TransformType, options?: { targetLanguage?: TranslationLanguage }) => {
       if (!accessToken) {
         showFeedback('error', 'Not authenticated')
         return
@@ -286,7 +368,14 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
 
       try {
         const transformService = new TransformService(accessToken)
-        const result = await transformService.transform(noteId, type, strokesRef.current, CANVAS_WIDTH, CANVAS_HEIGHT)
+        const result = await transformService.transform(
+          noteId,
+          type,
+          strokesRef.current,
+          CANVAS_WIDTH,
+          CANVAS_HEIGHT,
+          options as Parameters<typeof transformService.transform>[5]
+        )
 
         if (!result.success) {
           showFeedback('error', result.error || 'Transform failed')
@@ -323,7 +412,10 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
 
           case 'summarize':
             // Show summary in the panel at the bottom of the note
+            summaryRef.current = result.transformedContent
             setCurrentSummary(result.transformedContent)
+            // Persist immediately so navigating away doesn't lose it
+            queuePersist(0)
             showFeedback('success', '✓ Summary generated!')
             break
 
@@ -342,9 +434,22 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
             break
 
           case 'translate':
-            // Show translation in summary panel
-            setCurrentSummary(`🌍 Translation:\n\n${result.transformedContent}`)
-            showFeedback('success', '✓ Translation complete!')
+            setTranslations(prev => {
+              const targetLang = (options?.targetLanguage || 'en') as TranslationLanguage
+              const targetLanguageName = TRANSLATION_LANGUAGE_NAMES[targetLang] || 'English'
+              const entry: NoteTranslation = {
+                id: `tr_${Date.now()}`,
+                targetLanguage: targetLang,
+                targetLanguageName,
+                text: result.transformedContent,
+                createdAt: new Date().toISOString()
+              }
+              const next = [entry, ...prev]
+              translationsRef.current = next
+              return next
+            })
+            queuePersist(0)
+            showFeedback('success', '✓ Translation created!')
             break
 
           default:
@@ -357,7 +462,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
         setIsTransforming(false)
       }
     },
-    [accessToken, noteId, noteTitle, onConvertToText, onCreateTextNote, showFeedback]
+    [accessToken, noteId, noteTitle, onConvertToText, onCreateTextNote, queuePersist, showFeedback]
   )
 
   // Prevent selection globally while in this component
@@ -424,7 +529,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
 
       {/* Header */}
       <div className="gba:flex gba:items-center gba:gap-4 gba:p-4 gba:border-b gba:bg-card">
-        <Button variant="ghost" size="sm" onClick={onBack} data-testid={`${testId}-back`}>
+        <Button variant="ghost" size="sm" onClick={handleBackClick} data-testid={`${testId}-back`}>
           <ArrowLeft className="gba:w-4 gba:h-4" />
         </Button>
 
@@ -462,6 +567,31 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
         </div>
       </div>
 
+      {/* AI results (below title): summary + translations */}
+      {(currentSummary || translations.length > 0) && (
+        <div className="gba:px-4 gba:pb-4 gba:border-b gba:bg-card gba:space-y-3">
+          {currentSummary && (
+            <SummaryPanel
+              summary={currentSummary}
+              onDismiss={handleDismissSummary}
+              data-testid={`${testId}-summary-panel`}
+            />
+          )}
+          {translations.length > 0 && (
+            <div className="gba:space-y-3" data-testid={`${testId}-translations`}>
+              {translations.map(t => (
+                <TranslationPanel
+                  key={t.id}
+                  translation={t}
+                  onDelete={handleDeleteTranslation}
+                  data-testid={`${testId}-translation-${t.id}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Toolbar */}
       <HandwritingToolbar
         penColor={penColor}
@@ -495,15 +625,6 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
               scrollContainerRef={scrollContainerRef}
             />
           </div>
-
-          {/* Summary Panel */}
-          {currentSummary && (
-            <SummaryPanel
-              summary={currentSummary}
-              onDismiss={() => setCurrentSummary(null)}
-              data-testid={`${testId}-summary-panel`}
-            />
-          )}
         </div>
 
         {/* Action Items Sidebar (desktop) - only after tasks exist */}

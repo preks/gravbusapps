@@ -1,5 +1,6 @@
 import { env } from '@/common/env/EnvUtils'
 import type { FlowRunStatus } from '../types'
+import type { NoteActionItemFlow } from '../types'
 
 export interface FlowStatusResult {
   status: FlowRunStatus
@@ -22,6 +23,66 @@ function mapFlowStatus(status?: string): FlowRunStatus {
 
 export class FlowEngineApiService {
   constructor(private accessToken: string) {}
+
+  async listBlinksForNote(params: { noteId: string; entityType?: string }): Promise<NoteActionItemFlow[]> {
+    const noteId = params.noteId
+    if (!noteId) return []
+
+    const baseUrl = getFlowEngineBaseUrl()
+    const query = new URLSearchParams({
+      'tags.app': 'quick-task',
+      'tags.entityId': noteId,
+      ...(params.entityType ? { 'tags.entityType': params.entityType } : {})
+    })
+
+    const response = await fetch(`${baseUrl}/api/flows/list?${query.toString()}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`
+      }
+    })
+
+    if (!response.ok) {
+      return []
+    }
+
+    const data = await response.json()
+    const flows: Array<Record<string, unknown>> = (data?.data?.flows as any[]) || (data?.flows as any[]) || []
+
+    return flows
+      .map(flow => {
+        const tags = (flow.tags as Record<string, string> | undefined) || {}
+        const workflowId = (flow.workflowId as string) || (flow.id as string)
+        if (!workflowId) return null
+
+        const text =
+          (flow.name as string | undefined) ||
+          (flow.title as string | undefined) ||
+          (tags.actionText as string | undefined) ||
+          (tags.entityName as string | undefined) ||
+          'Action item'
+
+        const createdAt =
+          (flow.startedAt as string | undefined) || (flow.createdAt as string | undefined) || new Date().toISOString()
+
+        const status = mapFlowStatus(flow.status as string | undefined)
+        const completedAt = (flow.completedAt as string | undefined) || (flow.finishedAt as string | undefined)
+
+        return {
+          id: `recovered_${workflowId}`,
+          text,
+          assigneeUserId: (tags.assignedUserId as string) || '',
+          assigneeDisplayName: tags.assignedUserName || undefined,
+          assigneeAvatarUrl: tags.assignedUserAvatarUrl || undefined,
+          workflowId,
+          status,
+          createdAt,
+          completedAt,
+          lastSyncedAt: new Date().toISOString()
+        } as NoteActionItemFlow
+      })
+      .filter(Boolean) as NoteActionItemFlow[]
+  }
 
   async getFlowStatus(workflowId: string): Promise<FlowStatusResult | null> {
     if (!workflowId) return null

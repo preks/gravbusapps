@@ -25,6 +25,11 @@ import { useEmployeeSearch, EmployeeLiteOption } from '@/common/data/employee/us
 import { env } from '@/common/env/EnvUtils'
 import type { NoteActionItemFlow } from '../../types'
 
+function toAvatarDataUrl(pictureThumbnail?: string): string | undefined {
+  if (!pictureThumbnail) return undefined
+  return pictureThumbnail.startsWith('data:') ? pictureThumbnail : `data:image/png;base64,${pictureThumbnail}`
+}
+
 export interface ActionItem {
   id: string
   text: string
@@ -79,7 +84,9 @@ const sendBlink = async (
       assignedUserId: payload.assigneeUserId,
       entityType: 'handwriting-note-action',
       entityId: payload.noteId,
-      entityName: payload.noteTitle
+      entityName: payload.noteTitle,
+      // Used for recovery: show action text even if workflow doesn't return step titles in list endpoint
+      actionText: payload.title
     }
 
     const requestPayload = {
@@ -280,6 +287,7 @@ export const ActionItemsModal: React.FC<ActionItemsModalProps> = ({
               text,
               assigneeUserId: item.assignee.userId,
               assigneeDisplayName: item.assignee.displayName,
+              assigneeAvatarUrl: toAvatarDataUrl(item.assignee.pictureThumbnail),
               workflowId: result.workflowId,
               status: 'RUNNING',
               createdAt

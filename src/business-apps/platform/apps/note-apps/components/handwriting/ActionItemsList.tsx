@@ -1,6 +1,6 @@
 import React from 'react'
-import { Badge, Card, CardContent } from '@newwork/nw-design-system'
-import { CheckCircle2, Clock, AlertTriangle, XCircle, User } from 'lucide-react'
+import { Avatar, AvatarFallback, AvatarImage, Badge, Card, CardContent } from '@newwork/nw-design-system'
+import { CheckCircle2, Clock, AlertTriangle, XCircle } from 'lucide-react'
 import type { NoteActionItemFlow } from '../../types'
 
 export interface ActionItemsListProps {
@@ -36,6 +36,17 @@ function getStatusUi(status: NoteActionItemFlow['status']): {
   }
 }
 
+function getInitials(name?: string): string {
+  if (!name) return '?'
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(p => p[0]!)
+    .join('')
+    .toUpperCase()
+}
+
 export const ActionItemsList: React.FC<ActionItemsListProps> = ({
   flows,
   'data-testid': testId = 'action-items-list'
@@ -63,7 +74,12 @@ export const ActionItemsList: React.FC<ActionItemsListProps> = ({
                     {flow.text}
                   </div>
                   <div className="gba:flex gba:items-center gba:gap-2 gba:mt-1 gba:text-xs gba:text-muted-foreground">
-                    <User className="gba:w-3.5 gba:h-3.5" />
+                    <Avatar className="gba:w-5 gba:h-5">
+                      {flow.assigneeAvatarUrl && <AvatarImage src={flow.assigneeAvatarUrl} />}
+                      <AvatarFallback className="gba:text-[10px] gba:bg-muted">
+                        {getInitials(flow.assigneeDisplayName)}
+                      </AvatarFallback>
+                    </Avatar>
                     <span className="gba:truncate">{flow.assigneeDisplayName || flow.assigneeUserId}</span>
                   </div>
                 </div>

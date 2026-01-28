@@ -9,6 +9,8 @@ export interface NoteActionItemFlow {
   assigneeUserId: string
   /** Display name for UI */
   assigneeDisplayName?: string
+  /** Avatar image url (data url preferred) */
+  assigneeAvatarUrl?: string
   /** Workflow instance id returned by flow-engine */
   workflowId: string
   /** Current workflow status */

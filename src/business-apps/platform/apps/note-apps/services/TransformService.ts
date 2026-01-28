@@ -6,6 +6,8 @@
 import { DrawingApiService } from './DrawingApiService'
 import type { StrokeData } from '../components/handwriting'
 import type { TransformType } from '../components/handwriting/TransformMenu'
+import type { TranslationLanguage } from '../types/translation'
+import { TRANSLATION_LANGUAGE_NAMES } from '../types/translation'
 import { getStroke } from 'perfect-freehand'
 import { env } from '@/common/env/EnvUtils'
 
@@ -15,6 +17,10 @@ interface TransformResult {
   /** For action-items transform, contains the array of action items */
   actionItems?: string[]
   error?: string
+}
+
+export interface TransformOptions {
+  targetLanguage?: TranslationLanguage
 }
 
 // Convert stroke points to SVG path
@@ -111,7 +117,8 @@ export class TransformService {
     type: TransformType,
     strokes: StrokeData[],
     width: number,
-    height: number
+    height: number,
+    options?: TransformOptions
   ): Promise<TransformResult> {
     if (strokes.length === 0) {
       return {
@@ -252,20 +259,23 @@ Return them as a list. If no action items are found, return an empty array.`
           }
 
           case 'translate': {
+            const targetLang = options?.targetLanguage || 'en'
+            const targetLangName = TRANSLATION_LANGUAGE_NAMES[targetLang] || 'English'
+
             const translationSchema = {
               type: 'object',
               properties: {
                 translatedText: {
                   type: 'string',
-                  description: 'The text translated to English'
+                  description: `The text translated to ${targetLangName}`
                 }
               },
               required: ['translatedText']
             }
 
             const taskDescription = `You are a professional translator.
-Translate the following text to English. 
-If the text is already in English, return it as-is.
+Translate the following text to ${targetLangName}. 
+If the text is already in ${targetLangName}, return it as-is.
 Provide only the translated text without explanations or additional formatting.`
 
             aiResult = await this.callAiService(taskDescription, extractedText, translationSchema)

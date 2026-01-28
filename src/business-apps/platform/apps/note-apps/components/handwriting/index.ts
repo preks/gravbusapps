@@ -7,6 +7,7 @@ export { HandwritingCanvas } from './HandwritingCanvas'
 export { HandwritingToolbar } from './HandwritingToolbar'
 export { TransformMenu } from './TransformMenu'
 export { SummaryPanel } from './SummaryPanel'
+export { TranslationPanel } from './TranslationPanel'
 export { ActionItemsModal } from './ActionItemsModal'
 export { ActionItemsList } from './ActionItemsList'
 

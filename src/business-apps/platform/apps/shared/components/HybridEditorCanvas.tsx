@@ -6,7 +6,7 @@
  * allowing handwritten annotations on top of the text editor.
  */
 
-import React, { useRef, useEffect, useState, useCallback } from 'react'
+import React, { useRef, useEffect, useCallback } from 'react'
 import type { StrokeData, StrokePoint } from '../types/strokes'
 
 export interface HybridEditorCanvasProps {
@@ -30,8 +30,8 @@ export const HybridEditorCanvas: React.FC<HybridEditorCanvasProps> = ({
   className = ''
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [isDrawing, setIsDrawing] = useState(false)
   const currentStrokeRef = useRef<StrokePoint[]>([])
+  const isDrawingRef = useRef(false)
 
   // Get canvas context
   const getContext = useCallback(() => {
@@ -59,68 +59,10 @@ export const HybridEditorCanvas: React.FC<HybridEditorCanvasProps> = ({
     return () => window.removeEventListener('resize', resizeCanvas)
   }, [editorRef])
 
-  // Handle pointer events
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      if (disabled || !isStylusEvent(e.nativeEvent)) return
+  const finishStroke = useCallback(() => {
+    if (!isDrawingRef.current || disabled) return
 
-      e.preventDefault()
-      setIsDrawing(true)
-      currentStrokeRef.current = []
-
-      const canvas = canvasRef.current
-      if (!canvas) return
-
-      const rect = canvas.getBoundingClientRect()
-      const point: StrokePoint = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-        pressure: e.pressure || 0.5
-      }
-      currentStrokeRef.current.push(point)
-
-      const ctx = getContext()
-      if (ctx) {
-        ctx.beginPath()
-        ctx.moveTo(point.x, point.y)
-        ctx.strokeStyle = '#000000'
-        ctx.lineWidth = 2
-        ctx.lineCap = 'round'
-        ctx.lineJoin = 'round'
-      }
-    },
-    [disabled, getContext]
-  )
-
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!isDrawing || disabled || !isStylusEvent(e.nativeEvent)) return
-
-      e.preventDefault()
-      const canvas = canvasRef.current
-      if (!canvas) return
-
-      const rect = canvas.getBoundingClientRect()
-      const point: StrokePoint = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-        pressure: e.pressure || 0.5
-      }
-      currentStrokeRef.current.push(point)
-
-      const ctx = getContext()
-      if (ctx) {
-        ctx.lineTo(point.x, point.y)
-        ctx.stroke()
-      }
-    },
-    [isDrawing, disabled, getContext]
-  )
-
-  const handlePointerUp = useCallback(() => {
-    if (!isDrawing || disabled) return
-
-    setIsDrawing(false)
+    isDrawingRef.current = false
 
     if (currentStrokeRef.current.length > 0 && onStrokeComplete) {
       const stroke: StrokeData = {
@@ -133,24 +75,97 @@ export const HybridEditorCanvas: React.FC<HybridEditorCanvasProps> = ({
     }
 
     currentStrokeRef.current = []
-  }, [isDrawing, disabled, onStrokeComplete])
+  }, [disabled, onStrokeComplete])
+
+  // IMPORTANT: canvas must NOT block mouse/touch clicks for typing.
+  // We listen on the editor container in capture mode to intercept *pen* events only.
+  useEffect(() => {
+    const editorEl = editorRef.current
+    if (!editorEl || disabled) return
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (!isStylusEvent(e)) return
+      const canvas = canvasRef.current
+      if (!canvas) return
+
+      e.preventDefault()
+      e.stopPropagation()
+
+      isDrawingRef.current = true
+      currentStrokeRef.current = []
+
+      const rect = canvas.getBoundingClientRect()
+      const point: StrokePoint = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+        pressure: (e as any).pressure || 0.5
+      }
+      currentStrokeRef.current.push(point)
+
+      const ctx = getContext()
+      if (ctx) {
+        ctx.beginPath()
+        ctx.moveTo(point.x, point.y)
+        ctx.strokeStyle = '#000000'
+        ctx.lineWidth = 2
+        ctx.lineCap = 'round'
+        ctx.lineJoin = 'round'
+      }
+    }
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!isDrawingRef.current || disabled) return
+      if (!isStylusEvent(e)) return
+
+      e.preventDefault()
+      const canvas = canvasRef.current
+      if (!canvas) return
+
+      const rect = canvas.getBoundingClientRect()
+      const point: StrokePoint = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+        pressure: (e as any).pressure || 0.5
+      }
+      currentStrokeRef.current.push(point)
+
+      const ctx = getContext()
+      if (ctx) {
+        ctx.lineTo(point.x, point.y)
+        ctx.stroke()
+      }
+    }
+
+    const onPointerUp = (e: PointerEvent) => {
+      if (!isStylusEvent(e)) return
+      finishStroke()
+    }
+
+    // Capture so we can prevent default for pen without affecting mouse.
+    editorEl.addEventListener('pointerdown', onPointerDown, { capture: true })
+    window.addEventListener('pointermove', onPointerMove, { passive: false })
+    window.addEventListener('pointerup', onPointerUp, { passive: false })
+    window.addEventListener('pointercancel', onPointerUp, { passive: false })
+
+    return () => {
+      editorEl.removeEventListener('pointerdown', onPointerDown, true as any)
+      window.removeEventListener('pointermove', onPointerMove as any)
+      window.removeEventListener('pointerup', onPointerUp as any)
+      window.removeEventListener('pointercancel', onPointerUp as any)
+    }
+  }, [disabled, editorRef, finishStroke, getContext])
 
   if (disabled) return null
 
   return (
     <canvas
       ref={canvasRef}
-      className={`gba:absolute gba:inset-0 gba:pointer-events-auto gba:touch-none ${className}`}
+      className={`gba:absolute gba:inset-0 gba:pointer-events-none gba:touch-none ${className}`}
       style={{
         touchAction: 'none',
-        // Only capture stylus events, let mouse/touch pass through
-        pointerEvents: 'auto'
+        // Let typing clicks pass through; pen input is captured via listeners above.
+        pointerEvents: 'none'
       }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
-      onPointerCancel={handlePointerUp}
     />
   )
 }

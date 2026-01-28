@@ -714,6 +714,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
           _paperStyle?: PaperStyle
           strokes?: StrokeData[]
           _summary?: string | null
+          _translation?: any[]
           actionItemFlows?: any[]
         }
       | undefined
@@ -732,72 +733,114 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     // Render HandwritingNote for handwriting notes
     if (noteType === 'handwriting') {
       return (
-        <HandwritingNote
-          noteId={currentNote.id}
-          title={currentNote.title}
-          initialStrokes={contentJson?.strokes || []}
-          initialPaperStyle={contentJson?._paperStyle || 'lined'}
-          initialSummary={contentJson?._summary || null}
-          initialActionItemFlows={(contentJson?.actionItemFlows as any[]) || []}
-          onPersist={async ({ title, strokes, paperStyle, summary, actionItemFlows }) => {
-            await updateNote(currentNote.id, {
-              title,
-              contentJson: {
-                _noteType: 'handwriting',
-                _paperStyle: paperStyle,
-                strokes,
-                ...(summary ? { _summary: summary } : {}),
-                ...(actionItemFlows.length > 0 ? { actionItemFlows } : {})
+        <>
+          <HandwritingNote
+            noteId={currentNote.id}
+            title={currentNote.title}
+            initialStrokes={contentJson?.strokes || []}
+            initialPaperStyle={contentJson?._paperStyle || 'lined'}
+            initialSummary={contentJson?._summary || null}
+            initialTranslations={(contentJson?._translation as any[]) || []}
+            initialActionItemFlows={(contentJson?.actionItemFlows as any[]) || []}
+            onPersist={async ({ title, strokes, paperStyle, summary, translations, actionItemFlows }) => {
+              await updateNote(currentNote.id, {
+                title,
+                contentJson: {
+                  _noteType: 'handwriting',
+                  _paperStyle: paperStyle,
+                  strokes,
+                  ...(summary ? { _summary: summary } : {}),
+                  ...(translations.length > 0 ? { _translation: translations } : {}),
+                  ...(actionItemFlows.length > 0 ? { actionItemFlows } : {})
+                }
+              })
+            }}
+            onBack={handleBack}
+            onConvertToText={async text => {
+              // Convert handwriting note to text note
+              await updateNote(currentNote.id, {
+                title: currentNote.title,
+                content: `<p>${text.replace(/\n/g, '</p><p>')}</p>`,
+                contentJson: { _noteType: 'text' }
+              })
+              // Refresh the current note to switch to text editor
+              loadNote(currentNote.id)
+            }}
+            onCreateTextNote={async (text, title) => {
+              // Create a new text note from handwriting
+              const input: CreateNoteInput = {
+                title,
+                content: `<p>${text.replace(/\n/g, '</p><p>')}</p>`
               }
-            })
-          }}
-          onBack={handleBack}
-          onConvertToText={async text => {
-            // Convert handwriting note to text note
-            await updateNote(currentNote.id, {
-              title: currentNote.title,
-              content: `<p>${text.replace(/\n/g, '</p><p>')}</p>`,
-              contentJson: { _noteType: 'text' }
-            })
-            // Refresh the current note to switch to text editor
-            loadNote(currentNote.id)
-          }}
-          onCreateTextNote={async (text, title) => {
-            // Create a new text note from handwriting
-            const input: CreateNoteInput = {
-              title,
-              content: `<p>${text.replace(/\n/g, '</p><p>')}</p>`
-            }
-            const newNote = await createNote(input)
-            if (newNote) {
-              toast.success('Text note created')
-            }
-          }}
-          accessToken={accessToken}
-          userInfo={userInfo}
-          data-testid={`${testId}-handwriting-editor`}
-        />
+              const newNote = await createNote(input)
+              if (newNote) {
+                toast.success('Text note created')
+              }
+            }}
+            accessToken={accessToken}
+            userInfo={userInfo}
+            data-testid={`${testId}-handwriting-editor`}
+          />
+
+          {/* Share dialog must also be mounted in editor view */}
+          {noteToShare && (
+            <ShareNoteDialog
+              open={shareDialogOpen}
+              onOpenChange={setShareDialogOpen}
+              noteId={noteToShare.id}
+              noteTitle={noteToShare.title || 'Untitled Note'}
+              accessToken={accessToken}
+              currentUserId={currentUserId}
+              currentUserName={userInfo?.employeeDetails?.displayName}
+              isOwner={noteToShare.ownerId === currentUserId || noteToShare.permission === 'owner'}
+              sharedUsers={shareDialogSharedUsers}
+              onShare={handleShareSubmit}
+              onUnshare={handleUnshare}
+              onRefreshShares={refreshShares}
+            />
+          )}
+        </>
       )
     }
 
     // Render NoteEditor for text notes
     return (
-      <NoteEditor
-        note={currentNote}
-        onSave={async (title, content, contentJson) => {
-          await updateNote(currentNote.id, { title, content, contentJson })
-        }}
-        onBack={handleBack}
-        onTogglePin={() => handleTogglePin(currentNote.id)}
-        onArchive={() => handleArchiveNote(currentNote.id)}
-        onDelete={() => handleDeleteNote(currentNote.id)}
-        onShare={isOwner ? () => handleShareNote(currentNote.id) : undefined}
-        onDuplicate={() => handleDuplicateNote(currentNote.id)}
-        isReadOnly={!canEdit}
-        accessToken={accessToken}
-        userInfo={userInfo}
-        data-testid={`${testId}-editor`}
-      />
+      <>
+        <NoteEditor
+          note={currentNote}
+          onSave={async (title, content, contentJson) => {
+            await updateNote(currentNote.id, { title, content, contentJson })
+          }}
+          onBack={handleBack}
+          onTogglePin={() => handleTogglePin(currentNote.id)}
+          onArchive={() => handleArchiveNote(currentNote.id)}
+          onDelete={() => handleDeleteNote(currentNote.id)}
+          onShare={isOwner ? () => handleShareNote(currentNote.id) : undefined}
+          onDuplicate={() => handleDuplicateNote(currentNote.id)}
+          isReadOnly={!canEdit}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          data-testid={`${testId}-editor`}
+        />
+
+        {/* Share dialog must also be mounted in editor view */}
+        {noteToShare && (
+          <ShareNoteDialog
+            open={shareDialogOpen}
+            onOpenChange={setShareDialogOpen}
+            noteId={noteToShare.id}
+            noteTitle={noteToShare.title || 'Untitled Note'}
+            accessToken={accessToken}
+            currentUserId={currentUserId}
+            currentUserName={userInfo?.employeeDetails?.displayName}
+            isOwner={noteToShare.ownerId === currentUserId || noteToShare.permission === 'owner'}
+            sharedUsers={shareDialogSharedUsers}
+            onShare={handleShareSubmit}
+            onUnshare={handleUnshare}
+            onRefreshShares={refreshShares}
+          />
+        )}
+      </>
     )
   }
 
