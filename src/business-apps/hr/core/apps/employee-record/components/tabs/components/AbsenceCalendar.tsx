@@ -141,11 +141,12 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
     e.stopPropagation()
 
     // Determine which date range to check based on current selection
+    // Calculate isInRange once to avoid duplication
+    const isInRange =
+      selectedStartDate && selectedEndDate ? day.isBetween(selectedStartDate, selectedEndDate, 'day', '[]') : false
+
     let dateRangeToCheck = { start: day, end: day }
     if (selectedStartDate && selectedEndDate) {
-      // Check if clicked day is within the selected range (inclusive on both ends)
-      const isInRange = day.isBetween(selectedStartDate, selectedEndDate, 'day', '[]')
-
       if (isInRange) {
         // If clicking within the range, check the entire range for absences/holidays
         dateRangeToCheck = { start: selectedStartDate, end: selectedEndDate }
@@ -189,9 +190,6 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
     // If clicked day is outside the range, deselect range and select the clicked day
     // Otherwise, preserve the range
     if (selectedStartDate && selectedEndDate) {
-      // Check if clicked day is within the selected range (inclusive on both ends)
-      const isInRange = day.isBetween(selectedStartDate, selectedEndDate, 'day', '[]')
-
       if (!isInRange) {
         // Clicked day is outside range - deselect range and select this day
         setSelectedStartDate(day.startOf('day'))
