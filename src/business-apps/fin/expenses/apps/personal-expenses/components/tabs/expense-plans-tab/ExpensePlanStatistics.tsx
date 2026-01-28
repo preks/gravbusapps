@@ -247,6 +247,7 @@ const ExpensePlanStatistics: React.FC<ExpensePlanStatisticsProps> = ({
       onRetry={fetchPlanStatistics}
       onWidgetClick={onWidgetClick}
       skeletonCount={4}
+      useWidgetStructureForLoading={true}
       emptyText={getTranslationFromI18nKeyAndLabel(
         'lowcoder:personal_expenses.no_expense_plan_statistics_available',
         'No expense plan statistics available.'

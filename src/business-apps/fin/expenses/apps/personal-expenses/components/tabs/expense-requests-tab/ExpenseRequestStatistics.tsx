@@ -244,6 +244,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       error={error}
       onRetry={fetchRequestStatistics}
       skeletonCount={4}
+      useWidgetStructureForLoading={true}
       emptyText={getTranslationFromI18nKeyAndLabel(
         'lowcoder:personal_expenses.no_expense_request_statistics_available',
         'No expense request statistics available.'

@@ -135,6 +135,12 @@ export interface WidgetGroupProps {
    * Custom className for the SectionKpiCards grid container
    */
   cardsClassName?: string
+
+  /**
+   * If true, uses the widgets array structure during loading to preserve height
+   * This ensures loading placeholders match the height of loaded widgets
+   */
+  useWidgetStructureForLoading?: boolean
 }
 
 /**
@@ -261,24 +267,37 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
   className = 'gba:py-2',
   skeletonCount = 4,
   emptyText = 'No data available',
+  useWidgetStructureForLoading = false,
   'data-testid': dataTestId = 'widget-group'
 }) => {
   // Handle loading state
   if (isLoading) {
-    // Create placeholder KPI cards for loading state
-    const placeholderCards: KpiCardData[] = [...Array(skeletonCount)].map((_, index) => ({
-      id: `loading-${index}`,
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...'),
-      value: 0
-    }))
+    let loadingCards: KpiCardData[]
+
+    if (useWidgetStructureForLoading && widgets && widgets.length > 0) {
+      // Use the actual widget structure to preserve height
+      // Transform widgets but with loading values
+      loadingCards = widgets.map(widget => {
+        const kpiCard = transformWidgetToKpiCard(widget)
+        // Override value to show loading state while preserving structure
+        // Use 'Loading...' for all widgets to clearly indicate loading
+        return {
+          ...kpiCard,
+          value: getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')
+        }
+      })
+    } else {
+      // Create placeholder KPI cards for loading state
+      loadingCards = [...Array(skeletonCount)].map((_, index) => ({
+        id: `loading-${index}`,
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...'),
+        value: 0
+      }))
+    }
 
     return (
       <div className={className} data-testid={`${dataTestId}-loading`}>
-        <SectionKpiCards
-          cards={placeholderCards}
-          className="gba:opacity-50"
-          data-testid={`${dataTestId}-loading-cards`}
-        />
+        <SectionKpiCards cards={loadingCards} className="gba:opacity-50" data-testid={`${dataTestId}-loading-cards`} />
       </div>
     )
   }

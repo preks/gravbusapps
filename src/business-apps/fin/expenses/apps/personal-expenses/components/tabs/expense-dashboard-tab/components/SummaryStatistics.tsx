@@ -155,6 +155,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
         onRetry={onRetry}
         onWidgetClick={onWidgetClick}
         skeletonCount={4}
+        useWidgetStructureForLoading={true}
         emptyText={getTranslationFromI18nKeyAndLabel(
           'lowcoder:personal_expenses.no_statistics_available',
           'No statistics available.'

@@ -211,6 +211,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
       error={error}
       onRetry={fetchStatistics}
       skeletonCount={4}
+      useWidgetStructureForLoading={true}
       emptyText={getTranslationFromI18nKeyAndLabel(
         'lowcoder:personal_expenses.no_advance_payment_statistics_available',
         'No advance payment statistics available.'
