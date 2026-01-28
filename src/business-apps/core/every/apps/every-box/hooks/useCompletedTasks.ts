@@ -38,6 +38,7 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
   const hasInitialFetchRef = useRef(false)
   const lastTaskIdsRef = useRef<Set<string>>(new Set())
   const previousUserIdRef = useRef<string>('')
+  const isLoadingRef = useRef(false) // Track loading state to prevent duplicate calls
 
   const FETCH_SIZE = 20 // Match useInboxTasks
 
@@ -52,7 +53,9 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
         offset
       })
 
-      const hasMore = response.tasks.length >= FETCH_SIZE
+      // Check if there are more tasks based on total count AND if we received any tasks
+      // If we got 0 tasks, there's no point trying again at the same offset
+      const hasMore = response.tasks.length > 0 && offset + response.tasks.length < response.totalCount
       return { tasks: response.tasks, hasMore, totalCount: response.totalCount }
     },
     [userId, context.accessToken]
@@ -61,9 +64,11 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
   const loadInitial = useCallback(async () => {
     if (!userId) {
       setIsLoading(false)
+      isLoadingRef.current = false
       return
     }
 
+    isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
 
@@ -88,11 +93,12 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
       setError(errorMessage)
     } finally {
       setIsLoading(false)
+      isLoadingRef.current = false
     }
   }, [userId, fetchBatch])
 
   const backgroundRefresh = useCallback(async () => {
-    if (!userId || isLoading) {
+    if (!userId || isLoadingRef.current) {
       return
     }
 
@@ -112,7 +118,7 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
     } catch {
       // Ignore background refresh errors
     }
-  }, [userId, isLoading, fetchBatch])
+  }, [userId, fetchBatch])
 
   const refetch = useCallback(async () => {
     setHasNewTasks(false)
@@ -128,33 +134,39 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
   }, [refetch])
 
   const loadMore = useCallback(async () => {
-    if (!hasMoreToFetch || isLoading) {
+    // Prevent duplicate calls using ref (avoids stale closure issues)
+    if (isLoadingRef.current || !hasMoreToFetch) {
       return
     }
 
+    isLoadingRef.current = true
     setIsLoading(true)
+
     try {
       const nextOffset = allFetchedTasks.length
       const batch = await fetchBatch(nextOffset)
 
-      const newAllTasks = [...allFetchedTasks, ...batch.tasks]
-      const sortedTasks = [...newAllTasks].sort((a, b) => {
-        const aTime = new Date(a.completedAt || a.createdAt || 0).getTime()
-        const bTime = new Date(b.completedAt || b.createdAt || 0).getTime()
-        return bTime - aTime
+      setAllFetchedTasks(prevTasks => {
+        const newAllTasks = [...prevTasks, ...batch.tasks]
+        const sortedTasks = [...newAllTasks].sort((a, b) => {
+          const aTime = new Date(a.completedAt || a.createdAt || 0).getTime()
+          const bTime = new Date(b.completedAt || b.createdAt || 0).getTime()
+          return bTime - aTime
+        })
+
+        lastTaskIdsRef.current = new Set(sortedTasks.map(t => t.id))
+        return sortedTasks
       })
 
-      lastTaskIdsRef.current = new Set(sortedTasks.map(t => t.id))
-
-      setAllFetchedTasks(sortedTasks)
       // Keep using API totalCount (doesn't change with pagination)
       setHasMoreToFetch(batch.hasMore)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load more')
     } finally {
       setIsLoading(false)
+      isLoadingRef.current = false
     }
-  }, [allFetchedTasks, hasMoreToFetch, isLoading, fetchBatch])
+  }, [hasMoreToFetch, fetchBatch, allFetchedTasks.length])
 
   useEffect(() => {
     // Reset when userId changes

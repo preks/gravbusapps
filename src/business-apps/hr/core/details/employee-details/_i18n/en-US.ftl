@@ -13,6 +13,7 @@ employee-details-no-manager = No manager
 employee-details-job-position = Job Position
 employee-details-cost-center = Cost Center
 employee-details-hire-date = Hire Date
+employee-details-fixed-term-until = Fixed Term until
 employee-details-employment-type = Employment Type
 employee-details-contract-type = Contract Type
 employee-details-teams = Teams

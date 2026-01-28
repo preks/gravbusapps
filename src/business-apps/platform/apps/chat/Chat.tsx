@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo, startTransition, memo } from 'react'
-import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
+import { Alert, AlertDescription, Spinner, Toaster } from '@newwork/nw-design-system'
 import { RealtimeKitProvider } from '@cloudflare/realtimekit-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
@@ -401,6 +401,14 @@ const ChatInner: React.FC<ChatProps> = memo(
       getConnectionDiagnostics: getGroupConnectionDiagnostics,
       pendingInvites: groupPendingInvites
     } = groupCall
+
+    // Stable callback for inviting participants - prevents GroupCallModalRtk re-renders
+    const handleInviteParticipant = useCallback(
+      (participant: CallParticipant) => {
+        inviteToGroupCall([participant], activeConversation?.name)
+      },
+      [inviteToGroupCall, activeConversation?.name]
+    )
 
     // Combined in-call state
     const isInAnyCall = isInCall || isInGroupCall
@@ -1808,6 +1816,8 @@ const ChatInner: React.FC<ChatProps> = memo(
                 remoteStreams={groupRemoteStreams}
                 participants={groupParticipants}
                 pendingInvites={groupPendingInvites}
+                activeSpeakerId={realtimeKitGroupCall.activeSpeakerId}
+                activeSpeakerHistory={realtimeKitGroupCall.activeSpeakerHistory}
                 onEndCall={leaveGroupCall}
                 onToggleMute={toggleGroupMute}
                 onToggleVideo={toggleGroupVideo}
@@ -1820,7 +1830,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                 backgroundEnabled={groupCallState.backgroundEnabled}
                 prefixDataTestId={`${prefixDataTestId}-rtk-group-call`}
                 availableParticipants={availableParticipantsForCall}
-                onInviteParticipant={participant => inviteToGroupCall([participant], activeConversation?.name)}
+                onInviteParticipant={handleInviteParticipant}
                 onReconnectParticipant={reconnectGroupParticipant}
                 getConnectionDiagnostics={getGroupConnectionDiagnostics}
                 accessToken={accessToken}
@@ -1866,6 +1876,7 @@ const ChatInner: React.FC<ChatProps> = memo(
 export const Chat: React.FC<ChatProps> = props => {
   return (
     <TranslationProvider>
+      <Toaster />
       <ChatInner {...props} />
     </TranslationProvider>
   )

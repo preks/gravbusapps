@@ -318,6 +318,7 @@ employee-form-email = Email
 employee-form-organizational-unit = Unitate organizațională
 employee-form-job-position = Poziție
 employee-form-hire-date = Data angajării
+employee-form-fixed-term-until = Contract pe perioadă determinată până la
 employee-form-preferred-name = Nume preferat
 employee-form-employment-type = Tip angajare
 employee-form-contract-type = Tip contract

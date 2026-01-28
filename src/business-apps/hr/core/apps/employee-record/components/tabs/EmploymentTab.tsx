@@ -84,6 +84,10 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
         value: workingCondition?.hireDate ? dayjs(workingCondition.hireDate).format('MMM D, YYYY') : ''
       },
       {
+        label: 'Fixed Term until',
+        value: workingCondition?.exitDate ? dayjs(workingCondition.exitDate).format('MMM D, YYYY') : ''
+      },
+      {
         label: 'Contract Type',
         value: getCatalogValue(workingCondition?.contractType) || ''
       },
