@@ -201,13 +201,13 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
   const getTypeTextClass = (type: BusinessAppType): string => {
     switch (type) {
       case 'app':
-        return 'gba:text-ext-1'
+        return 'gba:text-info'
       case 'form':
-        return 'gba:text-ext-2'
+        return 'gba:text-success'
       case 'popup':
-        return 'gba:text-ext-3'
+        return 'gba:text-warning'
       case 'window':
-        return 'gba:text-ext-4'
+        return 'gba:text-destructive'
       default:
         return 'gba:text-primary'
     }
@@ -216,13 +216,13 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
   const getTypeBadgeClasses = (type: BusinessAppType): string => {
     switch (type) {
       case 'app':
-        return 'gba:bg-ext-1-secondary gba:text-ext-1-secondary-foreground'
+        return 'gba:bg-info-secondary gba:text-info-secondary-foreground'
       case 'form':
-        return 'gba:bg-ext-2-secondary gba:text-ext-2-secondary-foreground'
+        return 'gba:bg-success-secondary gba:text-success-secondary-foreground'
       case 'popup':
-        return 'gba:bg-ext-3-secondary gba:text-ext-3-secondary-foreground'
+        return 'gba:bg-warning-secondary gba:text-warning-secondary-foreground'
       case 'window':
-        return 'gba:bg-ext-4-secondary gba:text-ext-4-secondary-foreground'
+        return 'gba:bg-destructive-secondary gba:text-destructive-secondary-foreground'
       default:
         return 'gba:bg-primary-secondary gba:text-primary-secondary-foreground'
     }

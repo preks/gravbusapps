@@ -38,6 +38,7 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
   const hasInitialFetchRef = useRef(false)
   const lastTaskIdsRef = useRef<Set<string>>(new Set())
   const previousUserIdRef = useRef<string>('')
+  const isLoadingRef = useRef(false) // Track loading state to prevent duplicate calls
 
   const FETCH_SIZE = 20 // Fetch 20 from each source per batch (40 total per batch)
   const MIN_INITIAL_TASKS = 20 // Keep fetching until we have at least this many tasks
@@ -58,7 +59,8 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
         offset
       })
 
-      const hasMore = response.tasks.length >= FETCH_SIZE
+      // Has more if we got a full batch (and at least some tasks)
+      const hasMore = response.tasks.length > 0 && response.tasks.length >= FETCH_SIZE
       return { tasks: response.tasks, hasMore, totalCount: response.totalCount }
     },
     [userId, context.accessToken]
@@ -71,9 +73,11 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
   const loadInitial = useCallback(async () => {
     if (!userId) {
       setIsLoading(false)
+      isLoadingRef.current = false
       return
     }
 
+    isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
 
@@ -121,6 +125,7 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
       setError(errorMessage)
     } finally {
       setIsLoading(false)
+      isLoadingRef.current = false
     }
   }, [userId, fetchBatch])
 
@@ -128,7 +133,7 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
    * Background refresh - detects new tasks without disrupting UI
    */
   const backgroundRefresh = useCallback(async () => {
-    if (!userId || isLoading) {
+    if (!userId || isLoadingRef.current) {
       return
     }
 
@@ -150,7 +155,7 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
     } catch {
       // Ignore background refresh errors
     }
-  }, [userId, isLoading, fetchBatch])
+  }, [userId, fetchBatch])
 
   /**
    * Manual refetch - user-triggered full reload
@@ -175,35 +180,40 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
    * Load more tasks - fetches additional batch from backend
    */
   const loadMore = useCallback(async () => {
-    // Need to fetch more
-    if (!hasMoreToFetch) {
+    // Prevent duplicate calls using ref (avoids stale closure issues)
+    if (isLoadingRef.current || !hasMoreToFetch) {
       return
     }
 
+    isLoadingRef.current = true
     setIsLoading(true)
+
     try {
       const nextOffset = allFetchedTasks.length
       const batch = await fetchBatch(nextOffset)
 
-      const newAllTasks = [...allFetchedTasks, ...batch.tasks]
-      const sortedTasks = [...newAllTasks].sort((a, b) => {
-        const aTime = new Date(a.createdAt || a.scheduledAt || 0).getTime()
-        const bTime = new Date(b.createdAt || b.scheduledAt || 0).getTime()
-        return bTime - aTime
+      setAllFetchedTasks(prevTasks => {
+        const newAllTasks = [...prevTasks, ...batch.tasks]
+        const sortedTasks = [...newAllTasks].sort((a, b) => {
+          const aTime = new Date(a.createdAt || a.scheduledAt || 0).getTime()
+          const bTime = new Date(b.createdAt || b.scheduledAt || 0).getTime()
+          return bTime - aTime
+        })
+
+        // Update task IDs
+        lastTaskIdsRef.current = new Set(sortedTasks.map(t => t.id))
+        return sortedTasks
       })
 
-      // Update task IDs
-      lastTaskIdsRef.current = new Set(sortedTasks.map(t => t.id))
-
-      setAllFetchedTasks(sortedTasks)
-      setTotalCount(sortedTasks.length)
+      setTotalCount(prevCount => prevCount + batch.tasks.length)
       setHasMoreToFetch(batch.hasMore)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load more')
     } finally {
       setIsLoading(false)
+      isLoadingRef.current = false
     }
-  }, [allFetchedTasks, hasMoreToFetch, fetchBatch])
+  }, [hasMoreToFetch, fetchBatch, allFetchedTasks.length])
 
   /**
    * Initial fetch on mount and when userId changes

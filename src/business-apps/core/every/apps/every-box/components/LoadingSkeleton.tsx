@@ -16,20 +16,7 @@ export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({ count = 10, ty
   if (type === 'flow') {
     // Flow skeleton - matches OutboxView layout
     return (
-      <div className="gba:flex gba:flex-col gba:gap-4 gba:h-full" data-testid="loading-skeleton-flow">
-        {/* Search bar + Refresh button */}
-        <div className="gba:flex gba:items-center gba:gap-4">
-          <Skeleton className="gba:h-10 gba:flex-1 gba:rounded-md" />
-          <Skeleton className="gba:h-10 gba:w-10 gba:rounded-md" />
-        </div>
-
-        {/* Filter buttons - All, Blinks, Requests */}
-        <div className="gba:flex gba:gap-2 gba:flex-wrap">
-          <Skeleton className="gba:h-9 gba:w-20 gba:rounded-md" />
-          <Skeleton className="gba:h-9 gba:w-24 gba:rounded-md" />
-          <Skeleton className="gba:h-9 gba:w-28 gba:rounded-md" />
-        </div>
-
+      <div className="gba:flex gba:flex-col gba:gap-3 gba:h-full gba:px-3 gba:py-2" data-testid="loading-skeleton-flow">
         {/* Flow cards */}
         <div className="gba:space-y-2 gba:flex-1 gba:overflow-hidden">
           {Array.from({ length: count }).map((_, index) => (
@@ -73,48 +60,24 @@ export const LoadingSkeleton: React.FC<LoadingSkeletonProps> = ({ count = 10, ty
     )
   }
 
-  // Task skeleton - matches InboxView layout (full list view)
+  // Task skeleton - matches TaskCard layout (compact split view)
   return (
-    <div className="gba:flex gba:flex-col gba:gap-3 gba:h-full" data-testid="loading-skeleton-task">
-      {/* Search bar + Refresh button */}
-      <div className="gba:flex gba:items-center gba:gap-4">
-        <Skeleton className="gba:h-10 gba:flex-1 gba:rounded-md" />
-        <Skeleton className="gba:h-10 gba:w-10 gba:rounded-md" />
-      </div>
-
-      {/* Filter buttons - All, Blinks, Approvals, Completed */}
-      <div className="gba:flex gba:items-center gba:gap-1">
-        <Skeleton className="gba:h-8 gba:w-20 gba:rounded-md" />
-        <Skeleton className="gba:h-8 gba:w-20 gba:rounded-md" />
-        <Skeleton className="gba:h-8 gba:w-28 gba:rounded-md" />
-        <Skeleton className="gba:h-8 gba:w-28 gba:rounded-md" />
-      </div>
-
-      {/* Task cards - borderless list style */}
-      <div className="gba:divide-y gba:divide-border/50 gba:flex-1 gba:overflow-hidden">
+    <div className="gba:flex gba:flex-col gba:h-full gba:px-3 gba:py-2" data-testid="loading-skeleton-task">
+      {/* Task cards */}
+      <div className="gba:space-y-2 gba:flex-1 gba:overflow-hidden">
         {Array.from({ length: count }).map((_, index) => (
-          <div key={`skeleton-task-${index}`} className="gba:px-4 gba:py-2.5">
-            <div className="gba:flex gba:items-center gba:gap-4">
-              {/* 1. Date - 140px */}
-              <Skeleton className="gba:h-4 gba:w-[140px] gba:flex-shrink-0" />
-
-              {/* 2. Avatar */}
-              <Skeleton className="gba:h-8 gba:w-8 gba:rounded-full gba:flex-shrink-0" />
-
-              {/* 3. Creator name - 160px */}
-              <Skeleton className="gba:h-4 gba:w-[160px] gba:flex-shrink-0" />
-
-              {/* 4. Module icon */}
-              <Skeleton className="gba:h-5 gba:w-5 gba:rounded gba:flex-shrink-0" />
-
-              {/* 5. Task title */}
-              <Skeleton className="gba:h-5 gba:flex-1 gba:min-w-0" />
-
-              {/* 6. Badge + Due date */}
-              <div className="gba:flex gba:items-center gba:gap-3 gba:flex-shrink-0">
-                <Skeleton className="gba:h-5 gba:w-16 gba:rounded-full" />
-                <Skeleton className="gba:h-4 gba:w-20" />
+          <div key={`skeleton-task-${index}`} className="gba:px-3 gba:py-2.5 gba:bg-card gba:rounded-lg gba:mb-2">
+            <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
+              {/* Left: Name and Title */}
+              <div className="gba:flex gba:flex-col gba:gap-0.5 gba:flex-1 gba:min-w-0">
+                {/* Creator Name */}
+                <Skeleton className="gba:h-4 gba:w-32" />
+                {/* Task Title */}
+                <Skeleton className="gba:h-3 gba:w-48" />
               </div>
+
+              {/* Right: Timestamp */}
+              <Skeleton className="gba:h-3 gba:w-20 gba:flex-shrink-0" />
             </div>
           </div>
         ))}
