@@ -83,9 +83,12 @@ import { StatusBadge } from '../shared/components/StatusBadge'
 import { PublishDialog } from '../shared/components/PublishDialog'
 import { CommentPanel } from '../shared/components/CommentPanel'
 import { InlineCommentPopover } from '../shared/components/InlineCommentPopover'
+import { Drawing } from '../shared/extensions/Drawing'
+import { HybridEditorCanvas } from '../shared/components/HybridEditorCanvas'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 import { NoteApiService } from './services/NoteApiService'
+import { DrawingApiService } from './services/DrawingApiService'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
 import Mention from '@tiptap/extension-mention'
@@ -209,83 +212,6 @@ const MentionNodeView: React.FC<{ node: any }> = ({ node }) => {
   )
 }
 
-type JwtPayload = {
-  sub?: string
-  userId?: string
-  name?: string
-  preferred_username?: string
-  username?: string
-}
-
-type GraphqlClientLike = {
-  request: <T>(query: string, variables?: Record<string, unknown>) => Promise<T>
-} | null
-
-function safeParseJwtPayload(token: string): JwtPayload | null {
-  try {
-    const parts = token.split('.')
-    if (parts.length < 2) return null
-    const rawPayload = parts[1]
-    if (!rawPayload) return null
-    return JSON.parse(atob(rawPayload)) as JwtPayload
-  } catch {
-    return null
-  }
-}
-
-function toAvatarDataUrl(pictureThumbnail?: string): string | null {
-  if (!pictureThumbnail) return null
-  return pictureThumbnail.startsWith('data:') ? pictureThumbnail : `data:image/png;base64,${pictureThumbnail}`
-}
-
-async function fetchEmployeeLightByUserId(
-  graphqlClient: GraphqlClientLike,
-  userId: string
-): Promise<{ displayName?: string; pictureThumbnail?: string } | null> {
-  if (!graphqlClient) return null
-  if (!userId) return null
-
-  try {
-    const query = GET_EMPLOYEE_LIGHT_BY_USER_ID(userId)
-    const result = await graphqlClient.request<{ Employee: Array<{ displayName: string; pictureThumbnail?: string }> }>(
-      query
-    )
-    return result.Employee?.[0] || null
-  } catch {
-    return null
-  }
-}
-
-async function loadCurrentUserInfo(params: {
-  accessToken: string
-  graphqlClient: GraphqlClientLike
-  setCurrentUserId: (value: string | null) => void
-  setCurrentUserName: (value: string | null) => void
-  setCurrentUserAvatar: (value: string | null) => void
-}): Promise<void> {
-  const token = params.accessToken || localStorage.getItem('business-app-ide-access-token') || ''
-  if (!token) return
-
-  const payload = safeParseJwtPayload(token)
-  if (!payload) return
-
-  const userId = payload.sub || payload.userId || null
-  const userName = payload.name || payload.preferred_username || payload.username || null
-
-  params.setCurrentUserId(userId)
-  params.setCurrentUserName(userName)
-
-  if (!userId) return
-
-  const emp = await fetchEmployeeLightByUserId(params.graphqlClient, userId)
-  if (emp?.pictureThumbnail) {
-    params.setCurrentUserAvatar(toAvatarDataUrl(emp.pictureThumbnail))
-  }
-  if (emp?.displayName) {
-    params.setCurrentUserName(emp.displayName)
-  }
-}
-
 export interface NoteEditorProps extends Partial<BusinessAppContextProps> {
   note: Note
   onSave: (title: string, content: string, contentJson?: Record<string, unknown>) => Promise<void>
@@ -327,6 +253,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const titleInputRef = useRef<HTMLInputElement>(null)
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const editorRef = useRef<any>(null)
+  const editorContainerRef = useRef<HTMLDivElement>(null)
 
   // Collaboration state
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -558,16 +485,44 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
   // Get current user info including avatar
   useEffect(() => {
-    loadCurrentUserInfo({
-      accessToken,
-      graphqlClient,
-      setCurrentUserId,
-      setCurrentUserName,
-      setCurrentUserAvatar
-    }).catch(error => {
-      const message = error instanceof Error ? error.message : 'Unknown error'
-      console.error('[NoteEditor] Failed to load current user info:', message)
-    })
+    const loadUserInfo = async () => {
+      try {
+        // Prefer accessToken prop (published screens may not have token in localStorage)
+        const token = accessToken || localStorage.getItem('business-app-ide-access-token')
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]))
+          const userId = payload.sub || payload.userId || null
+          const userName = payload.name || payload.preferred_username || payload.username || null
+
+          setCurrentUserId(userId)
+          setCurrentUserName(userName)
+
+          // Fetch avatar from GraphQL if we have userId and graphqlClient
+          if (userId && graphqlClient) {
+            try {
+              const query = GET_EMPLOYEE_LIGHT_BY_USER_ID(userId)
+              const result = await graphqlClient.request<{
+                Employee: Array<{ displayName: string; pictureThumbnail?: string }>
+              }>(query)
+              const emp = result.Employee?.[0]
+              if (emp?.pictureThumbnail) {
+                const avatarUrl = emp.pictureThumbnail.startsWith('data:')
+                  ? emp.pictureThumbnail
+                  : `data:image/png;base64,${emp.pictureThumbnail}`
+                setCurrentUserAvatar(avatarUrl)
+              }
+              if (emp?.displayName) {
+                setCurrentUserName(emp.displayName)
+              }
+            } catch {
+              // Ignore - avatar is optional
+            }
+          }
+        }
+      } catch {}
+    }
+
+    loadUserInfo()
   }, [graphqlClient, accessToken])
 
   // Create mention suggestion with access token
@@ -711,6 +666,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           },
           suggestion: mentionSuggestion
         }),
+        Drawing,
         ...(collaborationExtension ? [collaborationExtension] : []),
         ...(yjsCursorExtension ? [yjsCursorExtension] : [])
       ],
@@ -838,6 +794,60 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       setIsSaving(false)
     }
   }, [title, editor, onSave, isReadOnly, isSaving])
+
+  /**
+   * Handle stroke completion from hybrid canvas (Apple Pencil handwriting)
+   * GoodNotes/Apple Notes approach: Store only vector data, generate PNG temporarily for OCR
+   */
+  const handleStrokeComplete = useCallback(
+    async (
+      svgData: string,
+      strokeData: { points: Array<{ x: number; y: number; pressure: number }>; color?: string; width?: number },
+      bounds: { x: number; y: number; width: number; height: number }
+    ) => {
+      if (!editor) return
+
+      const drawingId = `drawing-${Date.now()}`
+
+      // Insert drawing inline at current position (vector only, no PNG!)
+      editor.commands.insertDrawing({
+        id: drawingId,
+        svgData,
+        pngDataUrl: '', // No longer needed - SVG is all we need
+        width: Math.round(bounds.width),
+        height: Math.round(bounds.height),
+        strokeCount: strokeData.points.length,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })
+
+      setHasUnsavedChanges(true)
+
+      // Send to backend for OCR processing (GoodNotes approach)
+      // Backend will generate PNG temporarily from SVG, extract text, discard PNG
+      try {
+        const drawingService = new DrawingApiService(accessToken)
+        await drawingService.createDrawing({
+          entityType: 'note',
+          entityId: note.id,
+          svgData, // Vector format only
+          strokeData, // Raw points for future editing
+          width: Math.round(bounds.width),
+          height: Math.round(bounds.height),
+          strokeCount: strokeData.points.length,
+          metadata: {
+            drawingId,
+            createdInEditor: true
+          }
+        })
+        console.log('[NoteEditor] Drawing (vector only) sent to backend for OCR processing')
+      } catch (error) {
+        console.error('[NoteEditor] Failed to send drawing to backend:', error)
+        // Don't fail the UI - drawing is still saved in the note content
+      }
+    },
+    [editor, note.id, accessToken]
+  )
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -1347,6 +1357,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
             <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
 
+            {/* Drawing */}
             {/* Mention Entity */}
             <TooltipProvider>
               <Tooltip>
@@ -1396,8 +1407,20 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
             </div>
           )}
 
-          {/* Editor content */}
-          <EditorContent editor={editor} className="note-editor-content" />
+          {/* Editor content with hybrid canvas overlay for Apple Pencil */}
+          <div ref={editorContainerRef} className="gba:relative">
+            <EditorContent editor={editor} className="note-editor-content" />
+
+            {/* Hybrid Canvas - Automatically captures Apple Pencil input */}
+            {editor && !isReadOnly && (
+              <HybridEditorCanvas
+                editorRef={editorContainerRef}
+                onStrokeComplete={handleStrokeComplete}
+                disabled={isReadOnly}
+                className="gba:z-10"
+              />
+            )}
+          </div>
         </div>
       </div>
 
