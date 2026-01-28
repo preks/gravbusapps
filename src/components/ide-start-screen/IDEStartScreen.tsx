@@ -369,7 +369,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
   }, [businessApps, pinnedSubModule])
 
   return (
-    <div data-testid="IDE-StartScreen" className="gba:min-h-full gba:bg-gradient-decorative-1">
+    <div data-testid="IDE-StartScreen" className="gba:min-h-full gba:bg-background-decorative">
       <PageLayout
         variant="display"
         headerIcon={<SquaresFourIcon className="gba:text-foreground" />}

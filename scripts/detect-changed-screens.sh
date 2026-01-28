@@ -35,6 +35,10 @@ extract_app_paths() {
     # Pattern: src/business-apps/.../records/[record-name]
     record_path=$(echo "$file_path" | sed -n 's|\(src/business-apps/.*/records/[^/]*\).*|\1|p')
     
+    # Extract window directory path using sed
+    # Pattern: src/business-apps/.../windows/[window-name]
+    window_path=$(echo "$file_path" | sed -n 's|\(src/business-apps/.*/windows/[^/]*\).*|\1|p')
+    
     if [[ -n "$app_path" ]]; then
       echo "$app_path"
     fi
@@ -49,6 +53,10 @@ extract_app_paths() {
 
     if [[ -n "$record_path" ]]; then
       echo "$record_path"
+    fi
+
+    if [[ -n "$window_path" ]]; then
+      echo "$window_path"
     fi
   done < "$input_file" | sort -u > "$output_file"
 }
@@ -213,7 +221,7 @@ build_screen_dirs_cache() {
   find src/business-apps -type f -name 'index.ts' 2>/dev/null | while read -r index_file; do
     dir=$(dirname "$index_file")
     # Check if it's in screens
-    if echo "$dir" | grep -qE '/(apps|forms|popups|records)/[^/]+$'; then
+    if echo "$dir" | grep -qE '/(apps|forms|popups|records|windows)/[^/]+$'; then
       echo "$dir"
     fi
   done | sort -u
@@ -227,7 +235,7 @@ is_screen_specific() {
   local file="$1"
   
   # Must be in screens to even be considered
-  if ! echo "$file" | grep -qE '/(apps|forms|popups|records)/'; then
+  if ! echo "$file" | grep -qE '/(apps|forms|popups|records|windows)/'; then
     return 1  # false - not in screen folder type
   fi
   
