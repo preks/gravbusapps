@@ -1319,7 +1319,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     // Always add local participant - screen share is a separate item
     const localParticipantId = 'local-participant'
     if (!seenIds.has(localParticipantId)) {
-      items.push({
+      const localParticipantItem = {
         id: localParticipantId,
         type: localHasVideo ? 'video' : 'avatar',
         peerId: meeting?.self?.id || 'local', // Use actual peer ID from SDK (fallback to 'local' for safety)
@@ -1336,8 +1336,17 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         // Don't highlight yourself as active speaker (industry standard UX)
         // You already know you're speaking - more useful to see who ELSE is speaking
         isActiveSpeaker: false // Could make this: activeSpeakerId === 'local' to show self-highlight
-      })
+      } as const
+      items.push(localParticipantItem)
       seenIds.add(localParticipantId)
+      rtkDebug.log('[RTK Modal] 👤 Added local participant to items:', {
+        id: localParticipantItem.id,
+        type: localParticipantItem.type,
+        peerId: localParticipantItem.peerId,
+        isLocal: localParticipantItem.isLocal,
+        hasVideo: localHasVideo,
+        hasAudio: !!localAudioTrack
+      })
     }
 
     // Add ALL non-focused screen shares (from allScreenShares array)
@@ -1426,6 +1435,13 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     const focusedScreenShareCount = focusedScreenShare ? 1 : 0
     // CRITICAL: Find local participant, NOT screen share (screen share is also isLocal=true)
     const localItem = items.find(i => i.isLocal && i.type !== 'screen-share')
+
+    rtkDebug.log('[RTK Modal] 🔍 Looking for local participant in items:', {
+      totalItems: items.length,
+      itemsWithIsLocal: items.filter(i => i.isLocal).map(i => ({ id: i.id, type: i.type, isLocal: i.isLocal })),
+      foundLocalItem: localItem ? { id: localItem.id, type: localItem.type } : null
+    })
+
     const activeSpeakerItems = items
       .slice(focusedScreenShareCount)
       .filter(item => item.isActiveSpeaker && !item.isLocal)
