@@ -25,6 +25,7 @@
   "crm/core/apps/customer-launcher": "093e228416c48438cc8be56b4851203e",
   "crm/core/apps/customer-relations": "3f926999a235f1e4fd9f871a090ef105",
   "crm/core/apps/customer-settings": "d40c0300b879ac89c0066a5156af1afd",
+  "crm/core/apps/data-import": "2d5b4c04ec74274440b2b50068223668",
   "crm/core/forms/account-form": "1a14a0caf7ce4412b8b6c57087cc8aed",
   "crm/core/forms/activity-form": "b8a64c311748a33122a424f4d2e9939f",
   "crm/core/forms/complete-customer-task-approve": "e0eb3b0872bf0f8cc207f32c01ab8ce7",
