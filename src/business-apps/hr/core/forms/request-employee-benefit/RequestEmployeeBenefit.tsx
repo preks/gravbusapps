@@ -210,10 +210,10 @@ const RequestEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({ addi
               />
             </div>
 
-            {/* Justification (Required) */}
+            {/* Justification (Optional) */}
             <div className="gba:space-y-2">
               <Label className="gba:text-sm gba:font-medium gba:text-foreground">
-                {t('modal-request-justification-label')} <span className="gba:text-destructive">*</span>
+                {t('modal-request-justification-label')}
               </Label>
               <Textarea
                 value={justification}
@@ -228,7 +228,7 @@ const RequestEmployeeBenefitContent: React.FC<BusinessAppContextProps> = ({ addi
                   current: justification.length,
                   max: BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH
                 })}
-                {justification.length > 0 && justification.length < BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH && (
+                {justification.trim().length > 0 && justification.length < BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH && (
                   <span className="gba:text-destructive gba:ml-2">
                     {t('modal-character-minimum', { min: BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH })}
                   </span>

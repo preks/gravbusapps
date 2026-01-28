@@ -7,32 +7,19 @@
  *   Example: ?taskId=abc-123 will open the task detail panel for task with ID "abc-123"
  */
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import {
-  Input,
-  Button,
-  Alert,
-  AlertTitle,
-  AlertDescription,
-  TabSwitch,
-  TabSwitchList,
-  TabSwitchTrigger,
-  TabSwitchBadge,
-  ScrollArea,
-  ScrollBar,
-  useTranslation,
-  useLocale
-} from '@newwork/nw-design-system'
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { Button, Alert, AlertTitle, AlertDescription, useTranslation, useLocale } from '@newwork/nw-design-system'
 import translations from '../_i18n'
-import { Search, RefreshCw, Zap, CheckCircle, Inbox, CheckCheck, X } from 'lucide-react'
+import { Zap } from 'lucide-react'
 import { UnifiedTask } from '../types'
 import { TaskCard } from './TaskCard'
-import { TaskDetailDialog } from './TaskDetailDialog'
+import { TaskDetailContent } from './TaskDetailContent'
 import { EmptyState } from './EmptyState'
 import { LoadingSkeleton } from './LoadingSkeleton'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { filterTasksBySearch } from '../utils/taskGrouping'
 import { useEmployeeAvatarsBatch } from '../hooks/useEmployeeAvatarsBatch'
+import { FilterType } from './FiltersDropdown'
 
 type TaskFilterType = 'all' | 'blinks' | 'approvals' | 'completed'
 
@@ -64,6 +51,9 @@ interface InboxViewProps extends BusinessAppContextProps {
   completedHasMore: boolean
   hasNewCompletedTasks: boolean
   onLoadNewCompletedTasks: () => void
+  // Global search and filters from parent
+  globalSearch?: string
+  selectedFilters?: FilterType[]
 }
 
 /**
@@ -126,7 +116,6 @@ const filterCompletedTasks = (tasks: UnifiedTask[]): UnifiedTask[] => {
 
 export const InboxView: React.FC<InboxViewProps> = ({
   tasks,
-  totalCount,
   isLoading,
   error,
   onRefresh,
@@ -134,14 +123,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
   hasMore,
   hasNewTasks,
   onLoadNewTasks,
-  blinkCount,
   blinkTasks,
   blinkTasksLoading,
   blinkHasMore,
   onBlinkLoadMore,
-  onBlinkRefresh,
   completedTasks,
-  completedTotalCount,
   completedIsLoading,
   completedError,
   onCompletedRefresh,
@@ -149,6 +135,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
   completedHasMore,
   hasNewCompletedTasks,
   onLoadNewCompletedTasks,
+  globalSearch = '',
+  selectedFilters = ['all'],
   ...context
 }) => {
   const { t } = useTranslation(translations)
@@ -158,9 +146,9 @@ export const InboxView: React.FC<InboxViewProps> = ({
    * Get empty state message based on search query and filter type
    */
   const getEmptyStateMessage = useCallback(
-    (query: string, filter: TaskFilterType): string => {
-      if (query.trim()) {
-        return t('inbox-empty-no-results', { query })
+    (filter: TaskFilterType): string => {
+      if (globalSearch.trim()) {
+        return t('inbox-empty-no-results', { query: globalSearch })
       }
 
       switch (filter) {
@@ -174,18 +162,44 @@ export const InboxView: React.FC<InboxViewProps> = ({
           return t('inbox-empty-no-tasks')
       }
     },
-    [t]
+    [t, globalSearch]
   )
 
-  const [searchQuery, setSearchQuery] = useState('')
   const [selectedTask, setSelectedTask] = useState<UnifiedTask | null>(null)
-  const [filterType, setFilterType] = useState<TaskFilterType>('all')
+  // Map selectedFilters from parent to local filterType
+  const filterType: TaskFilterType = selectedFilters.includes('all')
+    ? 'all'
+    : selectedFilters.includes('blinks')
+      ? 'blinks'
+      : selectedFilters.includes('approvals')
+        ? 'approvals'
+        : selectedFilters.includes('completed')
+          ? 'completed'
+          : 'all'
   const [localTasks, setLocalTasks] = useState<UnifiedTask[]>(tasks)
   const [localCompletedTasks, setLocalCompletedTasks] = useState<UnifiedTask[]>(completedTasks)
   const [isInitialized, setIsInitialized] = useState(false)
   const [displayedCount, setDisplayedCount] = useState(20) // Show 20 tasks initially
 
   const TASKS_PER_PAGE = 20
+
+  // Reset displayedCount when filter changes
+  useEffect(() => {
+    setDisplayedCount(20)
+  }, [filterType])
+
+  // Track previous tasks length to detect when new data is fetched
+  const prevTasksLengthRef = useRef(0)
+  useEffect(() => {
+    const currentTasksLength = filterType === 'completed' ? localCompletedTasks.length : localTasks.length
+    const prevLength = prevTasksLengthRef.current
+
+    // If tasks array grew (new data fetched), update displayedCount to show all tasks
+    if (currentTasksLength > prevLength) {
+      setDisplayedCount(currentTasksLength)
+      prevTasksLengthRef.current = currentTasksLength
+    }
+  }, [localCompletedTasks.length, localTasks.length, filterType])
 
   // Sync local tasks with props
   // Filter out completed tasks from active tasks to prevent duplicates
@@ -198,7 +212,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
     setLocalCompletedTasks(filterCompletedTasks(completedTasks))
   }, [completedTasks])
 
-  // Initialize selected task from URL when tasks are loaded
+  // Initialize selected task from URL when tasks are loaded, or auto-select first task
   useEffect(() => {
     if (!isInitialized && tasks.length > 0 && !isLoading) {
       const taskIdFromUrl = getInitialTaskId()
@@ -208,11 +222,15 @@ export const InboxView: React.FC<InboxViewProps> = ({
         const taskToSelect = allTasks.find(t => t.id === taskIdFromUrl)
         if (taskToSelect) {
           setSelectedTask(taskToSelect)
-          // Switch to completed filter if the task is completed
-          if (taskToSelect.status === 'COMPLETED' && completedTasks.some(t => t.id === taskIdFromUrl)) {
-            setFilterType('completed')
-          }
+        } else {
+          // If task from URL not found, select first task
+          setSelectedTask(tasks[0])
+          updateTaskUrl(tasks[0].id)
         }
+      } else {
+        // No task in URL, auto-select first task
+        setSelectedTask(tasks[0])
+        updateTaskUrl(tasks[0].id)
       }
       setIsInitialized(true)
     }
@@ -288,20 +306,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
   }
 
   /**
-   * Helper function to check if a task is completed
-   */
-  const isTaskCompleted = useCallback((task: UnifiedTask): boolean => {
-    if (task.status === 'COMPLETED') return true
-
-    if (task.completedAt) {
-      const activeStatuses = ['PENDING', 'IN_PROGRESS', 'SCHEDULED']
-      return !activeStatuses.includes(task.status)
-    }
-
-    return false
-  }, [])
-
-  /**
    * Apply type-specific filtering (blinks, approvals)
    */
   // Check if we're using dedicated blink tasks from API (already filtered)
@@ -331,12 +335,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
     return localTasks
   }, [filterType, localCompletedTasks, localTasks, blinkTasks])
 
-  const currentTotalCount = useMemo(() => {
-    if (filterType === 'completed') return completedTotalCount
-    if (filterType === 'blinks' && blinkCount !== undefined) return blinkCount
-    return totalCount
-  }, [filterType, completedTotalCount, blinkCount, totalCount])
-
   const currentIsLoading = useMemo(() => {
     if (filterType === 'completed') return completedIsLoading
     if (filterType === 'blinks') return blinkTasksLoading || false
@@ -344,12 +342,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
   }, [filterType, completedIsLoading, blinkTasksLoading, isLoading])
 
   const currentError = filterType === 'completed' ? completedError : error
-
-  const currentOnRefresh = useMemo(() => {
-    if (filterType === 'completed') return onCompletedRefresh
-    if (filterType === 'blinks' && onBlinkRefresh) return onBlinkRefresh
-    return onRefresh
-  }, [filterType, onCompletedRefresh, onBlinkRefresh, onRefresh])
 
   const currentOnLoadMore = useMemo(() => {
     if (filterType === 'completed') return onCompletedLoadMore
@@ -408,15 +400,15 @@ export const InboxView: React.FC<InboxViewProps> = ({
     }
 
     // Apply search filter (including sender name search)
-    if (searchQuery.trim()) {
-      result = filterTasksBySearch(result, searchQuery, employeeMap)
+    if (globalSearch.trim()) {
+      result = filterTasksBySearch(result, globalSearch, employeeMap)
     }
 
     // Tasks are already sorted by createdAt (desc) from the unified API
     // No additional sorting needed here
 
     return result
-  }, [currentTasks, searchQuery, filterType, employeeMap, applyTypeFilter])
+  }, [currentTasks, globalSearch, filterType, employeeMap, applyTypeFilter])
 
   // Slice to displayedCount for pagination (show 20 initially, load more on demand)
   const filteredTasks = useMemo(() => {
@@ -524,41 +516,14 @@ export const InboxView: React.FC<InboxViewProps> = ({
     [filteredTasks, onCompletedRefresh, handleCloseTask, filterType]
   )
 
-  // Count tasks by type for badges
-  // Note: Shows counts from loaded tasks. Adds "+" suffix if more tasks exist
-  const taskCounts = useMemo(() => {
-    const activeTasks = tasks.filter(task => !isTaskCompleted(task))
-
-    // Use blinkCount from API if available (accurate), otherwise fallback to client-side count
-    const blinksFromApi = blinkCount !== undefined ? blinkCount : activeTasks.filter(isBlinkTask).length
-
-    return {
-      // Use totalCount from API (cflow + kogito combined) for accurate "All" badge
-      all: totalCount,
-      allHasMore: false, // API provides accurate count, no need for "+"
-      blinks: blinksFromApi,
-      blinksHasMore: false, // API provides accurate count, no need for "+"
-      approvals: activeTasks.filter(isApprovalTask).length,
-      approvalsHasMore: hasMore, // Approvals might exist in un-fetched tasks
-      completed: completedTotalCount,
-      completedHasMore: false // API provides accurate count, no need for "+"
-    }
-  }, [tasks, totalCount, hasMore, completedTotalCount, isTaskCompleted, blinkCount])
-
   if (currentIsLoading && currentTasks.length === 0) {
     return <LoadingSkeleton type="task" />
   }
 
   return (
-    <div className="gba:flex gba:h-full gba:overflow-hidden" data-testid="inbox-view">
-      {/* Master Panel - Task List (hidden on mobile/tablet when task selected) */}
-      <div
-        className={`gba:gap-3 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${
-          selectedTask
-            ? 'gba:hidden gba:lg:flex gba:lg:flex-col gba:lg:w-[calc(40%-12px)] gba:lg:flex-shrink-0'
-            : 'gba:flex gba:flex-col gba:w-full'
-        }`}
-      >
+    <div className="gba:flex gba:h-full gba:overflow-hidden gba:gap-0" data-testid="inbox-view">
+      {/* Master Panel - Task List (always visible, fixed width) */}
+      <div className="gba:h-full gba:flex gba:flex-col gba:w-[480px] gba:flex-shrink-0 gba:bg-muted/30 gba:border-r gba:border-border">
         {/* New Tasks Notification Banner */}
         {((filterType === 'all' && hasNewTasks) || (filterType === 'completed' && hasNewCompletedTasks)) && (
           <Alert className="gba:border-info gba:bg-info-secondary" data-testid="new-tasks-banner">
@@ -584,110 +549,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
           </Alert>
         )}
 
-        {/* Search and Actions */}
-        <div className="gba:flex gba:items-center gba:gap-4">
-          <div className="gba:relative gba:flex-1">
-            <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
-            <Input
-              placeholder={t('inbox-search-placeholder')}
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="gba:pl-11 gba:pr-9"
-              style={{ paddingLeft: '2.75rem' }}
-              data-testid="inbox-search-input"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="gba:absolute gba:right-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground hover:gba:text-foreground gba:cursor-pointer gba:z-10"
-                data-testid="inbox-search-clear-button"
-                aria-label={t('inbox-clear-search')}
-              >
-                <X className="gba:h-4 gba:w-4" />
-              </button>
-            )}
-          </div>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={currentOnRefresh}
-            disabled={currentIsLoading}
-            data-testid="inbox-refresh-button"
-          >
-            <RefreshCw className={`gba:h-4 gba:w-4 ${currentIsLoading ? 'gba:animate-spin' : ''}`} />
-          </Button>
-        </div>
-
-        {/* Task Type Filters */}
-        <div className="gba:px-3">
-          <ScrollArea className="gba:-mx-3">
-            <TabSwitch
-              value={filterType}
-              onValueChange={value => {
-                setFilterType(value as TaskFilterType)
-                setDisplayedCount(TASKS_PER_PAGE) // Reset to 20 when switching tabs
-              }}
-            >
-              <TabSwitchList data-testid="inbox-filter-buttons">
-                <TabSwitchTrigger
-                  value="all"
-                  data-testid="inbox-filter-all"
-                  startIcon={<Inbox className="gba:h-4 gba:w-4" />}
-                  endAdornment={
-                    <TabSwitchBadge>
-                      {taskCounts.all}
-                      {taskCounts.allHasMore ? '+' : ''}
-                    </TabSwitchBadge>
-                  }
-                >
-                  {t('inbox-filter-all')}
-                </TabSwitchTrigger>
-                <TabSwitchTrigger
-                  value="blinks"
-                  data-testid="inbox-filter-blinks"
-                  startIcon={<Zap className="gba:h-4 gba:w-4" />}
-                  endAdornment={
-                    <TabSwitchBadge>
-                      {taskCounts.blinks}
-                      {taskCounts.blinksHasMore ? '+' : ''}
-                    </TabSwitchBadge>
-                  }
-                >
-                  {t('inbox-filter-blinks')}
-                </TabSwitchTrigger>
-                <TabSwitchTrigger
-                  value="approvals"
-                  data-testid="inbox-filter-approvals"
-                  startIcon={<CheckCircle className="gba:h-4 gba:w-4" />}
-                  endAdornment={
-                    <TabSwitchBadge>
-                      {taskCounts.approvals}
-                      {taskCounts.approvalsHasMore ? '+' : ''}
-                    </TabSwitchBadge>
-                  }
-                >
-                  {t('inbox-filter-approvals')}
-                </TabSwitchTrigger>
-                <TabSwitchTrigger
-                  value="completed"
-                  data-testid="inbox-filter-completed"
-                  startIcon={<CheckCheck className="gba:h-4 gba:w-4" />}
-                  endAdornment={
-                    <TabSwitchBadge>
-                      {taskCounts.completed}
-                      {taskCounts.completedHasMore ? '+' : ''}
-                    </TabSwitchBadge>
-                  }
-                >
-                  {t('inbox-filter-completed')}
-                </TabSwitchTrigger>
-              </TabSwitchList>
-            </TabSwitch>
-            <ScrollBar orientation="horizontal" className="gba:opacity-50" />
-          </ScrollArea>
-        </div>
-
         {/* Error Alert */}
         {currentError && (
           <Alert variant="destructive">
@@ -697,9 +558,9 @@ export const InboxView: React.FC<InboxViewProps> = ({
         )}
 
         {/* Task List - Scrollable */}
-        <div className="gba:flex-1 gba:overflow-y-auto gba:pr-2">
+        <div className="gba:flex-1 gba:overflow-y-auto gba:px-3 gba:py-2">
           {filteredTasks.length === 0 ? (
-            <EmptyState type="inbox" message={getEmptyStateMessage(searchQuery, filterType)} />
+            <EmptyState type="inbox" message={getEmptyStateMessage(filterType)} />
           ) : (
             <>
               <div data-testid="inbox-task-list">
@@ -718,26 +579,18 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 ))}
               </div>
 
-              {/* Pagination Info and Load More */}
-              {!searchQuery.trim() && (
-                <div className="gba:flex gba:items-center gba:justify-between gba:pt-4 gba:border-t gba:mt-4">
-                  <p className="gba:text-sm gba:text-muted-foreground">
-                    {t('inbox-showing-tasks', {
-                      current: filteredTasks.length.toString(),
-                      total: currentTotalCount.toString(),
-                      hasMore: '' // kept for backwards compatibility with translation string
-                    })}
-                  </p>
-                  {(hasMoreLocal || currentHasMore) && (
-                    <Button
-                      variant="outline"
-                      onClick={handleLoadMore}
-                      disabled={currentIsLoading}
-                      data-testid="inbox-load-more-button"
-                    >
-                      {t('inbox-load-more')}
-                    </Button>
-                  )}
+              {/* Load More - Simplified */}
+              {!globalSearch.trim() && (hasMoreLocal || currentHasMore) && (
+                <div className="gba:mt-2">
+                  <Button
+                    variant="ghost"
+                    onClick={handleLoadMore}
+                    disabled={currentIsLoading}
+                    className="gba:w-full"
+                    data-testid="inbox-load-more-button"
+                  >
+                    {t('inbox-load-more')}
+                  </Button>
                 </div>
               )}
             </>
@@ -745,24 +598,45 @@ export const InboxView: React.FC<InboxViewProps> = ({
         </div>
       </div>
 
-      {/* Detail Panel - Task Details (full-width on mobile/tablet, 60% on desktop ≥1024px) */}
-      <div
-        className={`gba:transition-all gba:duration-500 gba:ease-in-out gba:overflow-hidden gba:min-h-0 ${
-          selectedTask
-            ? 'gba:flex gba:flex-col gba:w-full gba:lg:w-[60%] gba:lg:pl-3 gba:opacity-100 gba:translate-x-0'
-            : 'gba:hidden gba:lg:flex gba:lg:flex-col gba:w-0 gba:opacity-0 gba:pointer-events-none gba:translate-x-full'
-        }`}
-      >
-        {selectedTask && (
-          <TaskDetailDialog
-            task={selectedTask}
-            onClose={handleCloseTask}
-            onTaskUpdated={onRefresh}
-            onTaskCompleted={handleTaskCompleted}
-            accessToken={context.accessToken}
-            userId={context.userInfo?.id}
-            userInfo={context.userInfo}
-          />
+      {/* Detail Panel - Task Details (always visible, fills remaining space) */}
+      <div className="gba:flex gba:flex-col gba:flex-1 gba:overflow-hidden gba:min-h-0 gba:px-6">
+        {selectedTask ? (
+          <div className="gba:h-full gba:flex gba:flex-col gba:bg-background" data-testid="task-detail-dialog">
+            <TaskDetailContent
+              task={selectedTask}
+              onClose={handleCloseTask}
+              onTaskUpdated={onRefresh}
+              onTaskCompleted={handleTaskCompleted}
+              accessToken={context.accessToken}
+              userId={context.userInfo?.id}
+              userInfo={context.userInfo}
+              showActions={true}
+            />
+          </div>
+        ) : (
+          <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-background">
+            <div className="gba:text-center gba:max-w-md gba:px-6">
+              <div className="gba:mb-4 gba:text-muted-foreground">
+                <svg
+                  className="gba:w-24 gba:h-24 gba:mx-auto gba:opacity-20"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </div>
+              <h3 className="gba:text-xl gba:font-semibold gba:mb-2 gba:text-foreground">
+                {t('inbox-no-task-selected')}
+              </h3>
+              <p className="gba:text-sm gba:text-muted-foreground">{t('inbox-select-task-prompt')}</p>
+            </div>
+          </div>
         )}
       </div>
     </div>

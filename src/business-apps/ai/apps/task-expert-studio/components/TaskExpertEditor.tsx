@@ -16,7 +16,8 @@ import {
   Card,
   CardHeader,
   CardTitle,
-  CardContent
+  CardContent,
+  Spinner
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
@@ -42,7 +43,7 @@ import type { GeneratedTaskExpert } from '../hooks/useTaskExpertAiGenerate'
 
 export interface TaskExpertEditorProps extends BusinessAppContextProps {
   mode: 'create' | 'edit'
-  prompt?: PromptODM | null
+  promptId?: string | null // ID to load, for edit mode
   onClose: () => void
   onSaved: () => void
 }
@@ -50,8 +51,12 @@ export interface TaskExpertEditorProps extends BusinessAppContextProps {
 type ParamRow = { key: string; value: string }
 
 export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
-  const { mode, prompt, onClose, onSaved } = props
+  const { mode, promptId, onClose, onSaved } = props
   const client = usePromptManagerClient(props.accessToken)
+
+  // Loading state
+  const [isLoadingPrompt, setIsLoadingPrompt] = useState(false)
+  const [prompt, setPrompt] = useState<PromptODM | null>(null)
 
   // Core fields
   const [name, setName] = useState('')
@@ -116,6 +121,33 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
   // Extract user and system parameters separately
   const userParams = useMemo(() => extractParameters(userContent), [userContent, extractParameters])
   const systemParams = useMemo(() => extractParameters(systemContent), [systemContent, extractParameters])
+
+  // Load prompt data when promptId changes (for edit mode)
+  useEffect(() => {
+    if (mode === 'edit' && promptId) {
+      let mounted = true
+      setIsLoadingPrompt(true)
+      setError(null)
+      ;(async () => {
+        try {
+          const loadedPrompt = await client.getPrompt(promptId)
+          if (!mounted) return
+          setPrompt(loadedPrompt)
+        } catch (err) {
+          if (!mounted) return
+          setError(err instanceof Error ? err.message : 'Failed to load task expert')
+        } finally {
+          if (mounted) setIsLoadingPrompt(false)
+        }
+      })()
+
+      return () => {
+        mounted = false
+      }
+    } else if (mode === 'create') {
+      setPrompt(null)
+    }
+  }, [mode, promptId, client])
 
   // Update parameter rows when parameters change
   useEffect(() => {
@@ -379,7 +411,7 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
           responseStyle: agentType === 'everyai' ? responseStyle : undefined,
           color: agentType === 'everyai' ? expertColor : undefined,
           citationMode: agentType === 'everyai' ? citationMode : undefined,
-          knowledgeSources: agentType === 'everyai' ? sourcesForCreate : undefined,
+          knowledgeSources: sourcesForCreate.length > 0 ? sourcesForCreate : undefined,
           isPublic: agentType === 'everyai' ? isPublic : undefined,
           tags: agentType === 'everyai' && tags.length > 0 ? tags : undefined
         })
@@ -406,14 +438,14 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
           responseStyle: agentType === 'everyai' ? responseStyle : undefined,
           color: agentType === 'everyai' ? expertColor : undefined,
           citationMode: agentType === 'everyai' ? citationMode : undefined,
-          knowledgeSources: agentType === 'everyai' ? knowledgeSources : undefined,
+          knowledgeSources: knowledgeSources.length > 0 ? knowledgeSources : undefined,
           isPublic: agentType === 'everyai' ? isPublic : undefined,
           tags: agentType === 'everyai' && tags.length > 0 ? tags : undefined
         })
       }
       setIsSaving(false)
       onSaved()
-      onClose()
+      // Don't close automatically - user stays in editor after save
     } catch (err) {
       setIsSaving(false)
       setError(err instanceof Error ? err.message : 'Failed to save task expert')
@@ -522,458 +554,477 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
 
   return (
     <div data-testid="task-expert-editor" className="gba:w-full gba:space-y-4">
-      <div className="gba:flex gba:items-center gba:justify-between">
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <Button variant="outline" onClick={onClose} data-testid="task-expert-editor-back">
-            Back
-          </Button>
-          <div className="gba:text-lg gba:font-semibold">
-            {mode === 'edit' ? name || prompt?.name : 'New Task Expert'}
-          </div>
+      {isLoadingPrompt ? (
+        <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
+          <Spinner size="lg" />
         </div>
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <TaskExpertAiAssist
-            {...props}
-            agentType={agentType}
-            onApply={handleAiApply}
-            data-testid="task-expert-editor-ai-assist"
-          />
-          <Button
-            variant="default"
-            size="sm"
-            onClick={onSave}
-            disabled={!isValid || isSaving}
-            data-testid="task-expert-editor-save"
-          >
-            {isSaving ? 'Saving…' : 'Save'}
-          </Button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="gba:text-destructive" data-testid="task-expert-editor-error">
-          {error}
-        </div>
-      )}
-
-      {/* Top section: Name, Description, Workspace, Agent Type */}
-      <Card>
-        <CardContent className="gba:space-y-4 gba:pt-6">
-          <div className="gba:grid gba:grid-cols-3 gba:gap-4">
-            <div className="gba:space-y-2">
-              <Label>
-                Name <span className="gba:text-destructive">*</span>
-              </Label>
-              <Input value={name} onChange={e => setName(e.target.value)} data-testid="task-expert-editor-name" />
-            </div>
-            <div className="gba:space-y-2">
-              <Label>Description</Label>
-              <Input
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                data-testid="task-expert-editor-description"
-              />
-            </div>
-            <div className="gba:space-y-2">
-              <Label>
-                Workspace <span className="gba:text-destructive">*</span>
-              </Label>
-              <Select value={workspaceId} onValueChange={setWorkspaceId} data-testid="task-expert-editor-workspace">
-                <SelectTrigger>
-                  <SelectValue placeholder="Select workspace" />
-                </SelectTrigger>
-                <SelectContent>
-                  {workspaces.map(ws => (
-                    <SelectItem key={ws._id || ws.name} value={ws._id || ''}>
-                      {ws.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Agent Type Selector */}
-          <div className="gba:space-y-2">
-            <Label>Agent Type</Label>
-            <Select
-              value={agentType}
-              onValueChange={v => setAgentType(v as AgentType)}
-              data-testid="task-expert-editor-agent-type"
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="flow">FLOW Agent</SelectItem>
-                <SelectItem value="everyai">EveryAI Expert</SelectItem>
-                <SelectItem value="general">General Agent</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="gba:text-xs gba:text-muted-foreground">
-              {agentType === 'flow' && 'For process automation and workflows'}
-              {agentType === 'everyai' && 'Specialized AI assistant for chat conversations'}
-              {agentType === 'general' && 'General purpose agent for standalone use'}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Every Expert Configuration (only for EveryAI type) */}
-      {agentType === 'everyai' && (
-        <EveryExpertFields
-          specialty={specialty}
-          onSpecialtyChange={setSpecialty}
-          responseStyle={responseStyle}
-          onResponseStyleChange={setResponseStyle}
-          color={expertColor}
-          onColorChange={setExpertColor}
-          citationMode={citationMode}
-          onCitationModeChange={setCitationMode}
-          tags={tags}
-          onTagsChange={setTags}
-          isPublic={isPublic}
-          onIsPublicChange={setIsPublic}
-        />
-      )}
-
-      <div className="gba:flex gba:gap-4">
-        {/* Main content: prompts + testing */}
-        <div className="gba:flex-1 gba:space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Prompts</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="system">
-                <TabsList>
-                  <TabsTrigger value="system">System</TabsTrigger>
-                  <TabsTrigger value="user">
-                    User <span className="gba:text-destructive">*</span>
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="system" className="gba:mt-3">
-                  <Textarea rows={8} value={systemContent} onChange={e => setSystemContent(e.target.value)} />
-                </TabsContent>
-                <TabsContent value="user" className="gba:mt-3">
-                  <Textarea rows={8} value={userContent} onChange={e => setUserContent(e.target.value)} />
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="gba:flex gba:items-center gba:justify-between">
-                <CardTitle>Testing</CardTitle>
-                <Button
-                  variant="default"
-                  onClick={onTest}
-                  disabled={isTesting || mode !== 'edit' || !prompt?._id}
-                  data-testid="task-expert-editor-test"
-                >
-                  {isTesting ? 'Testing…' : 'Test'}
-                </Button>
+      ) : (
+        <>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <Button variant="outline" onClick={onClose} data-testid="task-expert-editor-back">
+                Back
+              </Button>
+              <div className="gba:text-lg gba:font-semibold">
+                {mode === 'edit' ? name || prompt?.name : 'New Task Expert'}
               </div>
-            </CardHeader>
-            <CardContent className="gba:space-y-3">
-              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+            </div>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <TaskExpertAiAssist
+                {...props}
+                agentType={agentType}
+                onApply={handleAiApply}
+                data-testid="task-expert-editor-ai-assist"
+              />
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onSave}
+                disabled={!isValid || isSaving}
+                data-testid="task-expert-editor-save"
+              >
+                {isSaving ? 'Saving…' : 'Save'}
+              </Button>
+            </div>
+          </div>
+
+          {error && (
+            <div className="gba:text-destructive" data-testid="task-expert-editor-error">
+              {error}
+            </div>
+          )}
+
+          {/* Top section: Name, Description, Workspace, Agent Type */}
+          <Card>
+            <CardContent className="gba:space-y-4 gba:pt-6">
+              <div className="gba:grid gba:grid-cols-3 gba:gap-4">
                 <div className="gba:space-y-2">
-                  <Label>Version</Label>
-                  <Select value={selectedVersion} onValueChange={setSelectedVersion}>
+                  <Label>
+                    Name <span className="gba:text-destructive">*</span>
+                  </Label>
+                  <Input
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    disabled={mode === 'edit'}
+                    data-testid="task-expert-editor-name"
+                  />
+                </div>
+                <div className="gba:space-y-2">
+                  <Label>Description</Label>
+                  <Input
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    data-testid="task-expert-editor-description"
+                  />
+                </div>
+                <div className="gba:space-y-2">
+                  <Label>
+                    Workspace <span className="gba:text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={workspaceId}
+                    onValueChange={setWorkspaceId}
+                    disabled={mode === 'edit'}
+                    data-testid="task-expert-editor-workspace"
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder="latest" />
+                      <SelectValue placeholder="Select workspace" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="latest">Latest</SelectItem>
-                      {availableVersions.map(v => (
-                        <SelectItem key={`ver-${v}`} value={String(v)}>
-                          v{v}
+                      {workspaces.map(ws => (
+                        <SelectItem key={ws._id || ws.name} value={ws._id || ''}>
+                          {ws.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="gba:space-y-2">
-                  <Label>File upload</Label>
-                  <Input type="file" multiple onChange={handleFileChange} />
-                </div>
               </div>
 
-              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-                <div className="gba:space-y-2">
-                  <Label>User Parameters {userParams.length > 0 && `(${userParams.length})`}</Label>
-                  {userParamsRows.length === 0 ? (
-                    <div className="gba:text-muted-foreground gba:text-sm gba:italic">
-                      No parameters found in user prompt template. Add variables like {'{variableName}'} to the
-                      template.
-                    </div>
-                  ) : (
-                    <>
-                      {userParamsRows.map((r, idx) => (
-                        <div key={`u-${r.key || idx}`} className="gba:flex gba:items-center gba:gap-2">
-                          <div className="gba:w-32 gba:flex-shrink-0 gba:text-sm gba:font-medium gba:text-muted-foreground">
-                            {r.key}
-                          </div>
-                          <Input
-                            placeholder="Enter value..."
-                            value={r.value}
-                            onChange={e => {
-                              const v = e.target.value
-                              setUserParamsRows(prev => prev.map((x, i) => (i === idx ? { ...x, value: v } : x)))
-                            }}
-                            data-testid={`test-user-param-${r.key}`}
-                            className="gba:flex-1"
-                          />
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-                <div className="gba:space-y-2">
-                  <Label>System Parameters {systemParams.length > 0 && `(${systemParams.length})`}</Label>
-                  {systemParamsRows.length === 0 ? (
-                    <div className="gba:text-muted-foreground gba:text-sm gba:italic">
-                      No parameters found in system prompt template. Add variables like {'{variableName}'} to the
-                      template.
-                    </div>
-                  ) : (
-                    <>
-                      {systemParamsRows.map((r, idx) => (
-                        <div key={`s-${r.key || idx}`} className="gba:flex gba:items-center gba:gap-2">
-                          <div className="gba:w-32 gba:flex-shrink-0 gba:text-sm gba:font-medium gba:text-muted-foreground">
-                            {r.key}
-                          </div>
-                          <Input
-                            placeholder="Enter value..."
-                            value={r.value}
-                            onChange={e => {
-                              const v = e.target.value
-                              setSystemParamsRows(prev => prev.map((x, i) => (i === idx ? { ...x, value: v } : x)))
-                            }}
-                            data-testid={`test-system-param-${r.key}`}
-                            className="gba:flex-1"
-                          />
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              </div>
-
+              {/* Agent Type Selector */}
               <div className="gba:space-y-2">
-                <Label>Result</Label>
-                <Textarea rows={6} readOnly value={result} />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right sidebar: settings and variables */}
-        <div className="gba:w-80 gba:flex-shrink-0 gba:space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="gba:space-y-3">
-              <div className="gba:space-y-2">
-                <Label>Assigned Tools</Label>
-                <div className="gba:max-h-64 gba:overflow-y-auto gba:border gba:rounded-md gba:p-3 gba:space-y-2">
-                  {toolsLoading ? (
-                    <div className="gba:text-muted-foreground gba:text-sm">Loading tools...</div>
-                  ) : toolsError ? (
-                    <div className="gba:text-destructive gba:text-sm">{toolsError}</div>
-                  ) : availableTools.length === 0 ? (
-                    <div className="gba:text-muted-foreground gba:text-sm">No tools available</div>
-                  ) : (
-                    availableTools.map(tool => (
-                      <div key={tool.id} className="gba:flex gba:items-center gba:gap-3">
-                        <input
-                          type="checkbox"
-                          id={`tool-${tool.id}`}
-                          checked={selectedToolIds.includes(tool.id)}
-                          onChange={async e => {
-                            const toolId = tool.id
-                            if (e.target.checked) {
-                              setSelectedToolIds(prev => [...prev, toolId])
-                              if (!toolVersions[toolId]) {
-                                try {
-                                  const client = new FunctionsServiceClient()
-                                  const res: FunctionVersionsResponse = await client.getVersions(tool.id)
-                                  const versions = (res.versions || [])
-                                    .map(v => Number(v.version))
-                                    .filter(v => !Number.isNaN(v))
-                                    .sort((a, b) => b - a)
-                                  setToolVersions(prev => ({ ...prev, [toolId]: versions }))
-                                } catch {
-                                  setToolVersions(prev => ({ ...prev, [toolId]: [] }))
-                                }
-                              }
-                            } else {
-                              setSelectedToolIds(prev => prev.filter(id => id !== toolId))
-                              setSelectedToolVersion(prev => {
-                                const copy = { ...prev }
-                                delete copy[toolId]
-                                return copy
-                              })
-                            }
-                          }}
-                          data-testid={`task-expert-editor-tool-checkbox-${tool.id}`}
-                        />
-                        <label htmlFor={`tool-${tool.id}`} className="gba:flex-1 gba:cursor-pointer">
-                          <span className="gba:font-medium">{tool.name}</span>
-                          {tool.description && (
-                            <span className="gba:text-muted-foreground gba:text-xs gba:ml-2">— {tool.description}</span>
-                          )}
-                        </label>
-                        {selectedToolIds.includes(tool.id) && (
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <span className="gba:text-xs gba:text-muted-foreground">Version</span>
-                            <Select
-                              value={selectedToolVersion[tool.id] || 'latest'}
-                              onValueChange={v => setSelectedToolVersion(prev => ({ ...prev, [tool.id]: v }))}
-                              data-testid={`task-expert-editor-tool-version-select-${tool.id}`}
-                            >
-                              <SelectTrigger className="gba:w-[140px]">
-                                <SelectValue placeholder="latest" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="latest">Latest</SelectItem>
-                                {(toolVersions[tool.id] || []).map(v => (
-                                  <SelectItem key={`${tool.id}-v-${v}`} value={String(v)}>
-                                    v{v}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div className="gba:text-muted-foreground gba:text-xs">{selectedToolIds.length} tool(s) selected</div>
-              </div>
-              <div className="gba:space-y-2">
-                <Label>Service</Label>
-                <Select value={serviceId} onValueChange={setServiceId}>
+                <Label>Agent Type</Label>
+                <Select
+                  value={agentType}
+                  onValueChange={v => setAgentType(v as AgentType)}
+                  data-testid="task-expert-editor-agent-type"
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select service" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {services.map(s => (
-                      <SelectItem key={s._id || s.name} value={s._id || ''}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="flow">FLOW Agent</SelectItem>
+                    <SelectItem value="everyai">EveryAI Expert</SelectItem>
+                    <SelectItem value="general">General Agent</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="gba:text-xs gba:text-muted-foreground">
+                  {agentType === 'flow' && 'For process automation and workflows'}
+                  {agentType === 'everyai' && 'Specialized AI assistant for chat conversations'}
+                  {agentType === 'general' && 'General purpose agent for standalone use'}
+                </p>
               </div>
-              <div className="gba:space-y-2">
-                <Label>
-                  Model <span className="gba:text-destructive">*</span>
-                </Label>
-                <Select value={modelId} onValueChange={setModelId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {models.map(m => (
-                      <SelectItem key={m._id || m.name} value={m._id || ''}>
-                        {m.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="gba:space-y-2">
-                <Label>Temperature</Label>
-                <input
-                  type="range"
-                  min={0}
-                  max={2}
-                  step={0.1}
-                  value={temperature}
-                  onChange={e => setTemperature(Number(e.target.value))}
-                  className="gba:w-full"
-                />
-              </div>
-              <div className="gba:space-y-2">
-                <Label>Response type</Label>
-                <div className="gba:flex gba:gap-3">
-                  <Button
-                    size="sm"
-                    variant={responseType === 'text' ? 'default' : 'outline'}
-                    onClick={() => setResponseType('text')}
-                  >
-                    Normal/Text
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={responseType === 'json' ? 'default' : 'outline'}
-                    onClick={() => setResponseType('json')}
-                  >
-                    JSON
-                  </Button>
-                </div>
-              </div>
-              {responseType === 'json' && (
-                <div className="gba:space-y-2">
-                  <Label>Response schema (JSON)</Label>
-                  <Textarea rows={6} value={responseSchema} onChange={e => setResponseSchema(e.target.value)} />
-                </div>
-              )}
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Variables</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {(() => {
-                const allParams = [...new Set([...userParams, ...systemParams])].sort()
-                return allParams.length === 0 ? (
-                  <div className="gba:text-muted-foreground gba:text-sm">No variables detected in prompts.</div>
-                ) : (
-                  <div className="gba:space-y-2">
-                    <div className="gba:text-muted-foreground gba:text-xs gba:mb-2">
-                      Detected {allParams.length} parameter(s) from prompt templates:
-                    </div>
-                    <div className="gba:space-y-1">
-                      {allParams.map(param => (
-                        <div key={param} className="gba:flex gba:items-center gba:gap-2 gba:py-1">
-                          <code className="gba:text-xs gba:bg-muted gba:px-2 gba:py-1 gba:rounded">{param}</code>
-                          {userParams.includes(param) && systemParams.includes(param) && (
-                            <span className="gba:text-xs gba:text-muted-foreground">(both)</span>
-                          )}
-                          {userParams.includes(param) && !systemParams.includes(param) && (
-                            <span className="gba:text-xs gba:text-muted-foreground">(user)</span>
-                          )}
-                          {!userParams.includes(param) && systemParams.includes(param) && (
-                            <span className="gba:text-xs gba:text-muted-foreground">(system)</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })()}
-            </CardContent>
-          </Card>
-
-          {/* Knowledge Sources Panel (only for EveryAI agents) */}
+          {/* Every Expert Configuration (only for EveryAI type) */}
           {agentType === 'everyai' && (
-            <KnowledgeSourcesPanel
-              promptId={prompt?._id}
-              sources={knowledgeSources}
-              onSourcesChange={setKnowledgeSources}
-              accessToken={props.accessToken}
-              allowLocalOnly={mode === 'create'}
+            <EveryExpertFields
+              specialty={specialty}
+              onSpecialtyChange={setSpecialty}
+              responseStyle={responseStyle}
+              onResponseStyleChange={setResponseStyle}
+              color={expertColor}
+              onColorChange={setExpertColor}
+              citationMode={citationMode}
+              onCitationModeChange={setCitationMode}
+              tags={tags}
+              onTagsChange={setTags}
+              isPublic={isPublic}
+              onIsPublicChange={setIsPublic}
             />
           )}
-        </div>
-      </div>
+
+          <div className="gba:flex gba:gap-4">
+            {/* Main content: prompts + testing */}
+            <div className="gba:flex-1 gba:space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Prompts</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Tabs defaultValue="system">
+                    <TabsList>
+                      <TabsTrigger value="system">System</TabsTrigger>
+                      <TabsTrigger value="user">
+                        User <span className="gba:text-destructive">*</span>
+                      </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="system" className="gba:mt-3">
+                      <Textarea rows={8} value={systemContent} onChange={e => setSystemContent(e.target.value)} />
+                    </TabsContent>
+                    <TabsContent value="user" className="gba:mt-3">
+                      <Textarea rows={8} value={userContent} onChange={e => setUserContent(e.target.value)} />
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <div className="gba:flex gba:items-center gba:justify-between">
+                    <CardTitle>Testing</CardTitle>
+                    <Button
+                      variant="default"
+                      onClick={onTest}
+                      disabled={isTesting || mode !== 'edit' || !prompt?._id}
+                      data-testid="task-expert-editor-test"
+                    >
+                      {isTesting ? 'Testing…' : 'Test'}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="gba:space-y-3">
+                  <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+                    <div className="gba:space-y-2">
+                      <Label>Version</Label>
+                      <Select value={selectedVersion} onValueChange={setSelectedVersion}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="latest" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="latest">Latest</SelectItem>
+                          {availableVersions.map(v => (
+                            <SelectItem key={`ver-${v}`} value={String(v)}>
+                              v{v}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="gba:space-y-2">
+                      <Label>File upload</Label>
+                      <Input type="file" multiple onChange={handleFileChange} />
+                    </div>
+                  </div>
+
+                  <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+                    <div className="gba:space-y-2">
+                      <Label>User Parameters {userParams.length > 0 && `(${userParams.length})`}</Label>
+                      {userParamsRows.length === 0 ? (
+                        <div className="gba:text-muted-foreground gba:text-sm gba:italic">
+                          No parameters found in user prompt template. Add variables like {'{variableName}'} to the
+                          template.
+                        </div>
+                      ) : (
+                        <>
+                          {userParamsRows.map((r, idx) => (
+                            <div key={`u-${r.key || idx}`} className="gba:flex gba:items-center gba:gap-2">
+                              <div className="gba:w-32 gba:flex-shrink-0 gba:text-sm gba:font-medium gba:text-muted-foreground">
+                                {r.key}
+                              </div>
+                              <Input
+                                placeholder="Enter value..."
+                                value={r.value}
+                                onChange={e => {
+                                  const v = e.target.value
+                                  setUserParamsRows(prev => prev.map((x, i) => (i === idx ? { ...x, value: v } : x)))
+                                }}
+                                data-testid={`test-user-param-${r.key}`}
+                                className="gba:flex-1"
+                              />
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                    <div className="gba:space-y-2">
+                      <Label>System Parameters {systemParams.length > 0 && `(${systemParams.length})`}</Label>
+                      {systemParamsRows.length === 0 ? (
+                        <div className="gba:text-muted-foreground gba:text-sm gba:italic">
+                          No parameters found in system prompt template. Add variables like {'{variableName}'} to the
+                          template.
+                        </div>
+                      ) : (
+                        <>
+                          {systemParamsRows.map((r, idx) => (
+                            <div key={`s-${r.key || idx}`} className="gba:flex gba:items-center gba:gap-2">
+                              <div className="gba:w-32 gba:flex-shrink-0 gba:text-sm gba:font-medium gba:text-muted-foreground">
+                                {r.key}
+                              </div>
+                              <Input
+                                placeholder="Enter value..."
+                                value={r.value}
+                                onChange={e => {
+                                  const v = e.target.value
+                                  setSystemParamsRows(prev => prev.map((x, i) => (i === idx ? { ...x, value: v } : x)))
+                                }}
+                                data-testid={`test-system-param-${r.key}`}
+                                className="gba:flex-1"
+                              />
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="gba:space-y-2">
+                    <Label>Result</Label>
+                    <Textarea rows={6} readOnly value={result} />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Right sidebar: settings and variables */}
+            <div className="gba:w-80 gba:flex-shrink-0 gba:space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Settings</CardTitle>
+                </CardHeader>
+                <CardContent className="gba:space-y-3">
+                  <div className="gba:space-y-2">
+                    <Label>Assigned Tools</Label>
+                    <div className="gba:max-h-64 gba:overflow-y-auto gba:border gba:rounded-md gba:p-3 gba:space-y-2">
+                      {toolsLoading ? (
+                        <div className="gba:text-muted-foreground gba:text-sm">Loading tools...</div>
+                      ) : toolsError ? (
+                        <div className="gba:text-destructive gba:text-sm">{toolsError}</div>
+                      ) : availableTools.length === 0 ? (
+                        <div className="gba:text-muted-foreground gba:text-sm">No tools available</div>
+                      ) : (
+                        availableTools.map(tool => (
+                          <div key={tool.id} className="gba:flex gba:items-center gba:gap-3">
+                            <input
+                              type="checkbox"
+                              id={`tool-${tool.id}`}
+                              checked={selectedToolIds.includes(tool.id)}
+                              onChange={async e => {
+                                const toolId = tool.id
+                                if (e.target.checked) {
+                                  setSelectedToolIds(prev => [...prev, toolId])
+                                  if (!toolVersions[toolId]) {
+                                    try {
+                                      const client = new FunctionsServiceClient()
+                                      const res: FunctionVersionsResponse = await client.getVersions(tool.id)
+                                      const versions = (res.versions || [])
+                                        .map(v => Number(v.version))
+                                        .filter(v => !Number.isNaN(v))
+                                        .sort((a, b) => b - a)
+                                      setToolVersions(prev => ({ ...prev, [toolId]: versions }))
+                                    } catch {
+                                      setToolVersions(prev => ({ ...prev, [toolId]: [] }))
+                                    }
+                                  }
+                                } else {
+                                  setSelectedToolIds(prev => prev.filter(id => id !== toolId))
+                                  setSelectedToolVersion(prev => {
+                                    const copy = { ...prev }
+                                    delete copy[toolId]
+                                    return copy
+                                  })
+                                }
+                              }}
+                              data-testid={`task-expert-editor-tool-checkbox-${tool.id}`}
+                            />
+                            <label htmlFor={`tool-${tool.id}`} className="gba:flex-1 gba:cursor-pointer">
+                              <span className="gba:font-medium">{tool.name}</span>
+                              {tool.description && (
+                                <span className="gba:text-muted-foreground gba:text-xs gba:ml-2">
+                                  — {tool.description}
+                                </span>
+                              )}
+                            </label>
+                            {selectedToolIds.includes(tool.id) && (
+                              <div className="gba:flex gba:items-center gba:gap-2">
+                                <span className="gba:text-xs gba:text-muted-foreground">Version</span>
+                                <Select
+                                  value={selectedToolVersion[tool.id] || 'latest'}
+                                  onValueChange={v => setSelectedToolVersion(prev => ({ ...prev, [tool.id]: v }))}
+                                  data-testid={`task-expert-editor-tool-version-select-${tool.id}`}
+                                >
+                                  <SelectTrigger className="gba:w-[140px]">
+                                    <SelectValue placeholder="latest" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="latest">Latest</SelectItem>
+                                    {(toolVersions[tool.id] || []).map(v => (
+                                      <SelectItem key={`${tool.id}-v-${v}`} value={String(v)}>
+                                        v{v}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="gba:text-muted-foreground gba:text-xs">
+                      {selectedToolIds.length} tool(s) selected
+                    </div>
+                  </div>
+                  <div className="gba:space-y-2">
+                    <Label>Service</Label>
+                    <Select value={serviceId} onValueChange={setServiceId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select service" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {services.map(s => (
+                          <SelectItem key={s._id || s.name} value={s._id || ''}>
+                            {s.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="gba:space-y-2">
+                    <Label>
+                      Model <span className="gba:text-destructive">*</span>
+                    </Label>
+                    <Select value={modelId} onValueChange={setModelId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select model" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {models.map(m => (
+                          <SelectItem key={m._id || m.name} value={m._id || ''}>
+                            {m.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="gba:space-y-2">
+                    <Label>Temperature</Label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={2}
+                      step={0.1}
+                      value={temperature}
+                      onChange={e => setTemperature(Number(e.target.value))}
+                      className="gba:w-full"
+                    />
+                  </div>
+                  <div className="gba:space-y-2">
+                    <Label>Response type</Label>
+                    <div className="gba:flex gba:gap-3">
+                      <Button
+                        size="sm"
+                        variant={responseType === 'text' ? 'default' : 'outline'}
+                        onClick={() => setResponseType('text')}
+                      >
+                        Normal/Text
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={responseType === 'json' ? 'default' : 'outline'}
+                        onClick={() => setResponseType('json')}
+                      >
+                        JSON
+                      </Button>
+                    </div>
+                  </div>
+                  {responseType === 'json' && (
+                    <div className="gba:space-y-2">
+                      <Label>Response schema (JSON)</Label>
+                      <Textarea rows={6} value={responseSchema} onChange={e => setResponseSchema(e.target.value)} />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Variables</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    const allParams = [...new Set([...userParams, ...systemParams])].sort()
+                    return allParams.length === 0 ? (
+                      <div className="gba:text-muted-foreground gba:text-sm">No variables detected in prompts.</div>
+                    ) : (
+                      <div className="gba:space-y-2">
+                        <div className="gba:text-muted-foreground gba:text-xs gba:mb-2">
+                          Detected {allParams.length} parameter(s) from prompt templates:
+                        </div>
+                        <div className="gba:space-y-1">
+                          {allParams.map(param => (
+                            <div key={param} className="gba:flex gba:items-center gba:gap-2 gba:py-1">
+                              <code className="gba:text-xs gba:bg-muted gba:px-2 gba:py-1 gba:rounded">{param}</code>
+                              {userParams.includes(param) && systemParams.includes(param) && (
+                                <span className="gba:text-xs gba:text-muted-foreground">(both)</span>
+                              )}
+                              {userParams.includes(param) && !systemParams.includes(param) && (
+                                <span className="gba:text-xs gba:text-muted-foreground">(user)</span>
+                              )}
+                              {!userParams.includes(param) && systemParams.includes(param) && (
+                                <span className="gba:text-xs gba:text-muted-foreground">(system)</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </CardContent>
+              </Card>
+
+              {/* Knowledge Sources Panel */}
+              <KnowledgeSourcesPanel
+                promptId={prompt?._id}
+                sources={knowledgeSources}
+                onSourcesChange={setKnowledgeSources}
+                {...props}
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

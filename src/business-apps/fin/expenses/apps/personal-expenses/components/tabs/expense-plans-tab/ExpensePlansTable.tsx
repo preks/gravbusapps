@@ -123,6 +123,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
   // Preserve page index across search clear (search is controlled by parent via props)
   const savedPageBeforeSearchRef = useRef<number | null>(null)
   const prevSearchRef = useRef<string>('')
+  // Deterministic scroll target for pagination (top of table)
+  const tableTopRef = useRef<HTMLDivElement | null>(null)
 
   const hasActiveFilters = useMemo(() => {
     const trimmedSearch = (search || '').trim()
@@ -316,7 +318,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
 
   const renderDataBody = useMemo(() => {
     return (
-      <div className="">
+      <div className="" ref={tableTopRef} data-testid={`${DATA_TEST_ID_PREFIX}-scroll-anchor`}>
         <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
           <CardContent className="gba:p-0">
             <div className="gba:overflow-x-auto">
@@ -735,6 +737,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
               pageSize={pageSize}
               totalItems={totalCount}
               onPageChange={handleTablePaginationChange}
+              scrollTargetRef={tableTopRef}
               entityNamePlural={getTranslationFromI18nKeyAndLabel(
                 'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
                 'Expense Plans'
@@ -798,13 +801,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
       <Sheet
         open={!!selectedItem}
         onOpenChange={open => !open && handleCloseDetails()}
-        title={
-          selectedItem?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:approve_expense_plan.expense_subtitle_details',
-            'Expense Plan Details'
-          )
-        }
         data-testid="expense-plan-details-sheet"
       >
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
@@ -833,13 +829,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
       <Sheet
         open={!!selectedExpenseRequest}
         onOpenChange={open => !open && handleCloseDetails()}
-        title={
-          selectedExpenseRequest?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details',
-            'Expense Request Details'
-          )
-        }
         data-testid="expense-request-details-sheet"
       >
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">

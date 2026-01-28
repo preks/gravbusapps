@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
+import type { FilterConfiguration } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
@@ -157,9 +158,16 @@ export const useMyActivities = (context: BusinessAppContextProps): MyActivitiesV
   // Use centralized filter groups hook
   const filterGroups = useFilterGroups(context, 'SalesActivity', CUSTOMER_ACTIVITY_DESCRIPTORS, { limit: 100 })
 
-  // Dynamic Filter Configuration
+  // Dynamic Filter Configuration - exclude owner filter since these are MY activities
   const dynamicFilterConfig = useMemo(() => {
-    return buildDynamicFilterConfig(activityFilterConfig, CUSTOMER_ACTIVITY_DESCRIPTORS, filterGroups)
+    const config = buildDynamicFilterConfig(activityFilterConfig, CUSTOMER_ACTIVITY_DESCRIPTORS, filterGroups)
+    // Remove owner filter group - activities are already filtered to current user
+    type FilterGroup = FilterConfiguration['groups'][number]
+    const filteredGroups = config.groups.filter((group: FilterGroup) => group.id !== 'owner-group')
+    return {
+      ...config,
+      groups: filteredGroups
+    }
   }, [filterGroups])
 
   // Initialize visible columns (excluding ownerEmployee)

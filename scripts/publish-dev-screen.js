@@ -26,7 +26,7 @@ const AZURE_CONTAINER_NAME = process.env.AZURE_BLOB_CONTAINER_NAME || 'screens'
 
 // Helper function to detect if the screen is a form
 function isFormScreen(screenPath) {
-  return screenPath.includes('/forms/')
+  return screenPath.includes('/forms/') || screenPath.includes('/popups/') || screenPath.includes('/windows/')
 }
 
 // Helper function to handle form screen publishing
@@ -170,7 +170,7 @@ async function uploadDirectory(buildOutputDir, azureDestinationPath) {
       await blockBlobClient.uploadFile(localFilePath, {
         blobHTTPHeaders: {
           blobContentType: contentType,
-          blobCacheControl: 'no-cache, no-store, must-revalidate'
+          blobCacheControl: 'no-cache'
         }
       })
     } catch (error) {

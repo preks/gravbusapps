@@ -1,22 +1,22 @@
 /**
  * DocumentView Component for Company Record
  * Displays company documents in the documents tab
- * NOTE: Currently shows empty state as GraphQL schema for company documents is not yet available
  */
-import React, { useMemo } from 'react'
-import { Alert, AlertDescription, useTranslation } from '@newwork/nw-design-system'
-import { Info } from '@phosphor-icons/react'
+import React, { useMemo, useState } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
+import { UploadIcon, FolderIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils' // Fallback for document actions
 import { useCompanyDocuments } from '@/common/data/orgchart/hooks/useCompanyDocuments'
+import { useCompany } from '@/common/data/orgchart/hooks/useCompany'
 import { DocumentSection } from '@/components/document-section'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
+import { CompanyDocumentUploadPopup } from '@/business-apps/mdm/forms/company-document-upload-popup'
+import { CompanyFolderCreatePopup } from '@/business-apps/mdm/forms/company-folder-create-popup'
 import type { DocumentViewProps } from '../../types'
 import translations from '../../_i18n'
 
 /**
  * Get Company Document API configuration
- * NOTE: This is a placeholder - adjust endpoints when GraphQL schema is available
  */
 const getCompanyDocumentApiConfig = () => ({
   baseEndpoint: '/mdm',
@@ -32,33 +32,41 @@ const getCompanyDocumentApiConfig = () => ({
 export const DocumentView: React.FC<DocumentViewProps> = ({ companyId, ...context }) => {
   const { t } = useTranslation(translations)
   const { documents, loading, error, refetch } = useCompanyDocuments(context.accessToken, companyId)
+  // Fetch full company data for complete payload in PUT request
+  const { company } = useCompany(context.accessToken, companyId, 'record')
 
-  // Document create folder action props
-  const documentCreateFolderActionProps = useMemo(
-    () => ({
-      contextsArray: [FlowContextName.customerDocumentCreate],
-      externalContextData: {
-        companyId,
-        folder: true
+  // State for popups
+  const [uploadPopupOpen, setUploadPopupOpen] = useState(false)
+  const [folderPopupOpen, setFolderPopupOpen] = useState(false)
+
+  // Icons - created once to prevent re-renders
+  const uploadIcon = useMemo(() => <UploadIcon className="gba:h-4 gba:w-4" />, [])
+  const folderIcon = useMemo(() => <FolderIcon className="gba:h-4 gba:w-4" />, [])
+
+  // Toolbar actions for upload and folder buttons
+  const toolbarActions = useMemo(
+    () => [
+      {
+        key: 'create-folder',
+        label: getTranslationFromI18nKeyAndLabel('document.folder.new', 'New Document Folder'),
+        onClick: () => setFolderPopupOpen(true),
+        icon: folderIcon,
+        variant: 'outline' as const,
+        testId: 'company-document-create-folder-button'
       },
-      prefixDataTestId: 'company-document-create-folder'
-    }),
-    [companyId]
+      {
+        key: 'upload',
+        label: getTranslationFromI18nKeyAndLabel('document.upload', 'Upload Document'),
+        onClick: () => setUploadPopupOpen(true),
+        icon: uploadIcon,
+        variant: 'outline' as const,
+        testId: 'company-document-upload-button'
+      }
+    ],
+    [uploadIcon, folderIcon]
   )
 
-  // Document upload action props
-  const documentUploadActionProps = useMemo(
-    () => ({
-      contextsArray: [FlowContextName.customerDocumentCreate],
-      externalContextData: {
-        companyId
-      },
-      prefixDataTestId: 'company-document-upload'
-    }),
-    [companyId]
-  )
-
-  // Custom document actions
+  // Custom document row actions (edit, delete, etc.)
   const customActions = useMemo(
     () =>
       createDocumentSectionActions({
@@ -81,34 +89,53 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ companyId, ...contex
     [t]
   )
 
-  // Show info alert that documents are not yet available
-  const isDocumentsNotAvailable = !loading && !error && documents.length === 0
-
   return (
-    <div className="gba:col-span-12" data-testid="company-documents-view">
-      {isDocumentsNotAvailable && (
-        <Alert className="gba:mb-4" data-testid="company-documents-not-available-alert">
-          <Info className="gba:h-4 gba:w-4" />
-          <AlertDescription>{t('documents-not-available')}</AlertDescription>
-        </Alert>
+    <>
+      <div className="gba:col-span-12" data-testid="company-documents-view">
+        <DocumentSection
+          entityId={companyId}
+          documents={documents}
+          isLoading={loading}
+          error={error}
+          onRefresh={refetch}
+          apiConfig={getCompanyDocumentApiConfig()}
+          toolbarActions={toolbarActions}
+          customActions={customActions}
+          data-testid="company-document-section"
+          accessToken={context.accessToken}
+          userInfo={context.userInfo}
+          additionalData={context.additionalData}
+        />
+      </div>
+
+      {/* Document Upload Popup */}
+      {uploadPopupOpen && company && (
+        <CompanyDocumentUploadPopup
+          open={uploadPopupOpen}
+          company={company}
+          accessToken={context.accessToken}
+          onClose={() => setUploadPopupOpen(false)}
+          onSuccess={() => {
+            setUploadPopupOpen(false)
+            refetch()
+          }}
+        />
       )}
 
-      <DocumentSection
-        entityId={companyId}
-        documents={documents}
-        isLoading={loading}
-        error={error}
-        onRefresh={refetch}
-        apiConfig={getCompanyDocumentApiConfig()}
-        customActions={customActions}
-        createFolderActionProps={documentCreateFolderActionProps}
-        uploadActionProps={documentUploadActionProps}
-        data-testid="company-document-section"
-        accessToken={context.accessToken}
-        userInfo={context.userInfo}
-        additionalData={context.additionalData}
-      />
-    </div>
+      {/* Folder Create Popup */}
+      {folderPopupOpen && company && (
+        <CompanyFolderCreatePopup
+          open={folderPopupOpen}
+          company={company}
+          accessToken={context.accessToken}
+          onClose={() => setFolderPopupOpen(false)}
+          onSuccess={() => {
+            setFolderPopupOpen(false)
+            refetch()
+          }}
+        />
+      )}
+    </>
   )
 }
 

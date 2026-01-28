@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import dayjs from 'dayjs'
 import { Employee, EmployeePerformanceGoal } from '../../hooks/useEmployeeData'
-import { Card } from '@newwork/gravity-ui-catalog'
+import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
 import { Empty, Spin } from 'antd'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { employeePerformanceQuery } from '../../queries/performanceQueries'
@@ -225,75 +225,77 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                 return (
                   <Card
                     key={`goal-${goal.title ?? ''}-${goal.status ?? ''}`}
-                    variant="outlined"
                     className="gba:w-full gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
                     data-testid={`goal-card-${goal.id}`}
                   >
-                    <div className="gba:flex gba:flex-col gba:md:flex-row gba:md:items-center gba:justify-between gba:mb-4">
-                      <h3 className="gba:text-lg gba:font-medium">{goal.title}</h3>
-                      <span
-                        className={`gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:mt-2 gba:md:mt-0 ${statusInfo.color}`}
-                      >
-                        {statusInfo.label}
-                      </span>
-                    </div>
+                    <CardHeader>
+                      <div className="gba:flex gba:flex-col gba:md:flex-row gba:md:items-center gba:justify-between">
+                        <CardTitle className="gba:text-lg">{goal.title}</CardTitle>
+                        <span
+                          className={`gba:inline-flex gba:items-center gba:px-2.5 gba:py-0.5 gba:rounded-full gba:text-xs gba:font-medium gba:mt-2 gba:md:mt-0 ${statusInfo.color}`}
+                        >
+                          {statusInfo.label}
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="gba:mb-4">
+                        <div className="gba:w-full gba:bg-gray-200 gba:rounded-full gba:h-2.5">
+                          <div
+                            className="gba:bg-blue-600 gba:h-2.5 gba:rounded-full"
+                            style={{ width: `${goal.progressPercent}%` }}
+                          ></div>
+                        </div>
+                        <div className="gba:flex gba:justify-between gba:mt-1 gba:text-sm gba:text-gray-600">
+                          <span>progress</span>
+                          <span>{goal.progressPercent}%</span>
+                        </div>
+                      </div>
 
-                    <div className="gba:mb-4">
-                      <div className="gba:w-full gba:bg-gray-200 gba:rounded-full gba:h-2.5">
-                        <div
-                          className="gba:bg-blue-600 gba:h-2.5 gba:rounded-full"
-                          style={{ width: `${goal.progressPercent}%` }}
-                        ></div>
+                      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:text-sm">
+                        <div>
+                          <span className="gba:block gba:text-gray-500">Start Date</span>
+                          <span>{dayjs(goal.startDate).format('MMM D, YYYY')}</span>
+                        </div>
+                        <div>
+                          <span className="gba:block gba:text-gray-500">Due Date</span>
+                          <span>{dayjs(goal.dueDate).format('MMM D, YYYY')}</span>
+                        </div>
+                        <div>
+                          <span className="gba:block gba:text-gray-500">Completion Date</span>
+                          <span>{goal.completionDate ? dayjs(goal.completionDate).format('MMM D, YYYY') : '-'}</span>
+                        </div>
                       </div>
-                      <div className="gba:flex gba:justify-between gba:mt-1 gba:text-sm gba:text-gray-600">
-                        <span>progress</span>
-                        <span>{goal.progressPercent}%</span>
-                      </div>
-                    </div>
 
-                    <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:text-sm">
-                      <div>
-                        <span className="gba:block gba:text-gray-500">Start Date</span>
-                        <span>{dayjs(goal.startDate).format('MMM D, YYYY')}</span>
-                      </div>
-                      <div>
-                        <span className="gba:block gba:text-gray-500">Due Date</span>
-                        <span>{dayjs(goal.dueDate).format('MMM D, YYYY')}</span>
-                      </div>
-                      <div>
-                        <span className="gba:block gba:text-gray-500">Completion Date</span>
-                        <span>{goal.completionDate ? dayjs(goal.completionDate).format('MMM D, YYYY') : '-'}</span>
-                      </div>
-                    </div>
-
-                    {/* Edit button at the bottom right */}
-                    {userInfo?.employeeDetails?.employeeId === supevisor && (
-                      <div className="gba:flex gba:justify-end gba:mt-4">
-                        <AppAction
-                          variant="update-secondary"
-                          data-testid={`employee-goal-edit-button-${goal.id}`}
-                          contexts={[
-                            {
-                              context: FlowContextName.employeePerformanceGoal,
-                              contextData: {
-                                employeeId: employee?.id,
-                                goalId: goal.id,
-                                title: goal.title,
-                                startDate: goal.startDate,
-                                dueDate: goal.dueDate,
-                                completionDate: goal.completionDate,
-                                progressPercent: goal.progressPercent,
-                                status: goal.status,
-                                version: goal.version
+                      {/* Edit button at the bottom right */}
+                      {userInfo?.employeeDetails?.employeeId === supevisor && (
+                        <div className="gba:flex gba:justify-end gba:mt-4">
+                          <AppAction
+                            variant="update-secondary"
+                            data-testid={`employee-goal-edit-button-${goal.id}`}
+                            contexts={[
+                              {
+                                context: FlowContextName.employeePerformanceGoal,
+                                contextData: {
+                                  employeeId: employee?.id,
+                                  goalId: goal.id,
+                                  title: goal.title,
+                                  startDate: goal.startDate,
+                                  dueDate: goal.dueDate,
+                                  completionDate: goal.completionDate,
+                                  progressPercent: goal.progressPercent,
+                                  status: goal.status,
+                                  version: goal.version
+                                }
                               }
-                            }
-                          ]}
-                          prefixDataTestId={`employee-goal-edit-${goal.id}`}
-                          accessToken={accessToken}
-                          autoExecute={true}
-                        />
-                      </div>
-                    )}
+                            ]}
+                            prefixDataTestId={`employee-goal-edit-${goal.id}`}
+                            accessToken={accessToken}
+                            autoExecute={true}
+                          />
+                        </div>
+                      )}
+                    </CardContent>
                   </Card>
                 )
               })}

@@ -1,10 +1,51 @@
-import React from 'react'
+import React, { useCallback, useRef } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface PaginationChangeParams {
   current: number
   pageSize: number
+}
+
+const scrollIntoView = (target: HTMLElement, behavior: ScrollBehavior) => {
+  target.scrollIntoView({ block: 'start', inline: 'nearest', behavior })
+}
+
+const escapeForCssAttributeValue = (value: string): string => {
+  const cssEscape = globalThis.CSS?.escape
+  if (typeof cssEscape === 'function') {
+    return cssEscape(value)
+  }
+
+  return value.replace(/[^a-zA-Z0-9_-]/g, ch => `\\${ch.codePointAt(0)?.toString(16)} `)
+}
+
+const buildDataTestIdSelector = (testId: string): string => `[data-testid=${escapeForCssAttributeValue(testId)}]`
+
+const findElementByTestId = (testId: string): HTMLElement | null =>
+  document.querySelector<HTMLElement>(buildDataTestIdSelector(testId))
+
+const findElementByPrefix = (prefix: string): HTMLElement | null =>
+  findElementByTestId(`${prefix}-container`) ?? findElementByTestId(`${prefix}-table`)
+
+const findNearestTableAbove = (rootEl: HTMLElement): HTMLTableElement | null => {
+  // Try previous siblings first (most common structure: table wrapper right before pagination).
+  let sibling = rootEl.previousElementSibling as HTMLElement | null
+  while (sibling) {
+    const table = sibling.querySelector<HTMLTableElement>('table')
+    if (table) return table
+    sibling = sibling.previousElementSibling as HTMLElement | null
+  }
+
+  // Then walk up the DOM: first ancestor that contains a table.
+  let parent = rootEl.parentElement as HTMLElement | null
+  while (parent && parent !== document.body) {
+    const table = parent.querySelector<HTMLTableElement>('table')
+    if (table) return table
+    parent = parent.parentElement as HTMLElement | null
+  }
+
+  return null
 }
 
 export interface TablePaginationProps {
@@ -17,6 +58,23 @@ export interface TablePaginationProps {
   dataTestIdPrefix?: string
   className?: string
   showBorder?: boolean
+  /**
+   * Best-practice way to scroll: pass an explicit element ref that marks the top of the table.
+   * If provided, this is used instead of DOM heuristics.
+   */
+  scrollTargetRef?: React.RefObject<HTMLElement | null>
+  /**
+   * Alternative to `scrollTargetRef`: provide the exact `data-testid` of the element to scroll to.
+   * Useful when a ref isn't convenient.
+   */
+  scrollTargetTestId?: string
+  /**
+   * When changing pages, scroll the table back into view (top of table).
+   * This avoids "random" scroll position after pagination.
+   */
+  scrollToTableTopOnChange?: boolean
+  /** Scroll behavior used when snapping to the table. */
+  scrollBehavior?: ScrollBehavior
 }
 
 const TablePagination: React.FC<TablePaginationProps> = ({
@@ -28,8 +86,45 @@ const TablePagination: React.FC<TablePaginationProps> = ({
   entityNamePlural,
   dataTestIdPrefix = 'table-pagination',
   className = '',
-  showBorder = true
+  showBorder = true,
+  scrollTargetRef,
+  scrollTargetTestId,
+  scrollToTableTopOnChange = true,
+  scrollBehavior = 'auto'
 }) => {
+  const rootRef = useRef<HTMLDivElement | null>(null)
+
+  const scrollTableIntoView = useCallback(() => {
+    if (typeof document === 'undefined') return
+
+    const explicitTarget = scrollTargetRef?.current ?? null
+    const byExplicitTestId = scrollTargetTestId ? findElementByTestId(scrollTargetTestId) : null
+    // Conventional scroll anchor used by tables: `${DATA_TEST_ID_PREFIX}-scroll-anchor`
+    const byScrollAnchorTestId = dataTestIdPrefix ? findElementByTestId(`${dataTestIdPrefix}-scroll-anchor`) : null
+    const byPrefix = dataTestIdPrefix ? findElementByPrefix(dataTestIdPrefix) : null
+    const byDomHeuristics = rootRef.current ? findNearestTableAbove(rootRef.current) : null
+
+    const target = explicitTarget ?? byExplicitTestId ?? byScrollAnchorTestId ?? byPrefix ?? byDomHeuristics
+    if (!target) return
+
+    scrollIntoView(target, scrollBehavior)
+  }, [dataTestIdPrefix, scrollBehavior, scrollTargetRef, scrollTargetTestId])
+
+  const handlePageChange = useCallback(
+    (pagination: PaginationChangeParams) => {
+      onPageChange(pagination)
+      if (!scrollToTableTopOnChange) return
+
+      // Defer to ensure the scroll happens after state updates/render.
+      if (typeof globalThis.requestAnimationFrame === 'function') {
+        globalThis.requestAnimationFrame(scrollTableIntoView)
+      } else {
+        scrollTableIntoView()
+      }
+    },
+    [onPageChange, scrollToTableTopOnChange, scrollTableIntoView]
+  )
+
   if (totalItems <= 0) {
     return null
   }
@@ -57,6 +152,7 @@ const TablePagination: React.FC<TablePaginationProps> = ({
       <div
         className={`gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 ${showBorder ? 'gba:border-t' : ''} ${className}`}
         data-testid={`${dataTestIdPrefix}-pagination`}
+        ref={rootRef}
       >
         <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${dataTestIdPrefix}-pagination-info`}>
           {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')}{' '}
@@ -70,7 +166,7 @@ const TablePagination: React.FC<TablePaginationProps> = ({
             </p>
             <select
               value={pageSize}
-              onChange={e => onPageChange({ current: 1, pageSize: Number(e.target.value) })}
+              onChange={e => handlePageChange({ current: 1, pageSize: Number(e.target.value) })}
               className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
               data-testid={`${dataTestIdPrefix}-page-size-select`}
             >
@@ -91,7 +187,7 @@ const TablePagination: React.FC<TablePaginationProps> = ({
             <Button
               variant="outline"
               className="gba:h-8 gba:w-8 gba:p-0"
-              onClick={() => onPageChange({ current: 1, pageSize })}
+              onClick={() => handlePageChange({ current: 1, pageSize })}
               disabled={currentPage === 1}
               data-testid={`${dataTestIdPrefix}-first-page-button`}
             >
@@ -100,7 +196,7 @@ const TablePagination: React.FC<TablePaginationProps> = ({
             <Button
               variant="outline"
               className="gba:h-8 gba:w-8 gba:p-0"
-              onClick={() => onPageChange({ current: currentPage - 1, pageSize })}
+              onClick={() => handlePageChange({ current: currentPage - 1, pageSize })}
               disabled={currentPage === 1}
               data-testid={`${dataTestIdPrefix}-previous-page-button`}
             >
@@ -109,7 +205,7 @@ const TablePagination: React.FC<TablePaginationProps> = ({
             <Button
               variant="outline"
               className="gba:h-8 gba:w-8 gba:p-0"
-              onClick={() => onPageChange({ current: currentPage + 1, pageSize })}
+              onClick={() => handlePageChange({ current: currentPage + 1, pageSize })}
               disabled={currentPage >= totalPages}
               data-testid={`${dataTestIdPrefix}-next-page-button`}
             >
@@ -118,7 +214,7 @@ const TablePagination: React.FC<TablePaginationProps> = ({
             <Button
               variant="outline"
               className="gba:h-8 gba:w-8 gba:p-0"
-              onClick={() => onPageChange({ current: totalPages, pageSize })}
+              onClick={() => handlePageChange({ current: totalPages, pageSize })}
               disabled={currentPage >= totalPages}
               data-testid={`${dataTestIdPrefix}-last-page-button`}
             >
@@ -135,6 +231,7 @@ const TablePagination: React.FC<TablePaginationProps> = ({
     <div
       className={`gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 ${showBorder ? 'gba:border-t' : ''} ${className}`}
       data-testid={`${dataTestIdPrefix}-pagination-info-single-page`}
+      ref={rootRef}
     >
       <div className="gba:text-sm gba:text-muted-foreground">{`${totalItems} ${entityLabel}`}</div>
       <div className="gba:flex gba:items-center gba:space-x-2">
@@ -143,7 +240,7 @@ const TablePagination: React.FC<TablePaginationProps> = ({
         </p>
         <select
           value={pageSize}
-          onChange={e => onPageChange({ current: 1, pageSize: Number(e.target.value) })}
+          onChange={e => handlePageChange({ current: 1, pageSize: Number(e.target.value) })}
           className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
           data-testid={`${dataTestIdPrefix}-page-size-select-single`}
         >

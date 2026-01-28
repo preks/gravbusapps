@@ -62,7 +62,7 @@ export const useCustomerCalendarData = (context: BusinessAppContextProps) => {
       // Build tasks query variables
       const tasksQueryVariables: CustomerTaskQueryVariables = {
         assignedEmployeeIds: [employeeId],
-        taskStatusIds: ['PENDING', 'IN_PROGRESS'],
+        taskStatusIds: ['SalesTaskStatus:v1:PENDING', 'SalesTaskStatus:v1:IN_PROGRESS', 'SalesTaskStatus:v1:OVERDUE'],
         limit,
         offset: 0,
         orderBy: [
