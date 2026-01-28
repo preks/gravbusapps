@@ -102,6 +102,8 @@ export interface UseGroupCallReturn {
   sendReaction?: (emoji: string) => Promise<void>
   inviteToCall: (participants: CallParticipant[], conversationName?: string) => void
   reconnectParticipant: (participantId: string) => Promise<void>
+  transcriptionEnabled?: boolean
+  toggleTranscription?: () => void
   // Debugging
   getConnectionDiagnostics: () => Map<string, any>
 }

@@ -271,6 +271,14 @@ groupCall-endCall = Anruf beenden
 groupCall-enableBackground = Hintergrundeffekt aktivieren
 groupCall-disableBackground = Hintergrundeffekt deaktivieren
 
+# Transcription
+chat-call-enableTranscription = Transkription aktivieren
+chat-call-transcriptionActive = Aufnahme
+chat-call-recording = Aufnahme
+chat-transcript-ready = Meeting-Transkript bereit
+chat-transcript-view = Transkript anzeigen
+chat-transcript-saved = Ihr Meeting-Transkript wurde gespeichert
+
 # Notifications
 notifications-title = Benachrichtigungen
 notifications-empty = Derzeit keine Benachrichtigungen

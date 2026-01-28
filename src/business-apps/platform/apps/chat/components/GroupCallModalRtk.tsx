@@ -75,6 +75,7 @@ interface GroupCallModalRtkProps {
   currentUserId?: string | null
   conversationName?: string
   wsClient?: ChatWebSocketClient | null
+  transcriptionEnabled?: boolean
 }
 
 // Helper to get screen share track from peer
@@ -159,7 +160,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   prefixDataTestId = 'rtk-group-call',
   conversationName,
   wsClient,
-  currentUserId
+  currentUserId,
+  transcriptionEnabled
 }) => {
   const t = useChatTranslation()
   const localVideoRef = useRef<HTMLVideoElement>(null)
@@ -1815,6 +1817,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                   isScreenSharing={callState.isScreenSharing}
                   backgroundEnabled={callState.backgroundEnabled}
                   handRaised={callState.handRaised}
+                  transcriptionActive={transcriptionEnabled}
                   onToggleMute={onToggleMute}
                   onToggleVideo={onToggleVideo}
                   onToggleScreenShare={onToggleScreenShare}

@@ -35,6 +35,8 @@ export interface CallControlsBarProps {
   backgroundEnabled: boolean
   /** Whether hand is raised */
   handRaised: boolean
+  /** Whether transcription is active */
+  transcriptionActive?: boolean
   /** Callback to toggle mute */
   onToggleMute: () => void
   /** Callback to toggle video */
@@ -64,6 +66,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
   isScreenSharing,
   backgroundEnabled,
   handRaised,
+  transcriptionActive,
   onToggleMute,
   onToggleVideo,
   onToggleScreenShare,
@@ -81,6 +84,14 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
       <div className="gba:flex gba:items-center gba:justify-center gba:px-6 gba:py-3 gba:gap-6">
         {/* Left: Media Controls Group */}
         <div className="gba:flex gba:items-center gba:gap-3">
+          {/* Transcription indicator */}
+          {transcriptionActive && (
+            <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1 gba:rounded-full gba:bg-destructive/10 gba:text-destructive">
+              <Microphone className="gba:w-4 gba:h-4 gba:animate-pulse" weight="fill" />
+              <span className="gba:text-xs gba:font-semibold">{t('chat-call-recording')}</span>
+            </div>
+          )}
+
           {/* Mute button */}
           <button
             onClick={onToggleMute}

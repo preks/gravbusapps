@@ -399,7 +399,9 @@ const ChatInner: React.FC<ChatProps> = memo(
       inviteToCall: inviteToGroupCall,
       reconnectParticipant: reconnectGroupParticipant,
       getConnectionDiagnostics: getGroupConnectionDiagnostics,
-      pendingInvites: groupPendingInvites
+      pendingInvites: groupPendingInvites,
+      transcriptionEnabled
+      // toggleTranscription - Available but not used here (should be in pre-call UI)
     } = groupCall
 
     // Stable callback for inviting participants - prevents GroupCallModalRtk re-renders
@@ -1837,6 +1839,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                 currentUserId={currentUser?.id || null}
                 conversationName={realtimeKitGroupCall.currentCallConversationName || activeConversation?.name}
                 wsClient={wsClient}
+                transcriptionEnabled={transcriptionEnabled}
               />
             </RealtimeKitProvider>
           ) : (

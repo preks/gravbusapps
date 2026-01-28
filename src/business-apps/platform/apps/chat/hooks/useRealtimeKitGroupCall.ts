@@ -9,6 +9,7 @@
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useRealtimeKitClient } from '@cloudflare/realtimekit-react'
+import { toast } from '@newwork/nw-design-system'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import { RealtimeKitApiClient } from '../services/realtimeKitApiClient'
 import type { CallParticipant, CallType } from '../services/webrtcClient'
@@ -82,6 +83,7 @@ interface CallState extends GroupCallUIState {
   callType: CallType
   callStartTime: number | null
   conversationName?: string
+  transcriptionEnabled: boolean
 }
 
 export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions): UseGroupCallReturn => {
@@ -95,6 +97,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     meetingId: null,
     callType: 'audio',
     callStartTime: null,
+    transcriptionEnabled: false,
     // GroupCallUIState required properties
     participants: [],
     hostId: null,
@@ -373,7 +376,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           currentUser?.odName, // displayName
           undefined, // firstName
           undefined, // lastName
-          conversationName // meetingName
+          conversationName, // meetingName
+          callState.transcriptionEnabled // transcription_enabled
         )
         const meetingId = sessionResponse.data.meetingId
         const authToken = sessionResponse.data.hostAuthToken
@@ -615,7 +619,9 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
                 callType,
                 currentUser?.odName, // displayName
                 undefined, // firstName
-                undefined // lastName
+                undefined, // lastName
+                undefined, // meetingName
+                false // transcription_enabled - joining existing call, don't change transcription
               )
             ).data.hostAuthToken
 
@@ -942,6 +948,13 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   }, [])
 
   /**
+   * Toggle transcription enabled/disabled
+   */
+  const toggleTranscription = useCallback(() => {
+    setCallState(prev => ({ ...prev, transcriptionEnabled: !prev.transcriptionEnabled }))
+  }, [])
+
+  /**
    * Listen to SDK meeting join completion
    */
   useEffect(() => {
@@ -1154,6 +1167,37 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       socket.off('conversation:call-ended', handleConversationCallEnded)
     }
   }, [wsClient, currentUser, callState.status, leaveCall])
+
+  /**
+   * Listen for transcript-ready WebSocket events
+   */
+  useEffect(() => {
+    if (!wsClient) return
+
+    const socket = wsClient.getSocket()
+    if (!socket) return
+
+    const handleTranscriptReady = (data: { noteId: string; meetingId: string; meetingTitle: string }) => {
+      rtkDebug.log('[RTK] 📝 Transcript ready:', data)
+
+      // Show toast notification
+      // Note: All meeting participants receive this notification automatically
+      toast.success('Meeting Transcript Ready', {
+        description: `${data.meetingTitle} - Transcript has been saved and shared with all participants`,
+        duration: 10000 // 10 seconds
+      })
+
+      // Log note ID for easy access
+      rtkDebug.log('[RTK] 📝 View transcript at:', `/note-apps?noteId=${data.noteId}`)
+    }
+
+    rtkDebug.log('[RTK] 🎧 Registering transcript-ready listener')
+    socket.on('transcript-ready', handleTranscriptReady)
+
+    return () => {
+      socket.off('transcript-ready', handleTranscriptReady)
+    }
+  }, [wsClient])
 
   /**
    * Heartbeat: Keep localStorage updated so other tabs know we're still in a call
@@ -1377,6 +1421,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     sendReaction: websocket.sendReaction,
     inviteToCall: participantsHook.inviteToCall,
     reconnectParticipant: participantsHook.reconnectParticipant,
-    getConnectionDiagnostics: stableGetConnectionDiagnostics // Stable callback
+    getConnectionDiagnostics: stableGetConnectionDiagnostics, // Stable callback
+    transcriptionEnabled: callState.transcriptionEnabled,
+    toggleTranscription
   }
 }
