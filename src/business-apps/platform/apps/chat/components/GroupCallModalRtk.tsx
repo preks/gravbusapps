@@ -84,33 +84,43 @@ const getScreenShareTrack = (peer: any): MediaStreamTrack | null => {
   if (screenShareTracks.length > 0) {
     // CRITICAL: For tab sharing, SDK returns BOTH video and audio tracks
     // We MUST get the VIDEO track (kind === 'video'), not the audio track!
-    const videoTrack = screenShareTracks.find(t => t.kind === 'video')
+    // Also check track is still live (not ended/stopped)
+    const videoTrack = screenShareTracks.find(t => t.kind === 'video' && t.readyState === 'live')
 
     if (videoTrack) {
-      rtkDebug.log(`[RTK Modal] Found VIDEO screen share track for peer ${peer.name || peer.id}:`, {
+      rtkDebug.log(`[RTK Modal] Found live VIDEO screen share track for peer ${peer.name || peer.id}:`, {
         trackId: videoTrack.id,
         trackLabel: videoTrack.label,
         trackKind: videoTrack.kind,
+        readyState: videoTrack.readyState,
         totalTracks: screenShareTracks.length,
         allTrackKinds: screenShareTracks.map(t => t.kind)
       })
       return videoTrack
     }
 
-    // Fallback: use first track if no video track found
-    rtkDebug.warn(`[RTK Modal] ⚠️ No video track in screenShareTracks for peer ${peer.name || peer.id}, using first:`, {
-      firstTrackKind: screenShareTracks[0].kind,
-      allTracks: screenShareTracks.map(t => ({ id: t.id, kind: t.kind, label: t.label }))
-    })
-    return screenShareTracks[0]
+    // Fallback: use first live track if no video track found
+    const firstLiveTrack = screenShareTracks.find(t => t.readyState === 'live')
+    if (firstLiveTrack) {
+      rtkDebug.warn(
+        `[RTK Modal] ⚠️ No live video track in screenShareTracks for peer ${peer.name || peer.id}, using first live:`,
+        {
+          firstTrackKind: firstLiveTrack.kind,
+          allTracks: screenShareTracks.map(t => ({ id: t.id, kind: t.kind, label: t.label, readyState: t.readyState }))
+        }
+      )
+      return firstLiveTrack
+    }
+    rtkDebug.warn(`[RTK Modal] ⚠️ All screen share tracks ended for peer ${peer.name || peer.id}`)
   }
 
-  // Then check if videoTrack is actually a screen share
-  if (peer.videoTrack && isVideoTrackScreenShare(peer.videoTrack)) {
-    rtkDebug.log(`[RTK Modal] Found screen share track in videoTrack for peer ${peer.name || peer.id}:`, {
+  // Then check if videoTrack is actually a screen share and still live
+  if (peer.videoTrack && isVideoTrackScreenShare(peer.videoTrack) && peer.videoTrack.readyState === 'live') {
+    rtkDebug.log(`[RTK Modal] Found live screen share track in videoTrack for peer ${peer.name || peer.id}:`, {
       trackId: peer.videoTrack.id,
       trackLabel: peer.videoTrack.label,
-      trackKind: peer.videoTrack.kind
+      trackKind: peer.videoTrack.kind,
+      readyState: peer.videoTrack.readyState
     })
     return peer.videoTrack
   }
@@ -461,25 +471,32 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
       // CRITICAL: For tab sharing, SDK returns BOTH video and audio tracks
       // We MUST get the VIDEO track (kind === 'video'), not the audio track!
-      const videoTrack = screenShareTracks.find(t => t.kind === 'video')
+      // Also check track is still live (not ended/stopped)
+      const videoTrack = screenShareTracks.find(t => t.kind === 'video' && t.readyState === 'live')
       if (videoTrack) {
-        rtkDebug.log('[RTK Modal] ✅ Found VIDEO track for screen share:', {
+        rtkDebug.log('[RTK Modal] ✅ Found live VIDEO track for screen share:', {
           trackId: videoTrack.id,
           trackLabel: videoTrack.label,
-          trackKind: videoTrack.kind
+          trackKind: videoTrack.kind,
+          readyState: videoTrack.readyState
         })
         return videoTrack
       }
 
-      // Fallback: if no video track found, return first track (shouldn't happen)
-      rtkDebug.warn('[RTK Modal] ⚠️ No video track found in screenShareTracks, using first track:', {
-        firstTrack: screenShareTracks[0].kind
-      })
-      return screenShareTracks[0]
+      // Fallback: if no live video track found, try first live track
+      const firstLiveTrack = screenShareTracks.find(t => t.readyState === 'live')
+      if (firstLiveTrack) {
+        rtkDebug.warn('[RTK Modal] ⚠️ No live video track found in screenShareTracks, using first live track:', {
+          firstTrack: firstLiveTrack.kind,
+          readyState: firstLiveTrack.readyState
+        })
+        return firstLiveTrack
+      }
+      rtkDebug.warn('[RTK Modal] ⚠️ All local screen share tracks have ended')
     }
 
-    // Also check if videoTrack is actually a screen share
-    if (m.self.videoTrack && isVideoTrackScreenShare(m.self.videoTrack)) {
+    // Also check if videoTrack is actually a screen share and still live
+    if (m.self.videoTrack && isVideoTrackScreenShare(m.self.videoTrack) && m.self.videoTrack.readyState === 'live') {
       return m.self.videoTrack
     }
 
@@ -653,7 +670,9 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     const videoElement = localVideoRef.current
     if (!videoElement) return
 
-    const localVideoTrack = meeting?.self?.videoTrack
+    // CRITICAL: Filter out screen share track - only use camera video track
+    const localVideoTrack =
+      meeting?.self?.videoTrack && !isVideoTrackScreenShare(meeting.self.videoTrack) ? meeting.self.videoTrack : null
     const localAudioTrack = meeting?.self?.audioTrack
     const currentVideoTrackId = localVideoTrack?.id || null
     const currentAudioTrackId = localAudioTrack?.id || null
@@ -666,7 +685,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       hasLocalStream: !!localStream,
       isInitialized: localVideoInitializedRef.current,
       videoTrackChanged: localVideoTrackIdRef.current !== currentVideoTrackId,
-      audioTrackChanged: localAudioTrackIdRef.current !== currentAudioTrackId
+      audioTrackChanged: localAudioTrackIdRef.current !== currentAudioTrackId,
+      videoTrackIsScreenShare: meeting?.self?.videoTrack && isVideoTrackScreenShare(meeting.self.videoTrack)
     })
 
     // Initial attachment
@@ -1153,7 +1173,12 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       })
 
       if (screenShareTrack) {
-        if (!seenPeerIds.has(peer.id)) {
+        // CRITICAL: Only include tracks that are still live (not ended/stopped)
+        if (screenShareTrack.readyState !== 'live') {
+          rtkDebug.warn(
+            `[RTK Modal] ⚠️ Screen share track for peer ${peer.id} is not live (state: ${screenShareTrack.readyState}) - skipping`
+          )
+        } else if (!seenPeerIds.has(peer.id)) {
           shares.push({
             peerId: peer.id,
             peerName: peer.name || peer.displayName || peer.customParticipantId || 'Unknown',
@@ -1172,19 +1197,38 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     })
 
     // Add local screen share if active
+    rtkDebug.log('[RTK Modal] 🔍 Local screen share check:', {
+      isScreenSharing: callState.isScreenSharing,
+      hasTrack: !!localScreenShareTrack,
+      trackReadyState: localScreenShareTrack?.readyState,
+      trackId: localScreenShareTrack?.id
+    })
+
     if (callState.isScreenSharing && localScreenShareTrack) {
-      const localPeerId = meeting?.self?.id || 'local' // Use actual peer ID
-      if (!seenPeerIds.has(localPeerId)) {
-        shares.push({
-          peerId: localPeerId,
-          peerName: participants[0]?.odName || 'You',
-          screenShareTrack: localScreenShareTrack,
-          trackId: localScreenShareTrack.id,
-          peer: null
-        })
-        seenPeerIds.add('local')
+      // CRITICAL: Only include tracks that are still live (not ended/stopped)
+      if (localScreenShareTrack.readyState !== 'live') {
+        rtkDebug.warn(
+          `[RTK Modal] ⚠️ Local screen share track is not live (state: ${localScreenShareTrack.readyState}) - skipping`
+        )
       } else {
-        rtkDebug.warn(`[RTK Modal] ⚠️ Duplicate screen share for local peer - skipping`)
+        const localPeerId = meeting?.self?.id || 'local' // Use actual peer ID
+        if (!seenPeerIds.has(localPeerId)) {
+          shares.push({
+            peerId: localPeerId,
+            peerName: participants[0]?.odName || 'You',
+            screenShareTrack: localScreenShareTrack,
+            trackId: localScreenShareTrack.id,
+            peer: null
+          })
+          seenPeerIds.add(localPeerId) // CRITICAL: Add the actual peerId, not 'local'
+          rtkDebug.log('[RTK Modal] 🖥️ Added local screen share to allScreenShares:', {
+            peerId: localPeerId,
+            peerName: participants[0]?.odName || 'You',
+            trackId: localScreenShareTrack.id
+          })
+        } else {
+          rtkDebug.warn(`[RTK Modal] ⚠️ Duplicate screen share for local peer - skipping`)
+        }
       }
     }
 
@@ -1255,17 +1299,20 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           isFocusedScreenShare: true
         })
         seenIds.add(itemId)
-        rtkDebug.log('[RTK Modal] 🖥️ Added focused screen share:', {
+        rtkDebug.log('[RTK Modal] 🖥️ [1] Added focused screen share to grid:', {
           itemId,
           peerId: focusedScreenShare.peerId,
-          peerName: focusedScreenShare.peerName
+          peerName: focusedScreenShare.peerName,
+          trackId: focusedScreenShare.screenShareTrack.id
         })
       }
     }
 
     // Add local participant (video or avatar) - ALWAYS show, even when screen sharing
     // Screen share and camera video are separate and should both be visible
-    const localVideoTrack = meeting?.self?.videoTrack
+    // CRITICAL: Filter out screen share track - only use camera video track
+    const localVideoTrack =
+      meeting?.self?.videoTrack && !isVideoTrackScreenShare(meeting.self.videoTrack) ? meeting.self.videoTrack : null
     const localAudioTrack = meeting?.self?.audioTrack
     const localHasVideo = callState.isVideoEnabled && !!localVideoTrack
 
@@ -1295,7 +1342,15 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
     // Add ALL non-focused screen shares (from allScreenShares array)
     // CRITICAL: Skip the focused one - it's already added above!
-    allScreenShares.forEach(share => {
+    allScreenShares.forEach((share, index) => {
+      rtkDebug.log(`[RTK Modal] 🔍 Processing allScreenShares[${index}]:`, {
+        peerId: share.peerId,
+        peerName: share.peerName,
+        trackId: share.trackId,
+        isFocused: focusedScreenShare?.peerId === share.peerId,
+        focusedPeerId: focusedScreenShare?.peerId
+      })
+
       // Skip if this is the focused screen share (already added above)
       if (focusedScreenShare && share.peerId === focusedScreenShare.peerId) {
         rtkDebug.log('[RTK Modal] ⏭️ Skipping focused screen share (already added):', share.peerId)
@@ -1303,6 +1358,11 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       }
 
       const shareId = `screen-share-${share.peerId}`
+      rtkDebug.log('[RTK Modal] 🔍 Checking if shareId exists in seenIds:', {
+        shareId,
+        hasInSeenIds: seenIds.has(shareId),
+        seenIdsArray: Array.from(seenIds)
+      })
       if (!seenIds.has(shareId)) {
         items.push({
           id: shareId,
@@ -1315,10 +1375,11 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           isVideoEnabled: true
         })
         seenIds.add(shareId)
-        rtkDebug.log('[RTK Modal] 🖥️ Added non-focused screen share:', {
+        rtkDebug.log('[RTK Modal] 🖥️ [2] Added non-focused screen share to grid:', {
           shareId,
           peerId: share.peerId,
-          peerName: share.peerName
+          peerName: share.peerName,
+          trackId: share.trackId
         })
       } else {
         rtkDebug.warn('[RTK Modal] ⚠️ Skipping duplicate screen share:', shareId)
@@ -1363,7 +1424,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
     // Sort items: Active speaker first (after focused screen share), then by history
     const focusedScreenShareCount = focusedScreenShare ? 1 : 0
-    const localItem = items.find(i => i.isLocal)
+    // CRITICAL: Find local participant, NOT screen share (screen share is also isLocal=true)
+    const localItem = items.find(i => i.isLocal && i.type !== 'screen-share')
     const activeSpeakerItems = items
       .slice(focusedScreenShareCount)
       .filter(item => item.isActiveSpeaker && !item.isLocal)
@@ -1386,6 +1448,16 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       )
     const screenShareItems = items.slice(focusedScreenShareCount).filter(i => i.type === 'screen-share')
 
+    rtkDebug.log('[RTK Modal] 📊 Sorting groups:', {
+      focusedScreenShareCount,
+      focusedItems: items.slice(0, focusedScreenShareCount).map(i => ({ id: i.id, type: i.type })),
+      localItem: localItem ? { id: localItem.id, type: localItem.type } : null,
+      activeSpeakerItems: activeSpeakerItems.map(i => ({ id: i.id, type: i.type })),
+      historyItems: historyItems.map(i => ({ id: i.id, type: i.type })),
+      otherItems: otherItems.map(i => ({ id: i.id, type: i.type })),
+      screenShareItems: screenShareItems.map(i => ({ id: i.id, type: i.type }))
+    })
+
     // Reconstruct: focused screen share (if any) + local + active speaker + history + others + screen shares
     const sortedItems = [
       ...items.slice(0, focusedScreenShareCount), // Keep focused screen share first
@@ -1399,7 +1471,18 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     rtkDebug.log(`[RTK Modal] Grid items built:`, {
       totalItems: sortedItems.length,
       screenShares: sortedItems.filter(i => i.type === 'screen-share').length,
+      screenShareItems: sortedItems
+        .filter(i => i.type === 'screen-share')
+        .map(i => ({
+          id: i.id,
+          peerId: i.peerId,
+          peerName: i.peerName,
+          isFocused: i.isFocusedScreenShare,
+          isLocal: i.isLocal
+        })),
       focusedScreenShare: focusedScreenShare?.peerId,
+      allScreenSharesCount: allScreenShares.length,
+      allScreenSharesPeerIds: allScreenShares.map(s => s.peerId),
       activeSpeakerId,
       activeSpeakerCount: activeSpeakerItems.length,
       handRaisedDeps: {
