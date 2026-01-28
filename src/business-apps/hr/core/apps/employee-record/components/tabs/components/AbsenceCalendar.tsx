@@ -139,27 +139,21 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
     e.preventDefault()
     e.stopPropagation()
 
-    // If a range is already selected, check if clicked day is within the range
-    // If clicked day is outside the range, deselect range and select the clicked day
-    // Otherwise, preserve the range
+    // Determine which date range to check based on current selection
     let dateRangeToCheck = { start: day, end: day }
     if (selectedStartDate && selectedEndDate) {
       // Check if clicked day is within the selected range (inclusive on both ends)
       const isInRange = day.isBetween(selectedStartDate, selectedEndDate, 'day', '[]')
 
       if (isInRange) {
-        // If clicking within the range, check the entire range for absences
+        // If clicking within the range, check the entire range for absences/holidays
         dateRangeToCheck = { start: selectedStartDate, end: selectedEndDate }
       } else {
-        // Clicked day is outside range - deselect range and select this day
-        setSelectedStartDate(day.startOf('day'))
-        setSelectedEndDate(null)
+        // Clicked day is outside range - check only this day before selecting
         dateRangeToCheck = { start: day, end: day }
       }
     } else {
-      // No range selected or only start date - right-click always selects just this day (single day, no range)
-      setSelectedStartDate(day.startOf('day'))
-      setSelectedEndDate(null)
+      // No range selected or only start date - check only this day before selecting
       dateRangeToCheck = { start: day, end: day }
     }
 
@@ -186,7 +180,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
     })()
 
     if (hasHoliday) {
-      // Day(s) have holidays, prevent context menu
+      // Day(s) have holidays, prevent selection and context menu
       return
     }
 
@@ -204,8 +198,28 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
     })
 
     if (hasExistingAbsences) {
-      // Day(s) already have absences booked, prevent context menu
+      // Day(s) already have absences booked, prevent selection and context menu
       return
+    }
+
+    // Only set selection if the day is clear (no holidays or absences)
+    // If a range is already selected, check if clicked day is within the range
+    // If clicked day is outside the range, deselect range and select the clicked day
+    // Otherwise, preserve the range
+    if (selectedStartDate && selectedEndDate) {
+      // Check if clicked day is within the selected range (inclusive on both ends)
+      const isInRange = day.isBetween(selectedStartDate, selectedEndDate, 'day', '[]')
+
+      if (!isInRange) {
+        // Clicked day is outside range - deselect range and select this day
+        setSelectedStartDate(day.startOf('day'))
+        setSelectedEndDate(null)
+      }
+      // If in range, keep the existing selection
+    } else {
+      // No range selected or only start date - right-click always selects just this day (single day, no range)
+      setSelectedStartDate(day.startOf('day'))
+      setSelectedEndDate(null)
     }
 
     // Calculate menu dimensions (fixed list of 4 items)
