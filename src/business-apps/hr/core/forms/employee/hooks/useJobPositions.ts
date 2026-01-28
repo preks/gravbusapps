@@ -22,6 +22,7 @@ export interface UseJobPositionsReturn {
   loadMore: () => void
   searchPositions: (searchTerm?: string) => void
   retry: () => void
+  refetch: () => void
 }
 
 /**
@@ -168,6 +169,16 @@ export const useJobPositions = ({
     setAllJobPositions([])
   }, [])
 
+  // Refetch job positions (used after creating a new position)
+  const refetch = useCallback(() => {
+    setError(null)
+    setHasMore(true)
+    setInitialLoadDone(false)
+    setOffset(0)
+    setJobPositions([])
+    setAllJobPositions([])
+  }, [])
+
   // Initial load and reload when organizational unit changes - only trigger once when conditions are met
   useEffect(() => {
     if (accessToken && structureId && !initialLoadDone && !loading) {
@@ -197,6 +208,7 @@ export const useJobPositions = ({
     total,
     loadMore,
     searchPositions,
-    retry
+    retry,
+    refetch
   }
 }

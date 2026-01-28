@@ -1,19 +1,7 @@
 import React from 'react'
-import { Card, CardContent } from '@newwork/nw-design-system'
+import { Card, CardContent, Spinner } from '@newwork/nw-design-system'
 import { TrendingUp, Trophy, Award, Target } from 'lucide-react'
-
-const formatCurrency = (amount: number, currencyCode: string = 'EUR'): string => {
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currencyCode,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  } catch {
-    return `${currencyCode} ${amount.toLocaleString()}`
-  }
-}
+import { formatCurrency } from '@/common/utils/numberFormatter'
 
 export interface PipelineStatisticsMetrics {
   totalValue: number
@@ -26,9 +14,31 @@ export interface PipelineStatisticsProps {
   pipelineId: string
   metrics: PipelineStatisticsMetrics
   currency?: string
+  isLoading?: boolean
 }
 
-export const PipelineStatistics: React.FC<PipelineStatisticsProps> = ({ pipelineId, metrics, currency = 'EUR' }) => {
+export const PipelineStatistics: React.FC<PipelineStatisticsProps> = ({
+  pipelineId,
+  metrics,
+  currency = 'EUR',
+  isLoading = false
+}) => {
+  if (isLoading) {
+    return (
+      <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-4 gba:gap-4">
+        {[1, 2, 3, 4].map(i => (
+          <Card key={i}>
+            <CardContent className="gba:p-6">
+              <div className="gba:flex gba:items-center gba:justify-center gba:h-20">
+                <Spinner size="sm" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-4 gba:gap-4">
       <Card>

@@ -11,7 +11,7 @@
 
 import React, { useMemo } from 'react'
 import { Button, cn, useTranslation } from '@newwork/nw-design-system'
-import { LucideIcon, Send, XCircle, CheckCircle, ThumbsUp } from 'lucide-react'
+import { LucideIcon, Send, XCircle, CheckCircle, ThumbsUp, Hand, Undo2 } from 'lucide-react'
 import { UnifiedTask } from '../types'
 import translations from '../_i18n'
 
@@ -111,6 +111,12 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
 }) => {
   const { t } = useTranslation(translations)
 
+  // Don't show footer for completed tasks (unless custom children provided)
+  const isTaskCompleted = task?.status === 'COMPLETED' || !!task?.completedAt
+  if (isTaskCompleted && !children) {
+    return null
+  }
+
   // Auto-generate actions from task.availableActions if task is provided
   // Returns { left: TaskAction[], right: TaskAction[] } for proper positioning
   const { leftActions, rightActions } = useMemo(() => {
@@ -126,6 +132,30 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
 
     const left: TaskAction[] = []
     const right: TaskAction[] = []
+
+    // canUnclaim - Unclaim task (when user currently owns a claimed task)
+    if (task.availableActions.canUnclaim) {
+      left.push({
+        label: t('task-footer-unclaim'),
+        onClick: () => onTaskAction('unclaim'),
+        variant: 'outline',
+        icon: Undo2,
+        loading: isLoading,
+        testId: 'unclaim-task-button'
+      })
+    }
+
+    // canClaim - Claim task (claimable tasks)
+    if (task.availableActions.canClaim) {
+      right.push({
+        label: t('task-footer-claim'),
+        onClick: () => onTaskAction('claim'),
+        variant: 'default',
+        icon: Hand,
+        loading: isLoading,
+        testId: 'claim-task-button'
+      })
+    }
 
     // canReject - Reject task (approval tasks only) - goes on LEFT
     if (task.availableActions.canReject) {

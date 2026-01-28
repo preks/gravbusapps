@@ -8,12 +8,15 @@ import {
   Input,
   Checkbox,
   Label,
-  useTranslation
+  useTranslation,
+  AutocompleteInput,
+  type AutocompleteOption
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { CatalogSelect } from '@/components/catalog-select'
 import { EmployeeSelect } from '@/components/employee-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getAutoFilledClassName } from '../utils/autoFilledClassName'
 import translations from './_i18n'
 
 interface LeadInformationSegmentProps {
@@ -29,6 +32,15 @@ interface LeadInformationSegmentProps {
   leadRatingCatalogIdentifier: string // e.g., "SalesLeadRating:v1" (CRM) or "InvestmentLeadRating:v1" (IRM)
   // Custom fields (context-specific, e.g., CRM Sales Campaign)
   customFields?: React.ReactNode
+  // Account autocomplete props
+  accountSearchOptions?: AutocompleteOption[]
+  onAccountSearch?: (query: string) => void
+  onAccountSelect?: (accountId: string, accountData: any) => void
+  accountSearchLoading?: boolean
+
+  // Auto-filled fields tracking
+  autoFilledFields?: Set<string>
+  onFieldChange?: (fieldName: string) => void
 }
 
 /**
@@ -48,7 +60,13 @@ const LeadInformationSegment: React.FC<LeadInformationSegmentProps> = ({
   leadStatusCatalogIdentifier,
   leadSourceCatalogIdentifier,
   leadRatingCatalogIdentifier,
-  customFields
+  customFields,
+  accountSearchOptions = [],
+  onAccountSearch,
+  onAccountSelect,
+  accountSearchLoading = false,
+  autoFilledFields = new Set(),
+  onFieldChange
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
@@ -117,7 +135,7 @@ const LeadInformationSegment: React.FC<LeadInformationSegmentProps> = ({
         />
       </div>
 
-      {/* Company Name */}
+      {/* Company Name - Autocomplete with Account Search */}
       <FormField
         control={form.control}
         name="companyName"
@@ -125,10 +143,26 @@ const LeadInformationSegment: React.FC<LeadInformationSegmentProps> = ({
           <FormItem>
             <FormLabel>{t('lead-segment-company-name')}</FormLabel>
             <FormControl>
-              <Input
+              <AutocompleteInput
                 placeholder={t('lead-segment-placeholder-enter')}
                 data-testid="lead-segment-company-name"
-                {...field}
+                value={field.value || ''}
+                onChange={e => {
+                  field.onChange(e.target.value)
+                  if (onFieldChange) onFieldChange('companyName')
+                }}
+                options={accountSearchOptions}
+                onSearch={onAccountSearch}
+                onSelect={(accountId, option) => {
+                  // Update company name field
+                  field.onChange(option.label)
+                  // Trigger auto-fill callback if provided
+                  if (onAccountSelect && option.data) {
+                    onAccountSelect(accountId, option.data)
+                  }
+                }}
+                loading={accountSearchLoading}
+                className={getAutoFilledClassName('companyName', autoFilledFields)}
               />
             </FormControl>
             <FormMessage />

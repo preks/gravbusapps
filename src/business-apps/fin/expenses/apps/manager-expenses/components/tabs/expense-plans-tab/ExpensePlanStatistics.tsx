@@ -52,15 +52,13 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
         case 'pending-approval':
           handleCardClick(ExpenseStatus.PENDING)
           break
-        case 'total-plans':
-          // Filter for all statuses except DISCARDED
+        case 'total-plans': {
+          // Filter for all statuses except DISCARDED and CREATED
           const allStatusesExceptDiscarded = [
             ExpenseStatus.PREPARED,
-            ExpenseStatus.CREATED,
             ExpenseStatus.ASSIGNED,
             ExpenseStatus.PENDING,
             ExpenseStatus.APPROVED,
-            ExpenseStatus.RETURNED,
             ExpenseStatus.REJECTED,
             ExpenseStatus.VERIFIED,
             ExpenseStatus.BOOKED,
@@ -70,10 +68,10 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           ]
           // Check if this filter is already active, if so clear it
           const isTotalPlansFilterActive =
-            activeFilter &&
-            activeFilter.length === 12 &&
+            activeFilter?.length === 10 &&
             allStatusesExceptDiscarded.every(status => activeFilter.includes(status)) &&
-            !activeFilter.includes(ExpenseStatus.DISCARDED)
+            !activeFilter.includes(ExpenseStatus.DISCARDED) &&
+            !activeFilter.includes(ExpenseStatus.CREATED)
 
           if (isTotalPlansFilterActive) {
             onFilterChange(null)
@@ -81,6 +79,7 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
             onFilterChange(allStatusesExceptDiscarded)
           }
           break
+        }
         case 'total-amount':
           // No filtering for total amount card
           break
@@ -128,33 +127,29 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           'All submitted plans'
         ),
         active: !!(
-          activeFilter &&
-          activeFilter.length === 12 &&
+          activeFilter?.length === 10 &&
           [
             ExpenseStatus.PREPARED,
-            ExpenseStatus.CREATED,
             ExpenseStatus.ASSIGNED,
             ExpenseStatus.PENDING,
             ExpenseStatus.APPROVED,
-            ExpenseStatus.RETURNED,
             ExpenseStatus.REJECTED,
             ExpenseStatus.VERIFIED,
             ExpenseStatus.BOOKED,
             ExpenseStatus.PAID,
             ExpenseStatus.CLOSED,
             ExpenseStatus.TRANSFERRED
-          ].every(status => activeFilter.includes(status)) &&
-          !activeFilter.includes(ExpenseStatus.DISCARDED)
+          ].every(status => activeFilter?.includes(status)) &&
+          !activeFilter?.includes(ExpenseStatus.DISCARDED) &&
+          !activeFilter?.includes(ExpenseStatus.CREATED)
         ),
         onClick: () => {
-          // Filter for all statuses except DISCARDED
+          // Filter for all statuses except DISCARDED and CREATED
           const allStatusesExceptDiscarded = [
             ExpenseStatus.PREPARED,
-            ExpenseStatus.CREATED,
             ExpenseStatus.ASSIGNED,
             ExpenseStatus.PENDING,
             ExpenseStatus.APPROVED,
-            ExpenseStatus.RETURNED,
             ExpenseStatus.REJECTED,
             ExpenseStatus.VERIFIED,
             ExpenseStatus.BOOKED,
@@ -164,10 +159,10 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           ]
           // Check if this filter is already active, if so clear it
           const isTotalPlansFilterActive =
-            activeFilter &&
-            activeFilter.length === 12 &&
-            allStatusesExceptDiscarded.every(status => activeFilter.includes(status)) &&
-            !activeFilter.includes(ExpenseStatus.DISCARDED)
+            activeFilter?.length === 11 &&
+            allStatusesExceptDiscarded.every(status => activeFilter?.includes(status)) &&
+            !activeFilter?.includes(ExpenseStatus.DISCARDED) &&
+            !activeFilter?.includes(ExpenseStatus.CREATED)
 
           if (isTotalPlansFilterActive) {
             onFilterChange(null)

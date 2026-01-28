@@ -166,7 +166,6 @@ export const useAppCurrency = ({ accessToken, userInfo }: BusinessAppContextProp
       const result = await response.json()
 
       if (result.errors) {
-        console.error('Error fetching currency data:', result.errors[0].message)
         return
       }
 
@@ -177,8 +176,7 @@ export const useAppCurrency = ({ accessToken, userInfo }: BusinessAppContextProp
 
       updateCurrencyStore(mostUsedCurrency, isUserSelected, setMostUsedCurrency, setPrimaryCurrency)
       setLoading(false)
-    } catch (err) {
-      console.error('Error fetching most used currency:', err)
+    } catch {
       setLoading(false)
     }
   }, [accessToken, managerId, isInitialized, isUserSelected, setPrimaryCurrency, setMostUsedCurrency, setLoading])

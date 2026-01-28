@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { Button, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
-import { ArrowLeftIcon } from '@phosphor-icons/react'
+import { PageLayout, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
+import { FolderIcon } from '@phosphor-icons/react'
 import { FolderTemplateEditor } from './FolderTemplateEditor'
 import { InvestmentFolderTemplateEditor } from './InvestmentFolderTemplateEditor'
 import { EntityType, ModuleType, type FolderTemplateDataPageProps } from './types'
@@ -28,22 +28,13 @@ export const FolderTemplateDataPage: React.FC<FolderTemplateDataPageProps> = ({
   const showInvestmentsTab = moduleType === ModuleType.IRM
 
   return (
-    <div className="gba:p-6 gba:space-y-6" data-testid={prefixDataTestId}>
-      {/* Header */}
-      <div className="gba:flex gba:items-center gba:gap-4">
-        {onBack && (
-          <Button variant="ghost" size="icon" onClick={onBack} data-testid={`${prefixDataTestId}-back-button`}>
-            <ArrowLeftIcon size={20} />
-          </Button>
-        )}
-        <div>
-          <h1 className="gba:text-2xl gba:font-bold gba:m-0">Folder Templates</h1>
-          <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-            Configure initial folder structures for new {moduleLabel} records
-          </p>
-        </div>
-      </div>
-
+    <PageLayout
+      headerIcon={FolderIcon}
+      headerTitle="Folder Templates"
+      headerDescription={`Configure initial folder structures for new ${moduleLabel} records`}
+      onBack={onBack}
+      data-testid={prefixDataTestId}
+    >
       {/* Entity Type Tabs */}
       <Tabs value={activeTab} onValueChange={value => setActiveTab(value as TabValue)}>
         <TabsList data-testid={`${prefixDataTestId}-tabs`}>
@@ -79,7 +70,7 @@ export const FolderTemplateDataPage: React.FC<FolderTemplateDataPageProps> = ({
           </TabsContent>
         )}
       </Tabs>
-    </div>
+    </PageLayout>
   )
 }
 

@@ -6,6 +6,19 @@ every-box-blink-button = Blink
 every-box-tab-inflows = InFlows
 every-box-tab-outflows = OutFlows
 every-box-blink-description = Create and assign a quick task instantly
+every-box-search-placeholder = Search...
+
+# Filters Dropdown
+filters-dropdown-label = Filters
+filters-all = All
+filters-blinks = Blinks
+filters-approvals = Approvals
+filters-completed = Completed
+filters-active-count = { $count } active
+
+# Detail Panel
+detail-panel-empty = Select a task to view details
+detail-panel-empty-flow = Select a workflow to view details
 
 # Inbox View
 inbox-search-placeholder = Search tasks...
@@ -21,6 +34,9 @@ inbox-new-completed-tasks-description = New completed tasks have arrived. Click 
 inbox-error-title = Error Loading Tasks
 inbox-showing-tasks = Showing {$current} of {$total}{$hasMore} tasks
 inbox-load-more = Load More
+inbox-no-task-selected = No task selected
+inbox-select-task-prompt = Select a task from the list to view details
+inbox-task-no-title = Untitled Task
 
 # Inbox Empty States
 inbox-empty-no-results = No tasks found matching "{$query}"
@@ -39,6 +55,8 @@ outbox-error-title = Error Loading Flows
 outbox-error-unable = Unable to load outflows
 outbox-error-server = The server is experiencing performance issues. This is a known backend problem.
 outbox-try-again = Try Again
+outbox-no-flow-selected = No workflow selected
+outbox-select-flow-prompt = Select a workflow from the list to view details
 
 # Outbox Empty States
 outbox-empty-no-results = No workflows found matching "{$query}"
@@ -100,6 +118,8 @@ task-completion-outcome-acknowledged = Acknowledged
 task-footer-reject = Reject
 task-footer-reassign = Reassign
 task-footer-unclaim = Unclaim
+task-details-task-claimed = Task claimed successfully!
+task-details-task-unclaimed = Task unclaimed successfully!
 
 # FlowDetailDialog Component
 flow-detail-loading = Loading...

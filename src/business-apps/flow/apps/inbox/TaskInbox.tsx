@@ -44,7 +44,7 @@ import {
   Zap
 } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { env } from '@/common/env/EnvUtils'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import { TaskDetailsTab } from './components'
 import { FlowManagement } from '../../common/components'
 import { QuickTaskModal, QuickTaskFormData, QuickTaskFlowService } from '../../common/components/flow-quick-task'
@@ -272,8 +272,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
     }
   }, [])
 
-  const API_BASE =
-    (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine') + '/api'
+  const API_BASE = getFlowEngineApiBaseUrl()
 
   // Fetch open tasks and stats for selected user
   const fetchUserData = async (userId: string) => {

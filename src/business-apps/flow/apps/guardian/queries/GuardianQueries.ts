@@ -1,9 +1,17 @@
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { env } from '@/common/env/EnvUtils'
+import { GuardianVelocityInsightsResponse } from '../types/guardianTypes'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 
 // Base URL for the flow engine API - using the same env var as other flow apps
-const API_BASE =
-  (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+const API_BASE = getFlowEngineApiBaseUrl()
+
+const authHeaders = (accessToken?: string): Record<string, string> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json'
+  }
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`
+  return headers
+}
 
 export interface GuardianApiFilters {
   timeframe?: 'last24h' | 'wtd' | 'mtd' | 'qtd' | 'ytd' | 'custom'
@@ -14,6 +22,50 @@ export interface GuardianApiFilters {
   userId?: string
   status?: string
   includeApprovalMetrics?: boolean
+  limitUsers?: number
+}
+
+// Guardian Velocity Insights (combined endpoint)
+export const getGuardianVelocityInsights = async (
+  accessToken: string,
+  filters: GuardianApiFilters = {}
+): Promise<GuardianVelocityInsightsResponse> => {
+  const params = new URLSearchParams()
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined) {
+      params.append(key, value.toString())
+    }
+  })
+
+  const response = await fetch(`${API_BASE}/analytics/guardian/velocity?${params}`, {
+    headers: authHeaders(accessToken)
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch guardian velocity insights: ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
+// Guardian Org graph (departments/users/relationships) for network visualization
+export const getGuardianOrgGraph = async (accessToken: string, filters: GuardianApiFilters = {}): Promise<any> => {
+  const params = new URLSearchParams()
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined) {
+      params.append(key, value.toString())
+    }
+  })
+
+  const response = await fetch(`${API_BASE}/analytics/guardian/org?${params}`, {
+    headers: authHeaders(accessToken)
+  })
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch guardian org graph: ${response.statusText}`)
+  }
+
+  return response.json()
 }
 
 // Analytics API calls
@@ -26,10 +78,7 @@ export const getFlowAnalytics = async (accessToken: string, filters: GuardianApi
   })
 
   const response = await fetch(`${API_BASE}/analytics/flows?${params}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    }
+    headers: authHeaders(accessToken)
   })
 
   if (!response.ok) {
@@ -51,10 +100,7 @@ export const getFlowManagementAnalytics = async (
   })
 
   const response = await fetch(`${API_BASE}/analytics/flow-management?${params}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    }
+    headers: authHeaders(accessToken)
   })
 
   if (!response.ok) {
@@ -73,10 +119,7 @@ export const getTaskAnalytics = async (accessToken: string, filters: GuardianApi
   })
 
   const response = await fetch(`${API_BASE}/analytics/tasks?${params}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    }
+    headers: authHeaders(accessToken)
   })
 
   if (!response.ok) {
@@ -98,10 +141,7 @@ export const getTaskPerformanceAnalytics = async (
   })
 
   const response = await fetch(`${API_BASE}/analytics/task-performance?${params}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    }
+    headers: authHeaders(accessToken)
   })
 
   if (!response.ok) {
@@ -128,10 +168,7 @@ export const getTemplatePerformanceAnalytics = async (
   })
 
   const response = await fetch(`${API_BASE}/analytics/template-performance?${params}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    }
+    headers: authHeaders(accessToken)
   })
 
   if (!response.ok) {
@@ -144,10 +181,7 @@ export const getTemplatePerformanceAnalytics = async (
 // Real-time workflow and task data
 export const getActiveWorkflows = async (accessToken: string): Promise<any> => {
   const response = await fetch(`${API_BASE}/flows/list?status=IN_PROGRESS,SCHEDULED`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    }
+    headers: authHeaders(accessToken)
   })
 
   if (!response.ok) {
@@ -176,10 +210,7 @@ export const getUserTasks = async (
   })
 
   const response = await fetch(`${API_BASE}/tasks/user/${userId}?${params}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    }
+    headers: authHeaders(accessToken)
   })
 
   if (!response.ok) {
@@ -191,10 +222,7 @@ export const getUserTasks = async (
 
 export const getClaimableTasks = async (accessToken: string, userId: string): Promise<any> => {
   const response = await fetch(`${API_BASE}/tasks/user/${userId}/claimable`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    }
+    headers: authHeaders(accessToken)
   })
 
   if (!response.ok) {
@@ -206,10 +234,7 @@ export const getClaimableTasks = async (accessToken: string, userId: string): Pr
 
 export const getWorkflowDetails = async (accessToken: string, flowId: string): Promise<any> => {
   const response = await fetch(`${API_BASE}/flows/${flowId}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    }
+    headers: authHeaders(accessToken)
   })
 
   if (!response.ok) {
@@ -229,10 +254,7 @@ export const getSystemMetrics = async (accessToken: string, filters: GuardianApi
   })
 
   const response = await fetch(`${API_BASE}/analytics/system?${params}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    }
+    headers: authHeaders(accessToken)
   })
 
   if (!response.ok) {
@@ -252,10 +274,7 @@ export const getTrendAnalytics = async (accessToken: string, filters: GuardianAp
   })
 
   const response = await fetch(`${API_BASE}/analytics/trends?${params}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    }
+    headers: authHeaders(accessToken)
   })
 
   if (!response.ok) {
@@ -290,10 +309,7 @@ export const getAuditLogs = async (
   })
 
   const response = await fetch(`${API_BASE}/audit/logs?${params}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json'
-    }
+    headers: authHeaders(accessToken)
   })
 
   if (!response.ok) {

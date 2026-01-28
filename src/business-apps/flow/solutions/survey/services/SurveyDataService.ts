@@ -1,4 +1,4 @@
-import { env } from '@/common/env/EnvUtils'
+import { getFlowEngineBaseUrl } from '@/common/network/flows/flowEngineUrl'
 
 export interface SurveyFlow {
   id: string
@@ -44,8 +44,7 @@ export interface SurveyFlowsResponse {
  * Service for fetching survey-related flow data from the custom flow engine
  */
 export class SurveyDataService {
-  private static readonly BASE_URL =
-    env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
+  private static readonly BASE_URL = getFlowEngineBaseUrl()
 
   /**
    * Map flow status from API to our interface

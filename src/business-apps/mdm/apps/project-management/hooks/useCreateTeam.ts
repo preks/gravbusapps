@@ -58,13 +58,14 @@ export const useCreateTeam = ({ accessToken, structureId, onSuccess }: UseCreate
    * Assign an employee to a matrix team with 0% allocation
    */
   const assignEmployeeToTeam = useCallback(
-    async (employeeId: string, matrixUnitId: string) => {
+    async (employeeId: string, matrixUnitId: string, role?: string) => {
       const assignmentPayload = [
         {
           employeeId,
           structureId,
           matrixUnitId,
-          percentage: 0
+          percentage: 0,
+          ...(role ? { role: role } : {})
         }
       ]
 
@@ -133,7 +134,7 @@ export const useCreateTeam = ({ accessToken, structureId, onSuccess }: UseCreate
         // If project has a manager, automatically add them to the team
         if (project.projectManagerId) {
           try {
-            await assignEmployeeToTeam(project.projectManagerId, matrixUnitId)
+            await assignEmployeeToTeam(project.projectManagerId, matrixUnitId, 'Manager')
           } catch (assignError) {
             // Log error but don't fail the entire operation
             console.error('Error assigning project manager to team:', assignError)

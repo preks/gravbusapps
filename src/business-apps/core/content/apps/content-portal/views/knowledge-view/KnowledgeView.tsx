@@ -311,6 +311,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                     truncateText={truncateText}
                     t={t}
                     accessToken={accessToken}
+                    userInfo={userInfo}
                   />
                 )}
 

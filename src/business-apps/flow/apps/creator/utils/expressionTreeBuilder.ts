@@ -201,6 +201,14 @@ const buildStepsNode = (template: FlowTemplate, currentStepIndex: number): TreeN
         path: ['$steps', `step_${i}`, 'formData', field.name],
         description: field.label || field.name,
         isExpanded: false,
+        metadata: {
+          inputType: field.type,
+          dataSourceType: field.dataSource?.type,
+          dataSourceEntity: field.dataSource?.entity,
+          dataSourceCatalog: field.dataSource?.catalog,
+          labelField: field.dataSource?.labelField,
+          valueField: field.dataSource?.valueField
+        },
         children: []
       }
     })

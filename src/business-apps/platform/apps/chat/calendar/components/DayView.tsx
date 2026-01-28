@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useEffect, useState } from 'react'
-import { cn, useTranslation, useLocale } from '@newwork/nw-design-system'
+import { cn, useLocale } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
 import 'dayjs/locale/de'
@@ -7,7 +7,7 @@ import 'dayjs/locale/en'
 import 'dayjs/locale/ro'
 import type { CalendarEvent } from '../types'
 import { CalendarEventItem } from './CalendarEventItem'
-import translations from '../../_i18n'
+import { useChatTranslation } from '../../contexts/TranslationContext'
 
 dayjs.extend(localizedFormat)
 
@@ -69,7 +69,7 @@ const getEventPosition = (event: CalendarEvent, dayStart: Date): { top: number; 
 }
 
 export const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventClick, onTimeSlotClick }) => {
-  const { t } = useTranslation(translations)
+  const t = useChatTranslation()
   const { locale } = useLocale()
   const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
   const isTodayDate = isToday(currentDate)
@@ -168,7 +168,7 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventCl
           <div className="gba:text-xs gba:text-muted-foreground gba:mb-2">All Day</div>
           <div className="gba:space-y-1">
             {allDayEvents.map(event => (
-              <CalendarEventItem key={event.id} event={event} compact onClick={() => onEventClick(event)} />
+              <CalendarEventItem key={event.id} event={event} compact onClick={() => onEventClick(event)} t={t} />
             ))}
           </div>
         </div>
@@ -242,6 +242,7 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventCl
                   compact={position.height < 80}
                   height={position.height}
                   onClick={() => onEventClick(event)}
+                  t={t}
                 />
               </div>
             )

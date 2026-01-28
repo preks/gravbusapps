@@ -12,6 +12,8 @@ The web layer exposes a small set of REST endpoints that proxy DocuSign flows fo
 | `/api/docusign/envelope/create-recipient-view` | `POST` | Re-opens a DocuSign recipient view for an existing envelope and returns `{ redirectUrl }`. Use this when the assignee already has an envelope id. |
 | `/api/docusign/envelope/status/:envelopeId` | `GET` | Returns the current status of an envelope so we can show badges in the UI. |
 
+> Each endpoint accepts an optional `X-Correlation-ID` header. We log the value server-side and echo it in JSON responses so Support can tie UI issues to backend events.
+
 The frontend now caches envelope statuses per document so task lists, detail sheets, and the DocuSign modal can switch their CTAs between “Request Signature”, “Resume signing”, or “View envelope” without spamming the backend—each visible document calls `/status/:envelopeId` at most once per session.
 
 ## Starting the DocuSign login flow
@@ -98,3 +100,9 @@ Example snippet:
 
 The UI now calls this endpoint immediately after receiving the new envelope id (embedded or email flows). If the user is the assignee and the selected document already has a `docusignEnvelopeId`, the modal calls `/api/docusign/envelope/create-recipient-view` instead of creating a duplicate envelope.
 
+## Digital Referral (Step 6)
+
+- The SPA injects DocuSign’s hosted script (`https://www.docusign.com/scripts/ds-digital-signup.js`) and invokes `DSDigitalSignup.startSignup(firstName, lastName, email, phone, partnerIK, loginRedirectUri, 'en')`.
+- `partnerIK` comes from `NEXT_PUBLIC_DOCUSIGN_CLIENT_ID`.  
+- `loginRedirectUri` is the hardcoded `/docusign/referral-complete` page in gravity-platform (must also be configured as a Redirect URI on the DocuSign Integration Key). That page loads DocuSign’s script, calls `DSDigitalSignup.notifySignupActivation(true)`, and the parent window registers a callback to kick off `/api/docusign/auth/login`.
+- We no longer proxy referral submissions through our backend; DocuSign’s popup handles the entire form + submission (no duplicate form fields in Gravity), and our UI simply launches it from the task context.

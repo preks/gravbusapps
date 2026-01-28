@@ -59,6 +59,9 @@ export interface TaskSegmentProps {
   hideTypeSelection?: boolean
   catalogSelectConfig?: CatalogSelectConfig // Configuration for catalog filtering
 
+  // Assignee selection control
+  hideAssigneeSelection?: boolean
+
   // Entity selection (still needs entities array until EntitySelect is refactored)
   showEntitySelection?: boolean
   entities?: Array<{
@@ -108,6 +111,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   initialTypeRef,
   hideTypeSelection = false,
   catalogSelectConfig,
+  hideAssigneeSelection = false,
   showEntitySelection = false,
   entities = [],
   entitiesLoading = false,
@@ -335,7 +339,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
                 <FormControl>
                   <CatalogSelect
                     catalogIdentifier={typeCatalog}
-                    prefetch={false}
+                    prefetch={true}
                     value={field.value || ''}
                     onValueChange={field.onChange}
                     config={catalogSelectConfig}
@@ -377,65 +381,67 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
           - Multi-select mode: array with multiple elements
           - Single-select mode: array with max 1 element (enforced by Zod validation)
           This unified approach matches the backend's taskAssignees array structure.
+          Hidden in update mode as tasks cannot be reassigned.
       */}
-      {multiAssigneeMode ? (
-        <FormField
-          control={form.control as any}
-          name="assignedEmployeeIds"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Assignees</FormLabel>
-              <FormControl>
-                <MultiEmployeeSelect
-                  accessToken={accessToken}
-                  initialEmployees={assignedEmployees as any}
-                  value={field.value || []}
-                  onValueChange={employeeIds => {
-                    field.onChange(employeeIds)
-                  }}
-                  onEmployeesChange={employees => {
-                    form.setValue('assignedEmployees', employees)
-                  }}
-                  placeholder="Add assignees..."
-                  searchPlaceholder="Search employees..."
-                  data-testid={`${dataTestId}-assignees`}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      ) : (
-        <FormField
-          control={form.control as any}
-          name="assignedEmployeeIds"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('task-assignee-label')}</FormLabel>
-              <FormControl>
-                <EmployeeSelect
-                  accessToken={accessToken}
-                  businessAppContext={businessAppContext}
-                  initialEmployee={assignedEmployee}
-                  autoSelect={isNewEntity ? 'current-user' : undefined}
-                  value={field.value?.[0] || ''} // Extract single value from array
-                  onValueChange={(v: string | null) => {
-                    // Convert single value to array format (backend expects array)
-                    const newValue = v ? [v] : []
-                    field.onChange(newValue)
-                  }}
-                  onEmployeeChange={(employee: any) => {
-                    // Set assignedEmployees as array with single employee
-                    form.setValue('assignedEmployees', employee ? [employee] : [])
-                  }}
-                  data-testid={`${dataTestId}-assignee`}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      )}
+      {!hideAssigneeSelection &&
+        (multiAssigneeMode ? (
+          <FormField
+            control={form.control as any}
+            name="assignedEmployeeIds"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Assignees</FormLabel>
+                <FormControl>
+                  <MultiEmployeeSelect
+                    accessToken={accessToken}
+                    initialEmployees={assignedEmployees as any}
+                    value={field.value || []}
+                    onValueChange={employeeIds => {
+                      field.onChange(employeeIds)
+                    }}
+                    onEmployeesChange={employees => {
+                      form.setValue('assignedEmployees', employees)
+                    }}
+                    placeholder="Add assignees..."
+                    searchPlaceholder="Search employees..."
+                    data-testid={`${dataTestId}-assignees`}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ) : (
+          <FormField
+            control={form.control as any}
+            name="assignedEmployeeIds"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('task-assignee-label')}</FormLabel>
+                <FormControl>
+                  <EmployeeSelect
+                    accessToken={accessToken}
+                    businessAppContext={businessAppContext}
+                    initialEmployee={assignedEmployee}
+                    autoSelect={isNewEntity ? 'current-user' : undefined}
+                    value={field.value?.[0] || ''} // Extract single value from array
+                    onValueChange={(v: string | null) => {
+                      // Convert single value to array format (backend expects array)
+                      const newValue = v ? [v] : []
+                      field.onChange(newValue)
+                    }}
+                    onEmployeeChange={(employee: any) => {
+                      // Set assignedEmployees as array with single employee
+                      form.setValue('assignedEmployees', employee ? [employee] : [])
+                    }}
+                    data-testid={`${dataTestId}-assignee`}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ))}
 
       {/* Related Entity */}
       {showEntitySelection && (

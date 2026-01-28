@@ -4,6 +4,7 @@ import { InvestmentDataConfiguration, CatalogEntryWithConfig, TargetLevel } from
 interface UseInvestmentConfigurationProps {
   selectedEntry: CatalogEntryWithConfig | null
   selectedGroup: CatalogEntryWithConfig | null
+  selectedType: CatalogEntryWithConfig | null
   targetLevel: TargetLevel
 }
 
@@ -47,6 +48,7 @@ const mapCatalogTypeToProspectType = (
 export const useInvestmentConfiguration = ({
   selectedEntry,
   selectedGroup,
+  selectedType,
   targetLevel
 }: UseInvestmentConfigurationProps): UseInvestmentConfigurationReturn => {
   const [configuration, setConfiguration] = useState<InvestmentDataConfiguration>({
@@ -62,9 +64,11 @@ export const useInvestmentConfiguration = ({
 
   useEffect(() => {
     if (selectedEntry?.objectValue) {
-      // Check if we're at type level and need to inherit from parent group
+      // Determine parent for inheritance based on target level
       const isTypeLevel = targetLevel === 'type'
-      const parentGroup = isTypeLevel && selectedGroup ? selectedGroup : null
+      const isLiquidFundTypeLevel = targetLevel === 'liquidFundType'
+      const parentEntry =
+        isLiquidFundTypeLevel && selectedType ? selectedType : isTypeLevel && selectedGroup ? selectedGroup : null
 
       // Helper to check if a property is explicitly defined (even if empty array)
       const isDefined = (obj: any, key: string) => obj && obj.hasOwnProperty(key)
@@ -86,8 +90,12 @@ export const useInvestmentConfiguration = ({
         }))
       }))
 
-      if (isTypeLevel && !isDefined(selectedEntry.objectValue, 'formFields') && parentGroup?.objectValue?.formFields) {
-        formFields = (parentGroup.objectValue.formFields || []).map((group: any) => ({
+      if (
+        (isTypeLevel || isLiquidFundTypeLevel) &&
+        !isDefined(selectedEntry.objectValue, 'formFields') &&
+        parentEntry?.objectValue?.formFields
+      ) {
+        formFields = (parentEntry.objectValue.formFields || []).map((group: any) => ({
           ...group,
           fields: (group.fields || []).map((field: any, fieldIndex: number) => ({
             ...field,
@@ -113,8 +121,8 @@ export const useInvestmentConfiguration = ({
         type: mapCatalogTypeToProspectType(refField.type)
       }))
 
-      if (isTypeLevel && !hasReferenceFields && parentGroup?.objectValue) {
-        const parentReferenceFields = (parentGroup.objectValue as any).referenceFields || []
+      if ((isTypeLevel || isLiquidFundTypeLevel) && !hasReferenceFields && parentEntry?.objectValue) {
+        const parentReferenceFields = (parentEntry.objectValue as any).referenceFields || []
         prospectFields = parentReferenceFields.map((refField: any, index: number) => ({
           key: refField.property || `field-${index}`,
           label: refField.label,
@@ -133,8 +141,12 @@ export const useInvestmentConfiguration = ({
       // Only inherit if tileFields is NOT defined at all
       let tileFields = selectedEntry.objectValue.tileFields || []
 
-      if (isTypeLevel && !isDefined(selectedEntry.objectValue, 'tileFields') && parentGroup?.objectValue?.tileFields) {
-        tileFields = parentGroup.objectValue.tileFields || []
+      if (
+        (isTypeLevel || isLiquidFundTypeLevel) &&
+        !isDefined(selectedEntry.objectValue, 'tileFields') &&
+        parentEntry?.objectValue?.tileFields
+      ) {
+        tileFields = parentEntry.objectValue.tileFields || []
         inheritanceStatus.tileFields = true
       }
 
@@ -157,7 +169,7 @@ export const useInvestmentConfiguration = ({
         tileFields: false
       })
     }
-  }, [selectedEntry, selectedGroup, targetLevel])
+  }, [selectedEntry, selectedGroup, selectedType, targetLevel])
 
   return {
     configuration,

@@ -55,7 +55,7 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
             },
             {
               value: MyTimeTabEnum.History,
-              label: getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.history.title', 'History')
+              label: t('history')
             }
           ]
         }}
@@ -89,6 +89,7 @@ export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInf
               employeeCode={employee?.code}
               employeeFirstName={employee?.firstName}
               employeeLastName={employee?.lastName}
+              workingHours={employee?.workingHours?.[0]}
             />
           </div>
         )}

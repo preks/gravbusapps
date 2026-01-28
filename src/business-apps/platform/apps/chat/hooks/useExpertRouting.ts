@@ -78,12 +78,6 @@ You can access these files via their URLs to analyze their content.`
 
         // For Document Reviewer, build a comprehensive prompt with document content
         if (isDocumentReviewer && docContext?.documentContent) {
-          console.log('[ExpertRouting] Document Reviewer detected, injecting document context:', {
-            documentId: docContext.documentId,
-            documentTitle: docContext.documentTitle,
-            contentLength: docContext.documentContent?.length || 0
-          })
-
           // Build a comprehensive prompt that includes all the document details
           effectivePrompt = `${prompt}
 
@@ -165,12 +159,6 @@ Please analyze the document above and return your findings as structured JSON wi
             size: att.size
           }))
           formData.append('attachments', JSON.stringify(attachmentData))
-
-          console.log('[ExpertRouting] Including attachments for expert:', {
-            expertName: expert.expertName,
-            attachmentCount: attachments.length,
-            attachments: attachmentData.map(a => ({ name: a.name, type: a.mimeType }))
-          })
         }
 
         // Execute the expert's prompt

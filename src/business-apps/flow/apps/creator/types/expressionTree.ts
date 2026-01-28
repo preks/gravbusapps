@@ -63,6 +63,13 @@ export interface TreeNode {
     depth?: number
     entityCode?: string
     entityTypeValue?: string
+    inputType?: string
+    // Data source metadata for form fields
+    dataSourceType?: 'CATALOG' | 'ENTITY' | 'API'
+    dataSourceEntity?: string
+    dataSourceCatalog?: string
+    labelField?: string
+    valueField?: string
     // OrgChart-specific properties
     relationType?:
       | 'manager'

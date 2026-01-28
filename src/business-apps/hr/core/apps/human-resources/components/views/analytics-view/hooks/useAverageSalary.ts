@@ -1,20 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { getAverageSalaryQuery } from '../queries/getAverageSalary'
+import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
+import dayjs from 'dayjs'
 
 /**
  * GraphQL response type for average salary query
  */
-interface AverageSalaryResponse {
-  EmployeeWorkingConditionAggregate: {
-    aggregate: {
-      avg: {
-        annualGrossSalary: number
-      }
-      count: number
-    }
-  }
-}
+type DatasetRow = { category?: string; value?: number; employee_count?: number; [key: string]: any }
 
 /**
  * Hook to fetch the average annual gross salary from the GraphQL API
@@ -31,8 +22,8 @@ export const useAverageSalary = (accessToken: string) => {
   const [error, setError] = useState<Error | null>(null)
   const isMounted = useRef<boolean>(true)
 
-  // Get GraphQL client using the project's pattern
-  const graphQLClient = useGraphqlClient(accessToken)
+  // Dataset client
+  const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
 
   /**
    * Fetch average salary data from GraphQL API
@@ -52,32 +43,12 @@ export const useAverageSalary = (accessToken: string) => {
         setError(null)
       }
 
-      console.log('[useAverageSalary] Fetching average annual gross salary data')
-
-      // Execute the GraphQL query
-      const response = await graphQLClient.request<AverageSalaryResponse>(getAverageSalaryQuery)
-
-      // Log the response for debugging
-      console.log('[useAverageSalary] GraphQL response:', response)
-
-      // Validate response structure
-      if (
-        !response ||
-        !response.EmployeeWorkingConditionAggregate ||
-        !response.EmployeeWorkingConditionAggregate.aggregate ||
-        !response.EmployeeWorkingConditionAggregate.aggregate.avg
-      ) {
-        throw new Error('[useAverageSalary] Invalid response structure from GraphQL API')
-      }
-
-      // Extract and validate average salary
-      const avgSalary = Number(response.EmployeeWorkingConditionAggregate.aggregate.avg.annualGrossSalary)
-      if (isNaN(avgSalary)) {
-        throw new Error('[useAverageSalary] Average salary is not a valid number')
-      }
-
-      // Get count of employees with salary data
-      const count = Number(response.EmployeeWorkingConditionAggregate.aggregate.count)
+      // Use dataset query 'averageSalaryEmployee' with asOf = today
+      const asOf = dayjs().format('YYYY-MM-DD')
+      const ds = await datasetClient.executeQuery('averageSalaryEmployee', QueryType.DATASET, { asOf })
+      const row: DatasetRow | undefined = Array.isArray(ds?.data) ? ds.data[0] : undefined
+      const avgSalary = Number(row?.value ?? 0)
+      const count = Number(row?.employee_count ?? 0)
 
       // Round to whole number (no decimals)
       const roundedSalary = Math.round(avgSalary)
@@ -88,8 +59,6 @@ export const useAverageSalary = (accessToken: string) => {
         setEmployeeCount(count)
         setError(null)
       }
-
-      console.log(`[useAverageSalary] Calculated average annual gross salary: ${roundedSalary} for ${count} employees`)
     } catch (err) {
       console.error('[useAverageSalary] Error fetching average salary data:', err)
 
@@ -101,7 +70,7 @@ export const useAverageSalary = (accessToken: string) => {
         setLoading(false)
       }
     }
-  }, [accessToken, graphQLClient])
+  }, [accessToken, datasetClient])
 
   // Set up effect to fetch data and handle cleanup
   useEffect(() => {

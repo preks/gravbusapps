@@ -1,6 +1,6 @@
 import { RestClient } from '../rest/RestClient'
-import { env } from '@/common/env/EnvUtils'
 import { FlowTags } from '@/business-apps/flow/types'
+import { getFlowEngineApiBaseUrl } from './flowEngineUrl'
 
 // Flow template types (matching backend)
 export enum FlowStepType {
@@ -28,6 +28,25 @@ export enum AssignmentMode {
   CLAIM = 'CLAIM',
   ASSIGN = 'ASSIGN',
   ASSIGN_DEFERRED = 'ASSIGN_DEFERRED'
+}
+
+export enum FlowTriggerType {
+  MANUAL_FORM = 'MANUAL_FORM',
+  WEBHOOK = 'WEBHOOK',
+  EVENT = 'EVENT',
+  SCHEDULE = 'SCHEDULE',
+  API_SCHEMA = 'API_SCHEMA'
+}
+
+export interface FlowTrigger {
+  id: string
+  type: FlowTriggerType
+  name: string
+  config: Record<string, any>
+}
+
+export interface FlowStartNodeConfiguration {
+  triggers: FlowTrigger[]
 }
 
 export interface InputOption {
@@ -95,6 +114,9 @@ export interface FlowTemplate {
   version: number // Required to match backend API
   steps: FlowStep[]
 
+  // Start node configuration (workflow triggers)
+  start?: FlowStartNodeConfiguration
+
   // Self-service specific: simplified to just the init step
   initStep?: InitStep
 
@@ -118,9 +140,8 @@ interface ApiResponse<T> {
  */
 export class FlowTemplateClient extends RestClient {
   constructor(accessToken: string) {
-    // Use our custom flow engine API endpoint
-    const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-    super(`${baseUrl}/api/templates`, {
+    const apiBaseUrl = getFlowEngineApiBaseUrl()
+    super(`${apiBaseUrl}/templates`, {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json'
     })

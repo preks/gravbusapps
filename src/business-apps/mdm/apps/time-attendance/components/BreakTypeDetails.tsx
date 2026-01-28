@@ -1,15 +1,22 @@
-import React, { useMemo, useState, useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Button, DataTable, Badge } from '@newwork/nw-design-system'
-import { ColumnDef, SortingState, CellContext } from '@tanstack/react-table'
-import { PlusIcon, PencilSimpleLineIcon, TrashIcon, CheckIcon } from '@phosphor-icons/react'
+import React, { useState, useCallback, useMemo } from 'react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@newwork/nw-design-system'
+import { PlusIcon } from '@phosphor-icons/react'
 import { DeleteDialog } from './DeleteDialog'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useBreakTypeVersionDetailsData } from '../hooks/useBreakTypeVersionDetailsData'
 import { TransformedBreakTypeVersionDetail } from '../types/break-type-version-details'
-import BreakTypeDetailsForm, {
-  BREAK_TYPE_OPTIONS,
-  PAY_OPTIONS
-} from '@/business-apps/mdm/forms/time-attendance/BreakTypeDetailsForm'
+import { useBreakTypeDetailRows } from '../hooks/useBreakTypeDetailRows'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 
@@ -17,76 +24,6 @@ export interface BreakTypeDetailsProps {
   breakTypeVersionId: string | null
   accessToken: string
   prefixDataTestId?: string
-}
-
-// Cell renderer components - moved outside to avoid recreation on each render
-const TypeCell = ({ row }: CellContext<TransformedBreakTypeVersionDetail, unknown>) => {
-  const option = BREAK_TYPE_OPTIONS.find(opt => opt.code === row.original.type)
-  return <Badge variant="outline">{option?.displayValue || row.original.type}</Badge>
-}
-
-const MandatoryCell = ({ row }: CellContext<TransformedBreakTypeVersionDetail, unknown>) => {
-  return row.original.mandatory ? <CheckIcon className="gba:h-4 gba:w-4" /> : <>-</>
-}
-
-const PayOptionCell = ({ row }: CellContext<TransformedBreakTypeVersionDetail, unknown>) => {
-  const option = PAY_OPTIONS.find(opt => opt.code === row.original.payOption)
-  return option ? <Badge variant="outline">{option.displayValue}</Badge> : <>-</>
-}
-
-interface ActionsCellProps {
-  row: CellContext<TransformedBreakTypeVersionDetail, unknown>['row']
-  breakTypeVersionDetails: TransformedBreakTypeVersionDetail[]
-  breakTypeVersionId: string | null
-  accessToken: string
-  dataTestId: string
-  refetch: () => void
-  onDeleteClick: (detail: TransformedBreakTypeVersionDetail | null) => void
-}
-
-const ActionsCell: React.FC<ActionsCellProps> = ({
-  row,
-  breakTypeVersionDetails,
-  breakTypeVersionId,
-  accessToken,
-  dataTestId,
-  refetch,
-  onDeleteClick
-}) => {
-  const targetDetail = breakTypeVersionDetails.find(detail => detail.id === row.original.id)
-
-  return (
-    <div className="gba:flex gba:items-center gba:gap-2">
-      <BreakTypeDetailsForm
-        breakTypeVersionId={breakTypeVersionId || ''}
-        accessToken={accessToken}
-        prefixDataTestId={dataTestId}
-        childAddButton={
-          <Button
-            onClick={event => event.stopPropagation()}
-            variant="ghost"
-            className="gba:flex gba:items-center gba:gap-2"
-          >
-            <PencilSimpleLineIcon />
-          </Button>
-        }
-        refetch={refetch}
-        breakTypeDetails={targetDetail}
-        availableBreakTypeDetails={breakTypeVersionDetails}
-      />
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={event => {
-          event.stopPropagation()
-          onDeleteClick(targetDetail || null)
-        }}
-        data-testid={formatDataTestId(dataTestId, `delete-row-button-${row.original.id}`)}
-      >
-        <TrashIcon className="gba:h-4 gba:w-4" />
-      </Button>
-    </div>
-  )
 }
 
 const DATA_TEST_ID_PREFIX = 'BreakTypeDetails'
@@ -97,7 +34,6 @@ export const BreakTypeDetails: React.FC<BreakTypeDetailsProps> = ({
   prefixDataTestId = ''
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
-  const [sorting, setSorting] = useState<SortingState>([])
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
   const [selectedDetail, setSelectedDetail] = useState<TransformedBreakTypeVersionDetail | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -107,6 +43,22 @@ export const BreakTypeDetails: React.FC<BreakTypeDetailsProps> = ({
   const { breakTypeVersionDetails, loading, error, refetch } = useBreakTypeVersionDetailsData({
     accessToken,
     breakTypeVersionId: breakTypeVersionId || null
+  })
+
+  // Handle delete click
+  const handleDeleteClick = useCallback((detail: TransformedBreakTypeVersionDetail | null) => {
+    setSelectedDetail(detail)
+    setIsDeleteDialogOpen(true)
+  }, [])
+
+  // Use the inline editing hook
+  const { isAddingNew, startAddingNew, renderDataRow, renderNewRow } = useBreakTypeDetailRows({
+    breakTypeVersionId,
+    breakTypeVersionDetails,
+    accessToken,
+    dataTestId,
+    refetch,
+    onDeleteClick: handleDeleteClick
   })
 
   // Handle delete break type version detail
@@ -144,84 +96,23 @@ export const BreakTypeDetails: React.FC<BreakTypeDetailsProps> = ({
     [restClient, accessToken, refetch]
   )
 
-  const handleDeleteClick = useCallback((detail: TransformedBreakTypeVersionDetail | null) => {
-    setSelectedDetail(detail)
-    setIsDeleteDialogOpen(true)
-  }, [])
-
   // Table columns
-  const breakTypeDetailsColumns: ColumnDef<TransformedBreakTypeVersionDetail>[] = useMemo(
-    () => [
-      {
-        accessorKey: 'displayOrder',
-        header: 'Order',
-        enableSorting: true
-      },
-      {
-        accessorKey: 'type',
-        header: 'Kind',
-        enableSorting: true,
-        cell: TypeCell
-      },
-      {
-        accessorKey: 'startTime',
-        header: 'Start',
-        enableSorting: true,
-        cell: info => info.getValue() || '-'
-      },
-      {
-        accessorKey: 'endTime',
-        header: 'End',
-        enableSorting: true,
-        cell: info => info.getValue() || '-'
-      },
-      {
-        accessorKey: 'hours',
-        header: 'Hours',
-        enableSorting: true,
-        cell: info => info.getValue() || '-'
-      },
-      {
-        accessorKey: 'length',
-        header: 'Length',
-        enableSorting: true,
-        cell: info => info.getValue() || '-'
-      },
-      {
-        accessorKey: 'mandatory',
-        header: 'Mandatory',
-        enableSorting: true,
-        cell: MandatoryCell
-      },
-      {
-        accessorKey: 'payOption',
-        header: 'Setting',
-        enableSorting: true,
-        cell: PayOptionCell
-      },
-      {
-        accessorKey: 'combinedWithBreakTypeVersionDetailId',
-        header: 'Combine',
-        enableSorting: true,
-        cell: info => info.getValue() || 'None'
-      },
-      {
-        id: 'actions',
-        header: 'Actions',
-        cell: ({ row }) => (
-          <ActionsCell
-            row={row}
-            breakTypeVersionDetails={breakTypeVersionDetails}
-            breakTypeVersionId={breakTypeVersionId}
-            accessToken={accessToken}
-            dataTestId={dataTestId}
-            refetch={refetch}
-            onDeleteClick={handleDeleteClick}
-          />
-        )
-      }
-    ],
-    [dataTestId, breakTypeVersionDetails, breakTypeVersionId, accessToken, refetch, handleDeleteClick]
+  const tableColumns = useMemo(
+    () => (
+      <>
+        <TableHead className="gba:w-[6%]">Priority</TableHead>
+        <TableHead className="gba:w-[12%]">Kind</TableHead>
+        <TableHead className="gba:w-[10%]">Start</TableHead>
+        <TableHead className="gba:w-[10%]">End</TableHead>
+        <TableHead className="gba:w-[10%]">Hours</TableHead>
+        <TableHead className="gba:w-[10%]">Length</TableHead>
+        <TableHead className="gba:w-[8%]">Mandatory</TableHead>
+        <TableHead className="gba:w-[12%]">Setting</TableHead>
+        <TableHead className="gba:w-[12%]">Combine</TableHead>
+        <TableHead className="gba:w-[10%]">Actions</TableHead>
+      </>
+    ),
+    []
   )
 
   if (error) {
@@ -239,24 +130,16 @@ export const BreakTypeDetails: React.FC<BreakTypeDetailsProps> = ({
       <CardHeader>
         <div className="gba:flex gba:justify-between gba:items-center">
           <CardTitle>Break Details</CardTitle>
-          <BreakTypeDetailsForm
-            breakTypeVersionId={breakTypeVersionId || ''}
-            accessToken={accessToken}
-            prefixDataTestId={dataTestId}
-            childAddButton={
-              <Button
-                onClick={event => event.stopPropagation()}
-                disabled={!breakTypeVersionId || loading}
-                className="gba:flex gba:items-center gba:gap-2"
-                data-testid={formatDataTestId(dataTestId, 'add-break-button')}
-              >
-                <PlusIcon className="gba:h-4 gba:w-4" />
-                Add Break
-              </Button>
-            }
-            refetch={refetch}
-            availableBreakTypeDetails={breakTypeVersionDetails}
-          />
+          <Button
+            type="button"
+            onClick={startAddingNew}
+            disabled={!breakTypeVersionId || loading || isAddingNew}
+            className="gba:flex gba:items-center gba:gap-2"
+            data-testid={formatDataTestId(dataTestId, 'add-break-button')}
+          >
+            <PlusIcon className="gba:h-4 gba:w-4" />
+            Add Break
+          </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -264,15 +147,18 @@ export const BreakTypeDetails: React.FC<BreakTypeDetailsProps> = ({
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8">
             <div className="gba:text-muted-foreground">Loading...</div>
           </div>
-        ) : breakTypeVersionDetails.length > 0 ? (
-          <DataTable
-            data={breakTypeVersionDetails}
-            columns={breakTypeDetailsColumns}
-            enablePagination={false}
-            sorting={sorting}
-            onSortingChange={setSorting}
-            enableSorting
-          />
+        ) : breakTypeVersionDetails.length > 0 || isAddingNew ? (
+          <div className="gba:overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>{tableColumns}</TableRow>
+              </TableHeader>
+              <TableBody>
+                {breakTypeVersionDetails.map(detail => renderDataRow(detail))}
+                {renderNewRow()}
+              </TableBody>
+            </Table>
+          </div>
         ) : (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8 gba:text-center">
             <div className="gba:text-muted-foreground gba:mb-2">No break details configured yet</div>

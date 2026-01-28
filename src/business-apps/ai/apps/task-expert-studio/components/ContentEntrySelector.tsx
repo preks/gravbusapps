@@ -206,10 +206,11 @@ export const ContentEntrySelector: React.FC<ContentEntrySelectorProps> = ({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
           <Button
+            type="button"
             variant="default"
             onClick={handleConfirm}
             disabled={selectedIds.size === 0}

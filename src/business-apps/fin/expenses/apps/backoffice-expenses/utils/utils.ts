@@ -103,6 +103,18 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
         badgeVariant: 'warning'
       }
 
+    case ExpenseStatus.DISCARDED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.discarded', 'Discarded'),
+        badgeVariant: 'offline'
+      }
+
+    case ExpenseStatus.TRANSFERRED:
+      return {
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transferred', 'Transferred'),
+        badgeVariant: 'success'
+      }
+
     default:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),

@@ -46,9 +46,27 @@ export type CustomerActivityQueryVariables = CommonActivityQueryVariables
 /**
  * Build Customer Activity query with fields mapping
  * CRM uses "SalesActivity" as entity name (not "CustomerActivity")
+ * Includes all reference relations (account, contact, lead, opportunity)
  */
 export const buildCustomerActivityQuery = (fields: typeof CustomerActivityFields = CustomerActivityFields): string => {
-  return buildActivityQuery('SalesActivity', fields)
+  // Build relation builders for common references
+  const relationBuilders: ActivityRelationBuilders = {
+    buildDocumentFragment,
+    buildAccountFragment,
+    buildContactFragment,
+    buildLeadFragment,
+    buildOpportunityFragment
+  }
+
+  const relationFields: ActivityRelationFields = {
+    documentFields: CustomerDocumentFields,
+    accountFields: CustomerAccountFields,
+    contactFields: CustomerContactFields,
+    leadFields: CustomerLeadFields,
+    opportunityFields: CustomerOpportunityFields
+  }
+
+  return buildActivityQuery('SalesActivity', fields, relationBuilders, relationFields)
 }
 
 /**

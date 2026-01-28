@@ -113,7 +113,7 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
       const groups: string[] = Array.isArray(obj?.groups) ? obj.groups.filter((g: any) => typeof g === 'string') : []
       if (groups.length === 0) return true
 
-      // Require that ALL groups are satisfied
+      // Require that ALL groups are satisfied (AND logic)
       const satisfies = (g: string): boolean => {
         if (g === 'all-employees') return true
         if (g === 'all-hr-backoffice') return hasHrBackoffice

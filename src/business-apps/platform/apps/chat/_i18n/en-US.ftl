@@ -215,6 +215,12 @@ call-ringing = Ringing
 call-decline = Decline
 call-accept = Accept
 call-join = Join
+call-joining = Joining...
+call-joiningCall = Joining call...
+call-micOn = Mic
+call-micOff = Mic off
+call-cameraOn = Camera
+call-cameraOff = Camera off
 call-startedBy = Started by
 call-unmute = Unmute
 call-mute = Mute
@@ -250,6 +256,20 @@ call-retryConnection = Retry connection
 call-reconnect = Reconnect
 call-retrying = Retrying...
 call-waitingForParticipants = Waiting for participants...
+
+# Group Call
+groupCall-title = Group Call
+groupCall-participants = participants
+groupCall-audioOnly = Audio Only
+groupCall-minimize = Minimize call
+groupCall-waitingForParticipants = Waiting for participants...
+groupCall-unmute = Unmute
+groupCall-mute = Mute
+groupCall-turnOnVideo = Turn on camera
+groupCall-turnOffVideo = Turn off camera
+groupCall-endCall = End call
+groupCall-enableBackground = Enable background effect
+groupCall-disableBackground = Disable background effect
 
 # Notifications
 notifications-title = Notifications

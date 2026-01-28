@@ -9,9 +9,10 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { CheckCircle, AlertCircle, Network, Loader2 } from 'lucide-react'
+import { CheckCircle, AlertCircle, Network, Loader2, Code } from 'lucide-react'
 import { FlowTemplate } from '../../types/flowTemplate'
 import { ExpressionBuilder } from './ExpressionBuilder'
+import { HumanReadablePreview } from './HumanReadablePreview'
 import { useExpressionValidator } from '../../hooks/useExpressionValidator'
 import { useEntitySchemas } from '../../hooks/useEntitySchemas'
 import { env } from '@/common/env/EnvUtils'
@@ -396,6 +397,33 @@ export const ExpressionInput: React.FC<ExpressionInputProps> = ({
           </TooltipProvider>
         )}
       </div>
+
+      {/* Mode indicator */}
+      {isExpressionMode && (
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <Badge variant="secondary" className="gba:text-xs gba:bg-purple-100 gba:text-purple-800">
+            <Code className="gba:h-3 gba:w-3 gba:mr-1" />
+            Expression Mode
+          </Badge>
+          {hasExpressions && (
+            <span className="gba:text-xs gba:text-gray-500">
+              {(value.match(/\{\{/g) || []).length} expression(s) detected
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Human-readable preview for expressions */}
+      {hasExpressions && value.trim() && (
+        <div className="gba:mt-2 gba:rounded-lg gba:border gba:border-muted gba:bg-muted/30 gba:p-2">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1.5">
+            <Badge variant="secondary" className="gba:text-[10px] gba:px-1.5 gba:py-0">
+              Preview
+            </Badge>
+          </div>
+          <HumanReadablePreview value={value} template={template} data-testid={`${testId}-preview`} />
+        </div>
+      )}
 
       {/* Expression Builder */}
       {useTreeBuilder && template && context && (

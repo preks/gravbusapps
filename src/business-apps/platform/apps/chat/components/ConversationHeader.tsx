@@ -12,15 +12,13 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle,
-  useTranslation
+  DialogTitle
 } from '@newwork/nw-design-system'
 import { ArrowLeft, DotsThreeVertical, SignOut, X, Info, Users } from '@phosphor-icons/react'
 import { UserIcon, Phone, Video, PhoneCall, UserPlus, Bell } from 'lucide-react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import translations from '../_i18n'
 
 export interface ActiveCallInfo {
   roomId: string
@@ -47,6 +45,7 @@ interface ConversationHeaderProps {
   isCallEnabled?: boolean
   isInCall?: boolean
   activeCall?: ActiveCallInfo | null
+  t: (key: string, params?: Record<string, any>) => string
 }
 
 const getOtherParticipant = (conversation: Conversation, currentUserId?: string | null) => {
@@ -89,19 +88,30 @@ const getConversationAvatarUrl = (conversation: Conversation, currentUserId?: st
   return otherParticipant?.user?.avatarUrl
 }
 
-// Presence status indicator component - only shows for online, not offline
-const PresenceIndicator: React.FC<{ status: 'online' | 'offline'; size?: 'sm' | 'md' }> = ({ status, size = 'md' }) => {
-  // Don't show indicator for offline status
-  if (status === 'offline') return null
+// Presence status indicator component - only shows for online, not offline/away
+const PresenceIndicator: React.FC<{
+  status: 'online' | 'away' | 'offline'
+  size?: 'sm' | 'md'
+  t?: (key: string) => string
+}> = ({ status, size = 'md', t }) => {
+  // Don't show indicator for offline or away status
+  if (status === 'offline' || status === 'away') return null
 
   const statusColors = {
     online: 'gba:bg-success',
+    away: 'gba:bg-warning',
     offline: 'gba:bg-muted-foreground'
   }
 
-  const statusTitles = {
-    online: 'Online',
-    offline: 'Offline'
+  const getStatusTitle = (status: 'online' | 'away' | 'offline'): string => {
+    if (!t) {
+      if (status === 'online') return 'Online'
+      if (status === 'away') return 'Away'
+      return 'Offline'
+    }
+    if (status === 'online') return t('chat-statusOnline')
+    if (status === 'away') return t('chat-statusAway')
+    return t('chat-statusOffline')
   }
 
   const sizeClasses = size === 'sm' ? 'gba:w-2.5 gba:h-2.5' : 'gba:w-3 gba:h-3'
@@ -109,7 +119,7 @@ const PresenceIndicator: React.FC<{ status: 'online' | 'offline'; size?: 'sm' | 
   return (
     <span
       className={`gba:absolute gba:bottom-0 gba:right-0 gba:rounded-full gba:border-2 gba:border-background ${statusColors[status]} ${sizeClasses}`}
-      title={statusTitles[status]}
+      title={getStatusTitle(status)}
     />
   )
 }
@@ -119,6 +129,7 @@ const getPresenceStatusText = (presence?: UserPresence, t?: (key: string, params
   if (!presence || !t) return null
 
   if (presence.status === 'online') return t('chat-statusOnline')
+  if (presence.status === 'away') return t('chat-statusAway')
 
   // For offline status, show last seen if available
   if (presence.status === 'offline' && presence.lastSeen) {
@@ -176,9 +187,9 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   otherUserPresence,
   isCallEnabled = true,
   isInCall = false,
-  activeCall = null
+  activeCall = null,
+  t
 }) => {
-  const { t } = useTranslation(translations)
   const name = getConversationName(conversation, currentUserId, t)
   const avatarUrl = getConversationAvatarUrl(conversation, currentUserId)
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
@@ -241,7 +252,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
           ) : (
             <IconAvatar className={avatarSize} label={name} icon={isGroupChat ? Users : UserIcon} />
           )}
-          {isDirectChat && <PresenceIndicator status={presenceStatus} size={compact ? 'sm' : 'md'} />}
+          {isDirectChat && <PresenceIndicator status={presenceStatus} size={compact ? 'sm' : 'md'} t={t} />}
         </div>
 
         <div className="gba:flex-1 gba:min-w-0">
@@ -251,15 +262,16 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
             {name}
           </h2>
           {/* Show presence status for direct chats */}
-          {isDirectChat && !compact && presenceStatusText && (
-            <p
-              className={`gba:text-xs ${
-                presenceStatus === 'online' ? 'gba:text-success' : 'gba:text-muted-foreground'
-              }`}
-            >
-              {presenceStatusText}
-            </p>
-          )}
+          {isDirectChat &&
+            !compact &&
+            presenceStatusText &&
+            (() => {
+              let statusColorClass = 'gba:text-muted-foreground'
+              if (presenceStatus === 'online') statusColorClass = 'gba:text-success'
+              else if (presenceStatus === 'away') statusColorClass = 'gba:text-warning'
+
+              return <p className={`gba:text-xs ${statusColorClass}`}>{presenceStatusText}</p>
+            })()}
           {/* Show participant count for group chats */}
           {isGroupChat && conversation.participants && !compact && (
             <p className="gba:text-xs gba:text-muted-foreground">

@@ -14,6 +14,7 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
 import type { Task } from '@/common/data/relations/types/taskTypes'
 import { TaskPriority, TaskStatus } from '@/common/data/relations/constants/taskConstants'
+import { getEmployeeName } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/utils'
 import dayjs from 'dayjs'
 
 const formatDate = (dateString: string) => dayjs(dateString).format('MM/DD/YYYY')

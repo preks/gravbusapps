@@ -6,6 +6,19 @@ every-box-blink-button = Blink
 every-box-tab-inflows = Eingang
 every-box-tab-outflows = Ausgang
 every-box-blink-description = Schnelle Aufgabe erstellen und zuweisen
+every-box-search-placeholder = Suchen...
+
+# Filters Dropdown
+filters-dropdown-label = Filter
+filters-all = Alle
+filters-blinks = Blinks
+filters-approvals = Genehmigungen
+filters-completed = Erledigt
+filters-active-count = { $count } aktiv
+
+# Detail Panel
+detail-panel-empty = Wählen Sie eine Aufgabe aus, um Details anzuzeigen
+detail-panel-empty-flow = Wählen Sie einen Workflow aus, um Details anzuzeigen
 
 # Inbox View
 inbox-search-placeholder = Aufgaben suchen...
@@ -100,6 +113,8 @@ task-completion-outcome-acknowledged = Bestätigt
 task-footer-reject = Ablehnen
 task-footer-reassign = Neu zuweisen
 task-footer-unclaim = Freigeben
+task-details-task-claimed = Aufgabe erfolgreich übernommen!
+task-details-task-unclaimed = Aufgabe erfolgreich freigegeben!
 
 # FlowDetailDialog Component
 flow-detail-loading = Wird geladen...

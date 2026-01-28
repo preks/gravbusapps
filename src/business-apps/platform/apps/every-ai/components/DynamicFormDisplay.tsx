@@ -133,6 +133,28 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
     setUiState(currentFormState)
   }, [JSON.stringify(currentFormState)])
 
+  // Backend-persisted submitted flag (preferred source of truth on reload)
+  useEffect(() => {
+    if (data?.submitted !== true) return
+    // If backend says this proposal was submitted, lock it immediately.
+    submissionTriggeredRef.current = true
+    setFormState(formKey, {
+      isSubmitted: true,
+      isCancelled: false,
+      isLoading: false,
+      isFlowCompleted: false,
+      hasError: false
+    })
+    setUiState({
+      isSubmitted: true,
+      isCancelled: false,
+      isLoading: false,
+      isFlowCompleted: false,
+      hasError: false
+    })
+    setInitialCheckComplete(true)
+  }, [data?.submitted, formKey, setFormState])
+
   // Check if form was already submitted - runs when form UUID changes
   const initialSubmitCheckRef = useRef<string | undefined>(undefined)
   useEffect(() => {
@@ -149,6 +171,20 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
       if (submittedForms.includes(formId)) {
         console.log('[DynamicFormDisplay] Form found in localStorage as submitted:', formId)
         submissionTriggeredRef.current = true
+        setFormState(formKey, {
+          isSubmitted: true,
+          isCancelled: false,
+          isLoading: false,
+          isFlowCompleted: false,
+          hasError: false
+        })
+        setUiState({
+          isSubmitted: true,
+          isCancelled: false,
+          isLoading: false,
+          isFlowCompleted: false,
+          hasError: false
+        })
         setInitialCheckComplete(true)
         return
       }

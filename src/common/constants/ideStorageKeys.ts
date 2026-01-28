@@ -1,0 +1,5 @@
+export const STORAGE_KEY_USER_INFO = 'business-app-ide-user-info'
+export const STORAGE_KEY_ACCESS_TOKEN = 'business-app-ide-access-token'
+export const STORAGE_KEY_ADDITIONAL_DATA = 'business-app-ide-additional-data'
+export const STORAGE_KEY_SIDEBAR_COLLAPSED = 'business-app-ide-sidebar-collapsed'
+export const STORAGE_KEY_PINNED_MODULE = 'business-app-ide-pinned-module'

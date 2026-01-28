@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { env } from '@/common/env/EnvUtils'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 
 interface FlowAnalyticsFilters {
   timeframe?: 'last24h' | 'wtd' | 'mtd' | 'qtd' | 'ytd' | 'custom'
@@ -85,8 +85,7 @@ export const useFlowAnalytics = (filters: FlowAnalyticsFilters): UseFlowAnalytic
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
-  const API_BASE =
-    (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+  const API_BASE = getFlowEngineApiBaseUrl()
 
   const fetchAnalytics = useCallback(async () => {
     if (!filters.accessToken) {
@@ -187,8 +186,7 @@ export const useTaskAnalytics = (filters: {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
-  const API_BASE =
-    (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+  const API_BASE = getFlowEngineApiBaseUrl()
 
   const fetchTaskAnalytics = useCallback(async () => {
     if (!filters.accessToken) {
@@ -275,8 +273,7 @@ export const useSystemAnalytics = (filters: {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
-  const API_BASE =
-    (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+  const API_BASE = getFlowEngineApiBaseUrl()
 
   const fetchSystemAnalytics = useCallback(async () => {
     if (!filters.accessToken) {
@@ -401,8 +398,7 @@ export const useTrendComparison = (filters: {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
-  const API_BASE =
-    (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+  const API_BASE = getFlowEngineApiBaseUrl()
 
   const fetchData = useCallback(async () => {
     if (!filters.accessToken) {
@@ -510,8 +506,7 @@ export const useFlowManagementAnalytics = ({
         Object.entries(tags).forEach(([k, v]) => params.append(`tag.${k}`, String(v)))
       }
 
-      const API_BASE =
-        (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+      const API_BASE = getFlowEngineApiBaseUrl()
       const response = await fetch(`${API_BASE}/analytics/flow-management?${params}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -663,8 +658,7 @@ export const useTaskPerformanceAnalytics = (filters: {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
-  const API_BASE =
-    (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+  const API_BASE = getFlowEngineApiBaseUrl()
 
   const fetchTaskPerformanceAnalytics = useCallback(async () => {
     if (!filters.accessToken) {
@@ -828,8 +822,7 @@ export const useUserCapacityAnalytics = (filters: {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
-  const API_BASE =
-    (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+  const API_BASE = getFlowEngineApiBaseUrl()
 
   const fetchUserCapacityAnalytics = useCallback(async () => {
     if (!filters.accessToken) {
@@ -1030,8 +1023,7 @@ export const useFlowsList = (
       if (filters.orderBy) queryParams.append('orderBy', filters.orderBy)
       if (filters.orderDirection) queryParams.append('orderDirection', filters.orderDirection)
 
-      const API_BASE =
-        (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+      const API_BASE = getFlowEngineApiBaseUrl()
       const url = `${API_BASE}/flows/list?${queryParams.toString()}`
 
       const response = await fetch(url, {
@@ -1122,8 +1114,7 @@ export const useTemplatePerformanceAnalytics = ({
       if (userId) params.append('userId', userId)
       if (tags) Object.entries(tags).forEach(([k, v]) => params.append(`tag.${k}`, String(v)))
 
-      const API_BASE =
-        (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+      const API_BASE = getFlowEngineApiBaseUrl()
       const response = await fetch(`${API_BASE}/analytics/template-performance?${params}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,

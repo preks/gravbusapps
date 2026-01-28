@@ -288,5 +288,4 @@ notification-expense-created-success = Spesen erfolgreich erstellt
 notification-sick-leave-reported-success = Krankmeldung erfolgreich erfasst
 notification-special-leave-requested-success = Sonderurlaub erfolgreich beantragt
 notification-vacation-requested-success = Urlaub erfolgreich beantragt
- notification-working-conditions-updated-success = Aktualisierungen der Arbeitsbedingungen zur Genehmigung an die Personalabteilung gesendet
- notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
+notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
