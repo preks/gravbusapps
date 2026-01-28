@@ -292,3 +292,58 @@ notification-sick-leave-reported-success = Krankmeldung erfolgreich erfasst
 notification-special-leave-requested-success = Sonderurlaub erfolgreich beantragt
 notification-vacation-requested-success = Urlaub erfolgreich beantragt
 notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
+
+# Employee Record - Errors and states
+employee-record-error-title = Fehler
+employee-record-error-loading-data = Fehler beim Laden der Mitarbeiterdaten.
+employee-record-not-found-title = Nicht gefunden
+employee-record-not-found-message = Mitarbeiter nicht gefunden.
+employee-record-not-assigned = Nicht zugewiesen
+employee-record-edit-picture = Bild bearbeiten
+
+# Employee Record - Chat / communication
+employee-record-chat-button = Chat
+employee-record-chat-tooltip = Chat
+employee-record-chat-cannot-self = Sie können nicht mit sich selbst chatten
+employee-record-audio-call-button = Anruf
+employee-record-audio-tooltip = Anruf
+employee-record-audio-cannot-self = Sie können sich nicht selbst anrufen
+employee-record-video-call-button = Videoanruf
+employee-record-video-tooltip = Videoanruf
+employee-record-video-cannot-self = Sie können sich nicht selbst per Video anrufen
+
+# Employee Record - Tab labels
+employee-record-tab-summary = Übersicht
+employee-record-tab-hr-admin = HR Admin
+employee-record-tab-hr-growth = HR Growth
+employee-record-tab-compensation = Vergütung
+employee-record-tab-time-tracking = Zeiterfassung
+employee-record-tab-absences = Abwesenheiten
+employee-record-tab-assets = Sachmittel
+employee-record-tab-service-requests = Serviceanfragen
+
+# Profile Header - Detail labels
+profile-header-work-email = Arbeit-E-Mail
+profile-header-work-phone = Diensttelefon
+profile-header-organization = Organisation
+profile-header-location = Standort
+profile-header-manager = Vorgesetzte/r
+profile-header-no-manager = Kein Vorgesetzter
+profile-header-job-position = Position
+profile-header-cost-center = Kostenstelle
+profile-header-hire-date = Eintrittsdatum
+profile-header-fixed-term-until = Befristet bis
+profile-header-na = k. A.
+
+# Profile Header - Time units (tenure)
+profile-header-year = Jahr
+profile-header-years = Jahre
+profile-header-month = Monat
+profile-header-months = Monate
+
+# Profile Header - Sections
+profile-header-teams = Teams
+profile-header-capabilities = Fähigkeiten
+profile-header-skills = Kompetenzen
+profile-header-no-capabilities = Keine Fähigkeiten zugewiesen
+profile-header-no-skills = Keine Kompetenzen zugewiesen
