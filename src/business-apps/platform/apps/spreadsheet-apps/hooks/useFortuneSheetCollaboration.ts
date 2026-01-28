@@ -5,7 +5,7 @@
  * Handles bidirectional operation conversion and application.
  */
 
-import { useCallback, useRef, useEffect } from 'react'
+import { useCallback, useRef, useEffect, useMemo } from 'react'
 import type { FortuneSheetOp, ConversionContext } from '../types/fortuneSheet'
 import type { DocumentOperation } from '../../shared/services/CollaborationClient'
 import {
@@ -176,11 +176,15 @@ export function useFortuneSheetCollaboration(
     }
   }, [flushPendingOperations])
 
-  return {
-    handleFortuneSheetOp,
-    handleDocumentOp,
-    clearPending
-  }
+  // PHASE 2.2: Memoize return value to prevent new object reference on every render
+  return useMemo(
+    () => ({
+      handleFortuneSheetOp,
+      handleDocumentOp,
+      clearPending
+    }),
+    [handleFortuneSheetOp, handleDocumentOp, clearPending]
+  )
 }
 
 /**
@@ -227,9 +231,13 @@ export function useFortuneSheetCursorTracking(options: {
     [enabled, sheetId, context, onCursorEmit]
   )
 
-  return {
-    handleCellSelection
-  }
+  // PHASE 2.2: Memoize return value to prevent new object reference on every render
+  return useMemo(
+    () => ({
+      handleCellSelection
+    }),
+    [handleCellSelection]
+  )
 }
 
 /**
@@ -312,8 +320,12 @@ export function useFortuneSheetBatchOps(options: {
     }
   }, [flushBatch])
 
-  return {
-    queueOperation,
-    flushBatch
-  }
+  // PHASE 2.2: Memoize return value to prevent new object reference on every render
+  return useMemo(
+    () => ({
+      queueOperation,
+      flushBatch
+    }),
+    [queueOperation, flushBatch]
+  )
 }

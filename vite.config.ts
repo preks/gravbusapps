@@ -190,9 +190,6 @@ export default defineConfig(({ command, mode }) => {
   const shouldHashFilesForDeployment = isProduction && env.VITE_BUILD_FOR_DEPLOYMENT === 'true'
   const isBuildCommand = command === 'build'
   const isSingleBuild = targetEntryKey && targetEntryFile
-  const isSpreadsheetAppsEntry =
-    Boolean(targetEntryKey && targetEntryKey.includes('spreadsheet-apps')) ||
-    Boolean(targetEntryFile && targetEntryFile.includes('spreadsheet-apps'))
 
   if (isBuildCommand && isSingleBuild) {
     console.log(`[vite.config.ts] Single build detected for: ${targetEntryKey}`)
@@ -916,8 +913,7 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
         'zustand',
         'react',
         'react-icons',
-        'react-dom',
-        '@fortune-sheet/react'
+        'react-dom'
       ],
       // Optimize caching strategy
       esbuildOptions: {
@@ -931,8 +927,7 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
       // Virtual module plugin for the wrapped entries
       virtualModulePlugin,
       prependBuildInfoBannerPlugin, // Use the updated banner plugin
-      // Avoid IIFE wrapping for spreadsheet-apps build (can break FortuneSheet init)
-      ...(isSpreadsheetAppsEntry ? [] : [wrapInIIFEPlugin]),
+      wrapInIIFEPlugin,
       // Publish screen endpoint for IDE (only in dev mode)
       ...(command === 'serve' ? [publishScreenPlugin] : []),
       ...(shouldHashFilesForDeployment ? [sha256ContentHashPlugin(shouldHashFilesForDeployment)] : []),
@@ -967,8 +962,7 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
         formats: ['cjs'],
         cssFileName: 'main'
       },
-      // Skip minification for spreadsheet-apps to avoid FortuneSheet init issues in prod
-      minify: isProduction && !isSpreadsheetAppsEntry ? 'esbuild' : false,
+      minify: isProduction ? 'esbuild' : false, // Ensure minification for production
       reportCompressedSize: isUnversionedBuild && isSingleBuild ? true : false,
       // Enable CSS processing
       css: {

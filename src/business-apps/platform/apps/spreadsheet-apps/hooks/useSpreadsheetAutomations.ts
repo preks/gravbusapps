@@ -5,7 +5,7 @@
  * Handles CRUD operations, execution, and status synchronization.
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import type {
   SpreadsheetAutomation,
   WorkflowRowLink,
@@ -18,10 +18,7 @@ import {
   WorkflowStatusSyncService,
   createWorkflowStatusSyncService
 } from '../services'
-import {
-  buildSentRowTrackingValues,
-  buildCompletedRowTrackingValues
-} from '../utils/trackingColumns'
+import { buildSentRowTrackingValues, buildCompletedRowTrackingValues } from '../utils/trackingColumns'
 import { getDefaultTrackingColumns } from '../components/automations/TrackingColumnsConfig'
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { fetchRecipientsData } from '../utils/fetchRecipientData'
@@ -95,7 +92,10 @@ export interface UseSpreadsheetAutomationsResult {
 
   // Execution
   /** Run automation for specific rows */
-  runAutomation: (automationId: string, rows?: Array<{ id: string; cells: Record<string, unknown> }>) => Promise<AutomationExecutionResult>
+  runAutomation: (
+    automationId: string,
+    rows?: Array<{ id: string; cells: Record<string, unknown> }>
+  ) => Promise<AutomationExecutionResult>
   /** Run automation for a single row */
   runAutomationForRow: (
     automationId: string,
@@ -136,9 +136,7 @@ function generateId(): string {
 /**
  * useSpreadsheetAutomations Hook
  */
-export function useSpreadsheetAutomations(
-  params: UseSpreadsheetAutomationsParams
-): UseSpreadsheetAutomationsResult {
+export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParams): UseSpreadsheetAutomationsResult {
   const {
     spreadsheetId,
     sheetId,
@@ -182,19 +180,19 @@ export function useSpreadsheetAutomations(
   const onWorkflowLinksChangeRef = useRef(onWorkflowLinksChange)
   const onAddRowsRef = useRef(onAddRows)
   const onUpdateRowsRef = useRef(onUpdateRows)
-  
+
   // Track processed workflow IDs to avoid duplicate row creation
   const processedWorkflowIdsRef = useRef<Set<string>>(new Set())
-  
+
   // Update refs when callbacks change (without triggering effects)
   useEffect(() => {
     onAutomationsChangeRef.current = onAutomationsChange
   }, [onAutomationsChange])
-  
+
   useEffect(() => {
     onWorkflowLinksChangeRef.current = onWorkflowLinksChange
   }, [onWorkflowLinksChange])
-  
+
   useEffect(() => {
     onAddRowsRef.current = onAddRows
   }, [onAddRows])
@@ -240,34 +238,38 @@ export function useSpreadsheetAutomations(
   )
 
   // Update automation
-  const updateAutomation = useCallback(async (id: string, updates: Partial<SpreadsheetAutomation>): Promise<void> => {
-    setAutomations(prev => {
-      const updated = prev.map(automation =>
-        automation.id === id
-          ? { ...automation, ...updates, updatedAt: new Date().toISOString() }
-          : automation
-      )
-      // Notify parent after state update
-      setTimeout(() => notifyAutomationsChange(updated), 0)
-      return updated
-    })
-  }, [notifyAutomationsChange])
+  const updateAutomation = useCallback(
+    async (id: string, updates: Partial<SpreadsheetAutomation>): Promise<void> => {
+      setAutomations(prev => {
+        const updated = prev.map(automation =>
+          automation.id === id ? { ...automation, ...updates, updatedAt: new Date().toISOString() } : automation
+        )
+        // Notify parent after state update
+        setTimeout(() => notifyAutomationsChange(updated), 0)
+        return updated
+      })
+    },
+    [notifyAutomationsChange]
+  )
 
   // Delete automation
-  const deleteAutomation = useCallback(async (id: string): Promise<void> => {
-    setAutomations(prev => {
-      const updated = prev.filter(automation => automation.id !== id)
-      // Notify parent after state update
-      setTimeout(() => notifyAutomationsChange(updated), 0)
-      return updated
-    })
-    // Also remove associated workflow links
-    setWorkflowLinks(prev => {
-      const updated = prev.filter(link => link.automationId !== id)
-      setTimeout(() => notifyWorkflowLinksChange(updated), 0)
-      return updated
-    })
-  }, [notifyAutomationsChange, notifyWorkflowLinksChange])
+  const deleteAutomation = useCallback(
+    async (id: string): Promise<void> => {
+      setAutomations(prev => {
+        const updated = prev.filter(automation => automation.id !== id)
+        // Notify parent after state update
+        setTimeout(() => notifyAutomationsChange(updated), 0)
+        return updated
+      })
+      // Also remove associated workflow links
+      setWorkflowLinks(prev => {
+        const updated = prev.filter(link => link.automationId !== id)
+        setTimeout(() => notifyWorkflowLinksChange(updated), 0)
+        return updated
+      })
+    },
+    [notifyAutomationsChange, notifyWorkflowLinksChange]
+  )
 
   // Duplicate automation
   const duplicateAutomation = useCallback(
@@ -300,21 +302,19 @@ export function useSpreadsheetAutomations(
   )
 
   // Toggle automation enabled state
-  const toggleAutomation = useCallback(async (id: string, enabled: boolean): Promise<void> => {
-    await updateAutomation(id, { isEnabled: enabled })
-  }, [updateAutomation])
+  const toggleAutomation = useCallback(
+    async (id: string, enabled: boolean): Promise<void> => {
+      await updateAutomation(id, { isEnabled: enabled })
+    },
+    [updateAutomation]
+  )
 
   // Run automation for rows - actually executes workflows via flow engine
   const runAutomation = useCallback(
     async (
-      automationId: string, 
+      automationId: string,
       rows?: Array<{ id: string; cells: Record<string, unknown> }>
     ): Promise<AutomationExecutionResult> => {
-      console.log('[useSpreadsheetAutomations] >>>>>> runAutomation CALLED <<<<<<')
-      console.log('[useSpreadsheetAutomations] automationId:', automationId)
-      console.log('[useSpreadsheetAutomations] rows:', rows?.length || 0)
-      console.log('[useSpreadsheetAutomations] all automations:', automations.map(a => ({ id: a.id, name: a.name, type: a.type })))
-      
       const automation = automations.find(a => a.id === automationId)
       if (!automation) {
         console.error('[useSpreadsheetAutomations] ERROR: Automation not found:', automationId)
@@ -326,8 +326,6 @@ export function useSpreadsheetAutomations(
           totalRows: 0
         }
       }
-      
-      console.log('[useSpreadsheetAutomations] Found automation:', automation.name, automation.type)
 
       if (!automation.isEnabled) {
         console.error('[useSpreadsheetAutomations] ERROR: Automation is disabled')
@@ -350,8 +348,6 @@ export function useSpreadsheetAutomations(
           totalRows: 0
         }
       }
-      
-      console.log('[useSpreadsheetAutomations] All checks passed, proceeding with execution...')
 
       setIsLoading(true)
       setError(null)
@@ -359,21 +355,20 @@ export function useSpreadsheetAutomations(
       try {
         const executedAt = new Date().toISOString()
         const startTime = Date.now()
-        
+
         // Check if we have data to process based on automation type
         // - bulk_collection: requires RECIPIENTS (not rows) - can run on empty sheets
         // - other types: require ROWS to process
         const isBulkCollection = automation.type === 'bulk_collection'
-        const hasRecipients = (automation.collectionConfig?.recipients?.length ?? 0) > 0 || 
-                              automation.collectionConfig?.recipientType === 'team' ||
-                              automation.collectionConfig?.recipientType === 'department'
-        
+        const hasRecipients =
+          (automation.collectionConfig?.recipients?.length ?? 0) > 0 ||
+          automation.collectionConfig?.recipientType === 'team' ||
+          automation.collectionConfig?.recipientType === 'department'
+
         if (!isBulkCollection && (!rows || rows.length === 0)) {
-          console.warn('[useSpreadsheetAutomations] No rows specified for row-based automation execution')
-          
           // Update automation last run time anyway for UI feedback
           await updateAutomation(automationId, { lastRunAt: executedAt, runCount: automation.runCount + 1 })
-          
+
           return {
             success: true,
             workflows: [],
@@ -381,7 +376,7 @@ export function useSpreadsheetAutomations(
             totalRows: 0
           }
         }
-        
+
         // For bulk collection, check recipients instead of rows
         if (isBulkCollection && !hasRecipients) {
           console.error('[useSpreadsheetAutomations] Bulk collection has no recipients configured')
@@ -394,26 +389,18 @@ export function useSpreadsheetAutomations(
           }
         }
 
-        console.log(`[useSpreadsheetAutomations] ===== EXECUTING AUTOMATION =====`)
-        console.log(`[useSpreadsheetAutomations] Automation ID: ${automationId}`)
-        console.log(`[useSpreadsheetAutomations] Automation type: ${automation.type}`)
-        console.log(`[useSpreadsheetAutomations] Row count: ${rows?.length}`)
-        console.log(`[useSpreadsheetAutomations] Recipient count: ${automation.collectionConfig?.recipients?.length}`)
-        console.log(`[useSpreadsheetAutomations] Recipient type: ${automation.collectionConfig?.recipientType}`)
-        console.log(`[useSpreadsheetAutomations] Full automation config:`, JSON.stringify(automation, null, 2))
-
         // Use the dispatcher that handles different automation types correctly
         // - row_workflow/line_approval: execute per row
         // - bulk_collection: execute per recipient (not per row!)
         // - sheet_approval: execute once for entire sheet
-        console.log('[useSpreadsheetAutomations] Calling automationService.runAutomation...')
-        
         const result = await automationServiceRef.current.runAutomation({
           automation,
-          rows: rows?.length ? rows.map(row => ({ 
-            rowId: row.id, 
-            data: { _id: row.id, ...row.cells } 
-          })) : undefined,
+          rows: rows?.length
+            ? rows.map(row => ({
+                rowId: row.id,
+                data: { _id: row.id, ...row.cells }
+              }))
+            : undefined,
           recipients: automation.collectionConfig?.recipients,
           spreadsheetId,
           sheetId,
@@ -421,18 +408,9 @@ export function useSpreadsheetAutomations(
           accessToken
         })
 
-        console.log('[useSpreadsheetAutomations] runAutomation RESULT:', JSON.stringify(result, null, 2))
-        
         const durationMs = Date.now() - startTime
 
         // Update workflow links with new workflows
-        console.log('[useSpreadsheetAutomations] Checking workflows:', {
-          hasWorkflows: !!result.workflows,
-          workflowCount: result.workflows?.length,
-          success: result.success,
-          error: result.error
-        })
-        
         if (result.workflows && result.workflows.length > 0) {
           const newLinks: WorkflowRowLink[] = result.workflows.map(wf => ({
             rowId: wf.rowId,
@@ -450,14 +428,8 @@ export function useSpreadsheetAutomations(
             setTimeout(() => notifyWorkflowLinksChange(updated), 0)
             return updated
           })
-          
+
           // For bulk collection: immediately create rows showing "Sent" status
-          console.log('[useSpreadsheetAutomations] DEBUG: Checking bulk collection row creation:', {
-            automationType: automation.type,
-            hasOnAddRows: !!onAddRowsRef.current,
-            workflowCount: result.workflows?.length
-          })
-          
           if (automation.type === 'bulk_collection') {
             if (!onAddRowsRef.current) {
               console.error('[useSpreadsheetAutomations] ERROR: onAddRowsRef.current is not set!')
@@ -466,7 +438,7 @@ export function useSpreadsheetAutomations(
               const trackingColumns = ensureRecipientTrackingColumns(
                 automation.collectionConfig?.trackingColumns || getDefaultTrackingColumns()
               )
-              
+
               // Build a lookup from columnId to columnName for proper data mapping
               // The table renders using col.name, so we need to store data with column names, not IDs
               const columnIdToName = new Map<string, string>()
@@ -475,59 +447,46 @@ export function useSpreadsheetAutomations(
                   columnIdToName.set(mapping.columnId, mapping.columnName)
                 }
               }
-              
-              console.log('[useSpreadsheetAutomations] DEBUG: Building rows with:', {
-                statusColumn,
-                trackingColumns,
-                collectionConfig: automation.collectionConfig,
-                columnIdToName: Object.fromEntries(columnIdToName)
-              })
-              
+
               // Fetch recipient data (name, email, avatar) via GraphQL
               const recipientIds = result.workflows.map(wf => wf.rowId.replace('recipient_', ''))
-              console.log('[useSpreadsheetAutomations] Fetching recipient data for', recipientIds.length, 'recipients')
-              
+
               // Set access token and fetch recipient data
               graphQLClient.setAccessToken(accessToken)
               const recipientDataMap = await fetchRecipientsData(graphQLClient, recipientIds)
-              console.log('[useSpreadsheetAutomations] Fetched recipient data:', recipientDataMap.size, 'entries')
-              
+
               // Create initial rows for each workflow that was sent out
               const initialRows = result.workflows.map(wf => {
                 // Extract recipient info from rowId (format: "recipient_<userId>")
                 const recipientId = wf.rowId.replace('recipient_', '')
-                
+
                 // Get fetched recipient data
                 const recipientData = recipientDataMap.get(recipientId)
-                
+
                 // Build tracking column values using the user's selected columns
                 const trackingValues = buildSentRowTrackingValues(
                   trackingColumns,
-                  { 
-                    id: recipientId, 
-                    name: recipientData?.name, 
+                  {
+                    id: recipientId,
+                    name: recipientData?.name,
                     email: recipientData?.email,
                     avatar: recipientData?.avatar
                   },
                   executedAt
                 )
-                
-                console.log('[useSpreadsheetAutomations] DEBUG: trackingValues for recipient', recipientId, ':', trackingValues)
-                
+
                 const cells: Record<string, unknown> = {
                   ...trackingValues,
                   // Always include workflow ID for updates
-                  '_workflow_id': wf.workflowId
+                  _workflow_id: wf.workflowId
                 }
-                
+
                 // Set the user's chosen status column to "Sent" (map ID to name)
                 if (statusColumn) {
                   const statusColumnName = columnIdToName.get(statusColumn) || statusColumn
                   cells[statusColumnName] = 'Sent'
                 }
-                
-                console.log('[useSpreadsheetAutomations] DEBUG: Final cells for row:', cells)
-                
+
                 return {
                   cells,
                   metadata: {
@@ -539,12 +498,8 @@ export function useSpreadsheetAutomations(
                   }
                 }
               })
-              
-              console.log('[useSpreadsheetAutomations] Adding', initialRows.length, 'initial rows with tracking columns:', trackingColumns)
-              console.log('[useSpreadsheetAutomations] DEBUG: Full initialRows data:', JSON.stringify(initialRows, null, 2))
-              
+
               onAddRowsRef.current(initialRows)
-              console.log('[useSpreadsheetAutomations] DEBUG: onAddRowsRef.current called successfully')
             }
           }
         }
@@ -696,13 +651,10 @@ export function useSpreadsheetAutomations(
     if (!service || workflowLinks.length === 0) return
 
     setIsPolling(true)
-    service.startPolling(
-      { spreadsheetId, sheetId, workflowLinks },
-      updatedLinks => {
-        setWorkflowLinks(updatedLinks)
-        notifyWorkflowLinksChange(updatedLinks)
-      }
-    )
+    service.startPolling({ spreadsheetId, sheetId, workflowLinks }, updatedLinks => {
+      setWorkflowLinks(updatedLinks)
+      notifyWorkflowLinksChange(updatedLinks)
+    })
   }, [spreadsheetId, sheetId, workflowLinks, notifyWorkflowLinksChange])
 
   // Stop polling
@@ -730,21 +682,14 @@ export function useSpreadsheetAutomations(
   const fetchBulkCollectionResponses = useCallback(async () => {
     const service = automationServiceRef.current
     if (!service) {
-      console.warn('[useSpreadsheetAutomations] Skipping bulk collection poll - no service')
       return
     }
 
     // Get all bulk collection automations
     const bulkCollectionAutomations = automations.filter(a => a.type === 'bulk_collection' && a.isEnabled)
     if (bulkCollectionAutomations.length === 0) {
-      console.warn('[useSpreadsheetAutomations] No enabled bulk collection automations to poll')
       return
     }
-
-    console.warn('[useSpreadsheetAutomations] Polling for bulk collection responses...', {
-      automationCount: bulkCollectionAutomations.length,
-      automationIds: bulkCollectionAutomations.map(a => a.id)
-    })
 
     for (const automation of bulkCollectionAutomations) {
       try {
@@ -753,23 +698,11 @@ export function useSpreadsheetAutomations(
           sheetId,
           automationId: automation.id
         })
-        
-        console.warn('[useSpreadsheetAutomations] Received responses for', automation.name, ':', {
-          totalResponses: responses.length,
-          completedResponses: responses.filter(r => r.status === 'COMPLETED').length,
-          alreadyProcessed: responses.filter(r => processedWorkflowIdsRef.current.has(r.workflowId)).length
-        })
 
         // Filter out already processed responses
         const newResponses = responses.filter(
           r => r.status === 'COMPLETED' && !processedWorkflowIdsRef.current.has(r.workflowId)
         )
-
-        console.warn('[useSpreadsheetAutomations] newResponses after filter:', {
-          count: newResponses.length,
-          workflowIds: newResponses.map(r => r.workflowId),
-          formDataSamples: newResponses.map(r => Object.keys(r.formData || {}))
-        })
 
         if (newResponses.length === 0) continue
 
@@ -778,20 +711,20 @@ export function useSpreadsheetAutomations(
           automation.collectionConfig?.trackingColumns || getDefaultTrackingColumns()
         )
         const statusColumn = automation.workflowConfig.statusColumn
-        
+
         const rowUpdates = newResponses.map(response => {
           // Build tracking column update values
           const trackingValues = buildCompletedRowTrackingValues(
             trackingColumns,
-            { 
-              id: response.responderId, 
-              name: response.responderName, 
-              email: response.responderEmail 
+            {
+              id: response.responderId,
+              name: response.responderName,
+              email: response.responderEmail
             },
             new Date().toISOString(), // sentAt - will be overridden if _sent_at exists in row
             response.submittedAt
           )
-          
+
           // Build a lookup from columnId to columnName for proper data mapping
           // The table renders using col.name, so we need to store data with column names, not IDs
           const columnIdToName = new Map<string, string>()
@@ -800,17 +733,17 @@ export function useSpreadsheetAutomations(
               columnIdToName.set(mapping.columnId, mapping.columnName)
             }
           }
-          
+
           const cells: Record<string, unknown> = {
             ...trackingValues
           }
-          
+
           // Set user's status column if configured (map ID to name)
           if (statusColumn) {
             const statusColumnName = columnIdToName.get(statusColumn) || statusColumn
             cells[statusColumnName] = 'Completed'
           }
-          
+
           // Map form data to configured columns using columnName (not columnId!)
           if (automation.workflowConfig.columnMappings) {
             for (const mapping of automation.workflowConfig.columnMappings) {
@@ -820,7 +753,7 @@ export function useSpreadsheetAutomations(
               }
             }
           }
-          
+
           // Also copy any matching form data keys directly (this is the main data!)
           // Form data keys are column IDs, but we need to map to column names
           for (const [key, value] of Object.entries(response.formData)) {
@@ -831,14 +764,6 @@ export function useSpreadsheetAutomations(
               cells[columnName] = value
             }
           }
-          
-          console.warn('[useSpreadsheetAutomations] Built row update for workflow', response.workflowId, ':', {
-            statusColumn,
-            trackingColumns,
-            formDataKeys: Object.keys(response.formData),
-            cellKeys: Object.keys(cells),
-            cells: JSON.stringify(cells)
-          })
 
           return {
             workflowId: response.workflowId,
@@ -851,25 +776,16 @@ export function useSpreadsheetAutomations(
 
         // Update existing rows via callback if available, otherwise add as new rows
         if (rowUpdates.length > 0) {
-          console.warn('[useSpreadsheetAutomations] Row updates ready:', {
-            count: rowUpdates.length,
-            hasOnUpdateRows: !!onUpdateRowsRef.current,
-            hasOnAddRows: !!onAddRowsRef.current,
-            rowUpdates: JSON.stringify(rowUpdates)
-          })
           if (onUpdateRowsRef.current) {
-            console.warn('[useSpreadsheetAutomations] Calling onUpdateRowsRef.current with', rowUpdates.length, 'updates')
             onUpdateRowsRef.current(rowUpdates)
-            console.warn('[useSpreadsheetAutomations] onUpdateRowsRef.current called successfully')
           } else if (onAddRowsRef.current) {
             // Fallback: add as new rows if no update callback
-            console.warn('[useSpreadsheetAutomations] No update callback, adding', rowUpdates.length, 'new rows')
-            onAddRowsRef.current(rowUpdates.map(u => ({ 
-              cells: u.cells, 
-              metadata: { workflowId: u.workflowId } 
-            })))
-          } else {
-            console.warn('[useSpreadsheetAutomations] ERROR: Neither onUpdateRows nor onAddRows callbacks available!')
+            onAddRowsRef.current(
+              rowUpdates.map(u => ({
+                cells: u.cells,
+                metadata: { workflowId: u.workflowId }
+              }))
+            )
           }
         }
       } catch (err) {
@@ -880,39 +796,24 @@ export function useSpreadsheetAutomations(
 
   // Poll for bulk collection responses
   useEffect(() => {
-    // Using console.warn because console.log is stripped in production builds
-    console.warn('[useSpreadsheetAutomations] Polling effect running:', {
-      enablePolling,
-      automationsCount: automations.length,
-      automationTypes: automations.map(a => ({ id: a.id, type: a.type, isEnabled: a.isEnabled }))
-    })
-    
     if (!enablePolling) {
-      console.warn('[useSpreadsheetAutomations] Polling disabled - skipping')
-      return
-    }
-    
-    // Check if there are any bulk collection automations
-    const hasBulkCollectionAutomations = automations.some(
-      a => a.type === 'bulk_collection' && a.isEnabled
-    )
-    console.warn('[useSpreadsheetAutomations] hasBulkCollectionAutomations:', hasBulkCollectionAutomations)
-    
-    if (!hasBulkCollectionAutomations) {
-      console.warn('[useSpreadsheetAutomations] No enabled bulk_collection automations - skipping polling')
       return
     }
 
-    console.warn('[useSpreadsheetAutomations] Starting polling with interval:', pollInterval)
-    
+    // Check if there are any bulk collection automations
+    const hasBulkCollectionAutomations = automations.some(a => a.type === 'bulk_collection' && a.isEnabled)
+
+    if (!hasBulkCollectionAutomations) {
+      return
+    }
+
     // Initial fetch
     fetchBulkCollectionResponses()
 
     // Set up polling interval
     const intervalId = setInterval(fetchBulkCollectionResponses, pollInterval)
-    
+
     return () => {
-      console.warn('[useSpreadsheetAutomations] Cleaning up polling interval')
       clearInterval(intervalId)
     }
   }, [enablePolling, automations, pollInterval, fetchBulkCollectionResponses])
@@ -943,41 +844,69 @@ export function useSpreadsheetAutomations(
     setError(null)
   }, [])
 
-  return {
-    // State
-    automations,
-    workflowLinks,
-    executionHistory,
-    isLoading,
-    error,
-    isPolling,
+  // PHASE 2.1: Memoize return value to prevent new object reference on every render
+  // This prevents consumers from re-rendering when nothing has actually changed
+  return useMemo(
+    () => ({
+      // State
+      automations,
+      workflowLinks,
+      executionHistory,
+      isLoading,
+      error,
+      isPolling,
 
-    // CRUD
-    createAutomation,
-    updateAutomation,
-    deleteAutomation,
-    duplicateAutomation,
-    toggleAutomation,
+      // CRUD
+      createAutomation,
+      updateAutomation,
+      deleteAutomation,
+      duplicateAutomation,
+      toggleAutomation,
 
-    // Execution
-    runAutomation,
-    runAutomationForRow,
+      // Execution
+      runAutomation,
+      runAutomationForRow,
 
-    // Status
-    getWorkflowLinkForRow,
-    refreshWorkflowStatuses,
-    startPolling,
-    stopPolling,
-    
-    // Bulk Collection
-    fetchBulkCollectionResponses,
+      // Status
+      getWorkflowLinkForRow,
+      refreshWorkflowStatuses,
+      startPolling,
+      stopPolling,
 
-    // Utilities
-    getAutomationById,
-    getEnabledAutomations,
-    getAutomationsByTrigger,
-    clearError
-  }
+      // Bulk Collection
+      fetchBulkCollectionResponses,
+
+      // Utilities
+      getAutomationById,
+      getEnabledAutomations,
+      getAutomationsByTrigger,
+      clearError
+    }),
+    [
+      automations,
+      workflowLinks,
+      executionHistory,
+      isLoading,
+      error,
+      isPolling,
+      createAutomation,
+      updateAutomation,
+      deleteAutomation,
+      duplicateAutomation,
+      toggleAutomation,
+      runAutomation,
+      runAutomationForRow,
+      getWorkflowLinkForRow,
+      refreshWorkflowStatuses,
+      startPolling,
+      stopPolling,
+      fetchBulkCollectionResponses,
+      getAutomationById,
+      getEnabledAutomations,
+      getAutomationsByTrigger,
+      clearError
+    ]
+  )
 }
 
 export default useSpreadsheetAutomations

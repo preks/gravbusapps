@@ -8,6 +8,8 @@
 
 import type { DynamicFormField } from '@/business-apps/ser/types/flowTemplate'
 import type { Version, Comment, FileLock, PublishStatus, PublishMetadata } from '../../shared/types/versioning'
+import type { EntityDataSource } from './entityDataSource'
+import type { SpreadsheetAutomation, WorkflowRowLink, WorkflowStatusColumnConfig } from './automation'
 
 // Re-export shared types for convenience
 export type { Version, Comment, FileLock, PublishStatus, PublishMetadata }
@@ -313,17 +315,17 @@ export interface SpreadsheetSheet {
    * Optional entity data source configuration.
    * When configured, the sheet loads data from a NEWWORK entity instead of static data.
    */
-  entityDataSource?: import('./entityDataSource').EntityDataSource
+  entityDataSource?: EntityDataSource
   /**
    * Process automations configured for this sheet.
    * Enables row-level workflows, bulk collection, and approval flows.
    */
-  automations?: import('./automation').SpreadsheetAutomation[]
+  automations?: SpreadsheetAutomation[]
   /**
    * Links between rows and their associated workflow instances.
    * Tracks workflow status for each row that has an active or completed workflow.
    */
-  workflowLinks?: import('./automation').WorkflowRowLink[]
+  workflowLinks?: WorkflowRowLink[]
 }
 
 /**
@@ -354,7 +356,7 @@ export interface SpreadsheetColumn {
    * Configuration for workflow_status column type.
    * Defines how the linked workflow status is displayed and interacted with.
    */
-  workflowStatusConfig?: import('./automation').WorkflowStatusColumnConfig
+  workflowStatusConfig?: WorkflowStatusColumnConfig
 }
 
 export interface SelectOption {
