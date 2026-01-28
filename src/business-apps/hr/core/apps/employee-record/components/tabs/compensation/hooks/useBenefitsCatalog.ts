@@ -106,7 +106,11 @@ export const useBenefitsCatalog = (
         // Find ALL employee benefits for this benefit type (there can be multiple due to history)
         const matchingBenefits = employeeBenefits.filter(eb => eb.benefitTypeRef === catalogEntry.id)
 
-        // Prioritize active benefits, then sort by creation date (most recent first)
+        // Check if there's a pending request for this benefit type
+        // Only count PENDING_COMPENSATION status (cancelled requests are naturally excluded)
+        const isPending = matchingBenefits.some(benefit => benefit.status === 'PENDING_COMPENSATION')
+
+        // Prioritize active benefits, then scheduled, then pending, then sort by creation date (most recent first)
         const sortedBenefits = [...matchingBenefits].sort((a, b) => {
           // Active benefits come first
           const aActive = isBenefitActive(a)
@@ -114,24 +118,54 @@ export const useBenefitsCatalog = (
           if (aActive && !bActive) return -1
           if (!aActive && bActive) return 1
 
-          // If both have same active status, sort by creation date (newest first)
+          // Scheduled benefits come next
+          const aScheduled = isBenefitScheduledForStart(a)
+          const bScheduled = isBenefitScheduledForStart(b)
+          if (aScheduled && !bScheduled) return -1
+          if (!aScheduled && bScheduled) return 1
+
+          // Pending benefits come next
+          const aPending = a.status === 'PENDING_COMPENSATION'
+          const bPending = b.status === 'PENDING_COMPENSATION'
+          if (aPending && !bPending) return -1
+          if (!aPending && bPending) return 1
+
+          // If both have same status, sort by creation date (newest first)
           const aDate = new Date(a.createdAt || 0).getTime()
           const bDate = new Date(b.createdAt || 0).getTime()
           return bDate - aDate
         })
 
-        // Use the first one from sorted list (most recent active, or most recent if none active)
+        // Use the first one from sorted list (most recent active, scheduled, pending, or historical)
         const employeeBenefit = sortedBenefits[0]
 
+        // Check if this specific employee benefit instance is pending or cancelled
+        // Note: This is different from the aggregated isPending which checks if ANY benefit of this type is pending
+        const isEmployeeBenefitPending = employeeBenefit?.status === 'PENDING_COMPENSATION'
+        const isEmployeeBenefitCancelled = employeeBenefit?.status === 'CANCELLED_COMPENSATION'
+
         // Check if benefit is active (includes date validation)
-        const isActive = employeeBenefit ? isBenefitActive(employeeBenefit) : false
+        // CRITICAL DISTINCTION:
+        // - Pending ACTIVATION (benefitStatus != ACTIVE_BENEFIT): Should NOT be active - needs approval first
+        // - Pending DEACTIVATION (benefitStatus = ACTIVE_BENEFIT + status = PENDING_COMPENSATION): SHOULD be active until deactivation is approved
+        const isPendingActivation = isEmployeeBenefitPending && employeeBenefit?.benefitStatus !== BenefitStatus.ACTIVE
+
+        const isActive =
+          employeeBenefit && !isPendingActivation && !isEmployeeBenefitCancelled
+            ? isBenefitActive(employeeBenefit)
+            : false
 
         // Check if benefit is scheduled to start in the future (approved but not started yet)
-        const isScheduled = employeeBenefit ? isBenefitScheduledForStart(employeeBenefit) : false
+        // CRITICAL: Pending activation and cancelled benefits should never be classified as scheduled - they need approval first
+        // But pending deactivation benefits can still be scheduled if they have a future start date
+        const isScheduled =
+          employeeBenefit && !isPendingActivation && !isEmployeeBenefitCancelled
+            ? isBenefitScheduledForStart(employeeBenefit)
+            : false
 
         // Determine action capabilities
-        // CRITICAL FIX: Cannot request if benefit is active OR scheduled
-        const canRequest = !isActive && !isScheduled
+        // CRITICAL: Cannot request if benefit is active, scheduled, OR pending
+        const canRequest = !isActive && !isScheduled && !isPending
         const canDeactivate = isActive // Can deactivate if currently active
 
         // Store catalog entry with translations for runtime translation
@@ -165,7 +199,7 @@ export const useBenefitsCatalog = (
           // Action capabilities
           canRequest,
           canDeactivate,
-          isPending: false // Note: Pending status will be available when approval workflows are implemented
+          isPending // Detects if there's a pending request for this benefit type
         }
 
         return catalogItem

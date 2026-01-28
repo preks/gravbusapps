@@ -9,7 +9,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentOpportunity } from '@/common/data/investment/hooks/useInvestmentOpportunity'
 import {
   OpportunityLayout,
-  opportunitySchema
+  opportunitySchemaBase,
+  addPipelineStageRefinement
 } from '@/common/components/common-relations/form-layouts/opportunity-layout'
 import {
   InvestmentProspectLayout,
@@ -61,13 +62,14 @@ import {
 const prefixDataTestId = 'InvestmentOpportunityForm'
 
 // Base investment opportunity schema (will be extended with investmentTypeId)
-const baseInvestmentOpportunitySchema = opportunitySchema.extend({
+const baseInvestmentOpportunitySchema = opportunitySchemaBase.extend({
   investmentName: z.string().min(1, 'Investment Name is required'),
   dealType: z.string().nullable().optional()
 })
 
-// Create investment opportunity schema with investmentTypeId
-export const investmentOpportunitySchema = createInvestmentOpportunitySchema(baseInvestmentOpportunitySchema)
+// Create investment opportunity schema with investmentTypeId and add pipeline/stage refinement
+const investmentOpportunitySchemaWithType = createInvestmentOpportunitySchema(baseInvestmentOpportunitySchema)
+export const investmentOpportunitySchema = addPipelineStageRefinement(investmentOpportunitySchemaWithType)
 
 // Deal types for Investment Opportunities (matching backend enum values)
 const DEAL_TYPES = [
