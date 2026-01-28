@@ -64,14 +64,20 @@ export const ContextMenuActionHandler: React.FC<ContextMenuActionHandlerProps> =
       const firstAction = combinedData[0]
       if (firstAction?.onClick) {
         hasExecutedRef.current = true
-        firstAction.onClick()
-        // Reset after a short delay to allow the process to start
-        setTimeout(() => {
+        try {
+          firstAction.onClick()
+          // Reset after a short delay to allow the process to start
+          setTimeout(() => {
+            onComplete()
+          }, 100)
+        } catch {
           onComplete()
-        }, 100)
+        }
+      } else {
+        onComplete()
       }
     }
-  }, [combinedData, onComplete])
+  }, [combinedData, onComplete, absenceTypeId, flowType, startDate, endDate, employeeId])
 
   return null
 }

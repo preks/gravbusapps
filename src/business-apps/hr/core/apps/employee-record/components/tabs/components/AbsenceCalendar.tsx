@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import dayjs from 'dayjs'
 import isBetween from 'dayjs/plugin/isBetween'
 import { Button, useTranslation } from '@newwork/nw-design-system'
@@ -17,6 +17,7 @@ import translations from './_i18n'
 import { calculateContextMenuPosition } from './utils/contextMenuPositioning'
 import { hasHolidayInRange, isHoliday } from './utils/holidayUtils'
 import { AVAILABLE_ABSENCE_TYPES } from './constants/absenceTypes'
+import { startProcess } from '@/common/utils/start-process'
 
 // Import dayjs locale
 import 'dayjs/locale/ro'
@@ -119,12 +120,23 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 })
   const [contextMenuDate, setContextMenuDate] = useState<dayjs.Dayjs | null>(null)
+  const contextMenuRef = useRef<HTMLDivElement | null>(null)
 
   // Close context menu when clicking anywhere (left click)
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
       // Close menu on any left click (button 0 is left mouse button)
-      if (contextMenuOpen && event.button === 0) {
+      if (!contextMenuOpen || event.button !== 0) {
+        return
+      }
+
+      const target = event.target as Node | null
+      // Don't close if clicking inside the context menu (otherwise the click never reaches menu items)
+      if (target && contextMenuRef.current?.contains(target)) {
+        return
+      }
+
+      if (contextMenuOpen) {
         setContextMenuOpen(false)
       }
     }
@@ -238,7 +250,31 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
     const startDateFormatted = startDate.format('YYYY-MM-DD')
     const endDateFormatted = endDate.format('YYYY-MM-DD')
 
-    if (onAbsenceTypeSelect) {
+    // Start the absence request process directly (reliable, immediate)
+    // This avoids relying on FlowRegistry/AppAction resolution which can result in no-op.
+    const absenceTypeToProcessName: Record<string, string> = {
+      'AbsenceType:v1:A001': 'createEmployeeVacation',
+      'AbsenceType:v1:A021': 'createEmployeeSickLeave',
+      'AbsenceType:v1:A050': 'createEmployeeSpecialLeave',
+      'AbsenceType:v1:A170': 'createEmployeeWorkLeave'
+    }
+
+    const processName = absenceTypeToProcessName[absenceTypeId]
+    if (processName) {
+      startProcess({
+        domain: 'employee-time',
+        processName,
+        payload: {
+          employeeId: employee.id,
+          startDate: startDateFormatted,
+          endDate: endDateFormatted,
+          absenceType: absenceTypeId,
+          flowType
+        },
+        builderType: 'NATIVE_SCREEN'
+      })
+    } else if (onAbsenceTypeSelect) {
+      // Fallback to legacy flow handling if we don't recognize the absence type
       onAbsenceTypeSelect(absenceTypeId, startDateFormatted, endDateFormatted, flowType)
     }
 
@@ -265,13 +301,13 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
     <div className="gba:calendar-content">
       {contextMenuOpen && (
         <div
+          ref={contextMenuRef}
           className="gba:fixed gba:bg-popover gba:border gba:border-border gba:rounded-md gba:shadow-lg gba:z-[10000] gba:w-[180px] gba:py-1"
           style={{
             left: `${contextMenuPosition.x}px`,
             top: `${contextMenuPosition.y}px`
           }}
           data-testid="absence-context-menu"
-          onMouseDown={e => e.stopPropagation()}
         >
           {AVAILABLE_ABSENCE_TYPES.map(absenceType => (
             <div
