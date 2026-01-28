@@ -3,6 +3,9 @@
  *
  * Connects to the document-service backend API for note management.
  * Handles CRUD operations, sharing, and tree structure management.
+ *
+ * Backend: https://newwork-dev.newwork.com/document/api/v1 (dev)
+ *          http://localhost:3002/api/v1 (local, if VITE_DOCUMENT_SERVICE_URL is set)
  */
 
 import type {
@@ -27,9 +30,44 @@ import type {
   LockFileInput,
   PublishInput
 } from '../../shared/types/versioning'
-import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { env } from '@/common/env/EnvUtils'
 
-const API_URL = getDocumentServiceApiUrl()
+// Get the API URL from environment or default to dev environment
+const getApiUrl = (): string => {
+  // Check for explicit environment variable first (Vite env var)
+  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DOCUMENT_SERVICE_URL) {
+    return import.meta.env.VITE_DOCUMENT_SERVICE_URL
+  }
+
+  // If platform is running on localhost, connect to DEV environment
+  // This handles the case where UI is loaded from CDN but platform is running locally
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1'
+    if (isLocalHost) {
+      return 'https://newwork-dev.newwork.com/document/api/v1'
+    }
+  }
+
+  // Try to get base URL from environment and construct document-service URL
+  const baseUrl = env('NEXT_PUBLIC_BASE_URL')
+  if (baseUrl) {
+    const trimmed = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+    return `${trimmed}/document/api/v1`
+  }
+
+  // Default to dev environment
+  return 'https://newwork-dev.newwork.com/document/api/v1'
+}
+
+// Lazy-loaded API URL to avoid module load issues on iPad/Safari
+let cachedApiUrl: string | null = null
+const getOrInitApiUrl = (): string => {
+  if (!cachedApiUrl) {
+    cachedApiUrl = getApiUrl()
+  }
+  return cachedApiUrl
+}
 
 const isNoteAppsDebugEnabled = (): boolean => {
   try {
@@ -85,26 +123,53 @@ const getAuthToken = (): string | null => {
 // API request helper
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getAuthToken()
+  const apiUrl = getOrInitApiUrl()
+
+  // Log auth state for debugging on iPad
+  console.log('[NoteApiService] Making request:', {
+    endpoint,
+    apiUrl,
+    hasToken: !!token,
+    tokenLength: token?.length || 0
+  })
+
+  if (!token) {
+    console.error('[NoteApiService] No auth token available - check if logged in')
+    throw new Error('Not authenticated - please refresh the page')
+  }
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    Authorization: `Bearer ${token}`,
     ...options.headers
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers
-  })
+  try {
+    const response = await fetch(`${apiUrl}${endpoint}`, {
+      ...options,
+      headers,
+      // Explicitly set CORS mode
+      mode: 'cors',
+      credentials: 'same-origin'
+    })
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: response.statusText }))
-    throw new Error(error.message || `API Error: ${response.status}`)
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: response.statusText }))
+      console.error('[NoteApiService] API Error:', response.status, error)
+      throw new Error(error.message || `API Error: ${response.status}`)
+    }
+
+    // Handle empty responses
+    const text = await response.text()
+    return text ? JSON.parse(text) : null
+  } catch (fetchError) {
+    // Provide more helpful error for CORS/network issues
+    console.error('[NoteApiService] Fetch failed:', fetchError)
+    if (fetchError instanceof TypeError && fetchError.message === 'Load failed') {
+      throw new Error('Network error - check if you have internet access or try refreshing')
+    }
+    throw fetchError
   }
-
-  // Handle empty responses
-  const text = await response.text()
-  return text ? JSON.parse(text) : null
 }
 
 // Map API note to frontend Note type
@@ -156,6 +221,10 @@ function mapApiNoteToSummary(apiNote: Record<string, unknown>): NoteSummary {
         .slice(0, 150)
     : undefined
 
+  // Extract note type from contentJson for handwriting detection
+  const contentJson = apiNote.contentJson as Record<string, unknown> | undefined
+  const noteType = (apiNote.noteType as string | undefined) || (contentJson?._noteType as string | undefined) || 'text'
+
   return {
     id: apiNote.id as string,
     title: apiNote.title as string | undefined,
@@ -174,7 +243,9 @@ function mapApiNoteToSummary(apiNote: Record<string, unknown>): NoteSummary {
     childCount: Array.isArray(apiNote.children) ? (apiNote.children as unknown[]).length : 0,
     isShared: apiNote.isShared as boolean | undefined,
     sharedBy: apiNote.sharedBy as string | undefined,
-    permission
+    permission,
+    contentJson,
+    noteType
   }
 }
 
@@ -901,36 +972,11 @@ export const NoteApiService = {
 
   async updateComment(commentId: string, updates: Partial<Comment>): Promise<Comment | null> {
     try {
-      const response = await apiRequest<Record<string, unknown>>(`/comments/${commentId}`, {
+      await apiRequest<Record<string, unknown>>(`/comments/${commentId}`, {
         method: 'PATCH',
         body: JSON.stringify({ content: updates.content })
       })
-
-      const entityId = (response.entityId as string | undefined) || (response.noteId as string | undefined)
-      const type = response.type as Comment['type'] | undefined
-      const content = response.content as string | undefined
-      const createdBy = response.createdBy as string | undefined
-      const createdAt = response.createdAt as string | undefined
-
-      if (!entityId || !type || content === undefined || !createdBy || !createdAt) {
-        return null
-      }
-
-      return {
-        id: (response.id as string | undefined) || commentId,
-        entityId,
-        entityType: 'note',
-        type,
-        content,
-        createdBy,
-        createdByName: response.createdByName as string | undefined,
-        createdByAvatar: response.createdByAvatar as string | undefined,
-        createdAt,
-        updatedAt: response.updatedAt as string | undefined,
-        resolvedAt: response.resolvedAt as string | undefined,
-        resolvedBy: response.resolvedBy as string | undefined,
-        parentId: response.parentId as string | undefined
-      }
+      return null
     } catch (error) {
       console.error('Failed to update comment:', error)
       return null
@@ -959,36 +1005,11 @@ export const NoteApiService = {
 
   async replyToComment(commentId: string, reply: string): Promise<Comment | null> {
     try {
-      const response = await apiRequest<Record<string, unknown>>(`/comments/${commentId}/reply`, {
+      await apiRequest<Record<string, unknown>>(`/comments/${commentId}/reply`, {
         method: 'POST',
         body: JSON.stringify({ content: reply })
       })
-
-      const entityId = (response.entityId as string | undefined) || (response.noteId as string | undefined)
-      const type = response.type as Comment['type'] | undefined
-      const content = response.content as string | undefined
-      const createdBy = response.createdBy as string | undefined
-      const createdAt = response.createdAt as string | undefined
-
-      if (!entityId || !type || content === undefined || !createdBy || !createdAt) {
-        return null
-      }
-
-      return {
-        id: response.id as string,
-        entityId,
-        entityType: 'note',
-        type,
-        content,
-        createdBy,
-        createdByName: response.createdByName as string | undefined,
-        createdByAvatar: response.createdByAvatar as string | undefined,
-        createdAt,
-        updatedAt: response.updatedAt as string | undefined,
-        resolvedAt: response.resolvedAt as string | undefined,
-        resolvedBy: response.resolvedBy as string | undefined,
-        parentId: (response.parentId as string | undefined) || commentId
-      }
+      return null
     } catch (error) {
       console.error('Failed to reply to comment:', error)
       return null

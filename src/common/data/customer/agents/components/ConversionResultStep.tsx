@@ -85,8 +85,8 @@ export const ConversionResultStep: React.FC<ConversionResultStepProps> = ({
                     <div>
                       <h3 className="gba:text-2xl gba:font-semibold gba:text-success gba:mb-2">Import Successful!</h3>
                       <p className="gba:text-base gba:text-foreground">
-                        Successfully imported <strong>{importResult.successCount}</strong> {entityLabel}
-                        {importResult.successCount === 1 ? '' : 's'} to CRM
+                        Successfully imported <strong>{importResult.successCount}</strong>{' '}
+                        {importResult.successCount === 1 ? entityLabelSingular.toLowerCase() : entityLabel} to CRM
                       </p>
                     </div>
                     <div className="gba:flex gba:gap-3 gba:w-full gba:max-w-md gba:mt-2">
