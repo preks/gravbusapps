@@ -299,3 +299,58 @@ notification-address-updated-success = Address updates sent to be approved by th
 notification-bank-account-updated-success = Bank account updates sent to be approved by the HR department.
 notification-personal-data-updated-success = Personal data updates sent to be approved by the HR department.
 notification-communication-updated-success = Communication details updates sent to be approved by the HR department.
+
+# Employee Record - Errors and states
+employee-record-error-title = Error
+employee-record-error-loading-data = Error loading employee data.
+employee-record-not-found-title = Not Found
+employee-record-not-found-message = Employee not found.
+employee-record-not-assigned = Not assigned
+employee-record-edit-picture = Edit Picture
+
+# Employee Record - Chat / communication
+employee-record-chat-button = Chat
+employee-record-chat-tooltip = Chat
+employee-record-chat-cannot-self = Cannot chat with yourself
+employee-record-audio-call-button = Audio Call
+employee-record-audio-tooltip = Audio call
+employee-record-audio-cannot-self = Cannot call yourself
+employee-record-video-call-button = Video Call
+employee-record-video-tooltip = Video call
+employee-record-video-cannot-self = Cannot video call yourself
+
+# Employee Record - Tab labels
+employee-record-tab-summary = Summary
+employee-record-tab-hr-admin = HR Admin
+employee-record-tab-hr-growth = HR Growth
+employee-record-tab-compensation = Compensation
+employee-record-tab-time-tracking = Time Tracking
+employee-record-tab-absences = Absences
+employee-record-tab-assets = Assets
+employee-record-tab-service-requests = Service Requests
+
+# Profile Header - Detail labels
+profile-header-work-email = Work Email
+profile-header-work-phone = Work Phone
+profile-header-organization = Organization
+profile-header-location = Location
+profile-header-manager = Manager
+profile-header-no-manager = No manager
+profile-header-job-position = Job Position
+profile-header-cost-center = Cost Center
+profile-header-hire-date = Hire Date
+profile-header-fixed-term-until = Fixed Term until
+profile-header-na = N/A
+
+# Profile Header - Time units (tenure)
+profile-header-year = year
+profile-header-years = years
+profile-header-month = month
+profile-header-months = months
+
+# Profile Header - Sections
+profile-header-teams = Teams
+profile-header-capabilities = Capabilities
+profile-header-skills = Skills
+profile-header-no-capabilities = No capabilities assigned
+profile-header-no-skills = No skills assigned
