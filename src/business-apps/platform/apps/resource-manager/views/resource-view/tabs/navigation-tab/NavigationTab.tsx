@@ -64,8 +64,8 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
 
   // Get initial view from URL or default to 'items'
   const getInitialView = useCallback(() => {
-    if (typeof window === 'undefined') return 'items'
-    const urlParams = new URLSearchParams(window.location.search)
+    if (typeof globalThis.window === 'undefined') return 'items'
+    const urlParams = new URLSearchParams(globalThis.window.location.search)
     const viewFromUrl = urlParams.get('subview')
 
     if (viewFromUrl === 'menu' || viewFromUrl === 'items') {
@@ -383,7 +383,11 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
   // Handle delete navigation
   const handleDelete = useCallback(
     async (navigation: NavigationWithMenuItems) => {
-      if (!window.confirm(`Are you sure you want to delete navigation "${navigation.name || navigation.code}"?`)) {
+      if (
+        !globalThis.window.confirm(
+          `Are you sure you want to delete navigation "${navigation.name || navigation.code}"?`
+        )
+      ) {
         return
       }
 

@@ -6,7 +6,7 @@ import * as PhosphorIcons from '@phosphor-icons/react'
  * - Legacy format: "pi_<IconName>" (e.g., "pi_PiUsers", "pi_PiAppWindow")
  */
 
-export const DEFAULT_ICON_NAME = 'AppWindow'
+export const DEFAULT_ICON_NAME = 'AppWindowIcon'
 export const EMPTY_ICON_VALUE = '' // Represents "no icon assigned"
 
 /**
@@ -85,7 +85,7 @@ export const getIconFromDBValue = (iconValue: string | undefined | null): React.
 
   if (!IconComponent) {
     console.warn(`Icon "${iconName}" not found in Phosphor Icons, using ${DEFAULT_ICON_NAME} fallback`)
-    return PhosphorIcons.AppWindow
+    return PhosphorIcons.AppWindowIcon
   }
 
   return IconComponent

@@ -43,6 +43,44 @@ export const useContexts = (context: BusinessAppContextProps, params?: GetContex
     }
   }, [params?.searchItem])
 
+  // Helper function to process assignments into contexts map
+  const processAssignments = useCallback((assignmentsData: ActionAssignmentDTO[]): Map<string, ContextWithActions> => {
+    const contextActionsMap = new Map<string, ContextWithActions>()
+
+    assignmentsData.forEach((assignment: ActionAssignmentDTO) => {
+      if (!assignment.context?.id) return
+
+      const contextId = assignment.context.id
+
+      if (!contextActionsMap.has(contextId)) {
+        contextActionsMap.set(contextId, {
+          context: assignment.context,
+          actions: []
+        })
+      }
+
+      if (assignment.assignments && Array.isArray(assignment.assignments)) {
+        assignment.assignments.forEach(entry => {
+          if (entry.flowItem) {
+            contextActionsMap.get(contextId)!.actions.push({
+              action: entry.flowItem,
+              permission: entry.permission,
+              rank: entry.rank,
+              translation: entry.translation
+            })
+          }
+        })
+      }
+    })
+
+    return contextActionsMap
+  }, [])
+
+  // Helper function to check if error is 401
+  const is401Error = useCallback((err: any): boolean => {
+    return err?.response?.status === 401 || err?.status === 401 || (err?.message && err.message.includes('401'))
+  }, [])
+
   const fetchContexts = useCallback(
     async (append = false) => {
       // Prevent concurrent requests
@@ -65,7 +103,10 @@ export const useContexts = (context: BusinessAppContextProps, params?: GetContex
       setError(null)
 
       try {
-        const { ...restParams } = paramsRef.current || {}
+        const currentParams = paramsRef.current || {}
+        const restParams = { ...currentParams }
+        delete restParams.offset
+        delete restParams.limit
         const assignmentsPage = await resourceClient.action.getActionAssignments({
           ...restParams,
           returnTotalRecords: true,
@@ -75,36 +116,8 @@ export const useContexts = (context: BusinessAppContextProps, params?: GetContex
 
         has401Error.current = false
 
-        const contextActionsMap = new Map<string, ContextWithActions>()
-
-        if (assignmentsPage?.data && Array.isArray(assignmentsPage.data)) {
-          assignmentsPage.data.forEach((assignment: ActionAssignmentDTO) => {
-            if (assignment.context?.id) {
-              const contextId = assignment.context.id
-
-              if (!contextActionsMap.has(contextId)) {
-                contextActionsMap.set(contextId, {
-                  context: assignment.context,
-                  actions: []
-                })
-              }
-
-              if (assignment.assignments && Array.isArray(assignment.assignments)) {
-                assignment.assignments.forEach(entry => {
-                  if (entry.flowItem) {
-                    contextActionsMap.get(contextId)!.actions.push({
-                      action: entry.flowItem,
-                      permission: entry.permission,
-                      rank: entry.rank,
-                      translation: entry.translation
-                    })
-                  }
-                })
-              }
-            }
-          })
-        }
-
+        const assignmentsData = assignmentsPage?.data && Array.isArray(assignmentsPage.data) ? assignmentsPage.data : []
+        const contextActionsMap = processAssignments(assignmentsData)
         const contextsWithActions: ContextWithActions[] = Array.from(contextActionsMap.values())
 
         // Update offset IMMEDIATELY before setState to prevent race conditions with IntersectionObserver
@@ -120,7 +133,7 @@ export const useContexts = (context: BusinessAppContextProps, params?: GetContex
         setTotalCount(total)
         hasLoadedRef.current = true
       } catch (err: any) {
-        if (err?.response?.status === 401 || err?.status === 401 || (err?.message && err.message.includes('401'))) {
+        if (is401Error(err)) {
           has401Error.current = true
         }
 
@@ -137,7 +150,7 @@ export const useContexts = (context: BusinessAppContextProps, params?: GetContex
         isFetchingRef.current = false
       }
     },
-    [context.accessToken, resourceClient]
+    [context.accessToken, resourceClient, processAssignments, is401Error]
   )
 
   const refetch = useCallback(async () => {

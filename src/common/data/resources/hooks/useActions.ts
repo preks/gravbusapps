@@ -64,7 +64,9 @@ export const useActions = (context: BusinessAppContextProps, params?: GetActions
       setError(null)
 
       try {
-        const { ...restParams } = paramsRef.current || {}
+        const currentParams = paramsRef.current || {}
+        const restParams = { ...currentParams }
+        delete restParams.offset
         const actionParams: GetActionsParams = {
           ...restParams,
           returnTotalRecords: true,
@@ -94,7 +96,7 @@ export const useActions = (context: BusinessAppContextProps, params?: GetActions
         setTotalCount(total)
         hasLoadedRef.current = true
       } catch (err: any) {
-        if (err?.response?.status === 401 || err?.status === 401 || (err?.message && err.message.includes('401'))) {
+        if (err?.response?.status === 401 || err?.status === 401 || err?.message?.includes('401')) {
           has401Error.current = true
         }
 

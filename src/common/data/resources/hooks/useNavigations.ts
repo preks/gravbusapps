@@ -66,11 +66,14 @@ export const useNavigations = (
       setError(null)
 
       try {
-        const { ...restParams } = paramsRef.current || {}
+        const currentParams = paramsRef.current || {}
+        const restParams = { ...currentParams }
+        delete restParams.offset
+        delete restParams.limit
         const fetchParams = {
           ...restParams,
           offset: append ? currentOffsetRef.current : 0,
-          limit: paramsRef.current?.limit || 20
+          limit: currentParams.limit || 20
         }
 
         const result = await resourceClient.navigation.getNavigations(fetchParams)
@@ -88,7 +91,7 @@ export const useNavigations = (
         setTotalCount(result.totalCount)
       } catch (err: any) {
         // Check if it's a 401 error
-        if (err?.response?.status === 401 || err?.status === 401 || (err?.message && err.message.includes('401'))) {
+        if (err?.response?.status === 401 || err?.status === 401 || err?.message?.includes('401')) {
           has401Error.current = true
         }
 

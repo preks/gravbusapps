@@ -9,8 +9,10 @@ import type {
   GetActionAssignmentsParams
 } from '@/common/data/resources/types/assignment.types'
 
+type QueryParams = Record<string, string | number | boolean>
+
 export class ActionClient {
-  constructor(private resourceClient: ResourceClient) {}
+  constructor(private readonly resourceClient: ResourceClient) {}
 
   private get baseUrl(): string {
     const flowRegistryBaseUrl = env('NEXT_PUBLIC_FLOW_REGISTRY_SERVICE_API') ?? ''
@@ -122,7 +124,7 @@ export class ActionClient {
       '/contexts',
       {
         ...options,
-        params: params as Record<string, string | number | boolean>,
+        params: params as QueryParams,
         withCredentials: false
       },
       this.baseUrl

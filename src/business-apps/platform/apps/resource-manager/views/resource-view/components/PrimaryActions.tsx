@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { Plus } from '@phosphor-icons/react'
+import { PlusIcon } from '@phosphor-icons/react'
 import { RefreshCw, Save, X } from 'lucide-react'
 
 interface NavigationItemsActionsProps {
@@ -24,7 +24,7 @@ export const NavigationItemsActions: React.FC<NavigationItemsActionsProps> = ({
       disabled={urlResourcesLoading}
       data-testid={`${dataTestId}-create-navigation-button`}
     >
-      <Plus className="gba:h-4 gba:w-4 gba:mr-1" />
+      <PlusIcon className="gba:h-4 gba:w-4 gba:mr-1" />
       Create
     </Button>
     <Button variant="outline" size="sm" onClick={() => navigationRefetch?.()} disabled={urlResourcesLoading}>
@@ -93,7 +93,7 @@ export const ActionItemsActions: React.FC<ActionItemsActionsProps> = ({
       disabled={actionLoading}
       data-testid={`${dataTestId}-create-action-button`}
     >
-      <Plus className="gba:h-4 gba:w-4 gba:mr-1" />
+      <PlusIcon className="gba:h-4 gba:w-4 gba:mr-1" />
       Create
     </Button>
     <Button variant="outline" size="sm" onClick={() => actionRefetch?.()} disabled={actionLoading}>
@@ -123,7 +123,7 @@ export const ContextActions: React.FC<ContextActionsProps> = ({
       disabled={contextLoading}
       data-testid={`${dataTestId}-create-context-button`}
     >
-      <Plus className="gba:h-4 gba:w-4 gba:mr-1" />
+      <PlusIcon className="gba:h-4 gba:w-4 gba:mr-1" />
       Create
     </Button>
     <Button variant="outline" size="sm" onClick={() => contextRefetch?.()} disabled={contextLoading}>

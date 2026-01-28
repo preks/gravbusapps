@@ -178,7 +178,11 @@ export const NavigationDialog: React.FC<NavigationDialogProps> = ({
             disabled={!isFormValid || isSubmitting}
             data-testid={`${dataTestId}-submit-button`}
           >
-            {isSubmitting ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
+            {(() => {
+              if (isSubmitting) return 'Saving...'
+              if (mode === 'create') return 'Create'
+              return 'Update'
+            })()}
           </Button>
         </DialogFooter>
       </DialogContent>

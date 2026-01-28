@@ -66,8 +66,8 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
 
   // Get initial view from URL or default to 'items'
   const getInitialView = useCallback(() => {
-    if (typeof window === 'undefined') return 'items'
-    const urlParams = new URLSearchParams(window.location.search)
+    if (typeof globalThis.window === 'undefined') return 'items'
+    const urlParams = new URLSearchParams(globalThis.window.location.search)
     const viewFromUrl = urlParams.get('subview')
 
     // Default to 'items' if no view is specified or if invalid view
@@ -114,7 +114,11 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
     hasMore: hasMoreActions
   } = useActions(context, {
     flowName: actionsSearchValue.trim() || undefined,
-    sort: sorting.length > 0 ? `${sorting[0].desc ? '-' : '+'}${sorting[0].id}` : undefined,
+    sort: (() => {
+      if (sorting.length === 0) return undefined
+      const sortPrefix = sorting[0].desc ? '-' : '+'
+      return `${sortPrefix}${sorting[0].id}`
+    })(),
     limit: actionsPagination.pageSize,
     offset: actionsPagination.pageIndex * actionsPagination.pageSize,
     returnTotalRecords: true
@@ -130,7 +134,11 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
     hasMore: hasMoreContexts
   } = useContexts(context, {
     searchItem: contextsSearchValue.trim() || undefined,
-    sort: sorting.length > 0 ? `${sorting[0].desc ? '-' : '+'}${sorting[0].id}` : undefined,
+    sort: (() => {
+      if (sorting.length === 0) return undefined
+      const sortPrefix = sorting[0].desc ? '-' : '+'
+      return `${sortPrefix}${sorting[0].id}`
+    })(),
     limit: contextsPagination.pageSize,
     offset: contextsPagination.pageIndex * contextsPagination.pageSize,
     returnTotalRecords: true
@@ -279,8 +287,8 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
     // Use totalCount from hooks (null = not loaded yet)
     // Only use actual count if data has been loaded, otherwise use 0 (DataDisplay will show loading via isLoading)
     const newCounts = {
-      items: actionsTotalCount !== null ? actionsTotalCount : 0, // Use 0 if not loaded yet (isLoading will show spinner)
-      contexts: contextsTotalCount !== null ? contextsTotalCount : 0 // Use 0 if not loaded yet (isLoading will show spinner)
+      items: actionsTotalCount ?? 0, // Use 0 if not loaded yet (isLoading will show spinner)
+      contexts: contextsTotalCount ?? 0 // Use 0 if not loaded yet (isLoading will show spinner)
     }
     const newLoading = {
       items: isActionsInitialLoading || actionsTotalCount === null, // Show loading if initial loading OR not loaded yet
@@ -345,7 +353,7 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
   // Handle delete action
   const handleDelete = useCallback(
     async (action: ActionWithContexts) => {
-      if (!window.confirm(`Are you sure you want to delete action "${action.action.flowName}"?`)) {
+      if (!globalThis.window.confirm(`Are you sure you want to delete action "${action.action.flowName}"?`)) {
         return
       }
 
@@ -388,7 +396,9 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
   // Handle delete context
   const handleDeleteContext = useCallback(
     async (contextToDelete: any) => {
-      if (!window.confirm(`Are you sure you want to delete context "${contextToDelete.context.contextName}"?`)) {
+      if (
+        !globalThis.window.confirm(`Are you sure you want to delete context "${contextToDelete.context.contextName}"?`)
+      ) {
         return
       }
 

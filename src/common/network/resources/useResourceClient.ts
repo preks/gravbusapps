@@ -22,13 +22,13 @@ export const useResourceClient = (accessToken?: string) => {
       }
     }
 
-    window.addEventListener(
+    globalThis.window.addEventListener(
       'com.newwork.token.shouldRefreshAuthorizationHeader',
       handleShouldRefreshAuthorizationHeader
     )
 
     return () => {
-      window.removeEventListener(
+      globalThis.window.removeEventListener(
         'com.newwork.token.shouldRefreshAuthorizationHeader',
         handleShouldRefreshAuthorizationHeader
       )

@@ -36,11 +36,19 @@ export const EditableSelectCell: React.FC<EditableSelectCellProps> = ({
   // Match EditableCell exactly: h-6 (24px) + p-1 (4px padding) = same total height
   const commonSelectClassName = `gba:w-full gba:[&&]:h-6 gba:text-xs gba:p-1 gba:bg-transparent gba:focus:bg-white ${getBorderClass()} gba:leading-tight`
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.stopPropagation()
+    }
+  }
+
   return (
     <div
       className="gba:w-full"
+      role="presentation"
       onClick={e => e.stopPropagation()}
       onMouseDown={e => e.stopPropagation()}
+      onKeyDown={handleKeyDown}
       aria-invalid={hasError ? 'true' : undefined}
     >
       <Select value={value || ''} onValueChange={onChange} disabled={disabled}>

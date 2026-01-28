@@ -250,11 +250,15 @@ export const AddActionDialog: React.FC<AddActionDialogProps> = ({
             </div>
           ) : availableActions.length === 0 ? (
             <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
-              {existingActionIds.length > 0
-                ? 'All available actions are already assigned to this context.'
-                : searchValue
-                  ? 'No actions found matching your search.'
-                  : 'No actions available.'}
+              {(() => {
+                if (existingActionIds.length > 0) {
+                  return 'All available actions are already assigned to this context.'
+                }
+                if (searchValue) {
+                  return 'No actions found matching your search.'
+                }
+                return 'No actions available.'
+              })()}
             </div>
           ) : (
             <div className="gba:flex-1 gba:min-h-0 gba:flex gba:flex-col">

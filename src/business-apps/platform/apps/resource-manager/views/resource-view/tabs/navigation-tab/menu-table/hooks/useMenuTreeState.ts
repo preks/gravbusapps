@@ -67,7 +67,8 @@ export function useMenuTreeState(props: UseMenuTreeStateProps): UseMenuTreeState
         // Process each space type
         for (const type of ['USE', 'CREATE', 'MANAGE', 'OTHER']) {
           const hubs = hubsByType[type] || []
-          const sortedHubs = hubs.sort((a, b) => (a.rank || 0) - (b.rank || 0))
+          const sortedHubs = [...hubs]
+          sortedHubs.sort((a, b) => (a.rank || 0) - (b.rank || 0))
 
           sortedHubs.forEach(hub => {
             enrichedHubs.push({
@@ -97,6 +98,33 @@ export function useMenuTreeState(props: UseMenuTreeStateProps): UseMenuTreeState
     []
   )
 
+  // Helper function to insert drafts into menu items
+  const insertDrafts = useCallback((items: MenuItemDTO[], drafts: MenuItemDTO[]): MenuItemDTO[] => {
+    return items.map(item => {
+      const cloned = { ...item }
+
+      if (cloned.children && cloned.children.length > 0) {
+        cloned.children = insertDrafts(cloned.children, drafts)
+      } else {
+        cloned.children = []
+      }
+
+      const itemDrafts = drafts.filter(draft => {
+        if (item.level === 0) {
+          return draft.hubId === item.id && draft.level === 1
+        } else {
+          return draft.parentId === item.id
+        }
+      })
+
+      if (itemDrafts.length > 0) {
+        cloned.children = [...cloned.children, ...itemDrafts]
+      }
+
+      return cloned
+    })
+  }, [])
+
   // Track previous values to detect what changed
   const prevMenuItemsPropRef = useRef<MenuItemDTO[]>([])
   const prevDraftMenuItemsRef = useRef<MenuItemDTO[]>([])
@@ -120,33 +148,7 @@ export function useMenuTreeState(props: UseMenuTreeStateProps): UseMenuTreeState
     prevMenuItemsPropRef.current = menuItemsProp
     prevDraftMenuItemsRef.current = draftMenuItems
 
-    const insertDrafts = (items: MenuItemDTO[]): MenuItemDTO[] => {
-      return items.map(item => {
-        const cloned = { ...item }
-
-        if (cloned.children && cloned.children.length > 0) {
-          cloned.children = insertDrafts(cloned.children)
-        } else {
-          cloned.children = []
-        }
-
-        const itemDrafts = draftMenuItems.filter(draft => {
-          if (item.level === 0) {
-            return draft.hubId === item.id && draft.level === 1
-          } else {
-            return draft.parentId === item.id
-          }
-        })
-
-        if (itemDrafts.length > 0) {
-          cloned.children = [...cloned.children, ...itemDrafts]
-        }
-
-        return cloned
-      })
-    }
-
-    const menuItemsWithDrafts = insertDrafts(menuItemsProp)
+    const menuItemsWithDrafts = insertDrafts(menuItemsProp, draftMenuItems)
     const draftHubs = draftMenuItems.filter(draft => draft.level === 0)
     const allItemsWithDrafts = [...menuItemsWithDrafts, ...draftHubs]
     const enriched = enrichTree(allItemsWithDrafts, 'space')
@@ -175,7 +177,7 @@ export function useMenuTreeState(props: UseMenuTreeStateProps): UseMenuTreeState
       // Nothing relevant changed (shouldn't reach here due to early return above)
       return prev
     })
-  }, [menuItemsProp, draftMenuItems, enrichTree, isDragging])
+  }, [menuItemsProp, draftMenuItems, enrichTree, isDragging, insertDrafts])
 
   // Flatten tree recursively for finding items by ID
   const flattenTree = useCallback((items: EnrichedMenuItem[]): EnrichedMenuItem[] => {

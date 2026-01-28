@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@newwork/nw-design-system'
-import { Check, X, Plus, DotsThree } from '@phosphor-icons/react'
+import { CheckIcon, XIcon, PlusIcon, DotsThreeIcon } from '@phosphor-icons/react'
 import type { ExpandedState, Row } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCreateComponent } from '@/common/data/resources/hooks/useCreateComponent'
@@ -113,7 +113,7 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
     async (component: Component) => {
       if (!component.id) return
 
-      const confirmed = window.confirm(`Are you sure you want to delete "${component.name}"?`)
+      const confirmed = globalThis.window.confirm(`Are you sure you want to delete "${component.name}"?`)
       if (!confirmed) return
 
       try {
@@ -176,7 +176,7 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
   const renderExpandedRow = (row: Row<ComponentResource>) => {
     const component = row.original
     const prodVersions = component.azureVersions?.prod?.versions || []
-    const sortedVersions = [...prodVersions].sort((a, b) => parseInt(b) - parseInt(a))
+    const sortedVersions = [...prodVersions].sort((a, b) => Number.parseInt(b) - Number.parseInt(a))
 
     return (
       <div className="gba:p-4 gba:bg-muted/20 gba:space-y-3">
@@ -297,9 +297,9 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
             return (
               <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
                 {hasUnversioned ? (
-                  <Check className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
+                  <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
                 ) : (
-                  <X className="gba:w-4 gba:h-4 gba:text-destructive" weight="bold" />
+                  <XIcon className="gba:w-4 gba:h-4 gba:text-destructive" weight="bold" />
                 )}
               </div>
             )
@@ -313,7 +313,7 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
           enableResizing: false,
           cell: ({ row }: { row: { original: ComponentResource } }) => {
             const prodVersions = row.original.azureVersions.prod?.versions || []
-            const sortedVersions = [...prodVersions].sort((a, b) => parseInt(b) - parseInt(a))
+            const sortedVersions = [...prodVersions].sort((a, b) => Number.parseInt(b) - Number.parseInt(a))
             const latestVersion = sortedVersions[0]
             const remainingVersionsCount = sortedVersions.length - 1
 
@@ -321,7 +321,7 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
             if (!latestVersion) {
               return (
                 <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
-                  <X className="gba:w-4 gba:h-4 gba:text-destructive" weight="bold" />
+                  <XIcon className="gba:w-4 gba:h-4 gba:text-destructive" weight="bold" />
                 </div>
               )
             }
@@ -397,7 +397,7 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm">
-            <DotsThree className="gba:h-4 gba:w-4" weight="bold" />
+            <DotsThreeIcon className="gba:h-4 gba:w-4" weight="bold" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
@@ -435,7 +435,7 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
         primaryAction={
           <div className="gba:flex gba:gap-2">
             <Button variant="default" size="sm" onClick={handleCreate}>
-              <Plus className="gba:h-4 gba:w-4" />
+              <PlusIcon className="gba:h-4 gba:w-4" />
               Create Component
             </Button>
           </div>

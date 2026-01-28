@@ -24,7 +24,7 @@ export const urlPathToScreenKey = (urlPath: string): string => {
  * @example screenKeyToUrlPath("url_apps~my-app") → "apps/my-app"
  */
 export const screenKeyToUrlPath = (screenKey: string): string => {
-  if (!screenKey || !screenKey.startsWith('url_')) return ''
+  if (!screenKey?.startsWith('url_')) return ''
   const segments = screenKey.substring(4).split('~')
   return segments.join('/')
 }
@@ -54,13 +54,17 @@ export const generateComponentPath = (module: string, type: string, screenKey: s
   // Determine folder based on type
   const isForm = type.includes('form')
   const isPopup = type.includes('popup')
-  const folder = isForm ? 'forms' : isPopup ? 'popups' : 'apps'
+  const folder = (() => {
+    if (isForm) return 'forms'
+    if (isPopup) return 'popups'
+    return 'apps'
+  })()
 
   // Extract last segment from screen key for path name
   let pathName = screenKey
   if (screenKey.startsWith('url_')) {
     const urlPath = screenKeyToUrlPath(screenKey)
-    const segments = urlPath.split('/').filter(s => s)
+    const segments = urlPath.split('/').filter(Boolean)
     pathName = segments[segments.length - 1] || screenKey
   } else if (screenKey.startsWith('frm_')) {
     pathName = screenKey.substring(4)
@@ -82,8 +86,9 @@ export const kebabToNormal = (str: string): string => {
 export const normalToKebab = (str: string): string => {
   return str
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
+    .replaceAll(/[^a-z0-9]+/g, '-')
+    .replaceAll(/^-+/, '')
+    .replaceAll(/-+$/, '')
 }
 
 /**

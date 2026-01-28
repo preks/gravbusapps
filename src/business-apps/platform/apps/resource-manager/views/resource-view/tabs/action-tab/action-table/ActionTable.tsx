@@ -4,10 +4,9 @@ import { ChevronUp, ChevronDown } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useUpdateAction } from '@/common/data/resources/hooks/useUpdateAction'
 import { useCreateAction } from '@/common/data/resources/hooks/useCreateAction'
-import type { ActionWithContexts } from '@/common/data/resources/types/action.types'
+import type { ActionWithContexts, ActionDTO } from '@/common/data/resources/types/action.types'
 import { DescriptionDialog } from '../../../../../components/DescriptionDialog'
 import { useEditableState } from '../../../../../hooks/useEditableState'
-import type { ActionDTO } from '@/common/data/resources/types/action.types'
 import { useComponents } from '@/common/data/resources/hooks/useComponents'
 import { useResourceData } from '../../../../../contexts/ResourceManagerContext'
 import { ActionTableRow } from './components/ActionTableRow'
@@ -158,14 +157,18 @@ export const ActionTable: React.FC<ActionTableProps> = ({
     }
   }, [onAddActionRef, handleAddAction])
 
-  // Save handler for inline editing
-  const handleSaveEntry = useCallback(
-    async (actionId: string) => {
-      const edits = editableState.state.editedEntries.get(actionId)
-      if (!edits || Object.keys(edits).length === 0) return
+  // Helper: Clear validation errors for an action
+  const clearValidationErrors = useCallback((actionId: string) => {
+    setValidationErrors(prev => {
+      const newMap = new Map(prev)
+      newMap.delete(actionId)
+      return newMap
+    })
+  }, [])
 
-      // Validate roles, features, and builderType
-      // Use getFieldValue to get current values (from edits or original action)
+  // Helper: Validate action fields
+  const validateActionFields = useCallback(
+    (actionId: string): { roles?: boolean; features?: boolean; builderType?: boolean } | null => {
       const roles = editableState.getFieldValue(actionId, 'roles') as string[] | undefined
       const features = editableState.getFieldValue(actionId, 'features') as string[] | undefined
       const builderType = editableState.getFieldValue(actionId, 'builderType') as string | undefined
@@ -182,118 +185,136 @@ export const ActionTable: React.FC<ActionTableProps> = ({
       }
 
       if (Object.keys(errors).length > 0) {
-        setValidationErrors(prev => new Map(prev).set(actionId, errors))
+        return errors
+      }
+      return null
+    },
+    [editableState]
+  )
+
+  // Helper: Transform role/feature IDs to names
+  const transformIdsToNames = useCallback((ids: string[], options: Array<{ id: string; name: string }>): string[] => {
+    return ids.map(id => {
+      const option = options.find(opt => opt.id === id)
+      return option?.name ?? id
+    })
+  }, [])
+
+  // Helper: Create new action
+  const createNewAction = useCallback(
+    async (actionId: string, edits: Partial<ActionDTO>) => {
+      const transformedEdits: any = { ...edits }
+      if (edits.roles !== undefined && Array.isArray(edits.roles)) {
+        transformedEdits.roles = transformIdsToNames(edits.roles, roleOptions)
+      }
+      if (edits.features !== undefined && Array.isArray(edits.features)) {
+        transformedEdits.features = transformIdsToNames(edits.features, featureOptions)
+      }
+
+      if (transformedEdits.builderType === undefined) {
+        const originalAction = allActions.find(a => a.action.id === actionId)
+        if (originalAction?.action.builderType) {
+          transformedEdits.builderType = originalAction.action.builderType
+        }
+      }
+
+      const result = await createAction(transformedEdits)
+      if (result) {
+        setDraftActions(prev => prev.filter(d => d.action.id !== actionId))
+        editableState.setState(prev => {
+          const newEdited = new Map(prev.editedEntries)
+          newEdited.delete(actionId)
+          const newDrafts = new Set(prev.draftEntryIds)
+          newDrafts.delete(actionId)
+          return { ...prev, editedEntries: newEdited, draftEntryIds: newDrafts }
+        })
+        clearValidationErrors(actionId)
+        await refetchActions()
+      }
+    },
+    [
+      createAction,
+      refetchActions,
+      setDraftActions,
+      editableState,
+      allActions,
+      roleOptions,
+      featureOptions,
+      transformIdsToNames,
+      clearValidationErrors
+    ]
+  )
+
+  // Helper: Update existing action
+  const updateExistingAction = useCallback(
+    async (actionId: string, edits: Partial<ActionDTO>) => {
+      const originalAction = allActions.find(a => a.action.id === actionId)
+      if (!originalAction) {
         editableState.setSaving(actionId, false)
         return
       }
 
-      // Clear validation errors if validation passes
-      setValidationErrors(prev => {
-        const newMap = new Map(prev)
-        newMap.delete(actionId)
-        return newMap
+      const fullActionData: Partial<ActionDTO> = { ...originalAction.action }
+      Object.keys(edits).forEach(key => {
+        const field = key as keyof ActionDTO
+        const editedValue = edits[field]
+        if (editedValue !== undefined) {
+          fullActionData[field] = editedValue as any
+        }
       })
 
+      if (fullActionData.roles !== undefined && Array.isArray(fullActionData.roles)) {
+        fullActionData.roles = transformIdsToNames(fullActionData.roles, roleOptions)
+      }
+      if (fullActionData.features !== undefined && Array.isArray(fullActionData.features)) {
+        fullActionData.features = transformIdsToNames(fullActionData.features, featureOptions)
+      }
+
+      fullActionData.id = originalAction.action.id
+      if (originalAction.action.version !== undefined) {
+        fullActionData.version = originalAction.action.version
+      }
+
+      const result = await updateAction(actionId, fullActionData)
+      if (result) {
+        editableState.onDiscardEntry(actionId)
+        clearValidationErrors(actionId)
+        await refetchActions()
+      }
+    },
+    [
+      updateAction,
+      refetchActions,
+      editableState,
+      allActions,
+      roleOptions,
+      featureOptions,
+      transformIdsToNames,
+      clearValidationErrors
+    ]
+  )
+
+  // Save handler for inline editing
+  const handleSaveEntry = useCallback(
+    async (actionId: string) => {
+      const edits = editableState.state.editedEntries.get(actionId)
+      if (!edits || Object.keys(edits).length === 0) return
+
+      const validationErrors = validateActionFields(actionId)
+      if (validationErrors) {
+        setValidationErrors(prev => new Map(prev).set(actionId, validationErrors))
+        editableState.setSaving(actionId, false)
+        return
+      }
+
+      clearValidationErrors(actionId)
       editableState.setSaving(actionId, true)
       try {
         const isDraft = editableState.isDraft(actionId)
-
         if (isDraft) {
-          // Create new action: Transform edits and map role/feature IDs to names
-          const transformedEdits: any = { ...edits }
-          if (edits.roles !== undefined && Array.isArray(edits.roles)) {
-            transformedEdits.roles = edits.roles.map((roleId: string) => {
-              const role = roleOptions.find(r => r.id === roleId)
-              return role?.name || roleId
-            })
-          }
-          if (edits.features !== undefined && Array.isArray(edits.features)) {
-            transformedEdits.features = edits.features.map((featureId: string) => {
-              const feature = featureOptions.find(f => f.id === featureId)
-              return feature?.name || featureId
-            })
-          }
-
-          // Ensure builderType is in payload (from edits or original action)
-          if (transformedEdits.builderType === undefined) {
-            const originalAction = allActions.find(a => a.action.id === actionId)
-            if (originalAction?.action.builderType) {
-              transformedEdits.builderType = originalAction.action.builderType
-            }
-          }
-
-          const result = await createAction(transformedEdits)
-          if (result) {
-            // Remove draft from local state
-            setDraftActions(prev => prev.filter(d => d.action.id !== actionId))
-            editableState.setState(prev => {
-              const newEdited = new Map(prev.editedEntries)
-              newEdited.delete(actionId)
-              const newDrafts = new Set(prev.draftEntryIds)
-              newDrafts.delete(actionId)
-              return { ...prev, editedEntries: newEdited, draftEntryIds: newDrafts }
-            })
-            // Clear validation errors on successful save
-            setValidationErrors(prev => {
-              const newMap = new Map(prev)
-              newMap.delete(actionId)
-              return newMap
-            })
-            await refetchActions()
-          }
+          await createNewAction(actionId, edits)
         } else {
-          // Update existing action: Merge all fields from original action with edits
-          const originalAction = allActions.find(a => a.action.id === actionId)
-          if (!originalAction) {
-            editableState.setSaving(actionId, false)
-            return
-          }
-
-          // Start with all fields from original action
-          const fullActionData: Partial<ActionDTO> = { ...originalAction.action }
-
-          // Apply edits on top
-          Object.keys(edits).forEach(key => {
-            const field = key as keyof ActionDTO
-            const editedValue = edits[field]
-            if (editedValue !== undefined) {
-              fullActionData[field] = editedValue as any
-            }
-          })
-
-          // Transform roles: Map IDs to names
-          if (fullActionData.roles !== undefined && Array.isArray(fullActionData.roles)) {
-            fullActionData.roles = fullActionData.roles.map((roleId: string) => {
-              const role = roleOptions.find(r => r.id === roleId)
-              return role?.name || roleId
-            })
-          }
-
-          // Transform features: Map IDs to names
-          if (fullActionData.features !== undefined && Array.isArray(fullActionData.features)) {
-            fullActionData.features = fullActionData.features.map((featureId: string) => {
-              const feature = featureOptions.find(f => f.id === featureId)
-              return feature?.name || featureId
-            })
-          }
-
-          // Ensure id and version are included
-          fullActionData.id = originalAction.action.id
-          if (originalAction.action.version !== undefined) {
-            fullActionData.version = originalAction.action.version
-          }
-
-          const result = await updateAction(actionId, fullActionData)
-          if (result) {
-            editableState.onDiscardEntry(actionId)
-            // Clear validation errors on successful save
-            setValidationErrors(prev => {
-              const newMap = new Map(prev)
-              newMap.delete(actionId)
-              return newMap
-            })
-            await refetchActions()
-          }
+          await updateExistingAction(actionId, edits)
         }
       } catch {
         // Error handled
@@ -301,16 +322,7 @@ export const ActionTable: React.FC<ActionTableProps> = ({
         editableState.setSaving(actionId, false)
       }
     },
-    [
-      editableState,
-      updateAction,
-      createAction,
-      refetchActions,
-      setDraftActions,
-      roleOptions,
-      featureOptions,
-      allActions
-    ]
+    [editableState, validateActionFields, clearValidationErrors, createNewAction, updateExistingAction]
   )
 
   // Handle discard entry

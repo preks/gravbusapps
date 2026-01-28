@@ -81,9 +81,7 @@ export function buildTree(flattenedItems: FlattenedMenuItem[]): EnrichedMenuItem
 
     if (parent) {
       nodes[id] = { ...item, children }
-      if (!parent.children) {
-        parent.children = []
-      }
+      parent.children ??= []
       parent.children.push(item)
     }
   }
@@ -135,9 +133,7 @@ export function getProjection(
   let minDepth = 0
   if (nextItem) {
     // If we're moving UP (projectedDepth < activeItem.depth), ignore deeper siblings
-    if (projectedDepth < activeItem.depth && nextItem.depth > projectedDepth) {
-      minDepth = 0 // Don't let deeper siblings block the move up
-    } else {
+    if (!(projectedDepth < activeItem.depth && nextItem.depth > projectedDepth)) {
       minDepth = nextItem.depth
     }
   }
@@ -201,10 +197,19 @@ export function removeChildrenOf(items: FlattenedMenuItem[], ids: string[]): Fla
 
   return items.filter(item => {
     // Use visualParentId if available (from DND), otherwise derive from backend structure
-    const itemParentId =
-      item.visualParentId !== undefined
-        ? item.visualParentId
-        : item.parentId || (item.hubId && item.level === 1 ? item.hubId : null)
+    const getItemParentId = () => {
+      if (item.visualParentId !== undefined) {
+        return item.visualParentId
+      }
+      if (item.parentId) {
+        return item.parentId
+      }
+      if (item.hubId && item.level === 1) {
+        return item.hubId
+      }
+      return null
+    }
+    const itemParentId = getItemParentId()
 
     if (itemParentId && excludeParentIds.includes(itemParentId)) {
       if (item.children?.length) {

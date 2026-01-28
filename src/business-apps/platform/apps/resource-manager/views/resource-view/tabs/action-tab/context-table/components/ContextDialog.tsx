@@ -27,7 +27,6 @@ interface ContextDialogProps extends BusinessAppContextProps {
   onOpenChange: (open: boolean) => void
   onSubmit: (contextData: Omit<ContextDTO, 'id'>, actionIds: string[]) => Promise<void>
   actions: ActionDTO[]
-  mode: 'create'
   'data-testid'?: string
 }
 

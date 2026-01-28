@@ -148,12 +148,7 @@ export function useMenuTreeDnd(props: UseMenuTreeDndProps): UseMenuTreeDndReturn
           // Start new timeout to expand item after 800ms hover
           expandTimeoutRef.current = setTimeout(() => {
             const overItem = flattenedItems.find(item => item.id === over.id)
-            if (
-              overItem &&
-              overItem.children &&
-              overItem.children.length > 0 &&
-              !expandedItems.has(over.id as string)
-            ) {
+            if (overItem?.children && overItem.children.length > 0 && !expandedItems.has(over.id as string)) {
               setExpandedItems(prev => {
                 const newSet = new Set(prev)
                 newSet.add(over.id as string)
@@ -221,7 +216,7 @@ export function useMenuTreeDnd(props: UseMenuTreeDndProps): UseMenuTreeDndReturn
       }
 
       // Clone flattened items from source tree (to preserve loadedRank)
-      const clonedItems = JSON.parse(JSON.stringify(flattenTree(targetTree)))
+      const clonedItems = structuredClone(flattenTree(targetTree))
       const overIndex = clonedItems.findIndex((item: any) => item.id === over.id)
       const activeIndex = clonedItems.findIndex((item: any) => item.id === active.id)
 

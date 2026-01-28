@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Button, Input, Badge, Combobox } from '@newwork/nw-design-system'
-import { CaretDown, CaretRight, Plus, DotsSixVertical } from '@phosphor-icons/react'
+import { CaretDownIcon, CaretRightIcon, PlusIcon, DotsSixVerticalIcon } from '@phosphor-icons/react'
 import { Trash } from 'lucide-react'
 import type { MenuItemDTO } from '@/common/data/resources/types/menuItem.types'
 import { TranslatableField } from '@/components/translatable-field/TranslatableField'
@@ -110,7 +110,7 @@ export const MenuItemRow: React.FC<MenuItemRowProps> = ({
           className="gba:cursor-grab active:gba:cursor-grabbing gba:flex-shrink-0 gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors"
           title="Drag to reorder"
         >
-          <DotsSixVertical className="gba:h-5 gba:w-5" />
+          <DotsSixVerticalIcon className="gba:h-5 gba:w-5" />
         </button>
       ) : (
         <div className="gba:w-5 gba:flex-shrink-0" />
@@ -126,14 +126,18 @@ export const MenuItemRow: React.FC<MenuItemRowProps> = ({
           }}
           className="gba:h-6 gba:w-6 gba:flex-shrink-0"
         >
-          {isExpanded ? <CaretDown className="gba:h-4 gba:w-4" /> : <CaretRight className="gba:h-4 gba:w-4" />}
+          {isExpanded ? <CaretDownIcon className="gba:h-4 gba:w-4" /> : <CaretRightIcon className="gba:h-4 gba:w-4" />}
         </Button>
       ) : (
         <div className="gba:w-6 gba:flex-shrink-0" />
       )}
 
       <Badge variant={getTypeBadgeColor(entityType)} className="gba:text-xs gba:flex-shrink-0">
-        {entityType === 'SPACE' ? 'S' : entityType === 'HUB' ? 'H' : 'M'}
+        {(() => {
+          if (entityType === 'SPACE') return 'S'
+          if (entityType === 'HUB') return 'H'
+          return 'M'
+        })()}
       </Badge>
 
       <div className="gba:flex-shrink-0" title={getIconDBTitle(displayIconDB)}>
@@ -214,7 +218,7 @@ export const MenuItemRow: React.FC<MenuItemRowProps> = ({
           title="Add child item"
           disabled={isPendingDelete}
         >
-          <Plus className="gba:h-4 gba:w-4" />
+          <PlusIcon className="gba:h-4 gba:w-4" />
         </Button>
       )}
 

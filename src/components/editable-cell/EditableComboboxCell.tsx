@@ -97,7 +97,7 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
       // Add selected values that are not yet in options
       const selectedValues = Array.isArray(normalizedValue) ? normalizedValue : []
       selectedValues.forEach(val => {
-        if (val && !opts.find(opt => opt.value === val)) {
+        if (val && !opts.some(opt => opt.value === val)) {
           opts.push({
             value: val,
             label: val
@@ -107,7 +107,7 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
     } else {
       // If value exists but is not in options, add it
       const singleValue = typeof normalizedValue === 'string' ? normalizedValue : ''
-      if (singleValue && singleValue.trim() && !opts.find(opt => opt.value === singleValue)) {
+      if (singleValue?.trim() && !opts.some(opt => opt.value === singleValue)) {
         opts.push({
           value: singleValue,
           label: singleValue
@@ -137,10 +137,17 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
     [onChange]
   )
 
+  // Get ring class for multiple mode
+  const getMultipleRingClass = () => {
+    if (hasError) return 'gba:ring-1 gba:ring-destructive'
+    if (isEdited) return 'gba:ring-1 gba:ring-blue-500'
+    return ''
+  }
+
   // In multiple mode, remove border/background from the Button wrapper
   // The className is applied to the Button element (see Combobox.tsx line 428-432)
   const commonComboboxClassName = multiple
-    ? `gba:w-full gba:h-6 gba:text-xs gba:p-1 gba:bg-transparent gba:focus:bg-transparent gba:border-0 gba:shadow-none gba:hover:bg-transparent ${hasError ? 'gba:ring-1 gba:ring-destructive' : isEdited ? 'gba:ring-1 gba:ring-blue-500' : ''}`
+    ? `gba:w-full gba:h-6 gba:text-xs gba:p-1 gba:bg-transparent gba:focus:bg-transparent gba:border-0 gba:shadow-none gba:hover:bg-transparent ${getMultipleRingClass()}`
     : `gba:w-full gba:h-6 gba:text-xs gba:p-1 gba:bg-transparent gba:focus:bg-white ${getBorderClass()}`
 
   const comboboxProps = multiple
@@ -180,12 +187,20 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
         align: 'start' as const
       }
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.stopPropagation()
+    }
+  }
+
   return (
     <div
       ref={wrapperRef}
+      role="presentation"
       className={multiple ? 'gba:min-w-[200px]' : 'gba:min-w-[100px]'}
       onClick={e => e.stopPropagation()}
       onMouseDown={e => e.stopPropagation()}
+      onKeyDown={handleKeyDown}
       aria-invalid={hasError ? 'true' : undefined}
     >
       <Combobox {...comboboxProps} />

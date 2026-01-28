@@ -15,7 +15,7 @@ export function useEditableRow<T extends { id: string }>(entry: T, editableState
   const getFieldValue = useMemo(
     () => (field: keyof T) => {
       const editedValue = edits?.[field]
-      return editedValue !== undefined ? editedValue : entry[field]
+      return editedValue ?? entry[field]
     },
     [edits, entry]
   )
@@ -38,7 +38,8 @@ export function useEditableRow<T extends { id: string }>(entry: T, editableState
         return rawValue.map(item => {
           if (typeof item === 'string') return item
           if (typeof item === 'object' && item !== null) {
-            return (item as any)?.id || (item as any)?.name || String(item)
+            const itemObj = item as { id?: string; name?: string }
+            return itemObj?.id ?? itemObj?.name ?? String(item)
           }
           return String(item)
         })

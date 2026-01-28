@@ -213,7 +213,7 @@ export const ActionDialog: React.FC<ActionDialogProps> = ({
               id="rank"
               type="number"
               value={formData.rank?.toString() || ''}
-              onChange={e => handleChange('rank', e.target.value ? parseInt(e.target.value, 10) : undefined)}
+              onChange={e => handleChange('rank', e.target.value ? Number.parseInt(e.target.value, 10) : undefined)}
               placeholder="Enter rank (optional)"
               data-testid={`${dataTestId}-rank-input`}
             />
@@ -229,7 +229,11 @@ export const ActionDialog: React.FC<ActionDialogProps> = ({
             disabled={!isFormValid || isSubmitting}
             data-testid={`${dataTestId}-submit-button`}
           >
-            {isSubmitting ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
+            {(() => {
+              if (isSubmitting) return 'Saving...'
+              if (mode === 'create') return 'Create'
+              return 'Update'
+            })()}
           </Button>
         </DialogFooter>
       </DialogContent>

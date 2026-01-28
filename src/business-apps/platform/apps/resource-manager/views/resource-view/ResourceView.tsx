@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { DataDisplay } from '@newwork/nw-design-system'
-import { Link, TreeStructure, Lightning, Folder } from '@phosphor-icons/react'
+import { LinkIcon, TreeStructureIcon, LightningIcon, FolderIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { NavigationTab } from './tabs/navigation-tab/NavigationTab'
 import { ActionTab } from './tabs/action-tab/ActionTab'
@@ -26,8 +26,8 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
 }) => {
   // Get initial tab from URL or default to first tab
   const getInitialTab = useCallback((): TabKey => {
-    if (typeof window === 'undefined') return 'navigations'
-    const urlParams = new URLSearchParams(window.location.search)
+    if (typeof globalThis.window === 'undefined') return 'navigations'
+    const urlParams = new URLSearchParams(globalThis.window.location.search)
     const tabFromUrl = urlParams.get('tab')
 
     // Validate that the tab exists in our valid tabs
@@ -41,8 +41,8 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
 
   // Get initial navigation subview from URL or default
   const getInitialNavSubview = useCallback((): NavSubView => {
-    if (typeof window === 'undefined') return 'items'
-    const urlParams = new URLSearchParams(window.location.search)
+    if (typeof globalThis.window === 'undefined') return 'items'
+    const urlParams = new URLSearchParams(globalThis.window.location.search)
     const subviewFromUrl = urlParams.get('subview')
 
     if (subviewFromUrl && VALID_NAV_SUBVIEWS.includes(subviewFromUrl as NavSubView)) {
@@ -54,8 +54,8 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
 
   // Get initial action subview from URL or default
   const getInitialActionSubview = useCallback((): ActionSubView => {
-    if (typeof window === 'undefined') return 'items'
-    const urlParams = new URLSearchParams(window.location.search)
+    if (typeof globalThis.window === 'undefined') return 'items'
+    const urlParams = new URLSearchParams(globalThis.window.location.search)
     const subviewFromUrl = urlParams.get('subview')
 
     if (subviewFromUrl && VALID_ACTION_SUBVIEWS.includes(subviewFromUrl as ActionSubView)) {
@@ -111,8 +111,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
   const [addAction, setAddAction] = useState<(() => void) | null>(null)
   const [addContext, setAddContext] = useState<(() => void) | null>(null)
   const [addNavigation, setAddNavigation] = useState<(() => void) | null>(null)
-  const addMenuItemState = useState<(() => void) | null>(null)
-  const setAddMenuItem = addMenuItemState[1]
+  const [, setAddMenuItem] = useState<(() => void) | null>(null)
   const [menuSaveAll, setMenuSaveAll] = useState<(() => Promise<void>) | null>(null)
   const [menuDiscardAll, setMenuDiscardAll] = useState<(() => void) | null>(null)
   const [menuHasChanges, setMenuHasChanges] = useState(false)
@@ -120,8 +119,8 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
 
   // Update URL when tab or subview changes
   const updateUrl = useCallback((tab: string, subview?: string) => {
-    if (typeof window === 'undefined') return
-    const urlParams = new URLSearchParams(window.location.search)
+    if (typeof globalThis.window === 'undefined') return
+    const urlParams = new URLSearchParams(globalThis.window.location.search)
 
     // Always set the tab parameter
     urlParams.set('tab', tab)
@@ -133,8 +132,8 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
       urlParams.delete('subview')
     }
 
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
-    window.history.replaceState({}, '', newUrl)
+    const newUrl = `${globalThis.window.location.pathname}?${urlParams.toString()}`
+    globalThis.window.history.replaceState({}, '', newUrl)
   }, [])
 
   const handleSectionChange = useCallback(
@@ -172,8 +171,8 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
 
   // Ensure URL always has tab parameter on initial load
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const urlParams = new URLSearchParams(window.location.search)
+    if (typeof globalThis.window === 'undefined') return
+    const urlParams = new URLSearchParams(globalThis.window.location.search)
     // Only set tab if we're in the resources view (view parameter should be set by parent)
     const viewParam = urlParams.get('view')
     if (viewParam === 'resources' && !urlParams.has('tab')) {
@@ -185,7 +184,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
 
   // Listen for browser back/forward navigation
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof globalThis.window === 'undefined') return
     const handlePopState = () => {
       const newTab = getInitialTab()
       setActiveSection(newTab)
@@ -199,8 +198,8 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
       }
     }
 
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    globalThis.window.addEventListener('popstate', handlePopState)
+    return () => globalThis.window.removeEventListener('popstate', handlePopState)
   }, [getInitialTab, getInitialNavSubview, getInitialActionSubview])
 
   // Get primary action based on active section and view
@@ -274,7 +273,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
       {
         value: 'items',
         label: 'URL Resources',
-        icon: Link,
+        icon: LinkIcon,
         metadata: {
           count: navigationViewCounts.items,
           isLoading: navigationViewLoading.items
@@ -283,7 +282,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
       {
         value: 'menu',
         label: 'Menu Tree',
-        icon: TreeStructure,
+        icon: TreeStructureIcon,
         metadata: {
           count: navigationViewCounts.menu,
           isLoading: navigationViewLoading.menu
@@ -298,7 +297,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
       {
         value: 'items',
         label: 'Action Items',
-        icon: Lightning,
+        icon: LightningIcon,
         metadata: {
           count: actionViewCounts.items,
           isLoading: actionViewLoading.items
@@ -307,7 +306,7 @@ export const ResourceView: React.FC<ResourceViewProps> = ({
       {
         value: 'contexts',
         label: 'Context Items',
-        icon: Folder,
+        icon: FolderIcon,
         metadata: {
           count: actionViewCounts.contexts,
           isLoading: actionViewLoading.contexts

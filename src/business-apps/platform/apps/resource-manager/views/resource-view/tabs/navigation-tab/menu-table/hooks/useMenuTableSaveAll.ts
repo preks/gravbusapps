@@ -164,15 +164,17 @@ function buildUpdatePayload(change: any, targetTree: EnrichedMenuItem[], draftId
     rank: fullItem.rank ?? 0
   }
 
+  const resourceUrlId = fullItem.resourceUrlId ?? fullItem.resourceUrl?.id ?? null
+
   // Hub-specific fields
   if (isHub) {
     payload.code = fullItem.code || ''
     payload.codeTranslated = fullItem.codeTranslated || {}
     payload.type = fullItem.type || 'USE'
-    payload.resourceUrlId = fullItem.resourceUrlId || null
+    payload.resourceUrlId = resourceUrlId
   } else {
     // Menu item specific fields
-    payload.resourceUrlId = fullItem.resourceUrlId || null
+    payload.resourceUrlId = resourceUrlId
     payload.hubId = fullItem.hubId || null
     payload.parentId = fullItem.parentId || null
   }
@@ -334,9 +336,9 @@ export function useMenuTableSaveAll(props: UseMenuTableSaveAllProps): UseMenuTab
 
   // Handle Discard All
   const handleDiscardAll = useCallback(() => {
-    if (window.confirm('Discard all unsaved changes?')) {
+    if (globalThis.window.confirm('Discard all unsaved changes?')) {
       // Revert targetTree to sourceTree
-      setTargetTree(JSON.parse(JSON.stringify(sourceTree)))
+      setTargetTree(structuredClone(sourceTree))
 
       // Clear draft items
       setDraftMenuItems([])

@@ -4,17 +4,16 @@ import { CSS } from '@dnd-kit/utilities'
 import { TreeItem } from './TreeItem'
 
 interface SortableTreeItemProps {
-  id: string
-  isDraft: boolean
-  children: React.ReactNode
-  indentationWidth: number
+  readonly id: string
+  readonly children: React.ReactNode
+  readonly indentationWidth: number
 }
 
-export function SortableTreeItem({ id, isDraft, indentationWidth, children }: SortableTreeItemProps) {
+export function SortableTreeItem({ id, indentationWidth, children }: SortableTreeItemProps) {
   const { attributes, listeners, setDraggableNodeRef, setDroppableNodeRef, transform, transition, isDragging } =
     useSortable({
       id,
-      animateLayoutChanges: ({ isSorting, wasDragging }) => (isSorting || wasDragging ? false : true)
+      animateLayoutChanges: ({ isSorting, wasDragging }) => !(isSorting || wasDragging)
     })
 
   const style: React.CSSProperties = {
@@ -26,8 +25,6 @@ export function SortableTreeItem({ id, isDraft, indentationWidth, children }: So
     <TreeItem
       ref={setDraggableNodeRef}
       wrapperRef={setDroppableNodeRef}
-      id={id}
-      isDraft={isDraft}
       ghost={isDragging}
       indentationWidth={indentationWidth}
       handleProps={{ ...attributes, ...listeners }}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Button, IconAvatar } from '@newwork/nw-design-system'
-import { Package, Link, ArrowsClockwise } from '@phosphor-icons/react'
+import { PackageIcon, LinkIcon, ArrowClockwiseIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ComponentsView, ResourceView } from './views'
 import { ResourceManagerProvider, useResourceActions, useAzureData } from './contexts/ResourceManagerContext'
@@ -37,8 +37,8 @@ const ResourceManagerContent: React.FC<ResourceManagerProps & { dataTestId: stri
 
   // Get initial view from URL or default to first view
   const getInitialView = useCallback(() => {
-    if (typeof window === 'undefined') return 'components'
-    const urlParams = new URLSearchParams(window.location.search)
+    if (typeof globalThis.window === 'undefined') return 'components'
+    const urlParams = new URLSearchParams(globalThis.window.location.search)
     const viewFromUrl = urlParams.get('view')
 
     // Validate that the view exists
@@ -53,8 +53,8 @@ const ResourceManagerContent: React.FC<ResourceManagerProps & { dataTestId: stri
 
   // Update URL when view changes
   const updateUrl = useCallback((view: string) => {
-    if (typeof window === 'undefined') return
-    const urlParams = new URLSearchParams(window.location.search)
+    if (typeof globalThis.window === 'undefined') return
+    const urlParams = new URLSearchParams(globalThis.window.location.search)
 
     urlParams.set('view', view)
 
@@ -64,8 +64,8 @@ const ResourceManagerContent: React.FC<ResourceManagerProps & { dataTestId: stri
       urlParams.delete('subview')
     }
 
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
-    window.history.replaceState({}, '', newUrl)
+    const newUrl = `${globalThis.window.location.pathname}?${urlParams.toString()}`
+    globalThis.window.history.replaceState({}, '', newUrl)
   }, [])
 
   const handleViewChange = useCallback(
@@ -79,8 +79,8 @@ const ResourceManagerContent: React.FC<ResourceManagerProps & { dataTestId: stri
 
   // Ensure URL always has view parameter on initial load
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const urlParams = new URLSearchParams(window.location.search)
+    if (typeof globalThis.window === 'undefined') return
+    const urlParams = new URLSearchParams(globalThis.window.location.search)
     if (!urlParams.has('view')) {
       updateUrl(activeView)
     }
@@ -88,14 +88,14 @@ const ResourceManagerContent: React.FC<ResourceManagerProps & { dataTestId: stri
 
   // Listen for browser back/forward navigation
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (typeof globalThis.window === 'undefined') return
     const handlePopState = () => {
       const newView = getInitialView()
       setActiveView(newView)
     }
 
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
+    globalThis.window.addEventListener('popstate', handlePopState)
+    return () => globalThis.window.removeEventListener('popstate', handlePopState)
   }, [getInitialView])
 
   // Render view content with loading state check
@@ -104,7 +104,7 @@ const ResourceManagerContent: React.FC<ResourceManagerProps & { dataTestId: stri
       return (
         <div className="gba:flex gba:items-center gba:justify-center gba:h-[calc(100vh-200px)]">
           <div className="gba:text-center">
-            <ArrowsClockwise className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-4 gba:animate-spin gba:text-primary" />
+            <ArrowClockwiseIcon className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-4 gba:animate-spin gba:text-primary" />
             <p className="gba:text-muted-foreground">Loading Azure Storage data...</p>
           </div>
         </div>
@@ -117,13 +117,13 @@ const ResourceManagerContent: React.FC<ResourceManagerProps & { dataTestId: stri
     {
       value: 'components',
       label: 'Components',
-      icon: <Package />,
+      icon: <PackageIcon />,
       content: renderComponentsView()
     },
     {
       value: 'resources',
       label: 'Resources',
-      icon: <Link />,
+      icon: <LinkIcon />,
       content: <ResourceView {...context} data-testid={`${dataTestId}-resource-view`} />
     }
   ]
@@ -131,7 +131,7 @@ const ResourceManagerContent: React.FC<ResourceManagerProps & { dataTestId: stri
   return (
     <ConfigurationLayout
       headerAvatar={
-        <IconAvatar icon={Package} variant="secondary" size="lg" decorative={false} label="Resource Manager" />
+        <IconAvatar icon={PackageIcon} variant="secondary" size="lg" decorative={false} label="Resource Manager" />
       }
       headerTitle="Resource Manager"
       headerDescription="Manage screens, components, and resources across dev, staging, and production environments"
@@ -144,7 +144,7 @@ const ResourceManagerContent: React.FC<ResourceManagerProps & { dataTestId: stri
             disabled={isLoadingServices}
             data-testid={`${dataTestId}-refresh-services-button`}
           >
-            <ArrowsClockwise className={isLoadingServices ? 'gba:animate-spin' : ''} />
+            <ArrowClockwiseIcon className={isLoadingServices ? 'gba:animate-spin' : ''} />
             Refresh Services
           </Button>
           {azureConfigured && (
@@ -155,7 +155,7 @@ const ResourceManagerContent: React.FC<ResourceManagerProps & { dataTestId: stri
               disabled={isLoadingAzure}
               data-testid={`${dataTestId}-refresh-azure-button`}
             >
-              <ArrowsClockwise className={isLoadingAzure ? 'gba:animate-spin' : ''} />
+              <ArrowClockwiseIcon className={isLoadingAzure ? 'gba:animate-spin' : ''} />
               Refresh Azure Data
             </Button>
           )}

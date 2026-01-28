@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { DragOverlay } from '@dnd-kit/core'
 import { Button, Badge } from '@newwork/nw-design-system'
-import { CaretDown, CaretRight, Plus } from '@phosphor-icons/react'
+import { CaretDownIcon, CaretRightIcon, PlusIcon } from '@phosphor-icons/react'
 import { createTreeModifier } from './utils/dndModifiers'
 import type { MenuItemDTO } from '@/common/data/resources/types/menuItem.types'
 import { parseIconName, EMPTY_ICON_VALUE } from '../../../../../utils/iconUtils'
@@ -26,7 +26,6 @@ interface MenuTableProps extends BusinessAppContextProps {
   isLoading: boolean
   dataTestId: string
   searchValue?: string
-  onSearchChange?: (value: string) => void
   onCountChange?: (count: number) => void
   currentView: string
   refetchMenuItems: () => Promise<void>
@@ -55,8 +54,7 @@ export const MenuTable: React.FC<MenuTableProps> = ({
   const [draftMenuItems, setDraftMenuItems] = useState<MenuItemDTO[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set())
-  const [internalSearchValue] = useState<string>('')
-  const searchValue = externalSearchValue ?? internalSearchValue
+  const searchValue = externalSearchValue ?? ''
 
   // Filter menu items based on search
   const filteredMenuItems = useMemo(() => {
@@ -228,13 +226,12 @@ export const MenuTable: React.FC<MenuTableProps> = ({
       const canReceiveDrop = !isHub && dnd.activeId && dnd.flattenedItems.find(i => i.id === dnd.activeId)?.level !== 0
 
       const edits = editableState.state.editedEntries.get(itemId)
-      const displayName = (edits?.name as string | undefined) ?? item.name
-      const displayIconDB = (edits?.icon as string | undefined) ?? item.icon ?? EMPTY_ICON_VALUE
-      const displayDescription = (edits?.description as string | undefined) ?? item.description ?? ''
-      const displayCode = (edits?.code as string | undefined) ?? item.code ?? ''
-      const nameTranslated = (edits?.nameTranslated as Record<string, string> | undefined) ?? item.nameTranslated ?? {}
-      const descriptionTranslated =
-        (edits?.descriptionTranslated as Record<string, string> | undefined) ?? item.descriptionTranslated ?? {}
+      const displayName = edits?.name ?? item.name
+      const displayIconDB = edits?.icon ?? item.icon ?? EMPTY_ICON_VALUE
+      const displayDescription = edits?.description ?? item.description ?? ''
+      const displayCode = edits?.code ?? item.code ?? ''
+      const nameTranslated = edits?.nameTranslated ?? item.nameTranslated ?? {}
+      const descriptionTranslated = edits?.descriptionTranslated ?? item.descriptionTranslated ?? {}
       const displayIconName = parseIconName(displayIconDB)
 
       return (
@@ -333,8 +330,16 @@ export const MenuTable: React.FC<MenuTableProps> = ({
       return (
         <div key={spaceType} className="gba:mb-4" data-testid={`${dataTestId}-space-${spaceType}`}>
           <div
+            role="button"
+            tabIndex={0}
             className="gba:flex gba:items-center gba:gap-2 gba:py-3 gba:px-4 gba:bg-muted gba:rounded-t-md gba:border-b gba:border-border gba:cursor-pointer gba:hover:bg-muted/80 gba:transition-colors"
             onClick={() => treeState.toggleSpaceExpansion(spaceType)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                treeState.toggleSpaceExpansion(spaceType)
+              }
+            }}
           >
             <Button
               variant="ghost"
@@ -345,14 +350,18 @@ export const MenuTable: React.FC<MenuTableProps> = ({
               }}
               className="gba:h-6 gba:w-6"
             >
-              {isExpanded ? <CaretDown className="gba:h-4 gba:w-4" /> : <CaretRight className="gba:h-4 gba:w-4" />}
+              {isExpanded ? (
+                <CaretDownIcon className="gba:h-4 gba:w-4" />
+              ) : (
+                <CaretRightIcon className="gba:h-4 gba:w-4" />
+              )}
             </Button>
             <Badge variant="outline" className="gba:text-xs">
               S
             </Badge>
             <span className="gba:text-lg gba:font-bold">{spaceLabel}</span>
             <span className="gba:text-sm gba:text-muted-foreground">
-              ({items.length} hub{items.length !== 1 ? 's' : ''})
+              ({items.length} hub{items.length === 1 ? '' : 's'})
             </span>
             <div className="gba:flex-1" />
             {(spaceType === 'USE' || spaceType === 'CREATE' || spaceType === 'MANAGE') && (
@@ -366,7 +375,7 @@ export const MenuTable: React.FC<MenuTableProps> = ({
                 className="gba:h-6 gba:w-6"
                 title="Add hub to this space"
               >
-                <Plus className="gba:h-4 gba:w-4" />
+                <PlusIcon className="gba:h-4 gba:w-4" />
               </Button>
             )}
           </div>
@@ -427,7 +436,6 @@ export const MenuTable: React.FC<MenuTableProps> = ({
     <DndTreeContext
       sensors={dnd.sensors}
       allSortableIds={treeState.allSortableIds}
-      activeItem={dnd.activeItem}
       onDragStart={dnd.handleDragStart}
       onDragMove={dnd.handleDragMove}
       onDragOver={dnd.handleDragOver}

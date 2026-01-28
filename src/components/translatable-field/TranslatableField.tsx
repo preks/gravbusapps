@@ -1,7 +1,7 @@
 'use client'
 
-import { cn } from '@newwork/nw-design-system'
 import {
+  cn,
   Label,
   Popover,
   PopoverContent,

@@ -13,7 +13,7 @@ import { ChevronUp, ChevronDown } from 'lucide-react'
 import { DndContext, closestCenter, DragEndEvent, useSensors, useSensor, PointerSensor } from '@dnd-kit/core'
 import { useSortable, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Trash, Plus } from '@phosphor-icons/react'
+import { TrashIcon, PlusIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { ContextWithActions, ContextDTO, ContextDataDTO } from '@/common/data/resources/types/context.types'
 import { ContextDialog } from './components/ContextDialog'
@@ -472,7 +472,7 @@ export const ContextTable: React.FC<ContextTableProps> = ({
             disabled={isSaving}
             data-testid={`${dataTestId}-remove-action-${contextId}-${actionItem.action.id}`}
           >
-            <Trash className="gba:h-4 gba:w-4" />
+            <TrashIcon className="gba:h-4 gba:w-4" />
           </Button>
         </TableCell>
       </TableRow>
@@ -624,7 +624,7 @@ export const ContextTable: React.FC<ContextTableProps> = ({
             disabled={isSaving}
             data-testid={`${dataTestId}-add-action-${contextId}`}
           >
-            <Plus className="gba:h-4 gba:w-4 gba:mr-1" />
+            <PlusIcon className="gba:h-4 gba:w-4 gba:mr-1" />
             Add Action
           </Button>
         </div>
@@ -740,7 +740,6 @@ export const ContextTable: React.FC<ContextTableProps> = ({
           onOpenChange={setContextDialogOpen}
           onSubmit={onCreateContext}
           actions={actions.map(a => a.action) || []}
-          mode="create"
           data-testid={`${dataTestId}-context-dialog`}
           {...context}
         />
@@ -772,9 +771,9 @@ export const ContextTable: React.FC<ContextTableProps> = ({
         <AddActionDialog
           open={true}
           onOpenChange={open => !open && setAddActionDialogOpen(null)}
-          onAddActions={async actionPermissions => {
+          onAddActions={actionPermissions => {
             if (addActionDialogOpen) {
-              await handleAddActions(addActionDialogOpen, actionPermissions)
+              handleAddActions(addActionDialogOpen, actionPermissions)
               setAddActionDialogOpen(null)
             }
           }}

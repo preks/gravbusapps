@@ -4,8 +4,6 @@ import styles from './TreeItem.module.css'
 export const DragHandleContext = React.createContext<any>(null)
 
 interface TreeItemProps {
-  id: string
-  isDraft: boolean
   children: React.ReactNode
   clone?: boolean
   ghost?: boolean

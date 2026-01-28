@@ -22,7 +22,6 @@ interface DebugTabProps extends BusinessAppContextProps {
   'data-testid'?: string
   onCountChange?: (count: number) => void
   isActive?: boolean
-  shouldInitialLoad?: boolean
 }
 
 export const DebugTab: React.FC<DebugTabProps> = ({

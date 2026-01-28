@@ -13,7 +13,7 @@ import {
   TableCell,
   Button
 } from '@newwork/nw-design-system'
-import { Trash, Plus } from '@phosphor-icons/react'
+import { TrashIcon, PlusIcon } from '@phosphor-icons/react'
 import type { ContextDataDTO } from '@/common/data/resources/types/context.types'
 import { EditableCell, EditableSelectCell } from '@/components/editable-cell'
 
@@ -151,7 +151,7 @@ export const ContextDataDialog: React.FC<ContextDataDialogProps> = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {localContextData && localContextData.length === 0 ? (
+              {localContextData?.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="gba:text-center gba:text-muted-foreground">
                     No context data defined
@@ -198,7 +198,7 @@ export const ContextDataDialog: React.FC<ContextDataDialogProps> = ({
                         disabled={isSaving}
                         data-testid={`${dataTestId}-contextData-delete-${contextId}-${index}`}
                       >
-                        <Trash className="gba:h-4 gba:w-4" />
+                        <TrashIcon className="gba:h-4 gba:w-4" />
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -214,7 +214,7 @@ export const ContextDataDialog: React.FC<ContextDataDialogProps> = ({
               disabled={isSaving}
               data-testid={`${dataTestId}-contextData-add-${contextId}`}
             >
-              <Plus className="gba:h-4 gba:w-4 gba:mr-1" />
+              <PlusIcon className="gba:h-4 gba:w-4 gba:mr-1" />
               Add Context Data
             </Button>
           </div>

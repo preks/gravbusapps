@@ -41,7 +41,7 @@ export class ResourceClient extends RestClient {
 
     const headers = {
       ...this.headers,
-      ...(options.headers || {})
+      ...options.headers
     }
 
     headers['Content-Type'] = 'application/json'
@@ -79,7 +79,7 @@ export class ResourceClient extends RestClient {
 
     const headers = {
       ...this.headers,
-      ...(options.headers || {})
+      ...options.headers
     }
 
     const isFormData = body instanceof FormData
@@ -116,7 +116,7 @@ export class ResourceClient extends RestClient {
 
     const headers = {
       ...this.headers,
-      ...(options.headers || {})
+      ...options.headers
     }
 
     const isFormData = body instanceof FormData
@@ -156,7 +156,7 @@ export class ResourceClient extends RestClient {
 
     const headers = {
       ...this.headers,
-      ...(options.headers || {})
+      ...options.headers
     }
 
     const response = await fetch(url.toString(), {

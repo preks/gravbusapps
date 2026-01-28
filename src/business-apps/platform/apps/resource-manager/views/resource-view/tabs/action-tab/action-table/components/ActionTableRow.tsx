@@ -78,7 +78,7 @@ const ActionTableRowComponent: React.FC<ActionTableRowProps> = ({
   const domainProcesses = selectedDomain ? getProcessesForDomain(selectedDomain) : []
   const processNameValue = getFieldValue('processName') as string | undefined
   const processes = (() => {
-    if (processNameValue && processNameValue.trim() && !domainProcesses.find(p => p.id === processNameValue)) {
+    if (processNameValue?.trim() && !domainProcesses.some(p => p.id === processNameValue)) {
       return [...domainProcesses, { id: processNameValue, name: processNameValue }]
     }
     return domainProcesses

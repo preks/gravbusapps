@@ -2,12 +2,10 @@ import React from 'react'
 import { DndContext, closestCorners } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import type { DragStartEvent, DragMoveEvent, DragOverEvent, DragEndEvent } from '@dnd-kit/core'
-import type { EnrichedMenuItem } from '../../types/menuTree.types'
 
 interface DndTreeContextProps {
   sensors: any
   allSortableIds: string[]
-  activeItem: EnrichedMenuItem | null
   onDragStart: (event: DragStartEvent) => void
   onDragMove: (event: DragMoveEvent) => void
   onDragOver: (event: DragOverEvent) => void
