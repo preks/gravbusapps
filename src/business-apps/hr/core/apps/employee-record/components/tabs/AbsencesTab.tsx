@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import '@newwork/nw-design-system/style'
 import dayjs from 'dayjs'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -25,7 +25,6 @@ import AbsenceCalendar from './components/AbsenceCalendar'
 import AbsenceList from './components/AbsenceList'
 import Entitlements from './components/Entitlements'
 import AbsenceCharts from './components/AbsenceCharts'
-import { ContextMenuActionHandler } from './components/ContextMenuActionHandler'
 import { Dialog, DialogContent } from '@newwork/nw-design-system'
 import { PiPlus } from 'react-icons/pi'
 import UpdateEmployeeEntitlements from '../../../../forms/update-employee-entitlements'
@@ -55,12 +54,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   const [hasHrBackoffice, setHasHrBackoffice] = useState<boolean>(false)
   const [isFetchingGroups, setIsFetchingGroups] = useState<boolean>(true)
   const [holidayDates, setHolidayDates] = useState<string[]>([])
-  const [contextMenuAbsenceData, setContextMenuAbsenceData] = useState<{
-    absenceTypeId: string
-    startDate: string
-    endDate: string
-    flowType: string
-  } | null>(null)
   const graphqlClient = useGraphQLClient(accessToken)
 
   const startDateFormatted = selectedStartDate?.format('YYYY-MM-DD') ?? ''
@@ -182,9 +175,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             employeeAbsenceEntitlement={employeeAbsenceEntitlement}
             employee={employee}
             accessToken={accessToken}
-            onAbsenceTypeSelect={(absenceTypeId, startDate, endDate, flowType) => {
-              setContextMenuAbsenceData({ absenceTypeId, startDate, endDate, flowType })
-            }}
           />
         </div>
       )
@@ -237,11 +227,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     }
     loadHolidays()
   }, [employee?.id, accessToken, graphqlClient, currentDate])
-
-  // Memoize the onComplete callback to prevent unnecessary re-renders
-  const handleContextMenuComplete = useCallback(() => {
-    setContextMenuAbsenceData(null)
-  }, [])
 
   return (
     <div className="gba:absences-tab gba:space-y-8">
@@ -379,19 +364,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
           />
         </DialogContent>
       </Dialog>
-
-      {/* Context menu absence action handler */}
-      {contextMenuAbsenceData && (
-        <ContextMenuActionHandler
-          employeeId={employee.id}
-          absenceTypeId={contextMenuAbsenceData.absenceTypeId}
-          flowType={contextMenuAbsenceData.flowType}
-          startDate={contextMenuAbsenceData.startDate}
-          endDate={contextMenuAbsenceData.endDate}
-          accessToken={accessToken}
-          onComplete={handleContextMenuComplete}
-        />
-      )}
     </div>
   )
 }
