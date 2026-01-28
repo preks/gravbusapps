@@ -8,7 +8,7 @@ import { PageLayout, Alert, AlertDescription } from '@newwork/nw-design-system'
 import { XCircleIcon, SparkleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useEntityImport, useEntityMappings } from '@/common/data/customer/agents/hooks'
-import { FileUploadStep, MappingReviewStep, ConversionResultStep } from './components'
+import { FileUploadStep, MappingReviewStep, ConversionResultStep } from '@/common/data/customer/agents/components'
 import { contactImportConfig } from './config/contactImportConfig'
 import { ConvertedContact } from './types'
 
