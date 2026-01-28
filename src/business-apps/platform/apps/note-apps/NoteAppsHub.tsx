@@ -713,6 +713,8 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
           _noteType?: string
           _paperStyle?: PaperStyle
           strokes?: StrokeData[]
+          _summary?: string | null
+          actionItemFlows?: any[]
         }
       | undefined
     const noteType = currentNote.noteType || contentJson?._noteType || 'text'
@@ -735,13 +737,17 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
           title={currentNote.title}
           initialStrokes={contentJson?.strokes || []}
           initialPaperStyle={contentJson?._paperStyle || 'lined'}
-          onSave={async (title, strokes, paperStyle) => {
+          initialSummary={contentJson?._summary || null}
+          initialActionItemFlows={(contentJson?.actionItemFlows as any[]) || []}
+          onPersist={async ({ title, strokes, paperStyle, summary, actionItemFlows }) => {
             await updateNote(currentNote.id, {
               title,
               contentJson: {
                 _noteType: 'handwriting',
                 _paperStyle: paperStyle,
-                strokes
+                strokes,
+                ...(summary ? { _summary: summary } : {}),
+                ...(actionItemFlows.length > 0 ? { actionItemFlows } : {})
               }
             })
           }}

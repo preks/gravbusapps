@@ -4,24 +4,48 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react'
-import { Button } from '@newwork/nw-design-system'
-import { ArrowLeft, Check, AlertCircle, X, Save } from 'lucide-react'
+import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
+import { ArrowLeft, Check, AlertCircle, X, Save, ListTodo, RefreshCw } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-import { PaperBackground, HandwritingCanvas, HandwritingToolbar, TransformMenu } from './handwriting'
+import {
+  PaperBackground,
+  HandwritingCanvas,
+  HandwritingToolbar,
+  TransformMenu,
+  SummaryPanel,
+  ActionItemsModal,
+  ActionItemsList
+} from './handwriting'
 import type { PaperStyle, StrokeData } from './handwriting'
 import type { TransformType } from './handwriting/TransformMenu'
 import { TransformService } from '../services/TransformService'
+import type { NoteActionItemFlow } from '../types'
+import { useActionItemFlowStatusSync } from '../hooks/useActionItemFlowStatusSync'
+
+export interface HandwritingNoteUserInfo {
+  id?: string
+  employeeDetails?: { employeeId?: string }
+}
 
 export interface HandwritingNoteProps extends Partial<BusinessAppContextProps> {
   noteId: string
   title: string
   initialStrokes?: StrokeData[]
   initialPaperStyle?: PaperStyle
-  onSave: (title: string, strokes: StrokeData[], paperStyle: PaperStyle) => Promise<void>
+  initialSummary?: string | null
+  initialActionItemFlows?: NoteActionItemFlow[]
+  onPersist: (params: {
+    title: string
+    strokes: StrokeData[]
+    paperStyle: PaperStyle
+    summary: string | null
+    actionItemFlows: NoteActionItemFlow[]
+  }) => Promise<void>
   onBack: () => void
   onConvertToText?: (text: string) => Promise<void>
   onCreateTextNote?: (text: string, title: string) => Promise<void>
+  userInfo?: HandwritingNoteUserInfo
   'data-testid'?: string
 }
 
@@ -34,11 +58,14 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
   title: initialTitle,
   initialStrokes = [],
   initialPaperStyle = 'lined',
-  onSave,
+  initialSummary = null,
+  initialActionItemFlows = [],
+  onPersist,
   onBack,
   onConvertToText,
   onCreateTextNote,
   accessToken = '',
+  userInfo,
   'data-testid': testId = 'handwriting-note'
 }) => {
   // State
@@ -54,11 +81,27 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
     message: string
   } | null>(null)
 
+  // Summary panel state (persisted in note)
+  const [currentSummary, setCurrentSummary] = useState<string | null>(initialSummary)
+  const summaryRef = useRef<string | null>(initialSummary)
+
+  // Action items modal state
+  const [actionItemsModalOpen, setActionItemsModalOpen] = useState(false)
+  const [currentActionItems, setCurrentActionItems] = useState<string[]>([])
+  const [actionItemFlows, setActionItemFlows] = useState<NoteActionItemFlow[]>(initialActionItemFlows)
+  const actionItemFlowsRef = useRef<NoteActionItemFlow[]>(initialActionItemFlows)
+  const [actionItemsPanelOpen, setActionItemsPanelOpen] = useState(false)
+
+  // Get current user ID
+  const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
+
   // Refs
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const strokesRef = useRef<StrokeData[]>(strokes)
   const paperStyleRef = useRef<PaperStyle>(paperStyle)
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const persistTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastPersistSignatureRef = useRef<string>('')
 
   // Keep refs in sync
   useEffect(() => {
@@ -69,28 +112,16 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
     paperStyleRef.current = paperStyle
   }, [paperStyle])
 
-  // Auto-save when strokes change
   useEffect(() => {
-    if (autoSaveTimeoutRef.current) {
-      clearTimeout(autoSaveTimeoutRef.current)
-    }
+    summaryRef.current = currentSummary
+  }, [currentSummary])
 
-    if (strokes.length > 0) {
-      autoSaveTimeoutRef.current = setTimeout(() => {
-        handleSave()
-      }, 2000) // Auto-save after 2 seconds of inactivity
-    }
-
-    return () => {
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current)
-      }
-    }
-  }, [strokes])
+  useEffect(() => {
+    actionItemFlowsRef.current = actionItemFlows
+  }, [actionItemFlows])
 
   // Show feedback temporarily
   const showFeedback = useCallback((type: 'success' | 'error', message: string) => {
-    console.log('[HandwritingNote] showFeedback:', { type, message })
     setTransformFeedback({ type, message })
     const duration = type === 'error' ? 8000 : 3000
     setTimeout(() => setTransformFeedback(null), duration)
@@ -100,19 +131,106 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
     setTransformFeedback(null)
   }, [])
 
-  // Handle save
-  const handleSave = useCallback(async () => {
-    setIsSaving(true)
-    try {
-      console.log(`[HandwritingNote] Saving ${strokesRef.current.length} strokes`)
-      await onSave(noteTitle, strokesRef.current, paperStyleRef.current)
-    } catch (error) {
-      console.error('[HandwritingNote] Save failed:', error)
-      showFeedback('error', 'Failed to save')
-    } finally {
-      setIsSaving(false)
+  const buildPersistSignature = useCallback((): string => {
+    const summarySig = summaryRef.current ? summaryRef.current.slice(0, 80) : ''
+    const flowsSig = actionItemFlowsRef.current.map(f => `${f.workflowId}:${f.status}:${f.completedAt || ''}`).join('|')
+    return [noteTitle, paperStyleRef.current, strokesRef.current.length, summarySig, flowsSig].join('::')
+  }, [noteTitle])
+
+  // Initialize persisted signature so we don't immediately re-save on open
+  useEffect(() => {
+    lastPersistSignatureRef.current = buildPersistSignature()
+  }, [buildPersistSignature])
+
+  const persistNow = useCallback(
+    async (opts?: { showBusy?: boolean }) => {
+      const signature = buildPersistSignature()
+      if (signature === lastPersistSignatureRef.current) return
+
+      const showBusy = opts?.showBusy === true
+      if (showBusy) setIsSaving(true)
+      try {
+        await onPersist({
+          title: noteTitle,
+          strokes: strokesRef.current,
+          paperStyle: paperStyleRef.current,
+          summary: summaryRef.current,
+          actionItemFlows: actionItemFlowsRef.current
+        })
+        lastPersistSignatureRef.current = signature
+      } catch (error) {
+        console.error('[HandwritingNote] Persist failed:', error)
+        showFeedback('error', 'Failed to save')
+      } finally {
+        if (showBusy) setIsSaving(false)
+      }
+    },
+    [buildPersistSignature, noteTitle, onPersist, showFeedback]
+  )
+
+  const queuePersist = useCallback(
+    (delayMs: number) => {
+      if (persistTimeoutRef.current) clearTimeout(persistTimeoutRef.current)
+      persistTimeoutRef.current = setTimeout(() => {
+        void persistNow()
+      }, delayMs)
+    },
+    [persistNow]
+  )
+
+  // Auto-save when strokes change
+  useEffect(() => {
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current)
     }
-  }, [noteTitle, onSave, showFeedback])
+
+    if (strokes.length > 0) {
+      autoSaveTimeoutRef.current = setTimeout(() => {
+        queuePersist(0)
+      }, 2000) // Auto-save after 2 seconds of inactivity
+    }
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current)
+      }
+    }
+  }, [queuePersist, strokes.length])
+
+  // Persist summary / action-item metadata updates (debounced)
+  useEffect(() => {
+    queuePersist(800)
+  }, [queuePersist, currentSummary])
+
+  useEffect(() => {
+    // Status polling updates will also flow through here
+    queuePersist(1200)
+  }, [queuePersist, actionItemFlows])
+
+  // Clean up pending persist on unmount
+  useEffect(() => {
+    return () => {
+      if (persistTimeoutRef.current) {
+        clearTimeout(persistTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const { isSyncing: isFlowStatusSyncing, syncNow: syncFlowStatuses } = useActionItemFlowStatusSync({
+    accessToken,
+    flows: actionItemFlows,
+    onFlowsUpdated: next => setActionItemFlows(next)
+  })
+
+  // Sync once when opening the note (no background polling)
+  useEffect(() => {
+    void syncFlowStatuses()
+  }, [syncFlowStatuses])
+
+  // Handle save (manual)
+  const handleSave = useCallback(async () => {
+    await persistNow({ showBusy: true })
+  }, [persistNow])
 
   // Handle title change
   const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,17 +299,15 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
           case 'copy-text':
             await navigator.clipboard.writeText(result.transformedContent)
             showFeedback('success', '✓ Copied to clipboard!')
-            alert(`✓ Copied to clipboard:\n\n${result.transformedContent}`)
             break
 
           case 'to-text':
             if (onConvertToText) {
               await onConvertToText(result.transformedContent)
               showFeedback('success', '✓ Converted to text!')
-              alert(`✓ Note converted to text:\n\n${result.transformedContent}`)
             } else {
               showFeedback('success', '✓ Text extracted!')
-              alert(`✓ Extracted text:\n\n${result.transformedContent}`)
+              await navigator.clipboard.writeText(result.transformedContent)
             }
             break
 
@@ -199,31 +315,40 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
             if (onCreateTextNote) {
               await onCreateTextNote(result.transformedContent, `${noteTitle} (Text)`)
               showFeedback('success', '✓ Text note created!')
-              alert(`✓ New text note created: "${noteTitle} (Text)"`)
             } else {
               await navigator.clipboard.writeText(result.transformedContent)
               showFeedback('success', '✓ Copied (note creation not available)')
-              alert(`✓ Text copied to clipboard:\n\n${result.transformedContent}`)
             }
             break
 
           case 'summarize':
+            // Show summary in the panel at the bottom of the note
+            setCurrentSummary(result.transformedContent)
             showFeedback('success', '✓ Summary generated!')
-            alert(`📝 Summary:\n\n${result.transformedContent}`)
             break
 
           case 'action-items':
-            showFeedback('success', '✓ Action items extracted!')
-            alert(`✅ Action Items:\n\n${result.transformedContent}`)
+            // Show action items in a modal for assignment
+            if (result.actionItems && result.actionItems.length > 0) {
+              setCurrentActionItems(result.actionItems)
+              setActionItemsModalOpen(true)
+              showFeedback(
+                'success',
+                `✓ Found ${result.actionItems.length} action item${result.actionItems.length > 1 ? 's' : ''}!`
+              )
+            } else {
+              showFeedback('success', 'No action items found in the note.')
+            }
             break
 
           case 'translate':
+            // Show translation in summary panel
+            setCurrentSummary(`🌍 Translation:\n\n${result.transformedContent}`)
             showFeedback('success', '✓ Translation complete!')
-            alert(`🌍 Translation:\n\n${result.transformedContent}`)
             break
 
           default:
-            alert(`Result:\n\n${result.transformedContent}`)
+            setCurrentSummary(result.transformedContent)
         }
       } catch (error) {
         console.error('[HandwritingNote] Transform failed:', error)
@@ -250,6 +375,16 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
       document.removeEventListener('selectstart', handleSelectStart, { capture: true })
       document.body.style.userSelect = ''
     }
+  }, [])
+
+  const handleFlowsCreated = useCallback((created: NoteActionItemFlow[]) => {
+    setActionItemFlows(prev => {
+      const existing = new Set(prev.map(f => f.workflowId))
+      const next = [...prev, ...created.filter(f => !existing.has(f.workflowId))]
+      return next
+    })
+    // On iPad/mobile, open the panel so user immediately sees status
+    setActionItemsPanelOpen(true)
   }, [])
 
   return (
@@ -304,6 +439,20 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
         />
 
         <div className="gba:flex gba:items-center gba:gap-2">
+          {/* Action items panel button for iPad/mobile (only after tasks exist) */}
+          {actionItemFlows.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setActionItemsPanelOpen(true)}
+              className="gba:gap-2 gba:lg:hidden"
+              data-testid={`${testId}-action-items-open`}
+            >
+              <ListTodo className="gba:w-4 gba:h-4" />
+              Tasks ({actionItemFlows.length})
+            </Button>
+          )}
+
           <TransformMenu onTransform={handleTransform} isProcessing={isTransforming} disabled={strokes.length === 0} />
 
           <Button variant="default" size="sm" onClick={handleSave} disabled={isSaving} data-testid={`${testId}-save`}>
@@ -326,26 +475,98 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
         canUndo={strokes.length > 0}
       />
 
-      {/* Canvas Area */}
-      <div
-        ref={scrollContainerRef}
-        className="gba:flex-1 gba:overflow-auto"
-        style={{ WebkitOverflowScrolling: 'touch' }}
-      >
-        <div className="gba:relative gba:mx-auto" style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}>
-          <PaperBackground style={paperStyle} />
-          <HandwritingCanvas
-            width={CANVAS_WIDTH}
-            height={CANVAS_HEIGHT}
-            penColor={penColor}
-            penWidth={penWidth}
-            initialStrokes={initialStrokes}
-            onStrokeComplete={handleStrokeComplete}
-            onStrokesChange={handleStrokesChange}
-            scrollContainerRef={scrollContainerRef}
-          />
+      <div className="gba:flex-1 gba:flex gba:overflow-hidden">
+        {/* Canvas Area */}
+        <div
+          ref={scrollContainerRef}
+          className="gba:flex-1 gba:overflow-auto gba:relative"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          <div className="gba:relative gba:mx-auto" style={{ width: CANVAS_WIDTH, height: CANVAS_HEIGHT }}>
+            <PaperBackground style={paperStyle} />
+            <HandwritingCanvas
+              width={CANVAS_WIDTH}
+              height={CANVAS_HEIGHT}
+              penColor={penColor}
+              penWidth={penWidth}
+              initialStrokes={initialStrokes}
+              onStrokeComplete={handleStrokeComplete}
+              onStrokesChange={handleStrokesChange}
+              scrollContainerRef={scrollContainerRef}
+            />
+          </div>
+
+          {/* Summary Panel */}
+          {currentSummary && (
+            <SummaryPanel
+              summary={currentSummary}
+              onDismiss={() => setCurrentSummary(null)}
+              data-testid={`${testId}-summary-panel`}
+            />
+          )}
         </div>
+
+        {/* Action Items Sidebar (desktop) - only after tasks exist */}
+        {actionItemFlows.length > 0 && (
+          <div className="gba:hidden gba:lg:block gba:w-80 gba:border-l gba:border-border gba:bg-card gba:overflow-y-auto gba:p-4">
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+              <div className="gba:text-sm gba:font-semibold gba:text-foreground">Action Items</div>
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <div className="gba:text-xs gba:text-muted-foreground">{actionItemFlows.length}</div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void syncFlowStatuses()}
+                  disabled={isFlowStatusSyncing}
+                  className="gba:h-7 gba:w-7 gba:p-0"
+                  data-testid={`${testId}-action-items-refresh`}
+                >
+                  <RefreshCw className={`gba:w-4 gba:h-4 ${isFlowStatusSyncing ? 'gba:animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </div>
+            <ActionItemsList flows={actionItemFlows} data-testid={`${testId}-action-items-list`} />
+          </div>
+        )}
       </div>
+
+      {/* Action Items Panel (iPad/mobile) */}
+      {actionItemFlows.length > 0 && (
+        <Dialog open={actionItemsPanelOpen} onOpenChange={setActionItemsPanelOpen}>
+          <DialogContent className="gba:sm:max-w-[650px] gba:max-h-[80vh] gba:overflow-y-auto">
+            <DialogHeader>
+              <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+                <DialogTitle>Action Items</DialogTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void syncFlowStatuses()}
+                  disabled={isFlowStatusSyncing}
+                  className="gba:h-8 gba:w-8 gba:p-0"
+                  data-testid={`${testId}-action-items-refresh-dialog`}
+                >
+                  <RefreshCw className={`gba:w-4 gba:h-4 ${isFlowStatusSyncing ? 'gba:animate-spin' : ''}`} />
+                </Button>
+              </div>
+              <DialogDescription>Status of blinks created from this note.</DialogDescription>
+            </DialogHeader>
+            <ActionItemsList flows={actionItemFlows} data-testid={`${testId}-action-items-list-dialog`} />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Action Items Modal */}
+      <ActionItemsModal
+        open={actionItemsModalOpen}
+        onOpenChange={setActionItemsModalOpen}
+        actionItems={currentActionItems}
+        noteTitle={noteTitle}
+        noteId={noteId}
+        accessToken={accessToken}
+        currentUserId={currentUserId}
+        onFlowsCreated={handleFlowsCreated}
+        data-testid={`${testId}-action-items-modal`}
+      />
     </div>
   )
 }

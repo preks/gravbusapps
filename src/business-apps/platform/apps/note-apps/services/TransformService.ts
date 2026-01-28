@@ -12,6 +12,8 @@ import { env } from '@/common/env/EnvUtils'
 interface TransformResult {
   success: boolean
   transformedContent: string
+  /** For action-items transform, contains the array of action items */
+  actionItems?: string[]
   error?: string
 }
 
@@ -233,7 +235,8 @@ Focus on key points, main ideas, and important details.`
 
             const taskDescription = `You are an assistant that extracts action items and tasks from handwritten notes.
 Identify all actionable items, to-dos, tasks, and things that need to be done.
-Return them as a clear list. If no action items are found, return an empty array.`
+Each action item should be a clear, actionable statement.
+Return them as a list. If no action items are found, return an empty array.`
 
             aiResult = await this.callAiService(taskDescription, extractedText, actionItemsSchema)
             const actionItems = (aiResult as { actionItems: string[] }).actionItems
@@ -243,7 +246,8 @@ Return them as a clear list. If no action items are found, return an empty array
                 : 'No action items found in the note.'
             return {
               success: true,
-              transformedContent: formattedItems
+              transformedContent: formattedItems,
+              actionItems // Return the raw array for modal usage
             }
           }
 
