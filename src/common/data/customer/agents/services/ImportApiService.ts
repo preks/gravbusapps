@@ -3,10 +3,10 @@
  * Handles API calls to backend import endpoints for any entity type
  *
  * ⚠️ TEMPORARY IMPLEMENTATION:
- * Uses direct fetch() instead of RestClient while import endpoints are being developed.
- * This violates the "API Requests" guideline but is a known temporary placeholder.
+ * Uses direct fetch() instead of RestClient.
+ * This violates the "API Requests" guideline but is a known temporary implementation.
  *
- * TODO: Refactor to use RestClient pattern once endpoints are stable
+ * TODO: Refactor to use RestClient pattern for consistency
  *       See useUpdateLeadStatus.ts for the correct pattern example
  */
 
@@ -32,16 +32,18 @@ export class ImportApiService {
       const entityTypePlural = `${entityType}s`
 
       // Map entity type to correct endpoint
-      // Only 'lead' endpoint is available, others use placeholder
       let endpoint: string
       if (entityType === 'lead') {
         endpoint = `${this.baseUrl}/customer-relations/createLeads`
+      } else if (entityType === 'contact') {
+        endpoint = `${this.baseUrl}/customer-relations/createContacts`
+      } else if (entityType === 'account') {
+        endpoint = `${this.baseUrl}/customer-relations/createAccounts`
       } else {
-        // Placeholder for future endpoints (contact, account)
-        endpoint = `${this.baseUrl}/api/crm/${entityTypePlural}/bulk-import`
+        throw new Error(`Unsupported entity type: ${entityType}`)
       }
 
-      // TODO: Replace with RestClient.post() - temporary placeholder during endpoint development
+      // TODO: Replace with RestClient.post() for consistency with other API calls
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -58,14 +60,14 @@ export class ImportApiService {
       const result = await response.json()
 
       // Transform response based on entity type
-      if (entityType === 'lead') {
-        // Kogito process response format
+      // All CRM endpoints use Kogito process response format
+      if (entityType === 'lead' || entityType === 'contact' || entityType === 'account') {
         const hasErrors = result.validationResponse?.errors?.length > 0
-        const createdLeads = result.leads || []
+        const createdEntities = result[entityTypePlural] || []
 
         return {
-          success: !hasErrors && createdLeads.length > 0,
-          successCount: createdLeads.length,
+          success: !hasErrors && createdEntities.length > 0,
+          successCount: createdEntities.length,
           errorCount: hasErrors ? result.validationResponse.errors.length : 0,
           errors: hasErrors
             ? result.validationResponse.errors.map((err: any, idx: number) => ({
@@ -74,10 +76,10 @@ export class ImportApiService {
                 error: `${err.code || 'ERROR'}: ${err.detail || err.title || 'Unknown error'}`
               }))
             : [],
-          createdIds: createdLeads.map((lead: any) => lead.id)
+          createdIds: createdEntities.map((entity: any) => entity.id)
         }
       } else {
-        // Generic response format (for future endpoints)
+        // Generic fallback for other entity types
         return {
           success: true,
           successCount: result.successCount || entities.length,
