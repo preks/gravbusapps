@@ -214,6 +214,15 @@ export interface DocumentSectionProps extends BusinessAppContextProps {
     onClick?: (documentId: string, document: DocumentItem, entityId: string) => void | Promise<void>
     confirmMessage?: string // Optional confirmation dialog
   }>
+  // Custom toolbar actions (upload, etc.)
+  toolbarActions?: Array<{
+    key: string
+    label: string
+    icon?: React.ReactNode
+    onClick: () => void
+    variant?: 'default' | 'outline' | 'ghost'
+    testId?: string
+  }>
   uploadActionProps?: {
     contextsArray: FlowContextName[]
     externalContextData: Record<string, any>
@@ -242,6 +251,7 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
   searchTerm: externalSearchTerm,
   onSearchChange,
   customActions = [],
+  toolbarActions = [],
   uploadActionProps,
   createFolderActionProps,
   downloadActionProps,
@@ -1374,6 +1384,18 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
                 {getTranslationFromI18nKeyAndLabel('document.upload.files', 'Upload Documents')}
               </Button>
             )}
+            {toolbarActions.map(action => (
+              <Button
+                key={action.key}
+                variant={action.variant || 'outline'}
+                size="sm"
+                onClick={action.onClick}
+                data-testid={action.testId || `${dataTestId}-${action.key}-button`}
+              >
+                {action.icon && <span className="gba:mr-2">{action.icon}</span>}
+                {action.label}
+              </Button>
+            ))}
           </div>
         </div>
 

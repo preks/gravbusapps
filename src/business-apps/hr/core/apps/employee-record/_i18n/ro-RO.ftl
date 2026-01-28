@@ -292,3 +292,58 @@ notification-sick-leave-reported-success = Concediul medical a fost raportat cu 
 notification-special-leave-requested-success = Concediul special a fost solicitat cu succes
 notification-vacation-requested-success = Concediul de odihnă a fost solicitat cu succes
 notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR
+
+# Employee Record - Errors and states
+employee-record-error-title = Eroare
+employee-record-error-loading-data = Eroare la încărcarea datelor angajatului.
+employee-record-not-found-title = Negăsit
+employee-record-not-found-message = Angajatul nu a fost găsit.
+employee-record-not-assigned = Neatribuit
+employee-record-edit-picture = Editează imaginea
+
+# Employee Record - Chat / communication
+employee-record-chat-button = Chat
+employee-record-chat-tooltip = Chat
+employee-record-chat-cannot-self = Nu poți conversa cu tine însuți
+employee-record-audio-call-button = Apel audio
+employee-record-audio-tooltip = Apel audio
+employee-record-audio-cannot-self = Nu te poți apela pe tine însuți
+employee-record-video-call-button = Apel video
+employee-record-video-tooltip = Apel video
+employee-record-video-cannot-self = Nu te poți apela pe tine însuți prin video
+
+# Employee Record - Tab labels
+employee-record-tab-summary = Rezumat
+employee-record-tab-hr-admin = HR Admin
+employee-record-tab-hr-growth = HR Growth
+employee-record-tab-compensation = Compensații
+employee-record-tab-time-tracking = Pontaj
+employee-record-tab-absences = Absențe
+employee-record-tab-assets = Mijloace
+employee-record-tab-service-requests = Cereri servicii
+
+# Profile Header - Detail labels
+profile-header-work-email = E-mail serviciu
+profile-header-work-phone = Telefon serviciu
+profile-header-organization = Organizație
+profile-header-location = Locație
+profile-header-manager = Manager
+profile-header-no-manager = Fără manager
+profile-header-job-position = Poziție
+profile-header-cost-center = Centru de cost
+profile-header-hire-date = Data angajării
+profile-header-fixed-term-until = Contract pe termen determinat până la
+profile-header-na = N/A
+
+# Profile Header - Time units (tenure)
+profile-header-year = an
+profile-header-years = ani
+profile-header-month = lună
+profile-header-months = luni
+
+# Profile Header - Sections
+profile-header-teams = Echipe
+profile-header-capabilities = Competențe
+profile-header-skills = Competențe
+profile-header-no-capabilities = Nicio competență asignată
+profile-header-no-skills = Nicio competență asignată

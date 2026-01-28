@@ -13,7 +13,12 @@ import {
   FormMessage,
   Textarea,
   FormSection,
-  FormFieldGroup
+  FormFieldGroup,
+  FileUpload,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
@@ -25,8 +30,9 @@ import { CatalogSelect } from '@/components/catalog-select'
 import { DynamicForm } from '@/components/dynamic-form'
 import { useCompanyAdditionalProperties } from '../../hooks/useCompanyAdditionalProperties'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
+import translations from './_i18n'
 
-// Address schema for validation
+// Address schema for validation (no translations needed)
 const addressSchema = z.object({
   addressType: z.string().optional(),
   addressLine: z
@@ -40,32 +46,36 @@ const addressSchema = z.object({
   countryRef: z.string().optional()
 })
 
-// Zod validation schema
-const companySchema = z.object({
-  name: z.string().min(1, 'Please enter company name'),
-  code: z.string().min(1, 'Please enter company code'),
-  description: z.string().optional(),
-  director: z.string().optional(),
-  percentage: z
-    .number()
-    .min(0, 'Percentage cannot be less than 0%')
-    .max(100, 'Percentage cannot be greater than 100%')
-    .optional(),
-  commercial_registration_number: z.string().optional(),
-  currency: z.string().optional(),
-  tax_identification_number: z.string().optional(),
-  tax_number: z.string().optional(),
-  value_added_tax_number: z.string().optional(),
-  // Addresses array for AddressSegment
-  addresses: z.array(addressSchema).optional(),
-  // Dynamic additional properties from catalog
-  additionalProperties: z.record(z.string(), z.unknown()).optional()
-})
+/**
+ * Create validation schema with translations
+ */
+const createCompanySchema = (t: (key: string) => string) =>
+  z.object({
+    name: z.string().min(1, t('validation-name-required')),
+    code: z.string().min(1, t('validation-code-required')),
+    description: z.string().optional(),
+    director: z.string().optional(),
+    percentage: z.number().min(0, t('validation-percentage-min')).max(100, t('validation-percentage-max')).optional(),
+    commercial_registration_number: z.string().optional(),
+    currency: z.string().optional(),
+    tax_identification_number: z.string().optional(),
+    tax_number: z.string().optional(),
+    value_added_tax_number: z.string().optional(),
+    // Addresses array for AddressSegment
+    addresses: z.array(addressSchema).optional(),
+    // Dynamic additional properties from catalog
+    additionalProperties: z.record(z.string(), z.unknown()).optional()
+  })
 
-export type CompanyFormData = z.infer<typeof companySchema>
+export type CompanyFormData = z.infer<ReturnType<typeof createCompanySchema>>
 
 const DATA_TEST_ID_PREFIX = 'CompanyForm'
 const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
+
+// Thumbnail configuration constants
+const THUMBNAIL_MAX_WIDTH = 200
+const THUMBNAIL_MAX_HEIGHT = 200
+const THUMBNAIL_QUALITY = 0.7
 
 export interface CompanyFormProps extends BusinessAppContextProps {
   company?: Company
@@ -97,11 +107,14 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
   parentNodeId,
   isRootCompany
 }) => {
+  const { t } = useTranslation(translations)
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const restClient = useRestClient(ORGCHART_BASE_URL)
 
   const [loading, setLoading] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(company?.directorId || null)
+  const [pictureFile, setPictureFile] = useState<File | null>(null)
+  const [picturePreview, setPicturePreview] = useState<string | null>(company?.pictureThumbnail || null)
   // Key to force CatalogSelect.Provider remount when modal closes (resets internal state)
   const [providerKey, setProviderKey] = useState(0)
 
@@ -111,6 +124,9 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
   const { employees, loading: searchLoading, search, hasMore, loadMore } = useEmployeeSearch(accessToken)
 
   const companyData = company as (Company & Partial<CompanyFormData>) | undefined
+
+  // Create validation schema with translations
+  const companySchema = useMemo(() => createCompanySchema(t), [t])
 
   const transformBackendAddressLineToForm = (addressLine?: {
     streetAddress?: string
@@ -142,6 +158,116 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     }))
   }
 
+  /**
+   * Convert file to base64 string
+   */
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => {
+        const result = reader.result as string
+        // Remove data:image/...;base64, prefix
+        const base64 = result.split(',')[1]
+        resolve(base64)
+      }
+      reader.onerror = () => reject(new Error(t('error-failed-to-read-file')))
+    })
+  }
+
+  /**
+   * Read file as data URL
+   */
+  const readFileAsDataURL = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = (e: any) => resolve(e.target.result)
+      reader.onerror = () => reject(new Error(t('error-failed-to-read-file')))
+      reader.readAsDataURL(file)
+    })
+  }
+
+  /**
+   * Load image from source URL
+   */
+  const loadImage = (src: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve(img)
+      img.onerror = () => reject(new Error(t('error-failed-to-load-image')))
+      img.src = src
+    })
+  }
+
+  /**
+   * Load image from file using FileReader
+   */
+  const loadImageForThumbnail = async (file: File): Promise<HTMLImageElement> => {
+    const dataUrl = await readFileAsDataURL(file)
+    return await loadImage(dataUrl)
+  }
+
+  /**
+   * Create thumbnail from image file
+   */
+  const createThumbnail = async (
+    file: File,
+    maxWidth: number = THUMBNAIL_MAX_WIDTH,
+    maxHeight: number = THUMBNAIL_MAX_HEIGHT
+  ): Promise<string> => {
+    const img = await loadImageForThumbnail(file)
+
+    const canvas = document.createElement('canvas')
+    let width = img.width
+    let height = img.height
+
+    // Calculate new dimensions
+    if (width > height && width > maxWidth) {
+      height = (height * maxWidth) / width
+      width = maxWidth
+    } else if (height >= width && height > maxHeight) {
+      width = (width * maxHeight) / height
+      height = maxHeight
+    }
+
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    ctx?.drawImage(img, 0, 0, width, height)
+
+    // Get base64 without data URL prefix
+    const thumbnail = canvas.toDataURL('image/jpeg', THUMBNAIL_QUALITY).split(',')[1]
+    return thumbnail
+  }
+
+  /**
+   * Handle picture file upload
+   */
+  const handlePictureUpload = async (files: any[]) => {
+    if (files.length === 0) {
+      setPictureFile(null)
+      setPicturePreview(null)
+      return
+    }
+
+    const file = files[0].file
+    if (!(file instanceof File)) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      return
+    }
+
+    setPictureFile(file)
+
+    // Create preview
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setPicturePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
   const formDefaultValues = useMemo<CompanyFormData>(
     () => ({
       name: companyData?.name || '',
@@ -166,9 +292,20 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     mode: 'onChange'
   })
 
-  // Sync selectedUserId and form when company changes (e.g., opening form for different company)
+  // Sync selectedUserId, picturePreview and form when company changes (e.g., opening form for different company)
   useEffect(() => {
     setSelectedUserId(company?.directorId || null)
+    setPictureFile(null)
+
+    // Set picture preview from existing company data
+    if (company?.pictureThumbnail) {
+      setPicturePreview(`data:image/jpeg;base64,${company.pictureThumbnail}`)
+    } else if (company?.picture) {
+      setPicturePreview(`data:image/jpeg;base64,${company.picture}`)
+    } else {
+      setPicturePreview(null)
+    }
+
     form.reset(formDefaultValues)
   }, [company?.id, form, formDefaultValues])
 
@@ -256,74 +393,176 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     return Object.keys(result).length > 0 ? result : undefined
   }
 
+  /**
+   * Build base payload with required fields
+   */
+  const buildBasePayload = (formValues: CompanyFormData): Record<string, unknown> => {
+    return {
+      code: formValues.code,
+      name: formValues.name,
+      structureId: structureId
+    }
+  }
+
+  /**
+   * Helper function to get string field value or empty string for edit mode
+   */
+  const getStringFieldValue = (
+    value: string | undefined | null,
+    originalValue?: string,
+    isEditMode?: boolean
+  ): string | undefined => {
+    if (value) return value
+    // In edit mode, send empty string to clear the field if it was previously set
+    if (isEditMode && originalValue) return ''
+    return undefined // Don't include in payload for create mode
+  }
+
+  /**
+   * Add optional fields to payload
+   */
+  const addOptionalFields = (
+    payload: Record<string, unknown>,
+    formValues: CompanyFormData,
+    isEditMode: boolean
+  ): void => {
+    const description = getStringFieldValue(formValues.description, companyData?.description, isEditMode)
+    if (description !== undefined) payload.description = description
+
+    // Director ID - special handling (UUID, not string)
+    if (selectedUserId) {
+      payload.directorId = selectedUserId
+    } else if (isEditMode && companyData?.directorId) {
+      payload.directorId = '' // Send empty string to clear director
+    }
+
+    const commercialRegNum = getStringFieldValue(
+      formValues.commercial_registration_number,
+      companyData?.commercialRegistrationNumber,
+      isEditMode
+    )
+    if (commercialRegNum !== undefined) payload.commercialRegistrationNumber = commercialRegNum
+
+    const taxIdNum = getStringFieldValue(
+      formValues.tax_identification_number,
+      companyData?.taxIdentificationNumber,
+      isEditMode
+    )
+    if (taxIdNum !== undefined) payload.taxIdentificationNumber = taxIdNum
+
+    const taxNum = getStringFieldValue(formValues.tax_number, companyData?.taxNumber, isEditMode)
+    if (taxNum !== undefined) payload.taxNumber = taxNum
+
+    const vatNum = getStringFieldValue(formValues.value_added_tax_number, companyData?.valueAddedTaxNumber, isEditMode)
+    if (vatNum !== undefined) payload.valueAddedTaxNumber = vatNum
+
+    const currency = getStringFieldValue(formValues.currency, companyData?.currencyRef, isEditMode)
+    if (currency !== undefined) payload.currencyRef = currency
+  }
+
+  /**
+   * Add addresses to payload
+   */
+  const addAddressesToPayload = (
+    payload: Record<string, unknown>,
+    formValues: CompanyFormData,
+    isEditMode: boolean
+  ): void => {
+    const transformedAddresses = transformAddresses(formValues.addresses)
+    if (transformedAddresses.length > 0) {
+      payload.addresses = transformedAddresses
+    } else if (isEditMode && companyData?.addresses && companyData.addresses.length > 0) {
+      // In edit mode, send empty array to clear addresses if they were removed
+      payload.addresses = []
+    }
+  }
+
+  /**
+   * Add additional properties to payload
+   */
+  const addAdditionalPropertiesToPayload = (
+    payload: Record<string, unknown>,
+    formValues: CompanyFormData,
+    isEditMode: boolean
+  ): void => {
+    const transformedAdditionalProps = transformAdditionalProperties(formValues.additionalProperties)
+    if (isEditMode) {
+      // Always include additionalProperties in edit mode - BE will replace entire JSONB
+      payload.additionalProperties = transformedAdditionalProps || {}
+    } else if (transformedAdditionalProps) {
+      // In create mode, only include if there are values
+      payload.additionalProperties = transformedAdditionalProps
+    }
+  }
+
+  /**
+   * Add picture to payload (upload or clear)
+   */
+  const addPictureToPayload = async (payload: Record<string, unknown>, isEditMode: boolean): Promise<void> => {
+    if (pictureFile) {
+      try {
+        const [pictureBase64, thumbnailBase64] = await Promise.all([
+          fileToBase64(pictureFile),
+          createThumbnail(pictureFile, THUMBNAIL_MAX_WIDTH, THUMBNAIL_MAX_HEIGHT)
+        ])
+        payload.picture = pictureBase64
+        payload.pictureThumbnail = thumbnailBase64
+      } catch {
+        // Continue without picture if there's an error
+      }
+    } else if (isEditMode && companyData?.picture && !picturePreview) {
+      // Clear picture if it was removed in edit mode
+      payload.picture = ''
+      payload.pictureThumbnail = ''
+    }
+  }
+
+  /**
+   * Handle percentage update for company edges
+   */
+  const handlePercentageUpdate = async (formValues: CompanyFormData): Promise<void> => {
+    if (
+      companyData?.id &&
+      formValues.percentage !== undefined &&
+      companyData?.percentage !== undefined &&
+      formValues.percentage !== companyData.percentage
+    ) {
+      const updateCompanyEdgesPayload = [
+        {
+          operation: 'UPDATE',
+          edge: {
+            id: companyData?.edgeId,
+            percentage: formValues.percentage,
+            relationshipType: 'hierarchical',
+            source: companyData?.parentNodeId,
+            target: companyData?.nodeId
+          }
+        }
+      ]
+
+      await restClient.post(`/edges/operations`, updateCompanyEdgesPayload, {
+        params: { structureId: structureId },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+    }
+  }
+
   const handleSubmit = async (values: Record<string, unknown>) => {
     const formValues = values as CompanyFormData
     const isEditMode = Boolean(companyData?.id)
 
     try {
       setLoading(true)
-      const payload: Record<string, unknown> = {
-        code: formValues.code,
-        name: formValues.name,
-        structureId: structureId
-      }
 
-      // Helper function to get string field value or empty string for edit mode
-      // Backend ignores null, so we send empty string to clear fields
-      const getStringFieldValue = (value: string | undefined | null, originalValue?: string): string | undefined => {
-        if (value) return value
-        // In edit mode, send empty string to clear the field if it was previously set
-        if (isEditMode && originalValue) return ''
-        return undefined // Don't include in payload for create mode
-      }
-
-      // Optional string fields - include empty string in edit mode if field was cleared
-      const description = getStringFieldValue(formValues.description, companyData?.description)
-      if (description !== undefined) payload.description = description
-
-      // Director ID - special handling (UUID, not string)
-      if (selectedUserId) {
-        payload.directorId = selectedUserId
-      } else if (isEditMode && companyData?.directorId) {
-        payload.directorId = '' // Send empty string to clear director
-      }
-
-      const commercialRegNum = getStringFieldValue(
-        formValues.commercial_registration_number,
-        companyData?.commercialRegistrationNumber
-      )
-      if (commercialRegNum !== undefined) payload.commercialRegistrationNumber = commercialRegNum
-
-      const taxIdNum = getStringFieldValue(formValues.tax_identification_number, companyData?.taxIdentificationNumber)
-      if (taxIdNum !== undefined) payload.taxIdentificationNumber = taxIdNum
-
-      const taxNum = getStringFieldValue(formValues.tax_number, companyData?.taxNumber)
-      if (taxNum !== undefined) payload.taxNumber = taxNum
-
-      const vatNum = getStringFieldValue(formValues.value_added_tax_number, companyData?.valueAddedTaxNumber)
-      if (vatNum !== undefined) payload.valueAddedTaxNumber = vatNum
-
-      const currency = getStringFieldValue(formValues.currency, companyData?.currencyRef)
-      if (currency !== undefined) payload.currencyRef = currency
-
-      // Transform and include addresses
-      const transformedAddresses = transformAddresses(formValues.addresses)
-      if (transformedAddresses.length > 0) {
-        payload.addresses = transformedAddresses
-      } else if (isEditMode && companyData?.addresses && companyData.addresses.length > 0) {
-        // In edit mode, send empty array to clear addresses if they were removed
-        payload.addresses = []
-      }
-
-      // Transform and include additionalProperties
-      const transformedAdditionalProps = transformAdditionalProperties(formValues.additionalProperties)
-      if (isEditMode) {
-        // Always include additionalProperties in edit mode - BE will replace entire JSONB
-        payload.additionalProperties = transformedAdditionalProps || {}
-      } else if (transformedAdditionalProps) {
-        // In create mode, only include if there are values
-        payload.additionalProperties = transformedAdditionalProps
-      }
+      // Build payload using helper functions
+      const payload = buildBasePayload(formValues)
+      addOptionalFields(payload, formValues, isEditMode)
+      addAddressesToPayload(payload, formValues, isEditMode)
+      addAdditionalPropertiesToPayload(payload, formValues, isEditMode)
+      await addPictureToPayload(payload, isEditMode)
 
       // Include id for update
       if (companyData?.id) {
@@ -349,38 +588,12 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
         })
       }
 
-      // Handle percentage update for companyEdges (only if percentage changed)
-      if (
-        companyData?.id &&
-        formValues.percentage !== undefined &&
-        companyData?.percentage !== undefined &&
-        formValues.percentage !== companyData.percentage
-      ) {
-        const updateCompanyEdgesPayload = [
-          {
-            operation: 'UPDATE',
-            edge: {
-              id: companyData?.edgeId,
-              percentage: formValues.percentage,
-              relationshipType: 'hierarchical',
-              source: companyData?.parentNodeId,
-              target: companyData?.nodeId
-            }
-          }
-        ]
-
-        await restClient.post(`/edges/operations`, updateCompanyEdgesPayload, {
-          params: { structureId: structureId },
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        })
-      }
+      // Handle percentage update for companyEdges
+      await handlePercentageUpdate(formValues)
 
       refetch()
-    } catch (error) {
-      console.error('Form submission error:', error)
+    } catch {
+      // Error handling is done through UI feedback
     } finally {
       setSelectedUserId(null)
       setLoading(false)
@@ -392,6 +605,8 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
   const handleModalClose = useCallback(() => {
     setProviderKey(prev => prev + 1)
     setSelectedUserId(null)
+    setPictureFile(null)
+    setPicturePreview(null)
     onCancel?.()
   }, [onCancel])
 
@@ -405,8 +620,8 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     >
       <FormWrapperModal
         childAddButton={childAddButton}
-        title={company ? 'Edit Company' : 'Create Company'}
-        description="Enter company details"
+        title={company ? t('modal-title-edit') : t('modal-title-create')}
+        description={t('modal-description')}
         onSubmit={handleSubmit}
         onCancel={handleModalClose}
         form={form as any}
@@ -418,14 +633,18 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
         open={open}
         setOpen={setOpen}
       >
-        <FormFieldGroup title="Company Details">
+        <FormFieldGroup title={t('section-company-details')}>
           <FormField
             name="name"
             render={({ field }) => (
               <FormItem className="gba:flex-2">
-                <FormLabel>Company Name</FormLabel>
+                <FormLabel>{t('label-company-name')}</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g.: Acme Corporation" {...field} data-testid={`${dataTestId}-name-input`} />
+                  <Input
+                    placeholder={t('placeholder-company-name')}
+                    {...field}
+                    data-testid={`${dataTestId}-name-input`}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -436,9 +655,13 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
             name="code"
             render={({ field }) => (
               <FormItem className="gba:flex-1">
-                <FormLabel>Company Code</FormLabel>
+                <FormLabel>{t('label-company-code')}</FormLabel>
                 <FormControl>
-                  <Input placeholder="e.g.: ACME-001" {...field} data-testid={`${dataTestId}-code-input`} />
+                  <Input
+                    placeholder={t('placeholder-company-code')}
+                    {...field}
+                    data-testid={`${dataTestId}-code-input`}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -451,10 +674,10 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
             name="percentage"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Holding</FormLabel>
+                <FormLabel>{t('label-holding')}</FormLabel>
                 <FormControl>
                   <Input
-                    placeholder="0%"
+                    placeholder={t('placeholder-percentage')}
                     value={field.value ? `${field.value}%` : '0%'}
                     onChange={e => {
                       const value = e.target.value.replace('%', '')
@@ -479,10 +702,10 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description</FormLabel>
+              <FormLabel>{t('label-description')}</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="e.g.: Main headquarters..."
+                  placeholder={t('placeholder-description')}
                   rows={3}
                   {...field}
                   data-testid={`${dataTestId}-description-textarea`}
@@ -493,12 +716,49 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
           )}
         />
 
+        {/* Company Picture Upload */}
+        <FormItem>
+          <FormLabel>{t('label-logo')}</FormLabel>
+          <FormControl>
+            <div className="gba:space-y-4">
+              {picturePreview && (
+                <div className="gba:flex gba:items-center gba:gap-4">
+                  <Avatar className="gba:w-24 gba:h-24">
+                    <AvatarImage src={picturePreview} alt={t('alt-logo-preview')} />
+                    <AvatarFallback className="gba:text-2xl">
+                      {form.watch('name')?.substring(0, 2).toUpperCase() || t('avatar-fallback')}
+                    </AvatarFallback>
+                  </Avatar>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPictureFile(null)
+                      setPicturePreview(null)
+                    }}
+                    className="gba:text-sm gba:text-destructive hover:gba:underline"
+                    data-testid={`${dataTestId}-picture-remove-button`}
+                  >
+                    {t('button-remove')}
+                  </button>
+                </div>
+              )}
+              <FileUpload
+                multiple={false}
+                accept="image/*"
+                onChange={handlePictureUpload}
+                dataTestId={`${dataTestId}-picture-upload`}
+              />
+              <p className="gba:text-sm gba:text-muted-foreground">{t('message-logo-upload-info')}</p>
+            </div>
+          </FormControl>
+        </FormItem>
+
         {/* Director field */}
         <FormField
           name="director"
           render={() => (
             <FormItem>
-              <FormLabel>Director</FormLabel>
+              <FormLabel>{t('label-director')}</FormLabel>
               <FormControl>
                 <EmployeeSelect
                   value={selectedUserId}
@@ -508,8 +768,8 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
                   loading={searchLoading}
                   hasMore={hasMore}
                   onLoadMore={loadMore}
-                  placeholder="Select director"
-                  searchPlaceholder="Search by name..."
+                  placeholder={t('placeholder-director')}
+                  searchPlaceholder={t('placeholder-director-search')}
                   data-testid="director"
                 />
               </FormControl>
@@ -522,10 +782,10 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
             name="commercial_registration_number"
             render={({ field }) => (
               <FormItem className="gba:flex-1">
-                <FormLabel>Commercial Registration Number</FormLabel>
+                <FormLabel>{t('label-commercial-registration-number')}</FormLabel>
                 <FormControl>
                   <Input
-                    placeholder="e.g.: CRN123456"
+                    placeholder={t('placeholder-commercial-registration')}
                     {...field}
                     data-testid={`${dataTestId}-commercial-registration-number-input`}
                   />
@@ -539,7 +799,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
             name="currency"
             render={({ field }) => (
               <FormItem className="gba:flex-1">
-                <FormLabel>Currency</FormLabel>
+                <FormLabel>{t('label-currency')}</FormLabel>
                 <FormControl>
                   <CatalogSelect catalogIdentifier="Currency:v1" value={field.value} onValueChange={field.onChange} />
                 </FormControl>
@@ -550,22 +810,22 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
 
         {/* Address information */}
         <div data-testid={`${dataTestId}-addresses-section`}>
-          <FormSection title="Address Information" value="company-addresses">
+          <FormSection title={t('section-address-information')} value="company-addresses">
             <AddressSegment />
           </FormSection>
         </div>
 
         {/* Tax Details */}
         <div data-testid={`${dataTestId}-tax-details-section`}>
-          <FormSection title="Company Tax Details" value="company-tax-details">
+          <FormSection title={t('section-tax-details')} value="company-tax-details">
             <FormField
               name="tax_identification_number"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tax Identification Number</FormLabel>
+                  <FormLabel>{t('label-tax-identification-number')}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="e.g.: TIN123456789"
+                      placeholder={t('placeholder-tax-identification')}
                       {...field}
                       data-testid={`${dataTestId}-tax-identification-number-input`}
                     />
@@ -578,9 +838,13 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
               name="tax_number"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tax Number</FormLabel>
+                  <FormLabel>{t('label-tax-number')}</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g.: 123456789" {...field} data-testid={`${dataTestId}-tax-number-input`} />
+                    <Input
+                      placeholder={t('placeholder-tax-number')}
+                      {...field}
+                      data-testid={`${dataTestId}-tax-number-input`}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -590,10 +854,10 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
               name="value_added_tax_number"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Value Added Tax Number</FormLabel>
+                  <FormLabel>{t('label-vat-number')}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="e.g.: VAT123456789"
+                      placeholder={t('placeholder-vat-number')}
                       {...field}
                       data-testid={`${dataTestId}-value-added-tax-number-input`}
                     />
@@ -615,7 +879,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
               testIdPrefix={dataTestId}
               isLoading={additionalPropertiesLoading}
               error={null}
-              emptyMessage="No additional properties"
+              emptyMessage={t('message-no-additional-properties')}
             />
           </div>
         )}
