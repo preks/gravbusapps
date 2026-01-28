@@ -108,10 +108,13 @@ export function persistCellChangeToBackend(params: PersistCellChangeParams): voi
   const isBackendUuid = Boolean(backendRowUuid && isUuid(backendRowUuid))
   const isRowIdUuid = isUuid(rowId)
 
+  console.log('[CellChange] 💾 Persisting:', { rowId, columnName, value, isRowIdUuid, hasBackendUuid: isBackendUuid })
+
   const patchRow = (rowUuid: string) => {
-    SpreadsheetApiService.updateRow(appId, sheetId, rowUuid, { [columnName]: value }).catch(err =>
-      console.error('[SpreadsheetAppViewer] Failed to update cell:', err)
-    )
+    console.log('[CellChange] → PATCH request starting:', rowUuid)
+    SpreadsheetApiService.updateRow(appId, sheetId, rowUuid, { [columnName]: value })
+      .then(() => console.log('[CellChange] ✅ PATCH completed successfully'))
+      .catch(err => console.error('[CellChange] ❌ PATCH failed:', err))
   }
 
   if (isRowIdUuid) {
@@ -146,7 +149,7 @@ export function persistCellChangeToBackend(params: PersistCellChangeParams): voi
       )
       patchRow(savedRowUuid)
     })
-    .catch(err => console.error('[SpreadsheetAppViewer] Failed to create backing row:', err))
+    .catch(err => console.error('[CellChange] Failed to create backing row:', err))
     .finally(() => {
       pendingBackingRowCreate.delete(rowId)
     })

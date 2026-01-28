@@ -29,24 +29,17 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  DataTable,
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
 import {
-  Table2,
-  FileInput,
   BarChart3,
-  Kanban,
-  Calendar,
   Plus,
-  Search,
   Download,
   Upload,
   Settings,
-  Filter,
   MoreVertical,
   Pencil,
   Trash2,
@@ -63,7 +56,6 @@ import {
   Save,
   Activity,
   User,
-  Sparkles,
   Zap,
   Signal,
   Home,
@@ -76,7 +68,7 @@ import {
 } from 'lucide-react'
 import { DynamicFormGenerator } from '@/business-apps/ser/components/DynamicFormGenerator'
 import type { DynamicFormField } from '@/business-apps/ser/types/flowTemplate'
-import type { SpreadsheetApp, SpreadsheetSheet, SpreadsheetColumn, ViewType, SheetView, ColumnType } from './types'
+import type { SpreadsheetApp, SpreadsheetSheet, SpreadsheetColumn, SheetView, ColumnType } from './types'
 import { evaluateFormula, isFormula, type FormulaContext } from './utils/formulaEvaluator'
 import { getIconByName } from './utils/appIcons'
 import { useEntityDataSource } from './hooks/useEntityDataSource'
@@ -98,6 +90,7 @@ import { SpreadsheetApiService } from './services/SpreadsheetApiService'
 import { useVersioning } from '../shared/hooks/useVersioning'
 import { useFileLock } from '../shared/hooks/useFileLock'
 import { useComments } from '../shared/hooks/useComments'
+import { FortuneSheetGrid, type FortuneSheetGridHandle } from './components/FortuneSheetGrid'
 import { usePublishing } from '../shared/hooks/usePublishing'
 import { VersionHistory } from '../shared/components/VersionHistory'
 import { CheckpointDialog } from '../shared/components/CheckpointDialog'
@@ -160,22 +153,23 @@ export interface SpreadsheetAppViewerProps {
 /**
  * Get icon for view type
  */
-function getViewIcon(type: ViewType) {
-  switch (type) {
-    case 'table':
-      return Table2
-    case 'form':
-      return FileInput
-    case 'dashboard':
-      return BarChart3
-    case 'kanban':
-      return Kanban
-    case 'calendar':
-      return Calendar
-    default:
-      return Table2
-  }
-}
+// Unused for now but may be needed when view switching is implemented
+// function getViewIcon(type: ViewType) {
+//   switch (type) {
+//     case 'table':
+//       return Table2
+//     case 'form':
+//       return FileInput
+//     case 'dashboard':
+//       return BarChart3
+//     case 'kanban':
+//       return Kanban
+//     case 'calendar':
+//       return Calendar
+//     default:
+//       return Table2
+//   }
+// }
 
 /**
  * SpreadsheetAppViewer Component
@@ -196,8 +190,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 }) => {
   // State
   const [activeSheetId, setActiveSheetId] = useState(initialSheetId || app.sheets[0]?.id || '')
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [activeViewId, setActiveViewId] = useState<string | null>(initialViewId || null)
-  const [searchQuery, setSearchQuery] = useState('')
   const [isManageColumnsDialogOpen, setIsManageColumnsDialogOpen] = useState(false)
   const [editingColumns, setEditingColumns] = useState<SpreadsheetColumn[]>([])
   const [editingRow, setEditingRow] = useState<Record<string, unknown> | null>(null)
@@ -406,6 +400,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   // Prevent duplicate backing-row creation for entity-data-source rows (non-UUID row ids)
   const pendingBackingRowCreateRef = React.useRef<Set<string>>(new Set())
 
+  // Ref for FortuneSheetGrid to call imperative methods (remote cell updates)
+  const fortuneSheetGridRef = React.useRef<FortuneSheetGridHandle | null>(null)
+  // Ref to avoid TDZ when auto-adding columns
+  const handleCellChangeRef = React.useRef<(rowId: string, columnName: string, value: unknown) => void>(() => {})
+
   // Local data state - completely independent from app.sheets during editing
   const [localSheetData, setLocalSheetData] = useState<Record<string, unknown>[]>(
     () => app.sheets.find(s => s.id === activeSheetId)?.data || []
@@ -454,18 +453,74 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   }, [])
 
   const handleRemoteCellUpdate = useCallback(
-    (params: { sheetId: string; rowId: string; column: string; value: unknown; isActiveSheet: boolean }) => {
+    (params: {
+      sheetId: string
+      rowId?: string
+      rowIndex?: number
+      columnIndex?: number
+      column: string
+      value: unknown
+      isActiveSheet: boolean
+    }) => {
       if (params.isActiveSheet) {
-        setLocalSheetData(prev =>
-          prev.map(row => (row._id === params.rowId ? { ...row, [params.column]: params.value } : row))
-        )
+        // 1) Update FortuneSheet directly via its API (no re-render)
+        const currentApp = appRef.current
+        const targetSheet = currentApp?.sheets.find(s => s.id === params.sheetId)
+        if (targetSheet && fortuneSheetGridRef.current) {
+          // Find rowIndex if we have rowId
+          let rowIdx = params.rowIndex
+          if (rowIdx === undefined && params.rowId) {
+            rowIdx = localSheetDataRef.current.findIndex(row => row._id === params.rowId)
+          }
+
+          // Find columnIndex if we have column name
+          let colIdx = params.columnIndex
+          if (colIdx === undefined) {
+            colIdx = targetSheet.columns.findIndex(col => col.name === params.column || col.id === params.column)
+          }
+
+          if (rowIdx !== undefined && rowIdx >= 0 && colIdx !== undefined && colIdx >= 0) {
+            fortuneSheetGridRef.current.applyRemoteCellUpdate(rowIdx, colIdx, params.value)
+          }
+        }
+
+        // 2) Update local state for persistence (but FortuneSheet already updated)
+        setLocalSheetData(prev => {
+          let updated = false
+          const next = prev.map((row, idx) => {
+            if (params.rowId && row._id === params.rowId) {
+              updated = true
+              return { ...row, [params.column]: params.value }
+            }
+            if (!updated && typeof params.rowIndex === 'number' && idx === params.rowIndex) {
+              updated = true
+              return { ...row, [params.column]: params.value }
+            }
+            return row
+          })
+
+          return updated ? next : prev
+        })
         return
       }
 
       updateAppForSheet(params.sheetId, sheet => {
-        const updatedData = (sheet.data || []).map((row: Record<string, unknown>) =>
-          row._id === params.rowId ? { ...row, [params.column]: params.value } : row
-        )
+        let updated = false
+        const updatedData = (sheet.data || []).map((row: Record<string, unknown>) => {
+          if (params.rowId && row._id === params.rowId) {
+            updated = true
+            return { ...row, [params.column]: params.value }
+          }
+          return row
+        })
+
+        if (!updated && typeof params.rowIndex === 'number' && updatedData[params.rowIndex]) {
+          updatedData[params.rowIndex] = {
+            ...(updatedData[params.rowIndex] as Record<string, unknown>),
+            [params.column]: params.value
+          }
+        }
+
         return { ...sheet, data: updatedData }
       })
     },
@@ -573,8 +628,35 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
     switch (type) {
       case 'cell_update':
-        handleRemoteCellUpdate({ sheetId, rowId: data.rowId, column: data.column, value: data.value, isActiveSheet })
+        handleRemoteCellUpdate({
+          sheetId,
+          rowId: data.rowId,
+          column: data.column,
+          value: data.value && typeof data.value === 'object' && 'v' in data.value ? data.value.v : data.value,
+          rowIndex: data.rowIndex,
+          isActiveSheet
+        })
         return
+      case 'cell_change': {
+        const rowId = data?.rowId
+        const columnId = data?.columnId ?? data?.column
+        if (!rowId || !columnId) return
+
+        const currentApp = appRef.current
+        const targetSheet = currentApp?.sheets.find(sheet => sheet.id === sheetId)
+        const columnName = targetSheet?.columns.find(col => col.id === columnId)?.name || columnId
+        const value = data.value && typeof data.value === 'object' && 'v' in data.value ? data.value.v : data.value
+
+        handleRemoteCellUpdate({
+          sheetId,
+          rowId,
+          rowIndex: data?.rowIndex,
+          column: columnName,
+          value,
+          isActiveSheet
+        })
+        return
+      }
       case 'row_add':
         handleRemoteRowAdd({ sheetId, rowData: data.rowData, isActiveSheet })
         return
@@ -865,6 +947,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   }, [app, activeSheetId])
   // Also keep a state copy for displaying in the formula bar (refs don't trigger re-renders)
   // null = not editing, '' = editing with empty value
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [currentFormulaDisplay, setCurrentFormulaDisplay] = useState<string | null>(null)
 
   useEffect(() => {
@@ -1150,23 +1233,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     return localSheetData
   }, [activeSheet?.entityDataSource?.enabled, localSheetData, entityData])
 
-  // Filter data based on search and evaluate formulas
+  // Evaluate formulas for all data
   const filteredData = useMemo(() => {
     if (!activeSheet) return []
 
-    // First, recalculate all formulas
-    const dataWithFormulas = recalculateAllFormulas(sourceData)
-
-    // Then filter if search query exists
-    if (!searchQuery.trim()) {
-      return dataWithFormulas
-    }
-
-    const query = searchQuery.toLowerCase()
-    return dataWithFormulas.filter(row =>
-      Object.values(row).some(value => value && String(value).toLowerCase().includes(query))
-    )
-  }, [activeSheet, sourceData, searchQuery, recalculateAllFormulas])
+    // Recalculate all formulas
+    return recalculateAllFormulas(sourceData)
+  }, [activeSheet, sourceData, recalculateAllFormulas])
 
   /**
    * Handle row add - immediately add empty row (no modal)
@@ -1738,6 +1811,126 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   }, [activeSheet, app, _onAppUpdate, onSheetUpdate, isCollaborationConnected, emitOperation])
 
   /**
+   * Handle auto-creating a column when user edits beyond existing columns (Excel-like behavior)
+   */
+  const handleAutoColumnAdd = useCallback(
+    async (columnIndex: number, initialValue?: unknown, rowIndex?: number) => {
+      if (!activeSheet) return
+
+      // Generate column name based on index (A=0, B=1, ..., Z=25, AA=26, etc.)
+      const getColumnLetter = (idx: number): string => {
+        let col = ''
+        let num = idx + 1
+        while (num > 0) {
+          const remainder = (num - 1) % 26
+          col = String.fromCharCode(65 + remainder) + col
+          num = Math.floor((num - 1) / 26)
+        }
+        return col
+      }
+
+      const columnLetter = getColumnLetter(columnIndex)
+      const columnName = `column_${columnLetter.toLowerCase()}`
+      const columnLabel = `Column ${columnLetter}`
+
+      // Check if column already exists (avoid duplicates)
+      const existingColumn = activeSheet.columns.find(c => c.name === columnName || c.order === columnIndex)
+      if (existingColumn) {
+        // Column already exists, just save the value if provided
+        if (initialValue !== undefined && rowIndex !== undefined) {
+          const rowId = localSheetDataRef.current[rowIndex]?._id as string
+          if (rowId) {
+            handleCellChangeRef.current(rowId, existingColumn.name, initialValue)
+          }
+        }
+        return
+      }
+
+      // Create new column
+      const newColumn: SpreadsheetColumn = {
+        id: `col_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        name: columnName,
+        label: columnLabel,
+        type: 'text',
+        isVisible: true,
+        isEditable: true,
+        isRequired: false,
+        isUnique: false,
+        width: 100,
+        order: columnIndex
+      }
+
+      // Fill gaps with empty columns if needed (e.g., user jumps from column D to column G)
+      const columnsToAdd: SpreadsheetColumn[] = []
+      for (let i = activeSheet.columns.length; i < columnIndex; i++) {
+        const gapLetter = getColumnLetter(i)
+        const gapColName = `column_${gapLetter.toLowerCase()}`
+
+        // Check if this gap column already exists
+        if (!activeSheet.columns.find(c => c.name === gapColName)) {
+          columnsToAdd.push({
+            id: `col_${Date.now()}_${Math.random().toString(36).substring(2, 9)}_${i}`,
+            name: gapColName,
+            label: `Column ${gapLetter}`,
+            type: 'text',
+            isVisible: true,
+            isEditable: true,
+            isRequired: false,
+            isUnique: false,
+            width: 100,
+            order: i
+          })
+        }
+      }
+      columnsToAdd.push(newColumn)
+
+      const updatedColumns = [...activeSheet.columns, ...columnsToAdd]
+
+      // Update columns via dedicated endpoint or app update
+      if (onSheetUpdate) {
+        await onSheetUpdate(app.id, activeSheet.id, { columns: updatedColumns })
+      } else if (_onAppUpdate) {
+        const updatedSheets = app.sheets.map(sheet => {
+          if (sheet.id === activeSheet.id) {
+            return {
+              ...sheet,
+              data: localSheetDataRef.current,
+              columns: updatedColumns
+            }
+          }
+          return sheet
+        })
+        _onAppUpdate({ ...app, sheets: updatedSheets })
+      }
+
+      // Emit WebSocket operation for collaboration
+      if (isCollaborationConnected) {
+        columnsToAdd.forEach(col => {
+          emitOperation({
+            type: 'column_add',
+            data: {
+              sheetId: activeSheet.id,
+              column: col
+            }
+          })
+        })
+      }
+
+      // Save the initial cell value after column is created
+      if (initialValue !== undefined && rowIndex !== undefined) {
+        // Use setTimeout to ensure the column is added before saving the value
+        setTimeout(() => {
+          const rowId = localSheetDataRef.current[rowIndex]?._id as string
+          if (rowId) {
+            handleCellChangeRef.current(rowId, columnName, initialValue)
+          }
+        }, 100)
+      }
+    },
+    [activeSheet, app, _onAppUpdate, onSheetUpdate, isCollaborationConnected, emitOperation]
+  )
+
+  /**
    * Handle deleting a column
    */
   const handleDeleteColumn = useCallback(
@@ -2048,6 +2241,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [activeSheet, entityData, localSheetData, app.id, recalculateAllFormulas, isCollaborationConnected, emitOperation]
   )
 
+  useEffect(() => {
+    handleCellChangeRef.current = handleCellChange
+  }, [handleCellChange])
+
   // Global keyboard handler for formula mode (Enter/Escape to finish/cancel)
   useEffect(() => {
     if (!formulaSelectionMode) return
@@ -2152,6 +2349,27 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   }, [activeSheet])
 
   /**
+   * Compute visible columns (sorted: tracking columns first, then regular columns by order)
+   * Used by both tableColumns and FortuneSheetGrid
+   */
+  const visibleColumns = useMemo(() => {
+    if (!activeSheet) return []
+
+    return activeSheet.columns
+      .filter(col => col.isVisible)
+      .sort((a, b) => {
+        // Determine if columns are tracking (either by flag or by name pattern)
+        const aIsTracking = a.isTracking || isTrackingColumn(a.name)
+        const bIsTracking = b.isTracking || isTrackingColumn(b.name)
+        // Tracking columns come first
+        if (aIsTracking && !bIsTracking) return -1
+        if (!aIsTracking && bIsTracking) return 1
+        // Then sort by order
+        return a.order - b.order
+      })
+  }, [activeSheet])
+
+  /**
    * Generate table columns with inline editing support
    * When entity data source is enabled:
    * - Entity columns are read-only (from the data source)
@@ -2238,20 +2456,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     }
 
     // Add custom spreadsheet columns (editable)
-    // Sort columns: tracking columns first, then regular columns (both by order)
-    const visibleColumns = activeSheet.columns
-      .filter(col => col.isVisible)
-      .sort((a, b) => {
-        // Determine if columns are tracking (either by flag or by name pattern)
-        const aIsTracking = a.isTracking || isTrackingColumn(a.name)
-        const bIsTracking = b.isTracking || isTrackingColumn(b.name)
-        // Tracking columns come first
-        if (aIsTracking && !bIsTracking) return -1
-        if (!aIsTracking && bIsTracking) return 1
-        // Then sort by order
-        return a.order - b.order
-      })
-
+    // Note: visibleColumns is now computed in a separate useMemo hook above
     visibleColumns.forEach((col, idx) => {
       // IMPORTANT:
       // `colIndex` is used for Excel-like references (A1, B2, ...) and MUST NOT include the row-number column.
@@ -2424,6 +2629,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     return cols
   }, [
     activeSheet,
+    visibleColumns,
     handleDeleteRow,
     handleCellChange,
     filteredData,
@@ -2657,7 +2863,25 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
                       <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
                       Publish...
                     </DropdownMenuItem>
+                    {activeSheet.settings.allowExport && (
+                      <DropdownMenuItem>
+                        <Download className="gba:w-4 gba:h-4 gba:mr-2" />
+                        Export to Excel
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
+                    {_onAppUpdate && (
+                      <>
+                        <DropdownMenuItem onClick={handleAddColumn}>
+                          <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
+                          Add Column
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setIsManageColumnsDialogOpen(true)}>
+                          <Columns className="gba:w-4 gba:h-4 gba:mr-2" />
+                          Manage Columns
+                        </DropdownMenuItem>
+                      </>
+                    )}
                     <DropdownMenuItem onClick={() => setIsAutomationsOpen(true)}>
                       <Zap className="gba:w-4 gba:h-4 gba:mr-2" />
                       Automations
@@ -2825,374 +3049,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         )}
       </div>
 
-      {/* Formula Bar - Modern Excel-like display */}
-      <div
-        className="gba:px-4 gba:py-2 gba:border-b gba:border-border/50 gba:bg-background gba:w-full gba:overflow-hidden gba:flex-shrink-0"
-        data-testid="spreadsheet-viewer-formula-bar"
-      >
-        <div className="gba:flex gba:items-center gba:gap-2 gba:w-full gba:min-w-0">
-          {/* Cell reference indicator - Modern pill style */}
-          <div
-            className={`gba:flex gba:items-center gba:gap-1.5 gba:min-w-[70px] gba:px-2.5 gba:py-1.5 gba:rounded-lg gba:text-sm gba:font-mono gba:transition-colors ${
-              selectedCell
-                ? 'gba:bg-primary/10 gba:text-primary gba:border gba:border-primary/20'
-                : 'gba:bg-muted/50 gba:text-muted-foreground gba:border gba:border-border/50'
-            }`}
-          >
-            <Table2 className="gba:w-3.5 gba:h-3.5 gba:flex-shrink-0" />
-            {selectedCell ? (
-              <span className="gba:font-semibold">
-                {columnIndexToLetter(selectedCell.colIndex)}
-                {selectedCell.rowIndex + 1}
-              </span>
-            ) : (
-              <span className="gba:text-xs">—</span>
-            )}
-          </div>
-
-          {/* Formula/Value input - Modern glass style */}
-          <div
-            className={`gba:flex gba:items-center gba:gap-2.5 gba:flex-1 gba:min-w-0 gba:border gba:rounded-lg gba:px-3 gba:min-h-[38px] gba:transition-all ${
-              selectedCell
-                ? 'gba:bg-background gba:border-border gba:shadow-sm'
-                : 'gba:bg-muted/30 gba:border-border/50'
-            }`}
-          >
-            <div className="gba:flex gba:items-center gba:justify-center gba:w-6 gba:h-6 gba:rounded gba:bg-muted/50 gba:flex-shrink-0">
-              <span className="gba:font-mono gba:text-xs gba:font-bold gba:text-muted-foreground">fx</span>
-            </div>
-            {selectedCell ? (
-              <input
-                type="text"
-                ref={formulaBarInputRef}
-                className="gba:flex-1 gba:font-mono gba:text-sm gba:bg-transparent gba:border-none gba:outline-none gba:text-foreground"
-                placeholder="Enter value or formula (start with =)"
-                data-testid="spreadsheet-viewer-formula-bar-input"
-                value={(() => {
-                  // If we're actively editing (not null), show the edit value (even if empty)
-                  if (currentFormulaDisplay !== null) {
-                    return currentFormulaDisplay
-                  }
-                  // Otherwise show the stored formula or value from the cell
-                  const row = filteredData.find(r => (r._id ?? r.id) === selectedCell.rowId)
-                  const column = activeSheet?.columns.find(c => c.id === selectedCell.colId)
-                  if (row && column) {
-                    const formulas = row._formulas as Record<string, string> | undefined
-                    const storedFormula = formulas?.[column.name]
-                    if (storedFormula) return storedFormula
-                    const value = row[column.name]
-                    return value !== null && value !== undefined ? String(value) : ''
-                  }
-                  return ''
-                })()}
-                onChange={e => {
-                  const newValue = e.target.value
-                  // Update formula display
-                  currentFormulaValueRef.current = newValue
-                  setCurrentFormulaDisplay(newValue)
-
-                  // Enter formula mode if starting with =
-                  if (newValue.trim().startsWith('=') && !formulaSelectionMode) {
-                    setFormulaSelectionMode({
-                      editingCell: { rowId: selectedCell.rowId, colId: selectedCell.colId },
-                      startCell: null,
-                      endCell: null,
-                      isRangeSelection: false
-                    })
-                  } else if (!newValue.trim().startsWith('=') && formulaSelectionMode) {
-                    // Exit formula mode if not a formula anymore
-                    setFormulaSelectionMode(null)
-                  }
-
-                  // Keep the currently edited cell input in sync if it exists.
-                  // This is important so the user can type in the formula bar while in formula selection mode.
-                  const editingCell = formulaSelectionMode?.editingCell ?? {
-                    rowId: selectedCell.rowId,
-                    colId: selectedCell.colId
-                  }
-                  const activeCellElement = document.querySelector(
-                    `[data-cell-rowid="${editingCell.rowId}"][data-cell-colid="${editingCell.colId}"] input`
-                  ) as HTMLInputElement | null
-
-                  if (activeCellElement && activeCellElement.value !== newValue) {
-                    activeCellElement.value = newValue
-                    activeCellElement.dispatchEvent(new Event('input', { bubbles: true }))
-                  }
-                }}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    const value = e.currentTarget.value
-                    const column = activeSheet?.columns.find(c => c.id === selectedCell.colId)
-                    if (column) {
-                      // Auto-close parentheses for formulas
-                      let finalValue = value
-                      if (value.trim().startsWith('=')) {
-                        const openParens = (value.match(/\(/g) || []).length
-                        const closeParens = (value.match(/\)/g) || []).length
-                        if (openParens > closeParens) {
-                          finalValue = value + ')'.repeat(openParens - closeParens)
-                        }
-                      }
-                      handleCellChange(selectedCell.rowId, column.name, finalValue)
-                    }
-                    currentFormulaValueRef.current = ''
-                    setCurrentFormulaDisplay(null)
-                    setFormulaSelectionMode(null)
-                    // Move to next row
-                    const nextRowIndex = selectedCell.rowIndex + 1
-                    if (nextRowIndex < filteredData.length) {
-                      const nextRow = filteredData[nextRowIndex]
-                      const nextRowId = (nextRow._id ?? nextRow.id) as string
-                      setSelectedCell({
-                        rowId: nextRowId,
-                        colId: selectedCell.colId,
-                        rowIndex: nextRowIndex,
-                        colIndex: selectedCell.colIndex
-                      })
-                    }
-                  } else if (e.key === 'Escape') {
-                    e.preventDefault()
-                    currentFormulaValueRef.current = ''
-                    setCurrentFormulaDisplay(null)
-                    setFormulaSelectionMode(null)
-                  }
-                }}
-                onFocus={() => {
-                  // When we're already in formula selection mode (or actively editing),
-                  // do NOT overwrite the in-progress formula/value. This input is
-                  // programmatically focused while the user clicks cells to insert refs.
-                  if (formulaSelectionMode || currentFormulaDisplay !== null) {
-                    return
-                  }
-
-                  // When focusing the formula bar, load the current cell's formula/value for editing
-                  const row = filteredData.find(r => (r._id ?? r.id) === selectedCell.rowId)
-                  const column = activeSheet?.columns.find(c => c.id === selectedCell.colId)
-                  if (row && column) {
-                    const formulas = row._formulas as Record<string, string> | undefined
-                    const storedFormula = formulas?.[column.name]
-                    if (storedFormula) {
-                      // Cell has a formula - load it and enter formula mode
-                      currentFormulaValueRef.current = storedFormula
-                      setCurrentFormulaDisplay(storedFormula)
-                      setFormulaSelectionMode({
-                        editingCell: { rowId: selectedCell.rowId, colId: selectedCell.colId },
-                        startCell: null,
-                        endCell: null,
-                        isRangeSelection: false
-                      })
-                    } else {
-                      // Cell has regular value - load it for editing (no formula mode)
-                      const value = row[column.name]
-                      const valueStr = value !== null && value !== undefined ? String(value) : ''
-                      currentFormulaValueRef.current = valueStr
-                      setCurrentFormulaDisplay(valueStr)
-                    }
-                  }
-                }}
-              />
-            ) : (
-              <span className="gba:flex-1 gba:font-mono gba:text-sm gba:text-muted-foreground">Select a cell</span>
-            )}
-          </div>
-
-          {/* Formula functions - Modern quick action pills */}
-          {selectedCell && !formulaSelectionMode && (
-            <div className="gba:flex gba:items-center gba:gap-1 gba:flex-shrink-0">
-              <TooltipProvider>
-                {[
-                  { name: 'SUM', desc: 'Sum of values', icon: '∑' },
-                  { name: 'AVERAGE', desc: 'Average value', icon: 'x̄' },
-                  { name: 'COUNT', desc: 'Count values', icon: '#' },
-                  { name: 'MIN', desc: 'Minimum value', icon: '↓' },
-                  { name: 'MAX', desc: 'Maximum value', icon: '↑' }
-                ].map(fn => (
-                  <Tooltip key={fn.name}>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        className="gba:flex gba:items-center gba:gap-1 gba:h-7 gba:px-2 gba:text-xs gba:font-mono gba:rounded-md gba:border gba:border-border/50 gba:bg-muted/30 gba:text-muted-foreground gba:hover:bg-muted gba:hover:text-foreground gba:hover:border-border gba:transition-all"
-                        onClick={() => {
-                          const formula = `=${fn.name}(`
-                          currentFormulaValueRef.current = formula
-                          setCurrentFormulaDisplay(formula)
-                          setFormulaSelectionMode({
-                            editingCell: { rowId: selectedCell.rowId, colId: selectedCell.colId },
-                            startCell: null,
-                            endCell: null,
-                            isRangeSelection: false
-                          })
-                          requestAnimationFrame(() => {
-                            const input = formulaBarInputRef.current
-                            if (!input) return
-                            input.focus()
-                            input.setSelectionRange(formula.length, formula.length)
-                          })
-                        }}
-                      >
-                        <span className="gba:text-sm">{fn.icon}</span>
-                        <span className="gba:hidden lg:gba:inline">{fn.name}</span>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      <span className="gba:font-mono">{fn.name}</span>: {fn.desc}
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
-              </TooltipProvider>
-            </div>
-          )}
-        </div>
-
-        {/* Formula mode hint - Modern floating badge */}
-        {formulaSelectionMode && (
-          <div className="gba:mt-2 gba:flex gba:items-center gba:gap-3">
-            <div className="gba:flex gba:items-center gba:gap-1.5 gba:px-2.5 gba:py-1 gba:rounded-full gba:bg-primary/10 gba:border gba:border-primary/20">
-              <Sparkles className="gba:w-3.5 gba:h-3.5 gba:text-primary" />
-              <span className="gba:text-xs gba:font-medium gba:text-primary">Formula Mode</span>
-            </div>
-            <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
-              <span className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:font-medium">Click</span>
-              <span>add cell</span>
-              <span className="gba:text-border">•</span>
-              <span className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:font-medium">Shift+Click</span>
-              <span>range</span>
-              <span className="gba:text-border">•</span>
-              <span className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:font-medium">Enter</span>
-              <span>save</span>
-              <span className="gba:text-border">•</span>
-              <span className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:font-medium">Esc</span>
-              <span>cancel</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Toolbar - Modern action bar */}
-      <div className="gba:px-4 gba:py-2 gba:border-b gba:border-border/50 gba:bg-muted/20 gba:w-full gba:overflow-hidden gba:flex-shrink-0">
-        <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:min-w-0 gba:gap-4">
-          {/* Left: View switcher - Modern segmented control */}
-          <div className="gba:flex gba:items-center gba:gap-0.5 gba:p-1 gba:rounded-lg gba:bg-muted/50 gba:border gba:border-border/50">
-            {activeSheet.views.map(view => {
-              const ViewIcon = getViewIcon(view.type)
-              const isActive = view.id === (activeView?.id || activeSheet.views[0]?.id)
-              return (
-                <TooltipProvider key={view.id}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        className={`gba:flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1.5 gba:rounded-md gba:text-sm gba:font-medium gba:transition-all ${
-                          isActive
-                            ? 'gba:bg-background gba:text-foreground gba:shadow-sm gba:border gba:border-border/50'
-                            : 'gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/30'
-                        }`}
-                        onClick={() => setActiveViewId(view.id)}
-                      >
-                        <ViewIcon className="gba:w-4 gba:h-4" />
-                        <span className="gba:hidden sm:gba:inline">{view.name}</span>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <span>{view.name} view</span>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )
-            })}
-          </div>
-
-          {/* Right: Actions - Modern grouped actions */}
-          <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:justify-end gba:min-w-0">
-            {/* Search - Modern with keyboard hint */}
-            <div className="gba:relative gba:max-w-[280px] gba:flex-1 gba:min-w-[180px]">
-              <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none" />
-              <Input
-                placeholder="Search in sheet..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="gba:pl-10 gba:pr-12 gba:h-9 gba:bg-background gba:border-border/50"
-              />
-              <kbd className="gba:absolute gba:right-2 gba:top-1/2 gba:-translate-y-1/2 gba:hidden sm:gba:inline-flex gba:h-5 gba:items-center gba:gap-1 gba:rounded gba:border gba:border-border/50 gba:bg-muted/50 gba:px-1.5 gba:font-mono gba:text-[10px] gba:text-muted-foreground">
-                ⌘K
-              </kbd>
-            </div>
-
-            {/* Divider */}
-            <div className="gba:h-6 gba:w-px gba:bg-border/50 gba:hidden sm:gba:block" />
-
-            {/* Primary actions */}
-            <div className="gba:flex gba:items-center gba:gap-1.5">
-              {_onAppUpdate && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="sm" onClick={handleAddColumn} className="gba:h-8 gba:gap-1.5">
-                        <Columns className="gba:w-4 gba:h-4" />
-                        <span className="gba:hidden md:gba:inline">Column</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Add new column</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-
-              {activeSheet.settings.allowAdd && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        size="sm"
-                        onClick={handleAddRow}
-                        className="gba:h-8 gba:gap-1.5 gba:bg-primary gba:hover:bg-primary/90"
-                      >
-                        <Plus className="gba:w-4 gba:h-4" />
-                        <span className="gba:hidden md:gba:inline">Add Row</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Add new row</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-
-              {/* More actions dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gba:h-8 gba:w-8 gba:p-0">
-                    <MoreVertical className="gba:w-4 gba:h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="gba:w-48">
-                  {_onAppUpdate && (
-                    <DropdownMenuItem onClick={() => setIsManageColumnsDialogOpen(true)}>
-                      <Columns className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Manage Columns
-                    </DropdownMenuItem>
-                  )}
-                  {activeSheet.settings.allowExport && (
-                    <DropdownMenuItem>
-                      <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Export to Excel
-                    </DropdownMenuItem>
-                  )}
-                  {activeSheet.settings.allowImport && (
-                    <DropdownMenuItem>
-                      <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Import Data
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem>
-                    <Filter className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Advanced Filters
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Entity data status bar - Modern compact design */}
       {activeSheet?.entityDataSource?.enabled && (
         <div className="gba:px-4 gba:py-1.5 gba:border-b gba:border-border/30 gba:bg-gradient-to-r gba:from-muted/30 gba:to-transparent gba:w-full gba:overflow-hidden gba:flex-shrink-0">
@@ -3272,30 +3128,54 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       )}
 
       {/* Content */}
-      <div
-        className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0"
-        style={{ minWidth: 0, minHeight: 0, overflow: 'hidden', position: 'relative' }}
-      >
+      <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:min-h-0 gba:overflow-hidden gba:relative">
         {activeView?.type === 'table' ? (
-          <div
-            className="gba:flex-1 gba:min-w-0 gba:p-6"
-            style={{
-              minWidth: 0,
-              minHeight: 0,
-              overflow: 'auto',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0
-            }}
-          >
+          <div className="gba:flex-1 gba:min-w-0 gba:min-h-0 gba:overflow-hidden gba:absolute gba:inset-0">
             <TableView
+              sheet={activeSheet}
               data={filteredData}
               columns={tableColumns}
+              spreadsheetColumns={visibleColumns}
               testId={`${testId}-table`}
               onAddRow={activeSheet.settings.allowAdd ? handleAddRow : undefined}
-              showAddRow={activeSheet.settings.allowAdd && !!_onAppUpdate}
+              showAddRow={false}
+              onCellChange={handleCellChange}
+              onColumnAdd={handleAutoColumnAdd}
+              onDataChange={async newData => {
+                // CRITICAL: Compare against filteredData (what FortuneSheetGrid sees)
+                // NOT localSheetData (which includes hidden/filtered rows)
+                if (newData.length > filteredData.length) {
+                  const addedRows = newData.slice(filteredData.length)
+
+                  // Create each new row in the backend
+                  const createdRows: Record<string, unknown>[] = []
+                  for (const row of addedRows) {
+                    try {
+                      const rowData: Record<string, unknown> = {}
+                      activeSheet.columns.forEach(col => {
+                        const value = row[col.name] ?? col.defaultValue ?? ''
+                        if (value !== '' && value !== undefined && value !== null) {
+                          rowData[col.name] = value
+                        }
+                      })
+
+                      const createdRow = await SpreadsheetApiService.addRow(app.id, activeSheet.id, rowData)
+                      createdRows.push({ ...row, _id: createdRow._id })
+                    } catch (err) {
+                      console.error('[SpreadsheetAppViewer] Failed to create row:', err)
+                    }
+                  }
+
+                  // Append new rows to localSheetData (don't replace with filtered view)
+                  setLocalSheetData(prev => [...prev, ...createdRows])
+                }
+              }}
+              participants={cursorParticipants}
+              onOperationEmit={emitOperation}
+              onCursorEmit={emitCursor}
+              collaborationEnabled={isCollaborationConnected}
+              isReadOnly={!isEditing || (!!fileLock.lock?.isLocked && !fileLock.isLockedByMe)}
+              gridRef={fortuneSheetGridRef}
             />
           </div>
         ) : (
@@ -4462,107 +4342,87 @@ const EditableCell: React.FC<EditableCellProps> = ({
  * Table View Component with inline editing
  */
 interface TableViewProps {
+  sheet: SpreadsheetSheet
   data: Record<string, unknown>[]
   columns: ColumnDef<Record<string, unknown>>[]
+  spreadsheetColumns: SpreadsheetColumn[]
   testId: string
   onCellChange?: (rowId: string, columnName: string, value: unknown) => void
   isEditable?: boolean
   onAddRow?: () => void
   showAddRow?: boolean
+  onDataChange?: (data: Record<string, unknown>[]) => void
+  /** Callback when a new column needs to be auto-created */
+  onColumnAdd?: (columnIndex: number, initialValue?: unknown, rowIndex?: number) => void
+  participants?: DocumentParticipant[]
+  onOperationEmit?: (operation: any) => void
+  onCursorEmit?: (position: { path: string[] }) => void
+  collaborationEnabled?: boolean
+  isReadOnly?: boolean
+  /** Ref to access FortuneSheetGrid imperative methods */
+  gridRef?: React.RefObject<FortuneSheetGridHandle | null>
 }
 
-const TableView: React.FC<TableViewProps> = ({ data, columns, testId, onAddRow, showAddRow }) => {
-  // Ensure all rows have a unique 'id' property for DataTable (not '_id')
-  // Also deduplicate rows to prevent React key warnings
-  const dataWithIds = useMemo(() => {
-    const seen = new Set<string>()
-    const deduped: Record<string, unknown>[] = []
-
-    for (const row of data) {
-      const rowId = (row.id ?? row._id ?? `row_${deduped.length}`) as string
-      if (!seen.has(rowId)) {
-        seen.add(rowId)
-        deduped.push({
-          ...row,
-          id: rowId
-        })
+const TableView: React.FC<TableViewProps> = ({
+  sheet,
+  data,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  columns,
+  spreadsheetColumns,
+  testId,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onAddRow,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  showAddRow,
+  onCellChange,
+  onDataChange,
+  onColumnAdd,
+  participants,
+  onOperationEmit,
+  onCursorEmit,
+  collaborationEnabled,
+  isReadOnly,
+  gridRef
+}) => {
+  // Handle cell change from FortuneSheet
+  const handleCellChange = useCallback(
+    (rowId: string, columnId: string, value: unknown) => {
+      if (onCellChange) {
+        // Call parent callback
+        onCellChange(rowId, columnId, value)
       }
-      // Silently skip duplicates - deduplication handles the issue
-    }
+    },
+    [onCellChange]
+  )
 
-    return deduped
-  }, [data])
+  // Handle data change from FortuneSheet
+  const handleDataChange = useCallback(
+    (newData: Record<string, unknown>[]) => {
+      if (onDataChange) {
+        onDataChange(newData)
+      }
+    },
+    [onDataChange]
+  )
 
   return (
-    <div className="gba:flex gba:flex-col gba:h-full" style={{ width: '100%', minWidth: 0 }} data-testid={testId}>
-      <div className="gba:flex-1 gba:w-full gba:overflow-auto" style={{ minWidth: 0 }}>
-        <Card
-          className="spreadsheet-modern-table gba:overflow-hidden gba:border-0 gba:shadow-sm"
-          style={{ minWidth: 'fit-content' }}
-        >
-          <style>{`
-            .spreadsheet-modern-table table {
-              border-collapse: separate;
-              border-spacing: 0;
-            }
-            .spreadsheet-modern-table table td,
-            .spreadsheet-modern-table table th {
-              padding: 0 !important;
-              vertical-align: middle;
-            }
-            .spreadsheet-modern-table table tr {
-              height: auto !important;
-            }
-            .spreadsheet-modern-table table thead {
-              position: sticky;
-              top: 0;
-              z-index: 10;
-            }
-            .spreadsheet-modern-table table thead tr {
-              background: linear-gradient(180deg, hsl(var(--muted) / 0.6) 0%, hsl(var(--muted) / 0.3) 100%);
-              backdrop-filter: blur(8px);
-              -webkit-backdrop-filter: blur(8px);
-            }
-            .spreadsheet-modern-table table thead th {
-              border-bottom: 1px solid hsl(var(--border) / 0.5) !important;
-              font-weight: 500 !important;
-              font-size: 0.8125rem !important;
-              letter-spacing: -0.01em;
-              color: hsl(var(--foreground) / 0.8);
-              transition: background 0.15s ease, color 0.15s ease;
-            }
-            .spreadsheet-modern-table table thead th:hover {
-              background: hsl(var(--muted) / 0.5);
-              color: hsl(var(--foreground));
-            }
-            .spreadsheet-modern-table table thead th:first-child {
-              border-top-left-radius: 0.5rem;
-            }
-            .spreadsheet-modern-table table thead th:last-child {
-              border-top-right-radius: 0.5rem;
-            }
-            .spreadsheet-modern-table table tbody tr {
-              transition: background 0.1s ease;
-            }
-            .spreadsheet-modern-table table tbody tr:hover {
-              background: hsl(var(--muted) / 0.15);
-            }
-            .spreadsheet-modern-table table tbody td {
-              border-bottom: 1px solid hsl(var(--border) / 0.3) !important;
-            }
-          `}</style>
-          <DataTable columns={columns} data={dataWithIds} enableResizing={true} enableColumnPinning={false} />
-        </Card>
-      </div>
-      {/* Add Row button */}
-      {showAddRow && onAddRow && (
-        <div className="gba:pt-3 gba:pb-4 gba:flex gba:justify-start">
-          <Button variant="outline" size="sm" onClick={onAddRow} className="gba:gap-2">
-            <Plus className="gba:w-4 gba:h-4" />
-            Add Row
-          </Button>
-        </div>
-      )}
+    <div className="gba:relative gba:w-full gba:h-full gba:min-w-0 gba:absolute gba:inset-0" data-testid={testId}>
+      <FortuneSheetGrid
+        ref={gridRef}
+        sheet={sheet}
+        data={data}
+        columns={spreadsheetColumns}
+        isReadOnly={isReadOnly || false}
+        onCellChange={handleCellChange}
+        onDataChange={handleDataChange}
+        onColumnAdd={onColumnAdd}
+        participants={participants}
+        onOperationEmit={onOperationEmit}
+        onCursorEmit={onCursorEmit}
+        collaborationEnabled={collaborationEnabled}
+        height="100%"
+        width="100%"
+      />
     </div>
   )
 }
