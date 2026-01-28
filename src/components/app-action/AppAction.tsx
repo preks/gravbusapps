@@ -40,7 +40,7 @@ const actionVariants = {
 
   header: {
     mode: 'button',
-    buttonSize: 'icon',
+    buttonSize: 'iconSm',
     buttonVariant: 'outline',
     lazyLoad: false,
     emptyState: 'hide',
