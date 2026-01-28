@@ -15,6 +15,7 @@ import {
 } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import translations from './_i18n'
 import { calculateContextMenuPosition } from './utils/contextMenuPositioning'
+import { hasHolidayInRange, isHoliday } from './utils/holidayUtils'
 import { AVAILABLE_ABSENCE_TYPES } from './constants/absenceTypes'
 
 // Import dayjs locale
@@ -158,26 +159,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
     }
 
     // Check if any day in the range has a holiday
-    const hasHoliday = (() => {
-      try {
-        if (!Array.isArray(holidayDates) || holidayDates.length === 0) return false
-        // Check each day in the range for holidays
-        let currentCheckDay = dateRangeToCheck.start
-        while (
-          currentCheckDay.isBefore(dateRangeToCheck.end, 'day') ||
-          currentCheckDay.isSame(dateRangeToCheck.end, 'day')
-        ) {
-          const key = currentCheckDay.format('YYYY-MM-DD')
-          if (holidayDates.includes(key)) {
-            return true
-          }
-          currentCheckDay = currentCheckDay.add(1, 'day')
-        }
-        return false
-      } catch {
-        return false
-      }
-    })()
+    const hasHoliday = hasHolidayInRange(holidayDates, dateRangeToCheck.start, dateRangeToCheck.end)
 
     if (hasHoliday) {
       // Day(s) have holidays, prevent selection and context menu
@@ -420,15 +402,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                   enableSelection && selectedStartDate && selectedEndDate
                     ? currentDay.isAfter(selectedStartDate, 'day') && currentDay.isBefore(selectedEndDate, 'day')
                     : false
-                const isHoliday = (() => {
-                  try {
-                    if (!Array.isArray(holidayDates) || holidayDates.length === 0) return false
-                    const key = currentDay.format('YYYY-MM-DD')
-                    return holidayDates.includes(key)
-                  } catch {
-                    return false
-                  }
-                })()
+                const isHolidayDay = isHoliday(holidayDates, currentDay)
 
                 const handleDayClick = () => {
                   if (!enableSelection) return
@@ -464,7 +438,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                     bgClass = 'gba:bg-info-secondary/20'
                   } else if (isToday) {
                     bgClass = 'gba:bg-info-secondary/20 gba:border-info'
-                  } else if (isHoliday) {
+                  } else if (isHolidayDay) {
                     bgClass = 'gba:bg-card gba:border-warning'
                   }
 
@@ -488,7 +462,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                       >
                         {currentDay.date()}
                       </div>
-                      {isCurrentMonth && isHoliday && (
+                      {isCurrentMonth && isHolidayDay && (
                         <div className="gba:flex gba:gap-1 gba:mt-1">
                           <div className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:min-h-4 gba:px-1 gba:w-full gba:bg-warning-secondary/80">
                             <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
