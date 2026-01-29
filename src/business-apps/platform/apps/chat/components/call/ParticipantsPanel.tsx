@@ -320,8 +320,6 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
       )
     : []
 
-  const totalCount = activeParticipants.length + notInCallParticipants.length + (pendingInvites?.size || 0)
-
   if (!isOpen) return null
 
   return (
@@ -330,9 +328,9 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
       data-testid={`${prefixDataTestId}-participants-panel`}
     >
       {/* Header */}
-      <div className="gba:p-4 gba:border-b gba:flex-shrink-0">
+      <div className="gba:px-4 gba:pt-2.5 gba:pb-4 gba:border-b gba:flex-shrink-0">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
-          <h3 className="gba:font-semibold gba:text-lg">Participants ({totalCount})</h3>
+          <h3 className="gba:font-semibold gba:text-sm">Participants</h3>
           <div className="gba:flex gba:items-center gba:gap-2">
             {onMuteAll && activeParticipants.length > 0 && (
               <button

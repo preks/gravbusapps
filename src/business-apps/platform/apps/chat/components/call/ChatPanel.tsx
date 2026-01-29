@@ -78,7 +78,7 @@ const ChatPanelComponent: React.FC<ChatPanelProps> = ({
     accessToken
   })
 
-  // Handle incoming WebSocket messages
+  // Handle incoming WebSocket messages when panel is open
   useEffect(() => {
     if (!conversation || !wsClient || !isOpen) return
 
@@ -320,9 +320,13 @@ const ChatPanelComponent: React.FC<ChatPanelProps> = ({
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0" data-testid={prefixDataTestId}>
-      {/* Header */}
-      <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:border-b gba:bg-muted/30 gba:flex-shrink-0">
-        <h3 className="gba:font-semibold gba:text-sm">{t('chat-title')}</h3>
+      {/* Header - Call-specific design with live indicator */}
+      <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-2.5 gba:border-b gba:bg-gradient-to-r gba:from-primary/5 gba:to-transparent gba:backdrop-blur-sm gba:flex-shrink-0">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          {/* Live indicator */}
+          <div className="gba:h-2 gba:w-2 gba:rounded-full gba:bg-success gba:animate-pulse" />
+          <h3 className="gba:font-semibold gba:text-sm">In-Call Chat</h3>
+        </div>
       </div>
 
       {/* Messages */}
@@ -336,6 +340,7 @@ const ChatPanelComponent: React.FC<ChatPanelProps> = ({
         onLoadMore={loadMore}
         accessToken={accessToken}
         participants={conversation.participants}
+        compact={true}
       />
 
       {/* Input */}

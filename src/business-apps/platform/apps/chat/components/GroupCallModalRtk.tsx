@@ -404,6 +404,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
   const [currentPage, setCurrentPage] = useState(0)
   const [sidebarView, setSidebarView] = useState<SidebarView>('closed')
+  const [unreadChatCount, setUnreadChatCount] = useState(0)
   const [activeReactions, setActiveReactions] = useState<
     Array<{
       id: string
@@ -446,8 +447,34 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   }, [])
 
   const handleToggleChat = useCallback(() => {
-    setSidebarView(prev => (prev === 'chat' ? 'closed' : 'chat'))
+    setSidebarView(prev => {
+      const newView = prev === 'chat' ? 'closed' : 'chat'
+      // Reset unread count when opening chat
+      if (newView === 'chat') {
+        setUnreadChatCount(0)
+      }
+      return newView
+    })
   }, [])
+
+  // Listen for new messages when chat is closed (for unread tracking)
+  useEffect(() => {
+    if (!wsClient || !callConversation || sidebarView === 'chat') return
+
+    const handleNewMessage = (message: any) => {
+      // Only count messages from other users in this call's conversation
+      if (message.conversationId === callConversation.id && message.senderId !== currentUserId) {
+        setUnreadChatCount(prev => prev + 1)
+      }
+    }
+
+    // Subscribe to WebSocket events
+    wsClient.on('new_message', handleNewMessage)
+
+    return () => {
+      wsClient.off('new_message', handleNewMessage)
+    }
+  }, [wsClient, callConversation, sidebarView, currentUserId])
 
   // Pagination config: max participants per page
   const PARTICIPANTS_PER_PAGE = 9
@@ -2225,7 +2252,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       {createPortal(
         <Dialog open={isOpen} onOpenChange={() => {}}>
           <DialogContent
-            className="gba:max-w-6xl gba:h-[80vh] gba:p-0 gba:overflow-hidden gba:flex gba:flex-col"
+            className="gba:max-w-[1400px] gba:w-[90vw] gba:h-[85vh] gba:p-0 gba:overflow-hidden gba:flex gba:flex-col gba:gap-0"
             data-testid={`${prefixDataTestId}-modal`}
           >
             <style>{`
@@ -2241,235 +2268,217 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
               {callState.callType === 'video' ? t('chat-videoCall') : t('chat-audioCall')} with{' '}
               {stableRemotePeers.length + 1} {stableRemotePeers.length + 1 === 1 ? 'participant' : 'participants'}
             </DialogDescription>
-            <div className="gba:flex gba:flex-1 gba:bg-background gba:min-h-0 gba:overflow-hidden">
-              {/* Main content area - Takes remaining space */}
-              <div className="gba:flex gba:flex-col gba:flex-1 gba:min-w-0 gba:min-h-0">
-                {/* Header */}
-                <CallHeader
-                  conversationName={conversationName}
-                  callStartTime={callState.startTime}
-                  participantCount={stableRemotePeers.length + 1}
-                  availableParticipantsCount={availableParticipants?.length || 0}
-                  callType={callState.callType}
-                  showParticipantsPanel={sidebarView === 'participants'}
-                  showChatPanel={sidebarView === 'chat'}
-                  onToggleParticipantsPanel={handleToggleParticipants}
-                  onToggleChat={handleToggleChat}
-                  onToggleMinimize={onToggleMinimize}
-                  onClose={onEndCall}
-                  prefixDataTestId={prefixDataTestId}
-                  t={t}
-                />
 
-                {/* Main Content Area - Two-Mode Layout */}
-                <div className="gba:flex gba:flex-col gba:flex-1 gba:p-4 gba:bg-muted/30 gba:gap-4 gba:min-h-0 gba:overflow-hidden">
-                  {focusedScreenShare ? (
-                    // PRESENTATION MODE: Dominant screen share + participant filmstrip
-                    <>
-                      {/* Main Screen Share - 75% height */}
-                      <div className="gba:flex-[3] gba:min-h-0 gba:rounded-lg gba:overflow-hidden gba:bg-black gba:relative">
-                        <video
-                          ref={el => {
-                            if (el) {
-                              screenShareVideoRefs.current.set(focusedScreenShare.peerId, el)
-                            }
-                          }}
-                          autoPlay
-                          playsInline
-                          muted
-                          className="gba:w-full gba:h-full gba:object-contain"
-                          data-testid={`${prefixDataTestId}-focused-screen-share`}
-                        />
+            {/* Row 1: Compact Header */}
+            <div className="gba:bg-background gba:border-b gba:flex-shrink-0">
+              <CallHeader
+                conversationName={conversationName}
+                callStartTime={callState.startTime}
+                participantCount={stableRemotePeers.length + 1}
+                availableParticipantsCount={availableParticipants?.length || 0}
+                callType={callState.callType}
+                showParticipantsPanel={sidebarView === 'participants'}
+                showChatPanel={sidebarView === 'chat'}
+                unreadChatCount={unreadChatCount}
+                onToggleParticipantsPanel={handleToggleParticipants}
+                onToggleChat={handleToggleChat}
+                onToggleMinimize={onToggleMinimize}
+                onClose={onEndCall}
+                prefixDataTestId={prefixDataTestId}
+                t={t}
+              />
+            </div>
 
-                        {/* Peer name overlay */}
-                        <div className="gba:absolute gba:bottom-3 gba:left-3 gba:px-3 gba:py-1 gba:bg-black/70 gba:rounded-md gba:text-white gba:text-sm">
-                          {focusedScreenShare.peerName}'s screen
-                        </div>
+            {/* Row 2: Video Area + Sidebar (Grid Layout) */}
+            <div
+              className="gba:flex-1 gba:grid gba:min-h-0 gba:overflow-hidden gba:bg-muted/30"
+              style={{ gridTemplateColumns: sidebarView !== 'closed' ? '1fr 360px' : '1fr' }}
+            >
+              {/* Video Area */}
+              <div className="gba:flex gba:flex-col gba:gap-4 gba:p-4 gba:min-h-0 gba:overflow-hidden">
+                {focusedScreenShare ? (
+                  // PRESENTATION MODE: Dominant screen share + participant filmstrip
+                  <>
+                    {/* Main Screen Share - 75% height */}
+                    <div className="gba:flex-[3] gba:min-h-0 gba:rounded-lg gba:overflow-hidden gba:bg-black gba:relative">
+                      <video
+                        ref={el => {
+                          if (el) {
+                            screenShareVideoRefs.current.set(focusedScreenShare.peerId, el)
+                          }
+                        }}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="gba:w-full gba:h-full gba:object-contain"
+                        data-testid={`${prefixDataTestId}-focused-screen-share`}
+                      />
 
-                        {/* Exit focus button */}
-                        <button
-                          onClick={() => setFocusedScreenShareId(null)}
-                          className="gba:absolute gba:top-3 gba:right-3 gba:p-2 gba:bg-black/70 hover:gba:bg-black/90 gba:rounded-md gba:text-white gba:transition-colors"
-                          data-testid={`${prefixDataTestId}-exit-screen-share-focus-btn`}
-                          aria-label={t('groupCall-exitScreenShareFocus') || 'Exit screen share focus'}
-                        >
-                          <Monitor className="gba:w-5 gba:h-5" />
-                        </button>
-
-                        {/* Expand to fullscreen button */}
-                        <button
-                          onClick={() => {
-                            if (focusedScreenShare.screenShareTrack) {
-                              const stream = new MediaStream([focusedScreenShare.screenShareTrack])
-                              setExpandedScreenShare({
-                                peerId: focusedScreenShare.peerId,
-                                peerName: focusedScreenShare.peerName,
-                                stream
-                              })
-                            }
-                          }}
-                          className="gba:absolute gba:top-3 gba:right-16 gba:p-2 gba:bg-black/70 hover:gba:bg-black/90 gba:rounded-md gba:text-white gba:transition-colors"
-                          data-testid={`${prefixDataTestId}-expand-screen-share-btn`}
-                          aria-label={t('groupCall-expandScreenShare') || 'Expand to fullscreen'}
-                        >
-                          <Maximize2 className="gba:w-5 gba:h-5" />
-                        </button>
+                      {/* Peer name overlay */}
+                      <div className="gba:absolute gba:bottom-3 gba:left-3 gba:px-3 gba:py-1 gba:bg-black/70 gba:rounded-md gba:text-white gba:text-sm">
+                        {focusedScreenShare.peerName}'s screen
                       </div>
 
-                      {/* Participant Filmstrip - 25% height */}
-                      <div className="gba:flex-[1] gba:min-h-0 gba:border-t gba:border-border">
-                        <HorizontalFilmstrip
-                          participants={
-                            paginatedGridItems.items
-                              .filter(
-                                item =>
-                                  item.type === 'video' ||
-                                  item.type === 'avatar' ||
-                                  (item.type === 'screen-share' && !item.isFocusedScreenShare)
-                              )
-                              .map(item => ({
-                                id: item.id,
-                                peerId: item.peerId,
-                                peerName: item.peerName,
-                                avatarUrl: item.avatarUrl,
-                                userId: item.userId,
-                                customParticipantId: item.customParticipantId,
-                                isLocal: item.isLocal,
-                                isMuted: item.isMuted,
-                                hasVideoTrack: item.hasVideoTrack || false,
-                                hasAudioTrack: item.hasAudioTrack || false,
-                                type: item.type,
-                                screenShareTrack: item.screenShareTrack,
-                                isHandRaised: isParticipantHandRaised(
-                                  item.peerId,
-                                  item.userId,
-                                  item.customParticipantId
-                                ),
-                                handRaisedOrderNumber: getHandRaisedOrderNumber(
-                                  item.peerId,
-                                  item.userId,
-                                  item.customParticipantId
-                                ),
-                                isActiveSpeaker: item.isActiveSpeaker
-                              })) as any
+                      {/* Exit focus button */}
+                      <button
+                        onClick={() => setFocusedScreenShareId(null)}
+                        className="gba:absolute gba:top-3 gba:right-3 gba:p-2 gba:bg-black/70 hover:gba:bg-black/90 gba:rounded-md gba:text-white gba:transition-colors"
+                        data-testid={`${prefixDataTestId}-exit-screen-share-focus-btn`}
+                        aria-label={t('groupCall-exitScreenShareFocus') || 'Exit screen share focus'}
+                      >
+                        <Monitor className="gba:w-5 gba:h-5" />
+                      </button>
+
+                      {/* Expand to fullscreen button */}
+                      <button
+                        onClick={() => {
+                          if (focusedScreenShare.screenShareTrack) {
+                            const stream = new MediaStream([focusedScreenShare.screenShareTrack])
+                            setExpandedScreenShare({
+                              peerId: focusedScreenShare.peerId,
+                              peerName: focusedScreenShare.peerName,
+                              stream
+                            })
                           }
-                          videoRefCallback={(peerId: string, isLocal: boolean) =>
-                            getVideoRefCallback(peerId, '', isLocal)
+                        }}
+                        className="gba:absolute gba:top-3 gba:right-16 gba:p-2 gba:bg-black/70 hover:gba:bg-black/90 gba:rounded-md gba:text-white gba:transition-colors"
+                        data-testid={`${prefixDataTestId}-expand-screen-share-btn`}
+                        aria-label={t('groupCall-expandScreenShare') || 'Expand to fullscreen'}
+                      >
+                        <Maximize2 className="gba:w-5 gba:h-5" />
+                      </button>
+                    </div>
+
+                    {/* Participant Filmstrip - 25% height */}
+                    <div className="gba:flex-[1] gba:min-h-0 gba:border-t gba:border-border">
+                      <HorizontalFilmstrip
+                        participants={
+                          paginatedGridItems.items
+                            .filter(
+                              item =>
+                                item.type === 'video' ||
+                                item.type === 'avatar' ||
+                                (item.type === 'screen-share' && !item.isFocusedScreenShare)
+                            )
+                            .map(item => ({
+                              id: item.id,
+                              peerId: item.peerId,
+                              peerName: item.peerName,
+                              avatarUrl: item.avatarUrl,
+                              userId: item.userId,
+                              customParticipantId: item.customParticipantId,
+                              isLocal: item.isLocal,
+                              isMuted: item.isMuted,
+                              hasVideoTrack: item.hasVideoTrack || false,
+                              hasAudioTrack: item.hasAudioTrack || false,
+                              type: item.type,
+                              screenShareTrack: item.screenShareTrack,
+                              isHandRaised: isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId),
+                              handRaisedOrderNumber: getHandRaisedOrderNumber(
+                                item.peerId,
+                                item.userId,
+                                item.customParticipantId
+                              ),
+                              isActiveSpeaker: item.isActiveSpeaker
+                            })) as any
+                        }
+                        videoRefCallback={(peerId: string, isLocal: boolean) =>
+                          getVideoRefCallback(peerId, '', isLocal)
+                        }
+                        screenShareVideoRefCallback={(peerId: string) => (el: HTMLVideoElement | null) => {
+                          if (el) {
+                            screenShareVideoRefs.current.set(peerId, el)
+                          } else {
+                            screenShareVideoRefs.current.delete(peerId)
                           }
-                          screenShareVideoRefCallback={(peerId: string) => (el: HTMLVideoElement | null) => {
-                            if (el) {
-                              screenShareVideoRefs.current.set(peerId, el)
-                            } else {
-                              screenShareVideoRefs.current.delete(peerId)
-                            }
-                          }}
-                          onScreenShareClick={(peerId: string) => {
-                            rtkDebug.log(`[RTK Modal] 🎯 Focusing screen share from filmstrip: ${peerId}`)
-                            setFocusedScreenShareId(peerId)
-                          }}
-                          activeSpeakerId={activeSpeakerId}
+                        }}
+                        onScreenShareClick={(peerId: string) => {
+                          rtkDebug.log(`[RTK Modal] 🎯 Focusing screen share from filmstrip: ${peerId}`)
+                          setFocusedScreenShareId(peerId)
+                        }}
+                        activeSpeakerId={activeSpeakerId}
+                        reactions={activeReactions}
+                        t={t}
+                        prefixDataTestId={`${prefixDataTestId}-filmstrip`}
+                        isMinimized={callState.isMinimized}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  // GALLERY MODE: Auto-fit grid
+                  <VideoGrid
+                    mode="auto-fit"
+                    minTileSize={minTileSize}
+                    gridItems={paginatedGridItems.items.map(item => (
+                      <div
+                        key={item.id}
+                        className="gba:relative gba:w-full gba:h-full gba:rounded-lg gba:overflow-hidden gba:bg-muted"
+                        style={{ aspectRatio: '16/9' }}
+                        data-testid={`${prefixDataTestId}-grid-item-${item.id}`}
+                      >
+                        <MemoizedParticipantVideoTile
+                          peerId={item.peerId}
+                          peerName={item.peerName}
+                          avatarUrl={item.avatarUrl}
+                          userId={item.userId}
+                          customParticipantId={item.customParticipantId}
+                          isLocal={item.isLocal}
+                          isMuted={item.isMuted}
+                          hasVideoTrack={item.hasVideoTrack || false}
+                          hasAudioTrack={item.hasAudioTrack || false}
+                          screenShareTrack={item.screenShareTrack}
+                          isFocusedScreenShare={false}
+                          totalScreenShares={allScreenShares.length}
+                          isHandRaised={isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId)}
+                          handRaisedOrderNumber={getHandRaisedOrderNumber(
+                            item.peerId,
+                            item.userId,
+                            item.customParticipantId
+                          )}
+                          isActiveSpeaker={item.isActiveSpeaker}
                           reactions={activeReactions}
-                          t={t}
-                          prefixDataTestId={`${prefixDataTestId}-filmstrip`}
                           isMinimized={callState.isMinimized}
+                          onScreenShareClick={() => {
+                            if (item.screenShareTrack) {
+                              rtkDebug.log(`[RTK Modal] 🎯 Focusing screen share via click for ${item.peerId}`)
+                              setFocusedScreenShareId(item.peerId)
+                            }
+                          }}
+                          onScreenShareFocus={() => {
+                            rtkDebug.log(`[RTK Modal] 🎯 Focus button clicked for ${item.peerId}`)
+                            setFocusedScreenShareId(item.peerId)
+                          }}
+                          videoRef={getVideoRefCallback(item.peerId, item.peerName, item.isLocal)}
+                          screenShareVideoRef={
+                            item.screenShareTrack
+                              ? el => {
+                                  if (el) {
+                                    screenShareVideoRefs.current.set(item.peerId, el)
+                                  } else {
+                                    screenShareVideoRefs.current.delete(item.peerId)
+                                  }
+                                }
+                              : undefined
+                          }
+                          prefixDataTestId={prefixDataTestId}
+                          t={t}
                         />
                       </div>
-                    </>
-                  ) : (
-                    // GALLERY MODE: Auto-fit grid
-                    <VideoGrid
-                      mode="auto-fit"
-                      minTileSize={minTileSize}
-                      gridItems={paginatedGridItems.items.map(item => (
-                        <div
-                          key={item.id}
-                          className="gba:relative gba:w-full gba:h-full gba:rounded-lg gba:overflow-hidden gba:bg-muted"
-                          style={{ aspectRatio: '16/9' }}
-                          data-testid={`${prefixDataTestId}-grid-item-${item.id}`}
-                        >
-                          <MemoizedParticipantVideoTile
-                            peerId={item.peerId}
-                            peerName={item.peerName}
-                            avatarUrl={item.avatarUrl}
-                            userId={item.userId}
-                            customParticipantId={item.customParticipantId}
-                            isLocal={item.isLocal}
-                            isMuted={item.isMuted}
-                            hasVideoTrack={item.hasVideoTrack || false}
-                            hasAudioTrack={item.hasAudioTrack || false}
-                            screenShareTrack={item.screenShareTrack}
-                            isFocusedScreenShare={false}
-                            totalScreenShares={allScreenShares.length}
-                            isHandRaised={isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId)}
-                            handRaisedOrderNumber={getHandRaisedOrderNumber(
-                              item.peerId,
-                              item.userId,
-                              item.customParticipantId
-                            )}
-                            isActiveSpeaker={item.isActiveSpeaker}
-                            reactions={activeReactions}
-                            isMinimized={callState.isMinimized}
-                            onScreenShareClick={() => {
-                              if (item.screenShareTrack) {
-                                rtkDebug.log(`[RTK Modal] 🎯 Focusing screen share via click for ${item.peerId}`)
-                                setFocusedScreenShareId(item.peerId)
-                              }
-                            }}
-                            onScreenShareFocus={() => {
-                              rtkDebug.log(`[RTK Modal] 🎯 Focus button clicked for ${item.peerId}`)
-                              setFocusedScreenShareId(item.peerId)
-                            }}
-                            videoRef={getVideoRefCallback(item.peerId, item.peerName, item.isLocal)}
-                            screenShareVideoRef={
-                              item.screenShareTrack
-                                ? el => {
-                                    if (el) {
-                                      screenShareVideoRefs.current.set(item.peerId, el)
-                                    } else {
-                                      screenShareVideoRefs.current.delete(item.peerId)
-                                    }
-                                  }
-                                : undefined
-                            }
-                            prefixDataTestId={prefixDataTestId}
-                            t={t}
-                          />
-                        </div>
-                      ))}
-                      currentPage={currentPage}
-                      totalPages={paginatedGridItems.totalPages}
-                      totalItems={paginatedGridItems.totalItems}
-                      onPageChange={setCurrentPage}
-                      isEmpty={gridItems.length === 0}
-                      prefixDataTestId={prefixDataTestId}
-                      t={t}
-                    />
-                  )}
-                </div>
-
-                {/* Footer - Command Bar */}
-                <CallControlsBar
-                  callType={callState.callType}
-                  isMuted={callState.isMuted}
-                  isVideoEnabled={callState.isVideoEnabled}
-                  isScreenSharing={callState.isScreenSharing}
-                  backgroundEnabled={callState.backgroundEnabled}
-                  handRaised={callState.handRaised}
-                  onToggleMute={onToggleMute}
-                  onToggleVideo={onToggleVideo}
-                  onToggleScreenShare={onToggleScreenShare}
-                  onToggleBackground={onToggleBackground}
-                  onToggleRaiseHand={onToggleRaiseHand}
-                  onSendReaction={onSendReaction}
-                  onEndCall={onEndCall}
-                  prefixDataTestId={prefixDataTestId}
-                  t={t}
-                />
+                    ))}
+                    currentPage={currentPage}
+                    totalPages={paginatedGridItems.totalPages}
+                    totalItems={paginatedGridItems.totalItems}
+                    onPageChange={setCurrentPage}
+                    isEmpty={gridItems.length === 0}
+                    prefixDataTestId={prefixDataTestId}
+                    t={t}
+                  />
+                )}
               </div>
 
-              {/* Sidebar Panel - Participants or Chat (smooth transition) */}
+              {/* Sidebar - Grid Column 2 */}
               {sidebarView !== 'closed' && (
-                <div className="gba:w-80 gba:bg-card gba:shadow-xl gba:flex gba:flex-col gba:border-l gba:flex-shrink-0 gba:transition-all gba:duration-300 gba:h-full gba:overflow-hidden">
+                <div className="gba:bg-card gba:flex gba:flex-col gba:border-l gba:min-h-0 gba:overflow-hidden">
                   {sidebarView === 'participants' && (
                     <ParticipantsPanel
                       meeting={meeting}
@@ -2506,6 +2515,27 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                   )}
                 </div>
               )}
+            </div>
+
+            {/* Row 3: Compact Footer - Call Controls */}
+            <div className="gba:bg-background gba:border-t gba:flex-shrink-0">
+              <CallControlsBar
+                callType={callState.callType}
+                isMuted={callState.isMuted}
+                isVideoEnabled={callState.isVideoEnabled}
+                isScreenSharing={callState.isScreenSharing}
+                backgroundEnabled={callState.backgroundEnabled}
+                handRaised={callState.handRaised}
+                onToggleMute={onToggleMute}
+                onToggleVideo={onToggleVideo}
+                onToggleScreenShare={onToggleScreenShare}
+                onToggleBackground={onToggleBackground}
+                onToggleRaiseHand={onToggleRaiseHand}
+                onSendReaction={onSendReaction}
+                onEndCall={onEndCall}
+                prefixDataTestId={prefixDataTestId}
+                t={t}
+              />
             </div>
 
             {/* Expanded stream overlay */}
