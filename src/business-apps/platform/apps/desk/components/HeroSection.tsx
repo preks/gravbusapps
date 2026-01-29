@@ -44,7 +44,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
           className="gba:absolute gba:inset-0 gba:opacity-20"
           style={{
             background:
-              'radial-gradient(ellipse at 20% 30%, var(--nw-sky-600, #0284c7) 0%, transparent 50%), radial-gradient(ellipse at 80% 70%, var(--nw-amber-600, #d97706) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, var(--nw-teal-600, #0d9488) 0%, transparent 40%)',
+              'radial-gradient(ellipse at 20% 30%, var(--nw-sky-600) 0%, transparent 50%), radial-gradient(ellipse at 80% 70%, var(--nw-amber-600) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, var(--nw-teal-600) 0%, transparent 40%)',
             animation: 'gradient-shift 20s ease infinite',
             backgroundSize: '200% 200%'
           }}
@@ -86,7 +86,6 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
                 NEWWORK
               </span>
               <h1 className="gba:text-5xl gba:sm:text-6xl gba:lg:text-7xl gba:font-bold gba:tracking-tight">
-                <span className="gba:text-foreground">Every </span>
                 <span
                   className="gba:bg-gradient-to-r gba:from-sky-500 gba:via-teal-500 gba:to-amber-500 gba:bg-clip-text gba:text-transparent"
                   style={{
@@ -94,7 +93,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
                     animation: 'gradient-shift 6s ease infinite'
                   }}
                 >
-                  Desk
+                  EveryOffice
                 </span>
               </h1>
             </div>
