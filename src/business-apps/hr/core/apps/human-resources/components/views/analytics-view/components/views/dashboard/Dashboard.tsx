@@ -146,7 +146,7 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
   }
 
   return (
-    <div className="gba:w-full gba:bg-card" data-testid="hr-analytics-dashboard">
+    <div className="gba:w-full" data-testid="hr-analytics-dashboard">
       <div className="gba:p-6 gba:pb-0">
         <div className="gba:mb-6">
           <Title level={2} className="gba:m-0 gba:text-foreground">
