@@ -83,6 +83,7 @@ const getProjectTimeStatus = (project: Project) => {
           `${project.daysUntilStart} days until start`,
           { days: project.daysUntilStart }
         )
+
     return {
       title: getTranslationFromI18nKeyAndLabel(
         'lowcoder:smart_project.time_status.time_until_start',

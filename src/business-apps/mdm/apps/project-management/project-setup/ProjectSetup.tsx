@@ -616,7 +616,6 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
         value: selectedProject.formattedValidFrom || new Date(selectedProject.validFrom).toLocaleDateString()
       })
     }
-
     if (selectedProject.validTo) {
       items[0].items.push({
         label: 'Valid Until',
