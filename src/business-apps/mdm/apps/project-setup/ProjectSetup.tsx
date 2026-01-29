@@ -20,8 +20,8 @@ import {
   MagnifyingGlassIcon
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useProjects, useCreateTeam, useTeamAssignments } from '../hooks'
-import { Project, ProjectManager, ProjectStatusBE, ProjectStatusUI } from '../types'
+import { useProjects, useCreateTeam, useTeamAssignments } from '../project-management/hooks'
+import { Project, ProjectManager, ProjectStatusBE, ProjectStatusUI } from '../project-management/types'
 import {
   DataTable,
   Button,
@@ -68,10 +68,10 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import ProjectForm from '@/business-apps/mdm/forms/project-form'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
-import { NavigationLinkCards, NavigationLinkCardsProps } from '../../generic-components/card/NavigationLinkCards'
-import { VerticalTable, VerticalTableProps } from '../../generic-components/table/VerticalTable'
-import CardTabHeaderComponent from '../../generic-components/card'
-import { DeleteButton } from '../../generic-components/delete-button/DeleteButton'
+import { NavigationLinkCards, NavigationLinkCardsProps } from '../generic-components/card/NavigationLinkCards'
+import { VerticalTable, VerticalTableProps } from '../generic-components/table/VerticalTable'
+import CardTabHeaderComponent from '../generic-components/card'
+import { DeleteButton } from '../generic-components/delete-button/DeleteButton'
 import { formatDateToISO, getClosureDate } from '@/business-apps/mdm/forms/project-form/ProjectForm'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 
@@ -616,7 +616,6 @@ const ProjectSetup: React.FC<ProjectSetupProps> = ({ prefixDataTestId, ...contex
         value: selectedProject.formattedValidFrom || new Date(selectedProject.validFrom).toLocaleDateString()
       })
     }
-
     if (selectedProject.validTo) {
       items[0].items.push({
         label: 'Valid Until',

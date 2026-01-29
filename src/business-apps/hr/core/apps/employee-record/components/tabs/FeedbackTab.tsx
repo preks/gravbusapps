@@ -181,13 +181,46 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     try {
       setRequestsLoadingApproval(true)
       setRequestsErrorApproval(null)
-      const res = await graphQLClient.request<any>(EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT, {
-        idEmployee: employee.id,
-        limit: requestedPageSize,
-        offset: (requestedCurrentPage - 1) * requestedPageSize
-      })
-      const rows: any[] = res?.EmployeeFeedbackRequest || []
-      const mapped: FeedbackRequest[] = rows.map((r: any, idx: number) => ({
+
+      // Fetch enough items to account for COMPLETED items being filtered out
+      // Request 3x the page size to ensure we have enough after filtering
+      const fetchLimit = requestedPageSize * 3
+      const baseOffset = (requestedCurrentPage - 1) * requestedPageSize
+      let allFilteredRows: any[] = []
+      let currentOffset = baseOffset
+      let totalCount: number | undefined
+      const maxIterations = 10 // Safety limit to prevent infinite loops
+
+      // Keep fetching until we have enough non-COMPLETED items
+      for (let i = 0; i < maxIterations && allFilteredRows.length < requestedPageSize; i++) {
+        const res = await graphQLClient.request<any>(EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT, {
+          idEmployee: employee.id,
+          limit: fetchLimit,
+          offset: currentOffset
+        })
+        const rows: any[] = res?.EmployeeFeedbackRequest || []
+
+        // Get total count from first response (includes COMPLETED items)
+        if (i === 0) {
+          totalCount = res?.EmployeeFeedbackRequestAggregate?.aggregate?.count
+        }
+
+        // Filter out COMPLETED items
+        const filteredRows = rows.filter(
+          (r: any) => !r.statusRef || r.statusRef !== 'EmployeeFeedbackRequestStatus:v1:COMPLETED'
+        )
+
+        allFilteredRows = [...allFilteredRows, ...filteredRows]
+        currentOffset += rows.length
+      }
+
+      // Set total count (includes COMPLETED, so pagination may show more pages than non-COMPLETED items)
+      setRequestedTotalCount(typeof totalCount === 'number' ? totalCount : allFilteredRows.length)
+
+      // Take only the items needed for the current page
+      const pageItems = allFilteredRows.slice(0, requestedPageSize)
+
+      const mapped: FeedbackRequest[] = pageItems.map((r: any, idx: number) => ({
         id: `${r.requesterEmployeeId || 'req'}-${r.createdAt || idx}`,
         requestedOn: r.createdAt,
         recordState: r.recordState,
@@ -197,11 +230,8 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         creatorName: r?.requesterEmployee?.displayName || null,
         creatorEmployeeId: r?.requesterEmployee.id || null
       }))
+
       setRequestedFeedback(mapped)
-      const total = res?.EmployeeFeedbackRequestAggregate?.aggregate?.count
-      setRequestedTotalCount(
-        typeof total === 'number' ? total : (requestedCurrentPage - 1) * requestedPageSize + mapped.length
-      )
     } catch (e: any) {
       setRequestsErrorApproval(e?.message || 'Failed to load requested feedback')
     } finally {
@@ -233,7 +263,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       taskTitle: t.referenceName || null,
       feedbackText: t?.inputs?.feedback?.feedback || null,
       creatorName: t?.creatorName || null,
-      creatorEmployeeId: t?.creatorUserId || null,
+      creatorEmployeeId: t?.creatorUserId || t?.inputs?.creatorUserId || t?.inputs?.receiverId || null,
       endpoint: t?.endpoint || null,
       processInstanceId: t?.processInstanceId || null
     }))
@@ -276,7 +306,8 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         processName,
         payload: {
           requestId: request.id,
-          employeeId: employee?.id
+          employeeId: employee?.id,
+          receiverId: request.creatorEmployeeId // The userId of the person who requested the feedback (will receive the response)
         },
         processInstanceId,
         builderType: 'NATIVE_SCREEN'

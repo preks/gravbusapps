@@ -12,7 +12,10 @@ import {
 } from '@/common/components/common-relations/form-layouts/lead-convert-layout/leadConvertSchema'
 import { accountSchema } from '@/common/components/common-relations/form-layouts/account-layout'
 import { contactSchema } from '@/common/components/common-relations/form-layouts/contact-layout'
-import { opportunitySchema } from '@/common/components/common-relations/form-layouts/opportunity-layout'
+import {
+  opportunitySchemaBase,
+  addPipelineStageRefinement
+} from '@/common/components/common-relations/form-layouts/opportunity-layout'
 import { useInvestmentAccountsList } from '@/common/data/investment/hooks/useInvestmentAccounts'
 import { useInvestmentContactsList } from '@/common/data/investment/hooks/useInvestmentContacts'
 import { useInvestmentLead } from '@/common/data/investment/hooks/useInvestmentLead'
@@ -68,13 +71,19 @@ import {
 } from '@/common/components/investment/form-layouts/investment-prospect-layout/utils/extractProspectFields'
 
 // IRM-specific schema extension for Opportunity (adds investment fields)
-const baseInvestmentOpportunitySchema = opportunitySchema.extend({
+// Use opportunitySchemaBase (without refinements) to allow extension
+const baseInvestmentOpportunitySchema = opportunitySchemaBase.extend({
   investmentName: z.string().min(1, 'Investment Name is required'),
   dealType: z.string().nullable().optional()
 })
 
-// Create investment opportunity schema with investmentTypeId
-const investmentOpportunitySchema = createInvestmentOpportunitySchema(baseInvestmentOpportunitySchema)
+// Create investment opportunity schema with investmentTypeId (without refinements yet)
+const investmentOpportunitySchemaWithoutRefinement = createInvestmentOpportunitySchema(baseInvestmentOpportunitySchema)
+
+// Apply pipeline/stage validation refinement as the final step
+const investmentOpportunitySchema = addPipelineStageRefinement(
+  investmentOpportunitySchemaWithoutRefinement as any
+) as typeof investmentOpportunitySchemaWithoutRefinement
 
 type ConvertLeadFormData = LeadConvertSchema
 
@@ -178,13 +187,13 @@ export const ConvertInvestmentLeadForm = ({
   // Convert group/type to investmentTypeId for baseOpportunityValues
   const baseOpportunityValuesWithTypeId = useMemo(() => {
     if (
-      baseOpportunityValues.investmentGroupRef ||
-      baseOpportunityValues.investmentTypeRef ||
+      (baseOpportunityValues as any).investmentGroupRef ||
+      (baseOpportunityValues as any).investmentTypeRef ||
       (leadData as any)?.investmentGroupRef ||
       (leadData as any)?.investmentTypeRef
     ) {
-      const groupId = baseOpportunityValues.investmentGroupRef || (leadData as any)?.investmentGroupRef || null
-      const typeId = baseOpportunityValues.investmentTypeRef || (leadData as any)?.investmentTypeRef || null
+      const groupId = (baseOpportunityValues as any).investmentGroupRef || (leadData as any)?.investmentGroupRef || null
+      const typeId = (baseOpportunityValues as any).investmentTypeRef || (leadData as any)?.investmentTypeRef || null
       const investmentTypeId = mapToSingleInvestmentTypeId(groupId, typeId, getPathByType)
       return {
         ...baseOpportunityValues,
@@ -220,7 +229,7 @@ export const ConvertInvestmentLeadForm = ({
   })
 
   // Watch investmentTypeId from form (after form is created)
-  const watchedInvestmentTypeId = opportunityForm.watch('investmentTypeId')
+  const watchedInvestmentTypeId = (opportunityForm as any).watch('investmentTypeId')
 
   // Get effective type ID from form or initial value
   const effectiveTypeId = watchedInvestmentTypeId || initialEffectiveTypeId || null
@@ -368,7 +377,7 @@ export const ConvertInvestmentLeadForm = ({
   const updateDynamicFieldsFromLeadData = useCallback(() => {
     if (!opportunityForm) return null
 
-    const currentValues = opportunityForm.getValues()
+    const currentValues = opportunityForm.getValues() as any
     const updatedValues = { ...currentValues }
 
     const formInvestmentTypeId = currentValues.investmentTypeId || null
@@ -800,7 +809,7 @@ export const ConvertInvestmentLeadForm = ({
       // For opportunity: merge base form values with dynamic prospect fields
       const opportunity = data.createOpportunity
         ? (() => {
-            const opportunityValues = opportunityForm.getValues()
+            const opportunityValues = opportunityForm.getValues() as any
             const prospectFields = extractProspectFieldsFromFormValues(opportunityValues, formFieldsDefinition)
 
             // Convert investmentTypeId back to group/type for payload

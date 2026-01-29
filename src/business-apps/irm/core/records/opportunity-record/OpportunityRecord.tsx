@@ -18,7 +18,6 @@ import {
   TrashIcon,
   PencilSimpleIcon,
   StarIcon,
-  RobotIcon,
   CalendarIcon,
   CurrencyDollarIcon
 } from '@phosphor-icons/react'
@@ -30,7 +29,7 @@ import { useInvestmentOpportunity } from '@/common/data/investment/hooks/useInve
 import { formatCurrency } from '@/common/utils/numberFormatter'
 import { getOpportunityStatusBadgeVariant, getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
 import { useAiSummary } from './hooks/useAiSummary'
-import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
+import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppAction } from '@/components/app-action'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import { useProspectRejectionReasons } from '@/common/data/investment/hooks/useProspectRejectionReasons'
@@ -740,32 +739,14 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     ]
   )
 
-  const headerActions = useMemo(() => {
-    const actions: AiAction[] = [
-      {
-        key: 'ai-summary',
-        label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-        icon: <RobotIcon size={16} />,
-        hook: aiSummaryHook,
-        config: {
-          entityType: 'opportunity',
-          loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.summary.loading', 'Generating AI Summary...'),
-          loadingSubtitle: getTranslationFromI18nKeyAndLabel(
-            'crm.ai.summary.subtitle',
-            'Analyzing opportunity data and activities'
-          )
-        }
-      }
-    ]
-
-    return (
-      <AiActions
-        actions={actions}
-        dataTestId={`opportunity-update-button-${opportunityId}`}
-        buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')}
-      />
-    )
-  }, [aiSummaryHook, opportunityId])
+  const headerActions = (
+    <AiActions
+      entityType="investment-opportunity"
+      entityId={opportunityId}
+      features={['summary']}
+      hooks={{ summary: aiSummaryHook }}
+    />
+  )
 
   const headerContent = useMemo(() => {
     const isReadonly = !isOpportunityOpen(opportunityData?.opportunityStatus?.value)

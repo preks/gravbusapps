@@ -19,6 +19,8 @@ import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
+import { useContactAiSummary } from './hooks/useContactAiSummary'
 import { HomeView } from './views/home-view/HomeView'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
@@ -44,6 +46,9 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     error,
     refetch: refetchContactData
   } = useCustomerContact(props.accessToken, contactId)
+
+  // AI Summary hook - must be called before any conditional returns
+  const aiSummaryHook = useContactAiSummary(contactId, props.accessToken)
 
   // Data fetching hooks for sections - using central hooks
   const { fetchCustomerActivitiesByContactId } = useCustomerActivities(props)
@@ -218,10 +223,14 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     [contactData]
   )
 
-  const headerActions = useMemo(() => {
-    // For now, we can add AI Summary later if needed
-    return null
-  }, [contactId])
+  const headerActions = (
+    <AiActions
+      entityType="contact"
+      entityId={contactId}
+      features={['summary', 'meeting-planner']}
+      hooks={{ summary: aiSummaryHook, meetingPlanner: aiSummaryHook }}
+    />
+  )
 
   // Calculate fullName early for use in headerActionButton
   const fullName =

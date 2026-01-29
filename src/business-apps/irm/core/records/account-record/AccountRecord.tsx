@@ -5,7 +5,6 @@ import {
   TrendUpIcon,
   FileTextIcon,
   BankIcon,
-  RobotIcon,
   EnvelopeIcon,
   PhoneIcon,
   CalendarIcon
@@ -17,7 +16,7 @@ import { useInvestmentAccount } from '@/common/data/investment/hooks/useInvestme
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
+import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAccountAiSummary } from './hooks/useAccountAiSummary'
 import { useGenerateAIBooklet } from './hooks/useGenerateAIBooklet'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
@@ -152,56 +151,16 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
     )
   }, [accountData?.accountPriority])
 
-  const headerActions = useMemo(() => {
-    const aiActions: AiAction[] = props.accessToken
-      ? [
-          {
-            key: 'ai-summary',
-            label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-            icon: <RobotIcon size={16} />,
-            hook: aiSummaryHook,
-            config: {
-              entityType: 'account',
-              loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.generatingSummary', 'Generating AI Summary...'),
-              loadingSubtitle: getTranslationFromI18nKeyAndLabel(
-                'crm.ai.analyzingAccount',
-                'Analyzing account data and activities'
-              ),
-              emptyStateMessage: getTranslationFromI18nKeyAndLabel(
-                'crm.ai.summary.emptyState',
-                "Click to generate intelligent insights about this account's performance and next steps"
-              )
-            }
-          },
-          {
-            key: 'ai-booklet',
-            label: getTranslationFromI18nKeyAndLabel('crm.ai.booklet', 'AI Booklet'),
-            icon: <RobotIcon size={16} />,
-            hook: aiBookletHook,
-            config: {
-              entityType: 'account',
-              loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.booklet.loading', 'Generating AI Booklet...'),
-              loadingSubtitle: getTranslationFromI18nKeyAndLabel(
-                'crm.ai.booklet.subtitle',
-                'Analyzing account documents for creating a booklet'
-              ),
-              emptyStateMessage: getTranslationFromI18nKeyAndLabel(
-                'crm.ai.booklet.emptyState',
-                'Click to generate an M&A booklet from account documents'
-              )
-            }
-          }
-        ]
-      : []
-
-    return (
-      <AiActions
-        actions={aiActions}
-        dataTestId={`account-ai-actions-${accountId}`}
-        buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.actions', 'AI Actions')}
-      />
-    )
-  }, [props.accessToken, aiSummaryHook, aiBookletHook, accountId])
+  const headerActions = (
+    <AiActions
+      entityType="investment-account"
+      entityId={accountId}
+      features={['summary', 'booklet']}
+      hooks={{ summary: aiSummaryHook, booklet: aiBookletHook }}
+      requireAccessToken
+      accessToken={props.accessToken}
+    />
+  )
 
   const headerActionButton = useMemo(
     () => (
