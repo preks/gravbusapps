@@ -14,13 +14,7 @@ import type { EntityFilterGroup } from './entityDataSource'
 /**
  * Workflow status values aligned with custom-flow-engine
  */
-export type WorkflowStatus =
-  | 'PENDING'
-  | 'RUNNING'
-  | 'COMPLETED'
-  | 'FAILED'
-  | 'CANCELED'
-  | 'TIMED_OUT'
+export type WorkflowStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELED' | 'TIMED_OUT'
 
 /**
  * How the automation is triggered
@@ -172,11 +166,7 @@ export interface AutomationFormInput {
 /**
  * Step type aligned with flow engine
  */
-export type AutomationStepType =
-  | 'TASK'
-  | 'APPROVAL'
-  | 'INFORMATION'
-  | 'ACKNOWLEDGE'
+export type AutomationStepType = 'TASK' | 'APPROVAL' | 'INFORMATION' | 'ACKNOWLEDGE'
 
 /**
  * Link attached to a workflow step

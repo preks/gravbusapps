@@ -15,7 +15,6 @@ import type {
 } from '../types'
 
 const STORAGE_KEY = 'newwork_spreadsheet_apps'
-const STORAGE_VERSION = '1.0'
 
 /**
  * Service for managing spreadsheet apps
@@ -279,6 +278,9 @@ export class SpreadsheetAppService {
       const imported = JSON.parse(jsonData) as SpreadsheetApp
       // Reset IDs and timestamps
       const { id, createdAt, updatedAt, ...appData } = imported
+      void id
+      void createdAt
+      void updatedAt
       return this.createApp({
         ...appData,
         status: 'draft'

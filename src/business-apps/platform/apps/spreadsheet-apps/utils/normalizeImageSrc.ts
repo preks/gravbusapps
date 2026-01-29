@@ -44,4 +44,3 @@ export function normalizeImageSrc(raw?: string): string | undefined {
   // Otherwise treat as a (short) relative path and let the browser resolve it.
   return value
 }
-

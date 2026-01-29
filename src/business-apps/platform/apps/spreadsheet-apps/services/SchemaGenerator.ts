@@ -66,66 +66,30 @@ export function generateEmptyAppSchema(
   userId: string,
   sheetName: string = 'Sheet1'
 ): Omit<SpreadsheetApp, 'id' | 'createdAt' | 'updatedAt'> {
-  // Create default columns (A, B, C, D like a typical spreadsheet)
-  const defaultColumns: SpreadsheetColumn[] = [
-    {
-      id: generateId('col'),
-      name: 'column_a',
-      label: 'Column A',
-      type: 'text',
-      width: 150,
-      isVisible: true,
-      isEditable: true,
-      isRequired: false,
-      isUnique: false,
-      order: 0
-    },
-    {
-      id: generateId('col'),
-      name: 'column_b',
-      label: 'Column B',
-      type: 'text',
-      width: 150,
-      isVisible: true,
-      isEditable: true,
-      isRequired: false,
-      isUnique: false,
-      order: 1
-    },
-    {
-      id: generateId('col'),
-      name: 'column_c',
-      label: 'Column C',
-      type: 'text',
-      width: 150,
-      isVisible: true,
-      isEditable: true,
-      isRequired: false,
-      isUnique: false,
-      order: 2
-    },
-    {
-      id: generateId('col'),
-      name: 'column_d',
-      label: 'Column D',
-      type: 'text',
-      width: 150,
-      isVisible: true,
-      isEditable: true,
-      isRequired: false,
-      isUnique: false,
-      order: 3
-    }
-  ]
+  // Create default columns (A-Z like Excel - 26 columns)
+  // This gives users a proper Excel-like experience with enough columns to work with
+  const columnLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+  const defaultColumns: SpreadsheetColumn[] = columnLetters.map((letter, index) => ({
+    id: generateId('col'),
+    name: `column_${letter.toLowerCase()}`,
+    label: `Column ${letter}`,
+    type: 'text' as const,
+    width: 100,
+    isVisible: true,
+    isEditable: true,
+    isRequired: false,
+    isUnique: false,
+    order: index
+  }))
 
   // Create default empty rows (5 empty rows to start with)
-  const defaultRows = Array.from({ length: 5 }, () => ({
-    _id: generateId('row'),
-    column_a: '',
-    column_b: '',
-    column_c: '',
-    column_d: ''
-  }))
+  const defaultRows = Array.from({ length: 5 }, () => {
+    const row: Record<string, unknown> = { _id: generateId('row') }
+    columnLetters.forEach(letter => {
+      row[`column_${letter.toLowerCase()}`] = ''
+    })
+    return row
+  })
 
   // Create default table view
   const defaultView: SheetView = {
