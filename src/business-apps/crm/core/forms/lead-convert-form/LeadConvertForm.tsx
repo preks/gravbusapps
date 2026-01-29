@@ -20,7 +20,10 @@ import {
 } from '@/common/components/common-relations/form-layouts/lead-convert-layout/leadConvertSchema'
 import { accountSchema } from '@/common/components/common-relations/form-layouts/account-layout'
 import { contactSchema } from '@/common/components/common-relations/form-layouts/contact-layout'
-import { opportunitySchema } from '@/common/components/common-relations/form-layouts/opportunity-layout'
+import {
+  opportunitySchema,
+  opportunitySchemaBase
+} from '@/common/components/common-relations/form-layouts/opportunity-layout'
 import { useCustomerAccountsList } from '@/common/data/customer/hooks/useCustomerAccounts'
 import { useCustomerContactsList } from '@/common/data/customer/hooks/useCustomerContacts'
 import { useCustomerLead } from '@/common/data/customer/hooks/useCustomerLead'
@@ -121,9 +124,20 @@ const customerContactSchema = contactSchema.extend({
   salesCampaignId: z.string().nullable().optional()
 })
 
-const customerOpportunitySchema = opportunitySchema.extend({
-  salesCampaignId: z.string().nullable().optional()
-})
+// CRM-specific opportunity schema: Pipeline and Stage validation happens in submit handler
+// Schema accepts optional values to prevent premature validation errors on render
+const customerOpportunitySchema = opportunitySchemaBase
+  .omit({
+    opportunityPipelineRef: true,
+    opportunityPipelineStageRef: true
+  })
+  .extend({
+    // Optional in schema - validation happens in submit handler
+    opportunityPipelineRef: z.string().nullable().optional(),
+    opportunityPipelineStageRef: z.string().nullable().optional(),
+    // CRM-specific field
+    salesCampaignId: z.string().nullable().optional()
+  })
 
 type ConvertLeadFormData = LeadConvertSchema
 
@@ -183,6 +197,9 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
     resolver: zodResolver(customerOpportunitySchema) as Resolver<z.infer<typeof customerOpportunitySchema>>,
     defaultValues: {
       ...mapLeadToOpportunity(leadData),
+      // Ensure pipeline and stage have empty string defaults (required fields in CRM)
+      opportunityPipelineRef: mapLeadToOpportunity(leadData).opportunityPipelineRef || '',
+      opportunityPipelineStageRef: mapLeadToOpportunity(leadData).opportunityPipelineStageRef || '',
       salesCampaignId: (leadData as any)?.salesCampaignId || undefined
     },
     mode: 'onChange'
@@ -201,6 +218,9 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
       })
       opportunityForm.reset({
         ...mapLeadToOpportunity(leadData),
+        // Ensure pipeline and stage have empty string defaults (required fields in CRM)
+        opportunityPipelineRef: mapLeadToOpportunity(leadData).opportunityPipelineRef || '',
+        opportunityPipelineStageRef: mapLeadToOpportunity(leadData).opportunityPipelineStageRef || '',
         salesCampaignId: (leadData as any)?.salesCampaignId || undefined
       })
     }
@@ -586,6 +606,26 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
       const opportunity = data.createOpportunity
         ? (() => {
             const opportunityData = opportunityForm.getValues() as Partial<CustomerOpportunity>
+
+            // Validate required fields manually (CRM requirement: pipeline and stage are mandatory)
+            if (!opportunityData.opportunityPipelineRef || opportunityData.opportunityPipelineRef.trim() === '') {
+              opportunityForm.setError('opportunityPipelineRef', {
+                type: 'manual',
+                message: 'Pipeline is required'
+              })
+              throw new Error('Pipeline is required')
+            }
+            if (
+              !opportunityData.opportunityPipelineStageRef ||
+              opportunityData.opportunityPipelineStageRef.trim() === ''
+            ) {
+              opportunityForm.setError('opportunityPipelineStageRef', {
+                type: 'manual',
+                message: 'Stage is required'
+              })
+              throw new Error('Stage is required')
+            }
+
             // Remove ownerEmployee object to prevent it from overwriting ownerEmployeeId mapping
             delete opportunityData.ownerEmployee
             return opportunityData
