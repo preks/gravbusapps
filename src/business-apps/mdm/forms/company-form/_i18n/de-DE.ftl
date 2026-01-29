@@ -10,6 +10,17 @@ validation-name-required = Bitte Firmennamen eingeben
 validation-code-required = Bitte Firmencode eingeben
 validation-percentage-min = Prozentsatz darf nicht kleiner als 0% sein
 validation-percentage-max = Prozentsatz darf nicht größer als 100% sein
+validation-no-leading-whitespace = Darf nicht mit Leerzeichen beginnen
+validation-address-line-max = Adresszeile muss weniger als 20 Zeichen haben
+validation-postal-code-max = Postleitzahl muss weniger als 20 Zeichen haben
+validation-locality-max = Ortschaft muss weniger als 20 Zeichen haben
+validation-company-name-max = Firmenname muss weniger als 64 Zeichen haben
+validation-company-code-max = Firmencode muss weniger als 10 Zeichen haben
+validation-description-max = Beschreibung muss weniger als 100 Zeichen haben
+validation-commercial-registration-number-max = Handelsregisternummer muss weniger als 20 Zeichen haben
+validation-tax-identification-number-max = Steueridentifikationsnummer muss weniger als 20 Zeichen haben
+validation-tax-number-max = Steuernummer muss weniger als 20 Zeichen haben
+validation-value-added-tax-number-max = USt-IdNr. muss weniger als 20 Zeichen haben
 
 # Form Labels
 label-company-name = Firmenname
@@ -35,6 +46,8 @@ placeholder-tax-number = z.B.: 123456789
 placeholder-vat-number = z.B.: DE123456789
 placeholder-director = Geschäftsführer auswählen
 placeholder-director-search = Nach Namen suchen...
+placeholder-currency = Währung auswählen
+placeholder-currency-search = Zum Suchen tippen...
 
 # Section Titles
 section-company-details = Unternehmensdaten
@@ -49,6 +62,9 @@ message-logo-upload-info = Laden Sie ein Firmenlogo oder Profilbild hoch (JPG, P
 message-no-additional-properties = Keine zusätzlichen Eigenschaften
 alt-logo-preview = Firmenlogo Vorschau
 avatar-fallback = UN
+message-currency-loading = Wird geladen...
+message-currency-no-results = Keine Ergebnisse
+percentage-default-value = 0%
 
 # Errors
 error-failed-to-read-file = Datei konnte nicht gelesen werden

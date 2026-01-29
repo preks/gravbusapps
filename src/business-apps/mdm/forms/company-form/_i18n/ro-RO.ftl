@@ -10,6 +10,17 @@ validation-name-required = Vă rugăm să introduceți numele companiei
 validation-code-required = Vă rugăm să introduceți codul companiei
 validation-percentage-min = Procentul nu poate fi mai mic de 0%
 validation-percentage-max = Procentul nu poate fi mai mare de 100%
+validation-no-leading-whitespace = Nu poate începe cu spațiu
+validation-address-line-max = Linia de adresă trebuie să aibă mai puțin de 20 de caractere
+validation-postal-code-max = Codul poștal trebuie să aibă mai puțin de 20 de caractere
+validation-locality-max = Localitatea trebuie să aibă mai puțin de 20 de caractere
+validation-company-name-max = Numele companiei trebuie să aibă mai puțin de 64 de caractere
+validation-company-code-max = Codul companiei trebuie să aibă mai puțin de 10 caractere
+validation-description-max = Descrierea trebuie să aibă mai puțin de 100 de caractere
+validation-commercial-registration-number-max = Numărul de înregistrare comercială trebuie să aibă mai puțin de 20 de caractere
+validation-tax-identification-number-max = Codul de identificare fiscală trebuie să aibă mai puțin de 20 de caractere
+validation-tax-number-max = Numărul fiscal trebuie să aibă mai puțin de 20 de caractere
+validation-value-added-tax-number-max = Codul TVA trebuie să aibă mai puțin de 20 de caractere
 
 # Form Labels
 label-company-name = Nume companie
@@ -35,6 +46,8 @@ placeholder-tax-number = ex.: 123456789
 placeholder-vat-number = ex.: RO123456789
 placeholder-director = Selectați directorul
 placeholder-director-search = Căutare după nume...
+placeholder-currency = Selectați moneda
+placeholder-currency-search = Tastați pentru căutare...
 
 # Section Titles
 section-company-details = Detalii companie
@@ -49,6 +62,9 @@ message-logo-upload-info = Încărcați un logo sau imagine de profil (JPG, PNG,
 message-no-additional-properties = Fără proprietăți adiționale
 alt-logo-preview = Previzualizare logo companie
 avatar-fallback = CO
+message-currency-loading = Se încarcă...
+message-currency-no-results = Fără rezultate
+percentage-default-value = 0%
 
 # Errors
 error-failed-to-read-file = Eroare la citirea fișierului

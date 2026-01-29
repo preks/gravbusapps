@@ -12,7 +12,10 @@ import {
   Alert,
   AlertTitle,
   AlertDescription,
-  Spinner
+  Spinner,
+  Avatar,
+  AvatarImage,
+  AvatarFallback
 } from '@newwork/nw-design-system'
 import {
   EyeIcon,
@@ -35,6 +38,8 @@ import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { extractCurrencyCode } from '@/common/utils/numberFormatter'
+import { CompanyAddress, Director } from '../../types'
 
 export interface CompaniesTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -246,23 +251,129 @@ const CompaniesTab: React.FC<CompaniesTabProps> = context => {
     return columns
   }, [allCompanies])
 
+  // Helper function to format address
+  const formatAddress = useCallback((address: CompanyAddress): string => {
+    const parts: string[] = []
+    if (address.addressLine) {
+      if (address.addressLine.streetAddress) parts.push(address.addressLine.streetAddress)
+      if (address.addressLine.addressLine2) parts.push(address.addressLine.addressLine2)
+      if (address.addressLine.addressLine3) parts.push(address.addressLine.addressLine3)
+      if (address.addressLine.addressLine4) parts.push(address.addressLine.addressLine4)
+    }
+    if (address.postalCode) parts.push(address.postalCode)
+    if (address.locality) parts.push(address.locality)
+    return parts.join(', ') || '-'
+  }, [])
+
+  // Helper function to display director information (similar to showProjectManager in ProjectSetup.tsx)
+  const showDirector = useCallback((company: Company) => {
+    const director = company.director as Director
+    const directorName =
+      director?.displayName ??
+      (director?.firstName || director?.lastName
+        ? `${director.firstName || ''} ${director.lastName || ''}`.trim()
+        : undefined)
+    const directorPicture = director?.pictureThumbnail
+
+    return (
+      <div className="gba:flex gba:items-center gba:gap-2">
+        {directorPicture ? (
+          <Avatar size="default" className="gba:h-10 gba:w-10" data-testid={`director-avatar-${directorName}`}>
+            <AvatarImage
+              src={
+                directorPicture && !directorPicture.startsWith('{')
+                  ? `data:image/jpeg;base64,${directorPicture}`
+                  : undefined
+              }
+              alt={directorName}
+            />
+            <AvatarFallback>
+              {`${director?.firstName?.[0] || ''}${director?.lastName?.[0] || ''}`.toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        ) : directorName ? (
+          <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-medium">
+            {directorName
+              .split(' ')
+              .map((n: string) => n[0])
+              .join('')
+              .toUpperCase()
+              .slice(0, 2)}
+          </div>
+        ) : null}
+        <span className="gba:font-semibold">
+          {directorName || <span className="gba:text-muted-foreground">-</span>}
+        </span>
+      </div>
+    )
+  }, [])
+
   const drawerItems = useMemo(() => {
     if (!selectedCompany) return []
 
-    const items = [
+    const basicInfoItems: Array<{ label: string; value: string | number | React.ReactElement }> = [
+      {
+        label: 'Name',
+        value: selectedCompany.name
+      },
+      {
+        label: 'Code',
+        value: selectedCompany.code ?? '-'
+      }
+    ]
+
+    // Add description if exists
+    if (selectedCompany.description) {
+      basicInfoItems.push({
+        label: 'Description',
+        value: selectedCompany.description
+      })
+    }
+
+    // Add holding if exists
+    if (selectedCompany.percentage) {
+      basicInfoItems.push({
+        label: 'Holding',
+        value: `${selectedCompany.percentage}%`
+      })
+    }
+
+    // Add director if exists
+    if (selectedCompany.directorId) {
+      basicInfoItems.push({
+        label: 'Director',
+        value: showDirector(selectedCompany)
+      })
+    }
+
+    // Add commercial registration number if exists
+    if (selectedCompany.commercialRegistrationNumber) {
+      basicInfoItems.push({
+        label: 'Commercial Registration Number',
+        value: selectedCompany.commercialRegistrationNumber
+      })
+    }
+
+    // Add currency if exists
+    if (selectedCompany.currencyRef) {
+      const currencyCode = extractCurrencyCode(selectedCompany.currencyRef)
+      if (currencyCode) {
+        basicInfoItems.push({
+          label: 'Currency',
+          value: currencyCode
+        })
+      }
+    }
+
+    const items: Array<{
+      icon: React.ReactElement
+      title: string
+      items: Array<{ label: string; value: string | number | React.ReactElement }>
+    }> = [
       {
         icon: <InfoIcon />,
         title: 'Basic Information',
-        items: [
-          {
-            label: 'Name',
-            value: selectedCompany.name
-          },
-          {
-            label: 'Code',
-            value: selectedCompany.code ?? '-'
-          }
-        ]
+        items: basicInfoItems
       },
       {
         icon: <InfoIcon />,
@@ -283,15 +394,87 @@ const CompaniesTab: React.FC<CompaniesTabProps> = context => {
         ]
       }
     ]
-    if (selectedCompany.percentage) {
-      ;(items[0].items as Array<{ label: string; value: string | number | React.ReactElement }>).push({
-        label: 'Holding',
-        value: `${selectedCompany.percentage}%`
+
+    // Add Tax Details section if any tax field exists
+    const taxItems: Array<{ label: string; value: string }> = []
+    if (selectedCompany.taxIdentificationNumber) {
+      taxItems.push({
+        label: 'Tax Identification Number',
+        value: selectedCompany.taxIdentificationNumber
+      })
+    }
+    if (selectedCompany.taxNumber) {
+      taxItems.push({
+        label: 'Tax Number',
+        value: selectedCompany.taxNumber
+      })
+    }
+    if (selectedCompany.valueAddedTaxNumber) {
+      taxItems.push({
+        label: 'Value Added Tax Number',
+        value: selectedCompany.valueAddedTaxNumber
+      })
+    }
+    if (taxItems.length > 0) {
+      items.push({
+        icon: <InfoIcon />,
+        title: 'Tax Details',
+        items: taxItems
       })
     }
 
+    // Add Address Information section if addresses exist
+    if (selectedCompany.addresses && selectedCompany.addresses.length > 0) {
+      const addressItems: Array<{ label: string; value: string }> = []
+      selectedCompany.addresses.forEach((address, index) => {
+        const formattedAddress = formatAddress(address)
+        if (formattedAddress !== '-') {
+          addressItems.push({
+            label: address.addressType || `Address ${index + 1}`,
+            value: formattedAddress
+          })
+        }
+      })
+      if (addressItems.length > 0) {
+        items.push({
+          icon: <InfoIcon />,
+          title: 'Address Information',
+          items: addressItems
+        })
+      }
+    }
+
+    // Add Additional Properties / Key Figures section if exists
+    if (selectedCompany.additionalProperties && Object.keys(selectedCompany.additionalProperties).length > 0) {
+      const additionalItems: Array<{ label: string; value: string | number }> = []
+      Object.entries(selectedCompany.additionalProperties).forEach(([key, value]) => {
+        // Only add if value is not empty/null/undefined
+        if (value !== null && value !== undefined && value !== '') {
+          const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value)
+          if (displayValue.trim() !== '') {
+            // Format key: convert camelCase to Title Case
+            const formattedKey = key
+              .replace(/([A-Z])/g, ' $1')
+              .replace(/^./, str => str.toUpperCase())
+              .trim()
+            additionalItems.push({
+              label: formattedKey,
+              value: displayValue
+            })
+          }
+        }
+      })
+      if (additionalItems.length > 0) {
+        items.push({
+          icon: <InfoIcon />,
+          title: 'Additional Information',
+          items: additionalItems
+        })
+      }
+    }
+
     return items
-  }, [selectedCompany])
+  }, [selectedCompany, formatAddress, showDirector])
 
   const navigationItems = useMemo(() => {
     if (!selectedCompany) return []

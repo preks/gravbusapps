@@ -18,7 +18,8 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
-  useTranslation
+  useTranslation,
+  Combobox
 } from '@newwork/nw-design-system'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
@@ -31,38 +32,79 @@ import { DynamicForm } from '@/components/dynamic-form'
 import { useCompanyAdditionalProperties } from '../../hooks/useCompanyAdditionalProperties'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import translations from './_i18n'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
-// Address schema for validation (no translations needed)
-const addressSchema = z.object({
-  addressType: z.string().optional(),
-  addressLine: z
-    .object({
-      lines: z.array(z.string()).optional()
-    })
-    .optional(),
-  postalCode: z.string().optional(),
-  locality: z.string().optional(),
-  regionRef: z.string().optional(),
-  countryRef: z.string().optional()
-})
+// Helper to validate no leading whitespace (trailing will be trimmed on submit)
+const noLeadingWhitespace = (value: string) => value === value.trimStart()
+
+// Address schema for validation
+const createAddressSchema = (t: (key: string) => string) =>
+  z.object({
+    addressType: z.string().optional(),
+    addressLine: z
+      .object({
+        lines: z.array(z.string().max(20, t('validation-address-line-max'))).optional()
+      })
+      .optional(),
+    postalCode: z
+      .string()
+      .max(20, t('validation-postal-code-max'))
+      .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace'))
+      .optional(),
+    locality: z
+      .string()
+      .max(20, t('validation-locality-max'))
+      .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace'))
+      .optional(),
+    regionRef: z.string().optional(),
+    countryRef: z.string().optional()
+  })
 
 /**
  * Create validation schema with translations
  */
 const createCompanySchema = (t: (key: string) => string) =>
   z.object({
-    name: z.string().min(1, t('validation-name-required')),
-    code: z.string().min(1, t('validation-code-required')),
-    description: z.string().optional(),
+    name: z
+      .string()
+      .min(1, t('validation-name-required'))
+      .max(64, t('validation-company-name-max'))
+      .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace')),
+    code: z
+      .string()
+      .min(1, t('validation-code-required'))
+      .max(10, t('validation-company-code-max'))
+      .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace')),
+    description: z
+      .string()
+      .max(100, t('validation-description-max'))
+      .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace'))
+      .optional(),
     director: z.string().optional(),
     percentage: z.number().min(0, t('validation-percentage-min')).max(100, t('validation-percentage-max')).optional(),
-    commercial_registration_number: z.string().optional(),
+    commercial_registration_number: z
+      .string()
+      .max(20, t('validation-commercial-registration-number-max'))
+      .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace'))
+      .optional(),
     currency: z.string().optional(),
-    tax_identification_number: z.string().optional(),
-    tax_number: z.string().optional(),
-    value_added_tax_number: z.string().optional(),
+    tax_identification_number: z
+      .string()
+      .max(20, t('validation-tax-identification-number-max'))
+      .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace'))
+      .optional(),
+    tax_number: z
+      .string()
+      .max(20, t('validation-tax-number-max'))
+      .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace'))
+      .optional(),
+    value_added_tax_number: z
+      .string()
+      .max(20, t('validation-value-added-tax-number-max'))
+      .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace'))
+      .optional(),
     // Addresses array for AddressSegment
-    addresses: z.array(addressSchema).optional(),
+    addresses: z.array(createAddressSchema(t)).optional(),
     // Dynamic additional properties from catalog
     additionalProperties: z.record(z.string(), z.unknown()).optional()
   })
@@ -122,11 +164,53 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
   const { configuration: additionalPropertiesConfig, isLoading: additionalPropertiesLoading } =
     useCompanyAdditionalProperties(accessToken)
   const { employees, loading: searchLoading, search, hasMore, loadMore } = useEmployeeSearch(accessToken)
+  const catalogClient = useCatalogManagerClient(accessToken)
 
   const companyData = company as (Company & Partial<CompanyFormData>) | undefined
 
   // Create validation schema with translations
   const companySchema = useMemo(() => createCompanySchema(t), [t])
+  // Fetch currency catalog entries to display codes instead of values
+  const [currencyOptions, setCurrencyOptions] = useState<Array<{ value: string; label: string }>>([])
+  const [currencyLoading, setCurrencyLoading] = useState(false)
+  const [currencySearchQuery, setCurrencySearchQuery] = useState('')
+
+  useEffect(() => {
+    const loadCurrencyOptions = async () => {
+      if (!accessToken) return
+      setCurrencyLoading(true)
+      try {
+        const response = await catalogClient.getCatalogEntriesList(
+          {
+            catalogIdentifier: 'Currency',
+            version: 'v1'
+          },
+          {
+            limit: 200,
+            offset: 0,
+            returnTotalRecords: true,
+            includeChildCatalogEntries: false
+          }
+        )
+
+        const catalogEntries = response?.data || []
+        const options = catalogEntries.map(entry => ({
+          value: entry.id,
+          label: entry.code || entry.value || entry.id // Use code if available, fallback to value
+        }))
+
+        // Sort by code for better UX
+        options.sort((a, b) => a.label.localeCompare(b.label))
+        setCurrencyOptions(options)
+      } catch (error) {
+        console.error('Failed to load currency options:', error)
+        setCurrencyOptions([])
+      } finally {
+        setCurrencyLoading(false)
+      }
+    }
+    loadCurrencyOptions()
+  }, [accessToken, catalogClient])
 
   const transformBackendAddressLineToForm = (addressLine?: {
     streetAddress?: string
@@ -398,8 +482,8 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
    */
   const buildBasePayload = (formValues: CompanyFormData): Record<string, unknown> => {
     return {
-      code: formValues.code,
-      name: formValues.name,
+      code: formValues.code.trim(),
+      name: formValues.name.trim(),
       structureId: structureId
     }
   }
@@ -554,6 +638,18 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     const formValues = values as CompanyFormData
     const isEditMode = Boolean(companyData?.id)
 
+    // Trim all string values before processing
+    const trimmedData = {
+      ...formValues,
+      name: formValues.name?.trim() || '',
+      code: formValues.code?.trim() || '',
+      description: formValues.description?.trim() || '',
+      commercial_registration_number: formValues.commercial_registration_number?.trim() || '',
+      tax_identification_number: formValues.tax_identification_number?.trim() || '',
+      tax_number: formValues.tax_number?.trim() || '',
+      value_added_tax_number: formValues.value_added_tax_number?.trim() || ''
+    }
+
     try {
       setLoading(true)
 
@@ -563,6 +659,63 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
       addAddressesToPayload(payload, formValues, isEditMode)
       addAdditionalPropertiesToPayload(payload, formValues, isEditMode)
       await addPictureToPayload(payload, isEditMode)
+
+      // Helper function to get string field value or empty string for edit mode
+      // Backend ignores null, so we send empty string to clear fields
+      const getStringFieldValue = (value: string | undefined | null, originalValue?: string): string | undefined => {
+        if (value) return value
+        // In edit mode, send empty string to clear the field if it was previously set
+        if (isEditMode && originalValue) return ''
+        return undefined // Don't include in payload for create mode
+      }
+
+      // Optional string fields - include empty string in edit mode if field was cleared
+      const description = getStringFieldValue(trimmedData.description, companyData?.description)
+      if (description !== undefined) payload.description = description
+
+      // Director ID - special handling (UUID, not string)
+      if (selectedUserId) {
+        payload.directorId = selectedUserId
+      } else if (isEditMode && companyData?.directorId) {
+        payload.directorId = '' // Send empty string to clear director
+      }
+
+      const commercialRegNum = getStringFieldValue(
+        trimmedData.commercial_registration_number,
+        companyData?.commercialRegistrationNumber
+      )
+      if (commercialRegNum !== undefined) payload.commercialRegistrationNumber = commercialRegNum
+
+      const taxIdNum = getStringFieldValue(trimmedData.tax_identification_number, companyData?.taxIdentificationNumber)
+      if (taxIdNum !== undefined) payload.taxIdentificationNumber = taxIdNum
+
+      const taxNum = getStringFieldValue(trimmedData.tax_number, companyData?.taxNumber)
+      if (taxNum !== undefined) payload.taxNumber = taxNum
+
+      const vatNum = getStringFieldValue(trimmedData.value_added_tax_number, companyData?.valueAddedTaxNumber)
+      if (vatNum !== undefined) payload.valueAddedTaxNumber = vatNum
+
+      const currency = getStringFieldValue(trimmedData.currency, companyData?.currencyRef)
+      if (currency !== undefined) payload.currencyRef = currency
+
+      // Transform and include addresses
+      const transformedAddresses = transformAddresses(formValues.addresses)
+      if (transformedAddresses.length > 0) {
+        payload.addresses = transformedAddresses
+      } else if (isEditMode && companyData?.addresses && companyData.addresses.length > 0) {
+        // In edit mode, send empty array to clear addresses if they were removed
+        payload.addresses = []
+      }
+
+      // Transform and include additionalProperties
+      const transformedAdditionalProps = transformAdditionalProperties(formValues.additionalProperties)
+      if (isEditMode) {
+        // Always include additionalProperties in edit mode - BE will replace entire JSONB
+        payload.additionalProperties = transformedAdditionalProps || {}
+      } else if (transformedAdditionalProps) {
+        // In create mode, only include if there are values
+        payload.additionalProperties = transformedAdditionalProps
+      }
 
       // Include id for update
       if (companyData?.id) {
@@ -678,7 +831,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
                 <FormControl>
                   <Input
                     placeholder={t('placeholder-percentage')}
-                    value={field.value ? `${field.value}%` : '0%'}
+                    value={field.value ? `${field.value}%` : t('percentage-default-value')}
                     onChange={e => {
                       const value = e.target.value.replace('%', '')
                       const numericValue = parseFloat(value) || 0
@@ -742,12 +895,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
                   </button>
                 </div>
               )}
-              <FileUpload
-                multiple={false}
-                accept="image/*"
-                onChange={handlePictureUpload}
-                dataTestId={`${dataTestId}-picture-upload`}
-              />
+              <FileUpload multiple={false} accept="image/*" onChange={handlePictureUpload} />
               <p className="gba:text-sm gba:text-muted-foreground">{t('message-logo-upload-info')}</p>
             </div>
           </FormControl>
@@ -797,14 +945,36 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
 
           <FormField
             name="currency"
-            render={({ field }) => (
-              <FormItem className="gba:flex-1">
-                <FormLabel>{t('label-currency')}</FormLabel>
-                <FormControl>
-                  <CatalogSelect catalogIdentifier="Currency:v1" value={field.value} onValueChange={field.onChange} />
-                </FormControl>
-              </FormItem>
-            )}
+            render={({ field }) => {
+              // Filter options based on search query
+              const filteredOptions = currencySearchQuery
+                ? currencyOptions.filter(option =>
+                    option.label.toLowerCase().includes(currencySearchQuery.toLowerCase())
+                  )
+                : currencyOptions
+
+              return (
+                <FormItem className="gba:flex-1">
+                  <FormLabel>{t('label-currency')}</FormLabel>
+                  <FormControl>
+                    <Combobox
+                      value={field.value || ''}
+                      onValueChange={field.onChange}
+                      options={filteredOptions}
+                      placeholder={t('placeholder-currency')}
+                      searchPlaceholder={t('placeholder-currency-search')}
+                      emptyText={currencyLoading ? t('message-currency-loading') : t('message-currency-no-results')}
+                      onSearch={setCurrencySearchQuery}
+                      searchDebounce={300}
+                      loading={currencyLoading}
+                      disabled={currencyLoading}
+                      data-testid={`${dataTestId}-currency-select`}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )
+            }}
           />
         </FormFieldGroup>
 
