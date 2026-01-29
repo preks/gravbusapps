@@ -119,18 +119,17 @@ const DiscardExpenseItems: React.FC<DiscardExpenseItemsProps> = ({
     return t('lowcoder:discard_expense_items.discard_expense_item', 'Discard Expense Item')
   }, [isMultiple, t])
 
+  // Return payload only; AppActionForm dispatches once (same as JobRequestDeletePopup etc.).
   const handleSubmit = async () => {
     const expenseItemIds = expenseItemsIds
       .filter((id: unknown): id is string => id != null && id !== '' && typeof id === 'string')
       .map((id: string) => String(id))
-    const payload = {
+    return {
       expenseItems: {
         expenseItemIds
       },
       event: 'pse_submit'
     }
-    dispatchProcessContinueEvent('pse_submit', payload)
-    return payload
   }
 
   const handleCancel = () => {
