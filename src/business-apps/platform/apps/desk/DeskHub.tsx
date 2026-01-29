@@ -9,15 +9,21 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react'
-import { FileText, FileSpreadsheet, StickyNote } from 'lucide-react'
+import { FileText, FileSpreadsheet, StickyNote, MessageSquare } from 'lucide-react'
+import { Button } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 // Components
 import { ContentBackground, HeroSection, AppCard, QuickActions, ActivityVisualization, RecentItems } from './components'
+import { DocumentChat } from './components/chat/DocumentChat'
 
 // Hooks
 import { useDeskData, type ContentItem } from './hooks/useDeskData'
+
+// Spaces integration
+import { useSpaces } from '@/business-apps/platform/apps/spaces/hooks/useSpaces'
+import { SpaceCard } from '@/business-apps/platform/apps/spaces/components/SpaceCard'
 
 export interface DeskHubProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -56,6 +62,9 @@ const navigateToApp = (appPath: string, params?: Record<string, string>) => {
  */
 export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-testid': testId = 'desk-hub' }) => {
   const [searchQuery, setSearchQuery] = useState('')
+  const [isChatOpen, setIsChatOpen] = useState(false)
+  const [chatScope, setChatScope] = useState<'all' | 'space'>('all')
+  const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null)
 
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
@@ -65,6 +74,13 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
     accessToken,
     currentUserId
   )
+
+  // Fetch spaces
+  const { spaces } = useSpaces(accessToken, {
+    includeMembers: true,
+    includeContent: true,
+    autoLoad: true
+  })
 
   // Combine all items for search
   const allItems = useMemo(() => {
@@ -104,6 +120,18 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
 
   const handleCreateNote = useCallback(() => {
     navigateToApp('note-apps', { action: 'new' })
+  }, [])
+
+  const handleOpenSpaces = useCallback(() => {
+    const isProduction = process.env.NODE_ENV === 'production'
+    const url = isProduction ? '/platform/spaces' : '/platform/apps/spaces'
+    navigateTo(buildPlatformUrl(url))
+  }, [])
+
+  const handleSpaceClick = useCallback((spaceId: string) => {
+    // Navigate to spaces screen with spaceId param
+    // Use /platform/apps/spaces directly since /platform/spaces alias doesn't support query params
+    navigateTo(buildPlatformUrl('/platform/apps/spaces', { spaceId, from: 'desk' }))
   }, [])
 
   // Handle item click - navigate to the specific item
@@ -146,6 +174,51 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
           accessToken={accessToken}
           data-testid={`${testId}-quick-actions`}
         />
+
+        {/* Spaces Section */}
+        {spaces.length > 0 && (
+          <section
+            className="gba:py-6 gba:px-6 gba:relative"
+            data-testid={`${testId}-spaces-section`}
+            style={{ animation: 'fadeInUp 0.6s ease-out 0.3s both' }}
+          >
+            <div className="gba:absolute gba:inset-0 gba:bg-background" />
+
+            <div className="gba:relative gba:max-w-6xl gba:mx-auto">
+              {/* Section header */}
+              <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
+                <div>
+                  <h2 className="gba:text-2xl gba:sm:text-3xl gba:font-bold gba:mb-2">
+                    <span className="gba:bg-gradient-to-r gba:from-sky-500 gba:via-cyan-500 gba:to-teal-500 gba:bg-clip-text gba:text-transparent">
+                      Your Spaces
+                    </span>
+                  </h2>
+                  <p className="gba:text-muted-foreground">Collaborative workspaces for your team</p>
+                </div>
+                <button
+                  onClick={handleOpenSpaces}
+                  className="gba:text-primary gba:font-medium gba:text-sm hover:gba:underline"
+                >
+                  View all
+                </button>
+              </div>
+
+              {/* Spaces grid */}
+              <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
+                {spaces.slice(0, 3).map((space, index) => (
+                  <div key={space.id} style={{ animation: `fadeInUp 0.4s ease-out ${index * 0.1}s both` }}>
+                    <SpaceCard
+                      space={space}
+                      onClick={() => handleSpaceClick(space.id)}
+                      isOwner={space.ownerId === currentUserId}
+                      data-testid={`${testId}-space-card-${space.id}`}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* App Cards Section */}
         <section
@@ -242,6 +315,32 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
           </div>
         </section>
       </div>
+
+      {/* Floating Chat Button */}
+      {!isChatOpen && (
+        <Button
+          onClick={() => setIsChatOpen(true)}
+          className="gba:fixed gba:right-6 gba:bottom-6 gba:h-14 gba:w-14 gba:rounded-full gba:shadow-lg gba:z-50"
+          size="default"
+          data-testid={`${testId}-chat-toggle`}
+        >
+          <MessageSquare className="gba:h-6 gba:w-6" />
+        </Button>
+      )}
+
+      {/* Document Chat Panel */}
+      {isChatOpen && accessToken && currentUserId && (
+        <DocumentChat
+          userId={currentUserId}
+          accessToken={accessToken}
+          scope={chatScope}
+          spaceId={selectedSpaceId}
+          spaces={spaces.map(s => ({ id: s.id, name: s.name }))}
+          onScopeChange={setChatScope}
+          onSpaceChange={setSelectedSpaceId}
+          onClose={() => setIsChatOpen(false)}
+        />
+      )}
     </div>
   )
 }
