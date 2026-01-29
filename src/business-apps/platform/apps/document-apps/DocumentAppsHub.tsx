@@ -521,7 +521,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => navigateTo('/platform/apps/desk')}
+                  onClick={() =>
+                    navigateTo(process.env.NODE_ENV === 'production' ? '/platform/desk' : '/platform/apps/desk')
+                  }
                   data-testid={`${testId}-back-to-desk`}
                   className="gba:mb-2"
                 >

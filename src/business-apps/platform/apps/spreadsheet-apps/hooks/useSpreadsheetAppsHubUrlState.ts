@@ -91,7 +91,7 @@ export function useSpreadsheetAppsHubUrlState(
       const state = event.state as { appId?: string; view?: HubView; fromDesk?: boolean } | null
 
       if (state?.fromDesk && !state?.appId && currentView === 'list') {
-        navigateTo('/platform/apps/desk')
+        navigateTo(process.env.NODE_ENV === 'production' ? '/platform/desk' : '/platform/apps/desk')
         return
       }
 

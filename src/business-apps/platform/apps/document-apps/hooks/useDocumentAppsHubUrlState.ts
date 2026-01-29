@@ -88,7 +88,7 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
 
       // If we came from desk and there's no document, go back to desk.
       if (state?.fromDesk && !state?.docId && currentView === 'list') {
-        navigateTo('/platform/apps/desk')
+        navigateTo(process.env.NODE_ENV === 'production' ? '/platform/desk' : '/platform/apps/desk')
         return
       }
 
