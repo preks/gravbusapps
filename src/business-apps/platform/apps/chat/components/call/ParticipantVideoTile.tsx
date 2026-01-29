@@ -256,19 +256,30 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
           <Avatar className="gba:w-20 gba:h-20">
             <AvatarFallback className="gba:text-2xl">{getInitials(peerName)}</AvatarFallback>
           </Avatar>
-          <span className="gba:text-sm gba:text-foreground">
-            {peerName} {isLocal ? '(You)' : ''}
-          </span>
+          <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-foreground">
+            <span>
+              {peerName} {isLocal ? '(You)' : ''}
+            </span>
+            {isMuted && (
+              <div className="gba:flex gba:items-center gba:justify-center gba:w-5 gba:h-5 gba:rounded-full gba:bg-destructive">
+                <MicrophoneSlash className="gba:w-3 gba:h-3 gba:text-destructive-foreground" weight="fill" />
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* Name overlay (only shown when video is on) */}
       {hasVideoTrack && (
-        <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm gba:flex gba:items-center gba:gap-1">
+        <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm gba:flex gba:items-center gba:gap-1.5">
           <span>
             {peerName} {isLocal ? '(You)' : ''}
           </span>
-          {isMuted && <MicrophoneSlash className="gba:w-3.5 gba:h-3.5" weight="fill" />}
+          {isMuted && (
+            <div className="gba:flex gba:items-center gba:justify-center gba:w-5 gba:h-5 gba:rounded-full gba:bg-destructive">
+              <MicrophoneSlash className="gba:w-3 gba:h-3 gba:text-destructive-foreground" weight="fill" />
+            </div>
+          )}
         </div>
       )}
 

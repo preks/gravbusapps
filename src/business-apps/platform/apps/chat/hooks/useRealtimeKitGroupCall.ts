@@ -585,7 +585,13 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
    * Join an existing call
    */
   const joinCall = useCallback(
-    async (roomId: string, callType: CallType, meetingId?: string, conversationName?: string) => {
+    async (
+      roomId: string,
+      callType: CallType,
+      meetingId?: string,
+      conversationName?: string,
+      initialPreferences?: { micEnabled: boolean; cameraEnabled: boolean }
+    ) => {
       if (!currentUser || !apiClient) {
         rtkDebug.error('[RTK] Cannot join call: missing currentUser or apiClient')
         return
@@ -646,12 +652,23 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           willEnableVideo: callType === 'video'
         })
 
-        // Initialize meeting
+        // Initialize meeting with initial preferences
+        // If preferences provided from invite dialog, use those; otherwise use call type defaults
+        const shouldEnableAudio = initialPreferences?.micEnabled ?? true
+        const shouldEnableVideo = initialPreferences?.cameraEnabled ?? callType === 'video'
+
+        rtkDebug.log('[RTK] Initializing meeting with preferences:', {
+          audio: shouldEnableAudio,
+          video: shouldEnableVideo,
+          fromPreferences: !!initialPreferences,
+          callType
+        })
+
         const initializedMeeting = await initMeeting({
           authToken,
           defaults: {
-            audio: true,
-            video: callType === 'video'
+            audio: shouldEnableAudio,
+            video: shouldEnableVideo
           },
           overrides: {
             simulcastConfig: {
@@ -769,30 +786,36 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   /**
    * Accept incoming invite
    */
-  const acceptInvite = useCallback(async () => {
-    if (!incomingInvite) return
+  const acceptInvite = useCallback(
+    async (initialPreferences?: { micEnabled: boolean; cameraEnabled: boolean }) => {
+      if (!incomingInvite) return
 
-    rtkDebug.log('[RTK] Accepting invite:', {
-      conversationId: incomingInvite.conversationId,
-      meetingId: incomingInvite.roomId,
-      callType: incomingInvite.callType,
-      conversationName: incomingInvite.conversationName,
-      from: incomingInvite.from.odName
-    })
+      rtkDebug.log('[RTK] Accepting invite with preferences:', {
+        conversationId: incomingInvite.conversationId,
+        meetingId: incomingInvite.roomId,
+        callType: incomingInvite.callType,
+        conversationName: incomingInvite.conversationName,
+        from: incomingInvite.from.odName,
+        preferences: initialPreferences
+      })
 
-    // CRITICAL: Call internal joinCall directly with proper IDs from invite
-    // - conversationId from invite.conversationId
-    // - meetingId from invite.roomId (backend meeting ID)
-    // - conversationName from invite.conversationName
-    // Don't use the wrapper because invite has all the info we need!
-    await joinCall(
-      incomingInvite.conversationId || incomingInvite.roomId, // conversationId
-      incomingInvite.callType,
-      incomingInvite.roomId, // meetingId (stored in roomId field of invite)
-      incomingInvite.conversationName // conversationName
-    )
-    setIncomingInvite(null)
-  }, [incomingInvite, joinCall])
+      // CRITICAL: Call internal joinCall directly with proper IDs from invite
+      // - conversationId from invite.conversationId
+      // - meetingId from invite.roomId (backend meeting ID)
+      // - conversationName from invite.conversationName
+      // - initial preferences from pre-call dialog
+      // Don't use the wrapper because invite has all the info we need!
+      await joinCall(
+        incomingInvite.conversationId || incomingInvite.roomId, // conversationId
+        incomingInvite.callType,
+        incomingInvite.roomId, // meetingId (stored in roomId field of invite)
+        incomingInvite.conversationName, // conversationName
+        initialPreferences // initial mic/camera settings
+      )
+      setIncomingInvite(null)
+    },
+    [incomingInvite, joinCall]
+  )
 
   /**
    * Decline incoming invite

@@ -112,13 +112,13 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
 
     setInvitingParticipantId(participant.odId)
 
-    // Set a timeout as fallback to clear the inviting state after 5 seconds
+    // Set a timeout as fallback to clear the inviting state after 30 seconds
     if (inviteTimeoutRef.current) {
       clearTimeout(inviteTimeoutRef.current)
     }
     inviteTimeoutRef.current = setTimeout(() => {
       setInvitingParticipantId(null)
-    }, 5000)
+    }, 30000) // 30 seconds
 
     try {
       await onInviteParticipant(participant)

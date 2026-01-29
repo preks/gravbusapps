@@ -25,7 +25,7 @@ import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface IncomingGroupCallDialogProps {
   invite: GroupCallInvite
-  onAccept: () => void
+  onAccept: (preferences: { micEnabled: boolean; cameraEnabled: boolean }) => void
   onDecline: () => void
   prefixDataTestId?: string
 }
@@ -72,10 +72,8 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
       }
 
       setIsJoining(true)
-      // TODO: Pass micEnabled and cameraEnabled to onAccept
-      // For now, just call onAccept - will need to update the signature
-      console.log('[IncomingGroupCallDialog] Joining with:', { micEnabled, cameraEnabled })
-      onAccept()
+      console.log('[IncomingGroupCallDialog] Joining with preferences:', { micEnabled, cameraEnabled })
+      onAccept({ micEnabled, cameraEnabled })
     }
 
     const handleDecline = () => {
