@@ -86,7 +86,7 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
       const state = event.state as { noteId?: string; view?: HubView; fromDesk?: boolean } | null
 
       if (state?.fromDesk && !state?.noteId && currentView === 'list') {
-        navigateTo(process.env.NODE_ENV === 'production' ? '/platform/desk' : '/platform/apps/desk')
+        navigateTo('/platform/apps/desk')
         return
       }
 
