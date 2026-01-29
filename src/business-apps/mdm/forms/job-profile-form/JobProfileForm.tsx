@@ -15,10 +15,18 @@ import {
 import { JobFunction, JobProfile, JobLevelGroup, JobLevel } from '@/business-apps/mdm/apps/job-structure-data/types'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { env } from '@/common/env/EnvUtils'
+import SkillsSection from './components/SkillsSection'
+import { useFileClient } from '@/common/network/files/useFileClient'
 
 import { useRestClient } from '@/common/network/rest/useRestClient'
 
 const DATA_TEST_ID_PREFIX = 'JobProfileForm'
+
+interface JobProfileSkill {
+  skillId: string
+  skillName: string
+  level: number | null
+}
 
 export interface JobProfileFormProps extends BusinessAppContextProps {
   jobProfile?: JobProfile
@@ -48,6 +56,7 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
 }) => {
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
+  const fileClient = useFileClient({ accessToken } as BusinessAppContextProps)
   const [loading, setLoading] = useState(false)
   const [selectedJobFunction, setSelectedJobFunction] = useState<{
     id: string
@@ -59,9 +68,17 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
   } | null>(jobProfile?.jobLevel ?? null)
 
   const jobLevels = useMemo(() => {
+    if (!jobFunctions || !Array.isArray(jobFunctions)) {
+      return []
+    }
+
     const targetJobFunction = jobFunctions.find(jobFunction => jobFunction.id === selectedJobFunction?.id)
 
     if (!targetJobFunction) {
+      return []
+    }
+
+    if (!jobLevelGroups || !Array.isArray(jobLevelGroups)) {
       return []
     }
 
@@ -81,6 +98,40 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
     try {
       setLoading(true)
 
+      // Upload job description file if provided
+      let jobDescriptionFileId: string | null = null
+      if (values.jobDescriptionFile) {
+        try {
+          const file = values.jobDescriptionFile?.originFileObj || values.jobDescriptionFile?.file
+          if (file instanceof File) {
+            const uploadResponse = await fileClient.uploadFile(
+              file,
+              { accessScope: 'tenant' },
+              {
+                appName: 'mdm',
+                folderPath: `/job-profiles/${jobProfile?.id || 'new'}/documents`,
+                mimeType: file.type || 'application/pdf'
+              }
+            )
+            jobDescriptionFileId = uploadResponse?.fileInfo?.fileId || null
+          } else if (values.jobDescriptionFile?.fileId) {
+            // File already uploaded, use existing fileId
+            jobDescriptionFileId = values.jobDescriptionFile.fileId
+          }
+        } catch (fileError) {
+          console.error('Error uploading job description file:', fileError)
+          // Continue with form submission even if file upload fails
+        }
+      }
+
+      // Transform skills array to the format expected by the API
+      const skills = (values.skills || [])
+        .filter((skill: JobProfileSkill) => skill.skillId && skill.skillId.length > 0)
+        .map((skill: JobProfileSkill) => ({
+          skillId: skill.skillId,
+          level: skill.level || null
+        }))
+
       const payload = {
         changeMode: 'INSERT',
         jobProfile: {
@@ -92,6 +143,8 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
           jobFunction: values.jobFunctionId,
           jobLevel: values.jobLevelId?.length > 0 ? values.jobLevelId : null,
           recordState: values.active,
+          ...(skills.length > 0 ? { skills } : {}),
+          ...(jobDescriptionFileId ? { jobDescriptionFileId } : {}),
           ...(jobProfile ? { version: jobProfile.version, id: jobProfile.id } : {})
         }
       }
@@ -102,7 +155,7 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
 
       refetch()
     } catch (error) {
-      console.error('Error saving Job Function:', error)
+      console.error('Error saving Job Profile:', error)
     } finally {
       setLoading(false)
     }
@@ -120,9 +173,18 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
             jobLevelId: jobProfile.jobLevelId,
             contractTypeRef: jobProfile.contractTypeRef,
             employmentTypeRef: jobProfile.employmentTypeRef,
-            active: jobProfile.recordState ? 'active' : 'inactive'
+            active: jobProfile.recordState ? 'active' : 'inactive',
+            skills: (jobProfile as any).skills
+              ? ((jobProfile as any).skills as Array<{ skillId: string; skillName?: string; level?: number }>).map(
+                  skill => ({
+                    skillId: skill.skillId,
+                    skillName: skill.skillName || '',
+                    level: skill.level ?? null
+                  })
+                )
+              : []
           }
-        : {},
+        : { skills: [] },
     [jobProfile]
   )
 
@@ -201,7 +263,7 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
             <FormControl>
               <Combobox
                 key={`job-function-combobox-${field.value || 'empty'}`}
-                options={jobFunctions.map(func => ({
+                options={(jobFunctions || []).map(func => ({
                   value: func.id,
                   label: func.name
                 }))}
@@ -209,7 +271,7 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
                 onValueChange={value => {
                   field.onChange(value)
 
-                  const targetJobFunction = jobFunctions.find(jobFunction => jobFunction.id === value)
+                  const targetJobFunction = jobFunctions?.find(jobFunction => jobFunction.id === value)
 
                   if (targetJobFunction) {
                     setSelectedJobFunction(targetJobFunction)
@@ -275,7 +337,7 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
             <FormControl>
               <Combobox
                 key={`contract-type-combobox-${field.value || 'empty'}`}
-                options={contractTypes.map(type => ({
+                options={(contractTypes || []).map(type => ({
                   value: type.id,
                   label: type.value
                 }))}
@@ -301,7 +363,7 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
             <FormControl>
               <Combobox
                 key={`employment-type-combobox-${field.value || 'empty'}`}
-                options={employmentTypes.map(type => ({
+                options={(employmentTypes || []).map(type => ({
                   value: type.id,
                   label: type.value
                 }))}
@@ -318,6 +380,8 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
           </FormItem>
         )}
       />
+
+      <SkillsSection dataTestId={dataTestId} accessToken={accessToken || ''} />
 
       <FormField
         name="active"
