@@ -202,7 +202,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     currentUser,
     localStream: media.localStream,
     callStatus: callState.status,
-    emitSocketEvent: websocket.emitSocketEvent
+    emitSocketEvent: websocket.emitSocketEvent,
+    cleanupParticipantHandState: websocket.cleanupParticipantHandState
   })
 
   // Diagnostics and monitoring

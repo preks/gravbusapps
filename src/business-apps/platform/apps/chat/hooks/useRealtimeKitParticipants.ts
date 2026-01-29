@@ -5,7 +5,7 @@
  * Tracks both local and remote participants, their media states, and provides invite functionality.
  */
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import type { GroupCallParticipant } from '../services/groupWebrtcClient'
 import type { CallParticipant, CallType } from '../services/webrtcClient'
 import type { PendingInvite } from './useGroupCall'
@@ -21,6 +21,7 @@ export interface UseRealtimeKitParticipantsOptions {
   localStream: MediaStream | null
   callStatus: 'idle' | 'joining' | 'connected' | 'reconnecting' | 'ended'
   emitSocketEvent: (event: string, data: any) => void
+  cleanupParticipantHandState?: (participantId: string, peerId?: string, userId?: string) => void
 }
 
 export interface UseRealtimeKitParticipantsReturn {
@@ -59,7 +60,8 @@ export const useRealtimeKitParticipants = ({
   currentUser,
   localStream,
   callStatus,
-  emitSocketEvent
+  emitSocketEvent,
+  cleanupParticipantHandState
 }: UseRealtimeKitParticipantsOptions): UseRealtimeKitParticipantsReturn => {
   const [participants, setParticipants] = useState<GroupCallParticipant[]>([])
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map())
@@ -125,6 +127,11 @@ export const useRealtimeKitParticipants = ({
     rtkDebug.log('[RTK] Reconnect not needed for RealtimeKit SFU', { participantId })
   }, [])
 
+  // Track previous participants to detect who left (store full info for cleanup)
+  const previousParticipantsRef = useRef<
+    Map<string, { peerId: string; userId?: string; customParticipantId?: string }>
+  >(new Map())
+
   /**
    * Update participant list from SDK
    * Creates MediaStreams from participant tracks and updates state
@@ -145,11 +152,51 @@ export const useRealtimeKitParticipants = ({
     // Filter out self to get remote peers
     const remotePeers = allParticipants.filter((p: any) => p.id !== meeting.self?.id)
 
+    // Build map of current participants with full ID info
+    const currentParticipants = new Map<string, { peerId: string; userId?: string; customParticipantId?: string }>()
+    remotePeers.forEach((p: any) => {
+      currentParticipants.set(p.id, {
+        peerId: p.id,
+        userId: p.userId,
+        customParticipantId: p.customParticipantId
+      })
+    })
+
+    // Detect participants who left by comparing with previous state
+    const leftPeerIds = Array.from(previousParticipantsRef.current.keys()).filter(
+      (id: string) => !currentParticipants.has(id)
+    )
+
     rtkDebug.log('[RTK] Updating participant list', {
       totalParticipants: allParticipants.length,
       remotePeers: remotePeers.length,
-      localParticipant: !!meeting.self
+      localParticipant: !!meeting.self,
+      previousCount: previousParticipantsRef.current.size,
+      currentCount: currentParticipants.size,
+      leftCount: leftPeerIds.length,
+      leftPeerIds
     })
+
+    // Clean up hand state for participants who left
+    if (leftPeerIds.length > 0 && cleanupParticipantHandState) {
+      leftPeerIds.forEach(leftPeerId => {
+        const leftParticipantInfo = previousParticipantsRef.current.get(leftPeerId)
+        if (leftParticipantInfo) {
+          rtkDebug.log('[RTK] 🧹 Cleaning up hand state for departed peer:', {
+            peerId: leftPeerId,
+            participantInfo: leftParticipantInfo
+          })
+          cleanupParticipantHandState(
+            leftParticipantInfo.customParticipantId || leftPeerId,
+            leftParticipantInfo.peerId,
+            leftParticipantInfo.userId
+          )
+        }
+      })
+    }
+
+    // Update previous participants ref for next comparison
+    previousParticipantsRef.current = currentParticipants
 
     // Create MediaStreams for each remote participant
     remotePeers.forEach((peer: any) => {
@@ -231,7 +278,7 @@ export const useRealtimeKitParticipants = ({
     } else {
       setParticipants(newParticipants)
     }
-  }, [meeting, currentUser, localStream])
+  }, [meeting, currentUser, localStream, cleanupParticipantHandState])
 
   /**
    * Listen to SDK participant events and update list
@@ -259,10 +306,15 @@ export const useRealtimeKitParticipants = ({
     }
 
     const handleParticipantLeft = (event: any) => {
+      const leavingParticipant = event?.participant
       rtkDebug.log('[RTK] 👋 Participant left event:', {
-        participantId: event?.participant?.id,
-        participantName: event?.participant?.name
+        participantId: leavingParticipant?.id,
+        participantName: leavingParticipant?.name,
+        userId: leavingParticipant?.userId,
+        customParticipantId: leavingParticipant?.customParticipantId
       })
+
+      // updateParticipantList will detect who left and clean up their hand state
       updateParticipantList()
     }
 

@@ -26,6 +26,7 @@ export interface UseRealtimeKitWebSocketReturn {
   emitSocketEvent: (event: string, data: any) => void
   toggleRaiseHand: (currentHandRaised: boolean) => Promise<boolean>
   sendReaction: (emoji: string) => Promise<void>
+  cleanupParticipantHandState: (participantId: string, peerId?: string, userId?: string) => void
   handRaised: boolean
   remoteHandsRaised: Record<string, boolean>
   handRaisedOrder: Record<string, { order: number; timestamp: number }>
@@ -516,6 +517,167 @@ export const useRealtimeKitWebSocket = ({
     }
   }, [wsClient, meetingId, meeting, onMuteRequested])
 
+  /**
+   * Set up WebSocket event listener for participant leaving
+   * Cleans up raised hand state when a participant leaves
+   */
+  useEffect(() => {
+    // Early return if not in an active call
+    if (!meeting) {
+      return
+    }
+
+    const socket = wsClient?.getSocket()
+    if (!socket || !meetingId) {
+      return
+    }
+
+    const handleParticipantLeft = (data: { roomId: string; participantId: string }) => {
+      // Only process if the event is for the current call
+      if (data.roomId !== meetingId) {
+        return
+      }
+
+      rtkDebug.log('[RTK] 👋 Participant left, cleaning up raised hand state:', {
+        participantId: data.participantId,
+        roomId: data.roomId
+      })
+
+      // Resolve ALL possible IDs for the leaving participant
+      let participantPeerId: string | undefined
+      let participantUserId: string | undefined
+      let participantCustomId: string | undefined = data.participantId
+
+      if (meeting?.participants?.joined) {
+        const joined = Array.from(meeting.participants.joined.values())
+        const matchingPeer: any = joined.find(
+          (p: any) =>
+            p.customParticipantId === data.participantId ||
+            p.userId === data.participantId ||
+            p.id === data.participantId
+        )
+        if (matchingPeer) {
+          participantPeerId = matchingPeer.id
+          participantUserId = matchingPeer.userId
+          participantCustomId = matchingPeer.customParticipantId
+        }
+      }
+
+      // Clean up remoteHandsRaised state
+      setRemoteHandsRaised(prev => {
+        const updated = { ...prev }
+        let hadRaisedHand = false
+
+        // Remove all entries for this participant
+        if (participantPeerId && updated[participantPeerId]) {
+          delete updated[participantPeerId]
+          hadRaisedHand = true
+        }
+        if (participantUserId && updated[participantUserId]) {
+          delete updated[participantUserId]
+          hadRaisedHand = true
+        }
+        if (participantCustomId && updated[participantCustomId]) {
+          delete updated[participantCustomId]
+          hadRaisedHand = true
+        }
+
+        if (hadRaisedHand) {
+          rtkDebug.log('[RTK] 🧹 Removed raised hand state for leaving participant:', {
+            participantId: data.participantId,
+            removedIds: { peerId: participantPeerId, userId: participantUserId, customId: participantCustomId },
+            remainingHandsRaised: updated
+          })
+        }
+
+        return updated
+      })
+
+      // Clean up handRaisedOrder state and recalculate order numbers
+      setHandRaisedOrder(prev => {
+        const updated = { ...prev }
+        let hadRaisedHand = false
+
+        rtkDebug.log('[RTK] 🔍 CLEANUP BEFORE deletion:', {
+          prevKeys: Object.keys(prev),
+          prevEntries: prev,
+          willDelete: { participantPeerId, participantUserId, participantCustomId }
+        })
+
+        // Remove all entries for this participant
+        if (participantPeerId && updated[participantPeerId]) {
+          delete updated[participantPeerId]
+          hadRaisedHand = true
+        }
+        if (participantUserId && updated[participantUserId]) {
+          delete updated[participantUserId]
+          hadRaisedHand = true
+        }
+        if (participantCustomId && updated[participantCustomId]) {
+          delete updated[participantCustomId]
+          hadRaisedHand = true
+        }
+
+        if (!hadRaisedHand) {
+          // Participant didn't have a raised hand, no need to recalculate
+          return updated
+        }
+
+        rtkDebug.log('[RTK] 🔍 CLEANUP AFTER deletion:', {
+          updatedKeys: Object.keys(updated),
+          updatedEntries: updated
+        })
+
+        // Recalculate order numbers for remaining hands (preserve timestamp order)
+        const uniqueEntries = new Map<number, { order: number; timestamp: number }>()
+        Object.values(updated).forEach(entry => {
+          if (!uniqueEntries.has(entry.timestamp)) {
+            uniqueEntries.set(entry.timestamp, entry)
+          }
+        })
+
+        rtkDebug.log('[RTK] 🔍 CLEANUP unique timestamps:', {
+          uniqueCount: uniqueEntries.size,
+          timestamps: Array.from(uniqueEntries.keys())
+        })
+
+        // Sort by timestamp and reassign sequential order numbers
+        const sortedEntries = Array.from(uniqueEntries.entries()).sort((a, b) => a[0] - b[0])
+        sortedEntries.forEach(([timestamp], index) => {
+          const newOrder = index + 1
+          // Update all entries with this timestamp
+          Object.keys(updated).forEach(key => {
+            if (updated[key].timestamp === timestamp) {
+              rtkDebug.log('[RTK] 🔍 CLEANUP updating key:', {
+                key,
+                timestamp,
+                newOrder,
+                oldOrder: updated[key].order
+              })
+              updated[key] = { ...updated[key], order: newOrder }
+            }
+          })
+        })
+
+        rtkDebug.log('[RTK] 🧹 Recalculated order after participant left:', {
+          participantId: data.participantId,
+          remainingCount: uniqueEntries.size,
+          finalEntries: updated
+        })
+
+        return updated
+      })
+    }
+
+    socket.on('group-call:participant-left', handleParticipantLeft)
+    rtkDebug.log('[RTK] ✅ WebSocket listener attached for participant left')
+
+    return () => {
+      socket.off('group-call:participant-left', handleParticipantLeft)
+      rtkDebug.log('[RTK] WebSocket listener removed for participant left')
+    }
+  }, [wsClient, meetingId, meeting])
+
   // Clear hand raise state when roomId changes (new call starts)
   const prevRoomIdRef = useRef<string | null>(null)
   React.useEffect(() => {
@@ -566,10 +728,132 @@ export const useRealtimeKitWebSocket = ({
     return orderMap
   }, [handRaisedOrder])
 
+  /**
+   * Clean up hand raised state for a participant who left
+   * Removes entries for all possible IDs and recalculates order numbers
+   *
+   * @param participantId - Custom participant ID (database ID)
+   * @param peerId - RTK peer ID
+   * @param userId - RTK user ID
+   */
+  const cleanupParticipantHandState = useCallback((participantId: string, peerId?: string, userId?: string) => {
+    rtkDebug.log('[RTK] 🧹 Cleaning up hand state for departed participant:', {
+      participantId,
+      peerId,
+      userId
+    })
+
+    // Clean up remoteHandsRaised state
+    setRemoteHandsRaised(prev => {
+      const updated = { ...prev }
+      let hadRaisedHand = false
+
+      // Remove all entries for this participant
+      if (peerId && updated[peerId]) {
+        delete updated[peerId]
+        hadRaisedHand = true
+      }
+      if (userId && updated[userId]) {
+        delete updated[userId]
+        hadRaisedHand = true
+      }
+      if (updated[participantId]) {
+        delete updated[participantId]
+        hadRaisedHand = true
+      }
+
+      if (hadRaisedHand) {
+        rtkDebug.log('[RTK] 🧹 Removed raised hand state:', {
+          participantId,
+          removedIds: { peerId, userId, customId: participantId },
+          remainingHandsRaised: updated
+        })
+      }
+
+      return updated
+    })
+
+    // Clean up handRaisedOrder state and recalculate order numbers
+    setHandRaisedOrder(prev => {
+      const updated = { ...prev }
+      let hadRaisedHand = false
+
+      rtkDebug.log('[RTK] 🔍 CLEANUP BEFORE deletion:', {
+        prevKeys: Object.keys(prev),
+        prevEntries: prev,
+        willDelete: { peerId, userId, customId: participantId }
+      })
+
+      // Remove all entries for this participant
+      if (peerId && updated[peerId]) {
+        delete updated[peerId]
+        hadRaisedHand = true
+      }
+      if (userId && updated[userId]) {
+        delete updated[userId]
+        hadRaisedHand = true
+      }
+      if (updated[participantId]) {
+        delete updated[participantId]
+        hadRaisedHand = true
+      }
+
+      if (!hadRaisedHand) {
+        // Participant didn't have a raised hand, no need to recalculate
+        return updated
+      }
+
+      rtkDebug.log('[RTK] 🔍 CLEANUP AFTER deletion:', {
+        updatedKeys: Object.keys(updated),
+        updatedEntries: updated
+      })
+
+      // Recalculate order numbers for remaining hands (preserve timestamp order)
+      const uniqueEntries = new Map<number, { order: number; timestamp: number }>()
+      Object.values(updated).forEach(entry => {
+        if (!uniqueEntries.has(entry.timestamp)) {
+          uniqueEntries.set(entry.timestamp, entry)
+        }
+      })
+
+      rtkDebug.log('[RTK] 🔍 CLEANUP unique timestamps:', {
+        uniqueCount: uniqueEntries.size,
+        timestamps: Array.from(uniqueEntries.keys())
+      })
+
+      // Sort by timestamp and reassign sequential order numbers
+      const sortedEntries = Array.from(uniqueEntries.entries()).sort((a, b) => a[0] - b[0])
+      sortedEntries.forEach(([timestamp], index) => {
+        const newOrder = index + 1
+        // Update all entries with this timestamp
+        Object.keys(updated).forEach(key => {
+          if (updated[key].timestamp === timestamp) {
+            rtkDebug.log('[RTK] 🔍 CLEANUP updating key:', {
+              key,
+              timestamp,
+              newOrder,
+              oldOrder: updated[key].order
+            })
+            updated[key] = { ...updated[key], order: newOrder }
+          }
+        })
+      })
+
+      rtkDebug.log('[RTK] 🧹 Recalculated order after participant left:', {
+        participantId,
+        remainingCount: uniqueEntries.size,
+        finalEntries: updated
+      })
+
+      return updated
+    })
+  }, [])
+
   return {
     emitSocketEvent,
     toggleRaiseHand,
     sendReaction,
+    cleanupParticipantHandState,
     handRaised,
     remoteHandsRaised,
     handRaisedOrder: calculatedOrder
