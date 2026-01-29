@@ -540,3 +540,64 @@ changelog-label-category = Category
 changelog-label-timestamp = Timestamp
 changelog-label-created-by = Created by
 changelog-label-flow = Flow
+
+# Assets Tab
+assets-category = Category
+assets-brand-model = Brand & Model
+assets-serial-number = Serial Number
+assets-assignment-period = Assignment Period
+assets-condition = Condition
+assets-status = Status
+assets-total-assets = Total Assets
+assets-in-use = In Use
+assets-status-in-repair = In Repair
+assets-handed-over = Handed Over
+assets-status-available = Available
+assets-status-allocated = Allocated
+assets-status-in-repair-label = In Repair
+assets-status-retired = Retired
+assets-status-handed-over = Handed Over
+assets-status-in-use = In Use
+assets-not-available = N/A
+assets-error-loading-assets = Error Loading Assets
+assets-no-assets-assigned = No Assets Assigned
+assets-no-equipment-assigned-self = You don't have any equipment assigned to you at the moment.
+assets-no-equipment-assigned-employee = This employee doesn't have any equipment assigned at the moment.
+assets-assigned-equipment = Asset Summary
+assets-request-new-asset = Request New Asset
+assets-asset-assignment-history = Asset Assignment History
+assets-unknown = Unknown
+assets-to = to
+assets-expected = Expected
+assets-currently-active = Currently Active
+assets-start = Start
+assets-end = End
+assets-assignment-notes = Assignment Notes
+
+# Service Requests Tab
+service-requests-title = Service Requests
+service-requests-desc-self = Your submitted service requests
+service-requests-desc-other = Service requests submitted by { $name }
+service-requests-create-new = Service Portal
+service-requests-total = Total
+service-requests-active = Active
+service-requests-completed = Completed
+service-requests-completion-rate = Completion Rate
+service-requests-error = Error Loading Service Requests
+service-requests-no-steps = No steps defined
+service-requests-next-step = Next
+service-requests-completed-step = Completed
+service-requests-no-service-requests = No Service Requests
+service-requests-no-service-requests-desc-self = You have not submitted any service requests yet.
+service-requests-no-service-requests-desc-other = This employee has not submitted any service requests yet.
+service-requests-column-request = Request
+service-requests-column-status = Status
+service-requests-column-progress = Progress
+service-requests-column-created = Created
+service-requests-column-steps = Steps
+
+# Service Request Status Values
+service-requests-status-open = Open
+service-requests-status-in-progress = In Progress
+service-requests-status-completed = Completed
+service-requests-status-canceled = Canceled

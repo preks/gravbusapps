@@ -533,3 +533,64 @@ changelog-label-category = Kategorie
 changelog-label-timestamp = Zeitstempel
 changelog-label-created-by = Erstellt von
 changelog-label-flow = Ablauf
+
+# Assets Tab
+assets-category = Kategorie
+assets-brand-model = Marke & Modell
+assets-serial-number = Seriennummer
+assets-assignment-period = Zuweisungszeitraum
+assets-condition = Zustand
+assets-status = Status
+assets-total-assets = Gesamt Assets
+assets-in-use = In Verwendung
+assets-status-in-repair = In Reparatur
+assets-handed-over = Übergeben
+assets-status-available = Verfügbar
+assets-status-allocated = Zugewiesen
+assets-status-in-repair-label = In Reparatur
+assets-status-retired = Ausgemustert
+assets-status-handed-over = Übergeben
+assets-status-in-use = In Verwendung
+assets-not-available = N/V
+assets-error-loading-assets = Fehler beim Laden der Assets
+assets-no-assets-assigned = Keine Assets zugewiesen
+assets-no-equipment-assigned-self = Ihnen sind derzeit keine Geräte zugewiesen.
+assets-no-equipment-assigned-employee = Diesem Mitarbeiter sind derzeit keine Geräte zugewiesen.
+assets-assigned-equipment = Asset-Zusammenfassung
+assets-request-new-asset = Neues Asset anfordern
+assets-asset-assignment-history = Asset-Zuweisungsverlauf
+assets-unknown = Unbekannt
+assets-to = bis
+assets-expected = Erwartet
+assets-currently-active = Derzeit aktiv
+assets-start = Start
+assets-end = Ende
+assets-assignment-notes = Zuweisungsnotizen
+
+# Service Requests Tab
+service-requests-title = Service-Anfragen
+service-requests-desc-self = Ihre eingereichten Service-Anfragen
+service-requests-desc-other = Service-Anfragen, die von { $name } eingereicht wurden
+service-requests-create-new = Service-Portal
+service-requests-total = Gesamt
+service-requests-active = Aktiv
+service-requests-completed = Abgeschlossen
+service-requests-completion-rate = Abschlussrate
+service-requests-error = Fehler beim Laden der Service-Anfragen
+service-requests-no-steps = Keine Schritte definiert
+service-requests-next-step = Nächster
+service-requests-completed-step = Abgeschlossen
+service-requests-no-service-requests = Keine Service-Anfragen
+service-requests-no-service-requests-desc-self = Sie haben noch keine Service-Anfragen eingereicht.
+service-requests-no-service-requests-desc-other = Dieser Mitarbeiter hat noch keine Service-Anfragen eingereicht.
+service-requests-column-request = Anfrage
+service-requests-column-status = Status
+service-requests-column-progress = Fortschritt
+service-requests-column-created = Erstellt
+service-requests-column-steps = Schritte
+
+# Service Request Status Values
+service-requests-status-open = Offen
+service-requests-status-in-progress = In Bearbeitung
+service-requests-status-completed = Abgeschlossen
+service-requests-status-canceled = Abgebrochen

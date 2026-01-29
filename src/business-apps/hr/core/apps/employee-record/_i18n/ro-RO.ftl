@@ -533,3 +533,64 @@ changelog-label-category = Categorie
 changelog-label-timestamp = Marcă temporală
 changelog-label-created-by = Creat de
 changelog-label-flow = Flux
+
+# Assets Tab
+assets-category = Categorie
+assets-brand-model = Marcă & Model
+assets-serial-number = Număr de serie
+assets-assignment-period = Perioada de atribuire
+assets-condition = Stare
+assets-status = Status
+assets-total-assets = Total Active
+assets-in-use = În utilizare
+assets-status-in-repair = În reparație
+assets-handed-over = Predat
+assets-status-available = Disponibil
+assets-status-allocated = Alocat
+assets-status-in-repair-label = În reparație
+assets-status-retired = Retras
+assets-status-handed-over = Predat
+assets-status-in-use = În utilizare
+assets-not-available = N/A
+assets-error-loading-assets = Eroare la încărcarea activelor
+assets-no-assets-assigned = Nu sunt active atribuite
+assets-no-equipment-assigned-self = Nu aveți echipamente atribuite în acest moment.
+assets-no-equipment-assigned-employee = Acestui angajat nu i-au fost atribuite echipamente în acest moment.
+assets-assigned-equipment = Rezumat Active
+assets-request-new-asset = Solicită activ nou
+assets-asset-assignment-history = Istoric atribuire active
+assets-unknown = Necunoscut
+assets-to = până la
+assets-expected = Așteptat
+assets-currently-active = În prezent activ
+assets-start = Început
+assets-end = Sfârșit
+assets-assignment-notes = Note de atribuire
+
+# Service Requests Tab
+service-requests-title = Cereri de servicii
+service-requests-desc-self = Cererile dvs. de servicii trimise
+service-requests-desc-other = Cereri de servicii trimise de { $name }
+service-requests-create-new = Portal servicii
+service-requests-total = Total
+service-requests-active = Activ
+service-requests-completed = Finalizat
+service-requests-completion-rate = Rata de finalizare
+service-requests-error = Eroare la încărcarea cererilor de servicii
+service-requests-no-steps = Nu sunt definiți pași
+service-requests-next-step = Următor
+service-requests-completed-step = Finalizat
+service-requests-no-service-requests = Fără cereri de servicii
+service-requests-no-service-requests-desc-self = Nu ați trimis încă nicio cerere de servicii.
+service-requests-no-service-requests-desc-other = Acest angajat nu a trimis încă nicio cerere de servicii.
+service-requests-column-request = Cerere
+service-requests-column-status = Status
+service-requests-column-progress = Progres
+service-requests-column-created = Creat
+service-requests-column-steps = Pași
+
+# Service Request Status Values
+service-requests-status-open = Deschis
+service-requests-status-in-progress = În progres
+service-requests-status-completed = Finalizat
+service-requests-status-canceled = Anulat
