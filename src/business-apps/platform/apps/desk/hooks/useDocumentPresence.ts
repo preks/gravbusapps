@@ -106,8 +106,8 @@ export interface PresenceParticipant {
 }
 
 export interface UseDocumentPresenceOptions {
-  /** Access token for authentication (optional, will try to get from storage if not provided) */
-  accessToken?: string
+  /** Access token for authentication */
+  accessToken: string | undefined
 }
 
 export interface UseDocumentPresenceReturn {
@@ -201,17 +201,11 @@ export function useDocumentPresence(options: UseDocumentPresenceOptions = {}): U
   const avatarCacheRef = useRef<Map<string, string | undefined>>(new Map())
   const tokenRef = useRef<string | null>(null)
 
-  // Get auth token - prefer provided token, fall back to storage
+  // Set auth token when provided
   useEffect(() => {
-    const token =
-      providedToken ||
-      localStorage.getItem('business-app-ide-access-token') ||
-      localStorage.getItem('keycloak-token') ||
-      sessionStorage.getItem('auth_token')
-
-    if (token) {
-      tokenRef.current = token
-      graphQLClient.setAccessToken(token)
+    if (providedToken) {
+      tokenRef.current = providedToken
+      graphQLClient.setAccessToken(providedToken)
     }
   }, [providedToken])
 
@@ -260,14 +254,8 @@ export function useDocumentPresence(options: UseDocumentPresenceOptions = {}): U
     let retryTimeout: NodeJS.Timeout | null = null
 
     const attemptConnection = () => {
-      const token =
-        providedToken ||
-        localStorage.getItem('business-app-ide-access-token') ||
-        localStorage.getItem('keycloak-token') ||
-        sessionStorage.getItem('auth_token')
-
-      if (!token) {
-        console.warn('[useDocumentPresence] No auth token found, attempt', retryCount + 1)
+      if (!providedToken) {
+        console.warn('[useDocumentPresence] No auth token provided, attempt', retryCount + 1)
 
         // Retry after a delay if we haven't exceeded max retries
         if (retryCount < maxRetries) {
@@ -276,6 +264,8 @@ export function useDocumentPresence(options: UseDocumentPresenceOptions = {}): U
         }
         return
       }
+
+      const token = providedToken
 
       console.log('[useDocumentPresence] Attempting to connect')
 
