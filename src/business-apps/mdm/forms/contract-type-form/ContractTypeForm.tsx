@@ -108,7 +108,26 @@ const ProbationPeriodFields: React.FC<{ dataTestId: string }> = ({ dataTestId })
 const noLeadingWhitespace = (value: string) => value === value.trimStart()
 const noLeadingWhitespaceMessage = 'Cannot start with whitespace'
 
-// Zod validation schema
+// Shared refinement: probationValue requires probationUnit
+const probationRefinement = (data: { probationValue?: string; probationUnit?: string }, ctx: z.RefinementCtx) => {
+  const hasValue = data.probationValue && data.probationValue.trim() !== ''
+  if (hasValue) {
+    const validUnits: ('day' | 'week' | 'month')[] = ['day', 'week', 'month']
+    const hasValidUnit =
+      data.probationUnit !== undefined &&
+      data.probationUnit !== '' &&
+      validUnits.includes(data.probationUnit as 'day' | 'week' | 'month')
+    if (!hasValidUnit) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Time unit is required when a value is entered. Either remove the value or select a time unit.',
+        path: ['probationUnit']
+      })
+    }
+  }
+}
+
+// Zod validation schema (edit mode: code optional)
 const contractTypeFormSchema = z
   .object({
     value: z
@@ -128,35 +147,33 @@ const contractTypeFormSchema = z
       .optional(),
     probationUnit: z.enum(['day', 'week', 'month', '']).optional()
   })
-  .superRefine((data, ctx) => {
-    // If probationValue is provided, probationUnit must be provided and not empty
-    const hasValue = data.probationValue && data.probationValue.trim() !== ''
-    if (hasValue) {
-      // probationUnit must be one of the valid units (not undefined, not empty string)
-      const validUnits: ('day' | 'week' | 'month')[] = ['day', 'week', 'month']
-      const hasValidUnit =
-        data.probationUnit !== undefined &&
-        data.probationUnit !== '' &&
-        validUnits.includes(data.probationUnit as 'day' | 'week' | 'month')
+  .superRefine(probationRefinement)
 
-      if (!hasValidUnit) {
-        ctx.addIssue({
-          code: 'custom',
-          message: 'Time unit is required when a value is entered. Either remove the value or select a time unit.',
-          path: ['probationUnit']
-        })
-      }
-    }
+// Schema for creating new contract type (code is required) - defined without .extend() to avoid
+const createContractTypeFormSchema = z
+  .object({
+    value: z
+      .string({ message: 'Please enter contract type name' })
+      .min(1, 'Please enter contract type name')
+      .max(64, 'Contract type name must be less than 64 characters')
+      .refine(noLeadingWhitespace, noLeadingWhitespaceMessage),
+    code: z
+      .string({ message: 'Please enter contract type code' })
+      .min(1, 'Please enter contract type code')
+      .max(10, 'Contract type code must be less than 10 characters')
+      .refine(noLeadingWhitespace, noLeadingWhitespaceMessage),
+    description: z
+      .string()
+      .max(100, 'Description must be less than 100 characters')
+      .refine(val => !val || noLeadingWhitespace(val), noLeadingWhitespaceMessage)
+      .optional(),
+    probationValue: z
+      .string()
+      .refine(val => !val || /^[1-9][0-9]{0,3}$/.test(val), 'Must be a positive number with maximum 4 digits')
+      .optional(),
+    probationUnit: z.enum(['day', 'week', 'month', '']).optional()
   })
-
-// Schema for creating new contract type (code is required)
-const createContractTypeFormSchema = contractTypeFormSchema.safeExtend({
-  code: z
-    .string({ message: 'Please enter contract type code' })
-    .min(1, 'Please enter contract type code')
-    .max(10, 'Contract type code must be less than 10 characters')
-    .refine(noLeadingWhitespace, noLeadingWhitespaceMessage)
-})
+  .superRefine(probationRefinement)
 
 export interface ContractTypeFormProps extends BusinessAppContextProps {
   prefixDataTestId?: string
