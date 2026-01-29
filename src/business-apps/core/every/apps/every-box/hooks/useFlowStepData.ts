@@ -10,9 +10,9 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { env } from '@/common/env/EnvUtils'
+import { getCflowEndpoint } from '../../every-api/utils/config'
 
-const FLOW_ENGINE_API = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+const FLOW_ENGINE_API = getCflowEndpoint()
 
 interface FlowStep {
   stepIndex: number

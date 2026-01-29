@@ -8,6 +8,8 @@ interface WorkflowDisplayProps {
   accessToken: string
   operation?: 'create' | 'update' | 'delete' | 'read'
   flowProposal?: string
+  textTitle?: string
+  tool?: string
 }
 
 export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
@@ -15,7 +17,9 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   accessToken: _accessToken,
   operation,
-  flowProposal
+  flowProposal,
+  textTitle,
+  tool
 }) => {
   const operationBadge = getOperationBadge(operation)
 
@@ -44,6 +48,16 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
   )
 
   const handleClick = () => {
+    // Blink tasks: open Task Manager outbox for this task id.
+    if (tool === 'create_blink_task') {
+      const outboxUrl = buildPlatformUrl('/platform/task-manager', {
+        view: 'outbox',
+        taskId: workflowId
+      })
+      navigateTo(outboxUrl, { forceReload: true })
+      return
+    }
+
     // workflowId is the template_id
     const workflowUrl = buildPlatformUrl('/platform/apps/flow/apps/creator', {
       templateId: workflowId
@@ -52,8 +66,8 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
     navigateTo(`${workflowUrl}#manage`, { forceReload: true })
   }
 
-  const title = formatWorkflowName(workflowId)
-  const subtitle = 'Workflow Template'
+  const title = textTitle || formatWorkflowName(workflowId)
+  const subtitle = tool === 'create_blink_task' ? 'Blink Task' : 'Workflow Template'
 
   return (
     <EntityCard
@@ -63,12 +77,14 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
       status={operationBadge?.text}
       statusVariant={operationBadge?.variant}
       fields={
-        flowProposal
-          ? [
-              { label: 'Template ID', value: workflowId },
-              { label: 'Flow Proposal', value: flowProposal.slice(0, 8) + '...' }
-            ]
-          : [{ label: 'Template ID', value: workflowId }]
+        tool === 'create_blink_task'
+          ? [{ label: 'Task ID', value: workflowId }]
+          : flowProposal
+            ? [
+                { label: 'Template ID', value: workflowId },
+                { label: 'Flow Proposal', value: flowProposal.slice(0, 8) + '...' }
+              ]
+            : [{ label: 'Template ID', value: workflowId }]
       }
       onClick={handleClick}
     />

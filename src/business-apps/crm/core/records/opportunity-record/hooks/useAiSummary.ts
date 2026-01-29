@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import * as z from 'zod'
 import useInformationExtraction, { UseInformationExtractionReturn } from '@/common/hooks/useInformationExtraction'
 import { useGetSalesActivities } from '../queries/OpportunityActivityQueries'
@@ -6,9 +7,18 @@ import { useGetSalesTasks } from '../queries/OpportunityTaskQueries'
 import { GET_OPPORTUNITY_BY_ID, GetOpportunityByIdResponse } from '../queries/GetOpportunityByIdQueries'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
-const taskDescription = `You are an assistant that summarises CRM opportunity timelines. 
-Provide a concise executive summary in plain language, the total number of activities mentioned, 
-and up to 5 key insights or next steps as an array of strings. 
+const taskDescription = `You are a sales pipeline assistant analyzing a sales opportunity.
+
+Analyze all available opportunity data including deal details, pipeline stage, revenue potential, customer interactions, activities, notes, and tasks to provide:
+1. A concise executive summary highlighting the deal structure, revenue potential, pipeline stage, competitive position, and win probability
+2. Up to 5 key insights covering:
+   - Deal momentum and progression indicators
+   - Win probability and competitive positioning
+   - Risk factors or blockers identified
+   - Stakeholder engagement and buying signals
+   - Critical next steps to advance or close the deal
+
+Emphasize sales metrics, pipeline health, and deal closing strategies.
 Respond strictly in JSON conforming to the provided schema.`
 
 const summarySchema = z.object({
@@ -24,7 +34,7 @@ export function useAiSummary(opportunityId: string, accessToken: string): UseAiS
   const { fetchCrmNotes } = useGetCrmNotes({ accessToken })
   const { fetchSalesTasks } = useGetSalesTasks({ accessToken })
 
-  const generateInputData = async () => {
+  const generateInputData = useCallback(async () => {
     // get opportunity data
     const opportunity = await graphQLClient.request<GetOpportunityByIdResponse>(GET_OPPORTUNITY_BY_ID, {
       id: opportunityId
@@ -53,8 +63,11 @@ Activities: ${JSON.stringify(sortedActivities)}
 Notes: ${JSON.stringify(sortedNotes)}
 Tasks: ${JSON.stringify(sortedTasks)}`
 
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('AI Summary Input Data Length:', inputData.length, 'characters')
+    }
     return inputData
-  }
+  }, [opportunityId, graphQLClient, fetchSalesActivities, fetchCrmNotes, fetchSalesTasks])
 
   return useInformationExtraction(taskDescription, summarySchema, generateInputData, accessToken, 'gpt-4.1')
 }

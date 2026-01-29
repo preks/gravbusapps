@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Spinner, Button, RecordLayout, Badge, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
-import { UserIcon, FileTextIcon, StarIcon, TrendUpIcon, LightbulbIcon, RobotIcon } from '@phosphor-icons/react'
+import { UserIcon, FileTextIcon, StarIcon, TrendUpIcon, LightbulbIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
@@ -12,7 +12,7 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils'
 import { getOpportunityStatusBadgeVariant, getOpportunityForecastBadgeVariant } from '@/common/utils/badgeUtils'
 import { useAiSummary } from './hooks/useAiSummary'
-import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
+import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppAction } from '@/components/app-action'
 import { OpportunityStageProgression } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/OpportunityStageProgression'
 import type { OpportunityPipelineContextConfig } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/types'
@@ -360,11 +360,13 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
                   // Fallback: if formatDate returns ISO format, manually format the date
                   return formatted?.includes('T') ? dateOnly : formatted
                 })()
-              : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+              : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            icon: CalendarIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.currency', 'Currency'),
-            value: extractCurrencyCode(opportunityData?.currency?.id || 'Currency:v1:EUR')
+            value: extractCurrencyCode(opportunityData?.currency?.id || 'Currency:v1:EUR'),
+            icon: CurrencyDollarIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.winningChance', 'Winning Chance'),
@@ -378,7 +380,8 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.estimatedAmount', 'Estimated Amount'),
             value: opportunityData?.estimatedAmount
               ? formatCurrency(opportunityData.estimatedAmount, opportunityData.currency?.id || 'Currency:v1:EUR')
-              : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+              : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            icon: CurrencyDollarIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
@@ -402,32 +405,14 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     opportunityData?.ownerEmployee
   ])
 
-  const headerActions = useMemo(() => {
-    const actions: AiAction[] = [
-      {
-        key: 'ai-summary',
-        label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-        icon: <RobotIcon size={16} />,
-        hook: aiSummaryHook,
-        config: {
-          entityType: 'opportunity',
-          loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.summary.loading', 'Generating AI Summary...'),
-          loadingSubtitle: getTranslationFromI18nKeyAndLabel(
-            'crm.ai.summary.subtitle',
-            'Analyzing opportunity data and activities'
-          )
-        }
-      }
-    ]
-
-    return (
-      <AiActions
-        actions={actions}
-        dataTestId={`opportunity-update-button-${opportunityId}`}
-        buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')}
-      />
-    )
-  }, [aiSummaryHook, opportunityId])
+  const headerActions = (
+    <AiActions
+      entityType="opportunity"
+      entityId={opportunityId}
+      features={['summary', 'meeting-planner']}
+      hooks={{ summary: aiSummaryHook, meetingPlanner: aiSummaryHook }}
+    />
+  )
 
   const headerContent = useMemo(() => {
     // Show stage progression if data is ready

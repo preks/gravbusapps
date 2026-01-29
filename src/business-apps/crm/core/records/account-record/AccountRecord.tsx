@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Button, Spinner, RecordLayout, Badge, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
-import { UsersIcon, TrendUpIcon, FileTextIcon, BankIcon } from '@phosphor-icons/react'
+import {
+  UsersIcon,
+  TrendUpIcon,
+  FileTextIcon,
+  BankIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  CalendarIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -8,6 +16,8 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useCustomerAccount } from '@/common/data/customer/hooks/useCustomerAccount'
+import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
+import { useAccountAiSummary } from './hooks/useAccountAiSummary'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
 import { HomeView } from './views/home-view/HomeView'
@@ -52,6 +62,9 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
 
   const { account: accountData, loading, error, refetch } = useCustomerAccount(props.accessToken, accountId)
 
+  // AI Summary hook - must be called before any conditional returns
+  const aiSummaryHook = useAccountAiSummary(accountId, props.accessToken)
+
   const handleTabChange = useCallback((value: string) => {
     if ((ALLOWED_TABS as readonly string[]).includes(value)) {
       setActiveTab(value as TabKey)
@@ -82,17 +95,17 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
           {
             label: 'Email',
             value: getEmailChannel(accountData?.communicationChannels)?.value || 'Not set',
-            icon: TrendUpIcon
+            icon: EnvelopeIcon
           },
           {
             label: 'Phone',
             value: getPhoneChannel(accountData?.communicationChannels)?.value || 'Not set',
-            icon: TrendUpIcon
+            icon: PhoneIcon
           },
           {
             label: 'Founded',
             value: accountData?.foundationDate ? new Date(accountData.foundationDate).toLocaleDateString() : 'Not set',
-            icon: TrendUpIcon
+            icon: CalendarIcon
           },
           {
             label: 'Owner',
@@ -150,6 +163,15 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
       />
     ),
     [accountId, accountData?.name, props.accessToken]
+  )
+
+  const headerActions = (
+    <AiActions
+      entityType="account"
+      entityId={accountId}
+      features={['summary', 'meeting-planner']}
+      hooks={{ summary: aiSummaryHook, meetingPlanner: aiSummaryHook }}
+    />
   )
 
   const subViewsConfig = useMemo(
@@ -226,6 +248,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
         headerTitle={accountData.name || 'Unknown Account'}
         headerMeta={headerMeta}
         headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+        headerActions={headerActions}
         headerActionButton={headerActionButton}
         views={subViewsConfig.items}
         defaultView={subViewsConfig.defaultValue}

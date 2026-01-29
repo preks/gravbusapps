@@ -119,7 +119,7 @@ export const TaskTemplateTable: React.FC<TaskTemplateTableProps> = ({
 
   return (
     <div data-testid={dataTestId}>
-      <div className="gba:mb-4">
+      <div className="gba:rounded-md gba:border gba:p-4 gba:mb-6">
         <DebouncedInput
           placeholder="Search task templates..."
           value={search}
@@ -128,103 +128,105 @@ export const TaskTemplateTable: React.FC<TaskTemplateTableProps> = ({
         />
       </div>
 
-      <Table data-testid={`${dataTestId}-table`}>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Code</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Schedule</TableHead>
-            <TableHead>Interval</TableHead>
-            <TableHead>Active Period</TableHead>
-            <TableHead className="gba:w-24">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredTemplates.length === 0 ? (
+      <div className="gba:rounded-md gba:border">
+        <Table data-testid={`${dataTestId}-table`}>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={7} className="gba:py-8">
-                <EmptyState
-                  title={search ? 'No templates match your search' : 'No task templates configured yet'}
-                  description={
-                    search
-                      ? 'Try adjusting your search terms'
-                      : 'Click "Add Template" to create your first task template'
-                  }
-                />
-              </TableCell>
+              <TableHead>Code</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Schedule</TableHead>
+              <TableHead>Interval</TableHead>
+              <TableHead>Active Period</TableHead>
+              <TableHead className="gba:w-24">Actions</TableHead>
             </TableRow>
-          ) : (
-            filteredTemplates.map(template => (
-              <TableRow key={template.id} data-testid={`${dataTestId}-row-${template.id}`}>
-                <TableCell>
-                  <Badge variant="outline" data-testid={`${dataTestId}-code-${template.id}`}>
-                    {template.code}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <div className="gba:font-medium" data-testid={`${dataTestId}-name-${template.id}`}>
-                      {template.name}
-                    </div>
-                    {template.description && (
-                      <div
-                        className="gba:text-sm gba:text-muted-foreground"
-                        data-testid={`${dataTestId}-description-${template.id}`}
-                      >
-                        {template.description}
-                      </div>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant={template.enabled ? 'default' : 'secondary'}
-                    data-testid={`${dataTestId}-status-${template.id}`}
-                  >
-                    {template.enabled ? 'Enabled' : 'Disabled'}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="gba:text-sm" data-testid={`${dataTestId}-schedule-${template.id}`}>
-                    {getSchedulePreview(template)}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="gba:text-sm" data-testid={`${dataTestId}-interval-${template.id}`}>
-                    {template.intervalDays || 1} day(s)
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="gba:text-sm" data-testid={`${dataTestId}-active-period-${template.id}`}>
-                    {formatDateRange(template.activeFrom, template.activeTo)}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="gba:flex gba:space-x-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onEdit(template)}
-                      data-testid={`${dataTestId}-edit-button-${template.id}`}
-                    >
-                      <Edit className="gba:w-4 gba:h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onDelete(template.id)}
-                      data-testid={`${dataTestId}-delete-button-${template.id}`}
-                    >
-                      <Trash2 className="gba:w-4 gba:h-4" />
-                    </Button>
-                  </div>
+          </TableHeader>
+          <TableBody>
+            {filteredTemplates.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="gba:py-8">
+                  <EmptyState
+                    title={search ? 'No templates match your search' : 'No task templates configured yet'}
+                    description={
+                      search
+                        ? 'Try adjusting your search terms'
+                        : 'Click "Add Template" to create your first task template'
+                    }
+                  />
                 </TableCell>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+            ) : (
+              filteredTemplates.map(template => (
+                <TableRow key={template.id} data-testid={`${dataTestId}-row-${template.id}`}>
+                  <TableCell>
+                    <Badge variant="outline" data-testid={`${dataTestId}-code-${template.id}`}>
+                      {template.code}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="gba:font-medium" data-testid={`${dataTestId}-name-${template.id}`}>
+                        {template.name}
+                      </div>
+                      {template.description && (
+                        <div
+                          className="gba:text-sm gba:text-muted-foreground"
+                          data-testid={`${dataTestId}-description-${template.id}`}
+                        >
+                          {template.description}
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={template.enabled ? 'default' : 'secondary'}
+                      data-testid={`${dataTestId}-status-${template.id}`}
+                    >
+                      {template.enabled ? 'Enabled' : 'Disabled'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="gba:text-sm" data-testid={`${dataTestId}-schedule-${template.id}`}>
+                      {getSchedulePreview(template)}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="gba:text-sm" data-testid={`${dataTestId}-interval-${template.id}`}>
+                      {template.intervalDays || 1} day(s)
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="gba:text-sm" data-testid={`${dataTestId}-active-period-${template.id}`}>
+                      {formatDateRange(template.activeFrom, template.activeTo)}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="gba:flex gba:space-x-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEdit(template)}
+                        data-testid={`${dataTestId}-edit-button-${template.id}`}
+                      >
+                        <Edit className="gba:w-4 gba:h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onDelete(template.id)}
+                        data-testid={`${dataTestId}-delete-button-${template.id}`}
+                      >
+                        <Trash2 className="gba:w-4 gba:h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 }

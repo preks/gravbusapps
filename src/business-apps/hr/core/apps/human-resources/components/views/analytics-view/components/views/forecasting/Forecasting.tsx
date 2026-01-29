@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { Tabs, Typography } from 'antd'
-import { DollarOutlined, TeamOutlined } from '@ant-design/icons'
+import { Tabs, TabsList, TabsTrigger, TabsContent, useTranslation, Icon } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useTranslation } from '@newwork/nw-design-system'
 import SalaryForecasting from './components/tabs/SalaryForecasting'
 import WorkforceForecasting from './components/tabs/WorkforceForecasting'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-
-const { Title, Text } = Typography
+import { CurrencyDollarIcon, UsersIcon } from '@phosphor-icons/react'
 
 interface ForecastingProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -60,56 +57,58 @@ export const Forecasting: React.FC<ForecastingProps> = props => {
     return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
-  const tabItems = [
-    {
-      key: 'salary',
-      label: (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <DollarOutlined />
-          {t('hr-analytics-salary-forecasting')}
-        </div>
-      ),
-      children: <SalaryForecasting {...props} prefixDataTestId="SalaryForecasting" />
-    },
-    {
-      key: 'workforce',
-      label: (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <TeamOutlined />
-          {t('hr-analytics-workforce-forecasting')}
-        </div>
-      ),
-      children: <WorkforceForecasting {...props} prefixDataTestId="WorkforceForecasting" />
-    }
-  ]
-
   return (
-    <div
-      data-testid={prefixDataTestId}
-      className="gba:flex gba:flex-col gba:gap-6 gba:p-6 gba:bg-muted gba:rounded-lg gba:min-h-full"
-    >
+    <div data-testid={prefixDataTestId} className="gba:min-h-full gba:p-6 gba:rounded-lg">
       {/* Header */}
-      <div className="gba:flex gba:justify-between gba:items-center">
-        <div>
-          <Title level={3} className="gba:m-0 gba:text-foreground">
+      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
+        <div className="gba:flex gba:items-center gba:gap-4">
+          <h2 className="gba:text-2xl gba:font-bold gba:leading-9 gba:text-foreground gba:m-0">
             {t('hr-analytics-forecasting-analysis')}
-          </Title>
-          <Text className="gba:text-muted-foreground">
-            {t('hr-analytics-forecasting-description')}
-          </Text>
+          </h2>
         </div>
+      </div>
+
+      {/* Description (match Workforce spacing) */}
+      <div className="gba:mb-6">
+        <p className="gba:text-muted-foreground">{t('hr-analytics-forecasting-description')}</p>
       </div>
 
       {/* Tabs Content */}
       <div data-testid="forecasting-tabs-container" className="gba:flex-1">
-        <Tabs
-          activeKey={activeTab}
-          onChange={handleTabChange}
-          items={tabItems}
-          size="large"
-          className="gba:h-full"
-          data-testid="forecasting-tabs"
-        />
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:h-full" data-testid="forecasting-tabs">
+          <TabsList className="gba:mb-4">
+            <TabsTrigger
+              value="salary"
+              data-testid="salary-forecasting-tab"
+              className="gba:flex gba:flex-row gba:items-center gba:justify-center gba:gap-2"
+              title={t('hr-analytics-salary-forecasting')}
+            >
+              <span className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
+                <Icon icon={CurrencyDollarIcon} size="sm" decorative />
+                {t('hr-analytics-salary-forecasting')}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger
+              value="workforce"
+              data-testid="workforce-forecasting-tab"
+              className="gba:flex gba:flex-row gba:items-center gba:justify-center gba:gap-2"
+              title={t('hr-analytics-workforce-forecasting')}
+            >
+              <span className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
+                <Icon icon={UsersIcon} size="sm" decorative />
+                {t('hr-analytics-workforce-forecasting')}
+              </span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="salary" className="gba:mt-6">
+            <SalaryForecasting {...props} prefixDataTestId="SalaryForecasting" />
+          </TabsContent>
+
+          <TabsContent value="workforce" className="gba:mt-6">
+            <WorkforceForecasting {...props} prefixDataTestId="WorkforceForecasting" />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )

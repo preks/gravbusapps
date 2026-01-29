@@ -125,7 +125,7 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
   // View State
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>(initialFilters)
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'dueDate', desc: false }])
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([{ id: 'createdAt', desc: true }])
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
   const [visibleColumns, setVisibleColumns] = useState<string[]>([])
 
@@ -343,6 +343,8 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
         buildReferenceUrl={config.buildReferenceUrl}
         data-testid={`${dataTestId}-detail-sheet`}
         businessAppContext={{ accessToken, userInfo } as BusinessAppContextProps}
+        accessToken={accessToken}
+        flowContext={config.flowContexts.entityContext}
       />
     </div>
   )

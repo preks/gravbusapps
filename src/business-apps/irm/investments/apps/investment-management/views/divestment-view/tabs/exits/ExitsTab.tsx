@@ -52,7 +52,6 @@ export const ExitsTab: React.FC<ExitsTabProps> = context => {
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'opportunity',
     'amount',
-    'account',
     'divestment',
     'opportunityStatus',
     'opportunityPipeline',
@@ -287,7 +286,7 @@ export const ExitsTab: React.FC<ExitsTabProps> = context => {
 
   // Columns - add divestment column
   const columns = useMemo(() => {
-    const baseColumns = createOpportunityColumns(buildAccountUrl)
+    const baseColumns = createOpportunityColumns()
 
     // Define divestment column
     const divestmentColumn: ColumnDef<InvestmentOpportunity> = {
@@ -349,7 +348,6 @@ export const ExitsTab: React.FC<ExitsTabProps> = context => {
     () => [
       { id: 'opportunity', label: 'Opportunity' },
       { id: 'amount', label: 'Exit Amount' },
-      { id: 'account', label: 'Account' },
       { id: 'divestment', label: 'Divestment' },
       { id: 'opportunityStatus', label: 'Status' },
       { id: 'opportunityPipeline', label: 'Pipeline' },

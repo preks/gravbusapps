@@ -165,6 +165,8 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
           </div>
         </>
       }
+      expenseRequestId={selectedItem?.id}
+      accessToken={contextProps.accessToken}
     />
   )
 }

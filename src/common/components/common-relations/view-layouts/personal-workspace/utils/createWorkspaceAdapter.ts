@@ -185,6 +185,7 @@ export function createTasksAdapter<
 /**
  * Create a Combined Calendar Adapter
  * Generic adapter for fetching activities and tasks in parallel
+ * Includes automatic refetch on process completion events
  */
 export function createCombinedCalendarAdapter<
   TVariables extends { employeeId: string; dateFrom?: string; dateTo?: string; limit?: number },
@@ -207,8 +208,9 @@ export function createCombinedCalendarAdapter<
       fetchRef.current = fetchFunction
     }, [fetchFunction])
 
-    // Track last fetch call to prevent duplicate calls
+    // Track last fetch call to prevent duplicate calls (with debouncing)
     const lastFetchCall = useRef<{ dateFrom?: string; dateTo?: string; timestamp: number } | null>(null)
+    const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
     // Track if initial fetch has been triggered
     const hasInitialFetchTriggered = useRef(false)
@@ -314,6 +316,36 @@ export function createCombinedCalendarAdapter<
         dateFrom: dateRange?.dueDateFrom,
         dateTo: dateRange?.dueDateTo
       })
+    }, [])
+
+    // Listen for process completion events to auto-refresh calendar data
+    useEffect(() => {
+      const handleProcessCompletion = () => {
+        // Clear any pending refresh
+        if (refreshTimeoutRef.current) {
+          clearTimeout(refreshTimeoutRef.current)
+        }
+
+        // Debounce refresh by 300ms to batch multiple rapid events
+        refreshTimeoutRef.current = setTimeout(() => {
+          loadCalendarDataRef.current()
+        }, 300)
+      }
+
+      const eventNames = ['com.newwork.process.completion', 'com.newwork.process.processCompletion']
+
+      eventNames.forEach(eventName => {
+        globalThis.addEventListener(eventName, handleProcessCompletion)
+      })
+
+      return () => {
+        if (refreshTimeoutRef.current) {
+          clearTimeout(refreshTimeoutRef.current)
+        }
+        eventNames.forEach(eventName => {
+          globalThis.removeEventListener(eventName, handleProcessCompletion)
+        })
+      }
     }, [])
 
     return {

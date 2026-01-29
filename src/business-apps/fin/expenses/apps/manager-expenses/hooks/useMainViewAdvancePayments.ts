@@ -31,6 +31,8 @@ export interface AdvancePayment {
     employee: {
       id: string
       displayName?: string
+      firstName?: string
+      lastName?: string
       fullName: string
       pictureThumbnail?: string
       employeePosition: {
@@ -128,8 +130,8 @@ export const useMainViewAdvancePayments = ({
     order: 'ASC' | 'DESC' | null
     lastField: string | null
   }>({
-    field: null,
-    order: null,
+    field: 'createdAt',
+    order: 'DESC',
     lastField: null
   })
   const [approving, setApproving] = useState<boolean>(false)
@@ -316,16 +318,20 @@ export const useMainViewAdvancePayments = ({
       let filteredPayments = data.AdvancePayment
 
       // Map currency information from currencyRef fields
-      filteredPayments = filteredPayments.map(payment => ({
-        ...payment,
-        currency: payment.currencyRef ? payment.currencyRef.replaceAll('Currency:v1:', '') : 'EUR',
-        expensePlan: {
-          ...payment.expensePlan,
-          currency: payment.expensePlan.currencyRef
-            ? payment.expensePlan.currencyRef.replaceAll('Currency:v1:', '')
-            : 'EUR'
+      // Explicitly preserve all expensePlan fields including employee with pictureThumbnail
+      filteredPayments = filteredPayments.map(payment => {
+        const { expensePlan, ...restPayment } = payment
+        const stripCurrencyPrefix = (ref?: string) => (ref ? ref.split('Currency:v1:').join('') : 'EUR')
+        return {
+          ...restPayment,
+          currency: stripCurrencyPrefix(payment.currencyRef),
+          expensePlan: {
+            ...expensePlan,
+            currency: stripCurrencyPrefix(expensePlan.currencyRef)
+            // Employee object is preserved via spread operator above
+          }
         }
-      }))
+      })
 
       // Filter by employee if specified
       if (employeeFilter) {

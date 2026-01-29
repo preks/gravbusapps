@@ -1,20 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { getTurnoverMetricsQuery } from '../queries/getTurnoverMetrics'
 import dayjs from 'dayjs'
+import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 import { formatDate } from '@/common/utils/windowUtils'
 
 /**
  * GraphQL response type for combined turnover metrics
  */
-interface TurnoverMetricsResponse {
-  currentTerminations: { aggregate: { count: number } }
-  previousTerminations: { aggregate: { count: number } }
-  currentHeadcount: { aggregate: { count: number } }
-  previousHeadcount: { aggregate: { count: number } }
-  currentHeadcountStart: { aggregate: { count: number } }
-  previousHeadcountStart: { aggregate: { count: number } }
-}
+type TimeseriesRow = { category?: string; date_category?: string; dateCategory?: string; value?: number }
 
 /**
  * Hook to calculate the turnover rate for the current month and MoM change.
@@ -30,8 +22,8 @@ export const useTurnoverRate = (accessToken: string) => {
   const [error, setError] = useState<Error | null>(null)
   const isMounted = useRef<boolean>(true)
 
-  // Get GraphQL client using the project's pattern
-  const graphQLClient = useGraphqlClient(accessToken)
+  // Dataset client
+  const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
 
   /**
    * Get date ranges for current full month and previous full month
@@ -66,42 +58,32 @@ export const useTurnoverRate = (accessToken: string) => {
         setError(null)
       }
 
-      const { current, previous } = getCurrentAndPreviousMonthRanges()
+      // Use monthlyTurnoverRatePercentage timeseries (already percentage)
+      // Range: previous month start -> current month end
+      const prevMonthStart = dayjs().subtract(1, 'month').startOf('month').format('YYYY-MM-DD')
+      const currMonthEnd = dayjs().endOf('month').format('YYYY-MM-DD')
 
-      // Cutoffs for end-of-month denominators
-      const currentCutoff = formatDate(dayjs().endOf('month').toDate(), 'fullDateTime.ISO') as string
-      const prevCutoff = previous.endDate
-
-      // Single combined call
-      const metrics = await graphQLClient.request<TurnoverMetricsResponse>(getTurnoverMetricsQuery, {
-        currentStart: current.startDate,
-        currentEnd: current.endDate,
-        previousStart: previous.startDate,
-        previousEnd: previous.endDate,
-        currentCutoff: currentCutoff,
-        previousCutoff: prevCutoff
+      const resp = await datasetClient.executeQuery('monthlyTurnoverRatePercentage', QueryType.TIMESERIES, {
+        startDate: prevMonthStart,
+        endDate: currMonthEnd
       })
 
-      const currentTerminated = Number(metrics?.currentTerminations?.aggregate?.count ?? 0)
-      const previousTerminated = Number(metrics?.previousTerminations?.aggregate?.count ?? 0)
-      const currentEndTotal = Number(metrics?.currentHeadcount?.aggregate?.count ?? 0)
-      const previousEndTotal = Number(metrics?.previousHeadcount?.aggregate?.count ?? 0)
-      const currentStartTotal = Number(metrics?.currentHeadcountStart?.aggregate?.count ?? 0)
-      const previousStartTotal = Number(metrics?.previousHeadcountStart?.aggregate?.count ?? 0)
+      const rows = ((resp?.data as TimeseriesRow[]) ?? []).slice().sort((a, b) => {
+        const ad = dayjs((a.dateCategory ?? a.date_category) || '').valueOf()
+        const bd = dayjs((b.dateCategory ?? b.date_category) || '').valueOf()
+        return ad - bd
+      })
 
-      // Average denominators
-      const currentAvg = (currentStartTotal + currentEndTotal) / 2
-      const previousAvg = (previousStartTotal + previousEndTotal) / 2
+      const latest = rows[rows.length - 1]
+      const previous = rows[rows.length - 2]
 
-      const currentRate = currentAvg > 0 ? (currentTerminated / currentAvg) * 100 : 0
-      const previousRate = previousAvg > 0 ? (previousTerminated / previousAvg) * 100 : 0
-
-      const roundedCurrent = Math.round(currentRate * 10) / 10
-      const roundedPrevious = Math.round(previousRate * 10) / 10
+      const roundedCurrent = Number(latest?.value ?? 0)
+      const roundedPrevious = Number(previous?.value ?? 0)
       const changeValue = Math.round((roundedCurrent - roundedPrevious) * 10) / 10
 
       if (isMounted.current) {
-        setTerminatedCount(currentTerminated)
+        // Not available from this dataset; keep 0 for compatibility
+        setTerminatedCount(0)
         setRate(roundedCurrent)
         setChange(changeValue)
         setError(null)
@@ -116,7 +98,7 @@ export const useTurnoverRate = (accessToken: string) => {
         setLoading(false)
       }
     }
-  }, [accessToken, graphQLClient, getCurrentAndPreviousMonthRanges])
+  }, [accessToken, datasetClient, getCurrentAndPreviousMonthRanges])
 
   useEffect(() => {
     isMounted.current = true

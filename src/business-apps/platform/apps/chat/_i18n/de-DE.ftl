@@ -215,6 +215,12 @@ call-ringing = Klingelt
 call-decline = Ablehnen
 call-accept = Annehmen
 call-join = Beitreten
+call-joining = Tritt bei...
+call-joiningCall = Anruf beitreten...
+call-micOn = Mikro
+call-micOff = Mikro aus
+call-cameraOn = Kamera
+call-cameraOff = Kamera aus
 call-startedBy = Gestartet von
 call-unmute = Stummschaltung aufheben
 call-mute = Stummschalten
@@ -250,6 +256,20 @@ call-retryConnection = Verbindung wiederholen
 call-reconnect = Erneut verbinden
 call-retrying = Wird wiederholt...
 call-waitingForParticipants = Warte auf Teilnehmer...
+
+# Group Call
+groupCall-title = Gruppenanruf
+groupCall-participants = Teilnehmer
+groupCall-audioOnly = Nur Audio
+groupCall-minimize = Anruf minimieren
+groupCall-waitingForParticipants = Warte auf Teilnehmer...
+groupCall-unmute = Stummschaltung aufheben
+groupCall-mute = Stummschalten
+groupCall-turnOnVideo = Kamera einschalten
+groupCall-turnOffVideo = Kamera ausschalten
+groupCall-endCall = Anruf beenden
+groupCall-enableBackground = Hintergrundeffekt aktivieren
+groupCall-disableBackground = Hintergrundeffekt deaktivieren
 
 # Notifications
 notifications-title = Benachrichtigungen

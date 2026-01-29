@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { getHiresPerYearBatchQuery } from '../queries/getHiresPerYear'
 import dayjs from 'dayjs'
-import { formatDate } from '@/common/utils/windowUtils'
+import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 
 /**
  * Interface for year and hire count data
@@ -12,13 +10,7 @@ export interface YearlyHireData {
   count: number
 }
 
-interface HiresBatchResponse {
-  y0: { aggregate: { count: number } }
-  y1: { aggregate: { count: number } }
-  y2: { aggregate: { count: number } }
-  y3: { aggregate: { count: number } }
-  y4: { aggregate: { count: number } }
-}
+type TimeseriesRow = { category?: string; date_category?: string; dateCategory?: string; value?: number }
 
 /**
  * Hook to fetch the number of hires per year for the last 5 years
@@ -30,7 +22,7 @@ export const useHiresPerYear = (accessToken: string) => {
   const [error, setError] = useState<Error | null>(null)
   const isMounted = useRef<boolean>(true)
 
-  const graphQLClient = useGraphqlClient(accessToken)
+  const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
 
   const fetchHiresPerYear = useCallback(async () => {
     if (!accessToken) {
@@ -47,38 +39,21 @@ export const useHiresPerYear = (accessToken: string) => {
         setError(null)
       }
 
-      const currentYear = dayjs().year()
-      const s0 = formatDate(new Date(currentYear, 0, 1, 0, 0, 0, 0), 'fullDateTime.ISO') as string
-      const e0 = formatDate(new Date(), 'fullDateTime.ISO') as string
-      const s1 = formatDate(new Date(currentYear - 1, 0, 1, 0, 0, 0, 0), 'fullDateTime.ISO') as string
-      const e1 = formatDate(new Date(currentYear - 1, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
-      const s2 = formatDate(new Date(currentYear - 2, 0, 1, 0, 0, 0, 0), 'fullDateTime.ISO') as string
-      const e2 = formatDate(new Date(currentYear - 2, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
-      const s3 = formatDate(new Date(currentYear - 3, 0, 1, 0, 0, 0, 0), 'fullDateTime.ISO') as string
-      const e3 = formatDate(new Date(currentYear - 3, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
-      const s4 = formatDate(new Date(currentYear - 4, 0, 1, 0, 0, 0, 0), 'fullDateTime.ISO') as string
-      const e4 = formatDate(new Date(currentYear - 4, 11, 31, 23, 59, 59, 999), 'fullDateTime.ISO') as string
+      // Use dataset timeseries 'hiresPerYear' for last 5 years
+      const startDate = dayjs().startOf('year').subtract(4, 'year').format('YYYY-MM-DD')
+      const endDate = dayjs().endOf('year').format('YYYY-MM-DD')
+      const resp = await datasetClient.executeQuery('hiresPerYear', QueryType.TIMESERIES, { startDate, endDate })
 
-      const resp = await graphQLClient.request<HiresBatchResponse>(getHiresPerYearBatchQuery, {
-        s0,
-        e0,
-        s1,
-        e1,
-        s2,
-        e2,
-        s3,
-        e3,
-        s4,
-        e4
-      })
-
-      const series: YearlyHireData[] = [
-        { year: currentYear - 4, count: Number(resp.y4?.aggregate?.count ?? 0) },
-        { year: currentYear - 3, count: Number(resp.y3?.aggregate?.count ?? 0) },
-        { year: currentYear - 2, count: Number(resp.y2?.aggregate?.count ?? 0) },
-        { year: currentYear - 1, count: Number(resp.y1?.aggregate?.count ?? 0) },
-        { year: currentYear, count: Number(resp.y0?.aggregate?.count ?? 0) }
-      ]
+      const raw = resp?.data ?? []
+      const rows: TimeseriesRow[] = Array.isArray(raw) ? (raw as TimeseriesRow[]) : []
+      const series: YearlyHireData[] = rows
+        .map(r => {
+          const d = r.dateCategory ?? r.date_category
+          const year = d ? dayjs(d).year() : Number.NaN
+          return { year, count: Number(r.value ?? 0) }
+        })
+        .filter(p => Number.isFinite(p.year))
+        .sort((a, b) => a.year - b.year)
 
       if (isMounted.current) {
         setHiresData(series)
@@ -94,7 +69,7 @@ export const useHiresPerYear = (accessToken: string) => {
         setLoading(false)
       }
     }
-  }, [accessToken, graphQLClient])
+  }, [accessToken, datasetClient])
 
   useEffect(() => {
     isMounted.current = true
