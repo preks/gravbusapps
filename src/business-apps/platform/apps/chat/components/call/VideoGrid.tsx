@@ -35,7 +35,7 @@ export interface VideoGridProps {
   /** Data test ID prefix */
   prefixDataTestId?: string
   /** Translation function */
-  t?: (key: string) => string
+  t?: (key: string, params?: Record<string, unknown>) => string
   /** Grid mode: auto-fit uses CSS auto-fit, fixed-grid uses manual cols/rows */
   mode?: 'auto-fit' | 'fixed-grid'
   /** Minimum tile size for auto-fit mode (in pixels) */
@@ -142,7 +142,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
               {t('videogrid-page-info', { current: currentPage + 1, total: totalPages })}
             </span>
             <span className="gba:text-xs gba:text-muted-foreground gba:px-2 gba:py-1 gba:rounded gba:bg-muted/50">
-              {totalItems} {t('groupCall-participants')}
+              {totalItems} {totalItems === 1 ? t('chat-participant') : t('groupCall-participants')}
             </span>
           </div>
 
