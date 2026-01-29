@@ -141,7 +141,11 @@ const UNIVERSAL_ENTITY_SEARCH_QUERY = `
       email
       jobTitle
       pictureUrl
-      account { name }
+      accountContacts(where: { isDeleted: { _eq: false } }, limit: 1) {
+        account {
+          name
+        }
+      }
     }
 
     Account(
@@ -183,7 +187,11 @@ const UNIVERSAL_ENTITY_SEARCH_QUERY = `
       name
       estimatedAmount
       currencyRef
-      account { name }
+      opportunityAccounts(where: { isDeleted: { _eq: false } }, limit: 1) {
+        account {
+          name
+        }
+      }
       salesPipelineStage { value }
     }
 
@@ -422,7 +430,11 @@ const UNIVERSAL_ENTITY_SEARCH_QUERY = `
       estimatedAmount
       currencyRef
       dealType
-      account { name }
+      opportunityAccounts(where: { isDeleted: { _eq: false } }, limit: 1) {
+        account {
+          name
+        }
+      }
       investmentGroup { value }
       investmentType { value }
     }
@@ -466,7 +478,7 @@ export const useUniversalEntitySearch = (options: UseUniversalEntitySearchOption
           id: contact.id,
           name,
           type: 'contact',
-          subtitle: contact.account?.name || contact.jobTitle || 'Contact',
+          subtitle: contact.accountContacts?.[0]?.account?.name || contact.jobTitle || 'Contact',
           icon: 'User',
           avatarUrl: contact.pictureUrl,
           displayUrl: generateEntityDisplayUrl('contact', contact.id),
@@ -493,7 +505,7 @@ export const useUniversalEntitySearch = (options: UseUniversalEntitySearchOption
           id: opp.id,
           name: opp.name || 'Unknown Opportunity',
           type: 'opportunity',
-          subtitle: opp.account?.name || opp.salesPipelineStage?.value || 'Opportunity',
+          subtitle: opp.opportunityAccounts?.[0]?.account?.name || opp.salesPipelineStage?.value || 'Opportunity',
           icon: 'Target',
           displayUrl: generateEntityDisplayUrl('opportunity', opp.id),
           metadata: { ...opp }
@@ -609,7 +621,11 @@ export const useUniversalEntitySearch = (options: UseUniversalEntitySearchOption
           id: opp.id,
           name: opp.investmentName || opp.name || 'Investment Opportunity',
           type: 'investment-opportunity',
-          subtitle: opp.investmentGroup?.value || opp.dealType || 'Investment Opportunity',
+          subtitle:
+            opp.opportunityAccounts?.[0]?.account?.name ||
+            opp.investmentGroup?.value ||
+            opp.dealType ||
+            'Investment Opportunity',
           icon: 'Briefcase',
           displayUrl: generateEntityDisplayUrl('investment-opportunity', opp.id),
           metadata: { ...opp }

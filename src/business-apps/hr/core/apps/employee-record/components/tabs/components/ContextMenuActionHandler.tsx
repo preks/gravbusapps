@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useAppActionData } from '@/common/hooks/useAppActionData'
 
@@ -25,6 +25,12 @@ export const ContextMenuActionHandler: React.FC<ContextMenuActionHandlerProps> =
   accessToken,
   onComplete
 }) => {
+  const hasExecutedRef = useRef(false)
+  const actionKeyRef = useRef<string>('')
+
+  // Create a unique key for this action to detect when props actually change
+  const currentActionKey = `${employeeId}-${absenceTypeId}-${flowType}-${startDate}-${endDate}`
+
   const { combinedData, handleDeferredFetch } = useAppActionData(
     {
       contextsArray: [FlowContextName.employeeAbsenceRecord],
@@ -43,23 +49,35 @@ export const ContextMenuActionHandler: React.FC<ContextMenuActionHandlerProps> =
   )
 
   useEffect(() => {
+    // Reset the execution flag when the action key changes (new context menu selection)
+    if (actionKeyRef.current !== currentActionKey) {
+      hasExecutedRef.current = false
+      actionKeyRef.current = currentActionKey
+    }
     // Ensure data is fetched
     handleDeferredFetch()
-  }, [handleDeferredFetch])
+  }, [handleDeferredFetch, currentActionKey])
 
   useEffect(() => {
-    if (combinedData.length > 0) {
-      // Execute the first available action
+    if (combinedData.length > 0 && !hasExecutedRef.current) {
+      // Execute the first available action only once
       const firstAction = combinedData[0]
       if (firstAction?.onClick) {
-        firstAction.onClick()
-        // Reset after a short delay to allow the process to start
-        setTimeout(() => {
+        hasExecutedRef.current = true
+        try {
+          firstAction.onClick()
+          // Reset after a short delay to allow the process to start
+          setTimeout(() => {
+            onComplete()
+          }, 100)
+        } catch {
           onComplete()
-        }, 100)
+        }
+      } else {
+        onComplete()
       }
     }
-  }, [combinedData, onComplete])
+  }, [combinedData, onComplete, absenceTypeId, flowType, startDate, endDate, employeeId])
 
   return null
 }

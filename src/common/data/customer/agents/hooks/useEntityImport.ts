@@ -7,7 +7,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCsvParser, useCatalogLookup } from '@/common/data/customer/agents/hooks'
-import { ImportAnalyzer, ImportApiService } from '@/common/data/customer/agents/services'
+import { ImportAnalyzer } from '@/common/data/customer/agents/services'
 import { convertParsedDataToEntities } from '@/common/data/customer/agents/utils'
 import {
   ParsedRow,
@@ -19,6 +19,7 @@ import {
   ImportResult
 } from '@/common/data/customer/agents/types'
 import { env } from '@/common/env/EnvUtils'
+import { useRestClient } from '@/common/network/rest/useRestClient'
 
 export interface UseEntityImportReturn<T extends ConvertedEntity> {
   // File state
@@ -75,18 +76,16 @@ export function useEntityImport<T extends ConvertedEntity>(
 
   // Services
   const aiServiceRef = useRef<ImportAnalyzer | null>(null)
-  const apiServiceRef = useRef<ImportApiService | null>(null)
 
-  // Initialize services
+  // Initialize AI service
   useEffect(() => {
     if (accessToken) {
       aiServiceRef.current = new ImportAnalyzer(accessToken, config.aiAgentName)
-      const baseUrl = env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') || ''
-      apiServiceRef.current = new ImportApiService(baseUrl, accessToken)
     }
   }, [accessToken, config.aiAgentName])
 
   // Hooks
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
   const { parseCSVFile } = useCsvParser()
   const catalogIdentifiers = useMemo(() => getRequiredCatalogIdentifiers(config), [config])
   const { lookupCatalogEntry, isLoadingCatalogs } = useCatalogLookup({
@@ -200,11 +199,6 @@ export function useEntityImport<T extends ConvertedEntity>(
 
   // Import to backend
   const importToBackend = useCallback(async () => {
-    if (!apiServiceRef.current) {
-      setError('API service not initialized')
-      return
-    }
-
     if (convertedEntities.length === 0) {
       setError('No data to import')
       return
@@ -224,7 +218,48 @@ export function useEntityImport<T extends ConvertedEntity>(
         ownerEmployee: ownerEmployeeId || entity.ownerEmployee || entity.ownerEmployeeId // Preserve existing if already set
       }))
 
-      const result = await apiServiceRef.current.bulkCreateEntities(config.entityType, entitiesWithOwner)
+      // Map entity type to endpoint
+      const entityTypePlural = `${config.entityType}s`
+      let endpoint: string
+
+      if (config.entityType === 'lead') {
+        endpoint = '/customer-relations/createLeads'
+      } else if (config.entityType === 'contact') {
+        endpoint = '/customer-relations/createContacts'
+      } else if (config.entityType === 'account') {
+        endpoint = '/customer-relations/createAccounts'
+      } else {
+        throw new Error(`Unsupported entity type: ${config.entityType}`)
+      }
+
+      // Make API call using RestClient
+      const response = await restClient.post(
+        endpoint,
+        { [entityTypePlural]: entitiesWithOwner },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        }
+      )
+
+      // Transform response - all CRM endpoints use Kogito process response format
+      const hasErrors = response.validationResponse?.errors?.length > 0
+      const createdEntities = response[entityTypePlural] || []
+
+      const result: ImportResult = {
+        success: !hasErrors && createdEntities.length > 0,
+        successCount: createdEntities.length,
+        errorCount: hasErrors ? response.validationResponse.errors.length : 0,
+        errors: hasErrors
+          ? response.validationResponse.errors.map((err: any, idx: number) => ({
+              rowIndex: idx,
+              entityData: {},
+              error: `${err.code || 'ERROR'}: ${err.detail || err.title || 'Unknown error'}`
+            }))
+          : [],
+        createdIds: createdEntities.map((entity: any) => entity.id)
+      }
 
       if (result.success === false) {
         setError(`Import failed: ${result.errors?.[0]?.error || 'Unknown error'}`)
@@ -235,12 +270,13 @@ export function useEntityImport<T extends ConvertedEntity>(
         setError(null)
       }
     } catch (err) {
+      console.error(`Bulk create ${config.entityType}s failed:`, err)
       setError(err instanceof Error ? err.message : 'Import failed')
       setImportResult(null)
     } finally {
       setIsLoading(false)
     }
-  }, [convertedEntities, config.entityType, props.userInfo])
+  }, [convertedEntities, config.entityType, props.userInfo, restClient, accessToken])
 
   // Download JSON
   const downloadJSON = useCallback(() => {

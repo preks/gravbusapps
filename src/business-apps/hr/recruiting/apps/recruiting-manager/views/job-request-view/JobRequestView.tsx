@@ -10,6 +10,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { JobRequest } from '@/common/data/recruiting/types/jobRequestTypes'
 import { getJobRequestTypeLabel, getJobRequestStatusLabel } from '@/common/data/recruiting/types/enums'
+import { JOB_REQUEST_LABELS } from '../../../../forms/_shared/constants/jobRequestLabels'
 
 export type JobRequestViewProps = BusinessAppContextProps
 
@@ -216,7 +217,7 @@ export const JobRequestView: React.FC<JobRequestViewProps> = context => {
       {
         id: 'plannedHireDate',
         accessorKey: 'plannedHireDate',
-        header: getTranslationFromI18nKeyAndLabel('recruiting.plannedHireDate', 'Planned Hire Date'),
+        header: getTranslationFromI18nKeyAndLabel('recruiting.plannedHireDate', JOB_REQUEST_LABELS.plannedHiringDate),
         cell: DateCell,
         meta: { type: 'date' as const }
       },

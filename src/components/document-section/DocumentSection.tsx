@@ -504,6 +504,7 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
   const [draggedDocument, setDraggedDocument] = useState<DocumentItem | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
   const [isDroppingOnRoot, setIsDroppingOnRoot] = useState<boolean>(false)
+  const [isOverDropZone, setIsOverDropZone] = useState<boolean>(false)
 
   // State for click vs drag detection
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null)
@@ -933,7 +934,37 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
     setDraggedDocument(null)
     setDropTarget(null)
     setIsDroppingOnRoot(false)
+    setIsOverDropZone(false)
     setIsDragging(false)
+  }
+
+  // Handlers for dedicated drop zone
+  const handleDropZoneOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = 'move'
+    setIsOverDropZone(true)
+  }
+
+  const handleDropZoneLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const relatedTarget = e.relatedTarget as HTMLElement
+    const currentTarget = e.currentTarget as HTMLElement
+    setTimeout(() => {
+      if (!relatedTarget || !currentTarget || !currentTarget.contains(relatedTarget)) {
+        setIsOverDropZone(false)
+      }
+    }, 50)
+  }
+
+  const handleDropZoneDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsOverDropZone(false)
+    if (!draggedDocument) return
+    await moveDocumentToRoot(draggedDocument.id)
+    setDraggedDocument(null)
   }
 
   // Handle drag over the root area (table container)
@@ -1473,6 +1504,28 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Root Drop Zone - Always visible in tree view */}
+        {viewMode === 'tree' && (
+          <div
+            className={`gba:mb-4 gba:border-2 gba:border-dashed gba:rounded-lg gba:p-6 gba:text-center gba:transition-all gba:duration-200 ${
+              isOverDropZone ? 'gba:border-primary gba:bg-primary/10' : 'gba:border-muted-foreground/30 gba:bg-muted/10'
+            }`}
+            onDragOver={handleDropZoneOver}
+            onDragLeave={handleDropZoneLeave}
+            onDrop={handleDropZoneDrop}
+            data-testid={`${dataTestId}-root-drop-zone`}
+          >
+            <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
+              <Folder className="gba:h-6 gba:w-6 gba:text-muted-foreground" />
+              <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">
+                {isOverDropZone
+                  ? getTranslationFromI18nKeyAndLabel('document.drop.root.active', 'Release to move to root level')
+                  : getTranslationFromI18nKeyAndLabel('document.drop.root.prompt', 'Drop here to move to root level')}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Documents Table */}
         <div
