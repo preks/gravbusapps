@@ -1,46 +1,115 @@
 /**
  * Company Documents hooks - hooks for managing company documents
- * NOTE: These hooks have empty queries and return empty data because
- * the GraphQL schema for company documents is not yet available.
  */
 import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { DocumentItem } from '@/components/document-section'
+import type { CompanyDocument } from '../types/companyTypes'
 
 // ==========================================
-// COMPANY DOCUMENT TYPE
+// GRAPHQL QUERY
 // ==========================================
 
 /**
- * CompanyDocument interface (similar to CrmDocument)
- * Defined here since the GraphQL schema is not yet available
+ * GraphQL query for fetching company documents
+ * Only includes fields that exist in the CompanyDocument table
  */
-export interface CompanyDocument {
-  id: string
-  version?: number
-  name: string
-  description?: string
-  file?: string
-  fileInfo?: any
-  mimeType?: string
-  fileSize?: number
-  format?: string
-  createdAt?: string
-  createdBy?: string
-  updatedAt?: string
-  updatedBy?: string
-  expirationDate?: string
-  documentType?: {
-    id: string
-    code?: string
-    value?: string
+const COMPANY_DOCUMENTS_QUERY = `
+  query GetCompanyDocuments($companyId: uuid!) {
+    CompanyDocument(
+      where: {
+        companyId: { _eq: $companyId },
+        isDeleted: { _eq: false }
+      }
+      orderBy: [{ createdAt: DESC }]
+    ) {
+      id
+      version
+      createdAt
+      updatedAt
+      isDeleted
+      
+      # Core Document Fields
+      name
+      description
+      fileInfo
+      folder
+      
+      # Metadata Fields
+      expirationDate
+      
+      # Catalog Relations
+      documentType
+      documentTypeRef {
+        id
+        code
+        value
+      }
+      documentGroup
+      documentGroupRef {
+        id
+        code
+        value
+      }
+      
+      # Hierarchy
+      parentDocumentId
+      parentDocument {
+        id
+        name
+      }
+      
+      # Company Relation
+      companyId
+      company {
+        id
+        name
+        code
+      }
+    }
   }
-  documentGroup?: {
-    id: string
-    code?: string
-    value?: string
+`
+
+// ==========================================
+// TRANSFORM FUNCTIONS
+// ==========================================
+
+/**
+ * Transform CompanyDocument to DocumentItem interface
+ */
+export function transformCompanyDocument(doc: CompanyDocument): DocumentItem {
+  return {
+    id: doc.id,
+    name: doc.name,
+    description: doc.description,
+    createdAt: doc.createdAt || new Date().toISOString(),
+    expirationDate: doc.expirationDate,
+    documentType: doc.documentTypeRef
+      ? {
+          id: doc.documentTypeRef.id,
+          value: doc.documentTypeRef.value || '',
+          code: doc.documentTypeRef.code
+        }
+      : null,
+    documentGroup: doc.documentGroupRef
+      ? {
+          id: doc.documentGroupRef.id,
+          value: doc.documentGroupRef.value || '',
+          code: doc.documentGroupRef.code
+        }
+      : null,
+    fileInfo: doc.fileInfo,
+    parentDocument: doc.parentDocument?.id ?? doc.parentDocumentId ?? null,
+    folder: doc.folder === true,
+    version: doc.version
   }
-  parentDocument?: string | { id: string }
-  folder?: boolean
+}
+
+/**
+ * Transform array of CompanyDocuments to DocumentItems
+ */
+export function transformCompanyDocuments(docs: CompanyDocument[]): DocumentItem[] {
+  return docs.map(transformCompanyDocument)
 }
 
 // ==========================================
@@ -57,7 +126,6 @@ export interface UseCompanyDocumentsResult {
 
 /**
  * Hook for fetching company documents.
- * NOTE: Currently returns empty data as GraphQL schema is not yet available.
  *
  * @param accessToken - Access token for authentication
  * @param companyId - Company ID to fetch documents for
@@ -66,6 +134,7 @@ export interface UseCompanyDocumentsResult {
  * const { documents, loading, error, refetch } = useCompanyDocuments(accessToken, companyId)
  */
 export function useCompanyDocuments(accessToken: string, companyId: string | undefined): UseCompanyDocumentsResult {
+  const graphqlClient = useGraphQLClient(accessToken)
   const [state, setState] = useState<Omit<UseCompanyDocumentsResult, 'refetch'>>({
     documents: [],
     rawDocuments: [],
@@ -83,39 +152,21 @@ export function useCompanyDocuments(accessToken: string, companyId: string | und
     setState(prev => ({ ...prev, loading: true, error: null }))
 
     try {
-      // NOTE: GraphQL query is not yet available for company documents
-      // When the schema is ready, implement the actual query here:
-      //
-      // const query = `
-      //   query GetCompanyDocuments($companyId: uuid!) {
-      //     CompanyDocument(
-      //       where: {
-      //         _and: [
-      //           { companyId: { _eq: $companyId } },
-      //           { isDeleted: { _neq: true } }
-      //         ]
-      //       }
-      //     ) {
-      //       id
-      //       version
-      //       name
-      //       ...
-      //     }
-      //   }
-      // `
-      //
-      // const result = await graphqlClient.request(query, { companyId })
+      const result = await graphqlClient.request<{ CompanyDocument: CompanyDocument[] }>(COMPANY_DOCUMENTS_QUERY, {
+        companyId
+      })
 
-      // For now, return empty arrays
+      const rawDocuments = result.CompanyDocument || []
+      const transformedDocuments = transformCompanyDocuments(rawDocuments)
+
       setState({
-        documents: [],
-        rawDocuments: [],
+        documents: transformedDocuments,
+        rawDocuments,
         loading: false,
         error: null
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch company documents'
-      console.error('Error fetching company documents:', error)
       setState({
         documents: [],
         rawDocuments: [],
@@ -140,6 +191,46 @@ export function useCompanyDocuments(accessToken: string, companyId: string | und
 // USE COMPANY DOCUMENT HOOK
 // ==========================================
 
+/**
+ * GraphQL query for fetching a single company document
+ */
+const COMPANY_DOCUMENT_BY_PK_QUERY = `
+  query GetCompanyDocumentByPk($id: uuid!) {
+    CompanyDocumentByPk(id: $id) {
+      id
+      version
+      name
+      description
+      fileInfo
+      createdAt
+      updatedAt
+      expirationDate
+      authenticated
+      authenticationDate
+      verificationDate
+      documentType
+      documentTypeRef {
+        id
+        code
+        value
+      }
+      documentGroup
+      documentGroupRef {
+        id
+        code
+        value
+      }
+      parentDocumentId
+      parentDocument {
+        id
+      }
+      folder
+      isDeleted
+      companyId
+    }
+  }
+`
+
 export interface UseCompanyDocumentResult {
   document: CompanyDocument | null
   loading: boolean
@@ -149,7 +240,6 @@ export interface UseCompanyDocumentResult {
 
 /**
  * Hook for fetching a single company document by ID.
- * NOTE: Currently returns null as GraphQL schema is not yet available.
  *
  * @param accessToken - Access token for authentication
  * @param documentId - Document ID to fetch
@@ -158,6 +248,7 @@ export interface UseCompanyDocumentResult {
  * const { document, loading, error, refetch } = useCompanyDocument(accessToken, documentId)
  */
 export function useCompanyDocument(accessToken: string, documentId: string | undefined): UseCompanyDocumentResult {
+  const graphqlClient = useGraphQLClient(accessToken)
   const [state, setState] = useState<Omit<UseCompanyDocumentResult, 'refetch'>>({
     document: null,
     loading: false,
@@ -174,31 +265,20 @@ export function useCompanyDocument(accessToken: string, documentId: string | und
     setState(prev => ({ ...prev, loading: true, error: null }))
 
     try {
-      // NOTE: GraphQL query is not yet available for company documents
-      // When the schema is ready, implement the actual query here:
-      //
-      // const query = `
-      //   query GetCompanyDocumentByPk($id: uuid!) {
-      //     CompanyDocumentByPk(id: $id) {
-      //       id
-      //       version
-      //       name
-      //       ...
-      //     }
-      //   }
-      // `
-      //
-      // const result = await graphqlClient.request(query, { id: documentId })
+      const result = await graphqlClient.request<{ CompanyDocumentByPk: CompanyDocument | null }>(
+        COMPANY_DOCUMENT_BY_PK_QUERY,
+        {
+          id: documentId
+        }
+      )
 
-      // For now, return null
       setState({
-        document: null,
+        document: result.CompanyDocumentByPk || null,
         loading: false,
         error: null
       })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch company document'
-      console.error('Error fetching company document:', error)
       setState({
         document: null,
         loading: false,

@@ -70,9 +70,10 @@ export const exportTimeHistoryPdf = async (params: {
   const headers = [
     translate('time_tracking_table_day', 'Day'),
     getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.date', 'Date'),
-    translate('time_tracking_table_workday', 'Workday'),
+    translate('time_tracking_table_workday', 'Day Type'),
     getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.start', 'Start'),
     getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.end', 'End'),
+    getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.recorded', 'Recorded'),
     getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.break', 'Break'),
     getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.effective', 'Effective'),
     getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.planned', 'Planned'),
@@ -171,6 +172,7 @@ export const exportTimeHistoryPdf = async (params: {
         workdayNote,
         toTime(e.startTimeISO),
         toTime(e.endTimeISO),
+        e.recordedTime ?? '-',
         e.breakTime ?? '0h',
         e.effectiveTime ?? '-',
         e.plannedTime ?? '-',
@@ -190,6 +192,7 @@ export const exportTimeHistoryPdf = async (params: {
         workdayNote,
         '-',
         '-',
+        '0h', // recorded
         '0h', // break
         '0h', // effective
         blankPlannedMin > 0 ? formatMinutes(blankPlannedMin) : '-', // planned

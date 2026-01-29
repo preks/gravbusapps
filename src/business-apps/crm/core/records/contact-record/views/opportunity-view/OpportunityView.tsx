@@ -31,20 +31,12 @@ export const OpportunityView: React.FC<OpportunityViewProps> = ({ contactId, ...
     })
   }
 
-  const accountUrlBuilder = (accountId: string) => {
-    return buildPlatformUrl('/platform/crm/account-record', {
-      accountId,
-      source: 'customer-relations'
-    })
-  }
-
   return (
     <OpportunitySection
       opportunities={opportunities}
       isLoading={loading}
       error={error}
       recordUrlBuilder={recordUrlBuilder}
-      accountUrlBuilder={accountUrlBuilder}
       additionalColumns={CUSTOMER_OPPORTUNITY_ADDITIONAL_COLUMNS}
       extendVisibleColumns={CUSTOMER_OPPORTUNITY_EXTENDED_COLUMN_IDS}
       data-testid="contact-opportunities-section"

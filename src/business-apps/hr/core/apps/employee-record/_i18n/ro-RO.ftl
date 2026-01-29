@@ -81,9 +81,12 @@ benefit-status-scheduled = Programat
 benefit-status-pending = În așteptare
 benefit-status-available = Disponibil
 benefit-request-button = Solicită
+benefit-pending-request-info = Ați solicitat deja acest beneficiu. Puteți avea doar o solicitare activă la un moment dat. Solicitarea este în așteptare de aprobare.
+benefit-pending-request-notice = O solicitare pentru acest beneficiu este în așteptare de aprobare
 benefit-request-employee-id-missing = ID-ul angajatului nu este disponibil. Nu se poate iniția solicitarea de beneficiu.
 benefit-already-scheduled = Programat
 benefit-deactivate-button = Dezactivează
+benefit-deactivated-button = Dezactivat
 benefit-view-details = Vezi detalii
 benefit-provider = Furnizor
 benefit-value-yearly = Valoare anuală
@@ -147,8 +150,8 @@ modal-request-period-label = Perioadă Beneficiu
 modal-request-period-placeholder = Introduceți perioadă estimată
 modal-request-value-help = Opțional: Valoarea anuală estimată a acestui beneficiu
 modal-request-start-date-label = Data de început
-modal-request-justification-label = Justificare
-modal-request-justification-placeholder = Explicați de ce aveți nevoie de acest beneficiu...
+modal-request-justification-label = Spuneți-ne mai mult
+modal-request-justification-placeholder = Ne-ar plăcea să auzim de ce este important pentru dumneavoastră.
 modal-request-justification-help = Minim { $min } caractere, maxim { $max } caractere
 modal-request-submit-button = Trimite solicitarea
 modal-request-cancel-button = Anulează
@@ -178,9 +181,9 @@ modal-deactivate-success = Beneficiul a fost dezactivat cu succes
 validation-provider-required = Furnizorul este obligatoriu
 validation-start-date-required = Data de început este obligatorie
 validation-end-date-required = Data de încheiere este obligatorie
-validation-justification-required = Justificarea este obligatorie
-validation-justification-min-length = Justificarea trebuie să aibă cel puțin { $min } caractere
-validation-justification-max-length = Justificarea nu trebuie să depășească { $max } caractere
+validation-justification-required = Vă rugăm să ne spuneți mai mult
+validation-justification-min-length = Mesajul dvs. trebuie să aibă cel puțin { $min } caractere
+validation-justification-max-length = Mesajul dvs. nu trebuie să depășească { $max } caractere
 validation-reason-required = Motivul este obligatoriu
 validation-date-future = Data de început trebuie să fie în viitor
 validation-date-past = Data de încheiere trebuie să fie în trecut sau astăzi
@@ -289,3 +292,58 @@ notification-sick-leave-reported-success = Concediul medical a fost raportat cu 
 notification-special-leave-requested-success = Concediul special a fost solicitat cu succes
 notification-vacation-requested-success = Concediul de odihnă a fost solicitat cu succes
 notification-working-hours-updated-success = Actualizările programului de lucru au fost trimise spre aprobare departamentului HR
+
+# Employee Record - Errors and states
+employee-record-error-title = Eroare
+employee-record-error-loading-data = Eroare la încărcarea datelor angajatului.
+employee-record-not-found-title = Negăsit
+employee-record-not-found-message = Angajatul nu a fost găsit.
+employee-record-not-assigned = Neatribuit
+employee-record-edit-picture = Editează imaginea
+
+# Employee Record - Chat / communication
+employee-record-chat-button = Chat
+employee-record-chat-tooltip = Chat
+employee-record-chat-cannot-self = Nu poți conversa cu tine însuți
+employee-record-audio-call-button = Apel audio
+employee-record-audio-tooltip = Apel audio
+employee-record-audio-cannot-self = Nu te poți apela pe tine însuți
+employee-record-video-call-button = Apel video
+employee-record-video-tooltip = Apel video
+employee-record-video-cannot-self = Nu te poți apela pe tine însuți prin video
+
+# Employee Record - Tab labels
+employee-record-tab-summary = Rezumat
+employee-record-tab-hr-admin = HR Admin
+employee-record-tab-hr-growth = HR Growth
+employee-record-tab-compensation = Compensații
+employee-record-tab-time-tracking = Pontaj
+employee-record-tab-absences = Absențe
+employee-record-tab-assets = Mijloace
+employee-record-tab-service-requests = Cereri servicii
+
+# Profile Header - Detail labels
+profile-header-work-email = E-mail serviciu
+profile-header-work-phone = Telefon serviciu
+profile-header-organization = Organizație
+profile-header-location = Locație
+profile-header-manager = Manager
+profile-header-no-manager = Fără manager
+profile-header-job-position = Poziție
+profile-header-cost-center = Centru de cost
+profile-header-hire-date = Data angajării
+profile-header-fixed-term-until = Contract pe termen determinat până la
+profile-header-na = N/A
+
+# Profile Header - Time units (tenure)
+profile-header-year = an
+profile-header-years = ani
+profile-header-month = lună
+profile-header-months = luni
+
+# Profile Header - Sections
+profile-header-teams = Echipe
+profile-header-capabilities = Competențe
+profile-header-skills = Competențe
+profile-header-no-capabilities = Nicio competență asignată
+profile-header-no-skills = Nicio competență asignată

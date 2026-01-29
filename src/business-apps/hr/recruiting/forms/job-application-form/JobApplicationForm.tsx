@@ -17,7 +17,6 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  Textarea,
   DateInput,
   Input
 } from '@newwork/nw-design-system'
@@ -33,13 +32,13 @@ const jobApplicationSchema = z.object({
   version: z.number().nullish(),
   code: z.string().nullish(),
   applicationDate: z.string().nullish(),
-  status: z.string().nullish(),
-  notes: z.string().nullish(),
-  applicationStatusRef: z.string().nullish(),
-  applicationStageRef: z.string().nullish(),
+  jobApplicationPipelineRef: z.string().nullish(),
+  jobApplicationStageRef: z.string().nullish(),
   jobCandidateId: z.string().min(1, 'Candidate is required'),
   jobPostingId: z.string().min(1, 'Job Posting is required'),
-  reviewedByEmployeeId: z.string().nullish(),
+  jobPostingPublicationId: z.string().nullish(),
+  referrerEmployeeId: z.string().nullish(),
+  referredBy: z.string().nullish(),
   additionalProperties: z.any().optional()
 })
 
@@ -96,8 +95,7 @@ const JobApplicationForm: React.FC<JobApplicationFormProps> = ({ accessToken, us
         ...baseValues,
         jobPostingId: jobPostingId || baseValues.jobPostingId,
         jobCandidateId: jobCandidateId || baseValues.jobCandidateId,
-        applicationDate: baseValues.applicationDate || currentDate,
-        applicationStatusRef: baseValues.applicationStatusRef || 'SUBMITTED'
+        applicationDate: baseValues.applicationDate || currentDate
       }
     }
 
@@ -247,53 +245,21 @@ const JobApplicationForm: React.FC<JobApplicationFormProps> = ({ accessToken, us
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status</FormLabel>
-                  <FormControl>
-                    <Input {...field} data-testid={formatDataTestId('job-application-form', 'status-input')} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      {...field}
-                      rows={4}
-                      data-testid={formatDataTestId('job-application-form', 'notes-input')}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <FormField
                 control={form.control}
-                name="applicationStatusRef"
+                name="jobApplicationPipelineRef"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Application Status</FormLabel>
+                    <FormLabel>Application Pipeline</FormLabel>
                     <FormControl>
                       <CatalogSelect
-                        catalogIdentifier={RECRUITING_CATALOGS.JOB_APPLICATION_STAGE}
+                        catalogIdentifier={RECRUITING_CATALOGS.JOB_APPLICATION_PIPELINE}
                         value={field.value || null}
                         onValueChange={(v: string | string[]) =>
                           field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
                         }
-                        data-testid={formatDataTestId('job-application-form', 'application-status-select')}
+                        data-testid={formatDataTestId('job-application-form', 'pipeline-select')}
                       />
                     </FormControl>
                     <FormMessage />
@@ -303,7 +269,7 @@ const JobApplicationForm: React.FC<JobApplicationFormProps> = ({ accessToken, us
 
               <FormField
                 control={form.control}
-                name="applicationStageRef"
+                name="jobApplicationStageRef"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Application Stage</FormLabel>
@@ -314,7 +280,7 @@ const JobApplicationForm: React.FC<JobApplicationFormProps> = ({ accessToken, us
                         onValueChange={(v: string | string[]) =>
                           field.onChange(Array.isArray(v) ? v[0] || '' : v || '')
                         }
-                        data-testid={formatDataTestId('job-application-form', 'application-stage-select')}
+                        data-testid={formatDataTestId('job-application-form', 'stage-select')}
                       />
                     </FormControl>
                     <FormMessage />
@@ -325,17 +291,35 @@ const JobApplicationForm: React.FC<JobApplicationFormProps> = ({ accessToken, us
 
             <FormField
               control={form.control}
-              name="reviewedByEmployeeId"
+              name="referrerEmployeeId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Reviewed By</FormLabel>
+                  <FormLabel>Referrer (Employee)</FormLabel>
                   <FormControl>
                     <EmployeeSelect
                       value={field.value || null}
                       onValueChange={v => field.onChange(v || '')}
                       businessAppContext={{ accessToken, userInfo, additionalData }}
-                      placeholder="Select reviewer..."
-                      data-testid={formatDataTestId('job-application-form', 'reviewer-select')}
+                      placeholder="Select referrer..."
+                      data-testid={formatDataTestId('job-application-form', 'referrer-select')}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="referredBy"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Referred By (External User ID)</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      placeholder="External referrer user ID..."
+                      data-testid={formatDataTestId('job-application-form', 'referred-by-input')}
                     />
                   </FormControl>
                   <FormMessage />
