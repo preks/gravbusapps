@@ -437,8 +437,29 @@ export interface SpreadsheetAppViewerProps {
   activeSheetId?: string
   activeViewId?: string
   onDataChange?: (sheetId: string, data: Record<string, unknown>[]) => void
+  onRowAdd?: (
+    appId: string,
+    sheetId: string,
+    rowData: Record<string, unknown>
+  ) => Promise<Record<string, unknown> | null>
+  onRowUpdate?: (
+    appId: string,
+    sheetId: string,
+    rowId: string,
+    updates: Record<string, unknown>
+  ) => Promise<Record<string, unknown> | null>
   onAppUpdate?: (app: SpreadsheetApp) => void
+  onSheetUpdate?: (
+    appId: string,
+    sheetId: string,
+    updates: Partial<SpreadsheetSheet>
+  ) => Promise<SpreadsheetSheet | null>
+  onBack?: () => void
+  onEdit?: () => void
   isEditing?: boolean
+  accessToken?: string
+  userId?: string
+  'data-testid'?: string
 }
 
 /**

@@ -5,7 +5,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react'
-import type { FormulaSelectionMode } from '../viewer/formulaSelection'
+import type { FormulaSelectionMode } from '../views/EditableCell'
 
 export type { FormulaSelectionMode }
 

@@ -5,7 +5,7 @@
  * Handles CRUD operations, execution, and status synchronization.
  */
 
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import type {
   SpreadsheetAutomation,
   WorkflowRowLink,
@@ -393,6 +393,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         // - row_workflow/line_approval: execute per row
         // - bulk_collection: execute per recipient (not per row!)
         // - sheet_approval: execute once for entire sheet
+
         const result = await automationServiceRef.current.runAutomation({
           automation,
           rows: rows?.length
@@ -407,7 +408,6 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
           initiatorId: currentUserId,
           accessToken
         })
-
         const durationMs = Date.now() - startTime
 
         // Update workflow links with new workflows
@@ -447,7 +447,6 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
                   columnIdToName.set(mapping.columnId, mapping.columnName)
                 }
               }
-
               // Fetch recipient data (name, email, avatar) via GraphQL
               const recipientIds = result.workflows.map(wf => wf.rowId.replace('recipient_', ''))
 
@@ -764,7 +763,6 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
               cells[columnName] = value
             }
           }
-
           return {
             workflowId: response.workflowId,
             cells
@@ -786,6 +784,8 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
                 metadata: { workflowId: u.workflowId }
               }))
             )
+          } else {
+            console.error('[useSpreadsheetAutomations] Missing onUpdateRows/onAddRows callbacks')
           }
         }
       } catch (err) {
@@ -844,69 +844,41 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
     setError(null)
   }, [])
 
-  // PHASE 2.1: Memoize return value to prevent new object reference on every render
-  // This prevents consumers from re-rendering when nothing has actually changed
-  return useMemo(
-    () => ({
-      // State
-      automations,
-      workflowLinks,
-      executionHistory,
-      isLoading,
-      error,
-      isPolling,
+  return {
+    // State
+    automations,
+    workflowLinks,
+    executionHistory,
+    isLoading,
+    error,
+    isPolling,
 
-      // CRUD
-      createAutomation,
-      updateAutomation,
-      deleteAutomation,
-      duplicateAutomation,
-      toggleAutomation,
+    // CRUD
+    createAutomation,
+    updateAutomation,
+    deleteAutomation,
+    duplicateAutomation,
+    toggleAutomation,
 
-      // Execution
-      runAutomation,
-      runAutomationForRow,
+    // Execution
+    runAutomation,
+    runAutomationForRow,
 
-      // Status
-      getWorkflowLinkForRow,
-      refreshWorkflowStatuses,
-      startPolling,
-      stopPolling,
+    // Status
+    getWorkflowLinkForRow,
+    refreshWorkflowStatuses,
+    startPolling,
+    stopPolling,
 
-      // Bulk Collection
-      fetchBulkCollectionResponses,
+    // Bulk Collection
+    fetchBulkCollectionResponses,
 
-      // Utilities
-      getAutomationById,
-      getEnabledAutomations,
-      getAutomationsByTrigger,
-      clearError
-    }),
-    [
-      automations,
-      workflowLinks,
-      executionHistory,
-      isLoading,
-      error,
-      isPolling,
-      createAutomation,
-      updateAutomation,
-      deleteAutomation,
-      duplicateAutomation,
-      toggleAutomation,
-      runAutomation,
-      runAutomationForRow,
-      getWorkflowLinkForRow,
-      refreshWorkflowStatuses,
-      startPolling,
-      stopPolling,
-      fetchBulkCollectionResponses,
-      getAutomationById,
-      getEnabledAutomations,
-      getAutomationsByTrigger,
-      clearError
-    ]
-  )
+    // Utilities
+    getAutomationById,
+    getEnabledAutomations,
+    getAutomationsByTrigger,
+    clearError
+  }
 }
 
 export default useSpreadsheetAutomations

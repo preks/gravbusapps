@@ -218,41 +218,116 @@ export function convertToFortuneSheet(
     safeConfig.columnlen = columnlen
   }
 
-  return {
+  // CRITICAL: Based on FortuneSheet documentation and the error we're seeing,
+  // luckysheet_select_save should be an empty array [] by default.
+  // However, the error "cannot read properties of undefined (reading 'luckysheet_select_save')"
+  // suggests that FortuneSheet's internal context object itself is undefined, not just the property.
+  // This means FortuneSheet's initialization is failing completely.
+  //
+  // Let's ensure we provide a minimal valid structure that FortuneSheet can initialize from.
+  const luckysheetSelectSave: Array<{
+    row: number[]
+    column: number[]
+    row_focus?: number
+    column_focus?: number
+  }> = [] // Empty array as per FortuneSheet docs
+
+  const luckysheetSelectionRange: Array<{
+    row: number[]
+    column: number[]
+  }> = [] // Empty array as per FortuneSheet docs
+
+  // Build the complete sheet configuration object
+  // All properties must be present and in the correct format for FortuneSheet to initialize properly
+  // CRITICAL: Based on FortuneSheet documentation, we need to include ALL properties that might be
+  // required for proper context initialization. Missing properties can cause context to be undefined.
+  const sheetConfig: FortuneSheetConfig = {
     name: String(sheet.name || 'Sheet1'),
     // FortuneSheet expects `id` to identify the sheet. Keep `index` for backwards
     // compatibility with our type aliasing.
     id: String(sheet.id || 'sheet1'),
     index: String(sheet.id || 'sheet1'),
+    // Sheet color (optional but may be needed for initialization)
+    color: '',
     // Ensure our sheet is the active one (FortuneSheet expects exactly one `status: 1`)
     status: 1,
     order: 0,
     hide: 0,
-    // Excel-like dimensions
+    // Excel-like dimensions - MUST be positive integers
     row: Math.max(1, excelRows),
     column: Math.max(1, excelColumns),
     defaultRowHeight: 25, // Excel default is ~25px
     defaultColWidth: 100, // Excel default column width
+    // celldata MUST be an array (can be empty)
     celldata: safeCelldata,
     // FortuneSheet expects config to be an object (not null/undefined)
+    // This is critical for context initialization
     config: safeConfig,
     // FortuneSheet internal state defaults (important for stable init in prod)
     scrollLeft: 0,
     scrollTop: 0,
-    // IMPORTANT: FortuneSheet React wrapper only copies this into context when it's NOT empty.
-    // If it's empty, `context.luckysheet_select_save` can remain undefined and FortuneSheet
-    // will crash on first cell interaction in some builds.
-    luckysheet_select_save: [{ row: [0, 0], column: [0, 0], row_focus: 0, column_focus: 0 }],
-    luckysheet_selection_range: [{ row: [0, 0], column: [0, 0] }],
+    // CRITICAL: These properties MUST be initialized as arrays (even if empty).
+    // FortuneSheet's internal context initialization depends on these being present.
+    // If they're missing or undefined, context.luckysheet_select_save will be undefined
+    // and cause "cannot read properties of undefined" errors when clicking cells.
+    // The getSelection() method in FortuneSheet accesses context.luckysheet_select_save
+    // so this MUST be an array.
+    luckysheet_select_save: luckysheetSelectSave,
+    luckysheet_selection_range: luckysheetSelectionRange,
     calcChain: [],
     filter_select: {},
     filter: null,
     luckysheet_alternateformat_save: [],
     luckysheet_conditionformat_save: [],
+    // Additional properties that may be required for proper initialization
+    isPivotTable: false,
+    pivotTable: {},
+    frozen: undefined, // Don't set frozen - let FortuneSheet handle it
+    chart: [],
+    image: [],
     zoomRatio: 1,
     showGridLines: 1
     // No frozen rows - pure Excel behavior (users can freeze rows themselves if needed)
   }
+
+  // Validate that all critical properties are present before returning
+  if (!Array.isArray(sheetConfig.luckysheet_select_save)) {
+    console.error(
+      '[convertToFortuneSheet] luckysheet_select_save must be an array, got:',
+      typeof sheetConfig.luckysheet_select_save
+    )
+    sheetConfig.luckysheet_select_save = []
+  }
+  if (!Array.isArray(sheetConfig.luckysheet_selection_range)) {
+    console.error(
+      '[convertToFortuneSheet] luckysheet_selection_range must be an array, got:',
+      typeof sheetConfig.luckysheet_selection_range
+    )
+    sheetConfig.luckysheet_selection_range = []
+  }
+
+  // Final validation - ensure all required properties exist
+  const requiredProps = [
+    'name',
+    'id',
+    'index',
+    'status',
+    'row',
+    'column',
+    'celldata',
+    'config',
+    'luckysheet_select_save',
+    'luckysheet_selection_range',
+    'calcChain',
+    'filter_select'
+  ]
+
+  const missingProps = requiredProps.filter(prop => !(prop in sheetConfig))
+  if (missingProps.length > 0) {
+    console.error('[convertToFortuneSheet] Missing required properties:', missingProps)
+  }
+
+  return sheetConfig
 }
 
 /**

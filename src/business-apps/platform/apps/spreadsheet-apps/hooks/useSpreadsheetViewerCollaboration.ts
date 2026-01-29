@@ -10,6 +10,20 @@ import { useCollaboration } from '../../shared/hooks/useCollaboration'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { DocumentParticipant, CollaborationOperation } from '../../shared/services/CollaborationClient'
 
+function areParticipantsEquivalent(a: DocumentParticipant[], b: DocumentParticipant[]): boolean {
+  if (a === b) return true
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    const pa = a[i]
+    const pb = b[i]
+    if (pa.userId !== pb.userId) return false
+    if ((pa.userName || '') !== (pb.userName || '')) return false
+    if ((pa.avatarUrl || '') !== (pb.avatarUrl || '')) return false
+    // Cursor changes frequently; don’t include it in equality check here
+  }
+  return true
+}
+
 export interface UseSpreadsheetViewerCollaborationProps {
   appId: string
   accessToken: string
@@ -44,14 +58,27 @@ export function useSpreadsheetViewerCollaboration({
   const [currentUserName, setCurrentUserName] = useState<string>('User')
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | undefined>(undefined)
 
-  // Error callback
-  const onErrorCallback = useCallback(
-    (error: Error) => {
-      console.error('[SpreadsheetViewerCollaboration] Collaboration error:', error)
-      onError?.(error)
-    },
-    [onError]
-  )
+  // IMPORTANT: `useCollaboration` reconnects when callback identities change.
+  // Keep callbacks stable via refs to prevent infinite connect/disconnect loops.
+  const onOperationReceivedRef = useRef(onOperationReceived)
+  const onErrorRef = useRef(onError)
+
+  useEffect(() => {
+    onOperationReceivedRef.current = onOperationReceived
+  }, [onOperationReceived])
+
+  useEffect(() => {
+    onErrorRef.current = onError
+  }, [onError])
+
+  const onOperationReceivedStable = useCallback((op: CollaborationOperation) => {
+    onOperationReceivedRef.current(op)
+  }, [])
+
+  const onErrorCallback = useCallback((error: Error) => {
+    console.error('[SpreadsheetViewerCollaboration] Collaboration error:', error)
+    onErrorRef.current?.(error)
+  }, [])
 
   // Base collaboration hook
   const {
@@ -64,7 +91,7 @@ export function useSpreadsheetViewerCollaboration({
     entityId: appId,
     enabled: true,
     accessToken,
-    onOperationReceived,
+    onOperationReceived: onOperationReceivedStable,
     onError: onErrorCallback
   })
 
@@ -121,13 +148,13 @@ export function useSpreadsheetViewerCollaboration({
   useEffect(() => {
     async function fetchAvatars() {
       if (!rawParticipants.length || !authToken) {
-        setHeaderParticipants(rawParticipants)
+        setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
         return
       }
 
       const userIds = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean))]
       if (userIds.length === 0) {
-        setHeaderParticipants(rawParticipants)
+        setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
         return
       }
 
@@ -158,10 +185,12 @@ export function useSpreadsheetViewerCollaboration({
           ...p,
           avatarUrl: avatarMap.get(p.userId) || undefined
         }))
-        setHeaderParticipants(enrichedParticipants)
+        setHeaderParticipants(prev =>
+          areParticipantsEquivalent(prev, enrichedParticipants) ? prev : enrichedParticipants
+        )
       } catch (error) {
         console.error('[SpreadsheetViewerCollaboration] Failed to fetch participant avatars:', error)
-        setHeaderParticipants(rawParticipants)
+        setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
       }
     }
 
@@ -172,13 +201,13 @@ export function useSpreadsheetViewerCollaboration({
   useEffect(() => {
     async function fetchCursorAvatars() {
       if (!rawParticipants.length || !authToken) {
-        setCursorParticipants(rawParticipants)
+        setCursorParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
         return
       }
 
       const ids = [...new Set(rawParticipants.map(p => p.userId).filter(Boolean))]
       if (ids.length === 0) {
-        setCursorParticipants(rawParticipants)
+        setCursorParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
         return
       }
 
@@ -239,10 +268,10 @@ export function useSpreadsheetViewerCollaboration({
           ...p,
           avatarUrl: avatarMap.get(p.userId) || undefined
         }))
-        setCursorParticipants(enriched)
+        setCursorParticipants(prev => (areParticipantsEquivalent(prev, enriched) ? prev : enriched))
       } catch (error) {
         console.error('[SpreadsheetViewerCollaboration] Failed to fetch cursor participant avatars:', error)
-        setCursorParticipants(rawParticipants)
+        setCursorParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
       }
     }
 
