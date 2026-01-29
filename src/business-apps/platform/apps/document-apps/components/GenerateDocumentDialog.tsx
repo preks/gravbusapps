@@ -6,7 +6,7 @@
  * document and optionally navigates to it.
  */
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -15,9 +15,10 @@ import {
   DialogDescription,
   DialogFooter,
   Button,
-  Spinner
+  Spinner,
+  Badge
 } from '@newwork/nw-design-system'
-import { FileText, AlertCircle } from 'lucide-react'
+import { FileText, AlertCircle, CheckCircle, Info } from 'lucide-react'
 import { toast } from 'sonner'
 import { DocumentApiService } from '../services/DocumentApiService'
 import { resolvePlaceholders } from '../utils/templatePlaceholders'
@@ -26,10 +27,11 @@ import type { TemplateSummary } from '../types'
 export interface GenerateDocumentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Entity type used in placeholders (e.g. "jobCandidate") */
-  entityType: string
-  /** Entity data for placeholder resolution (e.g. candidate record) */
-  entityData: Record<string, unknown>
+  /**
+   * Map of entity key -> data for resolving placeholders (e.g. job_candidate, company, company_address).
+   * All {{entityKey.fieldPath}} placeholders are replaced when the entity is in this map.
+   */
+  entityDataMap: Record<string, Record<string, unknown>>
   /** Document title for the generated document */
   defaultTitle?: string
   /** Called after document is created (e.g. to navigate to document) */
@@ -40,8 +42,7 @@ export interface GenerateDocumentDialogProps {
 export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
   open,
   onOpenChange,
-  entityType,
-  entityData,
+  entityDataMap,
   defaultTitle = 'Generated Document',
   onSuccess,
   'data-testid': testId = 'generate-document-dialog'
@@ -51,6 +52,21 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
   const [error, setError] = useState<string | null>(null)
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
+
+  /** Show whether each entity has data (to check if empty DB is the reason placeholders are not replaced) */
+  const entityDataStatus = useMemo(() => {
+    return Object.entries(entityDataMap).map(([key, data]) => {
+      const keys = Object.keys(data)
+      const hasData = keys.length > 0
+      const emptyReason =
+        key === 'company_address' && !hasData
+          ? 'This company has no addresses in the database.'
+          : !hasData
+            ? 'No data provided for this entity.'
+            : null
+      return { key, hasData, emptyReason, fieldCount: keys.length }
+    })
+  }, [entityDataMap])
 
   const loadTemplates = useCallback(async () => {
     setLoading(true)
@@ -88,7 +104,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
         setGenerating(false)
         return
       }
-      const resolvedContent = resolvePlaceholders(template.content, entityType, entityData)
+      const resolvedContent = resolvePlaceholders(template.content, entityDataMap)
       const title = template.name ? `${template.name} - ${defaultTitle}` : defaultTitle
       const doc = await DocumentApiService.createDocumentFromTemplate(selectedTemplateId, title)
       if (doc?.id) {
@@ -105,7 +121,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
     } finally {
       setGenerating(false)
     }
-  }, [selectedTemplateId, entityType, entityData, defaultTitle, onOpenChange, onSuccess])
+  }, [selectedTemplateId, entityDataMap, defaultTitle, onOpenChange, onSuccess])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} data-testid={testId}>
@@ -113,11 +129,47 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Generate document</DialogTitle>
           <DialogDescription>
-            Choose a template. Placeholders like {`{{${entityType}.fieldName}}`} (e.g. {`{{job_candidate.firstName}}`})
-            will be replaced with the current record data.
+            Choose a template. Placeholders like {`{{job_candidate.firstName}}`}, {`{{company.name}}`},{' '}
+            {`{{company_address.locality}}`} will be replaced with the linked entity data.
           </DialogDescription>
         </DialogHeader>
         <div className="gba:space-y-4 gba:py-2">
+          {/* Placeholder data status: check if empty DB is the reason placeholders are not replaced */}
+          {entityDataStatus.length > 0 && (
+            <div
+              className="gba:rounded-lg gba:border gba:bg-muted/30 gba:px-3 gba:py-2"
+              data-testid={`${testId}-entity-data-status`}
+            >
+              <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Placeholder data status</p>
+              <ul className="gba:space-y-1.5">
+                {entityDataStatus.map(({ key, hasData, emptyReason, fieldCount }) => (
+                  <li
+                    key={key}
+                    className="gba:flex gba:items-start gba:gap-2 gba:text-sm"
+                    data-testid={`${testId}-entity-status-${key}`}
+                  >
+                    {hasData ? (
+                      <CheckCircle className="gba:w-4 gba:h-4 gba:text-success gba:flex-shrink-0 gba:mt-0.5" />
+                    ) : (
+                      <Info className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:flex-shrink-0 gba:mt-0.5" />
+                    )}
+                    <span className="gba:min-w-0">
+                      <Badge variant={hasData ? 'secondary' : 'outline'} className="gba:font-mono gba:text-[10px]">
+                        {key}
+                      </Badge>
+                      {hasData ? (
+                        <span className="gba:ml-1.5 gba:text-muted-foreground">
+                          {fieldCount} field{fieldCount !== 1 ? 's' : ''} available
+                        </span>
+                      ) : emptyReason ? (
+                        <span className="gba:ml-1.5 gba:text-muted-foreground gba:italic">{emptyReason}</span>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {loading && (
             <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
               <Spinner size="sm" />

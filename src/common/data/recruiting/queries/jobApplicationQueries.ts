@@ -154,7 +154,7 @@ export const buildJobApplicationFragment = (fields: string[]): string => {
   // Determine fragment for jobPosting
   const jobPostingFragment = isInterviewForm
     ? 'id\n      title\n      jobRequestId\n      jobRequest {\n        id\n        name\n        jobPositionId\n        jobPosition {\n          id\n          name\n        }\n      }'
-    : 'id\n      title'
+    : 'id\n      title\n      jobRequestId\n      jobRequest {\n        companyId\n      }'
 
   // Build JobApplicationDocument fragment (has jobApplicationId, NOT jobCandidateId)
   const documentFragment = `

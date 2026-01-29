@@ -2,11 +2,12 @@ import { type BaseEntity, BASE_ENTITY_DESCRIPTORS } from '@/common/network/graph
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
 /**
- * JobRequest reference type
+ * JobRequest reference type (minimal shape when nested in JobPosting; companyId used for document generation)
  */
 export interface JobRequest {
   id?: string
   name?: string
+  companyId?: string
 }
 
 /**

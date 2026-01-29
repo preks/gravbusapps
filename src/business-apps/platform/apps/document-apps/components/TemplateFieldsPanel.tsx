@@ -7,16 +7,24 @@
  */
 
 import React, { useState, useMemo } from 'react'
-import { Spinner } from '@newwork/nw-design-system'
+import { Spinner, Badge } from '@newwork/nw-design-system'
 import { ChevronDown, ChevronRight, Database, FolderOpen } from 'lucide-react'
-import { getTemplateEntities, formatTemplatePlaceholder, type TemplateEntityDefinition } from '../entities'
+import {
+  getTemplateEntities,
+  getTemplateEntity,
+  formatTemplatePlaceholder,
+  type TemplateEntityDefinition
+} from '../entities'
 import { useTemplateEntityFields, type TemplateEntityFieldFromGraphQL } from '../hooks/useTemplateEntityFields'
+import { extractEntityKeysFromContent } from '../utils/templatePlaceholders'
 
 export interface TemplateFieldsPanelProps {
   onInsertField: (placeholder: string) => void
   accessToken: string | undefined
   /** Optional: show only entities from this domain */
   domain?: 'nw_orgchart' | 'nw_recruiting' | 'nw_catalog'
+  /** Optional: template HTML content to show "Entities used in this template" (parsed from placeholders) */
+  templateContent?: string
   'data-testid'?: string
 }
 
@@ -151,11 +159,16 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
   onInsertField,
   accessToken,
   domain,
+  templateContent,
   'data-testid': testId = 'template-fields-panel'
 }) => {
   const [expandedEntities, setExpandedEntities] = useState<Set<string>>(new Set())
 
   const entityList = useMemo(() => getTemplateEntities(domain), [domain])
+  const entitiesUsedInContent = useMemo(
+    () => (templateContent ? extractEntityKeysFromContent(templateContent) : []),
+    [templateContent]
+  )
 
   const toggleEntity = (entityKey: string) => {
     setExpandedEntities(prev => {
@@ -176,6 +189,28 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
         <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
           Choose an entity; fields come from GraphQL (e.g. {`{{job_candidate.firstName}}`}).
         </p>
+        {entitiesUsedInContent.length > 0 && (
+          <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border-border">
+            <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1">
+              Entities used in this template
+            </p>
+            <div className="gba:flex gba:flex-wrap gba:gap-1">
+              {entitiesUsedInContent.map(key => {
+                const def = getTemplateEntity(key)
+                return (
+                  <Badge
+                    key={key}
+                    variant="secondary"
+                    className="gba:text-[10px] gba:px-1.5 gba:py-0"
+                    data-testid={`${testId}-used-entity-${key}`}
+                  >
+                    {def?.displayName ?? key}
+                  </Badge>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
       <div className="gba:flex-1 gba:overflow-y-auto gba:py-2">
         {entityList.length === 0 ? (

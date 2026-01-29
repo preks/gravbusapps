@@ -1264,7 +1264,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
         {/* Main content: optional left panel + editor area */}
         <div className={`gba:flex gba:flex-1 gba:min-h-0 ${leftPanel ? 'gba:flex-row' : 'gba:flex-col'}`}>
-          {leftPanel}
+          {leftPanel != null ? (
+            <div className="gba:flex-shrink-0 gba:w-64 gba:min-h-0 gba:flex gba:flex-col gba:overflow-hidden">
+              {leftPanel}
+            </div>
+          ) : null}
           {/* Editor Area with Page Layout */}
           <div
             ref={editorContainerRef}

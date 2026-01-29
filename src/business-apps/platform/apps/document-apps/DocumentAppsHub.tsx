@@ -460,6 +460,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
             <TemplateFieldsPanel
               onInsertField={placeholder => templateEditorRef.current?.insertAtCursor(placeholder)}
               accessToken={accessToken}
+              templateContent={templateBeingEdited.content}
               data-testid={`${testId}-template-fields-panel`}
             />
           }

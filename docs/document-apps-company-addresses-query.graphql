@@ -1,0 +1,72 @@
+# =============================================================================
+# Company with addresses – for document placeholders (run in Hasura)
+# =============================================================================
+# Use this to check if a company has addresses in the database.
+# Replace $id in variables with a real company UUID (e.g. from job_candidate ->
+# job_application -> job_posting -> job_request -> companyId).
+#
+# If `addresses` returns [] or the query returns no addresses, then
+# {{company_address.addressLine}}, {{company_address.locality}}, etc. will be
+# empty when generating a document.
+#
+# Note: If your Hasura schema uses snake_case (e.g. company_by_pk), change
+# "CompanyByPk" to match your schema (e.g. "company_by_pk").
+# =============================================================================
+
+query GetCompanyByPkWithAddresses($id: uuid!) {
+  CompanyByPk(id: $id) {
+    id
+    name
+    code
+    # Addresses (non-deleted only – same filter as the app)
+    addresses(where: { isDeleted: { _eq: false } }) {
+      id
+      companyId
+      addressLine
+      addressType
+      locality
+      postalCode
+      createdAt
+      updatedAt
+      isDeleted
+      version
+      regionRef
+      countryRef
+      region {
+        id
+        code
+        value
+      }
+      country {
+        id
+        code
+        value
+      }
+    }
+  }
+}
+
+# =============================================================================
+# Variables (paste in Hasura "Query variables" panel):
+# =============================================================================
+# {
+#   "id": "YOUR_COMPANY_UUID_HERE"
+# }
+
+# =============================================================================
+# Minimal version – only fields used by template placeholders
+# =============================================================================
+# query GetCompanyAddressesForPlaceholders($id: uuid!) {
+#   CompanyByPk(id: $id) {
+#     id
+#     name
+#     addresses(where: { isDeleted: { _eq: false } }) {
+#       id
+#       companyId
+#       addressLine
+#       addressType
+#       locality
+#       postalCode
+#     }
+#   }
+# }

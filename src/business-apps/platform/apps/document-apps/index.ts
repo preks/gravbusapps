@@ -48,7 +48,7 @@ export { TEMPLATE_CATEGORY_API_VALUES } from './types'
 
 // Utilities
 export { exportToWord, exportToPDF, exportToHTML, exportToText } from './utils/exportUtils'
-export { resolvePlaceholders } from './utils/templatePlaceholders'
+export { resolvePlaceholders, extractEntityKeysFromContent } from './utils/templatePlaceholders'
 
 // Template entity registry (middle link for placeholder mapping – no flow-engine)
 export { TEMPLATE_ENTITY_REGISTRY, formatTemplatePlaceholder, getTemplateEntities, getTemplateEntity } from './entities'

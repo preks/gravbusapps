@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobCandidates } from '@/common/data/recruiting/hooks/useJobCandidates'
 import { useJobCandidate } from '@/common/data/recruiting/hooks/useJobCandidate'
+import { useCompany } from '@/common/data/orgchart/hooks/useCompany'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { DataDisplay, DataTable, Avatar, AvatarFallback, Badge } from '@newwork/nw-design-system'
 import type { ColumnDef, PaginationState, SortingState, ExpandedState, CellContext } from '@tanstack/react-table'
@@ -263,6 +264,28 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
   const candidateIdForDoc = generateDocOpen && generateDocCandidate?.id ? generateDocCandidate.id : undefined
   const { jobCandidate: fullCandidateForDoc } = useJobCandidate(context.accessToken, candidateIdForDoc, 'record')
 
+  // Company ID from first application (job candidate -> job application -> job posting -> job request -> company)
+  const firstJobRequest = fullCandidateForDoc?.jobApplications?.[0]?.jobPosting?.jobRequest as
+    | { companyId?: string }
+    | undefined
+  const companyIdForDoc = firstJobRequest?.companyId ?? undefined
+  const { company: companyForDoc } = useCompany(context.accessToken, companyIdForDoc, 'record')
+
+  // Build entity map for placeholder resolution: job_candidate, company, company_address (first address)
+  const entityDataMapForDoc = useMemo(() => {
+    const candidate = fullCandidateForDoc ?? generateDocCandidate ?? {}
+    const company = companyForDoc ?? {}
+    const firstAddress =
+      companyForDoc?.addresses && Array.isArray(companyForDoc.addresses) && companyForDoc.addresses.length > 0
+        ? companyForDoc.addresses[0]
+        : {}
+    return {
+      job_candidate: candidate as Record<string, unknown>,
+      company: company as Record<string, unknown>,
+      company_address: firstAddress as Record<string, unknown>
+    }
+  }, [fullCandidateForDoc, generateDocCandidate, companyForDoc])
+
   const { jobCandidates, total, loading, error, refetch } = useJobCandidates(
     context.accessToken,
     {
@@ -450,8 +473,7 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
       <GenerateDocumentDialog
         open={generateDocOpen}
         onOpenChange={setGenerateDocOpen}
-        entityType="job_candidate"
-        entityData={(fullCandidateForDoc ?? generateDocCandidate ?? {}) as Record<string, unknown>}
+        entityDataMap={entityDataMapForDoc}
         defaultTitle={
           `${generateDocCandidate?.firstName ?? ''} ${generateDocCandidate?.lastName ?? ''}`.trim() || 'Candidate'
         }
