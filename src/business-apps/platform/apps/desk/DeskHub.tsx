@@ -76,7 +76,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
   )
 
   // Fetch spaces
-  const { spaces } = useSpaces({
+  const { spaces } = useSpaces(accessToken, {
     includeMembers: true,
     includeContent: true,
     autoLoad: true
