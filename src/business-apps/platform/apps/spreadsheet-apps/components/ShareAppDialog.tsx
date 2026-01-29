@@ -112,8 +112,7 @@ const sendBlinkNotifications = async (
     const workflowIds: string[] = []
 
     // Build the app URL - use filePath to create shareable link
-    // Note: Using duplicated path to match current Azure storage location
-    const appUrl = `/platform/apps/platform/apps/spreadsheet-apps?appId=${payload.appId}&filePath=${encodeURIComponent(payload.appFilePath)}`
+    const appUrl = `/platform/apps/spreadsheet-apps?appId=${payload.appId}&view=viewer&filePath=${encodeURIComponent(payload.appFilePath)}`
 
     for (const userId of payload.assigneeUserIds) {
       // Build entity link for the links array (displayed in task inbox)

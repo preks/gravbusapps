@@ -25,14 +25,14 @@ export interface DeskHubProps extends BusinessAppContextProps {
 
 /**
  * Navigate to a specific app screen using platform URLs
- * Path format: /platform/apps/platform/apps/{appName}
+ * Path format: /platform/apps/{appName}
  */
 const navigateToApp = (appPath: string, params?: Record<string, string>) => {
   // Extract just the app name (e.g., 'document-apps' from 'platform/apps/document-apps' or 'document-apps')
   const appName = appPath.replace(/^\/?platform\/apps\//, '')
-  // Use doubled path: /platform/apps/platform/apps/{appName}
-  const platformUrl = `/platform/apps/platform/apps/${appName}`
-  navigateTo(buildPlatformUrl(platformUrl, params))
+  const platformUrl = `/platform/apps/${appName}`
+  const urlParams = params?.from ? params : { from: 'desk', ...params }
+  navigateTo(buildPlatformUrl(platformUrl, urlParams))
 }
 
 /**

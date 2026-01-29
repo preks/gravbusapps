@@ -516,7 +516,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
         <div className="gba:p-4 gba:border-b">
           {/* Back button row */}
           <button
-            onClick={() => navigateTo('/platform/apps/platform/apps/desk')}
+            onClick={() => navigateTo('/platform/apps/desk')}
             className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors gba:mb-3"
           >
             <ChevronLeft className="gba:w-4 gba:h-4" />
