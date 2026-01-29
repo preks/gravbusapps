@@ -62,7 +62,11 @@ export const useInvestmentCalendarData = (context: BusinessAppContextProps) => {
       // Build tasks query variables
       const tasksQueryVariables: InvestmentTaskQueryVariables = {
         assignedEmployeeIds: [employeeId],
-        taskStatusIds: ['PENDING', 'IN_PROGRESS'],
+        taskStatusIds: [
+          'InvestmentTaskStatus:v1:PENDING',
+          'InvestmentTaskStatus:v1:IN_PROGRESS',
+          'InvestmentTaskStatus:v1:OVERDUE'
+        ],
         limit,
         offset: 0,
         orderBy: [

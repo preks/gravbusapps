@@ -24,20 +24,12 @@ export const OpportunityView: React.FC<OpportunityViewProps> = ({ accountId, con
     })
   }
 
-  const accountUrlBuilder = (accountId: string) => {
-    return buildPlatformUrl('/platform/irm/account-record', {
-      accountId,
-      source: 'investments'
-    })
-  }
-
   return (
     <OpportunitySection
       opportunities={opportunities}
       isLoading={loading}
       error={error}
       recordUrlBuilder={recordUrlBuilder}
-      accountUrlBuilder={accountUrlBuilder}
       data-testid="account-opportunities-card"
     />
   )

@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, Badge } from '@newwork/nw-design-system'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BenefitCatalogItem } from '../../types/benefitCatalogTypes'
@@ -32,12 +32,24 @@ const AvailableBenefitLayout: React.FC<AvailableBenefitLayoutProps> = ({
   return (
     <div className="gba:flex gba:justify-between gba:items-start gba:gap-3">
       <div className="gba:flex-1">
-        <h3
-          className="gba:text-base gba:font-semibold gba:text-foreground gba:leading-tight"
-          data-testid={`benefit-catalog-title-${benefit.code}`}
-        >
-          {getTranslatedBenefitType(benefit, locale)}
-        </h3>
+        <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+          <h3
+            className="gba:text-base gba:font-semibold gba:text-foreground gba:leading-tight"
+            data-testid={`benefit-catalog-title-${benefit.code}`}
+          >
+            {getTranslatedBenefitType(benefit, locale)}
+          </h3>
+          {benefit.isPending && (
+            <Badge
+              variant="warning"
+              size="sm"
+              className="gba:shrink-0"
+              data-testid={`benefit-pending-badge-${benefit.code}`}
+            >
+              {t('benefit-status-pending')}
+            </Badge>
+          )}
+        </div>
 
         {/* Provider Badges */}
         {benefit.availableProviders && benefit.availableProviders.length > 0 && (

@@ -51,7 +51,6 @@ export interface OpportunitySectionProps<T extends GenericOpportunity = GenericO
   error?: string | null
   onRetry?: () => void
   recordUrlBuilder: (opportunityId: string) => string
-  accountUrlBuilder?: (accountId: string) => string // Optional, for account navigation
   className?: string
   'data-testid'?: string
   // Additional columns to extend the base columns (e.g., CRM-specific winningChance)
