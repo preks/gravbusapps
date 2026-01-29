@@ -19,16 +19,19 @@ import {
   BookOpen,
   LayoutTemplate,
   Plus,
+  Pencil,
   Star,
   Clock,
   Users
 } from 'lucide-react'
 import type { TemplateSummary, DocumentTemplate, TemplateCategory } from '../types'
+import { TEMPLATE_CATEGORY_API_VALUES } from '../types'
 
 export interface TemplateGalleryProps {
   templates: TemplateSummary[]
   onSelectTemplate: (template: DocumentTemplate) => void
   onCreateTemplate?: () => void
+  onEditTemplate?: (template: TemplateSummary) => void
   'data-testid'?: string
 }
 
@@ -85,41 +88,55 @@ const CATEGORY_CONFIG: Record<TemplateCategory, { icon: React.ReactNode; label: 
 
 /**
  * TemplateCard Component
+ * Clean card layout: header (icon + title + edit), description, tags, usage footer.
  */
 const TemplateCard: React.FC<{
   template: TemplateSummary
   onSelect: () => void
+  onEdit?: (template: TemplateSummary) => void
   testId: string
-}> = ({ template, onSelect, testId }) => {
+}> = ({ template, onSelect, onEdit, testId }) => {
   const categoryConfig = CATEGORY_CONFIG[template.category] || CATEGORY_CONFIG.other
   const isBuiltIn = template.createdBy === 'system'
 
   return (
     <Card
-      className="gba:group gba:relative gba:overflow-hidden gba:cursor-pointer gba:transition-all gba:duration-200 hover:gba:shadow-md hover:gba:border-primary/30"
+      className="gba:group gba:relative gba:overflow-hidden gba:cursor-pointer gba:border gba:rounded-xl gba:transition-all gba:duration-200 hover:gba:shadow-lg hover:gba:border-primary/20"
       onClick={onSelect}
       data-testid={`${testId}-card`}
     >
-      {/* Gradient accent */}
-      <div className="gba:h-1 gba:w-full gba:bg-gradient-to-r gba:from-primary/60 gba:via-primary/40 gba:to-primary/20" />
-
-      <div className="gba:p-4">
-        {/* Header */}
-        <div className="gba:flex gba:items-start gba:gap-3 gba:mb-3">
-          <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 gba:transition-colors group-hover:gba:bg-primary/20">
+      <div className="gba:p-4 gba:flex gba:flex-col gba:gap-3">
+        {/* Header: icon, title, edit (inside content so it doesn’t overlap edges) */}
+        <div className="gba:flex gba:items-start gba:gap-3">
+          <div className="gba:w-11 gba:h-11 gba:rounded-xl gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 gba:text-primary">
             {categoryConfig.icon}
           </div>
           <div className="gba:flex-1 gba:min-w-0">
-            <h3 className="gba:font-semibold gba:text-foreground gba:truncate">{template.name}</h3>
+            <h3 className="gba:font-semibold gba:text-foreground gba:truncate gba:leading-tight">{template.name}</h3>
             {template.description && (
-              <p className="gba:text-sm gba:text-muted-foreground gba:truncate">{template.description}</p>
+              <p className="gba:text-sm gba:text-muted-foreground gba:truncate gba:mt-0.5">{template.description}</p>
             )}
           </div>
+          {onEdit && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg hover:gba:bg-muted"
+              onClick={e => {
+                e.stopPropagation()
+                onEdit(template)
+              }}
+              title="Edit template"
+              data-testid={`${testId}-edit`}
+            >
+              <Pencil className="gba:w-4 gba:h-4" />
+            </Button>
+          )}
         </div>
 
         {/* Tags */}
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-          <Badge variant="outline" className="gba:text-xs">
+          <Badge variant="outline" className="gba:text-xs gba:font-medium">
             {categoryConfig.label}
           </Badge>
           {isBuiltIn && (
@@ -136,21 +153,21 @@ const TemplateCard: React.FC<{
           )}
         </div>
 
-        {/* Usage count */}
+        {/* Footer: usage */}
         {template.usageCount !== undefined && template.usageCount > 0 && (
-          <div className="gba:flex gba:items-center gba:gap-1 gba:mt-3 gba:text-xs gba:text-muted-foreground">
-            <Clock className="gba:w-3 gba:h-3" />
+          <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground gba:pt-1 gba:border-t gba:border-border/50">
+            <Clock className="gba:w-3.5 gba:h-3.5" />
             <span>Used {template.usageCount} times</span>
           </div>
         )}
+      </div>
 
-        {/* Hover overlay with action */}
-        <div className="gba:absolute gba:inset-0 gba:bg-primary/5 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:flex gba:items-center gba:justify-center">
-          <Button variant="default" size="sm" className="gba:shadow-lg">
-            <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-            Use Template
-          </Button>
-        </div>
+      {/* Hover overlay: Use Template CTA; overlay is non-blocking so edit stays clickable */}
+      <div className="gba:absolute gba:inset-0 gba:bg-primary/5 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:flex gba:items-center gba:justify-center gba:pointer-events-none">
+        <Button variant="default" size="sm" className="gba:pointer-events-auto gba:shadow-md">
+          <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
+          Use Template
+        </Button>
       </div>
     </Card>
   )
@@ -163,6 +180,7 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
   templates,
   onSelectTemplate,
   onCreateTemplate,
+  onEditTemplate,
   'data-testid': testId = 'template-gallery'
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
@@ -204,10 +222,10 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
     return groups
   }, [filteredTemplates])
 
-  // Get available categories
+  // Only show category tabs for categories that have templates (from API)
   const availableCategories = useMemo(() => {
     const cats = new Set(templates.map(t => t.category))
-    return Array.from(cats) as TemplateCategory[]
+    return TEMPLATE_CATEGORY_API_VALUES.filter(c => cats.has(c))
   }, [templates])
 
   // Handle template selection (need to convert summary to full template)
@@ -292,6 +310,7 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
                       key={template.id}
                       template={template}
                       onSelect={() => handleSelectTemplate(template)}
+                      onEdit={onEditTemplate}
                       testId={`${testId}-${template.id}`}
                     />
                   ))}
@@ -310,6 +329,7 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
                   key={template.id}
                   template={template}
                   onSelect={() => handleSelectTemplate(template)}
+                  onEdit={onEditTemplate}
                   testId={`${testId}-${template.id}`}
                 />
               ))}

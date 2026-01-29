@@ -151,18 +151,22 @@ export interface DocumentSummary {
 }
 
 /**
- * Template category for organization
+ * Template category for organization.
+ * Values match the document API: GET /document/api/v1/templates?category=
  */
-export type TemplateCategory =
-  | 'contracts'
-  | 'agreements'
-  | 'letters'
-  | 'reports'
-  | 'proposals'
-  | 'policies'
-  | 'procedures'
-  | 'forms'
-  | 'other'
+export const TEMPLATE_CATEGORY_API_VALUES = [
+  'contracts',
+  'agreements',
+  'letters',
+  'reports',
+  'proposals',
+  'policies',
+  'procedures',
+  'forms',
+  'other'
+] as const
+
+export type TemplateCategory = (typeof TEMPLATE_CATEGORY_API_VALUES)[number]
 
 /**
  * Document template definition

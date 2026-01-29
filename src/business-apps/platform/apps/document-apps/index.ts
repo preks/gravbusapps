@@ -44,6 +44,7 @@ export type {
   ExportFormat,
   ExportOptions
 } from './types'
+export { TEMPLATE_CATEGORY_API_VALUES } from './types'
 
 // Utilities
 export { exportToWord, exportToPDF, exportToHTML, exportToText } from './utils/exportUtils'

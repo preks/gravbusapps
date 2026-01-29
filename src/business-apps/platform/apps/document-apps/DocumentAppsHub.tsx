@@ -5,7 +5,7 @@
  * Modern OneDrive-inspired design with sidebar navigation.
  */
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   Card,
@@ -63,10 +63,13 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 // Components
 import { WordUploader } from './components/WordUploader'
 import { TemplateGallery } from './components/TemplateGallery'
+import { CreateTemplateDialog } from './components/CreateTemplateDialog'
 import { SendForApprovalDialog } from './components/SendForApprovalDialog'
 import { ShareDocumentDialog } from './components/ShareDocumentDialog'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
 import { PagedDocumentEditor } from './components/PagedDocumentEditor'
+import type { PagedDocumentEditorRef } from './components/PagedDocumentEditor'
+import { TemplateFieldsPanel } from './components/TemplateFieldsPanel'
 
 // Hooks
 import { useDocumentApps } from './hooks/useDocumentApps'
@@ -163,6 +166,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [documentForShare, setDocumentForShare] = useState<string | null>(null)
   const [manageSharesDialogOpen, setManageSharesDialogOpen] = useState(false)
   const [documentForManageShares, setDocumentForManageShares] = useState<string | null>(null)
+  const [createTemplateDialogOpen, setCreateTemplateDialogOpen] = useState(false)
+  const [templateBeingEdited, setTemplateBeingEdited] = useState<DocumentTemplate | null>(null)
+  const templateEditorRef = useRef<PagedDocumentEditorRef>(null)
 
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
@@ -185,7 +191,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     refreshDocuments
   } = useDocumentApps(accessToken, currentUserId)
 
-  const { templates, createDocumentFromTemplate } = useDocumentTemplates(accessToken, currentUserId)
+  const { templates, createTemplate, updateTemplate, loadTemplate, createDocumentFromTemplate } = useDocumentTemplates(
+    accessToken,
+    currentUserId
+  )
   const { updateUrl, resetLoadAttempt } = useDocumentAppsHubUrlState({
     currentView,
     currentDocumentId: currentDocument?.id || null,
@@ -249,6 +258,20 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       }
     },
     [createDocumentFromTemplate, loadDocument, updateUrl]
+  )
+
+  /**
+   * Handle edit template: load full template and open in editor
+   */
+  const handleEditTemplate = useCallback(
+    async (template: { id: string }) => {
+      const full = await loadTemplate(template.id)
+      if (full) {
+        setTemplateBeingEdited(full)
+        setCurrentView('editor')
+      }
+    },
+    [loadTemplate]
   )
 
   /**
@@ -424,6 +447,42 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   // Render editor view
   if (currentView === 'editor') {
     const canEdit = currentDocumentPermission === 'owner' || currentDocumentPermission === 'edit'
+
+    // If editing a template, show editor with template content, "Insert field" panel, and save to template
+    if (templateBeingEdited) {
+      return (
+        <PagedDocumentEditor
+          ref={templateEditorRef}
+          key={`template-${templateBeingEdited.id}`}
+          initialContent={templateBeingEdited.content}
+          initialTitle={templateBeingEdited.name}
+          leftPanel={
+            <TemplateFieldsPanel
+              onInsertField={placeholder => templateEditorRef.current?.insertAtCursor(placeholder)}
+              data-testid={`${testId}-template-fields-panel`}
+            />
+          }
+          onSave={async (title, content) => {
+            const updated = await updateTemplate(templateBeingEdited.id, { name: title, content })
+            if (updated) {
+              setTemplateBeingEdited(updated)
+              toast.success('Template saved')
+            }
+          }}
+          onBack={() => {
+            setTemplateBeingEdited(null)
+            setCurrentView('list')
+            setActiveSection('templates')
+          }}
+          onSendForApproval={() => {
+            toast.info('Templates are edited here; use documents for approval workflow.')
+          }}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          data-testid={`${testId}-template-editor`}
+        />
+      )
+    }
 
     // If we have a parsed Word document (from upload), create a new document with that content
     if (parsedWordDocument && !currentDocument) {
@@ -733,9 +792,18 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
               <TemplateGallery
                 templates={templates}
                 onSelectTemplate={handleSelectTemplate}
+                onCreateTemplate={() => setCreateTemplateDialogOpen(true)}
+                onEditTemplate={handleEditTemplate}
                 data-testid={`${testId}-templates`}
               />
             </div>
+            <CreateTemplateDialog
+              open={createTemplateDialogOpen}
+              onOpenChange={setCreateTemplateDialogOpen}
+              createTemplate={createTemplate}
+              currentUserId={currentUserId}
+              data-testid={`${testId}-create-template-dialog`}
+            />
           </>
         )}
 
