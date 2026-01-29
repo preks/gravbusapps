@@ -1,9 +1,11 @@
 /**
  * VideoGrid Component
  *
- * Renders the participant grid with:
- * - Responsive grid layout based on participant count
- * - Support for focused screen shares (2x2 span)
+ * Renders the participant grid with two modes:
+ * - auto-fit: CSS Grid automatically calculates columns (industry standard)
+ * - fixed-grid: Manual cols/rows specification (legacy support)
+ *
+ * Features:
  * - Pagination for large participant lists
  * - Empty state
  */
@@ -20,8 +22,6 @@ export interface GridLayout {
 export interface VideoGridProps {
   /** Grid items to display (current page) */
   gridItems: React.ReactNode[]
-  /** Grid layout configuration */
-  gridLayout: GridLayout
   /** Current page number (0-indexed) */
   currentPage: number
   /** Total number of pages */
@@ -36,18 +36,26 @@ export interface VideoGridProps {
   prefixDataTestId?: string
   /** Translation function */
   t?: (key: string) => string
+  /** Grid mode: auto-fit uses CSS auto-fit, fixed-grid uses manual cols/rows */
+  mode?: 'auto-fit' | 'fixed-grid'
+  /** Minimum tile size for auto-fit mode (in pixels) */
+  minTileSize?: number
+  /** Grid layout configuration (only used in fixed-grid mode) */
+  gridLayout?: GridLayout
 }
 
 export const VideoGrid: React.FC<VideoGridProps> = ({
   gridItems,
-  gridLayout,
   currentPage,
   totalPages,
   totalItems,
   onPageChange,
   isEmpty = false,
   prefixDataTestId = 'rtk-group-call',
-  t = (key: string) => key
+  t = (key: string) => key,
+  mode = 'auto-fit',
+  minTileSize = 250,
+  gridLayout
 }) => {
   // Empty state
   if (isEmpty) {
@@ -61,15 +69,24 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
     )
   }
 
+  // Determine grid style based on mode
+  const gridStyle =
+    mode === 'auto-fit'
+      ? {
+          gridTemplateColumns: `repeat(auto-fit, minmax(${minTileSize}px, 1fr))`,
+          gridAutoRows: '1fr'
+        }
+      : {
+          gridTemplateColumns: `repeat(${gridLayout?.cols || 1}, 1fr)`,
+          gridTemplateRows: `repeat(${gridLayout?.rows || 1}, 1fr)`
+        }
+
   return (
     <div className="gba:flex gba:flex-col gba:flex-1 gba:w-full gba:gap-2 gba:min-h-0">
       {/* Participant Grid */}
       <div
-        className="gba:flex-1 gba:w-full gba:grid gba:gap-3 gba:min-h-0"
-        style={{
-          gridTemplateColumns: `repeat(${gridLayout.cols}, 1fr)`,
-          gridTemplateRows: `repeat(${gridLayout.rows}, 1fr)`
-        }}
+        className="gba:flex-1 gba:w-full gba:grid gba:gap-3 gba:min-h-0 gba:content-start"
+        style={gridStyle}
         data-testid={`${prefixDataTestId}-video-grid`}
       >
         {gridItems}

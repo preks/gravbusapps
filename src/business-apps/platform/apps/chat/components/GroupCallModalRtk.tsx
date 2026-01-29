@@ -11,6 +11,7 @@ import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useRealtimeKitSelector } from '@cloudflare/realtimekit-react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription, toast } from '@newwork/nw-design-system'
+import { Monitor, Maximize2 } from 'lucide-react'
 import type { GroupCallParticipant, VideoQuality } from '../services/groupWebrtcClient'
 import type { GroupCallUIState, PendingInvite } from '../hooks/useGroupCall'
 import type { CallParticipant } from '../services/webrtcClient'
@@ -24,7 +25,8 @@ import {
   CallControlsBar,
   ParticipantsPanel,
   MemoizedParticipantVideoTile,
-  VideoGrid
+  VideoGrid,
+  HorizontalFilmstrip
 } from './call'
 import { isVideoTrackScreenShare, extractTracksFromCollection } from '../utils/callUtils'
 
@@ -75,6 +77,7 @@ interface GroupCallModalRtkProps {
   currentUserId?: string | null
   conversationName?: string
   wsClient?: ChatWebSocketClient | null
+  activeConversation?: any // For looking up avatar URLs from conversation participants
 }
 
 // Helper to get screen share track from peer
@@ -169,7 +172,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   prefixDataTestId = 'rtk-group-call',
   conversationName,
   wsClient,
-  currentUserId
+  currentUserId,
+  activeConversation
 }) => {
   const t = useChatTranslation()
   const localVideoRef = useRef<HTMLVideoElement>(null)
@@ -1311,10 +1315,43 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
   // Build unified grid items: participants + screen shares
   const gridItems = useMemo(() => {
+    // Create mapping from userId to avatarUrl from conversation participants
+    const avatarUrlMap = new Map<string, string>()
+
+    // First, try to get avatar URLs from activeConversation.participants
+    if (activeConversation?.participants) {
+      activeConversation.participants.forEach((cp: any) => {
+        if (cp.user?.avatarUrl) {
+          // Map by userId (the stable user ID in our system)
+          avatarUrlMap.set(cp.userId, cp.user.avatarUrl)
+          avatarUrlMap.set(cp.user.id, cp.user.avatarUrl)
+          rtkDebug.log('[RTK Modal] 🖼️ Avatar from conversation:', {
+            userId: cp.userId,
+            userName: cp.user.displayName || cp.user.username,
+            avatarUrl: cp.user.avatarUrl
+          })
+        }
+      })
+    }
+
+    // Fallback: check participants array
+    participants.forEach(p => {
+      if (p.avatarUrl && !avatarUrlMap.has(p.id)) {
+        avatarUrlMap.set(p.id, p.avatarUrl)
+        avatarUrlMap.set(p.odId, p.avatarUrl)
+      }
+    })
+
+    rtkDebug.log('[RTK Modal] 🖼️ Avatar map built:', {
+      totalMappings: avatarUrlMap.size,
+      keys: Array.from(avatarUrlMap.keys())
+    })
+
     const items: Array<{
       id: string
       type: 'video' | 'screen-share' | 'avatar'
       peerId: string
+      avatarUrl?: string
       peerName: string
       userId?: string // SDK userId - for checking hand-raised state
       customParticipantId?: string // Our DB user ID - for checking hand-raised state
@@ -1367,11 +1404,24 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     // Always add local participant - screen share is a separate item
     const localParticipantId = 'local-participant'
     if (!seenIds.has(localParticipantId)) {
+      const localPeerId = meeting?.self?.id || 'local'
+      const localUserId = meeting?.self?.userId || currentUserId
+      const localCustomParticipantId = meeting?.self?.customParticipantId
+
+      // Try to match avatar by userId first (most reliable)
+      const localAvatarUrl =
+        avatarUrlMap.get(localUserId || '') ||
+        avatarUrlMap.get(localCustomParticipantId || '') ||
+        avatarUrlMap.get(localPeerId) ||
+        participants[0]?.avatarUrl ||
+        meeting?.self?.picture
+
       const localParticipantItem = {
         id: localParticipantId,
         type: localHasVideo ? 'video' : 'avatar',
-        peerId: meeting?.self?.id || 'local', // Use actual peer ID from SDK (fallback to 'local' for safety)
+        peerId: localPeerId, // Use actual peer ID from SDK (fallback to 'local' for safety)
         peerName: participants[0]?.odName || 'You',
+        avatarUrl: localAvatarUrl,
         userId: meeting?.self?.userId, // For checking hand-raised state
         customParticipantId: meeting?.self?.customParticipantId, // Our DB user ID - for checking reactions
         videoTrack: localVideoTrack,
@@ -1393,7 +1443,15 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         peerId: localParticipantItem.peerId,
         isLocal: localParticipantItem.isLocal,
         hasVideo: localHasVideo,
-        hasAudio: !!localAudioTrack
+        hasAudio: !!localAudioTrack,
+        avatarUrl: localAvatarUrl,
+        localUserId,
+        localCustomParticipantId,
+        fromMap_userId: avatarUrlMap.get(localUserId || ''),
+        fromMap_customId: avatarUrlMap.get(localCustomParticipantId || ''),
+        fromMap_peerId: avatarUrlMap.get(localPeerId),
+        fromParticipants: participants[0]?.avatarUrl,
+        fromSelf: meeting?.self?.picture
       })
     }
 
@@ -1451,11 +1509,30 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
       const participantId = `participant-${peer.id}`
       if (!seenIds.has(participantId)) {
+        // Try to match avatar by userId or customParticipantId
+        const avatarUrl =
+          avatarUrlMap.get(peer.userId) ||
+          avatarUrlMap.get(peer.customParticipantId) ||
+          avatarUrlMap.get(peer.id) ||
+          peer.picture
+
+        rtkDebug.log('[RTK Modal] 👥 Adding remote participant:', {
+          peerId: peer.id,
+          userId: peer.userId,
+          customParticipantId: peer.customParticipantId,
+          peerName: peer.name,
+          avatarUrl,
+          fromMap_userId: avatarUrlMap.get(peer.userId),
+          fromMap_customId: avatarUrlMap.get(peer.customParticipantId),
+          fromMap_peerId: avatarUrlMap.get(peer.id),
+          peer_picture: peer.picture
+        })
         items.push({
           id: participantId,
           type: hasVideo ? 'video' : 'avatar',
           peerId: peer.id,
           peerName: peer.name || peer.displayName || peer.customParticipantId || 'Unknown',
+          avatarUrl,
           userId: peer.userId, // SDK userId - for checking hand-raised state
           customParticipantId: peer.customParticipantId, // Our DB user ID - for checking hand-raised state
           videoTrack: cameraVideoTrack,
@@ -1596,7 +1673,9 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     meeting?.self?.userId, // For hand-raised checks
     meeting?.self?.customParticipantId, // For reactions
     activeSpeakerId,
-    activeSpeakerHistory
+    activeSpeakerHistory,
+    activeConversation?.participants, // For avatar URLs
+    currentUserId // For local avatar lookup
   ])
 
   // Clean up stale video ref callbacks when participants leave
@@ -1643,75 +1722,10 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     }
   }, [gridItems.length, currentPage, PARTICIPANTS_PER_PAGE])
 
-  // Calculate grid layout based on paginated item count and focused screen share
-  // Calculate grid layout based on paginated item count, focused screen share, AND available width
-  const gridLayout = useMemo(() => {
-    const itemCount = paginatedGridItems.items.length
-    const hasFocusedScreenShare = !!focusedScreenShare
-    const screenShareCount = allScreenShares.length
-    // Adjust layout based on panel state: fewer columns when panel is open
-    const isNarrow = showParticipantsPanel
-
-    rtkDebug.log('[RTK Modal] Grid layout calculation:', {
-      itemCount,
-      hasFocusedScreenShare,
-      screenShareCount,
-      focusedScreenShareId,
-      showParticipantsPanel,
-      isNarrow
-    })
-
-    if (itemCount === 0) {
-      return { cols: 1, rows: 1, focusedSpan: { col: 1, row: 1 } }
-    }
-
-    if (hasFocusedScreenShare) {
-      // With focused screen share: optimize grid to minimize empty space
-      // Reduce columns when panel is open (narrower space)
-      if (itemCount <= 5) {
-        // 1 focused (2x2=4 cells) + 4 others = 8 cells
-        return isNarrow
-          ? { cols: 3, rows: 3, focusedSpan: { col: 2, row: 2 } } // Narrower: 3 cols
-          : { cols: 3, rows: 3, focusedSpan: { col: 2, row: 2 } }
-      } else if (itemCount <= 7) {
-        // 1 focused (2x2=4 cells) + 6 others = 10 cells
-        return isNarrow
-          ? { cols: 3, rows: 4, focusedSpan: { col: 2, row: 2 } } // Narrower: 3 cols, more rows
-          : { cols: 4, rows: 3, focusedSpan: { col: 2, row: 2 } }
-      } else if (itemCount <= 9) {
-        // 1 focused (2x2=4 cells) + 8 others = 12 cells
-        return isNarrow
-          ? { cols: 3, rows: 4, focusedSpan: { col: 2, row: 2 } } // Narrower: 3 cols
-          : { cols: 4, rows: 3, focusedSpan: { col: 2, row: 2 } }
-      } else {
-        // Many items
-        return isNarrow
-          ? { cols: 3, rows: 5, focusedSpan: { col: 2, row: 2 } } // Narrower: 3 cols
-          : { cols: 4, rows: 4, focusedSpan: { col: 2, row: 2 } }
-      }
-    } else {
-      // No focused screen share: standard grid (max 9 items per page = 3x3)
-      // Keep 2 columns even when panel is open for better tile sizing
-      if (itemCount <= 2) {
-        return { cols: 2, rows: 1, focusedSpan: { col: 1, row: 1 } }
-      } else if (itemCount <= 4) {
-        return isNarrow
-          ? { cols: 2, rows: 2, focusedSpan: { col: 1, row: 1 } } // Narrower: 2 cols
-          : { cols: 2, rows: 2, focusedSpan: { col: 1, row: 1 } }
-      } else {
-        // 5-9 items
-        return isNarrow
-          ? { cols: 2, rows: 5, focusedSpan: { col: 1, row: 1 } } // Narrower: 2 cols, more rows
-          : { cols: 3, rows: 3, focusedSpan: { col: 1, row: 1 } }
-      }
-    }
-  }, [
-    paginatedGridItems.items.length,
-    focusedScreenShare,
-    allScreenShares.length,
-    focusedScreenShareId,
-    showParticipantsPanel
-  ])
+  // Calculate minimum tile size for auto-fit grid based on panel state
+  const minTileSize = useMemo(() => {
+    return showParticipantsPanel ? 200 : 250
+  }, [showParticipantsPanel])
 
   // Create stable track IDs for dependency tracking
   const screenShareTrackIds = useMemo(() => {
@@ -2192,24 +2206,136 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                   t={t}
                 />
 
-                {/* Main Content Area - Unified Grid Layout */}
+                {/* Main Content Area - Two-Mode Layout */}
                 <div className="gba:flex gba:flex-col gba:flex-1 gba:p-4 gba:bg-muted/30 gba:gap-4 gba:min-h-0 gba:overflow-hidden">
-                  <VideoGrid
-                    gridItems={paginatedGridItems.items.map(item => {
-                      const isFocused = item.isFocusedScreenShare
-                      const gridColumn = isFocused ? `span ${gridLayout.focusedSpan.col}` : 'span 1'
-                      const gridRow = isFocused ? `span ${gridLayout.focusedSpan.row}` : 'span 1'
+                  {focusedScreenShare ? (
+                    // PRESENTATION MODE: Dominant screen share + participant filmstrip
+                    <>
+                      {/* Main Screen Share - 75% height */}
+                      <div className="gba:flex-[3] gba:min-h-0 gba:rounded-lg gba:overflow-hidden gba:bg-black gba:relative">
+                        <video
+                          ref={el => {
+                            if (el) {
+                              screenShareVideoRefs.current.set(focusedScreenShare.peerId, el)
+                            }
+                          }}
+                          autoPlay
+                          playsInline
+                          muted
+                          className="gba:w-full gba:h-full gba:object-contain"
+                          data-testid={`${prefixDataTestId}-focused-screen-share`}
+                        />
 
-                      return (
+                        {/* Peer name overlay */}
+                        <div className="gba:absolute gba:bottom-3 gba:left-3 gba:px-3 gba:py-1 gba:bg-black/70 gba:rounded-md gba:text-white gba:text-sm">
+                          {focusedScreenShare.peerName}'s screen
+                        </div>
+
+                        {/* Exit focus button */}
+                        <button
+                          onClick={() => setFocusedScreenShareId(null)}
+                          className="gba:absolute gba:top-3 gba:right-3 gba:p-2 gba:bg-black/70 hover:gba:bg-black/90 gba:rounded-md gba:text-white gba:transition-colors"
+                          data-testid={`${prefixDataTestId}-exit-screen-share-focus-btn`}
+                          aria-label={t('groupCall-exitScreenShareFocus') || 'Exit screen share focus'}
+                        >
+                          <Monitor className="gba:w-5 gba:h-5" />
+                        </button>
+
+                        {/* Expand to fullscreen button */}
+                        <button
+                          onClick={() => {
+                            if (focusedScreenShare.screenShareTrack) {
+                              const stream = new MediaStream([focusedScreenShare.screenShareTrack])
+                              setExpandedScreenShare({
+                                peerId: focusedScreenShare.peerId,
+                                peerName: focusedScreenShare.peerName,
+                                stream
+                              })
+                            }
+                          }}
+                          className="gba:absolute gba:top-3 gba:right-16 gba:p-2 gba:bg-black/70 hover:gba:bg-black/90 gba:rounded-md gba:text-white gba:transition-colors"
+                          data-testid={`${prefixDataTestId}-expand-screen-share-btn`}
+                          aria-label={t('groupCall-expandScreenShare') || 'Expand to fullscreen'}
+                        >
+                          <Maximize2 className="gba:w-5 gba:h-5" />
+                        </button>
+                      </div>
+
+                      {/* Participant Filmstrip - 25% height */}
+                      <div className="gba:flex-[1] gba:min-h-0 gba:border-t gba:border-border">
+                        <HorizontalFilmstrip
+                          participants={
+                            paginatedGridItems.items
+                              .filter(
+                                item =>
+                                  item.type === 'video' ||
+                                  item.type === 'avatar' ||
+                                  (item.type === 'screen-share' && !item.isFocusedScreenShare)
+                              )
+                              .map(item => ({
+                                id: item.id,
+                                peerId: item.peerId,
+                                peerName: item.peerName,
+                                avatarUrl: item.avatarUrl,
+                                userId: item.userId,
+                                customParticipantId: item.customParticipantId,
+                                isLocal: item.isLocal,
+                                isMuted: item.isMuted,
+                                hasVideoTrack: item.hasVideoTrack || false,
+                                hasAudioTrack: item.hasAudioTrack || false,
+                                type: item.type,
+                                screenShareTrack: item.screenShareTrack,
+                                isHandRaised: isParticipantHandRaised(
+                                  item.peerId,
+                                  item.userId,
+                                  item.customParticipantId
+                                ),
+                                handRaisedOrderNumber: getHandRaisedOrderNumber(
+                                  item.peerId,
+                                  item.userId,
+                                  item.customParticipantId
+                                ),
+                                isActiveSpeaker: item.isActiveSpeaker
+                              })) as any
+                          }
+                          videoRefCallback={(peerId: string, isLocal: boolean) =>
+                            getVideoRefCallback(peerId, '', isLocal)
+                          }
+                          screenShareVideoRefCallback={(peerId: string) => (el: HTMLVideoElement | null) => {
+                            if (el) {
+                              screenShareVideoRefs.current.set(peerId, el)
+                            } else {
+                              screenShareVideoRefs.current.delete(peerId)
+                            }
+                          }}
+                          onScreenShareClick={(peerId: string) => {
+                            rtkDebug.log(`[RTK Modal] 🎯 Focusing screen share from filmstrip: ${peerId}`)
+                            setFocusedScreenShareId(peerId)
+                          }}
+                          activeSpeakerId={activeSpeakerId}
+                          reactions={activeReactions}
+                          t={t}
+                          prefixDataTestId={`${prefixDataTestId}-filmstrip`}
+                          isMinimized={callState.isMinimized}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    // GALLERY MODE: Auto-fit grid
+                    <VideoGrid
+                      mode="auto-fit"
+                      minTileSize={minTileSize}
+                      gridItems={paginatedGridItems.items.map(item => (
                         <div
                           key={item.id}
-                          style={{ gridColumn, gridRow }}
-                          className="gba:relative gba:w-full gba:h-full"
+                          className="gba:relative gba:w-full gba:h-full gba:rounded-lg gba:overflow-hidden gba:bg-muted"
+                          style={{ aspectRatio: '16/9' }}
                           data-testid={`${prefixDataTestId}-grid-item-${item.id}`}
                         >
                           <MemoizedParticipantVideoTile
                             peerId={item.peerId}
                             peerName={item.peerName}
+                            avatarUrl={item.avatarUrl}
                             userId={item.userId}
                             customParticipantId={item.customParticipantId}
                             isLocal={item.isLocal}
@@ -2217,7 +2343,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                             hasVideoTrack={item.hasVideoTrack || false}
                             hasAudioTrack={item.hasAudioTrack || false}
                             screenShareTrack={item.screenShareTrack}
-                            isFocusedScreenShare={isFocused}
+                            isFocusedScreenShare={false}
                             totalScreenShares={allScreenShares.length}
                             isHandRaised={isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId)}
                             handRaisedOrderNumber={getHandRaisedOrderNumber(
@@ -2230,20 +2356,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                             isMinimized={callState.isMinimized}
                             onScreenShareClick={() => {
                               if (item.screenShareTrack) {
-                                // Dual behavior: focus if not focused, expand if already focused
-                                if (isFocused) {
-                                  // Already focused → expand to fullscreen
-                                  const stream = new MediaStream([item.screenShareTrack])
-                                  setExpandedScreenShare({
-                                    peerId: item.peerId,
-                                    peerName: item.peerName,
-                                    stream
-                                  })
-                                } else {
-                                  // Not focused → focus this screen share
-                                  rtkDebug.log(`[RTK Modal] 🎯 Focusing screen share via click for ${item.peerId}`)
-                                  setFocusedScreenShareId(item.peerId)
-                                }
+                                rtkDebug.log(`[RTK Modal] 🎯 Focusing screen share via click for ${item.peerId}`)
+                                setFocusedScreenShareId(item.peerId)
                               }
                             }}
                             onScreenShareFocus={() => {
@@ -2266,17 +2380,16 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                             t={t}
                           />
                         </div>
-                      )
-                    })}
-                    gridLayout={gridLayout}
-                    currentPage={currentPage}
-                    totalPages={paginatedGridItems.totalPages}
-                    totalItems={paginatedGridItems.totalItems}
-                    onPageChange={setCurrentPage}
-                    isEmpty={gridItems.length === 0}
-                    prefixDataTestId={prefixDataTestId}
-                    t={t}
-                  />
+                      ))}
+                      currentPage={currentPage}
+                      totalPages={paginatedGridItems.totalPages}
+                      totalItems={paginatedGridItems.totalItems}
+                      onPageChange={setCurrentPage}
+                      isEmpty={gridItems.length === 0}
+                      prefixDataTestId={prefixDataTestId}
+                      t={t}
+                    />
+                  )}
                 </div>
 
                 {/* Footer - Command Bar */}
@@ -2318,6 +2431,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                     handRaisedOrder={callState.handRaisedOrder}
                     localHandRaised={callState.handRaised}
                     localUserId={meeting?.self?.userId}
+                    activeConversation={activeConversation}
                   />
                 </div>
               )}

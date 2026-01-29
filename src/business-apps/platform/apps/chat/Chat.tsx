@@ -1837,6 +1837,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                 currentUserId={currentUser?.id || null}
                 conversationName={realtimeKitGroupCall.currentCallConversationName || activeConversation?.name}
                 wsClient={wsClient}
+                activeConversation={activeConversation}
               />
             </RealtimeKitProvider>
           ) : (

@@ -27,6 +27,7 @@ import {
 import {
   Avatar,
   AvatarFallback,
+  AvatarImage,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -81,6 +82,8 @@ export interface ParticipantsPanelProps {
   activeSpeakerHistory?: string[]
   /** Translation function */
   t?: (key: string) => string
+  /** Active conversation for avatar URLs */
+  activeConversation?: any
 }
 
 export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
@@ -99,11 +102,26 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   localUserId,
   activeSpeakerId,
   activeSpeakerHistory = [],
-  t = (key: string) => key
+  t = (key: string) => key,
+  activeConversation
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [invitingParticipantId, setInvitingParticipantId] = useState<string | null>(null)
   const inviteTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+
+  // Create avatar URL map from conversation participants
+  const avatarUrlMap = React.useMemo(() => {
+    const map = new Map<string, string>()
+    if (activeConversation?.participants) {
+      activeConversation.participants.forEach((cp: any) => {
+        if (cp.user?.avatarUrl) {
+          map.set(cp.userId, cp.user.avatarUrl)
+          map.set(cp.user.id, cp.user.avatarUrl)
+        }
+      })
+    }
+    return map
+  }, [activeConversation?.participants])
   const previousPendingIdsRef = React.useRef<Set<string>>(new Set())
 
   // Handler for inviting a participant with loading state
@@ -394,6 +412,18 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                             isActiveSpeakerNow ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2' : ''
                           }`}
                         >
+                          {(avatarUrlMap.get(participant.userId) ||
+                            avatarUrlMap.get(participant.customParticipantId) ||
+                            avatarUrlMap.get(participant.id)) && (
+                            <AvatarImage
+                              src={
+                                avatarUrlMap.get(participant.userId) ||
+                                avatarUrlMap.get(participant.customParticipantId) ||
+                                avatarUrlMap.get(participant.id)
+                              }
+                              alt={participant.name || 'Unknown'}
+                            />
+                          )}
                           <AvatarFallback className="gba:text-xs">
                             {getInitials(participant.name || 'Unknown')}
                           </AvatarFallback>
@@ -483,6 +513,9 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                     data-testid={`${prefixDataTestId}-participant-invited-${invite.odId}`}
                   >
                     <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0 gba:opacity-60">
+                      {avatarUrlMap.get(invite.odId) && (
+                        <AvatarImage src={avatarUrlMap.get(invite.odId)} alt={invite.odName || 'Unknown'} />
+                      )}
                       <AvatarFallback className="gba:text-xs">{getInitials(invite.odName || 'Unknown')}</AvatarFallback>
                     </Avatar>
                     <div className="gba:flex-1 gba:min-w-0">
@@ -510,6 +543,9 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                   >
                     <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:min-w-0">
                       <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
+                        {avatarUrlMap.get(participant.odId) && (
+                          <AvatarImage src={avatarUrlMap.get(participant.odId)} alt={participant.odName || 'Unknown'} />
+                        )}
                         <AvatarFallback className="gba:text-xs">
                           {getInitials(participant.odName || 'Unknown')}
                         </AvatarFallback>

@@ -14,7 +14,7 @@
 
 import React, { useRef, useEffect } from 'react'
 import { Monitor, ArrowsOutSimple, MagnifyingGlassPlus, MicrophoneSlash, HandIcon } from '@phosphor-icons/react'
-import { Avatar, AvatarFallback } from '@newwork/nw-design-system'
+import { Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
 import { getInitials } from '../../utils/callUtils'
 import { ReactionsOverlay, Reaction } from './ReactionsOverlay'
 import { rtkDebug } from '../../utils/rtkDebug'
@@ -24,6 +24,8 @@ export interface ParticipantVideoTileProps {
   peerId: string
   /** Display name */
   peerName: string
+  /** Avatar URL for displaying user profile picture */
+  avatarUrl?: string
   /** User ID for matching raised hands/reactions */
   userId?: string
   /** Custom participant ID for matching raised hands/reactions */
@@ -69,6 +71,7 @@ export interface ParticipantVideoTileProps {
 export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
   peerId,
   peerName,
+  avatarUrl,
   userId,
   customParticipantId,
   isLocal,
@@ -252,17 +255,18 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
 
       {/* Avatar (shown when no video) */}
       {!hasVideoTrack && (
-        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:w-full gba:h-full gba:gap-2">
-          <Avatar className="gba:w-20 gba:h-20">
-            <AvatarFallback className="gba:text-2xl">{getInitials(peerName)}</AvatarFallback>
+        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:w-full gba:h-full gba:gap-1.5">
+          <Avatar className="gba:w-14 gba:h-14">
+            {avatarUrl && <AvatarImage src={avatarUrl} alt={peerName} />}
+            <AvatarFallback className="gba:text-lg gba:font-semibold">{getInitials(peerName)}</AvatarFallback>
           </Avatar>
-          <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-foreground">
-            <span>
+          <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:font-medium gba:text-foreground gba:px-1 gba:text-center">
+            <span className="gba:truncate gba:max-w-full">
               {peerName} {isLocal ? '(You)' : ''}
             </span>
             {isMuted && (
-              <div className="gba:flex gba:items-center gba:justify-center gba:w-5 gba:h-5 gba:rounded-full gba:bg-destructive">
-                <MicrophoneSlash className="gba:w-3 gba:h-3 gba:text-destructive-foreground" weight="fill" />
+              <div className="gba:flex gba:items-center gba:justify-center gba:w-4 gba:h-4 gba:rounded-full gba:bg-destructive gba:flex-shrink-0">
+                <MicrophoneSlash className="gba:w-2.5 gba:h-2.5 gba:text-destructive-foreground" weight="fill" />
               </div>
             )}
           </div>
