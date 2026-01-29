@@ -223,10 +223,6 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
         exitDate: endDate || undefined,
         employeeId,
         contractStatus: 'ACTIVE'
-      },
-      completeNotification: {
-        type: 'success',
-        message: t('notification-working-conditions-updated-success')
       }
     }
   }

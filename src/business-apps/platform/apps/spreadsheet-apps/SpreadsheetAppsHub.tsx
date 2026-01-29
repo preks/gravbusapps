@@ -685,13 +685,22 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         {/* Logo / Brand */}
         <div className="gba:p-4 gba:border-b">
           {/* Back button row */}
-          <button
-            onClick={() => navigateTo('/platform/apps/platform/apps/desk')}
-            className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors gba:mb-3"
-          >
-            <ChevronLeft className="gba:w-4 gba:h-4" />
-            <span>Back to Desk</span>
-          </button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigateTo('/platform/every-office')}
+                  data-testid={`${testId}-back-to-desk`}
+                  className="gba:mb-2"
+                >
+                  <ChevronLeft className="gba:w-4 gba:h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Back to Desk</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           {/* Existing brand section */}
           <div className="gba:flex gba:items-center gba:gap-3">

@@ -91,6 +91,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   // Platform
   '/platform/every-ai': 'platform/apps/every-ai',
   '/platform/debugger': 'platform/apps/debugger',
+  '/platform/every-office': 'platform/apps/every-office',
   '/platform/apps/desk': 'platform/apps/desk',
   '/platform/apps/document-apps': 'platform/apps/document-apps',
   '/platform/apps/note-apps': 'platform/apps/note-apps',

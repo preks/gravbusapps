@@ -19,6 +19,7 @@ import {
   FormMessage,
   Input,
   Textarea,
+  DateInput,
   Select,
   SelectTrigger,
   SelectValue,
@@ -36,7 +37,6 @@ import {
   getJobRequestTypeOptions,
   getJobRequestStatusOptions
 } from '@/common/data/recruiting/types/enums'
-import { PlannedDateFields } from '../_shared/components/PlannedDateFields'
 
 const jobRequestSchema = z.object({
   id: z.string().optional(),
@@ -359,7 +359,51 @@ const JobRequestForm: React.FC<JobRequestFormProps> = ({ accessToken, userInfo, 
               )}
             />
 
-            <PlannedDateFields control={form.control} prefixDataTestId="job-request-form" />
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <FormField
+                control={form.control}
+                name="plannedHireDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Planned Hire Date</FormLabel>
+                    <FormControl>
+                      <DateInput
+                        type="date"
+                        value={field.value || ''}
+                        onChange={value => field.onChange(value || '')}
+                        placeholder="Select planned hire date..."
+                        data-testid={formatDataTestId('job-request-form', 'planned-hire-date-input')}
+                        captionLayout="dropdown"
+                        outputFormat="iso"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="plannedExitDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Planned Exit Date</FormLabel>
+                    <FormControl>
+                      <DateInput
+                        type="date"
+                        value={field.value || ''}
+                        onChange={value => field.onChange(value || '')}
+                        placeholder="Select planned exit date..."
+                        data-testid={formatDataTestId('job-request-form', 'planned-exit-date-input')}
+                        captionLayout="dropdown"
+                        outputFormat="iso"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <FormField
               control={form.control}

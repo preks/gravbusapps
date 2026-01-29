@@ -6,8 +6,6 @@ import { ErrorAlert } from '@/components/error-alert'
 import { Button, Spinner, Alert, Checkbox, Label } from '@newwork/nw-design-system'
 import { getJobRequestTypeLabel, getJobRequestStatusLabel } from '@/common/data/recruiting/types/enums'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import { JOB_REQUEST_LABELS } from '../_shared/constants/jobRequestLabels'
-import { JOB_REQUEST_LABELS } from '../_shared/constants/jobRequestLabels'
 
 type JobRequestApproveFormProps = BusinessAppContextProps
 
@@ -270,17 +268,13 @@ const JobRequestApproveForm: React.FC<JobRequestApproveFormProps> = ({ accessTok
 
           <div className="gba:grid gba:grid-cols-2 gba:gap-4">
             <div>
-              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">
-                {JOB_REQUEST_LABELS.plannedHiringDate}
-              </div>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Planned Hire Date</div>
               <p className="gba:text-sm gba:mt-1">
                 {jobRequest.plannedHireDate ? new Date(jobRequest.plannedHireDate).toLocaleDateString() : '-'}
               </p>
             </div>
             <div>
-              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">
-                {JOB_REQUEST_LABELS.plannedExitDate}
-              </div>
+              <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">Planned Exit Date</div>
               <p className="gba:text-sm gba:mt-1">
                 {jobRequest.plannedExitDate ? new Date(jobRequest.plannedExitDate).toLocaleDateString() : '-'}
               </p>
