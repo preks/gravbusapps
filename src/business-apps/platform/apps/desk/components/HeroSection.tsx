@@ -93,8 +93,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
                     animation: 'gradient-shift 6s ease infinite'
                   }}
                 >
-                  <span className="gba:font-extrabold">Every</span>
-                  <span className="gba:font-bold">Office</span>
+                  <span className="gba:font-black">Every</span>
+                  <span className="gba:font-semibold">Office</span>
                 </span>
               </h1>
             </div>
