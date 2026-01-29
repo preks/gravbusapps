@@ -3,7 +3,7 @@
  * Analyzes converted entities to provide field coverage statistics and warnings
  */
 
-import { ConvertedEntity, TargetFieldDefinition } from '@/common/data/customer/agents/types'
+import { ConvertedEntity, TargetFieldDefinition } from '@/common/components/common-relations/apps/data-import/types'
 
 export interface FieldCoverage {
   fieldName: string

@@ -7,10 +7,14 @@ import React from 'react'
 import { PageLayout, Alert, AlertDescription } from '@newwork/nw-design-system'
 import { XCircleIcon, SparkleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useEntityImport, useEntityMappings } from '@/common/data/customer/agents/hooks'
-import { FileUploadStep, MappingReviewStep, ConversionResultStep } from '@/common/data/customer/agents/components'
+import { useEntityImport, useEntityMappings } from '@/common/components/common-relations/apps/data-import/hooks'
+import {
+  FileUploadStep,
+  MappingReviewStep,
+  ConversionResultStep
+} from '@/common/components/common-relations/apps/data-import/components'
 import { accountImportConfig } from './config/accountImportConfig'
-import { ConvertedAccount } from './types'
+import { ConvertedAccount } from './types/accountImportTypes'
 
 export interface AccountImportViewProps extends BusinessAppContextProps {
   onBack?: () => void

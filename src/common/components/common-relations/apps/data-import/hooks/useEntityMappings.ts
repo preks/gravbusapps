@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from 'react'
-import { FieldMapping, TargetFieldDefinition } from '@/common/data/customer/agents/types'
+import { FieldMapping, TargetFieldDefinition } from '@/common/components/common-relations/apps/data-import/types'
 
 export interface UseEntityMappingsReturn {
   mappings: FieldMapping[]

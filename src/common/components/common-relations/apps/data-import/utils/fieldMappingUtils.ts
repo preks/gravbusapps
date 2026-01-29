@@ -3,7 +3,12 @@
  * Extracted from LeadImportExample lines 346-365
  */
 
-import { FieldMapping, ParsedRow, ConvertedEntity, CatalogLookupCache } from '@/common/data/customer/agents/types'
+import {
+  FieldMapping,
+  ParsedRow,
+  ConvertedEntity,
+  CatalogLookupCache
+} from '@/common/components/common-relations/apps/data-import/types'
 
 /**
  * Apply field mappings to convert a parsed row to an entity

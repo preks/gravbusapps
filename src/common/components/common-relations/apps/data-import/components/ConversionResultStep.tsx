@@ -16,8 +16,12 @@ import {
   MapPinIcon,
   ArrowCounterClockwiseIcon
 } from '@phosphor-icons/react'
-import { ConvertedEntity, TargetFieldDefinition, ImportResult } from '../types'
-import { calculateDataQuality } from '../utils/dataQualityCalculator'
+import {
+  ConvertedEntity,
+  TargetFieldDefinition,
+  ImportResult
+} from '@/common/components/common-relations/apps/data-import/types'
+import { calculateDataQuality } from '@/common/components/common-relations/apps/data-import/utils/dataQualityCalculator'
 import { pluralize } from '@/common/utils/pluralize'
 
 export interface ConversionResultStepProps {
@@ -110,8 +114,8 @@ export const ConversionResultStep: React.FC<ConversionResultStepProps> = ({
 
             {/* Conversion Success Message (shown when not yet imported) */}
             {!importResult && (
-              <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-success-foreground">
-                <CheckCircleIcon className="gba:w-5 gba:h-5" weight="fill" />
+              <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-success">
+                <CheckCircleIcon className="gba:w-5 gba:h-5 gba:text-success" weight="fill" />
                 Successfully converted {convertedEntities.length} {entityLabel}
               </div>
             )}
@@ -125,10 +129,7 @@ export const ConversionResultStep: React.FC<ConversionResultStepProps> = ({
                     Preview (First {previewEntities.length} {entityLabel})
                   </h3>
                   {previewEntities.map((entity, idx) => (
-                    <Card
-                      key={`${entity.firstName || ''}-${entity.lastName || ''}-${entity.companyName || ''}-${idx}`}
-                      data-testid={`${testId}-preview-${idx}`}
-                    >
+                    <Card key={idx} data-testid={`${testId}-preview-${idx}`}>
                       <CardContent className="gba:p-3">
                         <div className="gba:space-y-2">
                           {/* Name and Position */}

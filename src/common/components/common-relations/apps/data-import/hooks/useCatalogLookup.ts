@@ -6,8 +6,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
-import { CatalogData } from '@/common/data/customer/agents/types'
-import { lookupCatalogEntry as lookupUtil } from '@/common/data/customer/agents/utils'
+import { CatalogData } from '@/common/components/common-relations/apps/data-import/types'
+import { lookupCatalogEntry as lookupUtil } from '@/common/components/common-relations/apps/data-import/utils'
 
 export interface UseCatalogLookupProps {
   accessToken: string
