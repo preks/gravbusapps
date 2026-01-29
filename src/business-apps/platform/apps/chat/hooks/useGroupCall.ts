@@ -80,6 +80,8 @@ export interface UseGroupCallReturn {
   incomingInvite: GroupCallInvite | null
   activeConversationCalls: Map<string, ActiveConversationCall> // roomId -> call info
   currentCallConversationName?: string // Conversation name for the current active call
+  activeSpeakerId?: string | null // Current active speaker ID (RTK only)
+  activeSpeakerHistory?: string[] // Recent speakers for sorting (RTK only)
   startCall: (
     roomId: string,
     callType: CallType,

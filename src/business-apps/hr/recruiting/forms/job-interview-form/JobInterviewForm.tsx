@@ -32,7 +32,12 @@ import {
   Badge,
   RadioGroup,
   RadioGroupItem,
-  Label
+  Label,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
 } from '@newwork/nw-design-system'
 import { JobInterviewStatus } from '@/common/data/recruiting/types/enums'
 import { X } from 'lucide-react'
@@ -44,6 +49,7 @@ const jobInterviewSchema = z.object({
   duration: z.number().min(1, 'Duration must be at least 1 minute').optional(),
   location: z.string().optional(),
   meetingLink: z.string().optional(),
+  jobInterviewStatus: z.nativeEnum(JobInterviewStatus).optional(),
   jobApplicationId: z.string().min(1, 'Job application is required'),
   meetingType: z.enum(['everyone', 'external']).default('everyone'),
   jobInterviewParticipants: z
@@ -298,17 +304,20 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
 
   const handlePreSubmit = useCallback(
     async (data: JobInterviewFormValues): Promise<JobInterviewFormValues> => {
+      // Use user-provided status, or default to SCHEDULED
+      const status = data.jobInterviewStatus || JobInterviewStatus.SCHEDULED
+
       if (meetingType !== 'everyone') {
         return {
           ...data,
-          jobInterviewStatus: JobInterviewStatus.SCHEDULED
+          jobInterviewStatus: status
         }
       }
 
       if (!data.scheduledAt || !data.duration) {
         return {
           ...data,
-          jobInterviewStatus: JobInterviewStatus.SCHEDULED
+          jobInterviewStatus: status
         }
       }
 
@@ -322,13 +331,13 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
         return {
           ...data,
           meetingLink,
-          jobInterviewStatus: JobInterviewStatus.SCHEDULED
+          jobInterviewStatus: status
         }
       } catch (error) {
         console.error('Error creating/updating chat meeting:', error)
         return {
           ...data,
-          jobInterviewStatus: JobInterviewStatus.SCHEDULED
+          jobInterviewStatus: status
         }
       }
     },
@@ -341,7 +350,6 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
         const processedData = await handlePreSubmit(data)
         const { jobInterview: payload, jobInterviewParticipants } = buildJobInterviewPayload({
           ...processedData,
-          jobInterviewStatus: JobInterviewStatus.SCHEDULED,
           jobInterviewParticipants: participants
         })
         return {
@@ -488,6 +496,31 @@ const JobInterviewForm: React.FC<JobInterviewFormProps> = ({ accessToken, additi
                       captionLayout="dropdown"
                       outputFormat="iso"
                     />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Interview Status */}
+            <FormField
+              control={form.control}
+              name="jobInterviewStatus"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Interview Status</FormLabel>
+                  <FormControl>
+                    <Select value={field.value || ''} onValueChange={field.onChange}>
+                      <SelectTrigger data-testid={formatDataTestId('job-interview-form', 'status-select')}>
+                        <SelectValue placeholder="Select status..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={JobInterviewStatus.SCHEDULED}>Scheduled</SelectItem>
+                        <SelectItem value={JobInterviewStatus.COMPLETED}>Completed</SelectItem>
+                        <SelectItem value={JobInterviewStatus.CANCELLED}>Cancelled</SelectItem>
+                        <SelectItem value={JobInterviewStatus.NO_SHOW}>No Show</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

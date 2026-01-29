@@ -12,6 +12,7 @@
 3. [Priority Recommendations](#priority-recommendations)
 4. [Implementation Examples](#implementation-examples)
 5. [API Resources](#api-resources)
+6. [Important Documentation](#important-documentation)
 
 ---
 
@@ -96,6 +97,14 @@
   - Status: Global timer synchronized across participants
   - Location: `startTimeRef`, `durationTimerRef`
   - Sync: Via `conversation:call-started` event
+
+- **Cross-Tab Call Prevention** ✅
+  - Status: Fully implemented (Jan 2026)
+  - Location: `useRealtimeKitGroupCall.ts` (localStorage coordination)
+  - Features: Prevents calls from ringing in multiple tabs simultaneously
+  - Mechanism: localStorage with 5-second expiration + heartbeat
+  - Documentation: See [CROSS-TAB-CALL-PREVENTION.md](./CROSS-TAB-CALL-PREVENTION.md)
+  - ⚠️ Critical for UX - do not modify without reading documentation
 
 ---
 
@@ -994,6 +1003,40 @@ meeting.self.on('screenShareUpdate', handler)
 - Prioritized features by impact and effort
 - Added implementation examples for top 4 features
 - Included API reference and SDK documentation
+
+---
+
+## 📚 Important Documentation
+
+### Cross-Tab Call Prevention
+
+**Document**: [CROSS-TAB-CALL-PREVENTION.md](./CROSS-TAB-CALL-PREVENTION.md)
+
+**Purpose**: Prevents incoming call dialogs and ringtones from appearing in multiple tabs simultaneously.
+
+**Key Mechanism**: Uses localStorage as a cross-tab communication channel with 5-second expiration window.
+
+**Critical for**: User experience - without this, calls ring in all open tabs creating a terrible UX.
+
+**⚠️ WARNING**: This mechanism has been broken multiple times during development. Read the documentation before modifying call handling code.
+
+**Quick Reference**:
+
+- Helper functions: `isInCallInAnotherTab()`, `setActiveCallInStorage()`, `clearActiveCallFromStorage()`
+- Check before showing invite: Line ~945 in `useRealtimeKitGroupCall.ts`
+- Mark active on join: Line ~691
+- Clear on leave: Line ~865
+- Heartbeat: Lines ~1115-1129
+- Storage listener: Lines ~1135-1156
+
+**Testing**: Open multiple tabs, start a call, accept in one tab → other tabs should dismiss immediately.
+
+### Other Documentation
+
+- **Active Speaker Detection**: [ACTIVE-SPEAKER-DETECTION.md](./ACTIVE-SPEAKER-DETECTION.md)
+- **Moderator Controls**: [MODERATOR-CONTROLS.md](./MODERATOR-CONTROLS.md)
+- **Add Participants UX**: [ADD-PARTICIPANTS-UX-PROPOSAL.md](./ADD-PARTICIPANTS-UX-PROPOSAL.md)
+- **Debug Guide**: [README-DEBUG.md](./README-DEBUG.md)
 
 ---
 

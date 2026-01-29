@@ -14,3 +14,10 @@ opportunity-stage-no-stages-for-pipeline = Keine Stages für diese Pipeline verf
 opportunity-stage-loading = Lade Stages...
 opportunity-status-placeholder = Bitte auswählen...
 
+# Validation errors
+opportunity-validation-ownerRequired = Eigentümer ist erforderlich
+opportunity-validation-nameRequired = Opportunity-Name ist erforderlich
+opportunity-validation-pipelineRequired = Pipeline ist erforderlich
+opportunity-validation-stageRequired = Phase ist erforderlich
+opportunity-validation-stageRequiredWhenPipelineSelected = Phase ist erforderlich, wenn Pipeline ausgewählt ist
+

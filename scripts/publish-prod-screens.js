@@ -173,7 +173,7 @@ const SECONDARY_TARGET =
 
 // Helper function to detect if the screen is a form
 function isFormScreen(screenPath) {
-  return screenPath.includes('/forms/')
+  return screenPath.includes('/forms/') || screenPath.includes('/windows/') || screenPath.includes('/popups/')
 }
 
 // Helper function to convert camelCase to natural language with spaces
@@ -229,14 +229,22 @@ async function searchResourceUrlInDev(urlOrPath, devOauthConfig) {
     console.log(`   Strategy 2 failed: ${error.message}`)
   }
 
-  // Strategy 3: Search without "apps" or "forms" terms
+  // Strategy 3: Search without "apps", "forms", "popups", "records", or "windows" terms
   const pathWithoutAppsOrForms = searchPath
     .replace(/\/apps\//g, '/')
     .replace(/^apps\//, '')
     .replace(/\/forms\//g, '/')
     .replace(/^forms\//, '')
+    .replace(/\/popups\//g, '/')
+    .replace(/^popups\//, '')
+    .replace(/\/records\//g, '/')
+    .replace(/^records\//, '')
+    .replace(/\/windows\//g, '/')
+    .replace(/^windows\//, '')
   if (pathWithoutAppsOrForms !== searchPath) {
-    console.log(`   Strategy 3: Searching without 'apps'/'forms' terms: ${pathWithoutAppsOrForms}`)
+    console.log(
+      `   Strategy 3: Searching without 'apps'/'forms'/'popups'/'records'/'windows' terms: ${pathWithoutAppsOrForms}`
+    )
     try {
       const resourceUrls = await getResourceUrls(devNavigationApi, devOauthConfig, {
         search: pathWithoutAppsOrForms,
@@ -1426,8 +1434,15 @@ async function findAllScreenDirectories() {
   const formIndexFiles = await glob('src/business-apps/**/forms/*/index.ts', { nodir: true })
   const popupIndexFiles = await glob('src/business-apps/**/popups/*/index.ts', { nodir: true })
   const recordIndexFiles = await glob('src/business-apps/**/records/*/index.ts', { nodir: true })
+  const windowIndexFiles = await glob('src/business-apps/**/windows/*/index.ts', { nodir: true })
 
-  const allIndexFiles = [...appIndexFiles, ...formIndexFiles, ...popupIndexFiles, ...recordIndexFiles]
+  const allIndexFiles = [
+    ...appIndexFiles,
+    ...formIndexFiles,
+    ...popupIndexFiles,
+    ...recordIndexFiles,
+    ...windowIndexFiles
+  ]
   const uniqueDirs = new Set()
 
   for (const filePath of allIndexFiles) {
@@ -1473,7 +1488,7 @@ async function main() {
         normalized = normalized.replace(/\.tsx?$/, '')
         // Extract screen directory (module/sub-module/.../app-name) - remove subfolders
         // e.g., hr/core/apps/employee-record/components/Foo -> hr/core/apps/employee-record
-        const screenMatch = normalized.match(/^(.*?\/(?:apps|forms|popups|records)\/[^/]+)/)
+        const screenMatch = normalized.match(/^(.*?\/(?:apps|forms|popups|records|windows)\/[^/]+)/)
         if (screenMatch) {
           normalized = screenMatch[1]
         }

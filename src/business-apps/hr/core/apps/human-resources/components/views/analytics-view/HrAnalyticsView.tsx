@@ -223,10 +223,12 @@ export const HrAnalyticsView: React.FC<BusinessAppContextProps> = context => {
               key={option.key}
               value={option.key}
               data-testid={`analytics-${option.key}-tab`}
-              className="gba:flex gba:items-center gba:gap-2"
+              className="gba:flex gba:flex-row gba:items-center gba:gap-2"
             >
-              {option.icon}
-              {option.label}
+              <span className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
+                {option.icon}
+                {option.label}
+              </span>
             </TabsTrigger>
           ))}
         </TabsList>

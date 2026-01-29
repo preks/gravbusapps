@@ -75,7 +75,10 @@ async function uploadDirectory(buildOutputDir, azureDestinationPath) {
     try {
       console.log(`   Uploading: ${file} as ${blobName} (Content-Type: ${contentType})`)
       await blockBlobClient.uploadFile(localFilePath, {
-        blobHTTPHeaders: { blobContentType: contentType }
+        blobHTTPHeaders: {
+          blobContentType: contentType,
+          blobCacheControl: 'no-cache'
+        }
       })
     } catch (error) {
       console.error(`❌ Error uploading ${file}:`, error.message)

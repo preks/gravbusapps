@@ -49,8 +49,8 @@ export const ChangePersonalDataProvider: React.FC<ProviderProps> = ({
     setIsLoading(true)
     setError(null)
     try {
-      // Fetch employee first
-      const empVariables = { idEmployee: employeeId }
+      // Fetch employee first with locale for catalog translations
+      const empVariables = { idEmployee: employeeId, activeUserLocale }
       const employeeData = await graphqlClient.request<EmployeeDataResponse>(EMPLOYEE_DATA_QUERY, empVariables)
       setData({ employee: employeeData, catalogs: null })
       setIsLoading(false)

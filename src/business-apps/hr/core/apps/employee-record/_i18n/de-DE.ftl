@@ -81,9 +81,12 @@ benefit-status-scheduled = Geplant
 benefit-status-pending = Ausstehend
 benefit-status-available = Verfügbar
 benefit-request-button = Anfordern
+benefit-pending-request-info = Sie haben diese Zusatzleistung bereits angefordert. Sie können nur eine aktive Anfrage gleichzeitig haben. Die Anfrage wartet auf Genehmigung.
+benefit-pending-request-notice = Eine Anfrage für diese Zusatzleistung wartet derzeit auf Genehmigung
 benefit-request-employee-id-missing = Mitarbeiter-ID nicht verfügbar. Kann Leistungsanfrage nicht initiieren.
 benefit-already-scheduled = Geplant
 benefit-deactivate-button = Deaktivieren
+benefit-deactivated-button = Deaktiviert
 benefit-view-details = Details anzeigen
 benefit-provider = Anbieter
 benefit-value-yearly = Jahreswert
@@ -147,8 +150,8 @@ modal-request-period-label = Leistungszeitraum
 modal-request-period-placeholder = Geschätzten Zeitraum eingeben
 modal-request-value-help = Optional: Geschätzter jährlicher Wert dieser Zusatzleistung
 modal-request-start-date-label = Startdatum
-modal-request-justification-label = Begründung
-modal-request-justification-placeholder = Erklären Sie, warum Sie diese Zusatzleistung benötigen...
+modal-request-justification-label = Erzählen Sie uns mehr
+modal-request-justification-placeholder = Wir würden gerne erfahren, warum Ihnen das wichtig ist.
 modal-request-justification-help = Mindestens { $min } Zeichen, maximal { $max } Zeichen
 modal-request-submit-button = Anfrage einreichen
 modal-request-cancel-button = Abbrechen
@@ -289,3 +292,58 @@ notification-sick-leave-reported-success = Krankmeldung erfolgreich erfasst
 notification-special-leave-requested-success = Sonderurlaub erfolgreich beantragt
 notification-vacation-requested-success = Urlaub erfolgreich beantragt
 notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
+
+# Employee Record - Errors and states
+employee-record-error-title = Fehler
+employee-record-error-loading-data = Fehler beim Laden der Mitarbeiterdaten.
+employee-record-not-found-title = Nicht gefunden
+employee-record-not-found-message = Mitarbeiter nicht gefunden.
+employee-record-not-assigned = Nicht zugewiesen
+employee-record-edit-picture = Bild bearbeiten
+
+# Employee Record - Chat / communication
+employee-record-chat-button = Chat
+employee-record-chat-tooltip = Chat
+employee-record-chat-cannot-self = Sie können nicht mit sich selbst chatten
+employee-record-audio-call-button = Anruf
+employee-record-audio-tooltip = Anruf
+employee-record-audio-cannot-self = Sie können sich nicht selbst anrufen
+employee-record-video-call-button = Videoanruf
+employee-record-video-tooltip = Videoanruf
+employee-record-video-cannot-self = Sie können sich nicht selbst per Video anrufen
+
+# Employee Record - Tab labels
+employee-record-tab-summary = Übersicht
+employee-record-tab-hr-admin = HR Admin
+employee-record-tab-hr-growth = HR Growth
+employee-record-tab-compensation = Vergütung
+employee-record-tab-time-tracking = Zeiterfassung
+employee-record-tab-absences = Abwesenheiten
+employee-record-tab-assets = Sachmittel
+employee-record-tab-service-requests = Serviceanfragen
+
+# Profile Header - Detail labels
+profile-header-work-email = Arbeit-E-Mail
+profile-header-work-phone = Diensttelefon
+profile-header-organization = Organisation
+profile-header-location = Standort
+profile-header-manager = Vorgesetzte/r
+profile-header-no-manager = Kein Vorgesetzter
+profile-header-job-position = Position
+profile-header-cost-center = Kostenstelle
+profile-header-hire-date = Eintrittsdatum
+profile-header-fixed-term-until = Befristet bis
+profile-header-na = k. A.
+
+# Profile Header - Time units (tenure)
+profile-header-year = Jahr
+profile-header-years = Jahre
+profile-header-month = Monat
+profile-header-months = Monate
+
+# Profile Header - Sections
+profile-header-teams = Teams
+profile-header-capabilities = Fähigkeiten
+profile-header-skills = Kompetenzen
+profile-header-no-capabilities = Keine Fähigkeiten zugewiesen
+profile-header-no-skills = Keine Kompetenzen zugewiesen
