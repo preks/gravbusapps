@@ -16,6 +16,8 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useCustomerAccount } from '@/common/data/customer/hooks/useCustomerAccount'
+import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
+import { useAccountAiSummary } from './hooks/useAccountAiSummary'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
 import { HomeView } from './views/home-view/HomeView'
@@ -59,6 +61,9 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
   }, [])
 
   const { account: accountData, loading, error, refetch } = useCustomerAccount(props.accessToken, accountId)
+
+  // AI Summary hook - must be called before any conditional returns
+  const aiSummaryHook = useAccountAiSummary(accountId, props.accessToken)
 
   const handleTabChange = useCallback((value: string) => {
     if ((ALLOWED_TABS as readonly string[]).includes(value)) {
@@ -160,6 +165,15 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
     [accountId, accountData?.name, props.accessToken]
   )
 
+  const headerActions = (
+    <AiActions
+      entityType="account"
+      entityId={accountId}
+      features={['summary', 'meeting-planner']}
+      hooks={{ summary: aiSummaryHook, meetingPlanner: aiSummaryHook }}
+    />
+  )
+
   const subViewsConfig = useMemo(
     () => ({
       defaultValue: activeTab,
@@ -234,6 +248,7 @@ const AccountRecordContent: React.FC<AccountRecordContentProps> = ({ accountId, 
         headerTitle={accountData.name || 'Unknown Account'}
         headerMeta={headerMeta}
         headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+        headerActions={headerActions}
         headerActionButton={headerActionButton}
         views={subViewsConfig.items}
         defaultView={subViewsConfig.defaultValue}
