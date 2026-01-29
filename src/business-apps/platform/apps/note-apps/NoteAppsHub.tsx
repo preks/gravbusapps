@@ -51,9 +51,11 @@ import {
   Link2,
   User,
   LayoutGrid,
-  PenTool
+  PenTool,
+  ChevronLeft
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 // Components
 import { type SharedUserInfo } from './components/NotePreviewCard'
@@ -850,6 +852,24 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       <aside className="gba:w-60 gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0">
         {/* Logo / Brand */}
         <div className="gba:p-4 gba:border-b">
+          {/* Back button row */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigateTo('/platform/apps/desk')}
+                  data-testid={`${testId}-back-to-desk`}
+                  className="gba:mb-2"
+                >
+                  <ChevronLeft className="gba:w-4 gba:h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Back to Desk</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           <div className="gba:flex gba:items-center gba:gap-3">
             <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-amber-500 gba:to-orange-600 gba:flex gba:items-center gba:justify-center">
               <StickyNote className="gba:w-5 gba:h-5 gba:text-white" />
