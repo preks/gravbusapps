@@ -1,29 +1,31 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { ChatSession, ChatMessage, CreateSessionDto } from '../types/chat.types'
+import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
-// IMPORTANT:
-// - Published screens run in the platform host where `process` is not available.
-// - Use Vite env vars (import.meta.env.*) to avoid `ReferenceError: process is not defined`.
-// - For WebSocket connections, we need the base URL without /api/v1 suffix
-const getDocumentServiceBaseUrl = (): string => {
-  // Try VITE_DOCUMENT_SERVICE_URL first (for local dev with custom URL)
-  const viteUrl = import.meta.env.VITE_DOCUMENT_SERVICE_URL as string | undefined
-  if (viteUrl) {
-    return viteUrl.replace(/\/api\/v1\/?$/, '')
-  }
-
-  // Fall back to NEXT_PUBLIC_DOCUMENT_SERVICE_URL (standard pattern)
-  const nextPublicUrl = import.meta.env.NEXT_PUBLIC_DOCUMENT_SERVICE_URL as string | undefined
-  if (nextPublicUrl) {
-    return nextPublicUrl.replace(/\/api\/v1\/?$/, '')
-  }
-
-  // Default to localhost for local development
-  return 'http://localhost:3002'
+type ChatSocketConfig = {
+  namespaceUrl: string
+  socketPath: string
+  serviceUrl: string
 }
 
-const DOCUMENT_SERVICE_URL = getDocumentServiceBaseUrl()
+/**
+ * IMPORTANT (matches `CollaborationClient` setup):
+ * - The Socket.IO **engine** is served under `/document/socket.io` behind the platform proxy.
+ * - The Socket.IO **namespace** is served at the platform origin, e.g. `https://.../document-chat`.
+ */
+const getChatSocketConfig = (): ChatSocketConfig => {
+  const apiUrl = getDocumentServiceApiUrl() // e.g. https://.../document/api/v1
+  const serviceUrl = apiUrl.replace(/\/api\/v1\/?$/, '') // e.g. https://.../document
+  const urlObj = new URL(serviceUrl)
+  const servicePath = urlObj.pathname // e.g. /document
+
+  const isLocalhost = urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1'
+  const namespaceUrl = `${urlObj.origin}/document-chat`
+  const socketPath = isLocalhost ? '/socket.io' : `${servicePath}/socket.io`
+
+  return { namespaceUrl, socketPath, serviceUrl }
+}
 
 interface UseDocumentChatProps {
   userId: string
@@ -45,10 +47,30 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
   useEffect(() => {
     if (!userId || !accessToken) return
 
-    const newSocket = io(`${DOCUMENT_SERVICE_URL}/document-chat`, {
+    const { namespaceUrl, socketPath, serviceUrl } = getChatSocketConfig()
+
+    // High-signal connection logging (helps debug platform proxy issues)
+
+    console.log('[DocumentChat] Connecting...', {
+      serviceUrl,
+      namespaceUrl,
+      socketPath
+    })
+
+    const newSocket = io(namespaceUrl, {
+      path: socketPath,
       query: { userId },
       auth: { token: accessToken },
-      transports: ['websocket']
+      // Mirror collaboration defaults: allow polling fallback through proxies
+      transports: ['websocket', 'polling'],
+      timeout: 20000,
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
+      upgrade: true,
+      rememberUpgrade: true,
+      forceNew: false
     })
 
     newSocket.on('connect', () => {
@@ -59,14 +81,26 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
 
     newSocket.on('connect_error', (err: unknown) => {
       const message = err instanceof Error ? err.message : 'Failed to connect to chat service'
-      console.error('Document chat connect error:', message)
+      console.error('Document chat connect error:', message, err)
       setIsConnected(false)
       setError(message)
     })
 
-    newSocket.on('disconnect', () => {
-      console.log('Disconnected from document chat')
+    newSocket.on('disconnect', (reason: string) => {
+      console.log('[DocumentChat] ❌ Disconnected:', reason)
       setIsConnected(false)
+    })
+
+    newSocket.on('reconnect', (attemptNumber: number) => {
+      console.log('[DocumentChat] 🔄 Reconnected after', attemptNumber, 'attempts')
+    })
+
+    newSocket.on('reconnect_attempt', (attemptNumber: number) => {
+      console.log('[DocumentChat] 🔄 Reconnection attempt:', attemptNumber)
+    })
+
+    newSocket.on('reconnect_error', (err: Error) => {
+      console.error('[DocumentChat] ❌ Reconnection error:', err.message)
     })
 
     newSocket.on('token', (data: { token: string }) => {
@@ -148,8 +182,9 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
   // Fetch session history via REST API
   const fetchSessionHistory = useCallback(
     async (sessionId: string) => {
+      const apiUrl = getDocumentServiceApiUrl()
       try {
-        const response = await fetch(`${DOCUMENT_SERVICE_URL}/api/v1/chat/sessions/${sessionId}/history`, {
+        const response = await fetch(`${apiUrl}/chat/sessions/${sessionId}/history`, {
           headers: {
             Authorization: `Bearer ${accessToken}`
           }
@@ -163,7 +198,7 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
         setMessages(history)
 
         // Fetch session details
-        const sessionResponse = await fetch(`${DOCUMENT_SERVICE_URL}/api/v1/chat/sessions/${sessionId}`, {
+        const sessionResponse = await fetch(`${apiUrl}/chat/sessions/${sessionId}`, {
           headers: {
             Authorization: `Bearer ${accessToken}`
           }
@@ -215,8 +250,9 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
 
   // Get user sessions via REST API
   const getUserSessions = useCallback(async (): Promise<ChatSession[]> => {
+    const apiUrl = getDocumentServiceApiUrl()
     try {
-      const response = await fetch(`${DOCUMENT_SERVICE_URL}/api/v1/chat/sessions`, {
+      const response = await fetch(`${apiUrl}/chat/sessions`, {
         headers: {
           Authorization: `Bearer ${accessToken}`
         }
@@ -237,8 +273,9 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
   // Delete session
   const deleteSession = useCallback(
     async (sessionId: string) => {
+      const apiUrl = getDocumentServiceApiUrl()
       try {
-        const response = await fetch(`${DOCUMENT_SERVICE_URL}/api/v1/chat/sessions/${sessionId}`, {
+        const response = await fetch(`${apiUrl}/chat/sessions/${sessionId}`, {
           method: 'DELETE',
           headers: {
             Authorization: `Bearer ${accessToken}`
