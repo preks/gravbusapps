@@ -19,7 +19,7 @@ import {
   Checkbox,
   Spinner
 } from '@newwork/nw-design-system'
-import { useTeamAssignments, AvailableEmployee } from '../../hooks/useTeamAssignments'
+import { useTeamAssignments, AvailableEmployee } from '../../project-management/hooks/useTeamAssignments'
 import { useTranslation } from 'react-i18next'
 import { BriefcaseIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 
