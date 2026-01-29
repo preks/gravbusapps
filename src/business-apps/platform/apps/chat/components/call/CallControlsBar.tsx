@@ -87,7 +87,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
             className={`gba:p-3 gba:rounded-full gba:transition-all ${
               isMuted
                 ? 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
-                : 'gba:bg-accent hover:gba:bg-accent/90'
+                : 'gba:bg-accent gba:text-accent-foreground hover:gba:bg-accent/90'
             }`}
             data-testid={`${prefixDataTestId}-mute-btn`}
             aria-label={isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
@@ -107,7 +107,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
               className={`gba:p-3 gba:rounded-full gba:transition-all ${
                 !isVideoEnabled
                   ? 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
-                  : 'gba:bg-accent hover:gba:bg-accent/90'
+                  : 'gba:bg-accent gba:text-accent-foreground hover:gba:bg-accent/90'
               }`}
               data-testid={`${prefixDataTestId}-video-btn`}
               aria-label={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}

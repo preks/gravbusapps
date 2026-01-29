@@ -64,17 +64,22 @@ export const useRealtimeKitMedia = ({
   const virtualBackgroundRef = useRef<RTKVirtualBackground | null>(null)
   const hasJustJoinedRef = useRef(false)
   const hasAppliedInitialBackgroundRef = useRef(false)
+  const previousCallTypeRef = useRef<'audio' | 'video'>(callType)
 
   // CRITICAL: React to callType changes (e.g., when upgrading from audio to video mid-call)
   // BUT: Skip forcing video during initial join - trust SDK state from user preferences
+  // AND: Don't fight against manual user toggles - only react to actual callType changes
   useEffect(() => {
     const shouldEnableVideo = callType === 'video'
     const isInitialJoin = callStatus === 'joining' || callStatus === 'idle'
     const isConnected = callStatus === 'connected'
     const sdkVideoEnabled = meeting?.self?.videoEnabled ?? false
+    const callTypeChanged = previousCallTypeRef.current !== callType
 
     rtkDebug.log('[RTK Media] callType changed, updating video state:', {
       callType,
+      previousCallType: previousCallTypeRef.current,
+      callTypeChanged,
       currentIsVideoEnabled: isVideoEnabled,
       willSetVideoEnabled: shouldEnableVideo,
       hasMeeting: !!meeting,
@@ -85,6 +90,9 @@ export const useRealtimeKitMedia = ({
       isConnected,
       hasJustJoined: hasJustJoinedRef.current
     })
+
+    // Update the ref for next comparison
+    previousCallTypeRef.current = callType
 
     // CRITICAL: During initial join OR right after connecting, trust SDK state over callType
     // User may have disabled video in pre-join dialog even for video calls
@@ -136,8 +144,19 @@ export const useRealtimeKitMedia = ({
       return
     }
 
-    // Mid-call: Update state based on callType (only after hasJustJoined flag is cleared)
+    // CRITICAL: Only take action when callType ACTUALLY CHANGES (audio→video upgrade)
+    // Do NOT fight against manual user toggles when callType hasn't changed
+    if (!callTypeChanged) {
+      rtkDebug.log('[RTK Media] Skipping video enforcement - callType unchanged, respecting manual toggle')
+      return
+    }
+
+    // Mid-call: Update state based on callType (only when callType actually changes)
     if (isVideoEnabled !== shouldEnableVideo) {
+      rtkDebug.log('[RTK Media] callType changed, updating video to match:', {
+        from: isVideoEnabled,
+        to: shouldEnableVideo
+      })
       setIsVideoEnabled(shouldEnableVideo)
 
       // Enable/disable video in SDK to match new callType
