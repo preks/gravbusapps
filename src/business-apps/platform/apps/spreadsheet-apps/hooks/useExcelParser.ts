@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback } from 'react'
+import ExcelJS from 'exceljs'
 import type { ParsedExcelFile, ParsedSheet, ParsedColumn, ExcelMetadata } from '../types'
 
 export interface UseExcelParserState {
@@ -23,8 +24,6 @@ export interface UseExcelParserResult extends UseExcelParserState {
 
 const MAX_SAMPLE_VALUES = 10
 const MAX_ROWS_FOR_TYPE_INFERENCE = 100
-
-type ExcelJSImport = typeof import('exceljs')
 
 type NormalizedCellValue = string | number | boolean | null
 
@@ -174,7 +173,6 @@ async function parseXlsxArrayBuffer(arrayBuffer: ArrayBuffer): Promise<{
   sheets: ParsedSheet[]
   metadata: ExcelMetadata
 }> {
-  const { default: ExcelJS } = (await import('exceljs')) as ExcelJSImport
   const workbook = new ExcelJS.Workbook()
   await workbook.xlsx.load(arrayBuffer)
 

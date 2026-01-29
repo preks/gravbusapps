@@ -15,6 +15,7 @@ import { HeroSection } from './components/HeroSection'
 
 export interface EveryAIProps extends BusinessAppContextProps {
   className?: string
+  isActive?: boolean
 }
 
 /**
@@ -34,7 +35,7 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
  * Inner component that uses the VoiceFormContext
  */
 const EveryAIInner: React.FC<EveryAIProps> = props => {
-  const { accessToken, className, userInfo } = props
+  const { accessToken, className, userInfo, isActive = true } = props
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isSpeechMode, setIsSpeechMode] = useState(false)
   const isSpeechModeRef = useRef(false) // Ref for use in callbacks
@@ -57,7 +58,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     cancelGeneration,
     cancelledMessageText,
     clearCancelledMessage
-  } = useFlowBot(accessToken)
+  } = useFlowBot(accessToken, { isActive })
 
   // Fetch current user's picture
   const { pictureThumbnail } = useCurrentUserPicture(userInfo?.employeeDetails?.employeeId, accessToken)

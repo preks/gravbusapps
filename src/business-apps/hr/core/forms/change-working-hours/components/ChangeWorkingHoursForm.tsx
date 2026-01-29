@@ -22,11 +22,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Spinner,
-  useTranslation
+  Spinner
 } from '@newwork/nw-design-system'
 import WorkingHoursSummary from './WorkingHoursSummary'
-import translations from '../../../apps/employee-record/_i18n'
 
 export const ChangeWorkingHoursForm: React.FC = () => {
   const {
@@ -40,7 +38,6 @@ export const ChangeWorkingHoursForm: React.FC = () => {
     error,
     buildSubmitPayload
   } = useChangeWorkingHoursContext()
-  const { t } = useTranslation(translations)
 
   const form = useForm<WorkingHoursFormValues>({
     defaultValues: {
@@ -264,11 +261,7 @@ export const ChangeWorkingHoursForm: React.FC = () => {
             fte: typeof fte === 'number' ? fte : 0
           })
           return {
-            ...payload,
-            completeNotification: {
-              type: 'success',
-              message: t('notification-working-hours-updated-success')
-            }
+            ...payload
           }
         }}
       >

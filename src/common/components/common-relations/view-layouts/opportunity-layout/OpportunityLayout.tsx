@@ -106,7 +106,7 @@ export interface OpportunityViewConfig<TOpportunity extends { id: string }, TQue
     statuses: Array<{ id: string; label: string }>
   }
 
-  createColumns: (buildAccountUrl: (id: string) => string) => ColumnDef<TOpportunity>[]
+  createColumns: () => ColumnDef<TOpportunity>[]
   createSortableColumns: (availableColumnIds?: string[]) => Array<{ id: string; label: string }>
 
   baseFilterConfig: FilterConfiguration
@@ -327,7 +327,6 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       'opportunityStatus',
       'opportunityForecast',
       'closeDate',
-      'account',
       'owner',
       'created'
     ],
@@ -339,13 +338,13 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
       return baseVisibleColumns
     }
 
-    // Insert extended columns after 'account' if it exists, otherwise append
-    const accountIndex = baseVisibleColumns.indexOf('account')
-    if (accountIndex >= 0) {
+    // Insert extended columns after 'closeDate' if it exists, otherwise append
+    const closeDateIndex = baseVisibleColumns.indexOf('closeDate')
+    if (closeDateIndex >= 0) {
       return [
-        ...baseVisibleColumns.slice(0, accountIndex + 1),
+        ...baseVisibleColumns.slice(0, closeDateIndex + 1),
         ...extendVisibleColumns,
-        ...baseVisibleColumns.slice(accountIndex + 1)
+        ...baseVisibleColumns.slice(closeDateIndex + 1)
       ]
     }
     return [...baseVisibleColumns, ...extendVisibleColumns]
@@ -576,13 +575,13 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     }
 
     loadBothSections()
-  }, [accessToken, isInitialLoad, boardPipelineId, loadListData, loadBoardData])
+  }, [accessToken, isInitialLoad])
 
   // Reload list data when filters/search/sort change (only when list is active, skip initial load)
   useEffect(() => {
     if (isInitialLoad || !accessToken || currentSection !== 'list') return
     loadListData(false)
-  }, [listQueryVariables, isInitialLoad, accessToken, loadListData, currentSection])
+  }, [listQueryVariables, accessToken, loadListData, currentSection])
 
   // Reload board data when filters/search/currency change (only when board is active, skip initial load)
   useEffect(() => {
@@ -633,7 +632,7 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
   )
 
   // Columns
-  const columns = useMemo(() => config.createColumns(config.buildAccountUrl), [config])
+  const columns = useMemo(() => config.createColumns(), [config])
   const availableColumns = useMemo(() => deriveAvailableColumns(columns), [columns])
 
   // Row actions - rendered internally

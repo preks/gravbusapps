@@ -31,8 +31,17 @@ async function findAllScreenDirectories() {
   const recordIndexFiles = await glob('src/business-apps/**/records/*/index.ts', {
     nodir: true
   })
+  const windowIndexFiles = await glob('src/business-apps/**/windows/*/index.ts', {
+    nodir: true
+  })
 
-  const allIndexFiles = [...appIndexFiles, ...formIndexFiles, ...popupIndexFiles, ...recordIndexFiles]
+  const allIndexFiles = [
+    ...appIndexFiles,
+    ...formIndexFiles,
+    ...popupIndexFiles,
+    ...recordIndexFiles,
+    ...windowIndexFiles
+  ]
   const uniqueDirs = new Set()
 
   for (const filePath of allIndexFiles) {
@@ -66,6 +75,7 @@ async function main() {
   const forms = allScreens.filter(s => s.includes('/forms/'))
   const popups = allScreens.filter(s => s.includes('/popups/'))
   const records = allScreens.filter(s => s.includes('/records/'))
+  const windows = allScreens.filter(s => s.includes('/windows/'))
 
   console.log(`📱 Apps: ${apps.length}`)
   apps.forEach(s => console.log(`   - ${s}`))
@@ -78,6 +88,9 @@ async function main() {
   console.log('')
   console.log(`📄 Records: ${records.length}`)
   records.forEach(s => console.log(`   - ${s}`))
+  console.log('')
+  console.log(`🪟 Windows: ${windows.length}`)
+  windows.forEach(s => console.log(`   - ${s}`))
   console.log('─'.repeat(80))
   console.log('')
 

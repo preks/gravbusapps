@@ -22,7 +22,7 @@ function getAllScreens() {
   const businessAppsDir = path.join(projectRootDir, 'src', 'business-apps')
   const screens = []
 
-  const validScreenTypes = ['apps', 'forms', 'popups', 'records']
+  const validScreenTypes = ['apps', 'forms', 'popups', 'records', 'windows']
 
   function scanDirectory(dir, relativePath = '') {
     const items = fs.readdirSync(dir)

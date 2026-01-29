@@ -108,6 +108,9 @@ export interface NoteSummary {
   sharedByName?: string
   permission?: NotePermission | 'owner'
   sharedWithCount?: number
+  // Note type info (for identifying handwriting notes)
+  contentJson?: Record<string, unknown>
+  noteType?: string
 }
 
 /**

@@ -97,6 +97,8 @@ if git diff --quiet; then
   exit 1
 fi
 
+rm -f plan.md
+
 git add -A
 git config user.email "${BOT_ID}@bots.bitbucket.org"
 git config user.name "claude-agent"

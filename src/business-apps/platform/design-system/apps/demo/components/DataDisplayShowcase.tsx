@@ -111,7 +111,7 @@ export function DataDisplayShowcase() {
       value: 4.2,
       suffix: '%',
       decimalPlaces: 1,
-      iconColor: 'var(--nw-color-ext-7)',
+      iconColor: 'var(--nw-color-chart-7)',
       trend: {
         value: '-0.3%',
         positive: false,

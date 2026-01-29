@@ -10,6 +10,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/crm/customer-launcher': 'crm/core/apps/customer-launcher',
   '/platform/crm/customer-relations': 'crm/core/apps/customer-relations',
   '/platform/crm/customer-settings': 'crm/core/apps/customer-settings',
+  '/platform/crm/data-import': 'crm/core/apps/data-import',
 
   ///  Core: Records
   '/platform/crm/account-record': 'crm/core/records/account-record',
@@ -90,6 +91,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   // Platform
   '/platform/every-ai': 'platform/apps/every-ai',
   '/platform/debugger': 'platform/apps/debugger',
+  '/platform/every-office': 'platform/apps/every-office',
   '/platform/apps/desk': 'platform/apps/desk',
   '/platform/apps/document-apps': 'platform/apps/document-apps',
   '/platform/apps/note-apps': 'platform/apps/note-apps',

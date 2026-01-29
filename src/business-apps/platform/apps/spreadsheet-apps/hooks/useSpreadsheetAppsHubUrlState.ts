@@ -77,7 +77,9 @@ export function useSpreadsheetAppsHubUrlState(
     const urlParams = new URLSearchParams(window.location.search)
     cameFromDeskRef.current =
       referrer.includes('/platform/apps/desk') ||
+      referrer.includes('/platform/every-office') ||
       referrer.includes('?app=platform/apps/desk') ||
+      referrer.includes('?app=platform/apps/every-office') ||
       urlParams.get('from') === 'desk'
 
     if (cameFromDeskRef.current && currentView === 'list') {
@@ -91,7 +93,7 @@ export function useSpreadsheetAppsHubUrlState(
       const state = event.state as { appId?: string; view?: HubView; fromDesk?: boolean } | null
 
       if (state?.fromDesk && !state?.appId && currentView === 'list') {
-        navigateTo('/platform/apps/desk')
+        navigateTo('/platform/every-office')
         return
       }
 

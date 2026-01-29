@@ -95,7 +95,6 @@ export const EmployeeOpportunitiesTab: React.FC<EmployeeOpportunitiesTabProps> =
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'opportunity',
     'amount',
-    'account',
     'opportunityPipeline',
     'opportunityPipelineStage',
     'opportunityStatus',
@@ -388,23 +387,13 @@ export const EmployeeOpportunitiesTab: React.FC<EmployeeOpportunitiesTabProps> =
     navigateTo(url)
   }, [])
 
-  // Build account URL
-  const buildAccountUrl = useCallback(
-    (accountId: string) =>
-      buildPlatformUrl('/platform/crm/account-record', {
-        accountId
-      }),
-    []
-  )
-
   // Columns
-  const columns = useMemo(() => createOpportunityColumns(buildAccountUrl), [buildAccountUrl])
+  const columns = useMemo(() => createOpportunityColumns(), [])
 
   const availableColumns = useMemo(
     () => [
       { id: 'opportunity', label: 'Opportunity' },
       { id: 'amount', label: 'Amount' },
-      { id: 'account', label: 'Account' },
       { id: 'opportunityPipeline', label: 'Pipeline' },
       { id: 'opportunityPipelineStage', label: 'Stage' },
       { id: 'opportunityStatus', label: 'Status' },

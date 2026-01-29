@@ -80,10 +80,10 @@ export const Forecasting: React.FC<ForecastingProps> = props => {
             <TabsTrigger
               value="salary"
               data-testid="salary-forecasting-tab"
-              className="gba:flex gba:flex-row gba:items-center gba:gap-2"
+              className="gba:flex gba:flex-row gba:items-center gba:justify-center gba:gap-2"
               title={t('hr-analytics-salary-forecasting')}
             >
-              <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
+              <span className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
                 <Icon icon={CurrencyDollarIcon} size="sm" decorative />
                 {t('hr-analytics-salary-forecasting')}
               </span>
@@ -91,10 +91,10 @@ export const Forecasting: React.FC<ForecastingProps> = props => {
             <TabsTrigger
               value="workforce"
               data-testid="workforce-forecasting-tab"
-              className="gba:flex gba:flex-row gba:items-center gba:gap-2"
+              className="gba:flex gba:flex-row gba:items-center gba:justify-center gba:gap-2"
               title={t('hr-analytics-workforce-forecasting')}
             >
-              <span className="gba:inline-flex gba:items-center gba:gap-2 gba:whitespace-nowrap">
+              <span className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap">
                 <Icon icon={UsersIcon} size="sm" decorative />
                 {t('hr-analytics-workforce-forecasting')}
               </span>

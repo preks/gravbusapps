@@ -62,6 +62,10 @@ export interface CalendarProps {
   showDurationInTooltip?: boolean
   customLegend?: React.ReactNode
   holidayDates?: string[]
+  employeeAbsenceEntitlement?: EmployeeAbsenceEntitlement[]
+  employee?: Employee
+  accessToken?: string
+  onAbsenceTypeSelect?: (absenceType: string, startDate: string, endDate: string, flowType: string) => void
 }
 
 export interface AbsenceListProps {
