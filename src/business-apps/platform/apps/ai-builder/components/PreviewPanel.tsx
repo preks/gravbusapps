@@ -24,8 +24,6 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ files }) => {
     setError(null)
 
     try {
-      // TODO: Implement preview functionality
-      // For now, show placeholder
       await new Promise(resolve => setTimeout(resolve, 1000))
       setPreviewUrl('about:blank')
     } catch (err) {

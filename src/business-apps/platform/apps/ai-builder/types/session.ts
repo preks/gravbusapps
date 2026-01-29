@@ -13,6 +13,7 @@ export interface SessionUser {
   displayName: string
   email?: string
   pictureThumbnail?: string
+  consentToStorePii?: boolean
 }
 
 export interface SessionMetadata {

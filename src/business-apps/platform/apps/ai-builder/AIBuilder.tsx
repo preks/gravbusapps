@@ -17,7 +17,10 @@ import {
   Check,
   PanelLeft,
   PanelLeftClose,
-  ArrowLeft
+  ArrowLeft,
+  ChevronRight,
+  ChevronDown,
+  Brain
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { Label } from '@newwork/nw-design-system'
@@ -28,15 +31,35 @@ import { SYSTEM_PROMPT } from './config/systemPrompt'
 import { FileExplorer } from './components/FileExplorer'
 import { FilePreview } from './components/FilePreview'
 import { SessionList } from './components/SessionList'
+import { AdminSettings } from './components/AdminSettings'
+import { IndexingProgress } from './components/IndexingProgress'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_LIGHT_BY_ID } from '@/common/data/employee/queries/employeeQueries'
 import { SessionMetadata, SessionUser } from './types/session'
 import { saveSession, listSessions, deleteSession as deleteSessionAPI } from './api/sessionClient'
 import { loadChatHistory, saveChatHistory } from './api/chatClient'
 import { ENV } from './config/environment'
+import { useDebounce } from '@/common/hooks/useDebounce'
+
+// Normalize excessive newlines and fix spacing issues
+const normalizeNewlines = (text: string): string => {
+  return (
+    text
+      .replace(/([.!?])([A-Z])/g, '$1 $2') // Add space between sentence end and next sentence start
+      .replace(/\n{3,}/g, '\n\n') // Collapse 3+ newlines to 2
+      .replace(/^\n+/, '') // Remove leading newlines
+      .replace(/\n+$/, '') // Remove trailing newlines
+      .replace(/\n\n+/g, '\n\n') // Ensure max 2 consecutive newlines
+      // Remove extra newlines around list items (- or * or numbered)
+      .replace(/\n\n+([-*]|\d+\.)\s/g, '\n$1 ') // Single newline before list items
+      .replace(/([-*]|\d+\.)\s.*\n\n+(?=[-*]|\d+\.)/g, match => match.replace(/\n\n+/g, '\n'))
+  ) // Single newline between list items
+}
 
 // Simple markdown renderer for code blocks and inline code
-const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
+const MarkdownRenderer: React.FC<{ content: string }> = ({ content: rawContent }) => {
+  // Normalize newlines before processing
+  const content = normalizeNewlines(rawContent)
   const [copiedBlocks, setCopiedBlocks] = useState<Set<number>>(new Set())
 
   const copyToClipboard = (text: string, blockIndex: number) => {
@@ -120,30 +143,43 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
   // Render bold, italic, lists
   const renderFormatting = (text: string) => {
     const lines = text.split('\n')
-    return lines.map((line, i) => (
-      <React.Fragment key={i}>
-        {line.startsWith('- ') || line.startsWith('* ') ? (
-          <div className="gba:flex gba:gap-2 gba:ml-4">
-            <span className="gba:text-primary">•</span>
-            <span>{renderInlineFormatting(line.slice(2))}</span>
-          </div>
-        ) : line.match(/^\d+\.\s/) ? (
-          <div className="gba:flex gba:gap-2 gba:ml-4">
-            <span className="gba:text-primary gba:font-semibold">{line.match(/^(\d+)\./)?.[1]}.</span>
-            <span>{renderInlineFormatting(line.replace(/^\d+\.\s/, ''))}</span>
-          </div>
-        ) : line.startsWith('# ') ? (
-          <h1 className="gba:text-2xl gba:font-bold gba:mt-4 gba:mb-2">{line.slice(2)}</h1>
-        ) : line.startsWith('## ') ? (
-          <h2 className="gba:text-xl gba:font-bold gba:mt-3 gba:mb-2">{line.slice(3)}</h2>
-        ) : line.startsWith('### ') ? (
-          <h3 className="gba:text-lg gba:font-semibold gba:mt-2 gba:mb-1">{line.slice(4)}</h3>
-        ) : (
-          <>{renderInlineFormatting(line)}</>
-        )}
-        {i < lines.length - 1 && <br />}
-      </React.Fragment>
-    ))
+    return lines.map((line, i) => {
+      const trimmedLine = line.trim()
+      const nextLine = lines[i + 1]?.trim()
+      const isEmptyLine = trimmedLine === ''
+      const nextIsListItem = nextLine?.startsWith('- ') || nextLine?.startsWith('* ') || /^\d+\.\s/.test(nextLine || '')
+
+      // Skip empty lines before list items (they add unwanted spacing)
+      if (isEmptyLine && nextIsListItem) {
+        return null
+      }
+
+      return (
+        <React.Fragment key={i}>
+          {line.startsWith('- ') || line.startsWith('* ') ? (
+            <div className="gba:flex gba:gap-2 gba:ml-4">
+              <span className="gba:text-primary">•</span>
+              <span>{renderInlineFormatting(line.slice(2))}</span>
+            </div>
+          ) : line.match(/^\d+\.\s/) ? (
+            <div className="gba:flex gba:gap-2 gba:ml-4">
+              <span className="gba:text-primary gba:font-semibold">{line.match(/^(\d+)\./)?.[1]}.</span>
+              <span>{renderInlineFormatting(line.replace(/^\d+\.\s/, ''))}</span>
+            </div>
+          ) : line.startsWith('# ') ? (
+            <h1 className="gba:text-2xl gba:font-bold gba:mt-4 gba:mb-2">{line.slice(2)}</h1>
+          ) : line.startsWith('## ') ? (
+            <h2 className="gba:text-xl gba:font-bold gba:mt-3 gba:mb-2">{line.slice(3)}</h2>
+          ) : line.startsWith('### ') ? (
+            <h3 className="gba:text-lg gba:font-semibold gba:mt-2 gba:mb-1">{line.slice(4)}</h3>
+          ) : (
+            <>{renderInlineFormatting(line)}</>
+          )}
+          {/* Only add <br /> if not an empty line and not followed by empty line before list */}
+          {i < lines.length - 1 && !isEmptyLine && <br />}
+        </React.Fragment>
+      )
+    })
   }
 
   // Render **bold** and *italic*
@@ -221,8 +257,14 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
 
 const API_URL = ENV.AI_SERVICE_API_URL
 
-// Fetch app config from service (returns repositoryIds)
-async function fetchAppConfig(): Promise<{ repositoryIds: string[] }> {
+// Fetch app config from service (returns repositoryIds and config status)
+interface AppConfig {
+  repositoryIds: string[]
+  configured: boolean
+  message?: string
+}
+
+async function fetchAppConfig(): Promise<AppConfig> {
   const response = await fetch(`${API_URL}/api/config`)
   if (!response.ok) {
     throw new Error('Failed to fetch app configuration')
@@ -299,7 +341,15 @@ async function downloadPatch(repoId: string, sessionId: string) {
   const response = await fetch(`${API_URL}/api/git/patch?repoId=${repoId}&sessionId=${sessionId}`)
 
   if (!response.ok) {
-    throw new Error('Failed to download patch')
+    // Try to get error message from response
+    let errorMessage = 'Failed to download patch'
+    try {
+      const errorData = await response.json()
+      errorMessage = errorData.message || errorMessage
+    } catch {
+      // Response wasn't JSON, use default message
+    }
+    throw new Error(errorMessage)
   }
 
   const blob = await response.blob()
@@ -387,13 +437,17 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
   const [repositoryId, setRepositoryId] = useState<string>('')
   const [configLoading, setConfigLoading] = useState(true)
   const [configError, setConfigError] = useState<string | null>(null)
+  const [configMessage, setConfigMessage] = useState<string | null>(null)
 
   // Exact state from the AI service demo
   const [messages, setMessages] = useState<Message[]>([])
+  // Debounced messages for auto-save (waits 1 second after last change)
+  const debouncedMessages = useDebounce(messages, 1000)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [thinking, setThinking] = useState(false)
-  const [thinkingContent, setThinkingContent] = useState('')
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_thinkingContent, setThinkingContent] = useState('') // Used for accumulating thinking, not displayed in streaming indicator
   const [usage, setUsage] = useState({
     totalInputTokens: 0,
     totalOutputTokens: 0,
@@ -441,6 +495,7 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
 
   // Session management state
   const [showSessionList, setShowSessionList] = useState(true)
+  const [showAdminSettings, setShowAdminSettings] = useState(false)
   const [sessions, setSessions] = useState<SessionMetadata[]>([])
   const [currentUser, setCurrentUser] = useState<SessionUser | null>(null)
 
@@ -453,8 +508,14 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
       try {
         setConfigLoading(true)
         setConfigError(null)
+        setConfigMessage(null)
         const config = await fetchAppConfig()
-        setRepositoryId(config.repositoryIds[0])
+        if (config.repositoryIds.length > 0) {
+          setRepositoryId(config.repositoryIds[0])
+        }
+        if (config.message) {
+          setConfigMessage(config.message)
+        }
       } catch (error) {
         console.error('Failed to load app config:', error)
         setConfigError('Failed to load configuration. Please refresh the page.')
@@ -514,7 +575,8 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
             lastName: employee.lastName || context.userInfo?.familyName || '',
             displayName: employee.displayName || `${context.userInfo?.givenName} ${context.userInfo?.familyName}`,
             email: context.userInfo?.userName,
-            pictureThumbnail: employee.pictureThumbnail
+            pictureThumbnail: employee.pictureThumbnail,
+            consentToStorePii: true // Allow storing user info for session display
           }
           setCurrentUser(user)
           setUserPictureThumbnail(employee.pictureThumbnail)
@@ -528,30 +590,34 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
   }, [context.accessToken, context.userInfo, currentUser, graphqlClient])
 
   // Session management functions
-  const saveSessions = async (updatedSessions: SessionMetadata[]) => {
+  // Save a single session to API and update local state
+  const saveSessionToAPI = async (session: SessionMetadata) => {
     try {
-      // Update local state and localStorage immediately for fast UI
-      localStorage.setItem('ai-builder-sessions', JSON.stringify(updatedSessions))
-      setSessions(updatedSessions)
+      await saveSession({
+        sessionId: session.sessionId,
+        screenPath: session.screenPath,
+        resourceUrl: session.resourceUrl,
+        fileCount: session.fileCount,
+        description: session.description,
+        createdBy: session.createdBy
+      })
+    } catch (apiError) {
+      console.error('Failed to save session to API:', session.sessionId, apiError)
+    }
+  }
 
-      // Save each session to API in the background
-      for (const session of updatedSessions) {
-        try {
-          await saveSession({
-            sessionId: session.sessionId,
-            screenPath: session.screenPath,
-            resourceUrl: session.resourceUrl,
-            fileCount: session.fileCount,
-            description: session.description,
-            createdBy: session.createdBy
-          })
-        } catch (apiError) {
-          console.error('Failed to save session to API:', session.sessionId, apiError)
-          // Continue with next session even if one fails
-        }
-      }
-    } catch (error) {
-      console.error('Failed to save sessions:', error)
+  // Update sessions state and localStorage (does NOT save to API)
+  const updateSessionsState = (updatedSessions: SessionMetadata[]) => {
+    localStorage.setItem('ai-builder-sessions', JSON.stringify(updatedSessions))
+    setSessions(updatedSessions)
+  }
+
+  // Legacy function for backwards compatibility - only saves the FIRST (newest) session
+  const saveSessions = async (updatedSessions: SessionMetadata[]) => {
+    updateSessionsState(updatedSessions)
+    // Only save the first session (the one that was just created/modified)
+    if (updatedSessions.length > 0) {
+      await saveSessionToAPI(updatedSessions[0])
     }
   }
 
@@ -590,8 +656,13 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
     setShowSessionList(false)
     console.log('Selected session:', sid)
     // Update last modified time
-    const updated = sessions.map(s => (s.sessionId === sid ? { ...s, lastModified: new Date().toISOString() } : s))
-    saveSessions(updated)
+    const updatedSession = sessions.find(s => s.sessionId === sid)
+    if (updatedSession) {
+      const updated = sessions.map(s => (s.sessionId === sid ? { ...s, lastModified: new Date().toISOString() } : s))
+      updateSessionsState(updated)
+      // Only save the session that was selected, not all sessions
+      saveSessionToAPI({ ...updatedSession, lastModified: new Date().toISOString() })
+    }
     // Note: Files will be loaded automatically by useEffect watching sessionId
   }
 
@@ -678,24 +749,19 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
     }
   }, [sessionId, showSessionList])
 
-  // Auto-save chat history when messages change
+  // Auto-save chat history when debounced messages change
+  // Uses useDebounce hook for proper debouncing (1 second delay)
   useEffect(() => {
-    if (sessionId && !showSessionList && messages.length > 0) {
-      // Debounce to avoid too many saves
-      const timeoutId = setTimeout(() => {
-        console.log(`Saving ${messages.length} messages to chat history...`)
-        saveChatHistory(repositoryId, sessionId, messages as any[]).then(success => {
-          if (success) {
-            console.log('Chat history saved successfully')
-          } else {
-            console.warn('Failed to save chat history')
-          }
-        })
-      }, 1000) // Wait 1 second after last message change
-
-      return () => clearTimeout(timeoutId)
+    if (sessionId && !showSessionList && debouncedMessages.length > 0) {
+      saveChatHistory(repositoryId, sessionId, debouncedMessages as any[]).then(success => {
+        if (success) {
+          console.log('Chat history saved successfully')
+        } else {
+          console.warn('Failed to save chat history')
+        }
+      })
     }
-  }, [messages, sessionId, showSessionList])
+  }, [debouncedMessages, sessionId, showSessionList, repositoryId])
 
   // Check for changes
   const checkForChanges = async () => {
@@ -911,11 +977,9 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       console.log('Sending:', optimizedHistory.length, 'messages (backend loads full history from database & uses RAG)')
       console.log('========================')
 
-      // Compatibility shim: if no history yet, add a dummy assistant thinking header
-      // This mirrors the state after the AI service streams the first thinking chunk,
-      // ensuring Claude disables strict thinking validation for the first turn
-      const history =
-        messages.length === 0 ? [{ role: 'assistant' as const, content: 'Preparing...' }] : optimizedHistory
+      // For new sessions (empty history), send empty array to enable Claude's native extended thinking
+      // Extended thinking properly separates reasoning from response in the API
+      const history = optimizedHistory
 
       // Exact same as AI service line 348 - pass messages state (before setState completes)
       const stream = await queryCode(repositoryId, userInput, history, true, buildEnabled, sessionId, llmProvider)
@@ -1089,6 +1153,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       ])
     } finally {
       setLoading(false)
+
       // Check for changes after AI completes (allow time for database writes)
       // Database writes can take 1-2 seconds, especially with multiple files
       setTimeout(() => {
@@ -1110,27 +1175,55 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     )
   }
 
-  // Show error state if config failed to load
-  if (configError || !repositoryId) {
+  // Show error state only if config API completely failed
+  if (configError) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:bg-background">
         <Alert variant="destructive" className="gba:max-w-md">
           <AlertCircle className="gba:h-4 gba:w-4" />
-          <AlertDescription>{configError || 'Configuration not available. Please contact support.'}</AlertDescription>
+          <AlertDescription>{configError}</AlertDescription>
         </Alert>
       </div>
     )
   }
 
-  // Show session list if no active session
-  if (showSessionList) {
+  // Show admin settings
+  if (showAdminSettings) {
+    return <AdminSettings onClose={() => setShowAdminSettings(false)} />
+  }
+
+  // Show session list if no active session OR if not configured (need to configure first)
+  if (showSessionList || !repositoryId) {
     return (
-      <SessionList
-        sessions={sessions}
-        onSelectSession={selectSession}
-        onCreateSession={createNewSession}
-        onDeleteSession={deleteSession}
-      />
+      <div className="gba:flex gba:flex-col gba:h-full">
+        {/* Configuration warning banner */}
+        {configMessage && (
+          <div className="gba:bg-amber-50 dark:gba:bg-amber-950/30 gba:border-b gba:border-amber-200 dark:gba:border-amber-800 gba:px-6 gba:py-3">
+            <div className="gba:flex gba:items-center gba:justify-between gba:max-w-6xl gba:mx-auto">
+              <div className="gba:flex gba:items-center gba:gap-3">
+                <AlertCircle className="gba:w-5 gba:h-5 gba:text-amber-600 dark:gba:text-amber-400" />
+                <span className="gba:text-sm gba:text-amber-800 dark:gba:text-amber-200">{configMessage}</span>
+              </div>
+              <button
+                onClick={() => setShowAdminSettings(true)}
+                className="gba:text-sm gba:font-medium gba:text-amber-700 dark:gba:text-amber-300 hover:gba:underline"
+              >
+                Open Settings
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="gba:flex-1">
+          <SessionList
+            sessions={sessions}
+            onSelectSession={repositoryId ? selectSession : () => {}}
+            onCreateSession={repositoryId ? createNewSession : () => setShowAdminSettings(true)}
+            onDeleteSession={deleteSession}
+            onOpenSettings={() => setShowAdminSettings(true)}
+            disabled={!repositoryId}
+          />
+        </div>
+      </div>
     )
   }
 
@@ -1290,6 +1383,9 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
             </div>
           </div>
 
+          {/* Indexing Progress Banner */}
+          <IndexingProgress />
+
           {/* Modern Changes Banner */}
           {uniqueFileSummary && uniqueFileSummary.totalUniqueFiles > 0 && (
             <div className="gba:bg-gradient-to-r gba:from-primary/10 gba:via-accent/5 gba:to-primary/10 gba:backdrop-blur-md gba:border-b gba:border-primary/20">
@@ -1377,7 +1473,13 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => downloadPatch(repositoryId, sessionId)}
+                      onClick={async () => {
+                        try {
+                          await downloadPatch(repositoryId, sessionId)
+                        } catch (error) {
+                          alert(error instanceof Error ? error.message : 'Failed to download patch')
+                        }
+                      }}
                       className="gba:gap-2"
                     >
                       <Download className="gba:w-4 gba:h-4" />
@@ -1420,18 +1522,10 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
               </div>
             ) : (
               <>
-                {thinking && thinkingContent && (
-                  <div className="gba:flex gba:gap-3">
-                    <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-primary gba:flex gba:items-center gba:justify-center">
-                      <Loader2 className="gba:w-4 gba:h-4 gba:text-primary-foreground gba:animate-spin" />
-                    </div>
-                    <div className="gba:flex-1 gba:bg-primary/10 gba:border gba:rounded-lg gba:px-3 gba:py-2">
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                        <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-primary gba:animate-pulse" />
-                        <span className="gba:text-xs gba:font-medium gba:text-primary">Claude is thinking...</span>
-                      </div>
-                      <p className="gba:text-xs gba:text-muted-foreground">{thinkingContent.slice(-150)}...</p>
-                    </div>
+                {thinking && (
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:text-muted-foreground gba:text-sm gba:py-2">
+                    <Brain className="gba:w-4 gba:h-4 gba:animate-pulse gba:text-primary" />
+                    <span>Thinking...</span>
                   </div>
                 )}
 
@@ -1452,10 +1546,11 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                         </div>
                       ) : (
                         <div className="gba:space-y-3 gba:bg-muted/30 gba:rounded-2xl gba:px-4 gba:py-3 gba:border gba:border-border/50">
-                          {message.thinkingLog && (
-                            <div>
+                          {/* Only show thinking block if there's meaningful content (>50 chars) */}
+                          {message.thinkingLog && message.thinkingLog.trim().length > 50 && (
+                            <div className="gba:border gba:border-muted-foreground/20 gba:rounded-lg gba:overflow-hidden">
                               <button
-                                className="gba:text-xs gba:text-primary hover:gba:underline"
+                                className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:bg-muted/50 gba:text-xs gba:text-muted-foreground hover:gba:bg-muted gba:transition-colors"
                                 onClick={() => {
                                   setMessages(prev => {
                                     const next = [...prev]
@@ -1464,10 +1559,19 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                                   })
                                 }}
                               >
-                                {message.thinkingCollapsed ? 'Show thinking' : 'Hide thinking'}
+                                {message.thinkingCollapsed ? (
+                                  <ChevronRight className="gba:w-3 gba:h-3" />
+                                ) : (
+                                  <ChevronDown className="gba:w-3 gba:h-3" />
+                                )}
+                                <Brain className="gba:w-3 gba:h-3" />
+                                <span className="gba:font-medium">Thinking</span>
+                                <span className="gba:text-muted-foreground/60">
+                                  ({Math.ceil(message.thinkingLog.length / 100)} steps)
+                                </span>
                               </button>
-                              {!message.thinkingCollapsed && (
-                                <div className="gba:mt-1 gba:px-3 gba:py-2 gba:bg-muted gba:rounded gba:text-xs gba:text-muted-foreground gba:whitespace-pre-wrap">
+                              {!message.thinkingCollapsed && message.thinkingLog.trim() && (
+                                <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:text-muted-foreground gba:whitespace-pre-wrap gba:max-h-64 gba:overflow-y-auto gba:border-t gba:border-muted-foreground/10">
                                   {message.thinkingLog}
                                 </div>
                               )}

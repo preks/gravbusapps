@@ -1,23 +1,28 @@
 import React, { useState, useEffect } from 'react'
-import { AiButton } from '@newwork/nw-design-system'
+import { AiButton, Button } from '@newwork/nw-design-system'
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import { Plus, Clock, FileCode, Search, Trash2, Folder } from 'lucide-react'
+import { Plus, Clock, FileCode, Search, Trash2, Folder, Settings } from 'lucide-react'
 import { DebouncedInput } from '@/components/debounced-input'
 import { SessionMetadata } from '../types/session'
+import { IndexingProgress } from './IndexingProgress'
 
 interface SessionListProps {
   sessions: SessionMetadata[]
   onSelectSession: (sessionId: string) => void
   onCreateSession: () => void
   onDeleteSession: (sessionId: string) => void
+  onOpenSettings?: () => void
+  disabled?: boolean
 }
 
 export const SessionList: React.FC<SessionListProps> = ({
   sessions,
   onSelectSession,
   onCreateSession,
-  onDeleteSession
+  onDeleteSession,
+  onOpenSettings,
+  disabled = false
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filteredSessions, setFilteredSessions] = useState(sessions)
@@ -84,6 +89,9 @@ export const SessionList: React.FC<SessionListProps> = ({
       />
 
       <div className="gba:max-w-6xl gba:mx-auto gba:space-y-6 gba:relative">
+        {/* Indexing Progress Banner */}
+        <IndexingProgress />
+
         {/* Header */}
         <div className="gba:flex gba:items-center gba:justify-between">
           <div>
@@ -92,10 +100,30 @@ export const SessionList: React.FC<SessionListProps> = ({
               Continue working on existing screens or start a new project
             </p>
           </div>
-          <AiButton onClick={onCreateSession} size="lg" className="gba:gap-2 gba:shadow-lg">
-            <Plus className="gba:w-5 gba:h-5" />
-            New Session
-          </AiButton>
+          <div className="gba:flex gba:items-center gba:gap-3">
+            {onOpenSettings && (
+              <Button
+                onClick={onOpenSettings}
+                variant="outline"
+                size="lg"
+                className="gba:gap-2 gba:shadow-sm"
+                title="Repository Settings"
+              >
+                <Settings className="gba:w-5 gba:h-5" />
+                <span className="gba:hidden md:gba:inline">Settings</span>
+              </Button>
+            )}
+            <AiButton
+              onClick={onCreateSession}
+              size="lg"
+              className="gba:gap-2 gba:shadow-lg"
+              disabled={disabled}
+              title={disabled ? 'Configure a repository first' : undefined}
+            >
+              <Plus className="gba:w-5 gba:h-5" />
+              New Session
+            </AiButton>
+          </div>
         </div>
 
         {/* Search */}
@@ -115,23 +143,35 @@ export const SessionList: React.FC<SessionListProps> = ({
           <Card className="gba:py-12">
             <CardContent className="gba:text-center gba:space-y-4">
               <div className="gba:w-16 gba:h-16 gba:mx-auto gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center">
-                <Folder className="gba:w-8 gba:h-8 gba:text-muted-foreground" />
+                {disabled ? (
+                  <Settings className="gba:w-8 gba:h-8 gba:text-muted-foreground" />
+                ) : (
+                  <Folder className="gba:w-8 gba:h-8 gba:text-muted-foreground" />
+                )}
               </div>
               <div>
                 <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">
-                  {searchTerm ? 'No sessions found' : 'No sessions yet'}
+                  {disabled ? 'Repository Not Configured' : searchTerm ? 'No sessions found' : 'No sessions yet'}
                 </h3>
                 <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-                  {searchTerm
-                    ? 'Try adjusting your search terms'
-                    : 'Create your first session to start building screens with AI'}
+                  {disabled
+                    ? 'Please configure a repository in Settings to get started'
+                    : searchTerm
+                      ? 'Try adjusting your search terms'
+                      : 'Create your first session to start building screens with AI'}
                 </p>
               </div>
-              {!searchTerm && (
+              {!searchTerm && !disabled && (
                 <AiButton onClick={onCreateSession} className="gba:gap-2">
                   <Plus className="gba:w-4 gba:h-4" />
                   Create First Session
                 </AiButton>
+              )}
+              {disabled && onOpenSettings && (
+                <Button onClick={onOpenSettings} className="gba:gap-2">
+                  <Settings className="gba:w-4 gba:h-4" />
+                  Open Settings
+                </Button>
               )}
             </CardContent>
           </Card>
