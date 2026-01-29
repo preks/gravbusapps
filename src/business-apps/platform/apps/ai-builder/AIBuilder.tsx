@@ -337,6 +337,40 @@ async function queryCode(
   return response.body
 }
 
+/**
+ * Sanitizes a filename by removing potentially dangerous characters.
+ * Only allows alphanumeric characters, hyphens, underscores, and dots.
+ */
+function sanitizeFilename(filename: string): string {
+  return filename.replace(/[^a-zA-Z0-9._-]/g, '_')
+}
+
+/**
+ * Validates and sanitizes a URL to prevent XSS attacks.
+ * Only allows safe relative paths starting with '/'.
+ * Rejects javascript:, data:, vbscript:, and other dangerous protocols.
+ */
+function getSafeHref(url: string | null): string {
+  if (!url) return '#'
+
+  // Remove any leading/trailing whitespace and control characters
+  const trimmedUrl = url.trim().replace(/[\x00-\x1f\x7f]/g, '')
+
+  // Block dangerous protocols (case-insensitive)
+  const dangerousProtocols = /^(javascript|data|vbscript|file):/i
+  if (dangerousProtocols.test(trimmedUrl)) {
+    return '#'
+  }
+
+  // Only allow relative paths that start with /
+  // This prevents protocol-relative URLs like //evil.com
+  if (!trimmedUrl.startsWith('/') || trimmedUrl.startsWith('//')) {
+    return '#'
+  }
+
+  return trimmedUrl
+}
+
 async function downloadPatch(repoId: string, sessionId: string) {
   const response = await fetch(`${API_URL}/api/git/patch?repoId=${repoId}&sessionId=${sessionId}`)
 
@@ -353,14 +387,23 @@ async function downloadPatch(repoId: string, sessionId: string) {
   }
 
   const blob = await response.blob()
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `ai-builder-${sessionId}.patch`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+  // Sanitize sessionId to prevent any injection in filename
+  const safeSessionId = sanitizeFilename(sessionId)
+  const safeFilename = `ai-builder-${safeSessionId}.patch`
+
+  // Use the modern download approach without DOM manipulation
+  // This creates a temporary anchor, triggers download, and cleans up
+  const blobUrl = URL.createObjectURL(blob)
+  try {
+    const link = Object.assign(document.createElement('a'), {
+      href: blobUrl,
+      download: safeFilename
+    })
+    link.click()
+  } finally {
+    // Always revoke the blob URL to free memory
+    URL.revokeObjectURL(blobUrl)
+  }
 }
 
 async function getChanges(repoId: string, sessionId: string) {
@@ -1276,7 +1319,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                         Screen published successfully!
                       </p>
                       <a
-                        href={publishSuccess}
+                        href={getSafeHref(publishSuccess)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="gba:text-xs gba:text-success hover:gba:underline gba:flex gba:items-center gba:gap-1"
