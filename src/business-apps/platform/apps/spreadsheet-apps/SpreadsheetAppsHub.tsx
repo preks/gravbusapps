@@ -691,7 +691,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => navigateTo('/platform/apps/desk')}
+                  onClick={() => navigateTo('/platform/every-office')}
                   data-testid={`${testId}-back-to-desk`}
                   className="gba:mb-2"
                 >
