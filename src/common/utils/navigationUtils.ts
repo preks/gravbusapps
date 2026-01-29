@@ -2,25 +2,6 @@ interface NavigationMapping {
   [key: string]: string
 }
 
-/**
- * Platform URL aliases that should be normalized to a canonical platform path.
- *
- * This is used in both production and development so navigation works reliably
- * even when older/incorrect URLs are encountered.
- */
-const PLATFORM_URL_ALIASES: NavigationMapping = {
-  // Legacy / incorrect double prefix used by some screens
-  '/platform/apps/platform/apps/desk': '/platform/apps/desk',
-  '/platform/apps/platform/apps/document-apps': '/platform/apps/document-apps',
-  '/platform/apps/platform/apps/note-apps': '/platform/apps/note-apps',
-  '/platform/apps/platform/apps/spreadsheet-apps': '/platform/apps/spreadsheet-apps',
-
-  // Legacy short aliases
-  '/platform/apps/notes': '/platform/apps/note-apps',
-  '/platform/apps/documents': '/platform/apps/document-apps',
-  '/platform/apps/spreadsheets': '/platform/apps/spreadsheet-apps'
-}
-
 // Mapping of platform URLs to app paths for development mode
 const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   // CRM
@@ -121,18 +102,11 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/irm/liquid-portfolio-record': 'crm/investments/apps/liquid-portfolio-record'
 }
 
-function normalizePlatformUrl(url: string): string {
-  const [basePath, queryString] = url.split('?')
-  const normalizedBasePath = PLATFORM_URL_ALIASES[basePath] ?? basePath
-  return queryString ? `${normalizedBasePath}?${queryString}` : normalizedBasePath
-}
-
 /**
  * Checks if a URL is a platform URL that should be mapped to app query parameters
  */
 const isPlatformUrl = (url: string): boolean => {
-  const normalizedUrl = normalizePlatformUrl(url)
-  const urlPath = normalizedUrl.split('?')[0] // Remove query parameters to check the base path
+  const urlPath = url.split('?')[0] // Remove query parameters to check the base path
   return Object.keys(PLATFORM_URL_TO_APP_MAPPING).some(platformPath => urlPath === platformPath)
 }
 
@@ -140,13 +114,12 @@ const isPlatformUrl = (url: string): boolean => {
  * Converts a platform URL to development query parameters
  */
 const convertToDevQueryParams = (url: string): string => {
-  const normalizedUrl = normalizePlatformUrl(url)
-  const [basePath, queryString] = normalizedUrl.split('?')
+  const [basePath, queryString] = url.split('?')
   const appPath = PLATFORM_URL_TO_APP_MAPPING[basePath]
 
   if (!appPath) {
     console.warn(`No app mapping found for platform URL: ${basePath}`)
-    return normalizedUrl
+    return url
   }
 
   // Platform URLs always map to app parameters
@@ -176,21 +149,20 @@ export const navigateTo = (url: string, options?: NavigateOptions): void => {
     return
   }
 
-  const normalizedUrl = normalizePlatformUrl(url)
   const { forceReload = false } = options || {}
   const isProduction = process.env.NODE_ENV === 'production'
 
   // Helper to get the target URL (converted in dev mode if needed)
   const getTargetUrl = (): string => {
     if (isProduction) {
-      return normalizedUrl
+      return url
     }
     // Development: convert platform URLs to query parameters
-    if (isPlatformUrl(normalizedUrl)) {
-      const queryParams = convertToDevQueryParams(normalizedUrl)
+    if (isPlatformUrl(url)) {
+      const queryParams = convertToDevQueryParams(url)
       return `${window.location.origin}${queryParams}`
     }
-    return normalizedUrl
+    return url
   }
 
   // If force reload is requested, add cache-busting parameter to ensure content refresh
@@ -235,20 +207,20 @@ export const navigateTo = (url: string, options?: NavigateOptions): void => {
     if (typeof nwNavigate === 'function') {
       // Check if we're already on the same URL - if so, force reload
       const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`
-      if (currentUrl === normalizedUrl) {
+      if (currentUrl === url) {
         // Same URL - force reload to refresh content
         window.location.reload()
       } else {
-        nwNavigate(normalizedUrl)
+        nwNavigate(url)
       }
     } else {
-      window.location.href = normalizedUrl
+      window.location.href = url
     }
   } else {
     // Development: check if it's a platform URL
-    if (isPlatformUrl(normalizedUrl)) {
+    if (isPlatformUrl(url)) {
       // Convert to app query parameter and stay on localhost:3000
-      const queryParams = convertToDevQueryParams(normalizedUrl)
+      const queryParams = convertToDevQueryParams(url)
       const currentOrigin = window.location.origin
       const targetUrl = `${currentOrigin}${queryParams}`
 
