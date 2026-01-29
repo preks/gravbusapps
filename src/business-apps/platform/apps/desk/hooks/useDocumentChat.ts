@@ -73,8 +73,23 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
       forceNew: false
     })
 
+    // Engine-level debugging (similar to `CollaborationClient`)
+    try {
+      newSocket.io.engine.on('close', (reason: string) => {
+        console.log('[DocumentChat] engine.close:', reason)
+      })
+      newSocket.io.engine.on('upgradeError', (err: unknown) => {
+        console.error('[DocumentChat] engine.upgradeError:', err)
+      })
+    } catch {
+      // ignore – engine hooks may not be available in some environments
+    }
+
     newSocket.on('connect', () => {
-      console.log('Connected to document chat')
+      console.log('[DocumentChat] ✅ Connected', {
+        id: newSocket.id,
+        transport: newSocket.io.engine.transport?.name
+      })
       setIsConnected(true)
       setError(null)
     })
