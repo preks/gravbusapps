@@ -114,12 +114,6 @@ export const useRolesCatalog = (context: BusinessAppContextProps): UseRolesCatal
     [fetchRoles]
   )
 
-  const refetch = useCallback(async () => {
-    setHasError(false)
-    currentOffsetRef.current = 0
-    await fetchRoles(false, searchTermRef.current)
-  }, [fetchRoles])
-
   const loadMore = useCallback(async () => {
     if (roles.length < totalCount && !isLoading) {
       await fetchRoles(true)
