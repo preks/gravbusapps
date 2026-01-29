@@ -20,6 +20,8 @@ export interface CallHeaderProps {
   duration: number
   /** Number of participants in the call */
   participantCount: number
+  /** Number of available participants that can be added */
+  availableParticipantsCount?: number
   /** Type of call (audio or video) */
   callType: 'audio' | 'video'
   /** Whether participants panel is shown */
@@ -60,13 +62,6 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
             {/* Duration */}
             <span className="gba:flex gba:items-center gba:gap-1">
               <span className="gba:font-mono gba:font-medium">{formatDuration(duration)}</span>
-            </span>
-            <span>•</span>
-            {/* Participant count */}
-            <span className="gba:flex gba:items-center gba:gap-1">
-              <Users className="gba:w-4 gba:h-4" />
-              <span className="gba:font-medium">{participantCount}</span>
-              <span>{t('groupCall-participants') || 'participants'}</span>
             </span>
             {/* Audio-only indicator */}
             {callType === 'audio' && (

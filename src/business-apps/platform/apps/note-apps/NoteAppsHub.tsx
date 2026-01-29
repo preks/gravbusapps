@@ -5,7 +5,7 @@
  * Modern OneDrive-inspired design with sidebar navigation.
  */
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   Card,
@@ -51,21 +51,23 @@ import {
   Link2,
   User,
   LayoutGrid,
-  ChevronLeft
+  PenTool
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { navigateTo } from '@/common/utils/navigationUtils'
 
 // Components
+import { type SharedUserInfo } from './components/NotePreviewCard'
 import { NoteEditor } from './NoteEditor'
+import { HandwritingNote } from './components/HandwritingNote'
 import { ShareNoteDialog, type SharedNoteUser } from './components/ShareNoteDialog'
+import type { PaperStyle, StrokeData } from './components/handwriting'
 
 // Hooks
 import { useNotes } from './hooks/useNotes'
-import { useNoteAppsHubUserLookup } from './hooks/useNoteAppsHubUserLookup'
-import { useNoteAppsHubFavorites } from './hooks/useNoteAppsHubFavorites'
-import { useNoteAppsHubFiltering } from './hooks/useNoteAppsHubFiltering'
-import { useNoteAppsHubUrlState } from './hooks/useNoteAppsHubUrlState'
+
+// GraphQL
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
 
 // Services
 import { NoteApiService } from './services/NoteApiService'
@@ -145,10 +147,19 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const { favorites, setFavorites } = useNoteAppsHubFavorites()
+  const [favorites, setFavorites] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('note-favorites')
+      return saved ? new Set(JSON.parse(saved)) : new Set()
+    } catch {
+      return new Set()
+    }
+  })
 
   // Data state
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
+  const [sharedUsersMap] = useState<Record<string, SharedUserInfo[]>>({})
+  const [ownerInfoMap, setOwnerInfoMap] = useState<Map<string, { name: string; avatar?: string }>>(new Map())
 
   // Share dialog state
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
@@ -157,6 +168,42 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
 
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
+
+  // Store access token for NoteApiService to use (iPad Safari doesn't have it in localStorage)
+  useEffect(() => {
+    if (accessToken) {
+      try {
+        localStorage.setItem('business-app-ide-access-token', accessToken)
+        console.log('[NoteAppsHub] Stored access token in localStorage, length:', accessToken.length)
+      } catch (e) {
+        console.warn('[NoteAppsHub] Failed to store access token in localStorage:', e)
+      }
+    }
+  }, [accessToken])
+
+  // URL helpers for deep linking
+  const getUrlParams = useCallback((): { noteId: string | null; view: HubView | null } => {
+    const urlParams = new URLSearchParams(window.location.search)
+    return {
+      noteId: urlParams.get('noteId'),
+      view: urlParams.get('view') as HubView | null
+    }
+  }, [])
+
+  const updateUrl = useCallback((noteId: string | null, view?: HubView) => {
+    const urlParams = new URLSearchParams(window.location.search)
+    if (noteId) {
+      urlParams.set('noteId', noteId)
+      if (view) urlParams.set('view', view)
+    } else {
+      urlParams.delete('noteId')
+      urlParams.delete('view')
+    }
+    const newUrl = urlParams.toString()
+      ? `${window.location.pathname}?${urlParams.toString()}`
+      : window.location.pathname
+    window.history.pushState({ noteId, view }, '', newUrl)
+  }, [])
 
   // Hooks
   const {
@@ -177,35 +224,226 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     shareNote,
     getSharedUsers
   } = useNotes({ accessToken, userId: currentUserId })
-  const { ownerInfoMap, sharedUsersMap } = useNoteAppsHubUserLookup({ accessToken, notes })
-  const { updateUrl, resetLoadAttempt } = useNoteAppsHubUrlState({
-    currentView,
-    currentNoteId: currentNote?.id || null,
-    isLoadingNote: isLoadingNotes,
-    loadNoteById: loadNote,
-    setCurrentView,
-    setSelectedNoteId
-  })
 
-  const { sharedNotes, pinnedNotes, filteredNotes } = useNoteAppsHubFiltering({
-    notes,
-    currentUserId,
-    activeSection,
-    favorites,
-    searchQuery,
-    sortBy,
-    sortOrder
-  })
+  // GraphQL client for fetching user info
+  const graphqlClient = useGraphQLClient(accessToken)
+
+  // Track which note ID we've attempted to load
+  const loadAttemptedRef = useRef<string | null>(null)
+
+  // Load note from URL on mount
+  useEffect(() => {
+    const { noteId, view } = getUrlParams()
+    if (noteId && !currentNote && !isLoadingNotes && loadAttemptedRef.current !== noteId) {
+      loadAttemptedRef.current = noteId
+      loadNote(noteId).then(note => {
+        if (note) {
+          setSelectedNoteId(noteId)
+          setCurrentView(view === 'editor' ? 'editor' : 'editor')
+        }
+      })
+    }
+  }, [getUrlParams, loadNote, currentNote, isLoadingNotes])
+
+  // Track if we came from desk
+  const cameFromDeskRef = useRef(false)
+  useEffect(() => {
+    const referrer = document.referrer
+    const urlParams = new URLSearchParams(window.location.search)
+    cameFromDeskRef.current =
+      referrer.includes('/platform/apps/desk') ||
+      referrer.includes('?app=platform/apps/desk') ||
+      urlParams.get('from') === 'desk'
+
+    // Push state to track navigation from desk
+    if (cameFromDeskRef.current && currentView === 'list') {
+      window.history.replaceState({ fromDesk: true }, '', window.location.href)
+    }
+  }, [currentView])
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const state = event.state as { noteId?: string; view?: HubView; fromDesk?: boolean } | null
+
+      // If we came from desk and there's no note, go back to desk
+      if (state?.fromDesk && !state?.noteId && currentView === 'list') {
+        navigateTo('/platform/apps/desk')
+        return
+      }
+
+      if (state?.noteId) {
+        loadNote(state.noteId).then(note => {
+          if (note) {
+            setSelectedNoteId(state.noteId!)
+            setCurrentView(state.view || 'editor')
+          }
+        })
+      } else {
+        setSelectedNoteId(null)
+        setCurrentView('list')
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [loadNote, currentView])
+
+  // Save favorites to localStorage
+  useEffect(() => {
+    localStorage.setItem('note-favorites', JSON.stringify(Array.from(favorites)))
+  }, [favorites])
+
+  // Fetch owner info for notes - match spreadsheet pattern
+  const loadingOwnerInfoRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (!graphqlClient) return
+
+    const loadOwnerInfo = async () => {
+      for (const note of notes) {
+        const ownerId = note.ownerId
+        if (!ownerId || ownerInfoMap.has(ownerId) || loadingOwnerInfoRef.current.has(ownerId)) continue
+        loadingOwnerInfoRef.current.add(ownerId)
+
+        try {
+          const query = GET_EMPLOYEE_LIGHT_BY_USER_ID(ownerId)
+          const result = await graphqlClient.request<{
+            Employee: Array<{ displayName: string; pictureThumbnail?: string }>
+          }>(query)
+          const emp = result.Employee?.[0]
+          setOwnerInfoMap(prev =>
+            new Map(prev).set(ownerId, {
+              name: emp?.displayName || `User ${ownerId.slice(0, 8)}`,
+              avatar: emp?.pictureThumbnail
+                ? emp.pictureThumbnail.startsWith('data:')
+                  ? emp.pictureThumbnail
+                  : `data:image/png;base64,${emp.pictureThumbnail}`
+                : undefined
+            })
+          )
+        } catch {
+          // Ignore errors - just show fallback
+          setOwnerInfoMap(prev =>
+            new Map(prev).set(ownerId, {
+              name: `User ${ownerId.slice(0, 8)}`
+            })
+          )
+        } finally {
+          loadingOwnerInfoRef.current.delete(ownerId)
+        }
+      }
+    }
+
+    loadOwnerInfo()
+  }, [notes, graphqlClient, ownerInfoMap])
+
+  // Separate notes into categories
+  const { myNotes, sharedNotes, pinnedNotes, archivedNotes, recentNotes } = useMemo(() => {
+    const my: NoteSummary[] = []
+    const shared: NoteSummary[] = []
+    const pinned: NoteSummary[] = []
+    const archived: NoteSummary[] = []
+    const recent: NoteSummary[] = []
+
+    // Sort by updatedAt for recent
+    const sortedByDate = [...notes].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    const recentSet = new Set(sortedByDate.slice(0, 10).map(n => n.id))
+
+    notes.forEach(note => {
+      if (note.isArchived) {
+        archived.push(note)
+        return
+      }
+      if (note.isPinned) {
+        pinned.push(note)
+      }
+      if (recentSet.has(note.id)) {
+        recent.push(note)
+      }
+      const isSharedWithMe = note.isShared === true || (note.ownerId !== currentUserId && note.permission !== 'owner')
+      if (isSharedWithMe) {
+        shared.push(note)
+      } else {
+        my.push(note)
+      }
+    })
+
+    return { myNotes: my, sharedNotes: shared, pinnedNotes: pinned, archivedNotes: archived, recentNotes: recent }
+  }, [notes, currentUserId])
+
+  // Filter and sort notes based on current section
+  const filteredNotes = useMemo(() => {
+    let baseNotes: NoteSummary[] = []
+
+    switch (activeSection) {
+      case 'home':
+        baseNotes = [...myNotes, ...sharedNotes]
+        break
+      case 'pinned':
+        baseNotes = pinnedNotes
+        break
+      case 'shared':
+        baseNotes = sharedNotes
+        break
+      case 'archived':
+        baseNotes = archivedNotes
+        break
+      case 'recent':
+        baseNotes = recentNotes
+        break
+      default:
+        baseNotes = myNotes
+    }
+
+    // Filter by search
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      baseNotes = baseNotes.filter(
+        note =>
+          note.title?.toLowerCase().includes(query) ||
+          note.preview?.toLowerCase().includes(query) ||
+          note.tags?.some(tag => tag.toLowerCase().includes(query))
+      )
+    }
+
+    // Sort
+    baseNotes.sort((a, b) => {
+      let comparison = 0
+      switch (sortBy) {
+        case 'name':
+          comparison = (a.title || '').localeCompare(b.title || '')
+          break
+        case 'modified':
+          comparison = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          break
+        case 'created':
+          comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          break
+      }
+      return sortOrder === 'asc' ? -comparison : comparison
+    })
+
+    return baseNotes
+  }, [myNotes, sharedNotes, pinnedNotes, archivedNotes, recentNotes, activeSection, searchQuery, sortBy, sortOrder])
 
   /**
    * Create new note
    */
   const handleCreateNew = useCallback(
-    async (options?: { color?: NoteColor }) => {
+    async (options?: { color?: NoteColor; noteType?: 'text' | 'handwriting'; paperStyle?: PaperStyle }) => {
       const input: CreateNoteInput = {
         title: '',
         content: '<p></p>',
         color: options?.color
+      }
+
+      // For handwriting notes, store noteType and paperStyle in contentJson
+      if (options?.noteType === 'handwriting') {
+        ;(input as CreateNoteInput & { contentJson?: unknown }).contentJson = {
+          _noteType: 'handwriting',
+          _paperStyle: options.paperStyle || 'lined',
+          strokes: []
+        }
       }
 
       const newNote = await createNote(input)
@@ -298,11 +536,11 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
    */
   const handleBack = useCallback(() => {
     clearCurrentNote()
-    resetLoadAttempt()
+    loadAttemptedRef.current = null
     setSelectedNoteId(null)
     setCurrentView('list')
     updateUrl(null)
-  }, [clearCurrentNote, resetLoadAttempt, updateUrl])
+  }, [clearCurrentNote, updateUrl])
 
   /**
    * Toggle favorite
@@ -469,32 +707,140 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     const canEdit = effectivePermission === 'owner' || effectivePermission === 'edit'
     const isOwner = currentNote.ownerId === currentUserId || effectivePermission === 'owner'
 
+    // Check if this is a handwriting note
+    const contentJson = currentNote.contentJson as
+      | {
+          _noteType?: string
+          _paperStyle?: PaperStyle
+          strokes?: StrokeData[]
+          _summary?: string | null
+          _translation?: any[]
+          actionItemFlows?: any[]
+        }
+      | undefined
+    const noteType = currentNote.noteType || contentJson?._noteType || 'text'
+
     console.log('[NoteAppsHub] Editor permissions:', {
       currentNotePermission,
       effectivePermission,
       canEdit,
       isOwner,
       noteOwnerId: currentNote.ownerId,
-      currentUserId
+      currentUserId,
+      noteType
     })
 
+    // Render HandwritingNote for handwriting notes
+    if (noteType === 'handwriting') {
+      return (
+        <>
+          <HandwritingNote
+            noteId={currentNote.id}
+            title={currentNote.title}
+            initialStrokes={contentJson?.strokes || []}
+            initialPaperStyle={contentJson?._paperStyle || 'lined'}
+            initialSummary={contentJson?._summary || null}
+            initialTranslations={(contentJson?._translation as any[]) || []}
+            initialActionItemFlows={(contentJson?.actionItemFlows as any[]) || []}
+            onPersist={async ({ title, strokes, paperStyle, summary, translations, actionItemFlows }) => {
+              await updateNote(currentNote.id, {
+                title,
+                contentJson: {
+                  _noteType: 'handwriting',
+                  _paperStyle: paperStyle,
+                  strokes,
+                  ...(summary ? { _summary: summary } : {}),
+                  ...(translations.length > 0 ? { _translation: translations } : {}),
+                  ...(actionItemFlows.length > 0 ? { actionItemFlows } : {})
+                }
+              })
+            }}
+            onBack={handleBack}
+            onConvertToText={async text => {
+              // Convert handwriting note to text note
+              await updateNote(currentNote.id, {
+                title: currentNote.title,
+                content: `<p>${text.replace(/\n/g, '</p><p>')}</p>`,
+                contentJson: { _noteType: 'text' }
+              })
+              // Refresh the current note to switch to text editor
+              loadNote(currentNote.id)
+            }}
+            onCreateTextNote={async (text, title) => {
+              // Create a new text note from handwriting
+              const input: CreateNoteInput = {
+                title,
+                content: `<p>${text.replace(/\n/g, '</p><p>')}</p>`
+              }
+              const newNote = await createNote(input)
+              if (newNote) {
+                toast.success('Text note created')
+              }
+            }}
+            accessToken={accessToken}
+            userInfo={userInfo}
+            data-testid={`${testId}-handwriting-editor`}
+          />
+
+          {/* Share dialog must also be mounted in editor view */}
+          {noteToShare && (
+            <ShareNoteDialog
+              open={shareDialogOpen}
+              onOpenChange={setShareDialogOpen}
+              noteId={noteToShare.id}
+              noteTitle={noteToShare.title || 'Untitled Note'}
+              accessToken={accessToken}
+              currentUserId={currentUserId}
+              currentUserName={userInfo?.employeeDetails?.displayName}
+              isOwner={noteToShare.ownerId === currentUserId || noteToShare.permission === 'owner'}
+              sharedUsers={shareDialogSharedUsers}
+              onShare={handleShareSubmit}
+              onUnshare={handleUnshare}
+              onRefreshShares={refreshShares}
+            />
+          )}
+        </>
+      )
+    }
+
+    // Render NoteEditor for text notes
     return (
-      <NoteEditor
-        note={currentNote}
-        onSave={async (title, content, contentJson) => {
-          await updateNote(currentNote.id, { title, content, contentJson })
-        }}
-        onBack={handleBack}
-        onTogglePin={() => handleTogglePin(currentNote.id)}
-        onArchive={() => handleArchiveNote(currentNote.id)}
-        onDelete={() => handleDeleteNote(currentNote.id)}
-        onShare={isOwner ? () => handleShareNote(currentNote.id) : undefined}
-        onDuplicate={() => handleDuplicateNote(currentNote.id)}
-        isReadOnly={!canEdit}
-        accessToken={accessToken}
-        userInfo={userInfo}
-        data-testid={`${testId}-editor`}
-      />
+      <>
+        <NoteEditor
+          note={currentNote}
+          onSave={async (title, content, contentJson) => {
+            await updateNote(currentNote.id, { title, content, contentJson })
+          }}
+          onBack={handleBack}
+          onTogglePin={() => handleTogglePin(currentNote.id)}
+          onArchive={() => handleArchiveNote(currentNote.id)}
+          onDelete={() => handleDeleteNote(currentNote.id)}
+          onShare={isOwner ? () => handleShareNote(currentNote.id) : undefined}
+          onDuplicate={() => handleDuplicateNote(currentNote.id)}
+          isReadOnly={!canEdit}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          data-testid={`${testId}-editor`}
+        />
+
+        {/* Share dialog must also be mounted in editor view */}
+        {noteToShare && (
+          <ShareNoteDialog
+            open={shareDialogOpen}
+            onOpenChange={setShareDialogOpen}
+            noteId={noteToShare.id}
+            noteTitle={noteToShare.title || 'Untitled Note'}
+            accessToken={accessToken}
+            currentUserId={currentUserId}
+            currentUserName={userInfo?.employeeDetails?.displayName}
+            isOwner={noteToShare.ownerId === currentUserId || noteToShare.permission === 'owner'}
+            sharedUsers={shareDialogSharedUsers}
+            onShare={handleShareSubmit}
+            onUnshare={handleUnshare}
+            onRefreshShares={refreshShares}
+          />
+        )}
+      </>
     )
   }
 
@@ -504,16 +850,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       <aside className="gba:w-60 gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0">
         {/* Logo / Brand */}
         <div className="gba:p-4 gba:border-b">
-          {/* Back button row */}
-          <button
-            onClick={() => navigateTo('/platform/apps/platform/apps/desk')}
-            className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors gba:mb-3"
-          >
-            <ChevronLeft className="gba:w-4 gba:h-4" />
-            <span>Back to Desk</span>
-          </button>
-
-          {/* Existing brand section */}
           <div className="gba:flex gba:items-center gba:gap-3">
             <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-amber-500 gba:to-orange-600 gba:flex gba:items-center gba:justify-center">
               <StickyNote className="gba:w-5 gba:h-5 gba:text-white" />
@@ -538,10 +874,18 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
               <DropdownMenuItem onClick={() => handleCreateNew()}>
                 <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-amber-500" />
                 <div>
-                  <div className="gba:font-medium">Blank Note</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">Start from scratch</div>
+                  <div className="gba:font-medium">Text Note</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">Type with keyboard</div>
                 </div>
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleCreateNew({ noteType: 'handwriting', paperStyle: 'lined' })}>
+                <PenTool className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
+                <div>
+                  <div className="gba:font-medium">Handwriting Note</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">Write with Apple Pencil</div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => handleCreateNew({ color: 'yellow' })}>
                 <Sparkles className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
                 <div>
@@ -879,7 +1223,12 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                       {/* Name & Icon */}
                       <div className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-3">
                         <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-amber-500/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-                          <span className="gba:text-lg">{note.icon || '📝'}</span>
+                          {note.noteType === 'handwriting' ||
+                          (note.contentJson as { _noteType?: string } | undefined)?._noteType === 'handwriting' ? (
+                            <PenTool className="gba:w-5 gba:h-5 gba:text-amber-600" />
+                          ) : (
+                            <span className="gba:text-lg">{note.icon || '📝'}</span>
+                          )}
                         </div>
                         <div className="gba:min-w-0">
                           <div className="gba:flex gba:items-center gba:gap-2">
@@ -1045,7 +1394,12 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                   >
                     {/* Preview area */}
                     <div className="gba:relative gba:aspect-[4/3] gba:bg-gradient-to-br gba:from-amber-500/10 gba:to-orange-500/10 gba:flex gba:items-center gba:justify-center gba:rounded-t-lg">
-                      <span className="gba:text-4xl">{note.icon || '📝'}</span>
+                      {note.noteType === 'handwriting' ||
+                      (note.contentJson as { _noteType?: string } | undefined)?._noteType === 'handwriting' ? (
+                        <PenTool className="gba:w-12 gba:h-12 gba:text-amber-600" />
+                      ) : (
+                        <span className="gba:text-4xl">{note.icon || '📝'}</span>
+                      )}
 
                       {/* Hover overlay */}
                       <div className="gba:absolute gba:inset-0 gba:bg-black/0 group-hover:gba:bg-black/5 gba:transition-colors gba:rounded-t-lg" />

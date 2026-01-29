@@ -6,14 +6,13 @@ import { OpportunityListLayout } from '@/common/components/common-relations/view
 import { createOpportunityColumns } from '@/common/components/common-relations/view-layouts/opportunity-layout/config/opportunityColumns'
 import type { GenericOpportunity, OpportunitySectionProps } from './types'
 
-const BASE_VISIBLE_COLUMNS = ['opportunity', 'amount', 'account', 'stage', 'status', 'owner', 'closeDate', 'created']
+const BASE_VISIBLE_COLUMNS = ['opportunity', 'amount', 'stage', 'status', 'owner', 'closeDate', 'created']
 
 export const OpportunitySection = <T extends GenericOpportunity = GenericOpportunity>({
   opportunities,
   isLoading = false,
   error = null,
   recordUrlBuilder,
-  accountUrlBuilder,
   className = '',
   'data-testid': dataTestId = 'opportunity-section',
   additionalColumns = [],
@@ -131,7 +130,7 @@ export const OpportunitySection = <T extends GenericOpportunity = GenericOpportu
 
   // Use central columns merged with additional columns
   const columns = useMemo(() => {
-    const baseColumns = createOpportunityColumns(accountUrlBuilder || (() => '')) as ColumnDef<T>[]
+    const baseColumns = createOpportunityColumns() as ColumnDef<T>[]
     if (additionalColumns.length === 0) return baseColumns
 
     // Insert additional columns after 'amount' column
@@ -140,7 +139,7 @@ export const OpportunitySection = <T extends GenericOpportunity = GenericOpportu
       return [...baseColumns.slice(0, amountIndex + 1), ...additionalColumns, ...baseColumns.slice(amountIndex + 1)]
     }
     return [...baseColumns, ...additionalColumns]
-  }, [accountUrlBuilder, additionalColumns])
+  }, [additionalColumns])
 
   // Derive additional column metadata for available/sortable columns
   const additionalColumnsMeta = useMemo(
@@ -156,7 +155,6 @@ export const OpportunitySection = <T extends GenericOpportunity = GenericOpportu
     const baseAvailable = [
       { id: 'opportunity', label: 'Opportunity Name' },
       { id: 'amount', label: 'Value' },
-      { id: 'account', label: 'Account' },
       { id: 'stage', label: 'Stage' },
       { id: 'status', label: 'Status' },
       { id: 'owner', label: 'Owner' },

@@ -30,10 +30,7 @@ export const ContactView: React.FC<ContactViewProps> = context => {
   const config: ContactViewConfig<Contact, InvestmentContactQueryVariables> = useMemo(
     () => ({
       fetchContacts: fetchInvestmentContacts,
-      createColumns: () =>
-        commonContactColumns({
-          buildAccountRecordUrl: accountId => buildPlatformUrl('/platform/irm/account-record', { accountId })
-        }),
+      createColumns: () => commonContactColumns(),
       descriptors: INVESTMENT_CONTACT_DESCRIPTORS,
       entityName: 'InvestmentContact',
       columnLabels: {
@@ -43,7 +40,6 @@ export const ContactView: React.FC<ContactViewProps> = context => {
         fullName: 'Full Name',
         department: 'Department',
         jobPosition: 'Job Position',
-        accountContacts: 'Account',
         ownerEmployee: 'Owner',
         createdAt: 'Created Date',
         updatedAt: 'Updated Date'

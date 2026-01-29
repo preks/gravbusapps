@@ -49,8 +49,13 @@ const NamesGroup: React.FC<NamesGroupProps> = ({ control, catalogs, setValue }) 
   const computedDisplayName = partsDisplay.filter(Boolean).join(' ').trim()
 
   // Update displayName field whenever computedDisplayName changes
+  // Use a ref to track the last set value to avoid unnecessary updates
+  const lastDisplayNameRef = React.useRef(computedDisplayName)
   useEffect(() => {
-    setValue('displayName', computedDisplayName, { shouldValidate: false, shouldDirty: false })
+    if (lastDisplayNameRef.current !== computedDisplayName) {
+      setValue('displayName', computedDisplayName, { shouldValidate: false, shouldDirty: false })
+      lastDisplayNameRef.current = computedDisplayName
+    }
   }, [computedDisplayName, setValue])
 
   const validateNameFunction = (name: string): boolean => {

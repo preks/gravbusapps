@@ -111,6 +111,12 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
 }) => {
   const { t } = useTranslation(translations)
 
+  // Don't show footer for completed tasks (unless custom children provided)
+  const isTaskCompleted = task?.status === 'COMPLETED' || !!task?.completedAt
+  if (isTaskCompleted && !children) {
+    return null
+  }
+
   // Auto-generate actions from task.availableActions if task is provided
   // Returns { left: TaskAction[], right: TaskAction[] } for proper positioning
   const { leftActions, rightActions } = useMemo(() => {

@@ -69,13 +69,13 @@ const groupBusinessAppsByModule = (businessApps: BusinessAppInfo[]): GroupedApps
 const getTypeIcon = (type: 'app' | 'form' | 'popup' | 'window') => {
   switch (type) {
     case 'app':
-      return <PlayIcon size={16} className="gba:text-ext-1" />
+      return <PlayIcon size={16} className="gba:text-info" />
     case 'form':
-      return <ArticleNyTimesIcon size={16} className="gba:text-ext-2" />
+      return <ArticleNyTimesIcon size={16} className="gba:text-success" />
     case 'popup':
-      return <ChatCircleIcon size={16} className="gba:text-ext-3" />
+      return <ChatCircleIcon size={16} className="gba:text-warning" />
     case 'window':
-      return <ArticleNyTimesIcon size={16} className="gba:text-ext-4" />
+      return <ArticleNyTimesIcon size={16} className="gba:text-destructive" />
     default:
       return <PlayIcon size={16} className="gba:text-primary" />
   }

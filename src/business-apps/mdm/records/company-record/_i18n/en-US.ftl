@@ -4,6 +4,8 @@
 company-code = Code
 company-unnamed = Unnamed Company
 company-category = COMPANY
+director = Director
+currency = Currency
 
 # Navigation
 overview = Overview
@@ -22,6 +24,7 @@ name = Name
 retry = Retry
 
 # Home View
+description = Description
 addresses = Addresses
 address-type = Address Type
 address-line = Address Line
@@ -39,8 +42,10 @@ vat-number = VAT Number
 no-tax-information = No tax information available
 
 additional-properties = Additional Properties
+no-additional-properties = No additional properties available
 
 organizational-units = Organizational Units
+no-organizational-units = No organizational units available
 
 # Employee View
 search-employees = Search employees...
@@ -55,3 +60,14 @@ no-organizational-units-found = No organizational units found.
 # Document View
 documents-not-available = Company documents feature is not yet available. The document management system for companies will be enabled in a future update.
 
+# Document Upload
+document-upload-title = Upload Document
+document-upload-name = Document Name
+document-upload-description = Description
+document-upload-file = Select File
+document-upload-group = Document Group
+document-upload-type = Document Type
+document-upload-parent = Parent Folder
+document-upload-expiration = Expiration Date
+document-upload-error = Failed to upload document
+document-upload-success = Document uploaded successfully

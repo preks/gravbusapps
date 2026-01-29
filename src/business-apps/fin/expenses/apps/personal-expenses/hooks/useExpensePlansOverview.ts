@@ -8,6 +8,7 @@ import {
   GET_EXPENSE_PLANS_STATISTICS,
   GET_EXPENSE_PLANS_DESTINATIONS
 } from '../queries/expensePlans'
+import { normalize } from '../utils/cacheUtils'
 
 // Type aliases for union types
 type SortField = string | null
@@ -47,22 +48,7 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
   const pageCacheRef = useRef<Map<string, PlansOverviewResult>>(new Map())
   const graphqlClient = useGraphQLClient(context.accessToken)
 
-  // Helper to normalize objects for stable keys - memoized to prevent recreation
-  const normalize = useCallback((val: any): any => {
-    if (Array.isArray(val)) {
-      return val.map(normalize)
-    }
-    if (val && typeof val === 'object') {
-      const sorted: any = {}
-      Object.keys(val)
-        .sort((a, b) => a.localeCompare(b))
-        .forEach(k => {
-          sorted[k] = normalize(val[k])
-        })
-      return sorted
-    }
-    return val
-  }, [])
+  // Helper to normalize objects for stable keys - using shared utility
 
   // Keep a ref in sync so fetchOverview doesn't need to depend on `data`
   useEffect(() => {
