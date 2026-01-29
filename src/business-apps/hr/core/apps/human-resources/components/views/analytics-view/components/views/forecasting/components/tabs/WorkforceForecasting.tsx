@@ -18,7 +18,7 @@ interface WorkforceForecastingProps extends BusinessAppContextProps {
 export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props => {
   const { prefixDataTestId = 'WorkforceForecasting' } = props
   const { t } = useTranslation(hrTranslations)
-  const currentYear = new Date().getFullYear()
+  const currentYear = useMemo(() => new Date().getFullYear(), [])
   const { data: monthlyChanges, loading: monthlyChangesLoading } = useMonthlyHeadcountChanges(props, currentYear)
 
   // Add authoritative employee count hook
