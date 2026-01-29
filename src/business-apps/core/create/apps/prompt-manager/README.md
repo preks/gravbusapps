@@ -9,7 +9,7 @@
 
 ## Creating an EveryAI Expert
 
-1. Open Task Expert Studio (`/platform/task-expert-studio`)
+1. Open Prompt Manager (`/platform/create/prompt-manager`)
 2. Create New Task Expert
 3. Select **Agent Type**: EveryAI Expert
 4. Fill required fields:

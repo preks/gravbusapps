@@ -59,13 +59,12 @@ import { FunctionsServiceClient, LatestFunctionItem } from '@/common/network/fun
 export interface FunctionEditorProps extends BusinessAppContextProps {
   mode: 'create' | 'edit'
   function?: LatestFunctionItem | null
-  onClose: () => void
   onSaved: () => void
 }
 
 export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
-  const { mode, function: func, onClose, onSaved } = props
-  const client = React.useMemo(() => new FunctionsServiceClient(), [])
+  const { mode, function: func, onSaved, accessToken } = props
+  const client = React.useMemo(() => new FunctionsServiceClient(accessToken), [accessToken])
 
   // Core fields
   const [name, setName] = useState('')
@@ -171,13 +170,9 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
   const loadVersionSource = async () => {
     if (!func?.id) return
     try {
-      const baseUrl = client.baseUrl
-      const response = await fetch(`${baseUrl}/functions/${func.id}`)
-      if (response.ok) {
-        const data = await response.json()
-        if (data.version?.source) {
-          setSource(data.version.source)
-        }
+      const data = await client.getFunction(func.id)
+      if (data.version?.source) {
+        setSource(data.version.source)
       }
     } catch (e) {
       console.error('Failed to load version source:', e)
@@ -207,8 +202,6 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
         throw new Error(`Invalid output schema JSON: ${e instanceof Error ? e.message : 'Unknown error'}`)
       }
 
-      const baseUrl = client.baseUrl
-
       // Build config object from key-value pairs (filter out empty keys)
       const config: Record<string, string> = {}
       configKeys.forEach(kv => {
@@ -218,63 +211,34 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
       })
 
       if (mode === 'create') {
-        // Create function with first version
-        const response = await fetch(`${baseUrl}/functions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: name.trim(),
-            description: description.trim() || null,
-            agentEnabled,
-            workflowEnabled,
-            config,
-            firstVersion: {
-              source: source.trim(),
-              inputSchema: inputSchemaObj,
-              outputSchema: outputSchemaObj
-            }
-          })
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: 'Failed to create function' }))
-          throw new Error(errorData.message || `HTTP ${response.status}`)
-        }
-      } else if (func?.id) {
-        // Update function metadata first
-        const updateResponse = await fetch(`${baseUrl}/functions/${func.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            description: description.trim() || null,
-            agentEnabled,
-            workflowEnabled,
-            config
-          })
-        })
-
-        if (!updateResponse.ok) {
-          const errorData = await updateResponse.json().catch(() => ({ message: 'Failed to update function' }))
-          throw new Error(errorData.message || `HTTP ${updateResponse.status}`)
-        }
-
-        // Create new version for existing function
-        const latestVersion = func.latestVersion?.version || 0
-        const response = await fetch(`${baseUrl}/functions/${func.id}/versions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            version: latestVersion + 1,
+        await client.createFunctionWithVersion({
+          name: name.trim(),
+          description: description.trim() || undefined,
+          agentEnabled,
+          workflowEnabled,
+          config,
+          firstVersion: {
             source: source.trim(),
             inputSchema: inputSchemaObj,
             outputSchema: outputSchemaObj
-          })
+          }
+        })
+      } else if (func?.id) {
+        // Update function metadata first
+        await client.updateFunction(func.id, {
+          description: description.trim() || undefined,
+          agentEnabled,
+          workflowEnabled,
+          config
         })
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: 'Failed to create version' }))
-          throw new Error(errorData.message || `HTTP ${response.status}`)
-        }
+        // Create new version for existing function
+        const latestVersion = func.latestVersion?.version || 0
+        await client.createVersion(func.id, latestVersion + 1, {
+          source: source.trim(),
+          inputSchema: inputSchemaObj,
+          outputSchema: outputSchemaObj
+        })
       }
 
       onSaved()
@@ -296,9 +260,6 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
     setTestResult('')
 
     try {
-      // Use the payload object directly
-      const parsedPayload = testPayloadObj
-
       // Parse schemas
       let inputSchemaObj: Record<string, unknown> | undefined
       let outputSchemaObj: Record<string, unknown> | undefined
@@ -323,26 +284,14 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
         }
       })
 
-      // Call test endpoint
-      const baseUrl = client.baseUrl
-      const response = await fetch(`${baseUrl}/test`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          source: source.trim(),
-          payload: parsedPayload,
-          inputSchema: inputSchemaObj,
-          outputSchema: outputSchemaObj,
-          config
-        })
+      const data = await client.testFunction({
+        source: source.trim(),
+        payload: testPayloadObj,
+        inputSchema: inputSchemaObj,
+        outputSchema: outputSchemaObj,
+        config
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Test failed' }))
-        throw new Error(errorData.message || errorData.error || `HTTP ${response.status}`)
-      }
-
-      const data = await response.json()
       setTestResult(JSON.stringify(data.result || data, null, 2))
     } catch (e) {
       setTestError(e instanceof Error ? e.message : 'Test failed')
@@ -353,18 +302,10 @@ export const FunctionEditor: React.FC<FunctionEditorProps> = props => {
 
   return (
     <div data-testid="function-editor" className="gba:w-full gba:space-y-4">
-      <div className="gba:flex gba:items-center gba:justify-between">
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <Button variant="outline" onClick={onClose} data-testid="function-editor-back">
-            Back
-          </Button>
-          <div className="gba:text-lg gba:font-semibold">{mode === 'edit' ? name || func?.name : 'New Function'}</div>
-        </div>
-        <div className="gba:flex gba:gap-2">
-          <Button variant="default" onClick={onSave} disabled={!isValid || isSaving} data-testid="function-editor-save">
-            {isSaving ? 'Saving…' : mode === 'create' ? 'Create' : 'Create New Version'}
-          </Button>
-        </div>
+      <div className="gba:flex gba:items-center gba:justify-end">
+        <Button variant="default" onClick={onSave} disabled={!isValid || isSaving} data-testid="function-editor-save">
+          {isSaving ? 'Saving…' : mode === 'create' ? 'Create' : 'Create New Version'}
+        </Button>
       </div>
 
       {error && (

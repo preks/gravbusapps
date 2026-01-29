@@ -22,7 +22,7 @@ const keyframesStyles = `
  * HeroSection - Premium animated hero for NEWWORK CREATE
  * Features an animated gradient background with a bold headline
  */
-export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId = 'newwork-create-hero' }) => {
+export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId = 'create-workspace-hero' }) => {
   return (
     <>
       <style>{keyframesStyles}</style>

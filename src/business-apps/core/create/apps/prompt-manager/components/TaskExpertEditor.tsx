@@ -44,14 +44,14 @@ import type { GeneratedTaskExpert } from '../hooks/useTaskExpertAiGenerate'
 export interface TaskExpertEditorProps extends BusinessAppContextProps {
   mode: 'create' | 'edit'
   promptId?: string | null // ID to load, for edit mode
-  onClose: () => void
   onSaved: () => void
+  onNameLoaded?: (name: string) => void
 }
 
 type ParamRow = { key: string; value: string }
 
 export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
-  const { mode, promptId, onClose, onSaved } = props
+  const { mode, promptId, onSaved, onNameLoaded } = props
   const client = usePromptManagerClient(props.accessToken)
 
   // Loading state
@@ -133,6 +133,9 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
           const loadedPrompt = await client.getPrompt(promptId)
           if (!mounted) return
           setPrompt(loadedPrompt)
+          if (loadedPrompt.name && onNameLoaded) {
+            onNameLoaded(loadedPrompt.name)
+          }
         } catch (err) {
           if (!mounted) return
           setError(err instanceof Error ? err.message : 'Failed to load task expert')
@@ -147,7 +150,7 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
     } else if (mode === 'create') {
       setPrompt(null)
     }
-  }, [mode, promptId, client])
+  }, [mode, promptId, client, onNameLoaded])
 
   // Update parameter rows when parameters change
   useEffect(() => {
@@ -471,8 +474,7 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
     responseSchema,
     selectedToolIds,
     availableTools,
-    onSaved,
-    onClose
+    onSaved
   ])
 
   // Handler for AI-generated content
@@ -560,32 +562,22 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
         </div>
       ) : (
         <>
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <Button variant="outline" onClick={onClose} data-testid="task-expert-editor-back">
-                Back
-              </Button>
-              <div className="gba:text-lg gba:font-semibold">
-                {mode === 'edit' ? name || prompt?.name : 'New Task Expert'}
-              </div>
-            </div>
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <TaskExpertAiAssist
-                {...props}
-                agentType={agentType}
-                onApply={handleAiApply}
-                data-testid="task-expert-editor-ai-assist"
-              />
-              <Button
-                variant="default"
-                size="sm"
-                onClick={onSave}
-                disabled={!isValid || isSaving}
-                data-testid="task-expert-editor-save"
-              >
-                {isSaving ? 'Saving…' : 'Save'}
-              </Button>
-            </div>
+          <div className="gba:flex gba:items-center gba:justify-end gba:gap-2">
+            <TaskExpertAiAssist
+              {...props}
+              agentType={agentType}
+              onApply={handleAiApply}
+              data-testid="task-expert-editor-ai-assist"
+            />
+            <Button
+              variant="default"
+              size="sm"
+              onClick={onSave}
+              disabled={!isValid || isSaving}
+              data-testid="task-expert-editor-save"
+            >
+              {isSaving ? 'Saving…' : 'Save'}
+            </Button>
           </div>
 
           {error && (
@@ -846,8 +838,8 @@ export const TaskExpertEditor: React.FC<TaskExpertEditorProps> = props => {
                                   setSelectedToolIds(prev => [...prev, toolId])
                                   if (!toolVersions[toolId]) {
                                     try {
-                                      const client = new FunctionsServiceClient()
-                                      const res: FunctionVersionsResponse = await client.getVersions(tool.id)
+                                      const functionsClient = new FunctionsServiceClient(props.accessToken)
+                                      const res: FunctionVersionsResponse = await functionsClient.getVersions(tool.id)
                                       const versions = (res.versions || [])
                                         .map(v => Number(v.version))
                                         .filter(v => !Number.isNaN(v))

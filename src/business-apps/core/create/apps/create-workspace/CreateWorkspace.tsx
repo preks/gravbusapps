@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { navigateTo } from '@/common/utils/navigationUtils'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { Monitor, Workflow, Bot, Code2, Database, LayoutTemplate } from 'lucide-react'
 import {
   HeroSection,
@@ -26,7 +26,7 @@ export interface NewworkCreateProps extends BusinessAppContextProps {
  * - Data Models
  * - Templates
  */
-export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': testId = 'newwork-create' }) => {
+export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': testId = 'create-workspace' }) => {
   // Tool definitions
   const tools: Array<Omit<ToolCardProps, 'data-testid'> & { id: string }> = [
     {
@@ -35,7 +35,7 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
       description:
         'Design and build UI screens with AI assistance. Create forms, dashboards, lists, and custom layouts.',
       icon: Monitor,
-      href: '/platform/ai-builder',
+      href: buildPlatformUrl('/platform/ai-builder'),
       badge: 'AI-Powered',
       badgeVariant: 'info',
       accentColor: 'ai'
@@ -46,7 +46,7 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
       description:
         'Design automated workflows and business processes. Connect steps, define logic, and orchestrate tasks.',
       icon: Workflow,
-      href: '/platform/apps/flow/apps/creator#create',
+      href: buildPlatformUrl('/platform/apps/flow/apps/creator') + '#create',
       badge: 'Popular',
       badgeVariant: 'success',
       accentColor: 'success'
@@ -57,7 +57,7 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
       description:
         'Create AI-powered task experts that automate repetitive work and assist users with complex operations.',
       icon: Bot,
-      href: '/platform/apps/ai/apps/task-expert-studio',
+      href: buildPlatformUrl('/platform/create/prompt-manager'),
       badge: 'AI-Powered',
       badgeVariant: 'info',
       accentColor: 'ai'
@@ -67,7 +67,7 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
       title: 'Functions',
       description: 'Build serverless functions and custom logic. Extend platform capabilities with your own code.',
       icon: Code2,
-      href: '/platform/apps/platform/functions/apps/functions-manager',
+      href: buildPlatformUrl('/platform/create/function-manager'),
       badge: 'New',
       badgeVariant: 'success',
       accentColor: 'warning'
@@ -77,7 +77,7 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
       title: 'Data Models',
       description: 'Define and manage data structures. Create entities, relationships, and validation rules.',
       icon: Database,
-      href: '/platform/apps/data-models',
+      href: buildPlatformUrl('/platform/create/data-models'),
       isComingSoon: true,
       badge: 'Coming Soon',
       accentColor: 'info'
@@ -87,7 +87,7 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
       title: 'Templates',
       description: 'Start from pre-built templates. Accelerate development with proven patterns and best practices.',
       icon: LayoutTemplate,
-      href: '/platform/apps/templates',
+      href: buildPlatformUrl('/platform/create/templates'),
       isComingSoon: true,
       badge: 'Coming Soon',
       accentColor: 'primary'
@@ -130,22 +130,6 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
     // Find the highest scoring tool
     const maxScore = Math.max(...Object.values(scores))
 
-    // Default to screen builder for AI-powered creation
-    let targetUrl = '/platform/ai-builder'
-
-    if (maxScore > 0) {
-      if (scores.flowCreator === maxScore) {
-        targetUrl = '/platform/apps/flow/apps/creator#create'
-      } else if (scores.taskExperts === maxScore) {
-        targetUrl = '/platform/apps/ai/apps/task-expert-studio'
-      } else if (scores.functions === maxScore) {
-        targetUrl = '/platform/apps/platform/functions/apps/functions-manager'
-      } else if (scores.dataModels === maxScore) {
-        // Data models coming soon, redirect to screen builder
-        targetUrl = '/platform/ai-builder'
-      }
-    }
-
     // Store the prompt for the target app to use
     try {
       sessionStorage.setItem('newworkCreatePrompt', prompt)
@@ -153,8 +137,23 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
       // Ignore storage errors
     }
 
-    // Navigate to the selected tool
-    navigateTo(targetUrl)
+    // Navigate to the appropriate tool based on keyword scoring
+    if (maxScore > 0) {
+      if (scores.flowCreator === maxScore) {
+        navigateTo(buildPlatformUrl('/platform/apps/flow/apps/creator') + '#create')
+        return
+      } else if (scores.taskExperts === maxScore) {
+        navigateTo(buildPlatformUrl('/platform/create/prompt-manager'))
+        return
+      } else if (scores.functions === maxScore) {
+        navigateTo(buildPlatformUrl('/platform/create/function-manager'))
+        return
+      }
+      // Data models coming soon, fall through to default
+    }
+
+    // Default to AI Builder for screen creation
+    navigateTo(buildPlatformUrl('/platform/ai-builder'))
   }, [])
 
   // Handle tool card click

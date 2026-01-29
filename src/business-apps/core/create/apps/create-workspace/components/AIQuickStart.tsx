@@ -20,7 +20,7 @@ const EXAMPLE_PROMPTS = [
  */
 export const AIQuickStart: React.FC<AIQuickStartProps> = ({
   onSubmit,
-  'data-testid': testId = 'newwork-create-ai-quickstart'
+  'data-testid': testId = 'create-workspace-ai-quickstart'
 }) => {
   const [prompt, setPrompt] = useState('')
   const [isFocused, setIsFocused] = useState(false)

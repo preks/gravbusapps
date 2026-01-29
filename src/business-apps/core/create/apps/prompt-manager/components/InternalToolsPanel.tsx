@@ -88,7 +88,7 @@ export const InternalToolsPanel: React.FC<InternalToolsPanelProps> = ({ open, on
     setIsRegistering(true)
     setRegisterResult(null)
 
-    const client = new FunctionsServiceClient()
+    const client = new FunctionsServiceClient(accessToken)
     const results: string[] = []
     const errors: string[] = []
     const toolIds = ALL_TOOLS.map(t => t.id)
@@ -99,7 +99,7 @@ export const InternalToolsPanel: React.FC<InternalToolsPanelProps> = ({ open, on
       for (const fn of allFunctions) {
         if (toolIds.includes(fn.name)) {
           try {
-            await client.deleteFunction(accessToken, fn.id)
+            await client.deleteFunction(fn.id)
             results.push(`Deleted: ${fn.name}`)
           } catch (err) {
             errors.push(`Delete ${fn.name}: ${err instanceof Error ? err.message : String(err)}`)
@@ -113,7 +113,7 @@ export const InternalToolsPanel: React.FC<InternalToolsPanelProps> = ({ open, on
     // Now register fresh
     for (const tool of ALL_TOOLS) {
       try {
-        await client.createFunctionWithVersion(accessToken, {
+        await client.createFunctionWithVersion({
           name: tool.id,
           description: tool.description,
           agentEnabled: true,
@@ -154,7 +154,7 @@ export const InternalToolsPanel: React.FC<InternalToolsPanelProps> = ({ open, on
     setIsRegistering(true)
     setRegisterResult(null)
 
-    const client = new FunctionsServiceClient()
+    const client = new FunctionsServiceClient(accessToken)
     const results: string[] = []
     const errors: string[] = []
 
@@ -166,14 +166,14 @@ export const InternalToolsPanel: React.FC<InternalToolsPanelProps> = ({ open, on
         if (existing) {
           // Function exists - add a new version
           const latestVersion = await client.getLatestVersion(existing.id)
-          await client.createVersion(accessToken, existing.id, latestVersion + 1, {
+          await client.createVersion(existing.id, latestVersion + 1, {
             source: tool.source,
             inputSchema: tool.schema
           })
           results.push(`${tool.name}: Added version ${latestVersion + 1}`)
         } else {
           // Create new function with first version
-          await client.createFunctionWithVersion(accessToken, {
+          await client.createFunctionWithVersion({
             name: tool.id,
             description: tool.description,
             agentEnabled: true,

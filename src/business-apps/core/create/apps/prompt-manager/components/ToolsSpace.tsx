@@ -75,19 +75,19 @@ export const ToolsSpace: React.FC<BusinessAppContextProps> = context => {
   }
 
   return (
-    <Card data-testid="task-expert-studio-tools-space">
+    <Card data-testid="prompt-manager-tools-space">
       <CardHeader>
         <CardTitle>Tools</CardTitle>
       </CardHeader>
       <CardContent className="gba:space-y-4">
         <div className="gba:flex gba:items-center gba:gap-3">
           <Input
-            data-testid="task-expert-studio-tools-search-input"
+            data-testid="prompt-manager-tools-search-input"
             placeholder="Search tools..."
             value={search}
             onChange={onSearchChange}
           />
-          <Button variant="default" data-testid="task-expert-studio-tools-create-button" onClick={onCreateTool}>
+          <Button variant="default" data-testid="prompt-manager-tools-create-button" onClick={onCreateTool}>
             New Tool
           </Button>
           <Button variant="secondary" onClick={() => reload({ search, limit, offset })}>
@@ -95,16 +95,16 @@ export const ToolsSpace: React.FC<BusinessAppContextProps> = context => {
           </Button>
         </div>
         {error ? (
-          <div data-testid="task-expert-studio-tools-error" className="gba:text-destructive">
+          <div data-testid="prompt-manager-tools-error" className="gba:text-destructive">
             {error}
           </div>
         ) : (
           <div className="gba:space-y-2">
-            <div data-testid="task-expert-studio-tools-count" className="gba:text-muted-foreground">
+            <div data-testid="prompt-manager-tools-count" className="gba:text-muted-foreground">
               {total} tools
             </div>
             <div className="gba:overflow-x-auto">
-              <Table data-testid="task-expert-studio-tools-table">
+              <Table data-testid="prompt-manager-tools-table">
                 <TableHeader>
                   <TableRow className="gba:border-b">
                     <TableHead>Name</TableHead>
@@ -126,7 +126,7 @@ export const ToolsSpace: React.FC<BusinessAppContextProps> = context => {
                     items.map(tool => (
                       <TableRow
                         key={tool._id ?? tool.name}
-                        data-testid={`task-expert-studio-tool-row-${tool._id ?? tool.name}`}
+                        data-testid={`prompt-manager-tool-row-${tool._id ?? tool.name}`}
                       >
                         <TableCell className="gba:py-3">
                           <span className="gba:font-medium">{tool.name}</span>
@@ -141,7 +141,7 @@ export const ToolsSpace: React.FC<BusinessAppContextProps> = context => {
                         </TableCell>
                         <TableCell
                           className="gba:py-3"
-                          data-testid={`task-expert-studio-tools-actions-cell-${tool._id ?? tool.name}`}
+                          data-testid={`prompt-manager-tools-actions-cell-${tool._id ?? tool.name}`}
                         >
                           <div className="gba:flex gba:gap-2 gba:justify-start">
                             <Button
