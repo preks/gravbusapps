@@ -38,8 +38,7 @@ export const IndexingProgress: React.FC<IndexingProgressProps> = ({ compact = fa
             pollInterval = null
           }
         }
-      } catch (err) {
-        console.error('Failed to load indexing status:', err)
+      } catch {
         if (mounted) setLoading(false)
       }
     }
@@ -207,8 +206,7 @@ export function useIndexingStatus() {
             pollInterval = null
           }
         }
-      } catch (err) {
-        console.error('Failed to load indexing status:', err)
+      } catch {
         if (mounted) setLoading(false)
       }
     }

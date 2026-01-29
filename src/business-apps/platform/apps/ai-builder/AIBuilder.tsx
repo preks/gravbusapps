@@ -423,6 +423,36 @@ interface PublishRequest {
   accessToken: string
 }
 
+// Type for file change from the API
+interface FileChange {
+  path: string
+  type: string
+  filePath?: string
+  newContent?: string
+  changeType?: string
+}
+
+// Type for changes summary from API
+interface ChangesSummary {
+  total: number
+  files: FileChange[]
+}
+
+// Type for changes response from API
+interface ChangesResponse {
+  summary?: ChangesSummary
+  changes?: FileChange[]
+}
+
+// Type for employee from GraphQL
+interface EmployeeRecord {
+  id: string
+  firstName?: string
+  lastName?: string
+  displayName?: string
+  pictureThumbnail?: string
+}
+
 async function publishScreen(request: PublishRequest) {
   const response = await fetch(`${API_URL}/api/newwork/publish`, {
     method: 'POST',
@@ -489,8 +519,7 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [thinking, setThinking] = useState(false)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_thinkingContent, setThinkingContent] = useState('') // Used for accumulating thinking, not displayed in streaming indicator
+  const [, setThinkingContent] = useState('') // Used for accumulating thinking via setThinkingContent
   const [usage, setUsage] = useState({
     totalInputTokens: 0,
     totalOutputTokens: 0,
@@ -607,7 +636,7 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
 
       try {
         const query = GET_EMPLOYEE_LIGHT_BY_ID(employeeId)
-        const result = await graphqlClient.request<{ Employee: any[] }>(query)
+        const result = await graphqlClient.request<{ Employee: EmployeeRecord[] }>(query)
         const employee = result.Employee?.[0]
 
         if (employee) {
@@ -622,7 +651,7 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
             consentToStorePii: true // Allow storing user info for session display
           }
           setCurrentUser(user)
-          setUserPictureThumbnail(employee.pictureThumbnail)
+          setUserPictureThumbnail(employee.pictureThumbnail || null)
         }
       } catch (error) {
         console.error('Failed to fetch current user:', error)
@@ -670,7 +699,10 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
       return
     }
 
-    const newSessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+    const randomBytes = new Uint8Array(8)
+    crypto.getRandomValues(randomBytes)
+    const randomPart = Array.from(randomBytes, b => b.toString(16).padStart(2, '0')).join('')
+    const newSessionId = `session-${Date.now()}-${randomPart}`
     const newSession: SessionMetadata = {
       sessionId: newSessionId,
       screenPath: null,
@@ -691,13 +723,11 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
     setResourceUrl('')
     setDetectedScreenPath(null)
     setUniqueFileSummary(null)
-    console.log('Created new session:', newSessionId)
   }
 
   const selectSession = (sid: string) => {
     setSessionId(sid)
     setShowSessionList(false)
-    console.log('Selected session:', sid)
     // Update last modified time
     const updatedSession = sessions.find(s => s.sessionId === sid)
     if (updatedSession) {
@@ -727,9 +757,7 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
 
       // Also clean up session data from localStorage
       localStorage.removeItem(`ai-builder-session-${sid}`)
-      console.log('Deleted session:', sid)
-    } catch (error) {
-      console.error('Failed to delete session:', sid, error)
+    } catch {
       alert('Failed to delete session. Please try again.')
     }
   }
@@ -769,8 +797,6 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
   // Auto-load files and chat history when session is selected
   useEffect(() => {
     if (sessionId && !showSessionList) {
-      console.log('Session selected, loading files and chat history...')
-
       // Load files
       checkForChanges()
 
@@ -778,10 +804,8 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
       loadChatHistory(repositoryId, sessionId)
         .then(history => {
           if (history && history.length > 0) {
-            console.log(`Loaded ${history.length} messages from chat history`)
-            setMessages(history as any[])
+            setMessages(history as Message[])
           } else {
-            console.log('No chat history found for this session')
             setMessages([])
           }
         })
@@ -796,35 +820,25 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
   // Uses useDebounce hook for proper debouncing (1 second delay)
   useEffect(() => {
     if (sessionId && !showSessionList && debouncedMessages.length > 0) {
-      saveChatHistory(repositoryId, sessionId, debouncedMessages as any[]).then(success => {
-        if (success) {
-          console.log('Chat history saved successfully')
-        } else {
-          console.warn('Failed to save chat history')
-        }
-      })
+      saveChatHistory(repositoryId, sessionId, debouncedMessages as Message[])
     }
   }, [debouncedMessages, sessionId, showSessionList, repositoryId])
 
   // Check for changes
   const checkForChanges = async () => {
     if (!sessionId) {
-      console.log('No sessionId yet, skipping change check')
       return
     }
 
-    console.log('Fetching changes from AI service...', { sessionId, repoId: repositoryId })
-
     try {
-      const data = await getChanges(repositoryId, sessionId)
-      console.log('Changes received:', data)
+      const data: ChangesResponse = await getChanges(repositoryId, sessionId)
 
       // Calculate unique files summary (not counting duplicates)
       if (data.summary && data.summary.files) {
         const fileMap = new Map<string, { path: string; type: 'create' | 'modify' | 'delete' }>()
 
         // Process files in order - later changes override earlier ones
-        data.summary.files.forEach((file: { path: string; type: string }) => {
+        data.summary.files.forEach((file: FileChange) => {
           const normalizedType = file.type === 'create' ? 'create' : file.type === 'delete' ? 'delete' : 'modify'
           fileMap.set(file.path, { path: file.path, type: normalizedType })
         })
@@ -844,19 +858,12 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
           deleted,
           files: uniqueFiles
         })
-
-        console.log('✨ Unique files summary:', { total: uniqueFiles.length, created, modified, deleted })
       }
 
       // Auto-detect screen path from created files
       // Support both /apps/ and /screens/ structures
       if (data.summary && data.summary.files) {
-        console.log(
-          '🔍 All files from API:',
-          data.summary.files.map((f: any) => f.path)
-        )
-
-        const indexFiles = data.summary.files.filter((f: any) => {
+        const indexFiles = data.summary.files.filter((f: FileChange) => {
           // Must include /apps/, /screens/, or /forms/
           const hasAppStructure =
             f.path.includes('/apps/') || f.path.includes('/screens/') || f.path.includes('/forms/')
@@ -874,11 +881,6 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
           return hasAppStructure && isIndexFile && isBusinessApp && isRootIndex
         })
 
-        console.log(
-          '🎯 Filtered index.ts files:',
-          indexFiles.map((f: any) => f.path)
-        )
-
         if (indexFiles.length > 0) {
           // Extract path like "platform/examples/apps/hello-world" from
           // "src/business-apps/platform/examples/apps/hello-world/index.ts"
@@ -893,15 +895,8 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
             const screenName = segments[segments.length - 1]
             const urlPath = '/' + screenName // e.g., "/hello-world"
             setResourceUrl(urlPath)
-
-            console.log(`🎯 Auto-detected screen path: ${detectedPath}`)
-            console.log(`🔗 Auto-generated resource URL: ${urlPath}`)
           }
         }
-      }
-
-      if (data.summary && data.summary.total > 0) {
-        console.log(`✅ ${data.summary.total} files changed - Publish button should appear!`)
       }
     } catch (error) {
       console.error('Failed to get changes:', error)
@@ -918,19 +913,14 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
     setIsPublishing(true)
     try {
       // Get all changes from the AI service (excluding deleted files)
-      const data = await getChanges(repositoryId, sessionId)
+      const data: ChangesResponse = await getChanges(repositoryId, sessionId)
       const files = (data.changes || [])
-        .filter((change: any) => change.changeType !== 'delete')
-        .map((change: any) => ({
-          path: change.filePath,
+        .filter((change: FileChange) => change.changeType !== 'delete')
+        .map((change: FileChange) => ({
+          path: change.filePath || change.path,
           content: change.newContent || '',
-          changeType: change.changeType
+          changeType: change.changeType || change.type
         }))
-
-      console.log(
-        `Publishing ${files.length} files (excluded deleted files)`,
-        files.map((f: any) => f.path)
-      )
 
       // Publish to platform
       await publishScreen({
@@ -1016,9 +1006,6 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       // Frontend just sends recent messages for bandwidth optimization
       // Backend loads full history from database + uses semantic search for best context
       const optimizedHistory = messages.slice(-20) // Last 20 for redundancy
-
-      console.log('Sending:', optimizedHistory.length, 'messages (backend loads full history from database & uses RAG)')
-      console.log('========================')
 
       // For new sessions (empty history), send empty array to enable Claude's native extended thinking
       // Extended thinking properly separates reasoning from response in the API
@@ -1179,8 +1166,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                   return newMessages
                 })
               }
-            } catch (e) {
-              console.warn('Failed to parse chunk:', e)
+            } catch {
+              // Failed to parse chunk, skip
             }
           }
         }
@@ -1200,9 +1187,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       // Check for changes after AI completes (allow time for database writes)
       // Database writes can take 1-2 seconds, especially with multiple files
       setTimeout(() => {
-        console.log('🔍 Checking for changes after AI response (2s delay)...')
         checkForChanges()
-      }, 2000) // Increased from 500ms to 2000ms
+      }, 2000)
     }
   }
 

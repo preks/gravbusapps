@@ -41,12 +41,14 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
         setTree(data.tree)
         // Auto-expand root level
         if (data.tree.children) {
-          const rootPaths = Object.values(data.tree.children).map((node: any) => node.path)
+          const rootPaths = Object.values(data.tree.children as Record<string, TreeNode>).map(
+            (node: TreeNode) => node.path
+          )
           setExpanded(new Set(rootPaths))
         }
       }
-    } catch (error) {
-      console.error('Failed to load file tree:', error)
+    } catch {
+      // Failed to load file tree, silent failure
     } finally {
       setLoading(false)
     }

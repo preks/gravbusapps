@@ -73,7 +73,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ files }) => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => window.open(previewUrl, '_blank')}
+                  onClick={() => globalThis.window?.open(previewUrl, '_blank')}
                   className="gba:gap-2"
                 >
                   <ExternalLink className="gba:w-4 gba:h-4" />

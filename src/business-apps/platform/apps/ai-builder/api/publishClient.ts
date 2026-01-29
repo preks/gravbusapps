@@ -96,8 +96,6 @@ export async function publishScreen(request: PublishRequest): Promise<PublishRes
       message: data.message || 'Screen published successfully'
     }
   } catch (error) {
-    console.error('Publish failed:', error)
-
     // Re-throw the error with full details so it can be shown in the chat
     throw error
   }

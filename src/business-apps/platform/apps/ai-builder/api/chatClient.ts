@@ -8,10 +8,18 @@ import { ENV } from '../config/environment'
 
 const AI_SERVICE_API_URL = ENV.AI_SERVICE_API_URL
 
+export interface ToolCall {
+  tool: string
+  args?: string
+  result?: string
+  status: 'running' | 'complete'
+  id: string
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
-  toolCalls?: any
+  toolCalls?: ToolCall[]
   thinkingLog?: string
 }
 
@@ -23,14 +31,12 @@ export async function loadChatHistory(repoId: string, sessionId: string): Promis
     const response = await fetch(`${AI_SERVICE_API_URL}/api/chat/history?repoId=${repoId}&sessionId=${sessionId}`)
 
     if (!response.ok) {
-      console.warn('Failed to load chat history:', response.statusText)
       return []
     }
 
     const data = await response.json()
     return data.messages || []
-  } catch (error) {
-    console.error('Error loading chat history:', error)
+  } catch {
     return []
   }
 }
@@ -52,14 +58,8 @@ export async function saveChatHistory(repoId: string, sessionId: string, message
       })
     })
 
-    if (!response.ok) {
-      console.warn('Failed to save chat history:', response.statusText)
-      return false
-    }
-
-    return true
-  } catch (error) {
-    console.error('Error saving chat history:', error)
+    return response.ok
+  } catch {
     return false
   }
 }
@@ -73,14 +73,8 @@ export async function clearChatHistory(repoId: string, sessionId: string): Promi
       method: 'DELETE'
     })
 
-    if (!response.ok) {
-      console.warn('Failed to clear chat history:', response.statusText)
-      return false
-    }
-
-    return true
-  } catch (error) {
-    console.error('Error clearing chat history:', error)
+    return response.ok
+  } catch {
     return false
   }
 }

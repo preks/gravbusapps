@@ -91,8 +91,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
           clearInterval(pollInterval)
           pollInterval = null
         }
-      } catch (err) {
-        console.error('Failed to load indexing status:', err)
+      } catch {
+        // Failed to load indexing status, will retry on next poll
       }
     }
 

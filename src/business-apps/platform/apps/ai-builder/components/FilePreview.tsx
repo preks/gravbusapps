@@ -39,9 +39,8 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
       const data = await response.json()
       setContent(data.content || 'No content')
       setSource(data.source || 'unknown')
-    } catch (error) {
+    } catch {
       setContent('Error loading file')
-      console.error('Failed to load file:', error)
     } finally {
       setLoading(false)
     }
