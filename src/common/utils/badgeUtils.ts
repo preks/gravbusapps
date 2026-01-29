@@ -260,3 +260,21 @@ export function getOpportunityForecastBadgeVariant(
       return 'default'
   }
 }
+
+/**
+ * Utility function for prospective account type badges
+ * @param isProspective - Boolean indicating if account is prospective
+ * @param context - Context to determine non-prospective label ('crm' | 'irm')
+ * @returns Badge variant and label
+ */
+export function getProspectiveBadgeConfig(
+  isProspective: boolean,
+  context: 'crm' | 'irm'
+): { variant: BadgeProps['variant']; label: string } {
+  if (isProspective) {
+    return { variant: 'info', label: 'Prospect' }
+  }
+
+  const label = context === 'irm' ? 'Portfolio Company' : 'Customer'
+  return { variant: 'success', label }
+}
