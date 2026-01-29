@@ -2,7 +2,9 @@ import React from 'react'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { DataDetails } from '@/components/data-details'
 import { ChangeLogEntry as ChangeLogEntryType } from '../../ChangeLogTab'
-import { FIELD_CATEGORIES } from './constants'
+import { getFieldCategories } from './constants'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../../../_i18n'
 
 interface ChangeLogEntryProps {
   entry: ChangeLogEntryType
@@ -11,9 +13,12 @@ interface ChangeLogEntryProps {
 // FIELD_CATEGORIES imported from constants
 
 export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
+  const { t } = useTranslation(translations)
+
   if (!entry.isVisible) return null
 
-  const categoryInfo = FIELD_CATEGORIES.find(cat => cat.value === entry.fieldCategory)
+  const fieldCategories = getFieldCategories(t)
+  const categoryInfo = fieldCategories.find(cat => cat.value === entry.fieldCategory)
 
   const [open, setOpen] = React.useState(false)
 

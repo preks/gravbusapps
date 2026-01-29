@@ -184,13 +184,13 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
         const typeTranslatedValue =
           typeEntry?.translations && typeEntry.translations.length > 0
             ? typeEntry.translations[0].value
-            : typeEntry?.value || 'Other'
+            : typeEntry?.value || t('documents-group-other')
 
         return {
           id: doc.id,
           title: doc.name,
           name: doc.name,
-          type: doc.mimeType?.split('/')[1]?.toUpperCase() || 'Unknown',
+          type: doc.mimeType?.split('/')[1]?.toUpperCase() || t('documents-unknown'),
           typeRef: doc.type,
           typeValue: typeTranslatedValue,
           documentGroupKey: documentGroupKeyMap[doc.documentGroup] || 'Other',
@@ -216,7 +216,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
 
       setDocuments(sortedDocuments)
     } catch (err) {
-      setError('Failed to load documents')
+      setError(t('documents-error-load-failed'))
       console.error('Error fetching documents:', err)
     } finally {
       setLoading(false)
@@ -344,6 +344,36 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
     }
   }
 
+  // Helper function to get translated group name
+  const getTranslatedGroupName = (groupKey: string, documentGroup?: string): string => {
+    // First, check if documentGroup matches English values and translate them
+    if (documentGroup) {
+      const normalized = documentGroup.trim()
+      if (normalized === 'Salary') return t('documents-group-salary')
+      if (normalized === 'Expenses') return t('documents-group-expenses')
+      if (normalized === 'Development') return t('documents-group-development')
+      if (normalized === 'Personal') return t('documents-group-personal')
+      if (normalized === 'Other') return t('documents-group-other')
+    }
+
+    // Then translate by the key
+    switch (groupKey) {
+      case 'Salary':
+        return t('documents-group-salary')
+      case 'Expenses':
+        return t('documents-group-expenses')
+      case 'Development':
+        return t('documents-group-development')
+      case 'Personal':
+        return t('documents-group-personal')
+      case 'Other':
+        return t('documents-group-other')
+      default:
+        // If it's already translated or doesn't match, use documentGroup or groupKey
+        return documentGroup || groupKey
+    }
+  }
+
   const groupedDocuments = useMemo(() => {
     const groups: { [key: string]: Document[] } = {
       Salary: [],
@@ -458,24 +488,24 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
 
             setDocumentBlob(blob)
           } else {
-            throw new Error('Failed to retrieve document content or empty response')
+            throw new Error(t('documents-error-load-document'))
           }
         } catch {
           try {
             if (document.file) {
               window.open(document.file, '_blank')
             } else {
-              throw new Error('No document file ID available')
+              throw new Error(t('documents-error-no-file-id'))
             }
           } catch {
-            setError('Unable to display the document. Please try again later.')
+            setError(t('documents-error-load-document'))
           }
         }
       } else {
-        throw new Error('No file information available')
+        throw new Error(t('documents-error-no-file-info'))
       }
     } catch (err) {
-      setError(`Could not load document: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      setError(`${t('documents-error-load-document')}: ${err instanceof Error ? err.message : t('documents-unknown')}`)
     } finally {
       setDocumentLoading(false)
     }
@@ -493,7 +523,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
     if (documentBlob) {
       try {
         if (documentBlob.size === 0) {
-          throw new Error('Empty blob received')
+          throw new Error(t('documents-error-empty-blob'))
         }
 
         if (currentDocument && isPdfDocument(currentDocument)) {
@@ -594,7 +624,11 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
               {document.validTo && (
                 <div
                   className={`gba:px-2 gba:py-0.5 gba:rounded-md gba:text-xs gba:text-white gba:font-medium ${document.validTo < dayjs().format('YYYY-MM-DD') ? 'gba:bg-destructive' : 'gba:bg-success'}`}
-                  title={document.validTo < dayjs().format('YYYY-MM-DD') ? 'Document has expired' : 'Document is valid'}
+                  title={
+                    document.validTo < dayjs().format('YYYY-MM-DD')
+                      ? t('documents-expired-tooltip')
+                      : t('documents-valid-tooltip')
+                  }
                   data-testid={`document-validity-indicator-${document.id}`}
                 >
                   {document.validTo < dayjs().format('YYYY-MM-DD')
@@ -767,7 +801,10 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                         ? 'gba:bg-warning-secondary'
                         : 'gba:bg-decorative-secondary'
 
-              const displayGroupName = docs[0]?.documentGroup || group
+              const displayGroupName = getTranslatedGroupName(
+                docs[0]?.documentGroupKey || group,
+                docs[0]?.documentGroup
+              )
 
               return (
                 <Collapsible
@@ -809,7 +846,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                       ? 'gba:bg-warning-secondary'
                       : 'gba:bg-decorative-secondary'
 
-            const displayGroupName = docs[0]?.documentGroup || group
+            const displayGroupName = getTranslatedGroupName(docs[0]?.documentGroupKey || group, docs[0]?.documentGroup)
 
             return (
               <Collapsible
@@ -836,11 +873,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
         </div>
       )}
 
-      <Sheet
-        open={isViewerOpen}
-        onOpenChange={open => !open && closeDocumentViewer()}
-        title={currentDocument?.title || 'Document Viewer'}
-      >
+      <Sheet open={isViewerOpen} onOpenChange={open => !open && closeDocumentViewer()}>
         <SheetContent
           side="right"
           className="gba:w-[680px] gba:max-w-[680px] gba:sm:max-w-[680px] gba:p-0 gba:flex gba:flex-col"
@@ -952,11 +985,11 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                       <div className="gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-md gba:shadow-sm gba:p-4 gba:w-full">
                         <img
                           src={documentUrl}
-                          alt={currentDocument?.title || 'Document'}
+                          alt={currentDocument?.title || t('documents-count-one')}
                           className="gba:max-w-full gba:object-contain gba:rounded-md"
                           style={{ maxWidth: '100%', maxHeight: '500px' }}
                           onError={() => {
-                            setError('The image could not be displayed. It may be in an unsupported format.')
+                            setError(t('documents-error-image-display'))
                           }}
                           data-testid="image-viewer"
                         />
