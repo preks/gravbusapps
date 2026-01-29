@@ -24,9 +24,18 @@ export interface ParsedRow {
   [key: string]: string
 }
 
+// Communication channel structure for contacts/accounts
+export interface CommunicationChannel {
+  communicationChannelRef: string
+  value: string
+  valueExtension?: string
+}
+
 // Generic converted entity (can have any fields)
+// NOTE: Supports arrays (e.g., communicationChannels) and objects for complex field transformations
 export interface ConvertedEntity {
-  [key: string]: string | boolean | number | null
+  [key: string]: string | boolean | number | null | CommunicationChannel[] | Record<string, unknown>
+  communicationChannels?: CommunicationChannel[]
 }
 
 // Catalog lookup cache for performance
@@ -39,6 +48,7 @@ export interface CatalogLookupCache {
 // Import configuration for an entity
 export interface ImportConfig {
   entityType: string
+  domain: 'customer' | 'investment' // Domain for endpoint routing
   aiAgentName: string
   targetFields: TargetFieldDefinition[]
   requiredCatalogs: string[]

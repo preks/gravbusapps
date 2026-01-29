@@ -35,6 +35,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/irm/investment-launcher': 'irm/core/apps/investment-launcher',
   '/platform/irm/investment-relations': 'irm/core/apps/investment-relations',
   '/platform/irm/investment-settings': 'irm/core/apps/investment-settings',
+  '/platform/irm/data-import': 'irm/core/apps/data-import',
 
   /// Core: Records
   '/platform/irm/account-record': 'irm/core/records/account-record',

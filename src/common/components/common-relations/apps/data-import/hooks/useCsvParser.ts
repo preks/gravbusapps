@@ -4,8 +4,8 @@
  */
 
 import { useState, useCallback } from 'react'
-import { ParsedRow } from '@/common/data/customer/agents/types'
-import { parseCSV, validateCSVFile, readFileAsText } from '@/common/data/customer/agents/utils'
+import { ParsedRow } from '@/common/components/common-relations/apps/data-import/types'
+import { parseCSV, validateCSVFile, readFileAsText } from '@/common/components/common-relations/apps/data-import/utils'
 
 export interface UseCsvParserReturn {
   parseCSVFile: (file: File) => Promise<ParsedRow[]>

@@ -9,7 +9,7 @@ interface MenuItemIconProps {
 
 /**
  * Displays a menu item icon with proper fallback
- * Supports both phosphor_ and legacy pi_ formats
+ * Supports <Name>Icon (stored) and legacy pi_Pi<Name> (display only)
  * Shows DB format on hover
  * Displays placeholder icons in lighter gray
  */

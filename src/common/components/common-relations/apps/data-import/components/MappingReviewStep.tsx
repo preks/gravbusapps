@@ -19,7 +19,11 @@ import {
   Spinner
 } from '@newwork/nw-design-system'
 import { CheckCircleIcon, XCircleIcon } from '@phosphor-icons/react'
-import { FieldMapping, ImportAnalyzerResponse, TargetFieldDefinition } from '../types'
+import {
+  FieldMapping,
+  ImportAnalyzerResponse,
+  TargetFieldDefinition
+} from '@/common/components/common-relations/apps/data-import/types'
 
 export interface MappingReviewStepProps {
   agentResponse: ImportAnalyzerResponse

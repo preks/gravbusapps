@@ -2,8 +2,8 @@ import * as PhosphorIcons from '@phosphor-icons/react'
 
 /**
  * Icon format in DB:
- * - New format: "phosphor_<IconName>" (e.g., "phosphor_Users", "phosphor_AppWindow")
- * - Legacy format: "pi_<IconName>" (e.g., "pi_PiUsers", "pi_PiAppWindow")
+ * - Current: "<IconName>Icon" (e.g. "ArticleIcon", "UsersIcon") – value from IconSelect as-is
+ * - Legacy (display only): "pi_Pi<Name>" (e.g. "pi_PiUsers") → shown as "<Name>Icon"
  */
 
 export const DEFAULT_ICON_NAME = 'AppWindowIcon'
@@ -17,54 +17,41 @@ export const isIconEmpty = (iconValue: string | undefined | null): boolean => {
 }
 
 /**
- * Parse icon string from DB and return the Phosphor icon name
- * Supports both new (phosphor_) and legacy (pi_) formats
- * Returns DEFAULT_ICON_NAME for empty values (visual placeholder only)
+ * Parse icon string from DB to Phosphor icon name (for display/lookup).
+ * - Empty → DEFAULT_ICON_NAME (placeholder)
+ * - Legacy pi_Pi<Name> → <Name>Icon (display only)
+ * - Stored value is <IconName>Icon, return as-is
  */
 export const parseIconName = (iconValue: string | undefined | null): string => {
   if (isIconEmpty(iconValue)) {
-    return DEFAULT_ICON_NAME // Visual placeholder only
+    return DEFAULT_ICON_NAME
   }
 
-  // New format: phosphor_<IconName>
-  if (iconValue.startsWith('phosphor_')) {
-    return iconValue.replace('phosphor_', '')
-  }
-
-  // Legacy format: pi_<IconName>
+  // Legacy: pi_Pi<Name> → <Name>Icon (e.g. pi_PiUsers → UsersIcon)
   if (iconValue.startsWith('pi_')) {
-    const legacyName = iconValue.replace('pi_', '')
-    // Remove "Pi" prefix if present (e.g., "PiUsers" -> "Users")
-    return legacyName.startsWith('Pi') ? legacyName.substring(2) : legacyName
+    const afterPrefix = iconValue.replace('pi_', '')
+    const baseName = afterPrefix.startsWith('Pi') ? afterPrefix.substring(2) : afterPrefix
+    return baseName.endsWith('Icon') ? baseName : `${baseName}Icon`
   }
 
-  // No prefix, assume it's a direct icon name
-  return iconValue
+  // Stored format: <IconName>Icon or legacy phosphor_<Name> (normalize to XxxIcon if needed)
+  if (iconValue.startsWith('phosphor_')) {
+    const name = iconValue.replace('phosphor_', '')
+    return name.endsWith('Icon') ? name : `${name}Icon`
+  }
+
+  return iconValue.endsWith('Icon') ? iconValue : `${iconValue}Icon`
 }
 
 /**
- * Format icon name for saving to DB
- * Always saves in new format: "phosphor_<IconName>"
- * Returns empty string if iconName is empty (preserve unassigned state)
+ * Format icon name for saving to DB.
+ * Saves value from IconSelect as-is (always <IconName>Icon). No prefix.
  */
 export const formatIconForDB = (iconName: string): string => {
   if (!iconName || iconName.trim() === '') {
-    return EMPTY_ICON_VALUE // Keep it empty, don't assign default
+    return EMPTY_ICON_VALUE
   }
-
-  // Already in phosphor_ format
-  if (iconName.startsWith('phosphor_')) {
-    return iconName
-  }
-
-  // Already in pi_ format, convert to phosphor_
-  if (iconName.startsWith('pi_')) {
-    const parsedName = parseIconName(iconName)
-    return `phosphor_${parsedName}`
-  }
-
-  // Plain icon name, add phosphor_ prefix
-  return `phosphor_${iconName}`
+  return iconName.trim()
 }
 
 /**
@@ -92,19 +79,11 @@ export const getIconFromDBValue = (iconValue: string | undefined | null): React.
 }
 
 /**
- * Get display title for icon showing DB format
- * Used for hover tooltips
+ * Get display title for icon showing DB format (hover tooltips)
  */
 export const getIconDBTitle = (iconValue: string | undefined | null): string => {
   if (isIconEmpty(iconValue)) {
     return 'No icon assigned (placeholder)'
   }
-
-  // If already in phosphor_ or pi_ format, show as is
-  if (iconValue.startsWith('phosphor_') || iconValue.startsWith('pi_')) {
-    return `DB: ${iconValue}`
-  }
-
-  // If plain name, show what it will be saved as
-  return `DB: phosphor_${iconValue}`
+  return `DB: ${iconValue}`
 }

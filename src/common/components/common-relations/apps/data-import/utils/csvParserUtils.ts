@@ -3,7 +3,7 @@
  * Extracted from LeadImportExample lines 154-211
  */
 
-import { ParsedRow } from '@/common/data/customer/agents/types'
+import { ParsedRow } from '@/common/components/common-relations/apps/data-import/types'
 
 /**
  * Parse a single CSV line, handling quoted fields and commas within quotes

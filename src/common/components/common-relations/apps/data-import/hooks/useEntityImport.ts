@@ -6,9 +6,12 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useCsvParser, useCatalogLookup } from '@/common/data/customer/agents/hooks'
-import { ImportAnalyzer } from '@/common/data/customer/agents/services'
-import { convertParsedDataToEntities } from '@/common/data/customer/agents/utils'
+import { useCsvParser, useCatalogLookup } from '@/common/components/common-relations/apps/data-import/hooks'
+import { ImportAnalyzer } from '@/common/components/common-relations/apps/data-import/services'
+import {
+  convertParsedDataToEntities,
+  transformCommunicationChannels
+} from '@/common/components/common-relations/apps/data-import/utils'
 import {
   ParsedRow,
   FieldMapping,
@@ -17,7 +20,7 @@ import {
   ImportConfig,
   ConvertedEntity,
   ImportResult
-} from '@/common/data/customer/agents/types'
+} from '@/common/components/common-relations/apps/data-import/types'
 import { env } from '@/common/env/EnvUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 
@@ -186,7 +189,13 @@ export function useEntityImport<T extends ConvertedEntity>(
       try {
         const converted = convertParsedDataToEntities(parsedData, mappings, lookupCatalogEntry) as T[]
 
-        setConvertedEntities(converted)
+        // Post-process: Transform flat communication fields into communicationChannels array for contacts and accounts
+        const transformedEntities =
+          config.entityType === 'contact' || config.entityType === 'account'
+            ? converted.map(entity => transformCommunicationChannels(entity))
+            : converted
+
+        setConvertedEntities(transformedEntities as T[])
         setStep('result')
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Conversion failed')
@@ -194,7 +203,7 @@ export function useEntityImport<T extends ConvertedEntity>(
         setIsLoading(false)
       }
     },
-    [parsedData, lookupCatalogEntry]
+    [parsedData, lookupCatalogEntry, config.entityType]
   )
 
   // Import to backend
@@ -218,16 +227,18 @@ export function useEntityImport<T extends ConvertedEntity>(
         ownerEmployee: ownerEmployeeId || entity.ownerEmployee || entity.ownerEmployeeId // Preserve existing if already set
       }))
 
-      // Map entity type to endpoint
+      // Map entity type to endpoint with domain-aware routing
       const entityTypePlural = `${config.entityType}s`
+      const domainPrefix = config.domain === 'investment' ? 'investment-relations' : 'customer-relations'
+      const entityPrefix = config.domain === 'investment' ? 'Investment' : ''
       let endpoint: string
 
       if (config.entityType === 'lead') {
-        endpoint = '/customer-relations/createLeads'
+        endpoint = `/${domainPrefix}/create${entityPrefix}Leads`
       } else if (config.entityType === 'contact') {
-        endpoint = '/customer-relations/createContacts'
+        endpoint = `/${domainPrefix}/create${entityPrefix}Contacts`
       } else if (config.entityType === 'account') {
-        endpoint = '/customer-relations/createAccounts'
+        endpoint = `/${domainPrefix}/create${entityPrefix}Accounts`
       } else {
         throw new Error(`Unsupported entity type: ${config.entityType}`)
       }

@@ -2,7 +2,7 @@
  * Lead-specific import types
  */
 
-import { ConvertedEntity } from '@/common/data/customer/agents/types'
+import { ConvertedEntity } from '@/common/components/common-relations/apps/data-import/types'
 
 // Converted lead structure ready for API
 export interface ConvertedLead extends ConvertedEntity {
