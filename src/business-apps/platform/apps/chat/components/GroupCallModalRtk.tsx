@@ -1841,12 +1841,10 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     // Immediate attachment
     attachVideos()
 
-    // If not minimized, retry after a short delay to ensure refs are populated after Dialog remount
-    if (!callState.isMinimized) {
-      const retryTimer = setTimeout(attachVideos, 150)
-      return () => clearTimeout(retryTimer)
-    }
-  }, [screenShareTrackIds, gridItems, callState.isMinimized])
+    // Retry after a short delay to ensure refs are populated after Dialog remount or pagination change
+    const retryTimer = setTimeout(attachVideos, 150)
+    return () => clearTimeout(retryTimer)
+  }, [screenShareTrackIds, gridItems, callState.isMinimized, currentPage])
 
   // Attach video tracks to video elements in grid
   useEffect(() => {
@@ -1892,12 +1890,10 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     // Immediate attachment
     attachVideos()
 
-    // If not minimized, retry after a short delay to ensure refs are populated after Dialog remount
-    if (!callState.isMinimized) {
-      const retryTimer = setTimeout(attachVideos, 150)
-      return () => clearTimeout(retryTimer)
-    }
-  }, [videoTrackIds, gridItems, callState.isMinimized])
+    // Retry after a short delay to ensure refs are populated after Dialog remount or pagination change
+    const retryTimer = setTimeout(attachVideos, 150)
+    return () => clearTimeout(retryTimer)
+  }, [videoTrackIds, gridItems, callState.isMinimized, currentPage])
 
   // Expanded screen share video ref (for fullscreen overlay)
   const expandedScreenShareVideoRef = useRef<HTMLVideoElement>(null)
