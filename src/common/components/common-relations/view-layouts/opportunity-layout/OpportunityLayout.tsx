@@ -576,13 +576,13 @@ function ConfigOpportunityLayout<TOpportunity extends { id: string } = any, TQue
     }
 
     loadBothSections()
-  }, [accessToken, isInitialLoad, boardPipelineId, loadListData, loadBoardData])
+  }, [accessToken, isInitialLoad])
 
   // Reload list data when filters/search/sort change (only when list is active, skip initial load)
   useEffect(() => {
     if (isInitialLoad || !accessToken || currentSection !== 'list') return
     loadListData(false)
-  }, [listQueryVariables, isInitialLoad, accessToken, loadListData, currentSection])
+  }, [listQueryVariables, accessToken, loadListData, currentSection])
 
   // Reload board data when filters/search/currency change (only when board is active, skip initial load)
   useEffect(() => {
