@@ -49,8 +49,7 @@ export const EditableCell: React.FC<EditableCellProps> = ({
           translations={translations}
           onTranslationsChange={onTranslationsChange}
           data-testid={testId}
-          className="gba:space-y-0"
-          inputClassName={`gba:h-6 gba:text-xs gba:p-1 gba:bg-transparent gba:focus:bg-white ${getBorderClass()} ${disabled ? 'gba:opacity-50' : ''}`}
+          className={`gba:space-y-0 gba:h-6 gba:text-xs gba:p-1 gba:bg-transparent gba:focus:bg-white ${getBorderClass()} ${disabled ? 'gba:opacity-50' : ''}`}
           placeholder={placeholder}
         />
       </div>
