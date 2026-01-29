@@ -13,7 +13,7 @@
  */
 
 import React, { useRef, useEffect } from 'react'
-import { Monitor, ArrowsOutSimple, MagnifyingGlassPlus, MicrophoneSlash, HandIcon } from '@phosphor-icons/react'
+import { Monitor, ArrowsOutSimple, MagnifyingGlassPlus, MicrophoneSlashIcon, HandIcon } from '@phosphor-icons/react'
 import { Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
 import { getInitials } from '../../utils/callUtils'
 import { ReactionsOverlay, Reaction } from './ReactionsOverlay'
@@ -266,7 +266,7 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
             </span>
             {isMuted && (
               <div className="gba:flex gba:items-center gba:justify-center gba:w-4 gba:h-4 gba:rounded-full gba:bg-destructive gba:flex-shrink-0">
-                <MicrophoneSlash className="gba:w-2.5 gba:h-2.5 gba:text-destructive-foreground" weight="fill" />
+                <MicrophoneSlashIcon className="gba:w-2.5 gba:h-2.5 gba:text-destructive-foreground" weight="fill" />
               </div>
             )}
           </div>
@@ -281,7 +281,7 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
           </span>
           {isMuted && (
             <div className="gba:flex gba:items-center gba:justify-center gba:w-5 gba:h-5 gba:rounded-full gba:bg-destructive">
-              <MicrophoneSlash className="gba:w-3 gba:h-3 gba:text-destructive-foreground" weight="fill" />
+              <MicrophoneSlashIcon className="gba:w-3 gba:h-3 gba:text-destructive-foreground" weight="fill" />
             </div>
           )}
         </div>

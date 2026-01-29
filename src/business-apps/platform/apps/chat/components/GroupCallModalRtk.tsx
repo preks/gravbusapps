@@ -1217,7 +1217,9 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           rtkDebug.warn(
             `[RTK Modal] ⚠️ Screen share track for peer ${peer.id} is not live (state: ${screenShareTrack.readyState}) - skipping`
           )
-        } else if (!seenPeerIds.has(peer.id)) {
+        } else if (seenPeerIds.has(peer.id)) {
+          rtkDebug.warn(`[RTK Modal] ⚠️ Duplicate screen share for peer ${peer.id} - skipping`)
+        } else {
           shares.push({
             peerId: peer.id,
             peerName: peer.name || peer.displayName || peer.customParticipantId || 'Unknown',
@@ -1226,8 +1228,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
             peer
           })
           seenPeerIds.add(peer.id)
-        } else {
-          rtkDebug.warn(`[RTK Modal] ⚠️ Duplicate screen share for peer ${peer.id} - skipping`)
         }
       } else if (hasScreenShareEnabled) {
         // Screen share is enabled but track not found yet - might be initializing
@@ -1258,13 +1258,11 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
     if (callState.isScreenSharing && localScreenShareTrack) {
       // CRITICAL: Only include tracks that are still live (not ended/stopped)
-      if (localScreenShareTrack.readyState !== 'live') {
-        rtkDebug.warn(
-          `[RTK Modal] ⚠️ Local screen share track is not live (state: ${localScreenShareTrack.readyState}) - skipping`
-        )
-      } else {
+      if (localScreenShareTrack.readyState === 'live') {
         const localPeerId = meeting?.self?.id || 'local' // Use actual peer ID
-        if (!seenPeerIds.has(localPeerId)) {
+        if (seenPeerIds.has(localPeerId)) {
+          rtkDebug.warn(`[RTK Modal] ⚠️ Duplicate screen share for local peer - skipping`)
+        } else {
           shares.push({
             peerId: localPeerId,
             peerName: participants[0]?.odName || 'You',
@@ -1278,9 +1276,11 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
             peerName: participants[0]?.odName || 'You',
             trackId: localScreenShareTrack.id
           })
-        } else {
-          rtkDebug.warn(`[RTK Modal] ⚠️ Duplicate screen share for local peer - skipping`)
         }
+      } else {
+        rtkDebug.warn(
+          `[RTK Modal] ⚠️ Local screen share track is not live (state: ${localScreenShareTrack.readyState}) - skipping`
+        )
       }
     }
 
@@ -1467,7 +1467,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       })
 
       // Skip if this is the focused screen share (already added above)
-      if (focusedScreenShare && share.peerId === focusedScreenShare.peerId) {
+      if (share.peerId === focusedScreenShare?.peerId) {
         rtkDebug.log('[RTK Modal] ⏭️ Skipping focused screen share (already added):', share.peerId)
         return
       }
@@ -1478,7 +1478,9 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         hasInSeenIds: seenIds.has(shareId),
         seenIdsArray: Array.from(seenIds)
       })
-      if (!seenIds.has(shareId)) {
+      if (seenIds.has(shareId)) {
+        rtkDebug.warn('[RTK Modal] ⚠️ Skipping duplicate screen share:', shareId)
+      } else {
         items.push({
           id: shareId,
           type: 'screen-share',
@@ -1496,8 +1498,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           peerName: share.peerName,
           trackId: share.trackId
         })
-      } else {
-        rtkDebug.warn('[RTK Modal] ⚠️ Skipping duplicate screen share:', shareId)
       }
     })
 
@@ -1508,7 +1508,9 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       const hasVideo = peer.videoEnabled && !!cameraVideoTrack
 
       const participantId = `participant-${peer.id}`
-      if (!seenIds.has(participantId)) {
+      if (seenIds.has(participantId)) {
+        rtkDebug.warn('[RTK Modal] ⚠️ Skipping duplicate participant:', participantId)
+      } else {
         // Try to match avatar by userId or customParticipantId
         const avatarUrl =
           avatarUrlMap.get(peer.userId) ||
@@ -1545,8 +1547,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           isActiveSpeaker: activeSpeakerId === peer.id // Check if this peer is active speaker
         })
         seenIds.add(participantId)
-      } else {
-        rtkDebug.warn('[RTK Modal] ⚠️ Skipping duplicate participant:', participantId)
       }
     })
 

@@ -21,13 +21,13 @@ import {
   MonitorIcon,
   PhoneIcon,
   DotsThreeVerticalIcon,
-  SpeakerXIcon,
-  CircleNotch
+  SpeakerXIcon
 } from '@phosphor-icons/react'
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
+  Spinner,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -147,7 +147,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
     inviteTimeoutsRef.current.set(participant.odId, timeout)
 
     try {
-      await onInviteParticipant(participant)
+      onInviteParticipant(participant)
     } catch (error) {
       console.error('Failed to invite participant:', error)
       const timeout = inviteTimeoutsRef.current.get(participant.odId)
@@ -593,7 +593,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                       >
                         {invitingParticipantIds.has(participant.odId) ? (
                           <>
-                            <CircleNotch className="gba:h-3 gba:w-3 gba:animate-spin" weight="bold" />
+                            <Spinner className="gba:h-3 gba:w-3" />
                             Inviting...
                           </>
                         ) : (

@@ -413,11 +413,11 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         const shouldEnableBackground = initialPreferences?.backgroundEnabled ?? true // ON by default for initiator
 
         // Save background preference if explicitly provided (persists for future calls)
-        if (initialPreferences?.backgroundEnabled !== undefined) {
-          preferences.setBackgroundEnabled(initialPreferences.backgroundEnabled)
-        } else {
+        if (initialPreferences?.backgroundEnabled === undefined) {
           // Initiator: save true as default
           preferences.setBackgroundEnabled(true)
+        } else {
+          preferences.setBackgroundEnabled(initialPreferences.backgroundEnabled)
         }
 
         rtkDebug.log('[RTK] Initializing meeting with preferences:', {
@@ -1459,7 +1459,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     toggleScreenShare: screenShare.toggleScreenShare,
     setVideoQuality: media.setVideoQuality,
     toggleMinimize,
-    toggleBackground: stableToggleBackground, // Stable callback - prevents video flashing
+    toggleBackground: () => void stableToggleBackground(), // Stable callback - prevents video flashing
     toggleRaiseHand: stableToggleRaiseHand, // Stable callback
     sendReaction: websocket.sendReaction,
     inviteToCall: participantsHook.inviteToCall,

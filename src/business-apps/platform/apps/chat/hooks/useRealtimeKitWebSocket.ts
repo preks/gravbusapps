@@ -240,7 +240,7 @@ export const useRealtimeKitWebSocket = ({
       // CRITICAL: Prevent spurious hand-raised events on join (only for local user)
       // If local user hasn't explicitly toggled their hand AND it's within 500ms of joining,
       // AND the event is trying to raise their hand → ignore it (likely backend sending stale state)
-      const isLocalUser = currentUser && data.participantId === currentUser.id
+      const isLocalUser = data.participantId === currentUser?.id
       const isWithinGracePeriod = Date.now() - joinTimeRef.current < 500
       const hasNotToggledYet = !userIntentionallyToggledRef.current
 
