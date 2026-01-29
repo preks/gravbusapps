@@ -600,6 +600,35 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     .join('|')
 
   const stableRemotePeers = useMemo(() => {
+    // TEST MODE: If participants prop has significantly more items than SDK reports,
+    // use the participants prop instead (indicates test mode)
+    const isTestMode = participants.length > remotePeers.length + 1 // +1 for local participant
+
+    if (isTestMode) {
+      // Filter out local participant from test participants
+      const localId = meeting?.self?.id
+      const localUserId = meeting?.self?.userId
+      const localCustomId = meeting?.self?.customParticipantId
+
+      const testRemotePeers = participants.filter((p: any) => {
+        // Exclude local participant
+        if (p.id === localId) return false
+        if (localUserId && (p.userId === localUserId || p.id === localUserId)) return false
+        if (localCustomId && (p.customParticipantId === localCustomId || p.id === localCustomId)) return false
+        // Exclude if it matches current user ID
+        if (currentUserId && (p.id === currentUserId || p.userId === currentUserId)) return false
+        return true
+      })
+
+      rtkDebug.log('[RTK Modal] 🧪 TEST MODE: Using test participants', {
+        testParticipantsCount: testRemotePeers.length,
+        sdkPeersCount: remotePeers.length,
+        totalParticipantsProp: participants.length
+      })
+
+      return testRemotePeers
+    }
+
     rtkDebug.log('[RTK Modal] 🔄 stableRemotePeers recomputed:', {
       count: remotePeers.length,
       fingerprint: remotePeersFingerprint,
@@ -614,7 +643,15 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     })
     // Return a NEW stable array (shallow copy) so we break the reference to the selector's array
     return [...remotePeers]
-  }, [remotePeersFingerprint])
+  }, [
+    remotePeersFingerprint,
+    participants,
+    meeting?.self?.id,
+    meeting?.self?.userId,
+    meeting?.self?.customParticipantId,
+    currentUserId,
+    remotePeers.length
+  ])
 
   rtkDebug.log('[RTK Modal] Remote peers count:', stableRemotePeers?.length || 0)
   rtkDebug.log('[RTK Modal] Button props:', {
@@ -978,6 +1015,13 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       // Screen share is in screenShareTracks, not videoTrack
       const cameraVideoTrack = peer.videoTrack && !isVideoTrackScreenShare(peer.videoTrack) ? peer.videoTrack : null
 
+      // Check if this is a test participant (mock track)
+      // Test participants have mock tracks that aren't real MediaStreamTrack instances
+      const isTestParticipant =
+        peer.id?.startsWith('test-participant-') ||
+        cameraVideoTrack?.id?.startsWith('mock-') ||
+        peer.audioTrack?.id?.startsWith('mock-')
+
       // Only attach if we haven't attached this peer yet
       if (videoElement && (cameraVideoTrack || peer.audioTrack) && !isAttached) {
         rtkDebug.log(`[RTK Modal] 🔗 Attaching stream for peer ${peer.name || peer.id} (initial)`, {
@@ -986,22 +1030,39 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           hasCameraTrack: !!cameraVideoTrack,
           hasAudioTrack: !!peer.audioTrack,
           wasAttached: isAttached,
-          isMinimized: callState.isMinimized
+          isMinimized: callState.isMinimized,
+          isTestParticipant
         })
 
-        const stream = new MediaStream()
-        if (cameraVideoTrack) stream.addTrack(cameraVideoTrack)
-        if (peer.audioTrack) stream.addTrack(peer.audioTrack)
+        if (isTestParticipant) {
+          // For test participants, skip track attachment (they're just mock objects)
+          // The video element will render as avatar-only, which is fine for testing
+          videoElement.srcObject = null
+          attachedPeersRef.current.add(peer.id)
 
-        videoElement.srcObject = stream
-        attachedPeersRef.current.add(peer.id)
+          rtkDebug.log(
+            `[RTK Modal] ✅ Test participant marked as attached (avatar-only) for peer ${peer.name || peer.id}`,
+            {
+              hasVideo: !!cameraVideoTrack,
+              hasAudio: !!peer.audioTrack
+            }
+          )
+        } else {
+          // Real participants: attach actual tracks
+          const stream = new MediaStream()
+          if (cameraVideoTrack) stream.addTrack(cameraVideoTrack)
+          if (peer.audioTrack) stream.addTrack(peer.audioTrack)
 
-        rtkDebug.log(`[RTK Modal] ✅ Stream attached successfully for peer ${peer.name || peer.id}`, {
-          hasVideo: !!cameraVideoTrack,
-          hasAudio: !!peer.audioTrack,
-          videoTrackIsScreenShare: isVideoTrackScreenShare(peer.videoTrack),
-          streamTrackCount: stream.getTracks().length
-        })
+          videoElement.srcObject = stream
+          attachedPeersRef.current.add(peer.id)
+
+          rtkDebug.log(`[RTK Modal] ✅ Stream attached successfully for peer ${peer.name || peer.id}`, {
+            hasVideo: !!cameraVideoTrack,
+            hasAudio: !!peer.audioTrack,
+            videoTrackIsScreenShare: isVideoTrackScreenShare(peer.videoTrack),
+            streamTrackCount: stream.getTracks().length
+          })
+        }
       } else if (!videoElement) {
         rtkDebug.log(`[RTK Modal] ⏭️ Skipping peer ${peer.name || peer.id} - no video element yet`, {
           peerId: peer.id,
@@ -1034,6 +1095,12 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         const videoTrackChanged = currentVideoTrack?.id !== cameraVideoTrack?.id
         const audioTrackChanged = currentAudioTrack?.id !== peer.audioTrack?.id
 
+        // Check if this is a test participant (mock track)
+        const isTestParticipant =
+          peer.id?.startsWith('test-participant-') ||
+          cameraVideoTrack?.id?.startsWith('mock-') ||
+          peer.audioTrack?.id?.startsWith('mock-')
+
         // Update stream if ANY track changed
         if (videoTrackChanged || audioTrackChanged) {
           rtkDebug.log(`[RTK Modal] 🔄 Track changed for peer ${peer.name || peer.id}`, {
@@ -1043,8 +1110,15 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
             newVideoId: cameraVideoTrack?.id,
             oldAudioId: currentAudioTrack?.id,
             newAudioId: peer.audioTrack?.id,
-            videoTrackIsScreenShare: isVideoTrackScreenShare(peer.videoTrack)
+            videoTrackIsScreenShare: isVideoTrackScreenShare(peer.videoTrack),
+            isTestParticipant
           })
+
+          // Skip track updates for test participants (they're just mock objects)
+          if (isTestParticipant) {
+            rtkDebug.log(`[RTK Modal] ⏭️ Skipping track update for test participant ${peer.name || peer.id}`)
+            return
+          }
 
           // Cancel any pending update for this peer to avoid race conditions
           const existingTimer = trackUpdateTimersRef.current.get(peer.id)
@@ -1496,11 +1570,21 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         participants[0]?.avatarUrl ||
         meeting?.self?.picture
 
+      // Get local participant name from currentUser, currentParticipant, or meeting.self
+      // Don't use participants[0] in test mode as it would be the first test participant
+      const localParticipantName =
+        currentUser?.displayName ||
+        currentUser?.username ||
+        currentParticipant?.odName ||
+        meeting?.self?.name ||
+        meeting?.self?.odName ||
+        'You'
+
       const localParticipantItem = {
         id: localParticipantId,
         type: localHasVideo ? 'video' : 'avatar',
         peerId: localPeerId, // Use actual peer ID from SDK (fallback to 'local' for safety)
-        peerName: participants[0]?.odName || 'You',
+        peerName: localParticipantName,
         avatarUrl: localAvatarUrl,
         userId: meeting?.self?.userId, // For checking hand-raised state
         customParticipantId: meeting?.self?.customParticipantId, // Our DB user ID - for checking reactions
@@ -1613,8 +1697,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           id: participantId,
           type: hasVideo ? 'video' : 'avatar',
           peerId: peer.id,
-          peerName: peer.name || peer.displayName || peer.customParticipantId || 'Unknown',
-          avatarUrl,
+          peerName: peer.name || peer.displayName || peer.odName || peer.customParticipantId || 'Unknown',
+          avatarUrl: avatarUrl || peer.avatarUrl || peer.picture,
           userId: peer.userId, // SDK userId - for checking hand-raised state
           customParticipantId: peer.customParticipantId, // Our DB user ID - for checking hand-raised state
           videoTrack: cameraVideoTrack,
@@ -1951,6 +2035,19 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
             if (!callState.isMinimized) {
               rtkDebug.warn(`[RTK Modal] ⚠️ No video element found for ${item.isLocal ? 'local' : item.peerId}`)
             }
+            return
+          }
+
+          // Check if this is a test participant (mock track)
+          const isTestParticipant =
+            item.peerId?.startsWith('test-participant-') ||
+            item.videoTrack?.id?.startsWith('mock-') ||
+            item.audioTrack?.id?.startsWith('mock-')
+
+          if (isTestParticipant) {
+            // For test participants, skip track attachment (they're just mock objects)
+            // The video element will render as avatar-only, which is fine for testing
+            videoEl.srcObject = null
             return
           }
 
@@ -2353,7 +2450,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                     <div className="gba:flex-[1] gba:min-h-0 gba:border-t gba:border-border">
                       <HorizontalFilmstrip
                         participants={
-                          paginatedGridItems.items
+                          gridItems
                             .filter(
                               item =>
                                 item.type === 'video' ||

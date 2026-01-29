@@ -30,9 +30,11 @@ import { GroupCallModalRtk } from './components/GroupCallModalRtk'
 // import { initGlobalMinimizedCallRenderer } from './components/GlobalMinimizedCall'
 import type { Conversation, User, MessageEntityReference } from './types'
 import type { CallParticipant } from './services/webrtcClient'
+import type { GroupCallParticipant } from './services/groupWebrtcClient'
 import { env } from '@/common/env/EnvUtils'
 import { TranslationProvider, useChatTranslation } from './contexts/TranslationContext'
 import { rtkDebug } from './utils/rtkDebug'
+import { seedTestParticipants, TestParticipantPresets } from './utils/seedTestParticipants'
 
 type ViewMode = 'full' | 'compact' | 'mobile'
 
@@ -389,7 +391,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       isInCall: isInGroupCall,
       localStream: groupLocalStream,
       remoteStreams: groupRemoteStreams,
-      participants: groupParticipants,
+      participants: groupParticipantsRaw,
       incomingInvite: incomingGroupCallInvite,
       startCall: startGroupCall,
       joinCall: joinGroupCall,
@@ -409,6 +411,95 @@ const ChatInner: React.FC<ChatProps> = memo(
       getConnectionDiagnostics: getGroupConnectionDiagnostics,
       pendingInvites: groupPendingInvites
     } = groupCall
+
+    // TEST MODE: Allow overriding participants from browser console
+    // Usage in console: window.setTestParticipants(5) or window.setTestParticipants('nine')
+    const [testParticipantsOverride, setTestParticipantsOverride] = useState<GroupCallParticipant[] | null>(null)
+
+    // Store setter in ref so it's always accessible from window functions
+    const setTestParticipantsOverrideRef = useRef(setTestParticipantsOverride)
+    setTestParticipantsOverrideRef.current = setTestParticipantsOverride
+
+    // Expose test utilities to window for console access
+    useEffect(() => {
+      if (typeof window !== 'undefined') {
+        ;(window as any).TestParticipantPresets = TestParticipantPresets
+        ;(window as any).seedTestParticipants = seedTestParticipants
+        ;(window as any).setTestParticipants = (countOrPreset: number | string) => {
+          console.log('[TEST] setTestParticipants called with:', countOrPreset)
+          try {
+            let participants: GroupCallParticipant[]
+            if (typeof countOrPreset === 'number') {
+              participants = seedTestParticipants(countOrPreset)
+              console.log(`✅ Test participants set to ${countOrPreset}, generated ${participants.length} participants`)
+            } else if (
+              typeof countOrPreset === 'string' &&
+              TestParticipantPresets[countOrPreset as keyof typeof TestParticipantPresets]
+            ) {
+              const preset = TestParticipantPresets[countOrPreset as keyof typeof TestParticipantPresets]
+              participants = preset()
+              console.log(
+                `✅ Test participants set to preset: ${countOrPreset}, generated ${participants.length} participants`
+              )
+            } else {
+              console.error(
+                `❌ Invalid preset: ${countOrPreset}. Available: two, four, six, nine, twelve, mixed, allMuted, allVideoOff`
+              )
+              return
+            }
+            // Use ref to ensure we have the latest setter
+            setTestParticipantsOverrideRef.current(participants)
+            console.log(
+              '[TEST] State updated, participants:',
+              participants.map(p => p.odName)
+            )
+          } catch (error) {
+            console.error('[TEST] Error setting test participants:', error)
+          }
+        }
+        ;(window as any).clearTestParticipants = () => {
+          console.log('[TEST] Clearing test participants')
+          setTestParticipantsOverrideRef.current(null)
+          console.log('✅ Test participants cleared, using real participants')
+        }
+        ;(window as any).getTestParticipants = () => {
+          console.log('[TEST] Current test participants override:', testParticipantsOverride)
+          console.log('[TEST] Current real participants count:', groupParticipantsRaw.length)
+          return testParticipantsOverride
+        }
+        ;(window as any).testParticipantsDebug = () => {
+          console.log('🔍 Test Participants Debug Info:')
+          console.log('  - Function exists:', typeof (window as any).setTestParticipants === 'function')
+          console.log('  - Current override:', testParticipantsOverride)
+          console.log('  - Current override count:', testParticipantsOverride?.length || 0)
+          console.log('  - Real participants count:', groupParticipantsRaw.length)
+          console.log('  - Is in call:', groupCallState.status !== 'idle')
+          console.log('  - Call status:', groupCallState.status)
+        }
+        console.log('🎮 Test participant utilities available:')
+        console.log('  - window.setTestParticipants(5)')
+        console.log('  - window.setTestParticipants("nine")')
+        console.log('  - window.clearTestParticipants()')
+        console.log('  - window.getTestParticipants()')
+        console.log('  - window.testParticipantsDebug()')
+      }
+    }, [])
+
+    // Use test participants if override is set, otherwise use real participants
+    const groupParticipants = testParticipantsOverride || groupParticipantsRaw
+
+    // Debug log when participants change
+    useEffect(() => {
+      if (testParticipantsOverride) {
+        console.log(
+          '[TEST] ✅ Using test participants:',
+          testParticipantsOverride.length,
+          testParticipantsOverride.map(p => p.odName)
+        )
+      } else {
+        console.log('[TEST] Using real participants:', groupParticipantsRaw.length)
+      }
+    }, [testParticipantsOverride, groupParticipantsRaw.length])
 
     // Stable callback for inviting participants - prevents GroupCallModalRtk re-renders
     const handleInviteParticipant = useCallback(
@@ -1930,6 +2021,7 @@ const ChatInner: React.FC<ChatProps> = memo(
           (useRealtimeKitForGroupCalls ? (
             <RealtimeKitProvider value={realtimeKitGroupCall.meeting}>
               <GroupCallModalRtk
+                key={testParticipantsOverride ? `test-${testParticipantsOverride.length}` : 'real'}
                 callState={groupCallState}
                 localStream={groupLocalStream}
                 remoteStreams={groupRemoteStreams}

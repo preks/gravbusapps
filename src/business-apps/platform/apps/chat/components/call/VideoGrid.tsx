@@ -69,11 +69,23 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
     )
   }
 
+  // Calculate optimal number of columns for auto-fit mode
+  // This prevents creating too many thin columns
+  const calculateOptimalColumns = (itemCount: number): number => {
+    if (itemCount <= 1) return 1
+    if (itemCount <= 4) return 2
+    if (itemCount <= 9) return 3
+    if (itemCount <= 16) return 4
+    if (itemCount <= 25) return 5
+    // For larger counts, use square root rounded up, but cap at 6 columns max
+    return Math.min(Math.ceil(Math.sqrt(itemCount)), 6)
+  }
+
   // Determine grid style based on mode
   const gridStyle =
     mode === 'auto-fit'
       ? {
-          gridTemplateColumns: `repeat(auto-fit, minmax(${minTileSize}px, 1fr))`,
+          gridTemplateColumns: `repeat(${calculateOptimalColumns(gridItems.length)}, minmax(${minTileSize}px, 1fr))`,
           gridAutoRows: '1fr'
         }
       : {
