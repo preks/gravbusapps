@@ -85,16 +85,16 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
               <span className="gba:text-xs gba:font-medium gba:tracking-[0.4em] gba:text-muted-foreground gba:uppercase gba:mt-4">
                 NEWWORK
               </span>
-              <h1 className="gba:text-5xl gba:sm:text-6xl gba:lg:text-7xl gba:font-bold gba:tracking-tight">
+              <h1 className="gba:text-5xl gba:sm:text-6xl gba:lg:text-7xl gba:tracking-tight">
+                <span className="gba:text-foreground gba:font-black">Every</span>
                 <span
-                  className="gba:bg-gradient-to-r gba:from-sky-500 gba:via-teal-500 gba:to-amber-500 gba:bg-clip-text gba:text-transparent"
+                  className="gba:bg-gradient-to-r gba:from-sky-500 gba:via-teal-500 gba:to-amber-500 gba:bg-clip-text gba:text-transparent gba:font-semibold"
                   style={{
                     backgroundSize: '200% 100%',
                     animation: 'gradient-shift 6s ease infinite'
                   }}
                 >
-                  <span className="gba:font-black">Every</span>
-                  <span className="gba:font-semibold">Office</span>
+                  Office
                 </span>
               </h1>
             </div>
