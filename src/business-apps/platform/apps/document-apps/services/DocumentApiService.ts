@@ -508,6 +508,25 @@ export const DocumentApiService = {
   },
 
   /**
+   * Get mappable fields for a template entity (from BE – BE knows GraphQL schema / mapping).
+   * Endpoint: GET /templates/entities/:entityKey/fields
+   * Returns [] if endpoint not implemented or 404.
+   */
+  async getTemplateEntityFields(entityKey: string): Promise<Array<{ key: string; displayName: string }>> {
+    try {
+      debugLog('getTemplateEntityFields', entityKey)
+      const response = await apiRequest<{ fields?: Array<{ key: string; displayName?: string }> }>(
+        `/templates/entities/${encodeURIComponent(entityKey)}/fields`
+      )
+      const fields = response?.fields ?? []
+      return fields.map(f => ({ key: f.key, displayName: f.displayName ?? f.key }))
+    } catch (error) {
+      debugLog('getTemplateEntityFields failed (BE may not implement yet)', entityKey, error)
+      return []
+    }
+  },
+
+  /**
    * Create a template
    */
   async createTemplate(template: Partial<DocumentTemplate>): Promise<DocumentTemplate> {

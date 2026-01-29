@@ -1,49 +1,170 @@
 /**
  * TemplateFieldsPanel
  *
- * Left panel for the template editor: lists entity types (from flow-engine,
- * same as FlowCreator) and their fields. Clicking a field inserts a
- * placeholder at the editor cursor (e.g. {{jobCandidate.firstName}}).
+ * Left panel for the template editor: lists entities from the template entity
+ * registry. Field lists are loaded from GraphQL introspection when the user
+ * expands an entity – no fallback.
  */
 
-import React, { useState } from 'react'
-import { Button, Spinner } from '@newwork/nw-design-system'
-import { ChevronDown, ChevronRight, Database, AlertCircle } from 'lucide-react'
-import { useTemplateEntitySchemas } from '../hooks/useTemplateEntitySchemas'
-import type { EntitySchema, EntityFieldSchema } from '../hooks/useTemplateEntitySchemas'
+import React, { useState, useMemo } from 'react'
+import { Spinner } from '@newwork/nw-design-system'
+import { ChevronDown, ChevronRight, Database, FolderOpen } from 'lucide-react'
+import { getTemplateEntities, formatTemplatePlaceholder, type TemplateEntityDefinition } from '../entities'
+import { useTemplateEntityFields, type TemplateEntityFieldFromGraphQL } from '../hooks/useTemplateEntityFields'
 
 export interface TemplateFieldsPanelProps {
   onInsertField: (placeholder: string) => void
+  accessToken: string | undefined
+  /** Optional: show only entities from this domain */
+  domain?: 'nw_orgchart' | 'nw_recruiting' | 'nw_catalog'
   'data-testid'?: string
 }
 
-/** Placeholder format for entity fields (double-brace, entityType.fieldName) */
-export function formatPlaceholder(entityType: string, fieldName: string): string {
-  return `{{${entityType}.${fieldName}}}`
+/** Renders a flat list of field buttons */
+const FieldButtons: React.FC<{
+  entityKey: string
+  fields: TemplateEntityFieldFromGraphQL[]
+  onInsert: (placeholder: string) => void
+  testId: string
+  indent?: boolean
+}> = ({ entityKey, fields, onInsert, testId, indent = true }) => (
+  <div className={`gba:space-y-0.5 ${indent ? 'gba:pl-6 gba:pr-2 gba:pb-2' : 'gba:pl-2 gba:pr-2 gba:pb-1'}`}>
+    {fields.map(field => (
+      <button
+        key={field.key}
+        type="button"
+        onClick={() => onInsert(formatTemplatePlaceholder(entityKey, field.key))}
+        className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1.5 gba:rounded gba:text-left gba:text-xs hover:gba:bg-muted/60 gba:transition-colors"
+        title={formatTemplatePlaceholder(entityKey, field.key)}
+        data-testid={`${testId}-field-${entityKey}-${field.key.replace(/\./g, '-')}`}
+      >
+        <span className="gba:truncate gba:font-medium">{field.displayName}</span>
+      </button>
+    ))}
+  </div>
+)
+
+/** Renders field list for one entity; fetches fields from GraphQL when mounted */
+const EntityFieldsList: React.FC<{
+  entityKey: string
+  accessToken: string | undefined
+  onInsert: (placeholder: string) => void
+  testId: string
+}> = ({ entityKey, accessToken, onInsert, testId }) => {
+  const { directFields, catalogGroups, isLoading, error } = useTemplateEntityFields(entityKey, accessToken)
+  const [catalogsExpanded, setCatalogsExpanded] = useState(true)
+  const [expandedCatalog, setExpandedCatalog] = useState<string | null>(null)
+
+  const toggleCatalog = (fieldKey: string) => {
+    setExpandedCatalog(prev => (prev === fieldKey ? null : fieldKey))
+  }
+
+  if (isLoading) {
+    return (
+      <div className="gba:pl-6 gba:pr-2 gba:pb-2 gba:flex gba:items-center gba:gap-2">
+        <Spinner size="sm" />
+        <span className="gba:text-xs gba:text-muted-foreground">Loading fields from GraphQL...</span>
+      </div>
+    )
+  }
+  if (error) {
+    return (
+      <div className="gba:pl-6 gba:pr-2 gba:pb-2 gba:text-xs gba:text-destructive">
+        Failed to load fields: {error.message}
+      </div>
+    )
+  }
+  if (directFields.length === 0 && catalogGroups.length === 0) {
+    return (
+      <div className="gba:pl-6 gba:pr-2 gba:pb-2 gba:text-xs gba:text-muted-foreground">
+        No fields from GraphQL for this type.
+      </div>
+    )
+  }
+
+  return (
+    <div className="gba:pb-2">
+      {directFields.length > 0 && (
+        <>
+          <div className="gba:px-3 gba:pt-1 gba:pb-0.5 gba:text-xs gba:font-medium gba:text-muted-foreground">
+            Fields
+          </div>
+          <FieldButtons entityKey={entityKey} fields={directFields} onInsert={onInsert} testId={testId} />
+        </>
+      )}
+      {catalogGroups.length > 0 && (
+        <div className="gba:mt-1">
+          <button
+            type="button"
+            onClick={() => setCatalogsExpanded(prev => !prev)}
+            className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1.5 gba:text-left gba:text-xs gba:font-medium gba:text-muted-foreground hover:gba:bg-muted/60 gba:transition-colors"
+            data-testid={`${testId}-catalogs-${entityKey}`}
+          >
+            {catalogsExpanded ? (
+              <ChevronDown className="gba:w-4 gba:h-4 gba:flex-shrink-0" />
+            ) : (
+              <ChevronRight className="gba:w-4 gba:h-4 gba:flex-shrink-0" />
+            )}
+            <FolderOpen className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-primary/70" />
+            <span>Catalog values (contract type, employment type)</span>
+          </button>
+          {catalogsExpanded && (
+            <div className="gba:pl-2 gba:space-y-0.5">
+              {catalogGroups.map(group => {
+                const isExpanded = expandedCatalog === group.fieldKey
+                return (
+                  <div key={group.fieldKey} className="gba:rounded gba:overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => toggleCatalog(group.fieldKey)}
+                      className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1.5 gba:text-left gba:text-xs hover:gba:bg-muted/60 gba:transition-colors"
+                      data-testid={`${testId}-catalog-${entityKey}-${group.fieldKey}`}
+                    >
+                      {isExpanded ? (
+                        <ChevronDown className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-muted-foreground" />
+                      )}
+                      <span className="gba:font-medium gba:truncate">{group.displayName}</span>
+                    </button>
+                    {isExpanded && (
+                      <FieldButtons
+                        entityKey={entityKey}
+                        fields={group.subFields}
+                        onInsert={onInsert}
+                        testId={testId}
+                        indent={false}
+                      />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
   onInsertField,
+  accessToken,
+  domain,
   'data-testid': testId = 'template-fields-panel'
 }) => {
-  const { schemas, isLoading, error, refetch } = useTemplateEntitySchemas()
   const [expandedEntities, setExpandedEntities] = useState<Set<string>>(new Set())
 
-  const toggleEntity = (type: string) => {
+  const entityList = useMemo(() => getTemplateEntities(domain), [domain])
+
+  const toggleEntity = (entityKey: string) => {
     setExpandedEntities(prev => {
       const next = new Set(prev)
-      if (next.has(type)) next.delete(type)
-      else next.add(type)
+      if (next.has(entityKey)) next.delete(entityKey)
+      else next.add(entityKey)
       return next
     })
   }
-
-  const handleInsert = (entityType: string, field: EntityFieldSchema) => {
-    const placeholder = formatPlaceholder(entityType, field.name)
-    onInsertField(placeholder)
-  }
-
-  const entityList = schemas ? Object.values(schemas) : []
 
   return (
     <aside
@@ -53,69 +174,39 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
       <div className="gba:px-3 gba:py-3 gba:border-b">
         <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Insert field</h3>
         <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
-          Choose an entity and a field to insert a placeholder.
+          Choose an entity; fields come from GraphQL (e.g. {`{{job_candidate.firstName}}`}).
         </p>
       </div>
       <div className="gba:flex-1 gba:overflow-y-auto gba:py-2">
-        {isLoading && (
-          <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
-            <Spinner size="sm" />
-          </div>
-        )}
-        {error && (
-          <div className="gba:px-3 gba:py-4 gba:flex gba:flex-col gba:gap-2">
-            <div className="gba:flex gba:items-center gba:gap-2 gba:text-destructive">
-              <AlertCircle className="gba:w-4 gba:h-4" />
-              <span className="gba:text-xs">Could not load entities</span>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              Retry
-            </Button>
-          </div>
-        )}
-        {!isLoading && !error && entityList.length === 0 && (
+        {entityList.length === 0 ? (
           <p className="gba:px-3 gba:text-xs gba:text-muted-foreground">No entity types available.</p>
-        )}
-        {!isLoading && !error && entityList.length > 0 && (
+        ) : (
           <div className="gba:space-y-0.5">
-            {entityList.map((schema: EntitySchema) => {
-              const isExpanded = expandedEntities.has(schema.type)
-              const hasFields = Array.isArray(schema.fields) && schema.fields.length > 0
+            {entityList.map((entity: TemplateEntityDefinition) => {
+              const isExpanded = expandedEntities.has(entity.entityKey)
               return (
-                <div key={schema.type} className="gba:rounded-md gba:overflow-hidden">
+                <div key={entity.entityKey} className="gba:rounded-md gba:overflow-hidden">
                   <button
                     type="button"
-                    onClick={() => toggleEntity(schema.type)}
+                    onClick={() => toggleEntity(entity.entityKey)}
                     className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:text-left gba:text-sm hover:gba:bg-muted/60 gba:transition-colors"
-                    data-testid={`${testId}-entity-${schema.type}`}
+                    data-testid={`${testId}-entity-${entity.entityKey}`}
                   >
-                    {hasFields ? (
-                      isExpanded ? (
-                        <ChevronDown className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-muted-foreground" />
-                      )
+                    {isExpanded ? (
+                      <ChevronDown className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-muted-foreground" />
                     ) : (
-                      <span className="gba:w-4" />
+                      <ChevronRight className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-muted-foreground" />
                     )}
                     <Database className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-primary/70" />
-                    <span className="gba:font-medium gba:truncate">{schema.displayName}</span>
+                    <span className="gba:font-medium gba:truncate">{entity.displayName}</span>
                   </button>
-                  {isExpanded && hasFields && (
-                    <div className="gba:pl-6 gba:pr-2 gba:pb-2 gba:space-y-0.5">
-                      {schema.fields.map((field: EntityFieldSchema) => (
-                        <button
-                          key={field.name}
-                          type="button"
-                          onClick={() => handleInsert(schema.type, field)}
-                          className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1.5 gba:rounded gba:text-left gba:text-xs hover:gba:bg-muted/60 gba:transition-colors"
-                          title={formatPlaceholder(schema.type, field.name)}
-                          data-testid={`${testId}-field-${schema.type}-${field.name}`}
-                        >
-                          <span className="gba:truncate gba:font-medium">{field.displayName || field.name}</span>
-                        </button>
-                      ))}
-                    </div>
+                  {isExpanded && (
+                    <EntityFieldsList
+                      entityKey={entity.entityKey}
+                      accessToken={accessToken}
+                      onInsert={onInsertField}
+                      testId={testId}
+                    />
                   )}
                 </div>
               )
