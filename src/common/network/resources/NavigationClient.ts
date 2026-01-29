@@ -147,7 +147,7 @@ export class NavigationClient {
             resourceUrl?: any
             menuItems?: MenuItemDTO[]
             code?: string
-            type?: 'USE' | 'CREATE' | 'MANAGE'
+            type?: HubType
             hasChildren?: boolean
             codeTranslated?: Record<string, string>
           }>

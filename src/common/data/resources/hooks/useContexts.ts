@@ -81,6 +81,24 @@ export const useContexts = (context: BusinessAppContextProps, params?: GetContex
     return err?.response?.status === 401 || err?.status === 401 || err?.message?.includes('401')
   }, [])
 
+  // Helper to update contexts state after successful fetch
+  const updateContextsState = useCallback(
+    (contextsWithActions: ContextWithActions[], totalRecords: number | undefined, append: boolean) => {
+      if (append) {
+        currentOffsetRef.current += contextsWithActions.length
+        setContexts(prev => [...prev, ...contextsWithActions])
+      } else {
+        currentOffsetRef.current = contextsWithActions.length
+        setContexts(contextsWithActions)
+      }
+
+      const total = totalRecords ?? contextsWithActions.length
+      setTotalCount(total)
+      hasLoadedRef.current = true
+    },
+    []
+  )
+
   const fetchContexts = useCallback(
     async (append = false) => {
       // Prevent concurrent requests
@@ -120,18 +138,7 @@ export const useContexts = (context: BusinessAppContextProps, params?: GetContex
         const contextActionsMap = processAssignments(assignmentsData)
         const contextsWithActions: ContextWithActions[] = Array.from(contextActionsMap.values())
 
-        // Update offset IMMEDIATELY before setState to prevent race conditions with IntersectionObserver
-        if (append) {
-          currentOffsetRef.current += contextsWithActions.length
-          setContexts(prev => [...prev, ...contextsWithActions])
-        } else {
-          currentOffsetRef.current = contextsWithActions.length
-          setContexts(contextsWithActions)
-        }
-
-        const total = assignmentsPage?.paging?.totalRecords ?? contextsWithActions.length
-        setTotalCount(total)
-        hasLoadedRef.current = true
+        updateContextsState(contextsWithActions, assignmentsPage?.paging?.totalRecords, append)
       } catch (err: any) {
         if (is401Error(err)) {
           has401Error.current = true
@@ -150,7 +157,7 @@ export const useContexts = (context: BusinessAppContextProps, params?: GetContex
         isFetchingRef.current = false
       }
     },
-    [context.accessToken, resourceClient, processAssignments, is401Error]
+    [context.accessToken, resourceClient, processAssignments, is401Error, updateContextsState]
   )
 
   const refetch = useCallback(async () => {

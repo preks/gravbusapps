@@ -377,6 +377,26 @@ export function calculateFullDiff(
     return a === b
   }
 
+  // Helper to apply level change cleanup
+  const applyLevelChangeCleanup = (
+    targetLevel: number,
+    targetItem: EnrichedMenuItem,
+    itemChanges: Partial<MenuItemChange>
+  ): void => {
+    if (targetLevel === 0) {
+      if (!('parentId' in itemChanges)) itemChanges.parentId = undefined
+      if (!('hubId' in itemChanges)) itemChanges.hubId = undefined
+      if (!('type' in itemChanges)) itemChanges.type = targetItem.type
+    } else if (targetLevel === 1) {
+      if (!('parentId' in itemChanges)) itemChanges.parentId = null
+      if (!('hubId' in itemChanges)) itemChanges.hubId = targetItem.hubId
+      if (!('type' in itemChanges)) itemChanges.type = undefined
+    } else {
+      if (!('hubId' in itemChanges)) itemChanges.hubId = null
+      if (!('type' in itemChanges)) itemChanges.type = undefined
+    }
+  }
+
   // Helper to check structural changes
   const checkStructuralChanges = (
     targetItem: EnrichedMenuItem,
@@ -424,18 +444,7 @@ export function calculateFullDiff(
 
       // When level changes, ensure proper cleanup of fields
       if (levelChanged) {
-        if (targetLevel === 0) {
-          if (!('parentId' in itemChanges)) itemChanges.parentId = undefined
-          if (!('hubId' in itemChanges)) itemChanges.hubId = undefined
-          if (!('type' in itemChanges)) itemChanges.type = targetItem.type
-        } else if (targetLevel === 1) {
-          if (!('parentId' in itemChanges)) itemChanges.parentId = null
-          if (!('hubId' in itemChanges)) itemChanges.hubId = targetItem.hubId
-          if (!('type' in itemChanges)) itemChanges.type = undefined
-        } else {
-          if (!('hubId' in itemChanges)) itemChanges.hubId = null
-          if (!('type' in itemChanges)) itemChanges.type = undefined
-        }
+        applyLevelChangeCleanup(targetLevel, targetItem, itemChanges)
       }
     }
 
@@ -489,7 +498,7 @@ export function calculateFullDiff(
           id: itemId,
           isHub: targetItem.level === 0,
           ...structuralChanges,
-          ...(fieldEdits || {})
+          ...fieldEdits
         })
       }
     })

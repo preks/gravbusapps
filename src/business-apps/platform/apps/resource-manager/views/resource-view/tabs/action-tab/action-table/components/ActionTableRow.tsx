@@ -23,6 +23,9 @@ interface ActionTableRowProps extends BusinessAppContextProps {
   screenComponentOptions: Array<{ id: string; name: string }>
   screenResourcesLoading: boolean
   refetchScreenResources: () => Promise<void>
+  onSearchScreenComponents: (searchTerm: string) => void
+  loadMoreScreenComponents: () => Promise<void>
+  hasMoreScreenComponents: boolean
   roleOptions: Array<{ id: string; name: string }>
   featureOptions: Array<{ id: string; name: string }>
   rolesLoading: boolean
@@ -31,6 +34,9 @@ interface ActionTableRowProps extends BusinessAppContextProps {
   featuresError: string | null
   refetchRoles: () => Promise<void>
   refetchFeatures: () => Promise<void>
+  onSearchRoles: (searchTerm: string) => void
+  loadMoreRoles: () => Promise<void>
+  hasMoreRoles: boolean
   dataTestId: string
   validationErrors: Map<string, { roles?: boolean; features?: boolean; builderType?: boolean }>
 }
@@ -51,6 +57,9 @@ const ActionTableRowComponent: React.FC<ActionTableRowProps> = ({
   screenComponentOptions,
   screenResourcesLoading,
   refetchScreenResources,
+  onSearchScreenComponents,
+  loadMoreScreenComponents,
+  hasMoreScreenComponents,
   roleOptions,
   featureOptions,
   rolesLoading,
@@ -59,6 +68,9 @@ const ActionTableRowComponent: React.FC<ActionTableRowProps> = ({
   featuresError,
   refetchRoles,
   refetchFeatures,
+  onSearchRoles,
+  loadMoreRoles,
+  hasMoreRoles,
   dataTestId,
   validationErrors
 }) => {
@@ -135,6 +147,7 @@ const ActionTableRowComponent: React.FC<ActionTableRowProps> = ({
           isEdited={isFieldEdited('domain')}
           disabled={isSaving}
           placeholder="Select service..."
+          enableClientFilter={true}
         />
       </TableCell>
 
@@ -148,6 +161,7 @@ const ActionTableRowComponent: React.FC<ActionTableRowProps> = ({
           isEdited={isFieldEdited('processName')}
           disabled={isSaving || !selectedDomain}
           placeholder={selectedDomain ? 'Select process...' : 'Select service first'}
+          enableClientFilter={true}
         />
       </TableCell>
 
@@ -183,6 +197,9 @@ const ActionTableRowComponent: React.FC<ActionTableRowProps> = ({
               refetchScreenResources()
             }
           }}
+          onSearch={onSearchScreenComponents}
+          onLoadMore={loadMoreScreenComponents}
+          hasMore={hasMoreScreenComponents}
           placeholder="Select component..."
         />
       </TableCell>
@@ -202,6 +219,9 @@ const ActionTableRowComponent: React.FC<ActionTableRowProps> = ({
               refetchScreenResources()
             }
           }}
+          onSearch={onSearchScreenComponents}
+          onLoadMore={loadMoreScreenComponents}
+          hasMore={hasMoreScreenComponents}
           placeholder="Select component..."
         />
       </TableCell>
@@ -236,6 +256,9 @@ const ActionTableRowComponent: React.FC<ActionTableRowProps> = ({
               refetchRoles().catch(() => {})
             }
           }}
+          onSearch={onSearchRoles}
+          onLoadMore={loadMoreRoles}
+          hasMore={hasMoreRoles}
           placeholder="Select groups..."
           mode="multiple"
           hasError={errors?.roles}
@@ -260,6 +283,7 @@ const ActionTableRowComponent: React.FC<ActionTableRowProps> = ({
           placeholder="Select features..."
           mode="multiple"
           hasError={errors?.features}
+          enableClientFilter={true}
         />
       </TableCell>
 

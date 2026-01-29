@@ -43,25 +43,21 @@ export const EditableSelectCell: React.FC<EditableSelectCellProps> = ({
   }
 
   return (
-    <div
-      className="gba:w-full"
-      onClick={e => e.stopPropagation()}
-      onMouseDown={e => e.stopPropagation()}
-      onKeyDown={handleKeyDown}
-      aria-invalid={hasError ? 'true' : undefined}
-    >
-      <Select value={value || ''} onValueChange={onChange} disabled={disabled}>
-        <SelectTrigger size="sm" className={commonSelectClassName} data-testid={testId}>
-          <SelectValue placeholder={placeholder} className="gba:text-xs gba:leading-tight" />
-        </SelectTrigger>
-        <SelectContent className="gba:max-h-[200px]">
-          {options.map(option => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+    <div className="gba:w-full" role="none" aria-invalid={hasError ? 'true' : undefined}>
+      <div onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} onKeyDown={handleKeyDown}>
+        <Select value={value || ''} onValueChange={onChange} disabled={disabled}>
+          <SelectTrigger size="sm" className={commonSelectClassName} data-testid={testId}>
+            <SelectValue placeholder={placeholder} className="gba:text-xs gba:leading-tight" />
+          </SelectTrigger>
+          <SelectContent className="gba:max-h-[200px]">
+            {options.map(option => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   )
 }

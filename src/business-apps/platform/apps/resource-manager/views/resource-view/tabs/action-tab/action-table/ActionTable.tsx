@@ -33,6 +33,9 @@ interface ActionTableProps extends BusinessAppContextProps {
   featuresError: string | null
   refetchRoles: () => Promise<void>
   refetchFeatures: () => Promise<void>
+  onSearchRoles: (searchTerm: string) => void
+  loadMoreRoles: () => Promise<void>
+  hasMoreRoles: boolean
   onDelete: (action: ActionWithContexts) => void
   isUpdating: boolean
   isDeleting: boolean
@@ -58,6 +61,9 @@ export const ActionTable: React.FC<ActionTableProps> = ({
   featuresError,
   refetchRoles,
   refetchFeatures,
+  onSearchRoles,
+  loadMoreRoles,
+  hasMoreRoles,
   onDelete,
   isUpdating,
   isDeleting,
@@ -91,7 +97,10 @@ export const ActionTable: React.FC<ActionTableProps> = ({
   const {
     components: screenResources,
     isLoading: screenResourcesLoading,
-    refetch: refetchScreenResources
+    refetch: refetchScreenResources,
+    onSearch: onSearchScreenComponents,
+    loadMore: loadMoreScreenComponents,
+    hasMore: hasMoreScreenComponents
   } = useComponents(context)
 
   // Convert screen resources to combobox options (using form key from screenComponents.key)
@@ -100,9 +109,16 @@ export const ActionTable: React.FC<ActionTableProps> = ({
     return screenResources
       .map(resource => {
         const formKey = resource.screenComponents?.key || ''
+        const componentName = resource.screenComponents?.name || resource.name || ''
         return {
           id: formKey,
-          name: formKey || resource.screenKey || ''
+          name: formKey || resource.screenKey || '',
+          optionLabel: (
+            <div className="gba:flex gba:flex-col">
+              <span className="gba:text-xs gba:font-medium">{componentName || formKey}</span>
+              <code className="gba:text-xs gba:text-muted-foreground">{formKey}</code>
+            </div>
+          )
         }
       })
       .sort((a, b) => a.name.localeCompare(b.name))
@@ -558,6 +574,9 @@ export const ActionTable: React.FC<ActionTableProps> = ({
                   screenComponentOptions={screenComponentOptions}
                   screenResourcesLoading={screenResourcesLoading}
                   refetchScreenResources={refetchScreenResources}
+                  onSearchScreenComponents={onSearchScreenComponents}
+                  loadMoreScreenComponents={loadMoreScreenComponents}
+                  hasMoreScreenComponents={hasMoreScreenComponents}
                   roleOptions={roleOptions}
                   featureOptions={featureOptions}
                   rolesLoading={rolesLoading}
@@ -566,6 +585,9 @@ export const ActionTable: React.FC<ActionTableProps> = ({
                   featuresError={featuresError}
                   refetchRoles={refetchRoles}
                   refetchFeatures={refetchFeatures}
+                  onSearchRoles={onSearchRoles}
+                  loadMoreRoles={loadMoreRoles}
+                  hasMoreRoles={hasMoreRoles}
                   dataTestId={dataTestId}
                   validationErrors={validationErrors}
                   {...context}

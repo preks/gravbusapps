@@ -84,11 +84,10 @@ export const kebabToNormal = (str: string): string => {
 }
 
 export const normalToKebab = (str: string): string => {
-  return str
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, '-')
-    .replace(/^-+/, '')
-    .replace(/-+$/, '')
+  const result = str.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')
+
+  // Trim leading and trailing dashes without unbounded quantifiers
+  return result.replace(/^-/, '').replace(/-$/, '')
 }
 
 /**

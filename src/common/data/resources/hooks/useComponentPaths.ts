@@ -50,9 +50,8 @@ export const useComponentPaths = (
   // Helper to process blob element
   const processBlobElement = useCallback((blobElement: Element, versionsMap: Map<string, ComponentPathVersionInfo>) => {
     const nameElement = blobElement.getElementsByTagName('Name')[0]
-    if (!nameElement || !nameElement.textContent) return
-
-    const blobName = nameElement.textContent
+    const blobName = nameElement?.textContent
+    if (!blobName) return
 
     const indexVersionRegex = /^(.+)\/index-(\d+)\.js$/
     const indexUnversionedRegex = /^(.+)\/index\.js$/
@@ -74,10 +73,10 @@ export const useComponentPaths = (
     } else if (indexUnversionedMatch) {
       const componentPath = indexUnversionedMatch[1]
 
-      if (!versionsMap.has(componentPath)) {
-        versionsMap.set(componentPath, { versions: [], hasUnversioned: true })
-      } else {
+      if (versionsMap.has(componentPath)) {
         versionsMap.get(componentPath)!.hasUnversioned = true
+      } else {
+        versionsMap.set(componentPath, { versions: [], hasUnversioned: true })
       }
     }
   }, [])

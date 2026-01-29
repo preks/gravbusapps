@@ -5,7 +5,7 @@ export interface EditableComboboxCellProps {
   // Union type: single select (string) or multi select (string[])
   value: string | string[] | undefined
   onChange: (value: string | string[]) => void
-  options: Array<{ id: string; name: string }>
+  options: Array<{ id: string; name: string; optionLabel?: React.ReactNode }>
   placeholder?: string
   disabled?: boolean
   testId: string
@@ -18,6 +18,7 @@ export interface EditableComboboxCellProps {
   searchDebounce?: number
   mode?: 'default' | 'multiple' // Add mode prop
   hasError?: boolean
+  enableClientFilter?: boolean // Enable client-side filtering when onSearch is not provided
 }
 
 export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
@@ -35,10 +36,12 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
   hasMore = false,
   searchDebounce = 300,
   mode = 'default',
-  hasError = false
+  hasError = false,
+  enableClientFilter = false
 }) => {
   const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null)
   const [hasOpened, setHasOpened] = useState(false)
+  const [clientSearchTerm, setClientSearchTerm] = useState<string>('')
   const wrapperRef = useRef<HTMLDivElement>(null)
   const multiple = mode === 'multiple'
 
@@ -55,6 +58,12 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
         clearTimeout(debounceTimer)
       }
 
+      // Client-side filtering
+      if (enableClientFilter && !onSearch) {
+        setClientSearchTerm(searchTerm)
+        return
+      }
+
       if (onSearch) {
         const timer = setTimeout(() => {
           onSearch(searchTerm)
@@ -62,7 +71,7 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
         setDebounceTimer(timer)
       }
     },
-    [onSearch, searchDebounce, debounceTimer, hasOpened, onOpenChange]
+    [onSearch, searchDebounce, debounceTimer, hasOpened, onOpenChange, enableClientFilter]
   )
 
   useEffect(() => {
@@ -91,6 +100,13 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
 
   // Convert options to Combobox format with truncate and tooltip
   const comboboxOptions = useMemo(() => {
+    // Client-side filtering if enabled
+    let filteredOptions = options
+    if (enableClientFilter && clientSearchTerm) {
+      const searchLower = clientSearchTerm.toLowerCase()
+      filteredOptions = options.filter(opt => opt.name.toLowerCase().includes(searchLower))
+    }
+
     const createLabel = (text: string) => (
       <TooltipProvider>
         <Tooltip>
@@ -104,9 +120,10 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
       </TooltipProvider>
     )
 
-    const opts = options.map(opt => ({
+    const opts = filteredOptions.map(opt => ({
       value: opt.id,
-      label: createLabel(opt.name)
+      label: createLabel(opt.name),
+      optionLabel: opt.optionLabel
     }))
 
     if (multiple) {
@@ -132,7 +149,7 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
     }
 
     return opts
-  }, [options, normalizedValue, multiple])
+  }, [options, normalizedValue, multiple, enableClientFilter, clientSearchTerm])
 
   // Get border class based on edited state and error state
   const getBorderClass = () => {
@@ -176,7 +193,7 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
         placeholder,
         searchPlaceholder: 'Type to search...',
         emptyText: isLoading ? 'Loading...' : 'No results found',
-        onSearch: handleSearch,
+        onSearch: enableClientFilter ? handleSearch : onSearch ? handleSearch : undefined,
         onLoadMore,
         hasMore,
         searchDebounce,
@@ -193,7 +210,7 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
         placeholder,
         searchPlaceholder: 'Type to search...',
         emptyText: isLoading ? 'Loading...' : 'No results found',
-        onSearch: handleSearch,
+        onSearch: enableClientFilter ? handleSearch : onSearch ? handleSearch : undefined,
         onLoadMore,
         hasMore,
         searchDebounce,
@@ -213,12 +230,12 @@ export const EditableComboboxCell: React.FC<EditableComboboxCellProps> = ({
     <div
       ref={wrapperRef}
       className={multiple ? 'gba:min-w-[200px]' : 'gba:min-w-[100px]'}
-      onClick={e => e.stopPropagation()}
-      onMouseDown={e => e.stopPropagation()}
-      onKeyDown={handleKeyDown}
+      role="none"
       aria-invalid={hasError ? 'true' : undefined}
     >
-      <Combobox {...comboboxProps} />
+      <div onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()} onKeyDown={handleKeyDown}>
+        <Combobox {...comboboxProps} />
+      </div>
     </div>
   )
 }

@@ -79,6 +79,70 @@ const TypeBadgeCell: React.FC<{ component: ComponentResource }> = ({ component }
   )
 }
 
+// Name cell component
+const NameCell: React.FC<{ component: ComponentResource }> = ({ component }) => (
+  <div className="gba:overflow-hidden">
+    <div className="gba:font-medium gba:truncate">{component.name}</div>
+    <code className="gba:text-xs gba:text-muted-foreground gba:truncate gba:block">{component.screenKey}</code>
+  </div>
+)
+
+// Component path cell component
+const ComponentPathCell: React.FC<{ componentPath?: string }> = ({ componentPath }) => (
+  <code className="gba:text-xs gba:bg-muted gba:px-2 gba:py-1 gba:rounded gba:truncate gba:block">
+    {componentPath?.startsWith('/') ? componentPath.substring(1) : componentPath || '-'}
+  </code>
+)
+
+// Dev version cell component
+const DevVersionCell: React.FC<{ hasUnversioned: boolean }> = ({ hasUnversioned }) => (
+  <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
+    {hasUnversioned ? (
+      <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
+    ) : (
+      <XIcon className="gba:w-4 gba:h-4 gba:text-destructive" weight="bold" />
+    )}
+  </div>
+)
+
+// Prod version cell component
+const ProdVersionCell: React.FC<{ versions: string[] }> = ({ versions }) => {
+  const sortedVersions = [...versions].sort((a, b) => Number.parseInt(b) - Number.parseInt(a))
+  const latestVersion = sortedVersions[0]
+  const remainingVersionsCount = sortedVersions.length - 1
+
+  if (!latestVersion) {
+    return (
+      <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
+        <XIcon className="gba:w-4 gba:h-4 gba:text-destructive" weight="bold" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
+      <div className="gba:relative gba:inline-block">
+        <span className="gba:inline-flex gba:items-center gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:border">
+          {latestVersion}
+        </span>
+        {remainingVersionsCount > 0 && (
+          <Badge size="xs" variant="default" className="gba:absolute gba:-top-2 gba:-right-2">
+            +{remainingVersionsCount}
+          </Badge>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Updated at cell component
+const UpdatedAtCell: React.FC<{ updatedAt?: string; createdAt?: string }> = ({ updatedAt, createdAt }) => {
+  const date = updatedAt || createdAt
+  return (
+    <span className="gba:text-sm gba:text-muted-foreground">{date ? new Date(date).toLocaleDateString() : '-'}</span>
+  )
+}
+
 export const ComponentsView: React.FC<ComponentsViewProps> = ({
   'data-testid': dataTestId = 'components-view',
   ...context
@@ -233,11 +297,6 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
     )
   }
 
-  const formatComponentPath = (path?: string) => {
-    if (!path) return '-'
-    return path.startsWith('/') ? path.substring(1) : path
-  }
-
   // Define columns for DataTable
   const columns = useMemo(() => {
     const baseColumns = [
@@ -257,14 +316,7 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
         minSize: 200,
         maxSize: 500,
         enableResizing: true,
-        cell: ({ row }: { row: { original: ComponentResource } }) => (
-          <div className="gba:overflow-hidden">
-            <div className="gba:font-medium gba:truncate">{row.original.name}</div>
-            <code className="gba:text-xs gba:text-muted-foreground gba:truncate gba:block">
-              {row.original.screenKey}
-            </code>
-          </div>
-        )
+        cell: ({ row }: { row: { original: ComponentResource } }) => <NameCell component={row.original} />
       },
       {
         id: 'componentPath',
@@ -274,13 +326,9 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
         minSize: 200,
         maxSize: 600,
         enableResizing: true,
-        cell: ({ row }: { row: { original: ComponentResource } }) => {
-          return (
-            <code className="gba:text-xs gba:bg-muted gba:px-2 gba:py-1 gba:rounded gba:truncate gba:block">
-              {formatComponentPath(row.original.screenComponents?.formDefinition?.componentPath)}
-            </code>
-          )
-        }
+        cell: ({ row }: { row: { original: ComponentResource } }) => (
+          <ComponentPathCell componentPath={row.original.screenComponents?.formDefinition?.componentPath} />
+        )
       }
     ]
 
@@ -293,19 +341,9 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
           header: 'DEV',
           size: 100,
           enableResizing: false,
-          cell: ({ row }: { row: { original: ComponentResource } }) => {
-            const hasUnversioned = row.original.azureVersions.dev.hasUnversioned
-
-            return (
-              <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
-                {hasUnversioned ? (
-                  <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
-                ) : (
-                  <XIcon className="gba:w-4 gba:h-4 gba:text-destructive" weight="bold" />
-                )}
-              </div>
-            )
-          }
+          cell: ({ row }: { row: { original: ComponentResource } }) => (
+            <DevVersionCell hasUnversioned={row.original.azureVersions.dev.hasUnversioned} />
+          )
         },
         {
           id: 'prodVersion',
@@ -313,36 +351,9 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
           header: 'PROD',
           size: 100,
           enableResizing: false,
-          cell: ({ row }: { row: { original: ComponentResource } }) => {
-            const prodVersions = row.original.azureVersions.prod?.versions || []
-            const sortedVersions = [...prodVersions].sort((a, b) => Number.parseInt(b) - Number.parseInt(a))
-            const latestVersion = sortedVersions[0]
-            const remainingVersionsCount = sortedVersions.length - 1
-
-            // If no versions, show X
-            if (!latestVersion) {
-              return (
-                <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
-                  <XIcon className="gba:w-4 gba:h-4 gba:text-destructive" weight="bold" />
-                </div>
-              )
-            }
-
-            return (
-              <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
-                <div className="gba:relative gba:inline-block">
-                  <span className="gba:inline-flex gba:items-center gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:border">
-                    {latestVersion}
-                  </span>
-                  {remainingVersionsCount > 0 && (
-                    <Badge size="xs" variant="default" className="gba:absolute gba:-top-2 gba:-right-2">
-                      +{remainingVersionsCount}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            )
-          }
+          cell: ({ row }: { row: { original: ComponentResource } }) => (
+            <ProdVersionCell versions={row.original.azureVersions.prod?.versions || []} />
+          )
         }
       )
     }
@@ -354,14 +365,9 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
       header: 'Updated',
       size: 110,
       enableResizing: false,
-      cell: ({ row }: { row: { original: ComponentResource } }) => {
-        const date = row.original.updatedAt || row.original.createdAt
-        return (
-          <span className="gba:text-sm gba:text-muted-foreground">
-            {date ? new Date(date).toLocaleDateString() : '-'}
-          </span>
-        )
-      }
+      cell: ({ row }: { row: { original: ComponentResource } }) => (
+        <UpdatedAtCell updatedAt={row.original.updatedAt} createdAt={row.original.createdAt} />
+      )
     })
 
     return baseColumns
@@ -479,10 +485,12 @@ export const ComponentsView: React.FC<ComponentsViewProps> = ({
       <ComponentDialog
         open={dialogOpen}
         mode={dialogMode}
-        component={selectedComponent}
-        onClose={() => {
-          setDialogOpen(false)
-          setSelectedComponent(undefined)
+        initialData={selectedComponent}
+        onOpenChange={open => {
+          if (!open) {
+            setDialogOpen(false)
+            setSelectedComponent(undefined)
+          }
         }}
         onSubmit={data => handleSubmit({ ...data, id: selectedComponent?.id } as Component)}
         context={context}

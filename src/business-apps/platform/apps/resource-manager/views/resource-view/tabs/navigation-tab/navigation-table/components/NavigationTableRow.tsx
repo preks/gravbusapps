@@ -24,6 +24,9 @@ interface NavigationTableRowProps {
   featuresError: string | null
   refetchRoles: () => Promise<void>
   refetchFeatures: () => Promise<void>
+  onSearchRoles: (searchTerm: string) => void
+  loadMoreRoles: () => Promise<void>
+  hasMoreRoles: boolean
   dataTestId: string
 }
 
@@ -45,6 +48,9 @@ const NavigationTableRowComponent: React.FC<NavigationTableRowProps> = ({
   featuresError,
   refetchRoles,
   refetchFeatures,
+  onSearchRoles,
+  loadMoreRoles,
+  hasMoreRoles,
   dataTestId
 }) => {
   const {
@@ -149,6 +155,9 @@ const NavigationTableRowComponent: React.FC<NavigationTableRowProps> = ({
               refetchRoles().catch(() => {})
             }
           }}
+          onSearch={onSearchRoles}
+          onLoadMore={loadMoreRoles}
+          hasMore={hasMoreRoles}
           placeholder="Select groups..."
           mode="multiple"
         />
@@ -171,6 +180,7 @@ const NavigationTableRowComponent: React.FC<NavigationTableRowProps> = ({
           }}
           placeholder="Select features..."
           mode="multiple"
+          enableClientFilter={true}
         />
       </TableCell>
 

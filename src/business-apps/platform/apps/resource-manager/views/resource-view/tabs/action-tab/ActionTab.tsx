@@ -200,7 +200,10 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
     roles: roleOptions,
     isLoading: rolesLoading,
     error: rolesError,
-    refetch: refetchRoles
+    refetch: refetchRoles,
+    onSearch: onSearchRoles,
+    loadMore: loadMoreRoles,
+    hasMore: hasMoreRoles
   } = useRolesCatalog(context)
   const {
     features: featureOptions,
@@ -476,6 +479,9 @@ const ActionTabComponent: React.FC<ActionTabProps> = ({
           featuresError={featuresError}
           refetchRoles={refetchRoles}
           refetchFeatures={refetchFeatures}
+          onSearchRoles={onSearchRoles}
+          loadMoreRoles={loadMoreRoles}
+          hasMoreRoles={hasMoreRoles}
           actions={actions}
           totalCount={actionsTotalCount}
           isLoading={isActionsInitialLoading}

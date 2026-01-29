@@ -172,7 +172,10 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
     roles: roleOptions,
     isLoading: rolesLoading,
     error: rolesError,
-    refetch: refetchRoles
+    refetch: refetchRoles,
+    onSearch: onSearchRoles,
+    loadMore: loadMoreRoles,
+    hasMore: hasMoreRoles
   } = useRolesCatalog(context)
   const {
     features: featureOptions,
@@ -420,6 +423,9 @@ const NavigationTabComponent: React.FC<NavigationTabProps> = ({
           featuresError={featuresError}
           refetchRoles={refetchRoles}
           refetchFeatures={refetchFeatures}
+          onSearchRoles={onSearchRoles}
+          loadMoreRoles={loadMoreRoles}
+          hasMoreRoles={hasMoreRoles}
           updateNavigation={updateNavigation}
           createNavigation={createNavigation}
           onAddNavigationRef={addNavigationRef}

@@ -31,6 +31,9 @@ interface NavigationTableProps extends BusinessAppContextProps {
   featuresError: string | null
   refetchRoles: () => Promise<void>
   refetchFeatures: () => Promise<void>
+  onSearchRoles: (searchTerm: string) => void
+  loadMoreRoles: () => Promise<void>
+  hasMoreRoles: boolean
   updateNavigation: (id: string, data: Partial<NavigationDTO>) => Promise<void>
   createNavigation: (data: Partial<NavigationDTO>) => Promise<void>
   pagination: { pageIndex: number; pageSize: number }
@@ -62,6 +65,9 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
   featuresError,
   refetchRoles,
   refetchFeatures,
+  onSearchRoles,
+  loadMoreRoles,
+  hasMoreRoles,
   updateNavigation,
   createNavigation,
   dataTestId,
@@ -402,6 +408,9 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
                       featuresError={featuresError}
                       refetchRoles={refetchRoles}
                       refetchFeatures={refetchFeatures}
+                      onSearchRoles={onSearchRoles}
+                      loadMoreRoles={loadMoreRoles}
+                      hasMoreRoles={hasMoreRoles}
                       dataTestId={`navigation-table-row-${navId}`}
                     />
                   </React.Fragment>

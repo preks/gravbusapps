@@ -401,7 +401,12 @@ export class ActionClient {
     }
   }
 
-  public async getRoles(params?: { limit?: number; offset?: number; includeRoles?: string }): Promise<any[]> {
+  public async getRoles(params?: {
+    limit?: number
+    offset?: number
+    name?: string
+    includeRoles?: string
+  }): Promise<{ data: any[]; paging?: { limit: number; offset: number; totalRecords: number } }> {
     let baseUrl = this.userManagementBaseUrl
 
     // Remove /api/v1 from baseUrl if present, as we'll add it to the path
@@ -420,12 +425,43 @@ export class ActionClient {
     )
 
     if (Array.isArray(response)) {
-      return response
+      return { data: response }
     }
     if (response?.data && Array.isArray(response.data)) {
-      return response.data
+      return { data: response.data, paging: response.paging }
     }
-    return []
+    return { data: [] }
+  }
+
+  public async getGroups(params?: {
+    limit?: number
+    offset?: number
+    searchParam?: string
+  }): Promise<{ data: any[]; paging?: { limit: number; offset: number; totalRecords: number } }> {
+    let baseUrl = this.userManagementBaseUrl
+
+    // Remove /api/v1 from baseUrl if present, as we'll add it to the path
+    if (baseUrl.endsWith('/api/v1')) {
+      baseUrl = baseUrl.slice(0, -7)
+    } else if (baseUrl.endsWith('/api/v1/')) {
+      baseUrl = baseUrl.slice(0, -8)
+    }
+
+    const response = await this.resourceClient['get']<{ data: any[]; paging?: any } | any[]>(
+      '/api/v1/groups',
+      {
+        params: params as Record<string, string | number | boolean>
+      },
+      baseUrl
+    )
+
+    if (Array.isArray(response)) {
+      return { data: response }
+    }
+    if (response?.data && Array.isArray(response.data)) {
+      return { data: response.data, paging: response.paging }
+    }
+    return { data: [] }
   }
 
   public async getFeatures(): Promise<string[]> {
