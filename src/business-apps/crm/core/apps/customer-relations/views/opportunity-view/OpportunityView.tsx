@@ -131,8 +131,8 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
     // CRM-specific: Override createColumns to add customer-specific columns
     return {
       ...baseConfig,
-      createColumns: (buildAccountUrl: (id: string) => string) => {
-        const baseColumns = createOpportunityColumns(buildAccountUrl) as ColumnDef<CustomerOpportunity>[]
+      createColumns: () => {
+        const baseColumns = createOpportunityColumns() as ColumnDef<CustomerOpportunity>[]
         return insertCustomerColumnsAfter(baseColumns, 'amount')
       },
       createSortableColumns: (availableColumnIds?: string[]) => {
