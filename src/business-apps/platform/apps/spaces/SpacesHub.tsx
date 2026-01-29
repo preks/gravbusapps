@@ -92,21 +92,43 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
 
   return (
     <div className="gba:min-h-screen gba:bg-background" data-testid={testId}>
-      {/* Header with primary background */}
-      <header className="gba:relative gba:bg-primary">
+      {/* Header with decorative gradient background */}
+      {/* eslint-disable newwork-local/no-hardcoded-colors */}
+      <header
+        className="gba:relative"
+        style={{
+          backgroundColor: '#000021',
+          backgroundImage: `
+            radial-gradient(120% 120% at 72% 55%,
+              #0076d0 0%,
+              #0066c3 22%,
+              #0052b0 38%,
+              #003f9d 56%,
+              #002787 70%,
+              #001271 82%,
+              #000021 100%
+            ),
+            linear-gradient(110deg,
+              rgba(0, 0, 0, 0.92) 0%,
+              rgba(0, 0, 0, 0.00) 46%
+            )`,
+          backgroundRepeat: 'no-repeat',
+          backgroundSize: 'cover'
+        }}
+      >
+        {/* eslint-enable newwork-local/no-hardcoded-colors */}
         <div className="gba:max-w-7xl gba:mx-auto gba:px-6 gba:py-10">
           {/* Title & CTA */}
           <div className="gba:flex gba:items-center gba:justify-between gba:mb-8">
             <div>
-              <h1 className="gba:text-3xl gba:font-semibold gba:text-primary-foreground">Spaces</h1>
-              <p className="gba:text-sm gba:text-primary-foreground/60 gba:mt-1">
+              <h1 className="gba:text-3xl gba:font-semibold gba:text-white">Spaces</h1>
+              <p className="gba:text-sm gba:text-white/60 gba:mt-1">
                 {stats.total} space{stats.total !== 1 ? 's' : ''}
               </p>
             </div>
             <Button
               onClick={() => setCreateDialogOpen(true)}
-              variant="secondary"
-              className="gba:gap-2"
+              className="gba:gap-2 gba:bg-white gba:text-primary hover:gba:bg-white/90"
               data-testid={`${testId}-create-button`}
             >
               <Plus className="gba:w-4 gba:h-4" />
@@ -118,26 +140,24 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
           <div className="gba:flex gba:flex-col gba:sm:flex-row gba:gap-4">
             {/* Search */}
             <div className="gba:relative gba:flex-1">
-              <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-primary-foreground/50" />
+              <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-white/50" />
               <Input
                 placeholder="Search spaces..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="gba:pl-9 gba:h-10 gba:bg-primary-foreground/10 gba:border-primary-foreground/20 gba:text-primary-foreground placeholder:gba:text-primary-foreground/50 focus:gba:border-primary-foreground/40"
+                className="gba:pl-9 gba:h-10 gba:bg-white/10 gba:border-white/20 gba:text-white placeholder:gba:text-white/50 focus:gba:border-white/40"
                 data-testid={`${testId}-search`}
               />
             </div>
 
             {/* Filter Tabs */}
-            <div className="gba:flex gba:gap-1 gba:p-1 gba:bg-primary-foreground/10 gba:rounded-lg">
+            <div className="gba:flex gba:gap-1 gba:p-1 gba:bg-white/10 gba:rounded-lg">
               {(['all', 'owned', 'shared'] as FilterType[]).map(f => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
                   className={`gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:rounded-md gba:transition-colors ${
-                    filter === f
-                      ? 'gba:bg-primary-foreground gba:text-primary'
-                      : 'gba:text-primary-foreground/70 hover:gba:text-primary-foreground'
+                    filter === f ? 'gba:bg-white gba:text-primary' : 'gba:text-white/70 hover:gba:text-white'
                   }`}
                   data-testid={`${testId}-filter-${f}`}
                 >

@@ -39,7 +39,7 @@ export const ScopeSelector: React.FC<ScopeSelectorProps> = ({
     <div className="gba:flex gba:items-center gba:gap-2">
       <span className="gba:text-sm gba:text-muted-foreground">Search in:</span>
       <Select value={currentValue} onValueChange={handleValueChange} disabled={disabled}>
-        <SelectTrigger className="gba:w-[200px]" data-testid="scope-selector-trigger">
+        <SelectTrigger className="gba:w-56" data-testid="scope-selector-trigger">
           <SelectValue placeholder="Select scope" />
         </SelectTrigger>
         <SelectContent>

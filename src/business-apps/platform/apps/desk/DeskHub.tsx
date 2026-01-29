@@ -320,7 +320,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
       {!isChatOpen && (
         <Button
           onClick={() => setIsChatOpen(true)}
-          className="gba:fixed gba:right-6 gba:bottom-6 gba:h-14 gba:w-14 gba:rounded-full gba:shadow-lg gba:z-50"
+          className="gba:fixed gba:right-6 gba:bottom-6 gba:h-14 gba:w-14 gba:rounded-full gba:z-50"
           size="default"
           data-testid={`${testId}-chat-toggle`}
         >
@@ -332,6 +332,10 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
       {isChatOpen && accessToken && currentUserId && (
         <DocumentChat
           userId={currentUserId}
+          userName={
+            `${userInfo?.employeeDetails?.firstName || ''} ${userInfo?.employeeDetails?.lastName || ''}`.trim() ||
+            userInfo?.userName
+          }
           accessToken={accessToken}
           scope={chatScope}
           spaceId={selectedSpaceId}

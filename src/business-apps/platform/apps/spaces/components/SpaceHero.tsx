@@ -63,7 +63,30 @@ export const SpaceHero: React.FC<SpaceHeroProps> = ({
   return (
     <div data-testid={testId}>
       {/* Hero with decorative gradient background */}
-      <div className="gba:relative gba:overflow-hidden gba:bg-primary">
+      {/* eslint-disable newwork-local/no-hardcoded-colors */}
+      <div
+        className="gba:relative gba:overflow-hidden"
+        style={{
+          backgroundColor: '#000021',
+          backgroundImage: `
+            radial-gradient(120% 120% at 72% 55%,
+              #0076d0 0%,
+              #0066c3 22%,
+              #0052b0 38%,
+              #003f9d 56%,
+              #002787 70%,
+              #001271 82%,
+              #000021 100%
+            ),
+            linear-gradient(110deg,
+              rgba(0, 0, 0, 0.92) 0%,
+              rgba(0, 0, 0, 0.00) 46%
+            )`,
+          backgroundRepeat: 'no-repeat',
+          backgroundSize: 'cover'
+        }}
+      >
+        {/* eslint-enable newwork-local/no-hardcoded-colors */}
         <div className="gba:max-w-7xl gba:mx-auto gba:px-6 gba:py-8">
           {/* Top Navigation */}
           <div className="gba:flex gba:items-center gba:justify-between gba:mb-12">

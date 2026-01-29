@@ -42,6 +42,16 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
   const [error, setError] = useState<string | null>(null)
 
   const streamingContentRef = useRef('')
+  const streamingRafRef = useRef<number | null>(null)
+  const pendingUserMessageRef = useRef<{ tempId: string; sessionId: string; content: string } | null>(null)
+
+  const upsertById = (prev: ChatMessage[], next: ChatMessage): ChatMessage[] => {
+    const idx = prev.findIndex(m => m.id === next.id)
+    if (idx === -1) return [...prev, next]
+    const copy = prev.slice()
+    copy[idx] = next
+    return copy
+  }
 
   // Initialize WebSocket connection
   useEffect(() => {
@@ -120,14 +130,42 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
 
     newSocket.on('token', (data: { token: string }) => {
       streamingContentRef.current += data.token
-      setStreamingContent(streamingContentRef.current)
+      if (typeof window === 'undefined') {
+        setStreamingContent(streamingContentRef.current)
+        return
+      }
+
+      if (streamingRafRef.current !== null) return
+      streamingRafRef.current = window.requestAnimationFrame(() => {
+        streamingRafRef.current = null
+        setStreamingContent(streamingContentRef.current)
+      })
     })
 
     newSocket.on('complete', (data: { userMessage: ChatMessage; assistantMessage: ChatMessage }) => {
-      setMessages(prev => [...prev, data.userMessage, data.assistantMessage])
+      setMessages(prev => {
+        const pending = pendingUserMessageRef.current
+
+        // Replace the optimistic temp message (prevents user message from being duplicated)
+        if (pending && pending.sessionId === data.userMessage.sessionId) {
+          const tempIdx = prev.findIndex(m => m.id === pending.tempId)
+          pendingUserMessageRef.current = null
+
+          if (tempIdx !== -1) {
+            const next = prev.slice()
+            next[tempIdx] = data.userMessage
+            return upsertById(next, data.assistantMessage)
+          }
+        }
+
+        // Fallback: de-duplicate by id if complete is emitted twice
+        const nextWithUser = upsertById(prev, data.userMessage)
+        return upsertById(nextWithUser, data.assistantMessage)
+      })
       setIsStreaming(false)
       setStreamingContent('')
       streamingContentRef.current = ''
+      pendingUserMessageRef.current = null
     })
 
     newSocket.on('error', (data: { message: string }) => {
@@ -136,11 +174,16 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
       setIsStreaming(false)
       setStreamingContent('')
       streamingContentRef.current = ''
+      pendingUserMessageRef.current = null
     })
 
     setSocket(newSocket)
 
     return () => {
+      if (typeof window !== 'undefined' && streamingRafRef.current !== null) {
+        window.cancelAnimationFrame(streamingRafRef.current)
+        streamingRafRef.current = null
+      }
       newSocket.disconnect()
     }
   }, [userId, accessToken])
@@ -244,14 +287,16 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
       setError(null)
 
       // Add user message to UI immediately
+      const tempId = 'temp-' + Date.now()
       const tempUserMessage: ChatMessage = {
-        id: 'temp-' + Date.now(),
+        id: tempId,
         sessionId: currentSession.id,
         role: 'user',
         content: message,
         sources: [],
         createdAt: new Date().toISOString()
       }
+      pendingUserMessageRef.current = { tempId, sessionId: currentSession.id, content: message }
       setMessages(prev => [...prev, tempUserMessage])
 
       socket.emit('message', {
