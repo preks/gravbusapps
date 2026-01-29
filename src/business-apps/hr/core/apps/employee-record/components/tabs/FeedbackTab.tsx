@@ -13,6 +13,8 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { startProcess } from '@/common/utils/start-process'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import { CalendarOutlined, SearchOutlined, DownloadOutlined } from '@ant-design/icons'
 import { useFlowExecutionTasks } from '@/business-apps/fin/expenses/apps/manager-expenses/hooks/useFlowExecutionTasks'
 import { PiPencilSimple } from 'react-icons/pi'
@@ -113,6 +115,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   employeeFeedback = [],
   isSelfView = false // Default to false if not provided
 }) => {
+  const { t } = useTranslation(translations)
   // State variables for feedback and requests
   const [localFeedback, setLocalFeedback] = useState<ExtendedEmployeeFeedback[]>([])
   // No local state needed for approval tasks in this column
@@ -523,6 +526,9 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                         data-testid="received-requests-pagination"
                         showSizeChanger
                         pageSizeOptions={['3', '10', '20', '50']}
+                        locale={{
+                          items_per_page: t('feedback-pagination-per-page')
+                        }}
                       />
                     </div>
                   </>
@@ -595,6 +601,9 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                       data-testid="requested-requests-pagination"
                       showSizeChanger
                       pageSizeOptions={['3', '10', '20', '50']}
+                      locale={{
+                        items_per_page: t('feedback-pagination-per-page')
+                      }}
                     />
                   </div>
                 </>

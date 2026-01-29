@@ -323,6 +323,49 @@ employee-record-video-cannot-self = Cannot video call yourself
 employee-record-tab-summary = Summary
 employee-record-tab-hr-admin = HR Administration
 employee-record-tab-hr-growth = HR Development
+hr-growth-skills = Skills
+hr-growth-feedback = Feedback
+hr-growth-performance = Performance
+
+# Skills Tab
+skills-title = Employee Skills
+skills-description = View and manage employee skills and competencies
+skills-edit-button = Edit Skills
+skills-empty = No skills found
+skills-total = Total Skills
+skills-highest = Highest Skills
+skills-none = None
+skills-level = Level
+skills-category = Category
+skills-added = Added
+skills-updated = Updated
+skills-na = N/A
+skills-level-0 = No level assigned
+skills-level-1 = Beginner - Basic understanding
+skills-level-2 = Novice - Limited experience
+skills-level-3 = Intermediate - Working knowledge
+skills-level-4 = Advanced - Proficient
+skills-level-5 = Expert - Master level
+
+# Performance Tab
+performance-title = Performance Goals
+performance-description = View and manage employee performance goals
+performance-edit-button = Set New Goal
+performance-empty = No goals available
+performance-progress = progress
+performance-start-date = Start Date
+performance-due-date = Due Date
+performance-completion-date = Completion Date
+performance-status-on-track = On Track
+performance-status-behind-target = Behind Target
+performance-status-at-risk = At Risk
+performance-status-achieved = Achieved
+performance-status-not-achieved = Not Achieved
+performance-error-load = Failed to load performance data
+
+# Feedback Tab - Pagination
+feedback-pagination-per-page = / page
+
 employee-record-tab-compensation = Compensation
 employee-record-tab-time-tracking = Time Tracking
 employee-record-tab-absences = Absences
@@ -490,3 +533,10 @@ changelog-category-employment = Employment
 changelog-category-financial = Financial
 changelog-category-skills = Skills & Capabilities
 changelog-category-documents = Documents
+
+# Change Log Entry Details
+changelog-label-channel = Channel
+changelog-label-category = Category
+changelog-label-timestamp = Timestamp
+changelog-label-created-by = Created by
+changelog-label-flow = Flow

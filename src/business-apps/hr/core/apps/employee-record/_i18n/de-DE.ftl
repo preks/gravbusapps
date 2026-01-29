@@ -316,6 +316,49 @@ employee-record-video-cannot-self = Sie können sich nicht selbst per Video anru
 employee-record-tab-summary = Übersicht
 employee-record-tab-hr-admin = HR-Administration
 employee-record-tab-hr-growth = Personalentwicklung
+hr-growth-skills = Fähigkeiten
+hr-growth-feedback = Feedback
+hr-growth-performance = Leistung
+
+# Skills Tab
+skills-title = Mitarbeiterfähigkeiten
+skills-description = Mitarbeiterfähigkeiten und Kompetenzen anzeigen und verwalten
+skills-edit-button = Fähigkeiten bearbeiten
+skills-empty = Keine Fähigkeiten gefunden
+skills-total = Gesamte Fähigkeiten
+skills-highest = Höchste Fähigkeiten
+skills-none = Keine
+skills-level = Stufe
+skills-category = Kategorie
+skills-added = Hinzugefügt
+skills-updated = Aktualisiert
+skills-na = K.A.
+skills-level-0 = Keine Stufe zugewiesen
+skills-level-1 = Anfänger - Grundlegendes Verständnis
+skills-level-2 = Anfänger - Begrenzte Erfahrung
+skills-level-3 = Mittelstufe - Arbeitswissen
+skills-level-4 = Fortgeschritten - Kompetent
+skills-level-5 = Experte - Meisterniveau
+
+# Performance Tab
+performance-title = Leistungsziele
+performance-description = Mitarbeiterleistungsziele anzeigen und verwalten
+performance-edit-button = Neues Ziel setzen
+performance-empty = Keine Ziele verfügbar
+performance-progress = Fortschritt
+performance-start-date = Startdatum
+performance-due-date = Fälligkeitsdatum
+performance-completion-date = Abschlussdatum
+performance-status-on-track = Im Plan
+performance-status-behind-target = Hinter dem Ziel
+performance-status-at-risk = Gefährdet
+performance-status-achieved = Erreicht
+performance-status-not-achieved = Nicht erreicht
+performance-error-load = Leistungsdaten konnten nicht geladen werden
+
+# Feedback Tab - Pagination
+feedback-pagination-per-page = / Seite
+
 employee-record-tab-compensation = Vergütung
 employee-record-tab-time-tracking = Zeiterfassung
 employee-record-tab-absences = Abwesenheiten
@@ -483,3 +526,10 @@ changelog-category-employment = Beschäftigung
 changelog-category-financial = Finanziell
 changelog-category-skills = Fähigkeiten & Kompetenzen
 changelog-category-documents = Dokumente
+
+# Change Log Entry Details
+changelog-label-channel = Kanal
+changelog-label-category = Kategorie
+changelog-label-timestamp = Zeitstempel
+changelog-label-created-by = Erstellt von
+changelog-label-flow = Ablauf

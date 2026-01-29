@@ -316,6 +316,49 @@ employee-record-video-cannot-self = Nu te poți apela pe tine însuți prin vide
 employee-record-tab-summary = Rezumat
 employee-record-tab-hr-admin = Administrare HR
 employee-record-tab-hr-growth = Dezvoltare HR
+hr-growth-skills = Competențe
+hr-growth-feedback = Feedback
+hr-growth-performance = Performanță
+
+# Skills Tab
+skills-title = Competențe angajat
+skills-description = Vizualizați și gestionați competențele și abilitățile angajaților
+skills-edit-button = Editează competențe
+skills-empty = Nu s-au găsit competențe
+skills-total = Total competențe
+skills-highest = Competențe maxime
+skills-none = Niciuna
+skills-level = Nivel
+skills-category = Categorie
+skills-added = Adăugat
+skills-updated = Actualizat
+skills-na = N/A
+skills-level-0 = Niciun nivel atribuit
+skills-level-1 = Începător - Înțelegere de bază
+skills-level-2 = Novice - Experiență limitată
+skills-level-3 = Intermediar - Cunoștințe de lucru
+skills-level-4 = Avansat - Competent
+skills-level-5 = Expert - Nivel de maestru
+
+# Performance Tab
+performance-title = Obiective de performanță
+performance-description = Vizualizați și gestionați obiectivele de performanță ale angajaților
+performance-edit-button = Setează obiectiv nou
+performance-empty = Nu sunt disponibile obiective
+performance-progress = progres
+performance-start-date = Data începerii
+performance-due-date = Data scadenței
+performance-completion-date = Data finalizării
+performance-status-on-track = Pe drumul cel bun
+performance-status-behind-target = În urmă față de țintă
+performance-status-at-risk = În pericol
+performance-status-achieved = Atins
+performance-status-not-achieved = Neatins
+performance-error-load = Nu s-au putut încărca datele de performanță
+
+# Feedback Tab - Pagination
+feedback-pagination-per-page = / pagină
+
 employee-record-tab-compensation = Compensații
 employee-record-tab-time-tracking = Pontaj
 employee-record-tab-absences = Absențe
@@ -483,3 +526,10 @@ changelog-category-employment = Angajare
 changelog-category-financial = Financiar
 changelog-category-skills = Abilități & Competențe
 changelog-category-documents = Documente
+
+# Change Log Entry Details
+changelog-label-channel = Canal
+changelog-label-category = Categorie
+changelog-label-timestamp = Marcă temporală
+changelog-label-created-by = Creat de
+changelog-label-flow = Flux

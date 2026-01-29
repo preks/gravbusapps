@@ -8,9 +8,10 @@ import PerformanceTab from './PerformanceTab'
 import FeedbackTab from './FeedbackTab'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Employee, EmployeePerformanceGoal, EmployeeFeedback } from '../../hooks/useEmployeeData'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useEmployeePermissions } from '../../hooks/useEmployeePermissions'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 
 interface HrGrowthTabProps extends BusinessAppContextProps {
   employee: Employee
@@ -46,6 +47,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
   employeePerformanceGoals,
   feedback
 }) => {
+  const { t } = useTranslation(translations)
   const [activeSubView, setActiveSubView] = useState<HrGrowthSubView>(getInitialHrGrowthSubView())
 
   const { loading: permissionsLoading } = useEmployeePermissions(employeeId, accessToken)
@@ -159,24 +161,14 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
           <TabsTrigger value="skills" data-testid="hr-growth-skills-subtab" className="gba:flex-1">
             <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
               <PiGraduationCap />
-              <span>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_profile.summary_layout.skills_section.skills_title',
-                  'Skills'
-                )}
-              </span>
+              <span>{t('hr-growth-skills')}</span>
             </div>
           </TabsTrigger>
           {devFeatureFlag && (
             <TabsTrigger value="feedback" data-testid="hr-growth-feedback-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                 <PiChatCircle />
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_profile.summary_layout.skills_section.feedback_generic_module_title',
-                    'Feedback'
-                  )}
-                </span>
+                <span>{t('hr-growth-feedback')}</span>
               </div>
             </TabsTrigger>
           )}
@@ -192,12 +184,7 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
             >
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                 <PiChartBar />
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:absence_management_hub_backoffice.performance',
-                    'Performance'
-                  )}
-                </span>
+                <span>{t('hr-growth-performance')}</span>
               </div>
             </TabsTrigger>
           )}
