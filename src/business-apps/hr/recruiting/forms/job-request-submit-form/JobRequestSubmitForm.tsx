@@ -19,7 +19,6 @@ import {
   FormMessage,
   Input,
   Textarea,
-  DateInput,
   Select,
   SelectTrigger,
   SelectValue,
@@ -37,6 +36,7 @@ import { SiteLocationSelect } from '@/components/site-location-select'
 import { RECRUITING_CATALOGS } from '@/common/data/recruiting/constants/recruitingConstants'
 import { JobRequestType, JobRequestStatus, getJobRequestTypeOptions } from '@/common/data/recruiting/types/enums'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { PlannedDateFields } from '../_shared/components/PlannedDateFields'
 
 const jobRequestSubmitSchema = z.object({
   id: z.string().optional(),
@@ -526,51 +526,7 @@ const JobRequestSubmitForm: React.FC<JobRequestSubmitFormProps> = ({ accessToken
               />
             </div>
 
-            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-              <FormField
-                control={form.control}
-                name="plannedHireDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Planned Hire Date</FormLabel>
-                    <FormControl>
-                      <DateInput
-                        type="date"
-                        value={field.value || ''}
-                        onChange={value => field.onChange(value || '')}
-                        placeholder="Select planned hire date..."
-                        data-testid={formatDataTestId('job-request-submit-form', 'planned-hire-date-input')}
-                        captionLayout="dropdown"
-                        outputFormat="iso"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="plannedExitDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Planned Exit Date</FormLabel>
-                    <FormControl>
-                      <DateInput
-                        type="date"
-                        value={field.value || ''}
-                        onChange={value => field.onChange(value || '')}
-                        placeholder="Select planned exit date..."
-                        data-testid={formatDataTestId('job-request-submit-form', 'planned-exit-date-input')}
-                        captionLayout="dropdown"
-                        outputFormat="iso"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <PlannedDateFields control={form.control} prefixDataTestId="job-request-submit-form" />
           </div>
         </Form>
       </AppActionForm>

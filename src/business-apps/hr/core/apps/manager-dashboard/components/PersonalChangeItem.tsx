@@ -15,16 +15,30 @@ export const handleApprovePersonalChange = async ({
   userId,
   accessToken,
   refetchPersonalData,
-  setIsSubmitting
+  setIsSubmitting,
+  currentEmployeeId
 }: {
   change: PersonalDataApproval
   userId?: string
   accessToken?: string
   refetchPersonalData?: () => void
   setIsSubmitting: (_isSubmitting: boolean) => void
+  currentEmployeeId?: string
 }) => {
   setIsSubmitting(true)
   try {
+    // Prevent HR from approving their own changes
+    if (currentEmployeeId && change.employee.id === currentEmployeeId) {
+      toast.error(
+        getTranslationFromI18nKeyAndLabel(
+          'master-data:hr.manager_dashboard.cannot_approve_own_changes',
+          'You cannot approve your own personal data changes. Please ask another HR manager to review and approve.'
+        )
+      )
+      setIsSubmitting(false)
+      return
+    }
+
     const urlEndpoint = `${change?.endpoint}?phase=complete&user=${userId}`
 
     const approvalPersonalChangePayload = {
@@ -108,14 +122,19 @@ export const PersonalChangeItem = ({
   change,
   userId,
   accessToken,
-  refetchPersonalData
+  refetchPersonalData,
+  currentEmployeeId
 }: {
   change: PersonalDataApproval
   userId?: string
   accessToken?: string
   refetchPersonalData?: () => void
+  currentEmployeeId?: string
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Check if user is trying to approve their own change
+  const isOwnChange = currentEmployeeId && change.employee.id === currentEmployeeId
 
   return (
     <div
@@ -168,14 +187,15 @@ export const PersonalChangeItem = ({
         <Button
           size="sm"
           className="gba:w-1/2"
-          disabled={isSubmitting}
+          disabled={isSubmitting || isOwnChange}
           onClick={() =>
             handleApprovePersonalChange({
               change,
               userId,
               accessToken,
               refetchPersonalData,
-              setIsSubmitting
+              setIsSubmitting,
+              currentEmployeeId
             })
           }
         >
