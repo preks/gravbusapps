@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback } from 'react'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
+import { Tabs, TabsList, TabsTrigger, TabsContent, useTranslation } from '@newwork/nw-design-system'
 import { PiGraduationCap, PiChartBar, PiChatCircle } from 'react-icons/pi'
 import SkillsTab from './SkillsTab'
 import PerformanceTab from './PerformanceTab'
@@ -10,7 +10,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Employee, EmployeePerformanceGoal, EmployeeFeedback } from '../../hooks/useEmployeeData'
 import { useEmployeePermissions } from '../../hooks/useEmployeePermissions'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
-import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
 
 interface HrGrowthTabProps extends BusinessAppContextProps {

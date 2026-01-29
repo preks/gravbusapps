@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
+import { Tabs, TabsList, TabsTrigger, TabsContent, useTranslation } from '@newwork/nw-design-system'
 import { Spin } from 'antd'
 import { PiIdentificationCard, PiBriefcase, PiFiles, PiClockCounterClockwise, PiNotebook } from 'react-icons/pi'
 import DetailsTab from './DetailsTab'
@@ -13,7 +13,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Employee } from '../../hooks/useEmployeeData'
 import { ScopePermissionCheckResult, useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
 import { useEmployeePermissions } from '../../hooks/useEmployeePermissions'
-import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
 
 interface HrAdminTabProps extends BusinessAppContextProps {

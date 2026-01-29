@@ -5,11 +5,10 @@ import { Employee } from '../../hooks/useEmployeeData'
 import { UserInfoProps } from '@/common/BusinessAppContext'
 import { getUserRequests } from '../../services/service-requests/serviceRequestsService'
 import type { SubmittedRequest } from '../../services/service-requests/serviceRequestsTypes'
-import { Card, Badge, Spinner, Alert, Button } from '@newwork/nw-design-system'
+import { Card, Badge, Spinner, Alert, Button, useTranslation } from '@newwork/nw-design-system'
 import { PiReceipt, PiCheckCircle, PiClock, PiPlus } from 'react-icons/pi'
 import { formatDate } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
 
 interface ServiceRequestsTabProps {

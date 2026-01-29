@@ -3,14 +3,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import dayjs from 'dayjs'
 import { Employee, EmployeePerformanceGoal } from '../../hooks/useEmployeeData'
-import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
+import { Card, CardHeader, CardTitle, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { Empty, Spin } from 'antd'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { employeePerformanceQuery } from '../../queries/performanceQueries'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
-import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
 
 interface PerformanceTabProps {

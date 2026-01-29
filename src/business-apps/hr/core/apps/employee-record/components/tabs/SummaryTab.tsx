@@ -313,17 +313,16 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                 <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:w-full">
                   {subordinates.map(member => (
                     <div key={member.id} className="gba:flex gba:justify-center gba:mb-2">
-                      <a
-                        href="#"
-                        onClick={e => {
-                          e.preventDefault()
+                      <button
+                        type="button"
+                        onClick={() => {
                           navigateTo(
                             buildPlatformUrl('/platform/employee-record', {
                               employeeId: member.id
                             })
                           )
                         }}
-                        className="gba:cursor-pointer gba:hover:opacity-90 gba:flex gba:flex-col gba:items-center"
+                        className="gba:cursor-pointer gba:hover:opacity-90 gba:flex gba:flex-col gba:items-center gba:bg-transparent gba:border-none gba:p-0"
                         title={t('summary-view-profile', { name: member.displayName })}
                         data-testid={`team-member-link-${member.id}`}
                       >
@@ -348,7 +347,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                             {member.position}
                           </div>
                         </div>
-                      </a>
+                      </button>
                     </div>
                   ))}
                 </div>

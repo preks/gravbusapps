@@ -2,9 +2,8 @@ import React from 'react'
 import { formatDate } from '@/common/utils/windowUtils'
 import { ChangeLogEntry as ChangeLogEntryType } from '../../ChangeLogTab'
 import { getFieldCategories } from './constants'
-import { useTranslation } from '@newwork/nw-design-system'
+import { useTranslation, Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
 import translations from '../../../../_i18n'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
 
 interface ChangeLogEntryProps {
   entry: ChangeLogEntryType
