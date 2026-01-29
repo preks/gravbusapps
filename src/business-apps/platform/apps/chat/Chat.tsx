@@ -23,6 +23,7 @@ import { AIThinkingIndicator, AIResponseRenderer, ExpertThinkingIndicator } from
 import { playNudgeSound, applyShakeAnimation, injectNudgeStyles } from './utils/nudgeUtils'
 import { IncomingCallDialog } from './components/IncomingCallDialog'
 import { IncomingGroupCallDialog } from './components/IncomingGroupCallDialog'
+import { RejoinCallDialog } from './components/RejoinCallDialog'
 import { CallModal } from './components/CallModal'
 import { GroupCallModal } from './components/GroupCallModal'
 import { GroupCallModalRtk } from './components/GroupCallModalRtk'
@@ -52,6 +53,13 @@ const ChatInner: React.FC<ChatProps> = memo(
     const [draftMessage, setDraftMessage] = useState<string>('')
     const [isExpertProcessing, setIsExpertProcessing] = useState(false)
     const [processingExpert, setProcessingExpert] = useState<{ name: string; color?: string } | null>(null)
+    const [isStartingCall, setIsStartingCall] = useState(false)
+    const [rejoinModalState, setRejoinModalState] = useState<{
+      roomId: string
+      callType: 'audio' | 'video'
+      conversationName?: string
+      participantCount?: number
+    } | null>(null)
     const registerMentionEntityRef = useRef<((entity: any, text: string, startIndex: number) => any) | null>(null)
     const focusInputRef = useRef<(() => void) | null>(null)
     const urlContextProcessed = useRef(false)
@@ -413,6 +421,14 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Combined in-call state
     const isInAnyCall = isInCall || isInGroupCall
 
+    // Reset isStartingCall when call actually connects
+    useEffect(() => {
+      if (isInAnyCall && isStartingCall) {
+        console.log('[CHAT] Call connected, resetting isStartingCall flag')
+        setIsStartingCall(false)
+      }
+    }, [isInAnyCall, isStartingCall])
+
     // Every AI integration for @Every mentions in group chats
     const {
       hasEveryMention,
@@ -457,56 +473,102 @@ const ChatInner: React.FC<ChatProps> = memo(
 
     // Call handlers for both direct (1:1) and group conversations
     const handleAudioCall = () => {
+      // Guard: prevent duplicate call initiation
+      if (isStartingCall) {
+        console.log('[CHAT] Already starting a call, ignoring duplicate request')
+        return
+      }
+
       if (!activeConversation) return
 
-      // For direct conversations, use 1:1 call
-      if (activeConversation.type === 'direct') {
-        const otherParticipant = activeConversation.participants?.find(
-          p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
-        )
-        if (!otherParticipant?.user) return
-        const user = otherParticipant.user
-        initiateCall(
-          {
-            id: user.id,
-            odId: user.id,
-            odName:
-              user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Unknown',
-            avatarUrl: user.avatarUrl
-          },
-          'audio',
-          activeConversation.id
-        )
-      } else if (activeConversation.type === 'group') {
-        // For group conversations, use group call
-        handleGroupCall('audio')
+      setIsStartingCall(true)
+
+      try {
+        // For direct conversations, use 1:1 call
+        if (activeConversation.type === 'direct') {
+          const otherParticipant = activeConversation.participants?.find(
+            p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
+          )
+          if (!otherParticipant?.user) {
+            setIsStartingCall(false)
+            return
+          }
+          const user = otherParticipant.user
+          initiateCall(
+            {
+              id: user.id,
+              odId: user.id,
+              odName:
+                user.displayName ||
+                `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
+                user.username ||
+                'Unknown',
+              avatarUrl: user.avatarUrl
+            },
+            'audio',
+            activeConversation.id
+          )
+        } else if (activeConversation.type === 'group') {
+          // For group conversations, use group call
+          handleGroupCall('audio')
+        }
+
+        // State will be reset when call connects (see useEffect with isInAnyCall)
+        // Or after 3 seconds as fallback for failed calls
+        setTimeout(() => setIsStartingCall(false), 3000)
+      } catch (error) {
+        console.error('[CHAT] Error starting audio call:', error)
+        setIsStartingCall(false)
       }
     }
 
     const handleVideoCall = () => {
+      // Guard: prevent duplicate call initiation
+      if (isStartingCall) {
+        console.log('[CHAT] Already starting a call, ignoring duplicate request')
+        return
+      }
+
       if (!activeConversation) return
 
-      // For direct conversations, use 1:1 call
-      if (activeConversation.type === 'direct') {
-        const otherParticipant = activeConversation.participants?.find(
-          p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
-        )
-        if (!otherParticipant?.user) return
-        const user = otherParticipant.user
-        initiateCall(
-          {
-            id: user.id,
-            odId: user.id,
-            odName:
-              user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Unknown',
-            avatarUrl: user.avatarUrl
-          },
-          'video',
-          activeConversation.id
-        )
-      } else if (activeConversation.type === 'group') {
-        // For group conversations, use group call
-        handleGroupCall('video')
+      setIsStartingCall(true)
+
+      try {
+        // For direct conversations, use 1:1 call
+        if (activeConversation.type === 'direct') {
+          const otherParticipant = activeConversation.participants?.find(
+            p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
+          )
+          if (!otherParticipant?.user) {
+            setIsStartingCall(false)
+            return
+          }
+          const user = otherParticipant.user
+          initiateCall(
+            {
+              id: user.id,
+              odId: user.id,
+              odName:
+                user.displayName ||
+                `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
+                user.username ||
+                'Unknown',
+              avatarUrl: user.avatarUrl
+            },
+            'video',
+            activeConversation.id
+          )
+        } else if (activeConversation.type === 'group') {
+          // For group conversations, use group call
+          handleGroupCall('video')
+        }
+
+        // State will be reset when call connects (see useEffect with isInAnyCall)
+        // Or after 3 seconds as fallback for failed calls
+        setTimeout(() => setIsStartingCall(false), 3000)
+      } catch (error) {
+        console.error('[CHAT] Error starting video call:', error)
+        setIsStartingCall(false)
       }
     }
 
@@ -1436,10 +1498,51 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Handler to join an active call
     const handleJoinActiveCall = useCallback(() => {
       if (!activeCallInfo || !stableActiveConversation) return
-      rtkDebug.log('[CHAT] handleJoinActiveCall - activeCallInfo:', activeCallInfo)
-      // Pass true to indicate we're joining an existing call (don't ring everyone)
-      handleGroupCall(activeCallInfo.callType, true)
-    }, [activeCallInfo, stableActiveConversation, handleGroupCall])
+      rtkDebug.log('[CHAT] handleJoinActiveCall - showing rejoin modal:', activeCallInfo)
+
+      // Show pre-join modal to let user set up mic/camera before joining
+      setRejoinModalState({
+        roomId: activeCallInfo.roomId,
+        callType: activeCallInfo.callType,
+        conversationName: stableActiveConversation.name,
+        participantCount: activeCallInfo.participantCount
+      })
+    }, [activeCallInfo, stableActiveConversation])
+
+    // Handle rejoin with user preferences
+    const handleRejoinWithPreferences = useCallback(
+      (preferences: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => {
+        if (!rejoinModalState) return
+
+        rtkDebug.log('[CHAT] Rejoining call with preferences:', preferences, rejoinModalState)
+
+        // Don't close modal immediately - let it show "Joining..." state
+        // It will be closed when the call actually starts (via useEffect watching groupCallState)
+
+        // Store preferences for the join
+        // The hook will apply these when joining
+        // For now, we pass them through handleGroupCall which will need to be updated
+        // to accept preferences
+
+        // Pass true to indicate we're joining an existing call (don't ring everyone)
+        handleGroupCall(rejoinModalState.callType, true)
+      },
+      [rejoinModalState, handleGroupCall]
+    )
+
+    // Close rejoin modal when call actually starts
+    useEffect(() => {
+      if (rejoinModalState && groupCallState.status !== 'idle') {
+        rtkDebug.log('[CHAT] Call started, closing rejoin modal')
+        setRejoinModalState(null)
+      }
+    }, [rejoinModalState, groupCallState.status])
+
+    // Handle rejoin cancel
+    const handleRejoinCancel = useCallback(() => {
+      rtkDebug.log('[CHAT] Rejoin cancelled')
+      setRejoinModalState(null)
+    }, [])
 
     // Determine if we should show single-view mode (list OR chat, not both)
     const isSingleViewMode = viewMode === 'mobile' || viewMode === 'compact'
@@ -1596,6 +1699,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                     otherUserPresence={otherUserPresence}
                     isCallEnabled={isConnected}
                     isInCall={isInAnyCall}
+                    isStartingCall={isStartingCall}
                     activeCall={activeCallInfo}
                     t={t}
                   />
@@ -1800,11 +1904,26 @@ const ChatInner: React.FC<ChatProps> = memo(
         {incomingGroupCallInvite && (
           <IncomingGroupCallDialog
             invite={incomingGroupCallInvite}
+            userName={currentUserAsParticipant?.odName}
+            userAvatarUrl={currentUserAsParticipant?.avatarUrl}
             onAccept={acceptGroupInvite}
             onDecline={declineGroupInvite}
             prefixDataTestId={`${prefixDataTestId}-incoming-group-call`}
           />
         )}
+
+        {/* Rejoin Call Dialog - Pre-join setup for rejoining existing calls */}
+        <RejoinCallDialog
+          isOpen={!!rejoinModalState}
+          callType={rejoinModalState?.callType || 'video'}
+          conversationName={rejoinModalState?.conversationName}
+          participantCount={rejoinModalState?.participantCount}
+          userName={currentUserAsParticipant?.odName}
+          userAvatarUrl={currentUserAsParticipant?.avatarUrl}
+          onJoin={handleRejoinWithPreferences}
+          onCancel={handleRejoinCancel}
+          prefixDataTestId={`${prefixDataTestId}-rejoin-call`}
+        />
 
         {/* Group Call Modal - Use Realtime Kit or Mesh based on feature flag */}
         {groupCallState.status !== 'idle' &&

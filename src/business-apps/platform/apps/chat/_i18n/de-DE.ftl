@@ -224,6 +224,7 @@ call-cameraOff = Kamera aus
 call-backgroundOn = Hintergrund
 call-backgroundOff = Hintergrund aus
 call-startedBy = Gestartet von
+call-activeParticipants = aktiv
 call-unmute = Stummschaltung aufheben
 call-mute = Stummschalten
 call-turnOnCamera = Kamera einschalten

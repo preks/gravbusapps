@@ -224,6 +224,7 @@ call-cameraOff = Cameră oprită
 call-backgroundOn = Fundal
 call-backgroundOff = Fundal oprit
 call-startedBy = Pornit de
+call-activeParticipants = activ
 call-unmute = Activează sunet
 call-mute = Mut
 call-turnOnCamera = Pornește camera

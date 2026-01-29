@@ -19,13 +19,16 @@ import {
   PhoneIcon,
   PhoneDisconnectIcon,
   UsersThreeIcon,
-  MagicWandIcon
+  MagicWandIcon,
+  UserIcon
 } from '@phosphor-icons/react'
 import type { GroupCallInvite } from '../hooks/useGroupCall'
 import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface IncomingGroupCallDialogProps {
   invite: GroupCallInvite
+  userName?: string
+  userAvatarUrl?: string
   onAccept: (preferences: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => void
   onDecline: () => void
   prefixDataTestId?: string
@@ -55,7 +58,7 @@ const PulsingRing: React.FC<{ color?: string }> = ({ color = 'bg-primary' }) => 
 )
 
 export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = memo(
-  ({ invite, onAccept, onDecline, prefixDataTestId = 'incoming-group-call-dialog' }) => {
+  ({ invite, userName, userAvatarUrl, onAccept, onDecline, prefixDataTestId = 'incoming-group-call-dialog' }) => {
     const t = useChatTranslation()
     const [ringCount, setRingCount] = useState(0)
     const [isJoining, setIsJoining] = useState(false)
@@ -247,11 +250,11 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
             </div>
 
             {/* Video Preview or Caller Avatar */}
-            {isVideoCall && !isJoining ? (
+            {isVideoCall ? (
               <>
-                {/* Video Preview */}
+                {/* Video Preview - Always same size */}
                 <div className="gba:relative gba:w-full gba:max-w-xs gba:aspect-video gba:mb-4 gba:rounded-lg gba:overflow-hidden gba:bg-gray-800 gba:border gba:border-gray-600">
-                  {cameraEnabled ? (
+                  {cameraEnabled && !isJoining ? (
                     <>
                       <video
                         ref={videoRef}
@@ -286,9 +289,24 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                       </div>
                     </>
                   ) : (
-                    <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:text-gray-400">
-                      <VideoCameraSlashIcon className="gba:w-12 gba:h-12 gba:mb-2" weight="fill" />
-                      <span className="gba:text-sm">{t('call-cameraOff')}</span>
+                    <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:bg-gray-800">
+                      <Avatar className="gba:w-24 gba:h-24 gba:ring-4 gba:ring-white/10">
+                        {userAvatarUrl && <AvatarImage src={userAvatarUrl} alt={userName || 'User'} />}
+                        <AvatarFallback className="gba:text-3xl gba:bg-gray-700 gba:text-white">
+                          {userName ? getInitials(userName) : <UserIcon className="gba:w-12 gba:h-12" weight="fill" />}
+                        </AvatarFallback>
+                      </Avatar>
+                      {/* Status indicators overlay - mic only */}
+                      <div className="gba:absolute gba:bottom-2 gba:left-2">
+                        {!micEnabled && (
+                          <div className="gba:flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-full gba:bg-destructive gba:shadow-lg">
+                            <MicrophoneSlashIcon
+                              className="gba:w-4 gba:h-4 gba:text-destructive-foreground"
+                              weight="fill"
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -301,17 +319,26 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                   {t('call-startedBy')} {callerName}
                 </p>
 
-                {/* Ringing indicator */}
-                <p className="gba:text-gray-400 gba:text-sm gba:mb-4">
-                  {t('call-ringing')}
-                  <span className="gba:inline-block gba:w-8">{'.'.repeat((ringCount % 3) + 1)}</span>
-                </p>
+                {/* Ringing indicator / Joining status */}
+                {isJoining ? (
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
+                    <Spinner className="gba:w-4 gba:h-4 gba:text-primary" />
+                    <p className="gba:text-primary gba:text-sm gba:font-medium">
+                      {t('call-joiningCall') || 'Joining call...'}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="gba:text-gray-400 gba:text-sm gba:mb-4">
+                    {t('call-ringing')}
+                    <span className="gba:inline-block gba:w-8">{'.'.repeat((ringCount % 3) + 1)}</span>
+                  </p>
+                )}
               </>
             ) : (
               <>
-                {/* Caller Avatar with Pulsing Ring (for audio calls or when joining) */}
+                {/* Caller Avatar with Pulsing Ring (for audio calls) */}
                 <div className="gba:relative gba:mb-6">
-                  <PulsingRing color={isVideoCall ? 'gba:bg-primary' : 'gba:bg-success'} />
+                  <PulsingRing color="gba:bg-success" />
                   {invite.from.avatarUrl ? (
                     <Avatar className="gba:w-28 gba:h-28 gba:relative gba:z-10 gba:ring-4 gba:ring-white/20">
                       <AvatarImage src={invite.from.avatarUrl} alt={callerName} />
@@ -354,64 +381,65 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
             )}
 
             {/* Pre-join Controls - Mic, Camera, and Background toggles */}
-            {!isJoining && (
-              <div
-                className={`gba:mb-6 gba:w-full gba:max-w-xs ${isVideoCall ? 'gba:grid gba:grid-cols-2 gba:gap-2' : 'gba:flex gba:justify-center'}`}
+            <div
+              className={`gba:mb-6 gba:w-full gba:max-w-xs ${isVideoCall ? 'gba:grid gba:grid-cols-2 gba:gap-2' : 'gba:flex gba:justify-center'}`}
+            >
+              {/* Mic Toggle - Always visible */}
+              <button
+                onClick={() => setMicEnabled(!micEnabled)}
+                disabled={isJoining}
+                className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:px-4 gba:py-2.5 gba:rounded-full gba:bg-gray-700/50 hover:gba:bg-gray-700 gba:transition-colors gba:border gba:border-gray-600 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
+                data-testid={`${prefixDataTestId}-toggle-mic`}
               >
-                {/* Mic Toggle - Always visible */}
+                {micEnabled ? (
+                  <MicrophoneIcon className="gba:w-4 gba:h-4 gba:text-white" weight="fill" />
+                ) : (
+                  <MicrophoneSlashIcon className="gba:w-4 gba:h-4 gba:text-destructive" weight="fill" />
+                )}
+                <span className="gba:text-xs gba:text-white gba:whitespace-nowrap">
+                  {micEnabled ? t('call-micOn') || 'Mic' : t('call-micOff') || 'Mic off'}
+                </span>
+              </button>
+
+              {/* Camera Toggle - Only for video calls */}
+              {isVideoCall && (
                 <button
-                  onClick={() => setMicEnabled(!micEnabled)}
-                  className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:px-4 gba:py-2.5 gba:rounded-full gba:bg-gray-700/50 hover:gba:bg-gray-700 gba:transition-colors gba:border gba:border-gray-600"
-                  data-testid={`${prefixDataTestId}-toggle-mic`}
+                  onClick={() => setCameraEnabled(!cameraEnabled)}
+                  disabled={isJoining}
+                  className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:px-4 gba:py-2.5 gba:rounded-full gba:bg-gray-700/50 hover:gba:bg-gray-700 gba:transition-colors gba:border gba:border-gray-600 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
+                  data-testid={`${prefixDataTestId}-toggle-camera`}
                 >
-                  {micEnabled ? (
-                    <MicrophoneIcon className="gba:w-4 gba:h-4 gba:text-white" weight="fill" />
+                  {cameraEnabled ? (
+                    <VideoCameraIcon className="gba:w-4 gba:h-4 gba:text-white" weight="fill" />
                   ) : (
-                    <MicrophoneSlashIcon className="gba:w-4 gba:h-4 gba:text-destructive" weight="fill" />
+                    <VideoCameraSlashIcon className="gba:w-4 gba:h-4 gba:text-destructive" weight="fill" />
                   )}
                   <span className="gba:text-xs gba:text-white gba:whitespace-nowrap">
-                    {micEnabled ? t('call-micOn') || 'Mic' : t('call-micOff') || 'Mic off'}
+                    {cameraEnabled ? t('call-cameraOn') || 'Camera' : t('call-cameraOff') || 'Camera off'}
                   </span>
                 </button>
+              )}
 
-                {/* Camera Toggle - Only for video calls */}
-                {isVideoCall && (
-                  <button
-                    onClick={() => setCameraEnabled(!cameraEnabled)}
-                    className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:px-4 gba:py-2.5 gba:rounded-full gba:bg-gray-700/50 hover:gba:bg-gray-700 gba:transition-colors gba:border gba:border-gray-600"
-                    data-testid={`${prefixDataTestId}-toggle-camera`}
-                  >
-                    {cameraEnabled ? (
-                      <VideoCameraIcon className="gba:w-4 gba:h-4 gba:text-white" weight="fill" />
-                    ) : (
-                      <VideoCameraSlashIcon className="gba:w-4 gba:h-4 gba:text-destructive" weight="fill" />
-                    )}
-                    <span className="gba:text-xs gba:text-white gba:whitespace-nowrap">
-                      {cameraEnabled ? t('call-cameraOn') || 'Camera' : t('call-cameraOff') || 'Camera off'}
-                    </span>
-                  </button>
-                )}
-
-                {/* Background Toggle - Only when camera is on, spans full width */}
-                {isVideoCall && cameraEnabled && (
-                  <button
-                    onClick={() => setBackgroundEnabled(!backgroundEnabled)}
-                    className="gba:col-span-2 gba:flex gba:items-center gba:justify-center gba:gap-2 gba:px-4 gba:py-2.5 gba:rounded-full gba:bg-gray-700/50 hover:gba:bg-gray-700 gba:transition-colors gba:border gba:border-gray-600"
-                    data-testid={`${prefixDataTestId}-toggle-background`}
-                  >
-                    <MagicWandIcon
-                      className={`gba:w-4 gba:h-4 ${backgroundEnabled ? 'gba:text-primary' : 'gba:text-white'}`}
-                      weight="fill"
-                    />
-                    <span className="gba:text-xs gba:text-white gba:whitespace-nowrap">
-                      {backgroundEnabled
-                        ? t('call-backgroundOn') || 'Background'
-                        : t('call-backgroundOff') || 'Background off'}
-                    </span>
-                  </button>
-                )}
-              </div>
-            )}
+              {/* Background Toggle - Only when camera is on, spans full width */}
+              {isVideoCall && cameraEnabled && (
+                <button
+                  onClick={() => setBackgroundEnabled(!backgroundEnabled)}
+                  disabled={isJoining}
+                  className="gba:col-span-2 gba:flex gba:items-center gba:justify-center gba:gap-2 gba:px-4 gba:py-2.5 gba:rounded-full gba:bg-gray-700/50 hover:gba:bg-gray-700 gba:transition-colors gba:border gba:border-gray-600 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
+                  data-testid={`${prefixDataTestId}-toggle-background`}
+                >
+                  <MagicWandIcon
+                    className={`gba:w-4 gba:h-4 ${backgroundEnabled ? 'gba:text-primary' : 'gba:text-white'}`}
+                    weight="fill"
+                  />
+                  <span className="gba:text-xs gba:text-white gba:whitespace-nowrap">
+                    {backgroundEnabled
+                      ? t('call-backgroundOn') || 'Background'
+                      : t('call-backgroundOff') || 'Background off'}
+                  </span>
+                </button>
+              )}
+            </div>
 
             {/* Action Buttons */}
             <div className="gba:flex gba:items-center gba:justify-center gba:gap-8">

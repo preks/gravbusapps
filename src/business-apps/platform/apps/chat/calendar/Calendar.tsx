@@ -7,6 +7,7 @@ import { useEmployeeAvatarsCache } from '../hooks/useEmployeeAvatarsCache'
 import { CalendarHeader, DayView, WeekView, MonthView, CreateMeetingModal, MeetingDetailModal } from './components'
 import { CallModal } from '../components/CallModal'
 import { IncomingCallDialog } from '../components/IncomingCallDialog'
+import { RejoinCallDialog } from '../components/RejoinCallDialog'
 import { debugLog } from '../utils/debugLog'
 import { GroupCallModal } from '../components/GroupCallModal'
 import { GroupCallModalRtk } from '../components/GroupCallModalRtk'
@@ -187,6 +188,17 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
   // Combined in-call state
   const isInAnyCall = isInCall || isInGroupCall
 
+  // State for preventing duplicate call initiations
+  const [isStartingCall, setIsStartingCall] = useState(false)
+
+  // Reset isStartingCall when call actually connects
+  useEffect(() => {
+    if (isInAnyCall && isStartingCall) {
+      console.log('[Calendar] Call connected, resetting isStartingCall flag')
+      setIsStartingCall(false)
+    }
+  }, [isInAnyCall, isStartingCall])
+
   // Calendar hook
   const {
     currentDate,
@@ -221,6 +233,12 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
   const [createModalInitialHour, setCreateModalInitialHour] = useState<number | undefined>()
   const [editingMeeting, setEditingMeeting] = useState<CalendarEvent | null>(null)
   const [enrichedSelectedEvent, setEnrichedSelectedEvent] = useState<CalendarEvent | null>(null)
+  const [rejoinModalState, setRejoinModalState] = useState<{
+    roomId: string
+    callType: 'audio' | 'video'
+    conversationName?: string
+    participantCount?: number
+  } | null>(null)
 
   // Build available participants from the currently selected event for inviting during the call
   const availableParticipantsForCall = useMemo(() => {
@@ -513,178 +531,215 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
 
   // Handle starting a meeting call
   const handleStartCall = useCallback(async () => {
+    // Guard: prevent duplicate call initiation
+    if (isStartingCall) {
+      console.log('[Calendar] Already starting a call, ignoring duplicate request')
+      return
+    }
+
     if (!enrichedSelectedEvent || !currentUser) return
 
-    // Get all participants (including organizer) for the call
-    // For RealtimeKit, we include all participants - they can join when invited
-    const callParticipants: CallParticipant[] = []
+    setIsStartingCall(true)
 
-    // Add all participants (for RealtimeKit, invite everyone - they can decline if needed)
-    // For calendar meetings, we want to invite all participants regardless of acceptance status
-    // This allows the call starter to invite everyone when starting from a calendar event
-    if (enrichedSelectedEvent.participants) {
-      for (const p of enrichedSelectedEvent.participants) {
-        // Exclude current user from participant list (they're the one starting the call)
-        // Exclude declined participants (they explicitly said no)
-        if (p.id !== currentUser.id && p.status !== 'declined') {
-          callParticipants.push({
-            id: p.id,
-            odId: p.id,
-            odName: p.displayName || `${p.firstName || ''} ${p.lastName || ''}`.trim() || p.email || 'Unknown',
-            avatarUrl: p.avatarUrl
-          })
-        }
-      }
-    }
+    try {
+      // Get all participants (including organizer) for the call
+      // For RealtimeKit, we include all participants - they can join when invited
+      const callParticipants: CallParticipant[] = []
 
-    // Also add organizer if not current user and not already in list
-    if (
-      enrichedSelectedEvent.organizer &&
-      enrichedSelectedEvent.organizer.id !== currentUser.id &&
-      !callParticipants.find(p => p.id === enrichedSelectedEvent.organizer.id)
-    ) {
-      callParticipants.push({
-        id: enrichedSelectedEvent.organizer.id,
-        odId: enrichedSelectedEvent.organizer.id,
-        odName:
-          enrichedSelectedEvent.organizer.displayName ||
-          `${enrichedSelectedEvent.organizer.firstName || ''} ${enrichedSelectedEvent.organizer.lastName || ''}`.trim() ||
-          enrichedSelectedEvent.organizer.email ||
-          'Unknown',
-        avatarUrl: enrichedSelectedEvent.organizer.avatarUrl
-      })
-    }
-
-    rtkDebug.log('[Calendar] Collected participants for call:', {
-      meetingId: enrichedSelectedEvent.id,
-      meetingTitle: enrichedSelectedEvent.title,
-      totalParticipants: enrichedSelectedEvent.participants?.length || 0,
-      callParticipants: callParticipants.map(p => ({ id: p.id, name: p.odName })),
-      allEventParticipants:
-        enrichedSelectedEvent.participants?.map(p => ({
-          id: p.id,
-          name: p.displayName || p.email,
-          status: p.status,
-          isOrganizer: p.isOrganizer
-        })) || []
-    })
-
-    // Use meeting ID as conversationId for RealtimeKit calls
-    // This ensures each calendar meeting has its own isolated call
-    // NOTE: We use meeting ID, NOT the conversationId field, to prevent meetings from
-    // accidentally sharing calls with chat conversations or other meetings
-    const conversationId = enrichedSelectedEvent.id
-
-    rtkDebug.log('[Calendar] Starting call for meeting:', {
-      meetingId: enrichedSelectedEvent.id,
-      meetingTitle: enrichedSelectedEvent.title,
-      conversationId: enrichedSelectedEvent.conversationId, // For reference only
-      usingConversationId: conversationId,
-      participants: enrichedSelectedEvent.participants?.map(p => ({ id: p.id, name: p.displayName || p.email })) || []
-    })
-
-    // For RealtimeKit: Always use group call (it handles 1:1 as well)
-    // For mesh: Use 1:1 for single participant, group for multiple
-    if (useRealtimeKitForGroupCalls) {
-      // Check if we're already in a call for this conversation
-      if (isInGroupCall && groupCallState?.roomId) {
-        // Check if the current call is for this meeting by looking up the conversationId
-        const currentCallEntry = Array.from(activeConversationCalls?.entries() ?? []).find(
-          ([convId, call]) => convId === conversationId || call.roomId === groupCallState.roomId
-        )
-
-        if (currentCallEntry) {
-          const [currentConvId, currentCall] = currentCallEntry
-          // If we found a call for this conversationId, we're already in the right call
-          if (currentConvId === conversationId) {
-            rtkDebug.log('[Calendar] Already in a call for this meeting, ignoring duplicate start request:', {
-              conversationId,
-              currentRoomId: groupCallState.roomId,
-              currentCallRoomId: currentCall.roomId
+      // Add all participants (for RealtimeKit, invite everyone - they can decline if needed)
+      // For calendar meetings, we want to invite all participants regardless of acceptance status
+      // This allows the call starter to invite everyone when starting from a calendar event
+      if (enrichedSelectedEvent.participants) {
+        for (const p of enrichedSelectedEvent.participants) {
+          // Exclude current user from participant list (they're the one starting the call)
+          // Exclude declined participants (they explicitly said no)
+          if (p.id !== currentUser.id && p.status !== 'declined') {
+            callParticipants.push({
+              id: p.id,
+              odId: p.id,
+              odName: p.displayName || `${p.firstName || ''} ${p.lastName || ''}`.trim() || p.email || 'Unknown',
+              avatarUrl: p.avatarUrl
             })
-            return
           }
         }
       }
 
-      // Check if there's already an active call for this meeting (started by someone else)
-      const existingCall = activeConversationCalls?.get(conversationId)
+      // Also add organizer if not current user and not already in list
+      if (
+        enrichedSelectedEvent.organizer &&
+        enrichedSelectedEvent.organizer.id !== currentUser.id &&
+        !callParticipants.find(p => p.id === enrichedSelectedEvent.organizer.id)
+      ) {
+        callParticipants.push({
+          id: enrichedSelectedEvent.organizer.id,
+          odId: enrichedSelectedEvent.organizer.id,
+          odName:
+            enrichedSelectedEvent.organizer.displayName ||
+            `${enrichedSelectedEvent.organizer.firstName || ''} ${enrichedSelectedEvent.organizer.lastName || ''}`.trim() ||
+            enrichedSelectedEvent.organizer.email ||
+            'Unknown',
+          avatarUrl: enrichedSelectedEvent.organizer.avatarUrl
+        })
+      }
 
-      rtkDebug.log('[Calendar] Checking for existing call:', {
-        conversationId,
-        existingCall: existingCall
-          ? {
-              roomId: existingCall.roomId,
-              callType: existingCall.callType,
-              startedBy: existingCall.startedBy
-            }
-          : null,
-        activeConversationCallsSize: activeConversationCalls?.size || 0,
-        activeConversationCallsKeys: Array.from(activeConversationCalls?.keys() ?? []),
-        isCurrentlyInCall: isInGroupCall,
-        currentRoomId: groupCallState.roomId
+      rtkDebug.log('[Calendar] Collected participants for call:', {
+        meetingId: enrichedSelectedEvent.id,
+        meetingTitle: enrichedSelectedEvent.title,
+        totalParticipants: enrichedSelectedEvent.participants?.length || 0,
+        callParticipants: callParticipants.map(p => ({ id: p.id, name: p.odName })),
+        allEventParticipants:
+          enrichedSelectedEvent.participants?.map(p => ({
+            id: p.id,
+            name: p.displayName || p.email,
+            status: p.status,
+            isOrganizer: p.isOrganizer
+          })) || []
       })
 
-      if (existingCall && existingCall.roomId) {
-        // Join the existing call
-        rtkDebug.log('[Calendar] Joining existing RealtimeKit call for meeting:', {
+      // Use meeting ID as conversationId for RealtimeKit calls
+      // This ensures each calendar meeting has its own isolated call
+      // NOTE: We use meeting ID, NOT the conversationId field, to prevent meetings from
+      // accidentally sharing calls with chat conversations or other meetings
+      const conversationId = enrichedSelectedEvent.id
+
+      rtkDebug.log('[Calendar] Starting call for meeting:', {
+        meetingId: enrichedSelectedEvent.id,
+        meetingTitle: enrichedSelectedEvent.title,
+        conversationId: enrichedSelectedEvent.conversationId, // For reference only
+        usingConversationId: conversationId,
+        participants: enrichedSelectedEvent.participants?.map(p => ({ id: p.id, name: p.displayName || p.email })) || []
+      })
+
+      // For RealtimeKit: Always use group call (it handles 1:1 as well)
+      // For mesh: Use 1:1 for single participant, group for multiple
+      if (useRealtimeKitForGroupCalls) {
+        // Check if we're already in a call for this conversation
+        if (isInGroupCall && groupCallState?.roomId) {
+          // Check if the current call is for this meeting by looking up the conversationId
+          const currentCallEntry = Array.from(activeConversationCalls?.entries() ?? []).find(
+            ([convId, call]) => convId === conversationId || call.roomId === groupCallState.roomId
+          )
+
+          if (currentCallEntry) {
+            const [currentConvId, currentCall] = currentCallEntry
+            // If we found a call for this conversationId, we're already in the right call
+            if (currentConvId === conversationId) {
+              rtkDebug.log('[Calendar] Already in a call for this meeting, ignoring duplicate start request:', {
+                conversationId,
+                currentRoomId: groupCallState.roomId,
+                currentCallRoomId: currentCall.roomId
+              })
+              setIsStartingCall(false)
+              return
+            }
+          }
+        }
+
+        // Check if there's already an active call for this meeting (started by someone else)
+        const existingCall = activeConversationCalls?.get(conversationId)
+
+        rtkDebug.log('[Calendar] Checking for existing call:', {
           conversationId,
-          roomId: existingCall.roomId,
-          callType: existingCall.callType
-        })
-        joinGroupCall(existingCall.roomId, 'video', undefined)
-      } else {
-        // Wait a short time for WebSocket events to arrive (in case another user just started a call)
-        // The backend will also check for existing meetings, so this is just an optimization
-        rtkDebug.log('[Calendar] No existing call found, waiting 300ms for potential WebSocket events...')
-        await new Promise(resolve => setTimeout(resolve, 300))
-
-        // Check again after the delay
-        const existingCallAfterDelay = activeConversationCalls?.get(conversationId)
-        rtkDebug.log('[Calendar] Rechecking after delay:', {
-          existingCallAfterDelay: existingCallAfterDelay
-            ? { roomId: existingCallAfterDelay.roomId, callType: existingCallAfterDelay.callType }
-            : null
+          existingCall: existingCall
+            ? {
+                roomId: existingCall.roomId,
+                callType: existingCall.callType,
+                startedBy: existingCall.startedBy
+              }
+            : null,
+          activeConversationCallsSize: activeConversationCalls?.size || 0,
+          activeConversationCallsKeys: Array.from(activeConversationCalls?.keys() ?? []),
+          isCurrentlyInCall: isInGroupCall,
+          currentRoomId: groupCallState.roomId
         })
 
-        if (existingCallAfterDelay && existingCallAfterDelay.roomId) {
-          rtkDebug.log('[Calendar] Found existing call after delay, joining:', {
+        if (existingCall && existingCall.roomId) {
+          // Show pre-join modal for existing call
+          rtkDebug.log('[Calendar] Found existing call, showing rejoin modal:', {
             conversationId,
-            roomId: existingCallAfterDelay.roomId
+            roomId: existingCall.roomId,
+            callType: existingCall.callType
           })
-          joinGroupCall(existingCallAfterDelay.roomId, 'video', undefined)
+
+          setRejoinModalState({
+            roomId: existingCall.roomId,
+            callType: 'video',
+            conversationName: enrichedSelectedEvent.title,
+            participantCount: callParticipants.length
+          })
+          setIsStartingCall(false)
+          setIsDetailModalOpen(false)
+          return
+        } else {
+          // Wait a short time for WebSocket events to arrive (in case another user just started a call)
+          // The backend will also check for existing meetings, so this is just an optimization
+          rtkDebug.log('[Calendar] No existing call found, waiting 300ms for potential WebSocket events...')
+          await new Promise(resolve => setTimeout(resolve, 300))
+
+          // Check again after the delay
+          const existingCallAfterDelay = activeConversationCalls?.get(conversationId)
+          rtkDebug.log('[Calendar] Rechecking after delay:', {
+            existingCallAfterDelay: existingCallAfterDelay
+              ? { roomId: existingCallAfterDelay.roomId, callType: existingCallAfterDelay.callType }
+              : null
+          })
+
+          if (existingCallAfterDelay && existingCallAfterDelay.roomId) {
+            rtkDebug.log('[Calendar] Found existing call after delay, showing rejoin modal:', {
+              conversationId,
+              roomId: existingCallAfterDelay.roomId
+            })
+
+            setRejoinModalState({
+              roomId: existingCallAfterDelay.roomId,
+              callType: 'video',
+              conversationName: enrichedSelectedEvent.title,
+              participantCount: callParticipants.length
+            })
+            setIsStartingCall(false)
+            setIsDetailModalOpen(false)
+            return
+          }
+
+          // Start a new group call with the meeting ID as conversationId
+          // Backend will return existing meeting if one exists for this conversationId
+          // Even if no other participants yet, we can start the call (they can join via invite)
+          rtkDebug.log('[Calendar] Starting new RealtimeKit group call for meeting:', {
+            conversationId,
+            meetingTitle: enrichedSelectedEvent.title,
+            participantCount: callParticipants.length,
+            participants: callParticipants.map(p => ({ id: p.id, name: p.odName }))
+          })
+          startGroupCall(conversationId, 'video', callParticipants, enrichedSelectedEvent.title)
+        }
+      } else {
+        // Old mesh implementation
+        if (callParticipants.length === 0) {
+          console.warn('No valid participants found to call')
+          setIsStartingCall(false)
           return
         }
 
-        // Start a new group call with the meeting ID as conversationId
-        // Backend will return existing meeting if one exists for this conversationId
-        // Even if no other participants yet, we can start the call (they can join via invite)
-        rtkDebug.log('[Calendar] Starting new RealtimeKit group call for meeting:', {
-          conversationId,
-          meetingTitle: enrichedSelectedEvent.title,
-          participantCount: callParticipants.length,
-          participants: callParticipants.map(p => ({ id: p.id, name: p.odName }))
-        })
-        startGroupCall(conversationId, 'video', callParticipants, enrichedSelectedEvent.title)
-      }
-    } else {
-      // Old mesh implementation
-      if (callParticipants.length === 0) {
-        console.warn('No valid participants found to call')
-        return
+        if (callParticipants.length === 1) {
+          // 1:1 call
+          initiateCall(callParticipants[0], 'video', conversationId)
+        } else {
+          // Group call (2+ other participants)
+          joinGroupCall(conversationId, 'video', callParticipants)
+        }
       }
 
-      if (callParticipants.length === 1) {
-        // 1:1 call
-        initiateCall(callParticipants[0], 'video', conversationId)
-      } else {
-        // Group call (2+ other participants)
-        joinGroupCall(conversationId, 'video', callParticipants)
-      }
+      setIsDetailModalOpen(false)
+
+      // State will be reset when call connects (see useEffect with isInAnyCall)
+      // Or after 3 seconds as fallback for failed calls
+      setTimeout(() => setIsStartingCall(false), 5000)
+    } catch (error) {
+      console.error('[Calendar] Error starting call:', error)
+      setIsStartingCall(false)
     }
-
-    setIsDetailModalOpen(false)
   }, [
+    isStartingCall,
     enrichedSelectedEvent,
     currentUser,
     initiateCall,
@@ -695,6 +750,37 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
     isInGroupCall,
     groupCallState.roomId
   ])
+
+  // Handle rejoin with user preferences
+  const handleRejoinWithPreferences = useCallback(
+    (preferences: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => {
+      if (!rejoinModalState) return
+
+      rtkDebug.log('[Calendar] Rejoining call with preferences:', preferences, rejoinModalState)
+
+      // Don't close modal immediately - let it show "Joining..." state
+      // It will be closed when the call actually starts (via useEffect watching groupCallState)
+
+      // Join the call with user's preferences
+      // Note: The preferences will be applied when the call modal opens
+      joinGroupCall(rejoinModalState.roomId, 'video', undefined)
+    },
+    [rejoinModalState, joinGroupCall]
+  )
+
+  // Close rejoin modal when call actually starts
+  useEffect(() => {
+    if (rejoinModalState && groupCallState.status !== 'idle') {
+      rtkDebug.log('[Calendar] Call started, closing rejoin modal')
+      setRejoinModalState(null)
+    }
+  }, [rejoinModalState, groupCallState.status])
+
+  // Handle rejoin cancel
+  const handleRejoinCancel = useCallback(() => {
+    rtkDebug.log('[Calendar] Rejoin cancelled')
+    setRejoinModalState(null)
+  }, [])
 
   // Handle opening chat for conversation - navigate to chat with conversation ID
   const handleOpenChat = useCallback(() => {
@@ -849,7 +935,9 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
         onRespond={handleRespondToInvitation}
         onEdit={enrichedSelectedEvent?.isOrganizer ? handleEditMeeting : undefined}
         onDelete={enrichedSelectedEvent?.isOrganizer ? handleDeleteMeeting : undefined}
-        onStartCall={enrichedSelectedEvent?.meetingLink && !isInAnyCall ? handleStartCall : undefined}
+        onStartCall={
+          enrichedSelectedEvent?.meetingLink && !isInAnyCall && !isStartingCall ? handleStartCall : undefined
+        }
         onOpenChat={enrichedSelectedEvent?.conversationId ? handleOpenChat : undefined}
       />
 
@@ -875,6 +963,19 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
           prefixDataTestId={`${prefixDataTestId}-call`}
         />
       )}
+
+      {/* Rejoin Call Dialog - Pre-join setup for rejoining existing calls */}
+      <RejoinCallDialog
+        isOpen={!!rejoinModalState}
+        callType={rejoinModalState?.callType || 'video'}
+        conversationName={rejoinModalState?.conversationName}
+        participantCount={rejoinModalState?.participantCount}
+        userName={currentUserAsParticipant?.odName}
+        userAvatarUrl={currentUserAsParticipant?.avatarUrl}
+        onJoin={handleRejoinWithPreferences}
+        onCancel={handleRejoinCancel}
+        prefixDataTestId={`${prefixDataTestId}-rejoin-call`}
+      />
 
       {/* Group Call Modal */}
       {groupCallState.status !== 'idle' &&

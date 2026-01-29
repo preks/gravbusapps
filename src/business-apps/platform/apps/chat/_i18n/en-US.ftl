@@ -224,6 +224,7 @@ call-cameraOff = Camera off
 call-backgroundOn = Background
 call-backgroundOff = Background off
 call-startedBy = Started by
+call-activeParticipants = active
 call-unmute = Unmute
 call-mute = Mute
 call-turnOnCamera = Turn on camera
