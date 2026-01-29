@@ -347,7 +347,13 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
    * Start a new call
    */
   const startCall = useCallback(
-    async (conversationId: string, callType: CallType, participants: CallParticipant[], conversationName?: string) => {
+    async (
+      conversationId: string,
+      callType: CallType,
+      participants: CallParticipant[],
+      conversationName?: string,
+      initialPreferences?: { micEnabled?: boolean; cameraEnabled?: boolean; backgroundEnabled?: boolean }
+    ) => {
       if (!currentUser || !apiClient) {
         rtkDebug.error('[RTK] Cannot start call: missing currentUser or apiClient')
         return
@@ -359,7 +365,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           callType,
           participantCount: participants.length,
           conversationName,
-          currentStatus: callState.status
+          currentStatus: callState.status,
+          initialPreferences
         })
 
         // CRITICAL: Check if we were idle BEFORE changing state
@@ -399,20 +406,35 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           conversationName
         })
 
-        // Initialize meeting with SDK
-        rtkDebug.log('[RTK] Initializing meeting with SDK...', {
+        // Initialize meeting with initial preferences
+        // Initiator defaults: audio=true, video=(depends on callType), background=true
+        const shouldEnableAudio = initialPreferences?.micEnabled ?? true
+        const shouldEnableVideo = initialPreferences?.cameraEnabled ?? callType === 'video'
+        const shouldEnableBackground = initialPreferences?.backgroundEnabled ?? true // ON by default for initiator
+
+        // Save background preference if explicitly provided (persists for future calls)
+        if (initialPreferences?.backgroundEnabled !== undefined) {
+          preferences.setBackgroundEnabled(initialPreferences.backgroundEnabled)
+        } else {
+          // Initiator: save true as default
+          preferences.setBackgroundEnabled(true)
+        }
+
+        rtkDebug.log('[RTK] Initializing meeting with preferences:', {
           hasAuthToken: !!authToken,
           authTokenLength: authToken?.length,
           callType,
-          audioEnabled: true,
-          videoEnabled: callType === 'video'
+          audio: shouldEnableAudio,
+          video: shouldEnableVideo,
+          background: shouldEnableBackground,
+          fromPreferences: !!initialPreferences
         })
 
         const initializedMeeting = await initMeeting({
           authToken,
           defaults: {
-            audio: true,
-            video: callType === 'video'
+            audio: shouldEnableAudio,
+            video: shouldEnableVideo
           },
           overrides: {
             simulcastConfig: {
@@ -1183,16 +1205,25 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       })
     }
 
+    const handleDeclined = (data: { conversationId: string; meetingId: string; participantId: string }) => {
+      rtkDebug.log('[RTK] 📵 Participant declined invite:', data)
+
+      // Remove from pending invites map so UI can reset to "Invite" state
+      participantsHook.handleDeclinedInvite(data.participantId)
+    }
+
     rtkDebug.log('[RTK] 🎧 Registering WebSocket listeners')
 
     socket.on('rtk-group-call:invite', handleInvite)
     socket.on('rtk-group-call:ended', handleCallEnded)
+    socket.on('rtk-group-call:declined', handleDeclined)
     socket.on('conversation:call-started', handleConversationCallStarted)
     socket.on('conversation:call-ended', handleConversationCallEnded)
 
     return () => {
       socket.off('rtk-group-call:invite', handleInvite)
       socket.off('rtk-group-call:ended', handleCallEnded)
+      socket.off('rtk-group-call:declined', handleDeclined)
       socket.off('conversation:call-started', handleConversationCallStarted)
       socket.off('conversation:call-ended', handleConversationCallEnded)
     }

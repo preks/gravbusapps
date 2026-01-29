@@ -36,6 +36,7 @@ export interface UseRealtimeKitParticipantsReturn {
     overrideCallType?: 'audio' | 'video'
   ) => void
   reconnectParticipant: (participantId: string) => Promise<void>
+  handleDeclinedInvite: (participantId: string) => void
 }
 
 /**
@@ -65,7 +66,7 @@ export const useRealtimeKitParticipants = ({
 }: UseRealtimeKitParticipantsOptions): UseRealtimeKitParticipantsReturn => {
   const [participants, setParticipants] = useState<GroupCallParticipant[]>([])
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map())
-  const [pendingInvites] = useState<Map<string, PendingInvite>>(new Map())
+  const [pendingInvites, setPendingInvites] = useState<Map<string, PendingInvite>>(new Map())
 
   /**
    * Invite participants to the current call
@@ -102,6 +103,31 @@ export const useRealtimeKitParticipants = ({
         participants: participantsToInvite.map(p => ({ id: p.id, odId: p.odId, odName: p.odName }))
       })
 
+      // Add participants to pending invites for UI tracking
+      // ONLY add if they're NOT already in the call
+      const now = Date.now()
+      const activeParticipantIds = new Set(participants.map(p => p.odId))
+
+      setPendingInvites(prev => {
+        const updated = new Map(prev)
+        for (const p of participantsToInvite) {
+          // Skip if already in call
+          if (activeParticipantIds.has(p.odId)) {
+            rtkDebug.log('[RTK] Skipping pending invite - already in call:', p.odId)
+            continue
+          }
+
+          updated.set(p.odId, {
+            id: p.odId,
+            odId: p.odId,
+            odName: p.odName,
+            avatarUrl: p.avatarUrl,
+            invitedAt: now
+          })
+        }
+        return updated
+      })
+
       emitSocketEvent('rtk-group-call:start', {
         conversationId: effectiveRoomId,
         meetingId: effectiveMeetingId, // Use actual backend meeting ID, not roomId
@@ -116,7 +142,7 @@ export const useRealtimeKitParticipants = ({
         conversationName
       })
     },
-    [emitSocketEvent, roomId, meetingId, callType, currentUser]
+    [emitSocketEvent, roomId, meetingId, callType, currentUser, participants]
   )
 
   /**
@@ -144,6 +170,7 @@ export const useRealtimeKitParticipants = ({
     const newRemoteStreams = new Map<string, MediaStream>()
     const newParticipants: GroupCallParticipant[] = []
     const seenParticipantIds = new Set<string>() // Dedupe by customParticipantId
+    const allPeerStableIds = new Set<string>() // Track ALL peer IDs for cleanup (even without tracks)
 
     // Get all remote participants from SDK
     const joined = meeting.participants.joined
@@ -202,6 +229,9 @@ export const useRealtimeKitParticipants = ({
     remotePeers.forEach((peer: any) => {
       // Use customParticipantId for deduplication (stable user ID)
       const stableId = peer.customParticipantId || peer.id
+
+      // Track this peer for cleanup (even if they have no tracks yet)
+      allPeerStableIds.add(stableId)
 
       rtkDebug.log('[RTK] Processing peer:', {
         peerId: peer.id,
@@ -278,6 +308,30 @@ export const useRealtimeKitParticipants = ({
     } else {
       setParticipants(newParticipants)
     }
+
+    // Clean up pending invites for anyone who's now in the call
+    setPendingInvites(prev => {
+      const updated = new Map(prev)
+      let hasChanges = false
+
+      // Remove current user from pending invites
+      if (currentUser && prev.has(currentUser.odId)) {
+        updated.delete(currentUser.odId)
+        hasChanges = true
+        rtkDebug.log('[RTK] 🧹 Removed current user from pending invites')
+      }
+
+      // Remove any active participants from pending invites (including those without tracks yet)
+      allPeerStableIds.forEach(stableId => {
+        if (prev.has(stableId)) {
+          updated.delete(stableId)
+          hasChanges = true
+          rtkDebug.log('[RTK] 🧹 Removed active participant from pending invites:', stableId)
+        }
+      })
+
+      return hasChanges ? updated : prev
+    })
   }, [meeting, currentUser, localStream, cleanupParticipantHandState])
 
   /**
@@ -298,10 +352,30 @@ export const useRealtimeKitParticipants = ({
     }
 
     const handleParticipantJoined = (event: any) => {
+      const participant = event?.participant
+      // Use the same stableId logic as updateParticipantList
+      const stableId = participant?.customParticipantId || participant?.id
+
       rtkDebug.log('[RTK] 👤 Participant joined event:', {
-        participantId: event?.participant?.id,
-        participantName: event?.participant?.name
+        participantId: participant?.id,
+        participantName: participant?.name,
+        customParticipantId: participant?.customParticipantId,
+        stableId
       })
+
+      // Remove from pending invites when they join
+      if (stableId) {
+        setPendingInvites(prev => {
+          if (prev.has(stableId)) {
+            const updated = new Map(prev)
+            updated.delete(stableId)
+            rtkDebug.log('[RTK] ✅ Removed from pending invites on join:', stableId)
+            return updated
+          }
+          return prev
+        })
+      }
+
       updateParticipantList()
     }
 
@@ -333,11 +407,24 @@ export const useRealtimeKitParticipants = ({
     }
   }, [meeting, callStatus, updateParticipantList])
 
+  /**
+   * Handle declined invite by removing participant from pending invites
+   * This allows the UI to reset and enable the "Invite" button again
+   */
+  const handleDeclinedInvite = useCallback((participantId: string) => {
+    setPendingInvites(prev => {
+      const newMap = new Map(prev)
+      newMap.delete(participantId)
+      return newMap
+    })
+  }, [])
+
   return {
     participants,
     remoteStreams,
     pendingInvites,
     inviteToCall,
-    reconnectParticipant
+    reconnectParticipant,
+    handleDeclinedInvite
   }
 }

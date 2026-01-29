@@ -51,7 +51,7 @@ export const useRealtimeKitMedia = ({
   meeting,
   callType,
   initialVideoQuality = 'low',
-  initialBackgroundEnabled = true,
+  initialBackgroundEnabled = false, // Disabled by default to prevent feedback loop
   onMediaStateChange,
   callStatus = 'idle'
 }: UseRealtimeKitMediaOptions): UseRealtimeKitMediaReturn => {
@@ -63,6 +63,7 @@ export const useRealtimeKitMedia = ({
 
   const virtualBackgroundRef = useRef<RTKVirtualBackground | null>(null)
   const hasJustJoinedRef = useRef(false)
+  const hasAppliedInitialBackgroundRef = useRef(false)
 
   // CRITICAL: React to callType changes (e.g., when upgrading from audio to video mid-call)
   // BUT: Skip forcing video during initial join - trust SDK state from user preferences
@@ -390,37 +391,51 @@ export const useRealtimeKitMedia = ({
   }, [meeting])
 
   /**
-   * Auto-apply background effect on call connect if enabled
+   * ONE-TIME background application when call first connects
+   * Only applies if backgroundEnabled is true initially (e.g., for call initiator)
+   * Does NOT re-apply on track changes (which would cause infinite loop)
    */
   useEffect(() => {
+    // Only run when call transitions to connected for the first time
     if (
       callStatus !== 'connected' ||
       !isVideoEnabled ||
       !backgroundEnabled ||
       !meeting?.self?.videoTrack ||
-      virtualBackgroundRef.current !== null
+      hasAppliedInitialBackgroundRef.current
     ) {
       return
     }
 
-    rtkDebug.log('[RTK] 🎨 Auto-applying background effect (enabled by default or user preference)')
+    // Mark as applied to prevent re-running
+    hasAppliedInitialBackgroundRef.current = true
 
-    const applyBackground = async () => {
+    const applyInitialBackground = async () => {
       try {
         if (!virtualBackgroundRef.current) {
           virtualBackgroundRef.current = new RTKVirtualBackground()
         }
         await virtualBackgroundRef.current.initialize(meeting)
         await virtualBackgroundRef.current.enableBackground(meeting)
-        rtkDebug.log('[RTK] ✅ Background effect auto-applied successfully')
+
+        rtkDebug.log('[RTK] ✅ Initial background applied on connection')
       } catch (error) {
-        rtkDebug.error('[RTK] ❌ Failed to auto-apply background effect:', error)
+        rtkDebug.error('[RTK] ❌ Failed to apply initial background:', error)
         setBackgroundEnabled(false)
       }
     }
 
-    applyBackground()
+    applyInitialBackground()
   }, [callStatus, isVideoEnabled, backgroundEnabled, meeting])
+
+  /**
+   * Reset background application flag when call ends
+   */
+  useEffect(() => {
+    if (callStatus === 'idle' || callStatus === 'ended') {
+      hasAppliedInitialBackgroundRef.current = false
+    }
+  }, [callStatus])
 
   /**
    * Manage local stream with optimized track updates
@@ -509,6 +524,19 @@ export const useRealtimeKitMedia = ({
       return prevStream
     })
   }, [meeting?.self?.audioTrack, meeting?.self?.videoTrack])
+
+  /**
+   * Cleanup virtual background resources on unmount or when call ends
+   */
+  useEffect(() => {
+    return () => {
+      if (virtualBackgroundRef.current && meeting) {
+        virtualBackgroundRef.current.destroy(meeting)
+        virtualBackgroundRef.current = null
+        rtkDebug.log('[RTK Virtual Background] Cleaned up on unmount')
+      }
+    }
+  }, [meeting])
 
   return {
     localStream,

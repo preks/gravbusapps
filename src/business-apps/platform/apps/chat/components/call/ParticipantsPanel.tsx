@@ -106,8 +106,8 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   activeConversation
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
-  const [invitingParticipantId, setInvitingParticipantId] = useState<string | null>(null)
-  const inviteTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+  const [invitingParticipantIds, setInvitingParticipantIds] = useState<Set<string>>(new Set())
+  const inviteTimeoutsRef = React.useRef<Map<string, NodeJS.Timeout>>(new Map())
 
   // Create avatar URL map from conversation participants
   const avatarUrlMap = React.useMemo(() => {
@@ -124,65 +124,93 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   }, [activeConversation?.participants])
   const previousPendingIdsRef = React.useRef<Set<string>>(new Set())
 
-  // Handler for inviting a participant with loading state
+  // Handler for inviting a participant with loading state - supports multiple simultaneous invites
   const handleInviteClick = async (participant: CallParticipant) => {
-    if (!onInviteParticipant || invitingParticipantId) return
+    if (!onInviteParticipant || invitingParticipantIds.has(participant.odId)) return
 
-    setInvitingParticipantId(participant.odId)
+    // Add to inviting set
+    setInvitingParticipantIds(prev => new Set([...prev, participant.odId]))
 
     // Set a timeout as fallback to clear the inviting state after 30 seconds
-    if (inviteTimeoutRef.current) {
-      clearTimeout(inviteTimeoutRef.current)
+    const existingTimeout = inviteTimeoutsRef.current.get(participant.odId)
+    if (existingTimeout) {
+      clearTimeout(existingTimeout)
     }
-    inviteTimeoutRef.current = setTimeout(() => {
-      setInvitingParticipantId(null)
+    const timeout = setTimeout(() => {
+      setInvitingParticipantIds(prev => {
+        const next = new Set(prev)
+        next.delete(participant.odId)
+        return next
+      })
+      inviteTimeoutsRef.current.delete(participant.odId)
     }, 30000) // 30 seconds
+    inviteTimeoutsRef.current.set(participant.odId, timeout)
 
     try {
       await onInviteParticipant(participant)
     } catch (error) {
       console.error('Failed to invite participant:', error)
-      if (inviteTimeoutRef.current) {
-        clearTimeout(inviteTimeoutRef.current)
+      const timeout = inviteTimeoutsRef.current.get(participant.odId)
+      if (timeout) {
+        clearTimeout(timeout)
+        inviteTimeoutsRef.current.delete(participant.odId)
       }
-      setInvitingParticipantId(null)
+      setInvitingParticipantIds(prev => {
+        const next = new Set(prev)
+        next.delete(participant.odId)
+        return next
+      })
     }
   }
 
-  // Track pending invites changes to detect when participant is added (success) or removed (declined)
+  // Track pending invites changes to detect when participants are added (success) or removed (declined)
   React.useEffect(() => {
-    if (!invitingParticipantId) return
+    if (invitingParticipantIds.size === 0) return
 
     const currentPendingIds = pendingInvites ? new Set(Array.from(pendingInvites.keys())) : new Set<string>()
-    const wasInPrevious = previousPendingIdsRef.current.has(invitingParticipantId)
-    const isInCurrent = currentPendingIds.has(invitingParticipantId)
 
-    // Case 1: Participant just appeared in pending invites (invite accepted/ringing)
-    if (!wasInPrevious && isInCurrent) {
-      if (inviteTimeoutRef.current) {
-        clearTimeout(inviteTimeoutRef.current)
-      }
-      setInvitingParticipantId(null)
-    }
+    invitingParticipantIds.forEach(participantId => {
+      const wasInPrevious = previousPendingIdsRef.current.has(participantId)
+      const isInCurrent = currentPendingIds.has(participantId)
 
-    // Case 2: Participant was in pending but now removed (declined)
-    if (wasInPrevious && !isInCurrent) {
-      if (inviteTimeoutRef.current) {
-        clearTimeout(inviteTimeoutRef.current)
+      // Case 1: Participant just appeared in pending invites (invite accepted/ringing)
+      if (!wasInPrevious && isInCurrent) {
+        const timeout = inviteTimeoutsRef.current.get(participantId)
+        if (timeout) {
+          clearTimeout(timeout)
+          inviteTimeoutsRef.current.delete(participantId)
+        }
+        setInvitingParticipantIds(prev => {
+          const next = new Set(prev)
+          next.delete(participantId)
+          return next
+        })
       }
-      setInvitingParticipantId(null)
-    }
+
+      // Case 2: Participant was in pending but now removed (declined)
+      if (wasInPrevious && !isInCurrent) {
+        const timeout = inviteTimeoutsRef.current.get(participantId)
+        if (timeout) {
+          clearTimeout(timeout)
+          inviteTimeoutsRef.current.delete(participantId)
+        }
+        setInvitingParticipantIds(prev => {
+          const next = new Set(prev)
+          next.delete(participantId)
+          return next
+        })
+      }
+    })
 
     // Update previous state
     previousPendingIdsRef.current = currentPendingIds
-  }, [invitingParticipantId, pendingInvites])
+  }, [invitingParticipantIds, pendingInvites])
 
-  // Cleanup timeout on unmount
+  // Cleanup timeouts on unmount
   React.useEffect(() => {
     return () => {
-      if (inviteTimeoutRef.current) {
-        clearTimeout(inviteTimeoutRef.current)
-      }
+      inviteTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
+      inviteTimeoutsRef.current.clear()
     }
   }, [])
 
@@ -558,12 +586,12 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                     {onInviteParticipant && (
                       <button
                         onClick={() => handleInviteClick(participant)}
-                        disabled={invitingParticipantId === participant.odId}
+                        disabled={invitingParticipantIds.has(participant.odId)}
                         className="gba:px-3 gba:py-1.5 gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90 disabled:gba:bg-primary/60 disabled:gba:cursor-not-allowed gba:rounded gba:flex gba:items-center gba:gap-2 gba:text-xs gba:font-medium gba:transition-colors gba:flex-shrink-0"
                         aria-label={`Invite ${participant.odName}`}
                         data-testid={`${prefixDataTestId}-invite-btn-${participant.odId}`}
                       >
-                        {invitingParticipantId === participant.odId ? (
+                        {invitingParticipantIds.has(participant.odId) ? (
                           <>
                             <CircleNotch className="gba:h-3 gba:w-3 gba:animate-spin" weight="bold" />
                             Inviting...
