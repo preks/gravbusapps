@@ -16,6 +16,8 @@ import type { GroupCallParticipant, VideoQuality } from '../services/groupWebrtc
 import type { GroupCallUIState, PendingInvite } from '../hooks/useGroupCall'
 import type { CallParticipant } from '../services/webrtcClient'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
+import type { ChatApiClient } from '../services/chatApiClient'
+import { ConversationType } from '../types'
 import { useChatTranslation } from '../contexts/TranslationContext'
 import { rtkDebug } from '../utils/rtkDebug'
 import {
@@ -24,6 +26,7 @@ import {
   ScreenShareView,
   CallControlsBar,
   ParticipantsPanel,
+  ChatPanel,
   MemoizedParticipantVideoTile,
   VideoGrid,
   HorizontalFilmstrip
@@ -50,6 +53,9 @@ interface AvailableParticipant {
   avatarUrl?: string
 }
 
+// Sidebar panel state type
+type SidebarView = 'closed' | 'participants' | 'chat'
+
 interface GroupCallModalRtkProps {
   callState: GroupCallUIState
   localStream: MediaStream | null
@@ -75,9 +81,12 @@ interface GroupCallModalRtkProps {
   getConnectionDiagnostics?: () => Map<string, any>
   accessToken?: string
   currentUserId?: string | null
+  currentUser?: any // Full user object for AI context
   conversationName?: string
   wsClient?: ChatWebSocketClient | null
+  apiClient?: ChatApiClient
   activeConversation?: any // For looking up avatar URLs from conversation participants
+  activeExperts?: any[] // Every AI experts for mentions in chat
 }
 
 // Helper to get screen share track from peer
@@ -172,9 +181,42 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   prefixDataTestId = 'rtk-group-call',
   conversationName,
   wsClient,
+  apiClient,
+  accessToken,
   currentUserId,
-  activeConversation
+  currentUser,
+  activeConversation,
+  activeExperts
 }) => {
+  // Create conversation object for the call based on roomId
+  // Use the call's conversation, NOT the active conversation from sidebar
+  // CRITICAL: Use ref + effect to maintain stable object reference
+  const callConversationRef = useRef<any>(null)
+
+  // Update the ref only when roomId changes (the primary key)
+  useEffect(() => {
+    if (!callState.roomId) {
+      callConversationRef.current = null
+      return
+    }
+
+    // Only create/update if roomId changed
+    if (!callConversationRef.current || callConversationRef.current.id !== callState.roomId) {
+      callConversationRef.current = {
+        id: callState.roomId,
+        name: conversationName || 'Group Call',
+        type: ConversationType.GROUP,
+        participants: activeConversation?.participants || [],
+        isActive: true,
+        createdBy: activeConversation?.createdBy || '',
+        createdAt: activeConversation?.createdAt || new Date().toISOString(),
+        updatedAt: activeConversation?.updatedAt || new Date().toISOString()
+      }
+    }
+  }, [callState.roomId]) // ONLY depend on roomId
+
+  // Return the stable reference - this never changes unless roomId changes
+  const callConversation = callConversationRef.current
   const t = useChatTranslation()
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
@@ -252,8 +294,10 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   // Get the meeting object to access self.userId
   const meeting = useRealtimeKitSelector((m: any) => m)
 
-  // Derive current user from participants or meeting
-  const currentUser = participants.find(p => p.id === currentUserId || p.id === meeting?.self?.customParticipantId)
+  // Derive current participant from participants or meeting
+  const currentParticipant = participants.find(
+    p => p.id === currentUserId || p.id === meeting?.self?.customParticipantId
+  )
 
   // Helper to check if a participant has their hand raised
   // NOTE: We check BOTH userId (SDK) and customParticipantId (our DB) because:
@@ -359,7 +403,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   }
 
   const [currentPage, setCurrentPage] = useState(0)
-  const [showParticipantsPanel, setShowParticipantsPanel] = useState(false)
+  const [sidebarView, setSidebarView] = useState<SidebarView>('closed')
   const [activeReactions, setActiveReactions] = useState<
     Array<{
       id: string
@@ -394,6 +438,15 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       setActiveReactions(prev => prev.filter(r => r.id !== reactionId))
       rtkDebug.log('[RTK Modal] 🧹 Removed reaction after 3s', { reactionId })
     }, 3000)
+  }, [])
+
+  // Toggle handlers for sidebar panels (mutually exclusive)
+  const handleToggleParticipants = useCallback(() => {
+    setSidebarView(prev => (prev === 'participants' ? 'closed' : 'participants'))
+  }, [])
+
+  const handleToggleChat = useCallback(() => {
+    setSidebarView(prev => (prev === 'chat' ? 'closed' : 'chat'))
   }, [])
 
   // Pagination config: max participants per page
@@ -573,8 +626,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   // Handler to mute a participant via WebSocket (auto-mute on target side)
   const handleMuteParticipant = useCallback(
     (participantId: string, participantName: string) => {
-      if (!wsClient || !currentUser || !meeting) {
-        console.error('[MUTE] No WebSocket client, current user, or meeting available')
+      if (!wsClient || !currentParticipant || !meeting) {
+        console.error('[MUTE] No WebSocket client, current participant, or meeting available')
         return
       }
 
@@ -593,8 +646,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           participantRtkId: participantId,
           targetUserId,
           targetParticipantName: participantName,
-          requestedBy: currentUser.id,
-          requestedByName: currentUser.odName
+          requestedBy: currentParticipant.id,
+          requestedByName: currentParticipant.odName
         })
 
         // Emit WebSocket event to request mute
@@ -602,8 +655,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         socket.emit('group-call:request-mute', {
           targetParticipantId: targetUserId, // User's DB ID for Socket.IO room routing
           targetParticipantName: participantName,
-          requestedBy: currentUser.id,
-          requestedByName: currentUser.odName
+          requestedBy: currentParticipant.id,
+          requestedByName: currentParticipant.odName
         })
 
         toast.success(`Mute request sent to ${participantName}`, {
@@ -616,13 +669,13 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         })
       }
     },
-    [wsClient, currentUser, meeting]
+    [wsClient, currentParticipant, meeting]
   )
 
   // Handler to mute all participants at once via WebSocket (auto-mute on each participant's side)
   const handleMuteAll = useCallback(() => {
-    if (!wsClient || !currentUser || !participants || participants.length === 0 || !meeting) {
-      console.error('[MUTE ALL] No WebSocket client, current user, participants, or meeting available')
+    if (!wsClient || !currentParticipant || !participants || participants.length === 0 || !meeting) {
+      console.error('[MUTE ALL] No WebSocket client, current participant, participants, or meeting available')
       return
     }
 
@@ -635,13 +688,13 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     try {
       console.log('[MUTE ALL] Sending mute requests to all participants via WebSocket:', {
         participantCount: participants.length,
-        requestedBy: currentUser.id,
-        requestedByName: currentUser.odName
+        requestedBy: currentParticipant.id,
+        requestedByName: currentParticipant.odName
       })
 
       // Send individual mute requests to each participant (excluding self)
       participants.forEach(participant => {
-        if (participant.id !== currentUser.id) {
+        if (participant.id !== currentParticipant.id) {
           const participantName = (participant as RealtimeKitPeer).name || participant.odName || 'Unknown'
 
           // Get the customParticipantId from the meeting peer (this is the user's DB ID)
@@ -651,8 +704,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           socket.emit('group-call:request-mute', {
             targetParticipantId: targetUserId, // User's DB ID for Socket.IO room routing
             targetParticipantName: participantName,
-            requestedBy: currentUser.id,
-            requestedByName: currentUser.odName
+            requestedBy: currentParticipant.id,
+            requestedByName: currentParticipant.odName
           })
         }
       })
@@ -666,7 +719,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         duration: 3000
       })
     }
-  }, [wsClient, currentUser, participants, meeting])
+  }, [wsClient, currentParticipant, participants, meeting])
 
   // Track local video element initialization
   const localVideoInitializedRef = useRef(false)
@@ -1724,8 +1777,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
   // Calculate minimum tile size for auto-fit grid based on panel state
   const minTileSize = useMemo(() => {
-    return showParticipantsPanel ? 200 : 250
-  }, [showParticipantsPanel])
+    return sidebarView !== 'closed' ? 200 : 250
+  }, [sidebarView])
 
   // Create stable track IDs for dependency tracking
   const screenShareTrackIds = useMemo(() => {
@@ -2198,8 +2251,10 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                   participantCount={stableRemotePeers.length + 1}
                   availableParticipantsCount={availableParticipants?.length || 0}
                   callType={callState.callType}
-                  showParticipantsPanel={showParticipantsPanel}
-                  onToggleParticipantsPanel={() => setShowParticipantsPanel(prev => !prev)}
+                  showParticipantsPanel={sidebarView === 'participants'}
+                  showChatPanel={sidebarView === 'chat'}
+                  onToggleParticipantsPanel={handleToggleParticipants}
+                  onToggleChat={handleToggleChat}
                   onToggleMinimize={onToggleMinimize}
                   onClose={onEndCall}
                   prefixDataTestId={prefixDataTestId}
@@ -2412,27 +2467,43 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                 />
               </div>
 
-              {/* Participants Panel - Sidebar (smooth transition) */}
-              {showParticipantsPanel && (
+              {/* Sidebar Panel - Participants or Chat (smooth transition) */}
+              {sidebarView !== 'closed' && (
                 <div className="gba:w-80 gba:bg-card gba:shadow-xl gba:flex gba:flex-col gba:border-l gba:flex-shrink-0 gba:transition-all gba:duration-300 gba:h-full gba:overflow-hidden">
-                  <ParticipantsPanel
-                    meeting={meeting}
-                    isOpen={showParticipantsPanel}
-                    onClose={() => setShowParticipantsPanel(false)}
-                    prefixDataTestId={prefixDataTestId}
-                    availableParticipants={availableParticipants}
-                    pendingInvites={pendingInvites}
-                    onInviteParticipant={onInviteParticipant}
-                    onMuteParticipant={handleMuteParticipant}
-                    onMuteAll={handleMuteAll}
-                    activeSpeakerId={activeSpeakerId}
-                    activeSpeakerHistory={activeSpeakerHistory}
-                    remoteHandsRaised={callState.remoteHandsRaised}
-                    handRaisedOrder={callState.handRaisedOrder}
-                    localHandRaised={callState.handRaised}
-                    localUserId={meeting?.self?.userId}
-                    activeConversation={activeConversation}
-                  />
+                  {sidebarView === 'participants' && (
+                    <ParticipantsPanel
+                      meeting={meeting}
+                      isOpen={true}
+                      onClose={() => setSidebarView('closed')}
+                      prefixDataTestId={prefixDataTestId}
+                      availableParticipants={availableParticipants}
+                      pendingInvites={pendingInvites}
+                      onInviteParticipant={onInviteParticipant}
+                      onMuteParticipant={handleMuteParticipant}
+                      onMuteAll={handleMuteAll}
+                      activeSpeakerId={activeSpeakerId}
+                      activeSpeakerHistory={activeSpeakerHistory}
+                      remoteHandsRaised={callState.remoteHandsRaised}
+                      handRaisedOrder={callState.handRaisedOrder}
+                      localHandRaised={callState.handRaised}
+                      localUserId={meeting?.self?.userId}
+                      activeConversation={activeConversation}
+                    />
+                  )}
+                  {sidebarView === 'chat' && apiClient && accessToken && (
+                    <ChatPanel
+                      conversation={callConversation}
+                      apiClient={apiClient}
+                      wsClient={wsClient || null}
+                      currentUserId={currentUserId || null}
+                      currentUser={currentUser}
+                      accessToken={accessToken || ''}
+                      activeExperts={activeExperts}
+                      isOpen={true}
+                      onClose={() => setSidebarView('closed')}
+                      prefixDataTestId={`${prefixDataTestId}-chat`}
+                    />
+                  )}
                 </div>
               )}
             </div>

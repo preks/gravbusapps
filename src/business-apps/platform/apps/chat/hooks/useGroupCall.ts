@@ -61,12 +61,15 @@ export interface ActiveConversationCall {
   conversationName?: string
 }
 
+export type InviteStatus = 'pending' | 'declined' | 'not-answered'
+
 export interface PendingInvite {
   id: string
   odId: string
   odName: string
   avatarUrl?: string
   invitedAt: number
+  status?: InviteStatus
 }
 
 export interface UseGroupCallReturn {

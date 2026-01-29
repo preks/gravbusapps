@@ -413,13 +413,79 @@ export const useRealtimeKitWebSocket = ({
       onHandUpdate?.(data.participantId, data.handRaised)
     }
 
+    // Handle initial participant states sync (received when joining a call)
+    const handleSyncParticipantStates = (data: {
+      roomId: string
+      participantStates: Array<{ participantId: string; handRaised: boolean }>
+    }) => {
+      rtkDebug.log('[RTK] 🔄 Received initial participant states sync:', data)
+
+      if (!currentUser) {
+        rtkDebug.warn('[RTK] Cannot sync participant states - no current user')
+        return
+      }
+
+      const newRemoteHandsRaised: Record<string, boolean> = {}
+      const newHandRaisedOrder: Record<string, { order: number; timestamp: number }> = {}
+      const timestamp = Date.now()
+
+      data.participantStates.forEach((state, index) => {
+        if (state.participantId === currentUser.id) {
+          // Skip own state - it will be managed by our own toggles
+          return
+        }
+
+        // Resolve ALL possible IDs for this participant (same logic as handleHandUpdate)
+        let participantPeerId: string | undefined
+        let participantUserId: string | undefined
+        let participantCustomId: string | undefined = state.participantId
+
+        if (meeting?.participants?.joined) {
+          const joined = Array.from(meeting.participants.joined.values())
+          const matchingPeer: any = joined.find(
+            (p: any) =>
+              p.customParticipantId === state.participantId ||
+              p.userId === state.participantId ||
+              p.id === state.participantId
+          )
+          if (matchingPeer) {
+            participantPeerId = matchingPeer.id
+            participantUserId = matchingPeer.userId
+            participantCustomId = matchingPeer.customParticipantId
+          }
+        }
+
+        // Store hand raised state under all possible keys
+        if (participantPeerId) newRemoteHandsRaised[participantPeerId] = state.handRaised
+        if (participantUserId) newRemoteHandsRaised[participantUserId] = state.handRaised
+        if (participantCustomId) newRemoteHandsRaised[participantCustomId] = state.handRaised
+
+        // Store hand raised order (index + 1 for 1-based order)
+        if (state.handRaised) {
+          const orderData = { order: index + 1, timestamp: timestamp + index }
+          if (participantPeerId) newHandRaisedOrder[participantPeerId] = orderData
+          if (participantUserId) newHandRaisedOrder[participantUserId] = orderData
+          if (participantCustomId) newHandRaisedOrder[participantCustomId] = orderData
+        }
+      })
+
+      rtkDebug.log('[RTK] 🔄 Synced remote hands raised:', newRemoteHandsRaised)
+      rtkDebug.log('[RTK] 🔄 Synced hand raised order:', newHandRaisedOrder)
+
+      // Update state with synced data
+      setRemoteHandsRaised(prev => ({ ...prev, ...newRemoteHandsRaised }))
+      setHandRaisedOrder(prev => ({ ...prev, ...newHandRaisedOrder }))
+    }
+
     // Listen for events
     socket.on('group-call:hand-update', handleHandUpdate)
-    rtkDebug.log('[RTK] ✅ WebSocket listener attached for raise hand')
+    socket.on('group-call:sync-participant-states', handleSyncParticipantStates)
+    rtkDebug.log('[RTK] ✅ WebSocket listeners attached for raise hand and state sync')
 
     return () => {
       socket.off('group-call:hand-update', handleHandUpdate)
-      rtkDebug.log('[RTK] WebSocket listener removed for raise hand')
+      socket.off('group-call:sync-participant-states', handleSyncParticipantStates)
+      rtkDebug.log('[RTK] WebSocket listeners removed for raise hand and state sync')
     }
   }, [wsClient, meetingId, currentUser, meeting, onHandUpdate])
 

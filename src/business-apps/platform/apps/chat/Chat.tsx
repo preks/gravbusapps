@@ -1952,11 +1952,14 @@ const ChatInner: React.FC<ChatProps> = memo(
                 onInviteParticipant={handleInviteParticipant}
                 onReconnectParticipant={reconnectGroupParticipant}
                 getConnectionDiagnostics={getGroupConnectionDiagnostics}
+                apiClient={apiClient || undefined}
                 accessToken={accessToken}
                 currentUserId={currentUser?.id || null}
+                currentUser={currentUser}
                 conversationName={realtimeKitGroupCall.currentCallConversationName || activeConversation?.name}
                 wsClient={wsClient}
                 activeConversation={activeConversation}
+                activeExperts={activeConversation?.activeExperts || activeExperts || []}
               />
             </RealtimeKitProvider>
           ) : (

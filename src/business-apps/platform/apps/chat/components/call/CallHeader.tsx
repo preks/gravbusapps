@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { Users, Minimize2 } from 'lucide-react'
+import { Users, Minimize2, MessageSquare } from 'lucide-react'
 import { formatDuration } from '../../utils/callUtils'
 
 export interface CallHeaderProps {
@@ -26,8 +26,12 @@ export interface CallHeaderProps {
   callType: 'audio' | 'video'
   /** Whether participants panel is shown */
   showParticipantsPanel?: boolean
+  /** Whether chat panel is shown */
+  showChatPanel?: boolean
   /** Callback to toggle participants panel */
   onToggleParticipantsPanel?: () => void
+  /** Callback to toggle chat panel */
+  onToggleChat?: () => void
   /** Callback to minimize the call */
   onToggleMinimize?: () => void
   /** Callback to close/end the call */
@@ -44,7 +48,9 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
   participantCount,
   callType,
   showParticipantsPanel = false,
+  showChatPanel = false,
   onToggleParticipantsPanel,
+  onToggleChat,
   onToggleMinimize,
   prefixDataTestId = 'rtk-group-call',
   t = (key: string) => key
@@ -99,6 +105,21 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
 
       {/* Right side - Action buttons */}
       <div className="gba:flex gba:items-center gba:gap-2">
+        {/* Chat panel toggle */}
+        {onToggleChat && (
+          <button
+            onClick={onToggleChat}
+            className={`gba:relative gba:p-2 gba:rounded-lg gba:transition-colors ${
+              showChatPanel ? 'gba:bg-accent' : 'hover:gba:bg-accent'
+            }`}
+            data-testid={`${prefixDataTestId}-chat-btn`}
+            aria-label="Chat"
+            title="Chat"
+          >
+            <MessageSquare className="gba:w-5 gba:h-5" />
+          </button>
+        )}
+
         {/* Participants panel toggle */}
         {onToggleParticipantsPanel && (
           <button

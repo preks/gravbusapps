@@ -1003,14 +1003,17 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
                   realtimeKitGroupCall.currentCallConversationName || enrichedSelectedEvent?.title
                 )
               }}
+              apiClient={apiClient || undefined}
               accessToken={accessToken}
               currentUserId={currentUser?.id || null}
+              currentUser={currentUser}
               conversationName={
                 realtimeKitGroupCall.currentCallConversationName ||
                 realtimeKitGroupCall.incomingInvite?.conversationName ||
                 (enrichedSelectedEvent ? enrichedSelectedEvent.title : undefined)
               }
               wsClient={wsClient}
+              activeExperts={[]}
             />
           </RealtimeKitProvider>
         ) : (

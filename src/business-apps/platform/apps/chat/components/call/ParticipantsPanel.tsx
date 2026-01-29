@@ -534,26 +534,85 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                 <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase">
                   Invited ({filteredPendingInvites.length})
                 </div>
-                {filteredPendingInvites.map((invite: PendingInvite) => (
-                  <div
-                    key={invite.odId}
-                    className="gba:p-3 gba:flex gba:items-center gba:gap-3 hover:gba:bg-muted/50 gba:border-b gba:transition-colors"
-                    data-testid={`${prefixDataTestId}-participant-invited-${invite.odId}`}
-                  >
-                    <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0 gba:opacity-60">
-                      {avatarUrlMap.get(invite.odId) && (
-                        <AvatarImage src={avatarUrlMap.get(invite.odId)} alt={invite.odName || 'Unknown'} />
+                {filteredPendingInvites.map((invite: PendingInvite) => {
+                  const getStatusText = () => {
+                    switch (invite.status) {
+                      case 'declined':
+                        return 'Declined invite'
+                      case 'not-answered':
+                        return 'Not answered'
+                      case 'pending':
+                      default:
+                        return 'Ringing...'
+                    }
+                  }
+
+                  const getStatusColor = () => {
+                    switch (invite.status) {
+                      case 'declined':
+                        return 'gba:text-destructive-secondary'
+                      case 'not-answered':
+                        return 'gba:text-warning'
+                      case 'pending':
+                      default:
+                        return 'gba:text-muted-foreground'
+                    }
+                  }
+
+                  const canReInvite = invite.status === 'declined' || invite.status === 'not-answered'
+
+                  return (
+                    <div
+                      key={invite.odId}
+                      className="gba:p-3 gba:flex gba:items-center gba:justify-between hover:gba:bg-muted/50 gba:border-b gba:transition-colors"
+                      data-testid={`${prefixDataTestId}-participant-invited-${invite.odId}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:min-w-0">
+                        <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0 gba:opacity-60">
+                          {avatarUrlMap.get(invite.odId) && (
+                            <AvatarImage src={avatarUrlMap.get(invite.odId)} alt={invite.odName || 'Unknown'} />
+                          )}
+                          <AvatarFallback className="gba:text-xs">
+                            {getInitials(invite.odName || 'Unknown')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="gba:flex-1 gba:min-w-0">
+                          <p className="gba:text-sm gba:font-medium gba:truncate gba:text-muted-foreground">
+                            {invite.odName || 'Unknown'}
+                          </p>
+                          <p className={`gba:text-xs ${getStatusColor()}`}>{getStatusText()}</p>
+                        </div>
+                      </div>
+                      {canReInvite && onInviteParticipant && (
+                        <button
+                          onClick={() =>
+                            handleInviteClick({
+                              id: invite.id,
+                              odId: invite.odId,
+                              odName: invite.odName
+                            })
+                          }
+                          disabled={invitingParticipantIds.has(invite.odId)}
+                          className="gba:px-3 gba:py-1.5 gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90 disabled:gba:bg-primary/60 disabled:gba:cursor-not-allowed gba:rounded gba:flex gba:items-center gba:gap-2 gba:text-xs gba:font-medium gba:transition-colors gba:flex-shrink-0"
+                          aria-label={`Re-invite ${invite.odName}`}
+                          data-testid={`${prefixDataTestId}-reinvite-btn-${invite.odId}`}
+                        >
+                          {invitingParticipantIds.has(invite.odId) ? (
+                            <>
+                              <Spinner className="gba:h-3 gba:w-3" />
+                              Inviting...
+                            </>
+                          ) : (
+                            <>
+                              <PhoneIcon className="gba:h-3 gba:w-3" weight="fill" />
+                              Invite
+                            </>
+                          )}
+                        </button>
                       )}
-                      <AvatarFallback className="gba:text-xs">{getInitials(invite.odName || 'Unknown')}</AvatarFallback>
-                    </Avatar>
-                    <div className="gba:flex-1 gba:min-w-0">
-                      <p className="gba:text-sm gba:font-medium gba:truncate gba:text-muted-foreground">
-                        {invite.odName || 'Unknown'}
-                      </p>
-                      <p className="gba:text-xs gba:text-muted-foreground">Ringing...</p>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
 

@@ -1208,8 +1208,26 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     const handleDeclined = (data: { conversationId: string; meetingId: string; participantId: string }) => {
       rtkDebug.log('[RTK] 📵 Participant declined invite:', data)
 
-      // Remove from pending invites map so UI can reset to "Invite" state
-      participantsHook.handleDeclinedInvite(data.participantId)
+      // Update pending invite status to 'declined'
+      participantsHook.handleDeclinedInvite(data.participantId, 'declined')
+    }
+
+    const handleNotAnswered = (data: {
+      conversationId: string
+      meetingId: string
+      participantId: string
+      participantName: string
+    }) => {
+      rtkDebug.log('[RTK] ⏱️ Participant did not answer invite:', data)
+
+      // Update pending invite status to 'not-answered'
+      participantsHook.handleDeclinedInvite(data.participantId, 'not-answered')
+
+      // If this is the current user's invite, dismiss it
+      if (currentUser && data.participantId === currentUser.id) {
+        rtkDebug.log('[RTK] ⏱️ Current user did not answer - dismissing invite')
+        setIncomingInvite(null)
+      }
     }
 
     rtkDebug.log('[RTK] 🎧 Registering WebSocket listeners')
@@ -1217,6 +1235,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     socket.on('rtk-group-call:invite', handleInvite)
     socket.on('rtk-group-call:ended', handleCallEnded)
     socket.on('rtk-group-call:declined', handleDeclined)
+    socket.on('rtk-group-call:not-answered', handleNotAnswered)
     socket.on('conversation:call-started', handleConversationCallStarted)
     socket.on('conversation:call-ended', handleConversationCallEnded)
 
@@ -1224,6 +1243,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       socket.off('rtk-group-call:invite', handleInvite)
       socket.off('rtk-group-call:ended', handleCallEnded)
       socket.off('rtk-group-call:declined', handleDeclined)
+      socket.off('rtk-group-call:not-answered', handleNotAnswered)
       socket.off('conversation:call-started', handleConversationCallStarted)
       socket.off('conversation:call-ended', handleConversationCallEnded)
     }

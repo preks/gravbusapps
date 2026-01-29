@@ -36,7 +36,7 @@ export interface UseRealtimeKitParticipantsReturn {
     overrideCallType?: 'audio' | 'video'
   ) => void
   reconnectParticipant: (participantId: string) => Promise<void>
-  handleDeclinedInvite: (participantId: string) => void
+  handleDeclinedInvite: (participantId: string, status?: 'declined' | 'not-answered') => void
 }
 
 /**
@@ -122,7 +122,8 @@ export const useRealtimeKitParticipants = ({
             odId: p.odId,
             odName: p.odName,
             avatarUrl: p.avatarUrl,
-            invitedAt: now
+            invitedAt: now,
+            status: 'pending'
           })
         }
         return updated
@@ -408,16 +409,22 @@ export const useRealtimeKitParticipants = ({
   }, [meeting, callStatus, updateParticipantList])
 
   /**
-   * Handle declined invite by removing participant from pending invites
-   * This allows the UI to reset and enable the "Invite" button again
+   * Handle declined invite by updating the status
+   * This allows the UI to show appropriate status text
    */
-  const handleDeclinedInvite = useCallback((participantId: string) => {
-    setPendingInvites(prev => {
-      const newMap = new Map(prev)
-      newMap.delete(participantId)
-      return newMap
-    })
-  }, [])
+  const handleDeclinedInvite = useCallback(
+    (participantId: string, status: 'declined' | 'not-answered' = 'declined') => {
+      setPendingInvites(prev => {
+        const newMap = new Map(prev)
+        const invite = newMap.get(participantId)
+        if (invite) {
+          newMap.set(participantId, { ...invite, status })
+        }
+        return newMap
+      })
+    },
+    []
+  )
 
   return {
     participants,
