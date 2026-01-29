@@ -736,10 +736,10 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     [wsClient, currentParticipant, meeting]
   )
 
-  // Handler to mute all participants at once via WebSocket (auto-mute on each participant's side)
+  // Handler to mute all participants at once via backend-driven WebSocket (auto-mute on each participant's side)
   const handleMuteAll = useCallback(() => {
-    if (!wsClient || !currentParticipant || !participants || participants.length === 0 || !meeting) {
-      console.error('[MUTE ALL] No WebSocket client, current participant, participants, or meeting available')
+    if (!wsClient || !currentParticipant || !callState.roomId || !meeting) {
+      console.error('[MUTE ALL] No WebSocket client, current participant, roomId, or meeting available')
       return
     }
 
@@ -749,41 +749,36 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       return
     }
 
+    // Get all participants including test participants (use stableRemotePeers which includes all)
+    const allParticipants = stableRemotePeers.length + 1 // +1 for local participant
+    const participantCount = stableRemotePeers.length
+
     try {
-      console.log('[MUTE ALL] Sending mute requests to all participants via WebSocket:', {
-        participantCount: participants.length,
+      console.log('[MUTE ALL] Sending mute-all request via backend:', {
+        roomId: callState.roomId,
+        totalParticipantCount: allParticipants,
+        remoteParticipantCount: participantCount,
         requestedBy: currentParticipant.id,
         requestedByName: currentParticipant.odName
       })
 
-      // Send individual mute requests to each participant (excluding self)
-      participants.forEach(participant => {
-        if (participant.id !== currentParticipant.id) {
-          const participantName = (participant as RealtimeKitPeer).name || participant.odName || 'Unknown'
-
-          // Get the customParticipantId from the meeting peer (this is the user's DB ID)
-          const targetPeer = meeting.participants?.joined?.get(participant.id)
-          const targetUserId = targetPeer?.customParticipantId || participant.id
-
-          socket.emit('group-call:request-mute', {
-            targetParticipantId: targetUserId, // User's DB ID for Socket.IO room routing
-            targetParticipantName: participantName,
-            requestedBy: currentParticipant.id,
-            requestedByName: currentParticipant.odName
-          })
-        }
+      // Use backend-driven mute-all endpoint that broadcasts to all participants in the room
+      socket.emit('group-call:request-mute-all', {
+        roomId: callState.roomId,
+        requestedBy: currentParticipant.id,
+        requestedByName: currentParticipant.odName
       })
 
-      toast.success(`Mute requests sent to ${participants.length - 1} participants`, {
+      toast.success(`Mute request sent to all ${participantCount} participants`, {
         duration: 2000
       })
     } catch (error) {
-      console.error('[MUTE ALL] Failed to send mute requests:', error)
+      console.error('[MUTE ALL] Failed to send mute-all request:', error)
       toast.error('Failed to mute all participants', {
         duration: 3000
       })
     }
-  }, [wsClient, currentParticipant, participants, meeting])
+  }, [wsClient, currentParticipant, callState.roomId, meeting, stableRemotePeers.length])
 
   // Track local video element initialization
   const localVideoInitializedRef = useRef(false)

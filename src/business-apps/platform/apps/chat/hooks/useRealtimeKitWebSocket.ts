@@ -584,6 +584,61 @@ export const useRealtimeKitWebSocket = ({
   }, [wsClient, meetingId, meeting, onMuteRequested])
 
   /**
+   * Set up WebSocket event listener for mute-all requests
+   * Auto-mutes the local participant when mute-all is requested
+   */
+  useEffect(() => {
+    // Early return if not in an active call
+    if (!meeting) {
+      return
+    }
+
+    const socket = wsClient?.getSocket()
+    if (!socket || !meetingId) {
+      rtkDebug.log('[RTK] Cannot attach mute-all listener yet', {
+        hasSocket: !!socket,
+        hasMeetingId: !!meetingId
+      })
+      return
+    }
+
+    const handleMuteAllRequested = (data: { requestedBy: string; requestedByName: string; roomId: string }) => {
+      rtkDebug.log('[RTK] 🔇 Received mute-all request from:', data.requestedByName)
+
+      try {
+        // Auto-mute self via RTK
+        if (meeting?.self?.disableAudio) {
+          meeting.self.disableAudio()
+          rtkDebug.log('[RTK] ✅ Auto-muted self via RTK (mute-all)')
+
+          // Show toast notification
+          toast.info(`You were muted by ${data.requestedByName} (mute all)`, {
+            duration: 3000
+          })
+        } else {
+          rtkDebug.error('[RTK] ❌ meeting.self.disableAudio not available')
+        }
+
+        // Notify via callback if provided
+        onMuteRequested?.(data.requestedByName)
+      } catch (error) {
+        rtkDebug.error('[RTK] ❌ Failed to auto-mute (mute-all):', error)
+        toast.error('Failed to mute your microphone', {
+          duration: 3000
+        })
+      }
+    }
+
+    socket.on('group-call:mute-all-requested', handleMuteAllRequested)
+    rtkDebug.log('[RTK] ✅ WebSocket listener attached for mute-all requests')
+
+    return () => {
+      socket.off('group-call:mute-all-requested', handleMuteAllRequested)
+      rtkDebug.log('[RTK] WebSocket listener removed for mute-all requests')
+    }
+  }, [wsClient, meetingId, meeting, onMuteRequested])
+
+  /**
    * Set up WebSocket event listener for participant leaving
    * Cleans up raised hand state when a participant leaves
    */
