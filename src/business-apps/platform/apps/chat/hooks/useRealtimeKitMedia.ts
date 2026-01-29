@@ -85,33 +85,40 @@ export const useRealtimeKitMedia = ({
       hasJustJoined: hasJustJoinedRef.current
     })
 
-    // CRITICAL: During initial join, trust SDK state over callType
+    // CRITICAL: During initial join OR right after connecting, trust SDK state over callType
     // User may have disabled video in pre-join dialog even for video calls
     if (isInitialJoin && meeting?.self) {
-      // Mark that we've just joined
+      // Mark that we've just joined - flag persists until user manually changes settings
       hasJustJoinedRef.current = true
 
-      // Sync React state from SDK during initial join
+      // Sync React state from SDK during initial join - ignore callType entirely
       if (isVideoEnabled !== sdkVideoEnabled) {
         rtkDebug.log('[RTK Media] Initial join - syncing from SDK state instead of callType:', {
           sdkVideoEnabled,
-          callType
+          callType,
+          isVideoEnabled
         })
         setIsVideoEnabled(sdkVideoEnabled)
       }
       return
     }
 
-    // CRITICAL: If we just joined, respect SDK state for first few seconds after connecting
+    // CRITICAL: Right after connecting, respect SDK state for a brief period
     // This prevents overriding user preferences when transitioning from joining to connected
     if (hasJustJoinedRef.current && isConnected) {
-      rtkDebug.log('[RTK Media] Just joined - keeping SDK state instead of forcing callType:', {
-        sdkVideoEnabled,
-        callType,
-        willNotOverride: true
-      })
+      // Sync from SDK one more time after connecting
+      if (isVideoEnabled !== sdkVideoEnabled) {
+        rtkDebug.log('[RTK Media] Post-join sync - keeping SDK state instead of forcing callType:', {
+          sdkVideoEnabled,
+          callType,
+          isVideoEnabled
+        })
+        setIsVideoEnabled(sdkVideoEnabled)
+      }
+
       // Clear the flag after a short delay to allow normal mid-call upgrades later
       setTimeout(() => {
+        rtkDebug.log('[RTK Media] Clearing hasJustJoined flag - mid-call upgrades now allowed')
         hasJustJoinedRef.current = false
       }, 2000)
       return

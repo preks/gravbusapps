@@ -590,7 +590,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       callType: CallType,
       meetingId?: string,
       conversationName?: string,
-      initialPreferences?: { micEnabled: boolean; cameraEnabled: boolean }
+      initialPreferences?: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled?: boolean }
     ) => {
       if (!currentUser || !apiClient) {
         rtkDebug.error('[RTK] Cannot join call: missing currentUser or apiClient')
@@ -603,7 +603,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           callType,
           meetingId: meetingId || 'will-generate',
           conversationName,
-          currentStatus: callState.status
+          currentStatus: callState.status,
+          preferences: initialPreferences
         })
 
         // When joining an existing meeting, we need to call addParticipant to get participant auth token
@@ -656,10 +657,17 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         // If preferences provided from invite dialog, use those; otherwise use call type defaults
         const shouldEnableAudio = initialPreferences?.micEnabled ?? true
         const shouldEnableVideo = initialPreferences?.cameraEnabled ?? callType === 'video'
+        const shouldEnableBackground = initialPreferences?.backgroundEnabled ?? preferences.backgroundEnabled
+
+        // Save background preference if explicitly provided (persists for future calls)
+        if (initialPreferences?.backgroundEnabled !== undefined) {
+          preferences.setBackgroundEnabled(initialPreferences.backgroundEnabled)
+        }
 
         rtkDebug.log('[RTK] Initializing meeting with preferences:', {
           audio: shouldEnableAudio,
           video: shouldEnableVideo,
+          background: shouldEnableBackground,
           fromPreferences: !!initialPreferences,
           callType
         })
@@ -787,7 +795,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
    * Accept incoming invite
    */
   const acceptInvite = useCallback(
-    async (initialPreferences?: { micEnabled: boolean; cameraEnabled: boolean }) => {
+    async (initialPreferences?: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => {
       if (!incomingInvite) return
 
       rtkDebug.log('[RTK] Accepting invite with preferences:', {
@@ -803,14 +811,14 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       // - conversationId from invite.conversationId
       // - meetingId from invite.roomId (backend meeting ID)
       // - conversationName from invite.conversationName
-      // - initial preferences from pre-call dialog
+      // - initial preferences from pre-call dialog (mic/camera/background)
       // Don't use the wrapper because invite has all the info we need!
       await joinCall(
         incomingInvite.conversationId || incomingInvite.roomId, // conversationId
         incomingInvite.callType,
         incomingInvite.roomId, // meetingId (stored in roomId field of invite)
         incomingInvite.conversationName, // conversationName
-        initialPreferences // initial mic/camera settings
+        initialPreferences // initial mic/camera/background settings
       )
       setIncomingInvite(null)
     },
