@@ -755,7 +755,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
     try {
       console.log('[MUTE ALL] Sending mute-all request via backend:', {
-        roomId: callState.roomId,
+        conversationId: callState.roomId, // roomId is actually the conversationId
         totalParticipantCount: allParticipants,
         remoteParticipantCount: participantCount,
         requestedBy: currentParticipant.id,
@@ -764,7 +764,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
       // Use backend-driven mute-all endpoint that broadcasts to all participants in the room
       socket.emit('group-call:request-mute-all', {
-        roomId: callState.roomId,
+        conversationId: callState.roomId, // roomId is the conversationId in our state
         requestedBy: currentParticipant.id,
         requestedByName: currentParticipant.odName
       })
@@ -2589,6 +2589,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                       localHandRaised={callState.handRaised}
                       localUserId={meeting?.self?.userId}
                       activeConversation={activeConversation}
+                      t={t}
                     />
                   )}
                   {sidebarView === 'chat' && apiClient && accessToken && (

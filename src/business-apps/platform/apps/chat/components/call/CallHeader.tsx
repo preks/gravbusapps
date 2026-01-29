@@ -83,7 +83,7 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
     <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-2.5 gba:flex-shrink-0">
       {/* Left side - Title and info */}
       <div className="gba:flex gba:items-center gba:gap-3">
-        <h3 className="gba:font-semibold gba:text-sm">{conversationName || t('groupCall-title') || 'Group Call'}</h3>
+        <h3 className="gba:font-semibold gba:text-sm">{conversationName || t('groupCall-title')}</h3>
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
           {/* Duration - updates independently */}
           <span className="gba:font-mono gba:font-medium">{formatDuration(duration)}</span>
@@ -109,8 +109,8 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
               showChatPanel ? 'gba:bg-accent gba:shadow-inner' : 'hover:gba:bg-accent'
             }`}
             data-testid={`${prefixDataTestId}-chat-btn`}
-            aria-label="Chat"
-            title="Chat"
+            aria-label={t('groupCall-chat')}
+            title={t('groupCall-chat')}
           >
             <MessageSquare
               className={`gba:w-4 gba:h-4 ${unreadChatCount > 0 && !showChatPanel ? 'gba:text-primary' : ''}`}
@@ -136,8 +136,8 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
               showParticipantsPanel ? 'gba:bg-accent' : 'hover:gba:bg-accent'
             }`}
             data-testid={`${prefixDataTestId}-participants-btn`}
-            aria-label="Participants"
-            title="Participants"
+            aria-label={t('groupCall-participants')}
+            title={t('groupCall-participants')}
           >
             <Users className="gba:w-4 gba:h-4" />
             {/* Participant count badge */}
@@ -153,8 +153,8 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
             onClick={onToggleMinimize}
             className="gba:p-1.5 gba:rounded hover:gba:bg-accent gba:transition-colors"
             data-testid={`${prefixDataTestId}-minimize-btn`}
-            aria-label="Minimize"
-            title="Minimize"
+            aria-label={t('groupCall-minimize')}
+            title={t('groupCall-minimize')}
           >
             <Minimize2 className="gba:w-4 gba:h-4" />
           </button>

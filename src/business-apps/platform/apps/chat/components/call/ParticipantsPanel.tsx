@@ -330,23 +330,23 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
       {/* Header */}
       <div className="gba:px-4 gba:pt-2.5 gba:pb-4 gba:border-b gba:flex-shrink-0">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
-          <h3 className="gba:font-semibold gba:text-sm">Participants</h3>
+          <h3 className="gba:font-semibold gba:text-sm">{t('groupCall-participants')}</h3>
           <div className="gba:flex gba:items-center gba:gap-2">
             {onMuteAll && activeParticipants.length > 0 && (
               <button
                 onClick={onMuteAll}
                 className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive-secondary gba:text-destructive-secondary-foreground hover:gba:bg-destructive gba:rounded gba:transition-colors"
-                aria-label="Mute all participants"
+                aria-label={t('participants-mute-all')}
                 data-testid={`${prefixDataTestId}-mute-all-btn`}
               >
                 <SpeakerXIcon className="gba:h-4 gba:w-4 gba:inline gba:mr-1" weight="fill" />
-                Mute All
+                {t('participants-mute-all')}
               </button>
             )}
             <button
               onClick={onClose}
               className="gba:p-1 hover:gba:bg-muted gba:rounded gba:transition-colors"
-              aria-label="Close"
+              aria-label={t('participants-close')}
               data-testid={`${prefixDataTestId}-participants-panel-close`}
             >
               <XIcon className="gba:h-5 gba:w-5" />
@@ -362,7 +362,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
           />
           <input
             type="text"
-            placeholder="Search participants..."
+            placeholder={t('chat-searchPeople')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="gba:w-full gba:pl-10 gba:pr-3 gba:py-2 gba:rounded gba:border gba:bg-background"
@@ -383,16 +383,16 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
               <div className="gba:flex gba:flex-col gba:items-center gba:gap-3">
                 <MagnifyingGlassIcon className="gba:h-12 gba:w-12 gba:text-muted-foreground/50" weight="light" />
                 <div>
-                  <p className="gba:font-medium gba:text-foreground gba:mb-1">No results found</p>
+                  <p className="gba:font-medium gba:text-foreground gba:mb-1">{t('participants-no-results-found')}</p>
                   <p className="gba:text-sm gba:text-muted-foreground gba:mb-3">
-                    Try a different search term or browse all participants
+                    {t('participants-try-different-search')}
                   </p>
                   <button
                     onClick={() => setSearchQuery('')}
                     className="gba:px-4 gba:py-2 gba:bg-secondary gba:text-secondary-foreground hover:gba:bg-secondary/80 gba:rounded gba:text-sm gba:font-medium gba:transition-colors"
                     data-testid={`${prefixDataTestId}-clear-search-btn`}
                   >
-                    Clear Search
+                    {t('participants-clear-search')}
                   </button>
                 </div>
               </div>
@@ -401,15 +401,13 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
               <div className="gba:flex gba:flex-col gba:items-center gba:gap-3">
                 <div className="gba:text-4xl">🎉</div>
                 <div>
-                  <p className="gba:font-medium gba:text-foreground gba:mb-1">Everyone's here!</p>
-                  <p className="gba:text-sm gba:text-muted-foreground">
-                    All conversation members are either in the call or have been invited.
-                  </p>
+                  <p className="gba:font-medium gba:text-foreground gba:mb-1">{t('participants-everyones-here')}</p>
+                  <p className="gba:text-sm gba:text-muted-foreground">{t('participants-all-members-in-call')}</p>
                 </div>
               </div>
             ) : (
               // Generic no participants
-              <p className="gba:text-muted-foreground">{t('groupCall-noParticipants') || 'No participants'}</p>
+              <p className="gba:text-muted-foreground">{t('groupCall-waitingForParticipants')}</p>
             )}
           </div>
         ) : (
@@ -418,7 +416,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
             {filteredActiveParticipants.length > 0 && (
               <div>
                 <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:sticky gba:top-0">
-                  In Call ({filteredActiveParticipants.length})
+                  {t('participants-in-call')} ({filteredActiveParticipants.length})
                 </div>
                 {filteredActiveParticipants.map((participant: any) => {
                   const isLocalUser = participant.id === meeting?.self?.id
@@ -447,19 +445,21 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                                 avatarUrlMap.get(participant.customParticipantId) ||
                                 avatarUrlMap.get(participant.id)
                               }
-                              alt={participant.name || 'Unknown'}
+                              alt={participant.name || t('participants-unknown')}
                             />
                           )}
                           <AvatarFallback className="gba:text-xs">
-                            {getInitials(participant.name || 'Unknown')}
+                            {getInitials(participant.name || t('participants-unknown'))}
                           </AvatarFallback>
                         </Avatar>
                         <div className="gba:flex-1 gba:min-w-0">
                           <p className="gba:text-sm gba:font-medium gba:truncate">
-                            {participant.name || 'Unknown'}
-                            {isLocalUser && ' (You)'}
+                            {participant.name || t('participants-unknown')}
+                            {isLocalUser && ` (${t('participants-you')})`}
                             {isActiveSpeakerNow && (
-                              <span className="gba:ml-2 gba:text-xs gba:text-primary gba:font-semibold">Speaking</span>
+                              <span className="gba:ml-2 gba:text-xs gba:text-primary gba:font-semibold">
+                                {t('participants-speaking')}
+                              </span>
                             )}
                           </p>
                           <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
@@ -503,7 +503,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                           <DropdownMenuTrigger asChild>
                             <button
                               className="gba:p-1 hover:gba:bg-muted gba:rounded gba:flex-shrink-0 gba:transition-colors"
-                              aria-label="More actions"
+                              aria-label={t('participants-more-options')}
                               data-testid={`${prefixDataTestId}-participant-menu-${participant.id}`}
                             >
                               <DotsThreeVerticalIcon className="gba:h-4 gba:w-4" weight="bold" />
@@ -511,11 +511,13 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem
-                              onClick={() => onMuteParticipant(participant.id, participant.name || 'Unknown')}
+                              onClick={() =>
+                                onMuteParticipant(participant.id, participant.name || t('participants-unknown'))
+                              }
                               data-testid={`${prefixDataTestId}-participant-mute-${participant.id}`}
                             >
                               <SpeakerXIcon className="gba:h-4 gba:w-4 gba:mr-2" weight="fill" />
-                              Mute participant
+                              {t('participants-mute')}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -530,18 +532,18 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
             {filteredPendingInvites.length > 0 && (
               <div>
                 <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase">
-                  Invited ({filteredPendingInvites.length})
+                  {t('participants-invited')} ({filteredPendingInvites.length})
                 </div>
                 {filteredPendingInvites.map((invite: PendingInvite) => {
                   const getStatusText = () => {
                     switch (invite.status) {
                       case 'declined':
-                        return 'Declined invite'
+                        return t('participants-declined-invite')
                       case 'not-answered':
-                        return 'Not answered'
+                        return t('participants-not-answered')
                       case 'pending':
                       default:
-                        return 'Ringing...'
+                        return t('participants-ringing')
                     }
                   }
 
@@ -568,15 +570,18 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                       <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:min-w-0">
                         <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0 gba:opacity-60">
                           {avatarUrlMap.get(invite.odId) && (
-                            <AvatarImage src={avatarUrlMap.get(invite.odId)} alt={invite.odName || 'Unknown'} />
+                            <AvatarImage
+                              src={avatarUrlMap.get(invite.odId)}
+                              alt={invite.odName || t('participants-unknown')}
+                            />
                           )}
                           <AvatarFallback className="gba:text-xs">
-                            {getInitials(invite.odName || 'Unknown')}
+                            {getInitials(invite.odName || t('participants-unknown'))}
                           </AvatarFallback>
                         </Avatar>
                         <div className="gba:flex-1 gba:min-w-0">
                           <p className="gba:text-sm gba:font-medium gba:truncate gba:text-muted-foreground">
-                            {invite.odName || 'Unknown'}
+                            {invite.odName || t('participants-unknown')}
                           </p>
                           <p className={`gba:text-xs ${getStatusColor()}`}>{getStatusText()}</p>
                         </div>
@@ -592,18 +597,18 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                           }
                           disabled={invitingParticipantIds.has(invite.odId)}
                           className="gba:px-3 gba:py-1.5 gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90 disabled:gba:bg-primary/60 disabled:gba:cursor-not-allowed gba:rounded gba:flex gba:items-center gba:gap-2 gba:text-xs gba:font-medium gba:transition-colors gba:flex-shrink-0"
-                          aria-label={`Re-invite ${invite.odName}`}
+                          aria-label={`${t('participants-invite')} ${invite.odName}`}
                           data-testid={`${prefixDataTestId}-reinvite-btn-${invite.odId}`}
                         >
                           {invitingParticipantIds.has(invite.odId) ? (
                             <>
                               <Spinner className="gba:h-3 gba:w-3" />
-                              Inviting...
+                              {t('participants-inviting')}
                             </>
                           ) : (
                             <>
                               <PhoneIcon className="gba:h-3 gba:w-3" weight="fill" />
-                              Invite
+                              {t('participants-invite')}
                             </>
                           )}
                         </button>
@@ -618,7 +623,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
             {filteredNotInCallParticipants.length > 0 && (
               <div>
                 <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:sticky gba:top-0">
-                  Available ({filteredNotInCallParticipants.length})
+                  {t('participants-available')} ({filteredNotInCallParticipants.length})
                 </div>
                 {filteredNotInCallParticipants.map(participant => (
                   <div
@@ -629,15 +634,20 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                     <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:min-w-0">
                       <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
                         {avatarUrlMap.get(participant.odId) && (
-                          <AvatarImage src={avatarUrlMap.get(participant.odId)} alt={participant.odName || 'Unknown'} />
+                          <AvatarImage
+                            src={avatarUrlMap.get(participant.odId)}
+                            alt={participant.odName || t('participants-unknown')}
+                          />
                         )}
                         <AvatarFallback className="gba:text-xs">
-                          {getInitials(participant.odName || 'Unknown')}
+                          {getInitials(participant.odName || t('participants-unknown'))}
                         </AvatarFallback>
                       </Avatar>
                       <div className="gba:flex-1 gba:min-w-0">
-                        <p className="gba:text-sm gba:font-medium gba:truncate">{participant.odName || 'Unknown'}</p>
-                        <p className="gba:text-xs gba:text-muted-foreground">Not in call</p>
+                        <p className="gba:text-sm gba:font-medium gba:truncate">
+                          {participant.odName || t('participants-unknown')}
+                        </p>
+                        <p className="gba:text-xs gba:text-muted-foreground">{t('participants-available-to-invite')}</p>
                       </div>
                     </div>
                     {onInviteParticipant && (
@@ -645,18 +655,18 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                         onClick={() => handleInviteClick(participant)}
                         disabled={invitingParticipantIds.has(participant.odId)}
                         className="gba:px-3 gba:py-1.5 gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90 disabled:gba:bg-primary/60 disabled:gba:cursor-not-allowed gba:rounded gba:flex gba:items-center gba:gap-2 gba:text-xs gba:font-medium gba:transition-colors gba:flex-shrink-0"
-                        aria-label={`Invite ${participant.odName}`}
+                        aria-label={`${t('participants-invite')} ${participant.odName}`}
                         data-testid={`${prefixDataTestId}-invite-btn-${participant.odId}`}
                       >
                         {invitingParticipantIds.has(participant.odId) ? (
                           <>
                             <Spinner className="gba:h-3 gba:w-3" />
-                            Inviting...
+                            {t('participants-inviting')}
                           </>
                         ) : (
                           <>
                             <PhoneIcon className="gba:h-3 gba:w-3" weight="fill" />
-                            Invite
+                            {t('participants-invite')}
                           </>
                         )}
                       </button>

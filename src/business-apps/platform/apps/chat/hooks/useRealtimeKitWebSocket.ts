@@ -602,7 +602,12 @@ export const useRealtimeKitWebSocket = ({
       return
     }
 
-    const handleMuteAllRequested = (data: { requestedBy: string; requestedByName: string; roomId: string }) => {
+    const handleMuteAllRequested = (data: {
+      requestedBy: string
+      requestedByName: string
+      conversationId: string
+      meetingId: string
+    }) => {
       rtkDebug.log('[RTK] 🔇 Received mute-all request from:', data.requestedByName)
 
       try {

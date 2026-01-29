@@ -63,7 +63,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:rounded-lg gba:bg-muted gba:text-muted-foreground">
         <div className="gba:text-center">
           <Users className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-2" />
-          <p>{t('groupCall-waitingForParticipants') || 'Waiting for participants...'}</p>
+          <p>{t('groupCall-waitingForParticipants')}</p>
         </div>
       </div>
     )
@@ -131,7 +131,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
             disabled={currentPage === 0}
             className="gba:p-2 gba:rounded-lg hover:gba:bg-accent disabled:gba:opacity-50 disabled:gba:cursor-not-allowed gba:transition-colors"
             data-testid={`${prefixDataTestId}-prev-page-btn`}
-            aria-label="Previous page"
+            aria-label={t('videogrid-previous-page')}
           >
             <ChevronLeft className="gba:w-5 gba:h-5" />
           </button>
@@ -139,10 +139,10 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
           {/* Page info */}
           <div className="gba:flex gba:items-center gba:gap-2">
             <span className="gba:text-sm gba:text-muted-foreground">
-              Page {currentPage + 1} of {totalPages}
+              {t('videogrid-page-info', { current: currentPage + 1, total: totalPages })}
             </span>
             <span className="gba:text-xs gba:text-muted-foreground gba:px-2 gba:py-1 gba:rounded gba:bg-muted/50">
-              {totalItems} participants
+              {totalItems} {t('groupCall-participants')}
             </span>
           </div>
 
@@ -152,7 +152,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
             disabled={currentPage >= totalPages - 1}
             className="gba:p-2 gba:rounded-lg hover:gba:bg-accent disabled:gba:opacity-50 disabled:gba:cursor-not-allowed gba:transition-colors"
             data-testid={`${prefixDataTestId}-next-page-btn`}
-            aria-label="Next page"
+            aria-label={t('videogrid-next-page')}
           >
             <ChevronRight className="gba:w-5 gba:h-5" />
           </button>
