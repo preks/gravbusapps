@@ -143,7 +143,7 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
     )
   }
 
-  const metadata = caseData.state.metadata
+  const metadata = caseData.state?.metadata || {}
   const canComplete = canCompleteCase(caseData)
 
   // Calculate blocking flows (active flows not in terminal state)

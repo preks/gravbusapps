@@ -40,6 +40,9 @@ export const CaseManagement: React.FC<CaseManagementProps> = ({
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [recentCases, setRecentCases] = useState<Case[]>([])
+  const [_isLoadingRecent, setIsLoadingRecent] = useState(false)
+  // Suppress unused variable warning - isLoadingRecent reserved for future loading indicator
+  void _isLoadingRecent
 
   const client = new CaseApiClient(BASE_URL, context.accessToken)
 

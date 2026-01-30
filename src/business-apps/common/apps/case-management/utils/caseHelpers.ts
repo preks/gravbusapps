@@ -18,7 +18,8 @@ export const isFlowTerminal = (flow: LinkedFlow | null | undefined): boolean => 
  * All active (non-removed) flows must be in terminal state
  */
 export const canCompleteCase = (caseData: Case): boolean => {
-  const activeFlows = caseData.state.linkedFlows.filter(flow => !flow.removedAt)
+  const linkedFlows = caseData.state?.linkedFlows || []
+  const activeFlows = linkedFlows.filter(flow => !flow.removedAt)
 
   if (activeFlows.length === 0) {
     return true // No flows to block completion
@@ -31,7 +32,8 @@ export const canCompleteCase = (caseData: Case): boolean => {
  * Get blocking flows (non-terminal active flows)
  */
 export const getBlockingFlows = (caseData: Case): LinkedFlow[] => {
-  return caseData.state.linkedFlows.filter(flow => !flow.removedAt && !isFlowTerminal(flow))
+  const linkedFlows = caseData.state?.linkedFlows || []
+  return linkedFlows.filter(flow => !flow.removedAt && !isFlowTerminal(flow))
 }
 
 /**
@@ -107,7 +109,7 @@ export const formatRelativeTime = (date: string | Date): string => {
  * Calculate average completion time in hours
  */
 export const calculateAverageCompletionTime = (cases: Case[]): number => {
-  const completedCases = cases.filter(c => c.state.metadata?.status === 'completed')
+  const completedCases = cases.filter(c => c.state?.metadata?.status === 'completed')
 
   if (completedCases.length === 0) return 0
 
@@ -152,12 +154,12 @@ export const sortCases = (
         comparison = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime()
         break
       case 'status':
-        comparison = (a.state.metadata?.status || '').localeCompare(b.state.metadata?.status || '')
+        comparison = (a.state?.metadata?.status || '').localeCompare(b.state?.metadata?.status || '')
         break
       case 'priority':
         const priorityOrder = { low: 1, medium: 2, high: 3 }
-        const aPriority = priorityOrder[a.state.metadata?.priority || 'low']
-        const bPriority = priorityOrder[b.state.metadata?.priority || 'low']
+        const aPriority = priorityOrder[a.state?.metadata?.priority || 'low']
+        const bPriority = priorityOrder[b.state?.metadata?.priority || 'low']
         comparison = aPriority - bPriority
         break
     }
@@ -177,8 +179,8 @@ export const filterCasesBySearch = (cases: Case[], searchTerm: string): Case[] =
   const term = searchTerm.toLowerCase()
 
   return cases.filter(c => {
-    const title = c.state.metadata?.title?.toLowerCase() || ''
-    const description = c.state.metadata?.description?.toLowerCase() || ''
+    const title = c.state?.metadata?.title?.toLowerCase() || ''
+    const description = c.state?.metadata?.description?.toLowerCase() || ''
     const caseId = c.caseId.toLowerCase()
 
     return title.includes(term) || description.includes(term) || caseId.includes(term)
