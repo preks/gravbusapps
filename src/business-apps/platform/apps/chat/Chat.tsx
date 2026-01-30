@@ -374,13 +374,15 @@ const ChatInner: React.FC<ChatProps> = memo(
     const meshGroupCall = useGroupCall({
       wsClient: wsClient || null,
       apiClient: apiClient || null,
-      currentUser: currentUserAsParticipant
+      currentUser: currentUserAsParticipant,
+      accessToken: stableAccessToken
     })
 
     const realtimeKitGroupCall = useRealtimeKitGroupCall({
       wsClient: wsClient || null,
       apiClient: realtimeKitApiClient,
-      currentUser: currentUserAsParticipant
+      currentUser: currentUserAsParticipant,
+      accessToken: stableAccessToken
     })
 
     // Route to appropriate implementation based on feature flag

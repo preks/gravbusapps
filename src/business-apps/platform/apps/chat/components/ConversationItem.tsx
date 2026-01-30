@@ -13,7 +13,7 @@ import {
 } from '@newwork/nw-design-system'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
-import { UserIcon, UsersIcon, Sparkles } from 'lucide-react'
+import { UserIcon, UsersIcon, Sparkles, CalendarIcon } from 'lucide-react'
 import { SignOut } from '@phosphor-icons/react'
 
 interface ConversationItemProps {
@@ -115,8 +115,10 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   const [isHovered, setIsHovered] = useState(false)
 
   // Only show presence for direct messages (default to offline if no presence data)
+  // Map 'away' to 'offline' for display purposes (PresenceIndicator only shows online/offline)
   const showPresence = conversation.type === 'direct'
-  const presenceStatus = otherUserPresence?.status || 'offline'
+  const rawPresenceStatus = otherUserPresence?.status || 'offline'
+  const presenceStatus: 'online' | 'offline' = rawPresenceStatus === 'online' ? 'online' : 'offline'
   const hasActiveCall = conversation.type === 'group' && !!conversation.activeCall
 
   // Get names of participants currently in the call
@@ -186,12 +188,12 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
       >
         <div className="gba:relative gba:flex-shrink-0">
           {conversation.type === 'group' ? (
-            // Group chat: always show group icon
+            // Group chat: show calendar icon for meeting chats, group icon for regular
             <div className="gba:relative">
               <IconAvatar
                 className={`${avatarSize} ${hasActiveExperts ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2 gba:ring-offset-background' : ''}`}
                 label={name}
-                icon={UsersIcon}
+                icon={conversation.metadata?.type === 'meeting' ? CalendarIcon : UsersIcon}
               />
               {hasActiveExperts && (
                 <div className="gba:absolute gba:-bottom-1 gba:-right-1 gba:w-4 gba:h-4 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:flex gba:items-center gba:justify-center gba:border-2 gba:border-background gba:shadow-md">

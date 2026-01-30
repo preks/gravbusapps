@@ -416,6 +416,8 @@ calendar-accept = Zusagen
 calendar-maybe = Vielleicht
 calendar-decline = Absagen
 calendar-joinCall = Anruf beitreten
+calendar-startMeeting = Meeting starten
+calendar-joinMeeting = Meeting beitreten
 calendar-chat = Chat
 calendar-edit = Bearbeiten
 

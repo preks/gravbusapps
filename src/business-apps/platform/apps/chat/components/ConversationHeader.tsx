@@ -15,7 +15,7 @@ import {
   DialogTitle
 } from '@newwork/nw-design-system'
 import { ArrowLeft, DotsThreeVertical, SignOut, X, Info, Users } from '@phosphor-icons/react'
-import { UserIcon, Phone, Video, PhoneCall, UserPlus, Bell } from 'lucide-react'
+import { UserIcon, Phone, Video, PhoneCall, UserPlus, Bell, CalendarIcon } from 'lucide-react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -252,7 +252,11 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
               <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
             </Avatar>
           ) : (
-            <IconAvatar className={avatarSize} label={name} icon={isGroupChat ? Users : UserIcon} />
+            <IconAvatar
+              className={avatarSize}
+              label={name}
+              icon={isGroupChat ? (conversation.metadata?.type === 'meeting' ? CalendarIcon : Users) : UserIcon}
+            />
           )}
           {isDirectChat && <PresenceIndicator status={presenceStatus} size={compact ? 'sm' : 'md'} t={t} />}
         </div>

@@ -596,17 +596,18 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
           })) || []
       })
 
-      // Use meeting ID as conversationId for RealtimeKit calls
-      // This ensures each calendar meeting has its own isolated call
-      // NOTE: We use meeting ID, NOT the conversationId field, to prevent meetings from
-      // accidentally sharing calls with chat conversations or other meetings
-      const conversationId = enrichedSelectedEvent.id
+      // Determine which ID to use as conversationId for the call
+      // If the meeting is linked to a chat conversation, use the conversation ID
+      // This ensures that starting a call from chat or calendar creates the same meeting
+      // If not linked, use the meeting ID to create an isolated meeting call
+      const conversationId = enrichedSelectedEvent.conversationId || enrichedSelectedEvent.id
 
       rtkDebug.log('[Calendar] Starting call for meeting:', {
         meetingId: enrichedSelectedEvent.id,
         meetingTitle: enrichedSelectedEvent.title,
-        conversationId: enrichedSelectedEvent.conversationId, // For reference only
+        linkedConversationId: enrichedSelectedEvent.conversationId,
         usingConversationId: conversationId,
+        isLinkedToChat: !!enrichedSelectedEvent.conversationId,
         participants: enrichedSelectedEvent.participants?.map(p => ({ id: p.id, name: p.displayName || p.email })) || []
       })
 
@@ -701,16 +702,24 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
             return
           }
 
-          // Start a new group call with the meeting ID as conversationId
+          // Start a new group call with the conversationId
+          // If linked to a chat, this will be the conversation ID (ensuring same room as chat calls)
+          // If not linked, this will be the meeting ID (creating an isolated meeting call)
           // Backend will return existing meeting if one exists for this conversationId
-          // Even if no other participants yet, we can start the call (they can join via invite)
           rtkDebug.log('[Calendar] Starting new RealtimeKit group call for meeting:', {
             conversationId,
+            isLinkedToChat: !!enrichedSelectedEvent.conversationId,
             meetingTitle: enrichedSelectedEvent.title,
             participantCount: callParticipants.length,
             participants: callParticipants.map(p => ({ id: p.id, name: p.odName }))
           })
-          startGroupCall(conversationId, 'video', callParticipants, enrichedSelectedEvent.title)
+          startGroupCall(
+            conversationId,
+            'video',
+            callParticipants,
+            enrichedSelectedEvent.title
+            // No linkedConversationId - using conversation ID directly as room ID
+          )
         }
       } else {
         // Old mesh implementation
@@ -750,6 +759,35 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
     isInGroupCall,
     groupCallState.roomId
   ])
+
+  // Handle quick join from calendar event item
+  const handleQuickJoinCall = useCallback(
+    (event: CalendarEvent) => {
+      if (!currentUser) return
+
+      // Use conversation ID if linked, otherwise use meeting ID
+      const conversationId = event.conversationId || event.id
+
+      // Check if there's an active call
+      const existingCall = activeConversationCalls?.get(conversationId)
+
+      if (existingCall && existingCall.roomId) {
+        rtkDebug.log('[Calendar] Quick joining existing call from event:', {
+          eventId: event.id,
+          conversationId,
+          roomId: existingCall.roomId
+        })
+
+        // Join the existing call
+        joinGroupCall(existingCall.roomId, 'video', undefined)
+      } else {
+        // No active call found, fall back to opening detail modal
+        selectEvent(event)
+        setIsDetailModalOpen(true)
+      }
+    },
+    [currentUser, activeConversationCalls, joinGroupCall, selectEvent]
+  )
 
   // Handle rejoin with user preferences
   const handleRejoinWithPreferences = useCallback(
@@ -829,6 +867,8 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
             events={events}
             onEventClick={handleEventClick}
             onTimeSlotClick={handleTimeSlotClick}
+            activeConversationCalls={activeConversationCalls}
+            onJoinCall={handleQuickJoinCall}
           />
         )
       case 'week':
@@ -838,6 +878,8 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
             events={events}
             onEventClick={handleEventClick}
             onTimeSlotClick={handleTimeSlotClick}
+            activeConversationCalls={activeConversationCalls}
+            onJoinCall={handleQuickJoinCall}
           />
         )
       case 'month':
@@ -848,6 +890,7 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
             events={events}
             onEventClick={handleEventClick}
             onDayClick={handleDayClick}
+            activeConversationCalls={activeConversationCalls}
           />
         )
       default:
@@ -939,6 +982,7 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
           enrichedSelectedEvent?.meetingLink && !isInAnyCall && !isStartingCall ? handleStartCall : undefined
         }
         onOpenChat={enrichedSelectedEvent?.conversationId ? handleOpenChat : undefined}
+        activeConversationCalls={activeConversationCalls}
       />
 
       {/* 1:1 Call Components - render only when needed */}

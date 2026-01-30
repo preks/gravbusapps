@@ -22,6 +22,7 @@ export interface UseGroupCallOptions {
   onCallEnded?: (roomId: string, duration: number) => void
   onParticipantJoined?: (participant: CallParticipant) => void
   onParticipantLeft?: (participantId: string) => void
+  accessToken?: string | null
 }
 
 export interface GroupCallInvite {
@@ -30,6 +31,7 @@ export interface GroupCallInvite {
   from: { id: string; odId: string; odName: string; avatarUrl?: string }
   conversationName?: string
   conversationId?: string // The actual conversation ID for backend tracking
+  linkedConversationId?: string | null // Real conversation ID when call is from calendar meeting
 }
 
 export interface GroupCallUIState {
@@ -50,6 +52,7 @@ export interface GroupCallUIState {
   startTime: number | null
   duration: number
   callImplementation: 'mesh' | 'realtime-kit' | '1-on-1' // Track which implementation is used
+  linkedConversationId?: string | null // Real conversation ID when call is from calendar meeting
 }
 
 export interface ActiveConversationCall {
@@ -59,6 +62,7 @@ export interface ActiveConversationCall {
   startedBy: string
   startedAt?: Date | string // Global call start timestamp from backend
   conversationName?: string
+  linkedConversationId?: string | null // Real conversation ID when call is from calendar meeting
 }
 
 export type InviteStatus = 'pending' | 'declined' | 'not-answered'
@@ -90,7 +94,8 @@ export interface UseGroupCallReturn {
     roomId: string,
     callType: CallType,
     participants: CallParticipant[],
-    conversationName?: string
+    conversationName?: string,
+    linkedConversationId?: string | null
   ) => Promise<void>
   joinCall: (roomId: string, callType: CallType, initialParticipants?: CallParticipant[]) => Promise<void>
   acceptInvite: () => Promise<void>

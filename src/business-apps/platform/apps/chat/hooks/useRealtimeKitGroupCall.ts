@@ -65,7 +65,6 @@ const clearActiveCallFromStorage = () => {
     // Ignore storage errors
   }
 }
-
 export interface UseRealtimeKitGroupCallOptions {
   wsClient: ChatWebSocketClient | null
   apiClient?: RealtimeKitApiClient | null
@@ -74,6 +73,7 @@ export interface UseRealtimeKitGroupCallOptions {
   onCallEnded?: (roomId: string, duration: number) => void
   onParticipantJoined?: (participant: CallParticipant) => void
   onParticipantLeft?: (participantId: string) => void
+  accessToken?: string | null
 }
 
 interface CallState extends GroupCallUIState {
@@ -84,6 +84,7 @@ interface CallState extends GroupCallUIState {
   callStartTime: number | null
   conversationName?: string
   transcriptionEnabled: boolean
+  linkedConversationId?: string | null
 }
 
 export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions): UseGroupCallReturn => {
@@ -98,6 +99,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     callType: 'audio',
     callStartTime: null,
     transcriptionEnabled: false,
+    linkedConversationId: null,
     // GroupCallUIState required properties
     participants: [],
     hostId: null,
@@ -128,6 +130,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   const joinCallConversationIdRef = useRef<string | null>(null)
   const wasIdleRef = useRef<boolean>(true)
   const isLeavingRef = useRef<boolean>(false) // Prevent duplicate leave calls
+  const linkedConversationIdRef = useRef<string | null>(null) // Track linkedConversationId for calendar meetings
 
   // Initialize RealtimeKit SDK - returns tuple [meeting, initMeeting]
   const [meeting, initMeeting] = useRealtimeKitClient()
@@ -206,7 +209,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     localStream: media.localStream,
     callStatus: callState.status,
     emitSocketEvent: websocket.emitSocketEvent,
-    cleanupParticipantHandState: websocket.cleanupParticipantHandState
+    cleanupParticipantHandState: websocket.cleanupParticipantHandState,
+    linkedConversationId: callState.linkedConversationId
   })
 
   // Diagnostics and monitoring
@@ -279,7 +283,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       hostId: callState.hostId,
       startTime: callState.callStartTime,
       duration: callState.duration,
-      callImplementation: 'realtime-kit' as const
+      callImplementation: 'realtime-kit' as const,
+      linkedConversationId: callState.linkedConversationId
     }
 
     rtkDebug.log('[RTK] 🔄 combinedCallState recomputed:', {
@@ -297,6 +302,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     callState.isMinimized,
     callState.hostId,
     callState.callStartTime,
+    callState.linkedConversationId,
     // CRITICAL: callState.duration REMOVED - it updates every second and would cause
     // combinedCallState to be recreated every second, triggering re-renders
     media.isMuted,
@@ -355,7 +361,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       callType: CallType,
       participants: CallParticipant[],
       conversationName?: string,
-      initialPreferences?: { micEnabled?: boolean; cameraEnabled?: boolean; backgroundEnabled?: boolean }
+      linkedConversationId?: string | null
     ) => {
       if (!currentUser || !apiClient) {
         rtkDebug.error('[RTK] Cannot start call: missing currentUser or apiClient')
@@ -368,8 +374,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           callType,
           participantCount: participants.length,
           conversationName,
-          currentStatus: callState.status,
-          initialPreferences
+          linkedConversationId,
+          currentStatus: callState.status
         })
 
         // CRITICAL: Check if we were idle BEFORE changing state
@@ -409,19 +415,14 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           conversationName
         })
 
-        // Initialize meeting with initial preferences
+        // Initialize meeting with default preferences
         // Initiator defaults: audio=true, video=(depends on callType), background=true
-        const shouldEnableAudio = initialPreferences?.micEnabled ?? true
-        const shouldEnableVideo = initialPreferences?.cameraEnabled ?? callType === 'video'
-        const shouldEnableBackground = initialPreferences?.backgroundEnabled ?? true // ON by default for initiator
+        const shouldEnableAudio = true
+        const shouldEnableVideo = callType === 'video'
+        const shouldEnableBackground = true // ON by default for initiator
 
-        // Save background preference if explicitly provided (persists for future calls)
-        if (initialPreferences?.backgroundEnabled === undefined) {
-          // Initiator: save true as default
-          preferences.setBackgroundEnabled(true)
-        } else {
-          preferences.setBackgroundEnabled(initialPreferences.backgroundEnabled)
-        }
+        // Save background preference (persists for future calls)
+        preferences.setBackgroundEnabled(true)
 
         rtkDebug.log('[RTK] Initializing meeting with preferences:', {
           hasAuthToken: !!authToken,
@@ -429,8 +430,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           callType,
           audio: shouldEnableAudio,
           video: shouldEnableVideo,
-          background: shouldEnableBackground,
-          fromPreferences: !!initialPreferences
+          background: shouldEnableBackground
         })
 
         const initializedMeeting = await initMeeting({
@@ -494,8 +494,9 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           roomState: initializedMeeting.self?.roomState
         })
 
-        // Store conversationId for tracking
+        // Store conversationId and linkedConversationId for tracking
         conversationIdRef.current = conversationId
+        linkedConversationIdRef.current = linkedConversationId || null
 
         // Update state
         // Start duration timer
@@ -503,15 +504,24 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         startTimeRef.current = callStartTime
         startDurationTimer()
 
-        setCallState(prev => ({
-          ...prev,
-          status: 'joining',
+        const newState = {
+          ...callState,
+          status: 'joining' as const,
           roomId: conversationId,
           meetingId,
           callType,
           callStartTime,
-          conversationName
-        }))
+          conversationName,
+          linkedConversationId
+        }
+
+        rtkDebug.log('[RTK] Setting call state with linkedConversationId:', {
+          linkedConversationId,
+          hasLinkedConversationId: !!linkedConversationId,
+          newStateLinkedConversationId: newState.linkedConversationId
+        })
+
+        setCallState(newState)
 
         // Save to localStorage for recovery
         preferences.saveActiveCall(currentUser.id, conversationId)
@@ -536,9 +546,17 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
             count: participants.length,
             meetingId,
             conversationId,
-            callType
+            callType,
+            linkedConversationId
           })
-          participantsHook.inviteToCall(participants, conversationName, meetingId, conversationId, callType)
+          participantsHook.inviteToCall(
+            participants,
+            conversationName,
+            meetingId,
+            conversationId,
+            callType,
+            linkedConversationId // Pass linkedConversationId explicitly
+          )
         } else {
           rtkDebug.log('[RTK] ⏭️ Skipping invites:', {
             reason: !wasIdleBeforeStart ? 'Not starting from idle state' : 'No participants to invite',
@@ -550,11 +568,19 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         // CRITICAL: Emit start event FIRST so backend creates activeCalls entry
         // This must happen before joined event so backend knows about the call
         if (wsClient?.getSocket()) {
+          rtkDebug.log('[RTK] 📤 About to emit rtk-group-call:start with linkedConversationId:', {
+            conversationId,
+            linkedConversationId,
+            hasLinkedId: !!linkedConversationId,
+            refValue: linkedConversationIdRef.current
+          })
+
           wsClient.getSocket()?.emit('rtk-group-call:start', {
             conversationId,
             meetingId,
             callType,
             conversationName,
+            linkedConversationId,
             from: {
               id: currentUser.id,
               odId: currentUser.id,
@@ -765,6 +791,29 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         // Store conversationId for tracking
         conversationIdRef.current = roomId
 
+        // Look up linkedConversationId from activeConversationCalls (set by first user who started the call)
+        // CRITICAL: Check linkedConversationIdRef FIRST (set by acceptInvite before joinCall)
+        // This fixes timing issue where activeConversationCalls state hasn't updated yet
+        rtkDebug.log('[RTK] 🔍 Checking sources for linkedConversationId:', {
+          roomId,
+          refValue: linkedConversationIdRef.current,
+          hasActiveCallEntry: activeConversationCalls.has(roomId),
+          activeCallValue: activeConversationCalls.get(roomId)?.linkedConversationId,
+          activeCallsSize: activeConversationCalls.size,
+          activeCallsKeys: Array.from(activeConversationCalls.keys())
+        })
+
+        const linkedConversationId =
+          linkedConversationIdRef.current || activeConversationCalls.get(roomId)?.linkedConversationId || null
+
+        rtkDebug.log('[RTK] Joining with linkedConversationId:', {
+          roomId,
+          fromRef: linkedConversationIdRef.current,
+          fromActiveCall: activeConversationCalls.get(roomId)?.linkedConversationId,
+          finalLinkedConversationId: linkedConversationId,
+          isCalendarMeeting: !!linkedConversationId
+        })
+
         // Start duration timer (only set startTime if not already synced from global)
         joinCallConversationIdRef.current = roomId
         const callStartTime = Date.now()
@@ -787,7 +836,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           meetingId: finalMeetingId,
           callType,
           callStartTime: startTimeRef.current, // Use the ref, not Date.now()!
-          conversationName
+          conversationName,
+          linkedConversationId
         }))
 
         // Save to localStorage
@@ -823,15 +873,68 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
    */
   const acceptInvite = useCallback(
     async (initialPreferences?: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => {
-      if (!incomingInvite) return
+      // CRITICAL: Read LATEST state using functional update, not closure value!
+      // The closure may have stale state if invites arrived while React was batching
+      let latestInvite: GroupCallInvite | null = null
+      setIncomingInvite(prev => {
+        latestInvite = prev
+        return prev // Don't modify, just read
+      })
+
+      if (!latestInvite) return
+
+      // Create a const reference for TypeScript type narrowing
+      // Explicit type assertion needed because TS control flow analysis doesn't work across callback boundaries
+      const invite: GroupCallInvite = latestInvite
+
+      rtkDebug.log('[RTK] 🎯 Reading LATEST incomingInvite state:', {
+        hasLatestInvite: !!invite,
+        latestInviteObject: invite,
+        linkedConversationId: invite.linkedConversationId,
+        hasLinkedConversationId: !!invite.linkedConversationId,
+        closureValue: incomingInvite?.linkedConversationId,
+        closureMatchesLatest: incomingInvite?.linkedConversationId === invite.linkedConversationId
+      })
 
       rtkDebug.log('[RTK] Accepting invite with preferences:', {
-        conversationId: incomingInvite.conversationId,
-        meetingId: incomingInvite.roomId,
-        callType: incomingInvite.callType,
-        conversationName: incomingInvite.conversationName,
-        from: incomingInvite.from.odName,
+        conversationId: invite.conversationId,
+        meetingId: invite.roomId,
+        callType: invite.callType,
+        conversationName: invite.conversationName,
+        from: invite.from.odName,
+        linkedConversationId: invite.linkedConversationId,
         preferences: initialPreferences
+      })
+
+      // Store linkedConversationId from invite in ref BEFORE joining
+      // This ensures it's available when joinCall checks activeConversationCalls
+      linkedConversationIdRef.current = invite.linkedConversationId || null
+
+      rtkDebug.log('[RTK] 🔗 Stored in ref before joinCall:', {
+        linkedConversationId: invite.linkedConversationId,
+        refValue: linkedConversationIdRef.current,
+        refIsSame: linkedConversationIdRef.current === (invite.linkedConversationId || null)
+      })
+
+      // Also preemptively store in activeConversationCalls to fix timing issue
+      // where joiner checks before conversation:call-started event arrives
+      setActiveConversationCalls(prev => {
+        const newMap = new Map(prev)
+        const key = invite.conversationId || invite.roomId
+        newMap.set(key, {
+          roomId: invite.roomId,
+          callType: invite.callType,
+          participantIds: [],
+          startedBy: invite.from.id,
+          conversationName: invite.conversationName,
+          linkedConversationId: invite.linkedConversationId
+        })
+        rtkDebug.log('[RTK] 🗺️ Updated activeConversationCalls:', {
+          key,
+          hasEntry: newMap.has(key),
+          linkedConversationId: newMap.get(key)?.linkedConversationId
+        })
+        return newMap
       })
 
       // CRITICAL: Call internal joinCall directly with proper IDs from invite
@@ -841,15 +944,15 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       // - initial preferences from pre-call dialog (mic/camera/background)
       // Don't use the wrapper because invite has all the info we need!
       await joinCall(
-        incomingInvite.conversationId || incomingInvite.roomId, // conversationId
-        incomingInvite.callType,
-        incomingInvite.roomId, // meetingId (stored in roomId field of invite)
-        incomingInvite.conversationName, // conversationName
+        invite.conversationId || invite.roomId, // conversationId
+        invite.callType,
+        invite.roomId, // meetingId (stored in roomId field of invite)
+        invite.conversationName, // conversationName
         initialPreferences // initial mic/camera/background settings
       )
       setIncomingInvite(null)
     },
-    [incomingInvite, joinCall]
+    [joinCall]
   )
 
   /**
@@ -1038,7 +1141,11 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     if (!socket || !currentUser) return
 
     const handleInvite = (data: any) => {
-      rtkDebug.log('[RTK] Received call invite:', data)
+      rtkDebug.log('[RTK] Received call invite:', {
+        ...data,
+        hasLinkedConversationId: !!data.linkedConversationId,
+        linkedConversationId: data.linkedConversationId
+      })
 
       // ⚠️ CRITICAL: Ignore invite if already in this call (prevents double-join)
       // Check meetingIdRef (synchronous) instead of callState (async)
@@ -1091,20 +1198,83 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         wasIdleRef: wasIdleRef.current
       })
 
-      setIncomingInvite({
-        roomId: data.meetingId,
-        callType: data.callType,
-        from: data.from,
-        conversationId: data.conversationId,
-        conversationName: data.conversationName || data.conversationId
+      // Only update the invite if it's better than what we have:
+      // - Always accept first invite (no prev)
+      // - Accept new invite WITH linkedConversationId (always better)
+      // - REJECT new invite WITHOUT linkedConversationId if prev already HAS it
+      setIncomingInvite(prev => {
+        const hasNewLinkedId = !!data.linkedConversationId
+        const prevHasLinkedId = !!prev?.linkedConversationId
+
+        // CRITICAL: Never let incomplete invite overwrite complete one
+        const shouldUpdate = !prev || hasNewLinkedId || !prevHasLinkedId
+
+        rtkDebug.log('[RTK] 📥 Invite update decision:', {
+          hasPrevious: !!prev,
+          prevLinkedConversationId: prev?.linkedConversationId,
+          newLinkedConversationId: data.linkedConversationId,
+          hasNewLinkedId,
+          prevHasLinkedId,
+          shouldUpdate,
+          reason: !prev
+            ? 'no-previous'
+            : hasNewLinkedId
+              ? 'new-has-linked-id'
+              : !prevHasLinkedId
+                ? 'prev-missing-linked-id'
+                : 'reject-downgrade'
+        })
+
+        if (!shouldUpdate) {
+          rtkDebug.log('[RTK] ⏭️ Skipping invite update - would downgrade from complete to incomplete')
+          return prev
+        }
+
+        const newInvite = {
+          roomId: data.meetingId,
+          callType: data.callType,
+          from: data.from,
+          conversationId: data.conversationId,
+          conversationName: data.conversationName || data.conversationId,
+          linkedConversationId: data.linkedConversationId
+        }
+
+        rtkDebug.log('[RTK] ✅ Setting incoming invite:', {
+          hasLinkedConversationId: !!newInvite.linkedConversationId,
+          linkedConversationId: newInvite.linkedConversationId,
+          inviteObject: newInvite
+        })
+
+        return newInvite
       })
     }
 
     const handleCallEnded = (data: { meetingId: string; conversationId: string }) => {
       rtkDebug.log('[RTK] Call ended by host', data)
+      rtkDebug.log('[RTK] Current incomingInvite state:', {
+        hasInvite: !!incomingInvite,
+        inviteMeetingId: incomingInvite?.meetingId,
+        inviteConversationId: incomingInvite?.conversationId,
+        eventMeetingId: data.meetingId,
+        eventConversationId: data.conversationId
+      })
 
+      // If we're in this call, leave it
       if (callStateRoomIdRef.current === data.meetingId) {
         leaveCall()
+      }
+
+      // If we have an incoming invite for this call, dismiss it (call ended before we could answer)
+      if (
+        incomingInvite &&
+        (incomingInvite.meetingId === data.meetingId || incomingInvite.conversationId === data.conversationId)
+      ) {
+        rtkDebug.log('[RTK] 📵 Dismissing incoming invite - call ended')
+        setIncomingInvite(null)
+      } else if (incomingInvite) {
+        rtkDebug.log("[RTK] ⚠️ Have incoming invite but IDs don't match - NOT dismissing")
+      } else {
+        rtkDebug.log('[RTK] ℹ️ No incoming invite to dismiss')
       }
     }
 
@@ -1116,6 +1286,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       participantIds: string[]
       startedAt?: Date | string
       conversationName?: string
+      linkedConversationId?: string | null
     }) => {
       rtkDebug.log('[RTK] 📞 Conversation call started/updated:', {
         conversationId: data.conversationId,
@@ -1130,13 +1301,15 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       // Update activeConversationCalls
       setActiveConversationCalls(prev => {
         const newMap = new Map(prev)
+
         newMap.set(data.conversationId, {
           roomId: data.roomId,
           callType: data.callType,
           participantIds: data.participantIds,
           startedBy: data.startedBy.id,
           startedAt: data.startedAt,
-          conversationName: data.conversationName
+          conversationName: data.conversationName,
+          linkedConversationId: data.linkedConversationId // Use linkedConversationId from backend
         })
         return newMap
       })
@@ -1258,7 +1431,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       socket.off('conversation:call-started', handleConversationCallStarted)
       socket.off('conversation:call-ended', handleConversationCallEnded)
     }
-  }, [wsClient, currentUser, callState.status, leaveCall])
+  }, [wsClient, currentUser, callState.status, leaveCall, incomingInvite])
 
   /**
    * Listen for transcript-ready WebSocket events

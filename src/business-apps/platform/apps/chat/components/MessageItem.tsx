@@ -11,6 +11,7 @@ import {
   TooltipProvider
 } from '@newwork/nw-design-system'
 import { ArrowBendUpLeft } from '@phosphor-icons/react'
+import { VideoCamera } from '@phosphor-icons/react'
 import { renderContentWithReferences } from './EntityReferenceBadge'
 import { EveryAIMessageRenderer } from './EveryAIMessageRenderer'
 import { ExpertResponseRenderer } from './ExpertResponseRenderer'
@@ -214,6 +215,21 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
         return false
       }
     })()
+
+    // System message (meeting start/end, etc.)
+    if (message.type === 'system') {
+      const isMeetingMessage = message.metadata?.type === 'meeting_start' || message.metadata?.type === 'meeting_end'
+
+      return (
+        <div className="gba:flex gba:justify-center gba:py-1.5" data-testid={`message-system-${message.id}`}>
+          <div className="gba:flex gba:items-center gba:gap-2 gba:bg-muted/50 gba:px-3 gba:py-1.5 gba:rounded-full">
+            {isMeetingMessage && <VideoCamera className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />}
+            <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>
+            <span className="gba:text-xs gba:text-foreground gba:font-medium">{message.content}</span>
+          </div>
+        </div>
+      )
+    }
 
     // Deleted message
     if (message.isDeleted) {

@@ -60,6 +60,12 @@ export interface Conversation {
   unreadCount?: number
   activeCall?: ActiveCall | null
   activeExperts?: string[] // Array of Every Expert prompt IDs
+  metadata?: {
+    type?: 'meeting' | 'regular'
+    meetingId?: string
+    icon?: 'calendar' | 'users' | 'video'
+    [key: string]: any
+  }
 }
 
 export interface ConversationParticipant {
