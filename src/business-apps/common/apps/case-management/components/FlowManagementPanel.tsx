@@ -748,26 +748,25 @@ export const FlowManagementPanel: React.FC<FlowManagementPanelProps> = ({
                 )}
               </div>
 
-              {/* Current Step Info */}
-              {selectedFlow.currentStepName && !isFlowTerminal(selectedFlow) && (
-                <>
-                  <hr className="gba:border-t gba:border-border" />
-                  <div className="gba:space-y-3">
-                    <div className="gba:flex gba:justify-between gba:text-sm">
-                      <span className="gba:text-muted-foreground">Current Step</span>
-                      <span className="gba:font-medium">{selectedFlow.currentStepName}</span>
-                    </div>
-                    {selectedFlow.currentStepStatus && (
-                      <div className="gba:flex gba:justify-between gba:text-sm">
-                        <span className="gba:text-muted-foreground">Step Status</span>
-                        <Badge variant="secondary" className="gba:text-xs">
-                          {selectedFlow.currentStepStatus}
-                        </Badge>
-                      </div>
-                    )}
+              {/* Current Step Info - always show */}
+              <>
+                <hr className="gba:border-t gba:border-border" />
+                <div className="gba:space-y-3">
+                  <div className="gba:flex gba:justify-between gba:text-sm">
+                    <span className="gba:text-muted-foreground">Current Step</span>
+                    <span className="gba:font-medium">
+                      {selectedFlow.currentStepName ||
+                        (isFlowTerminal(selectedFlow) ? 'Completed' : 'Awaiting task...')}
+                    </span>
                   </div>
-                </>
-              )}
+                  <div className="gba:flex gba:justify-between gba:text-sm">
+                    <span className="gba:text-muted-foreground">Step Status</span>
+                    <Badge variant="secondary" className="gba:text-xs">
+                      {selectedFlow.currentStepStatus || selectedFlow.status || 'PENDING'}
+                    </Badge>
+                  </div>
+                </div>
+              </>
 
               {/* Progress Info */}
               {(selectedFlow.totalSteps || 0) > 0 && (
@@ -847,7 +846,7 @@ export const FlowManagementPanel: React.FC<FlowManagementPanelProps> = ({
             <Button variant="outline" onClick={() => setSelectedFlow(null)}>
               Close
             </Button>
-            {selectedFlow?.currentTaskId && !isFlowTerminal(selectedFlow) ? (
+            {selectedFlow?.currentTaskId ? (
               <Button
                 variant="outline"
                 onClick={() => {
@@ -863,8 +862,7 @@ export const FlowManagementPanel: React.FC<FlowManagementPanelProps> = ({
               <Button
                 variant="outline"
                 onClick={() => {
-                  // Fallback: View flow (no specific task to open)
-                  // In production, this would go to a flow viewer
+                  // Fallback: View flow in service-desk (no specific task to open)
                   const isProduction = process.env.NODE_ENV === 'production'
                   if (isProduction) {
                     const flowUrl = buildPlatformUrl('/platform/sales-demo/service-desk', {
@@ -878,7 +876,7 @@ export const FlowManagementPanel: React.FC<FlowManagementPanelProps> = ({
                 }}
               >
                 <ExternalLink className="gba:h-4 gba:w-4 gba:mr-2" />
-                View Flow
+                Open Flow
               </Button>
             )}
             {!readOnly && !isFlowTerminal(selectedFlow) && (

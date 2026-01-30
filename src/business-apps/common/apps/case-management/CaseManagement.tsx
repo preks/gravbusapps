@@ -37,6 +37,7 @@ export const CaseManagement: React.FC<CaseManagementProps> = ({
   void _entityTypes
 
   const [activeView, setActiveView] = useState<ViewState>(defaultView)
+  const [previousView, setPreviousView] = useState<ViewState>(defaultView)
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [recentCases, setRecentCases] = useState<Case[]>([])
@@ -55,6 +56,8 @@ export const CaseManagement: React.FC<CaseManagementProps> = ({
     if (caseIdFromUrl) {
       setSelectedCaseId(caseIdFromUrl)
       setActiveView('detail')
+      // Set previous view to list for direct URL navigation to a case
+      setPreviousView('list')
     } else if (viewFromUrl === 'list') {
       setActiveView('list')
     }
@@ -110,13 +113,15 @@ export const CaseManagement: React.FC<CaseManagementProps> = ({
   }
 
   const handleViewCase = (caseId: string) => {
+    setPreviousView(activeView)
     setSelectedCaseId(caseId)
     setActiveView('detail')
   }
 
-  const handleBackToDashboard = () => {
+  const handleBack = () => {
     setSelectedCaseId(null)
-    setActiveView('dashboard')
+    // Return to previous view (list or dashboard)
+    setActiveView(previousView)
   }
 
   const handleCompleteCase = async (caseId: string) => {
@@ -172,7 +177,7 @@ export const CaseManagement: React.FC<CaseManagementProps> = ({
         caseId={selectedCaseId}
         context={context}
         appTag={appTag}
-        onBack={handleBackToDashboard}
+        onBack={handleBack}
         onCompleteCase={handleCompleteCase}
         onAddFlow={handleAddFlow}
         onRemoveFlow={handleRemoveFlow}
@@ -195,7 +200,7 @@ export const CaseManagement: React.FC<CaseManagementProps> = ({
             onViewCase={handleViewCase}
             onCreateCase={() => setIsCreateDialogOpen(true)}
             onCompleteCase={handleCompleteCase}
-            onBack={handleBackToDashboard}
+            onBack={handleBack}
             allowCreate={allowCreate}
             allowDelete={allowDelete}
           />

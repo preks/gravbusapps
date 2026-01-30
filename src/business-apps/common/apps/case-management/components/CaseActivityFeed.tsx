@@ -110,8 +110,8 @@ export const CaseActivityFeed: React.FC<CaseActivityFeedProps> = ({ caseId, cont
       }
     }
 
-    const name = userNames[userId] || userId.slice(0, 8) + '...'
-    const employee = userEmployees[userId]
+    const name = userNames.get(userId) || userId.slice(0, 8) + '...'
+    const employee = userEmployees.get(userId)
 
     return {
       name,
@@ -121,7 +121,7 @@ export const CaseActivityFeed: React.FC<CaseActivityFeedProps> = ({ caseId, cont
         .join('')
         .slice(0, 2)
         .toUpperCase(),
-      photoUrl: employee?.photoUrl,
+      photoUrl: employee?.pictureThumbnail,
       employeeId: employee?.id
     }
   }
