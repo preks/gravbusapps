@@ -14,10 +14,8 @@ export const createRedirectAfterDelete = (domain: RelationsDomain, entityType: R
     if (detail?.resolution === 'success') {
       const basePath =
         domain === 'investments' ? '/platform/irm/investment-relations' : '/platform/crm/customer-relations'
-      // Small delay to ensure the popup closes properly before navigation
-      setTimeout(() => {
-        navigateTo(`${basePath}?view=${entityType}`)
-      }, 100)
+      // Redirect immediately to prevent record page from showing error state
+      navigateTo(`${basePath}?view=${entityType}`)
     }
   }
 }

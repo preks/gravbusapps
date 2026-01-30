@@ -46,6 +46,7 @@ export interface GroupCallUIState {
   backgroundEnabled: boolean
   handRaised: boolean // Whether local user has hand raised
   remoteHandsRaised: Record<string, boolean> // Map of participantId -> handRaised for remote participants
+  handRaisedOrder?: Record<string, { order: number; timestamp: number }> // Map of participantId -> order and timestamp
   startTime: number | null
   duration: number
   callImplementation: 'mesh' | 'realtime-kit' | '1-on-1' // Track which implementation is used
@@ -60,12 +61,15 @@ export interface ActiveConversationCall {
   conversationName?: string
 }
 
+export type InviteStatus = 'pending' | 'declined' | 'not-answered'
+
 export interface PendingInvite {
   id: string
   odId: string
   odName: string
   avatarUrl?: string
   invitedAt: number
+  status?: InviteStatus
 }
 
 export interface UseGroupCallReturn {

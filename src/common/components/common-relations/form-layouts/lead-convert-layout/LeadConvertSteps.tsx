@@ -26,6 +26,7 @@ export interface LeadConvertAccountStepProps {
   customSegments?: Array<{ id: string; title: string; content: React.ReactNode }>
   avatarFileRef?: React.MutableRefObject<{ file: File; thumbnail: string } | null>
   isActive?: boolean
+  accountContext?: 'crm' | 'irm'
 }
 
 export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
@@ -42,7 +43,8 @@ export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
   communicationCustomFields,
   customSegments,
   avatarFileRef,
-  isActive = true
+  isActive = true,
+  accountContext
 }) => {
   const { t } = useTranslation(translations)
 
@@ -70,6 +72,7 @@ export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({
             customSegments={customSegments}
             avatarFileRef={avatarFileRef}
             isStepActive={isActive}
+            accountContext={accountContext}
           />
         )}
       </div>
