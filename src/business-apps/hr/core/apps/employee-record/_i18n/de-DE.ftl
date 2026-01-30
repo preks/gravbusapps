@@ -375,7 +375,8 @@ profile-header-no-manager = Kein Vorgesetzter
 profile-header-job-position = Position
 profile-header-cost-center = Kostenstelle
 profile-header-hire-date = Eintrittsdatum
-profile-header-fixed-term-until = Befristet bis
+profile-header-fixed-term-until = Befristungsende
+profile-header-fixed-term-reason = Grund für Befristung
 profile-header-na = k. A.
 
 # Profile Header - Time units (tenure)
