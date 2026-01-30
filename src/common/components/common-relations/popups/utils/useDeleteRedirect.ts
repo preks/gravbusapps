@@ -1,5 +1,4 @@
 import React from 'react'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { createRedirectAfterDelete } from '../utils/redirectAfterDelete'
 
 type RelationsDomain = 'crm' | 'investments'
@@ -9,29 +8,32 @@ interface UseDeleteRedirectOptions {
   domain: RelationsDomain
   entityType: RelationsEntityType
   recordUrlPattern: string
-  additionalData?: BusinessAppContextProps['additionalData']
+  entityId: string
 }
 
 /**
  * Custom hook to handle redirect logic after delete operations
- * Automatically detects if we're on a record page and sets up the redirect event listener
+ * Only redirects when deleting the EXACT entity whose record page you're viewing
+
  */
 export const useDeleteRedirect = ({
   domain,
   entityType,
   recordUrlPattern,
-  additionalData
+  entityId
 }: UseDeleteRedirectOptions): void => {
-  // Check if we should redirect after delete (computed before early returns)
-  // Auto-detect if we're on a record page by checking the current URL
-  const isOnRecordPage = globalThis.location.pathname.includes(recordUrlPattern)
+  // Check if we're on a record page of this entity type
+  const isOnMatchingRecordPage = globalThis.location.pathname.includes(recordUrlPattern)
 
-  // Also check for explicit flag (for backward compatibility)
-  const explicitRedirect =
-    additionalData?.redirectAfterDelete === true ||
-    additionalData?.psi_taskPayload?.psi_initialParameters?.redirectAfterDelete === true
+  // Extract the ID from the URL (e.g., /account-record/123 → 123)
+  // Filter empty parts to handle trailing slashes correctly
+  const urlParts = globalThis.location.pathname.split('/').filter(part => part !== '')
+  const recordIdInUrl = isOnMatchingRecordPage && urlParts.length > 0 ? urlParts[urlParts.length - 1] : null
 
-  const shouldRedirect = isOnRecordPage || explicitRedirect
+  // Only redirect if we're deleting THE EXACT entity whose record we're viewing
+  const isDeletingCurrentRecord = isOnMatchingRecordPage && recordIdInUrl === entityId
+
+  const shouldRedirect = isDeletingCurrentRecord
 
   // Setup redirect as event listener (MUST be called before early returns)
   React.useEffect(() => {
