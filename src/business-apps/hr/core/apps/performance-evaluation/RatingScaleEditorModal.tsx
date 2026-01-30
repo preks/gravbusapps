@@ -36,7 +36,7 @@ function inferDisplayMode(values: string[]): DisplayMode {
   if (!values.length) return 'value'
   const numeric = values.every((v, i) => v.trim() === String(i + 1))
   if (numeric) return 'value'
-  const letters = values.every((v, i) => v.trim() === String.fromCharCode(65 + i))
+  const letters = values.every((v, i) => v.trim() === String.fromCodePoint(65 + i))
   if (letters) return 'letters'
   const stars = values.every((v, i) => v.trim() === '★'.repeat(i + 1))
   if (stars) return 'stars'
@@ -110,7 +110,7 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
       const letters: string[] = []
       for (let i = 0; i < count; i++) {
         const code = 'A'.charCodeAt(0) + i
-        letters.push(String.fromCharCode(code))
+        letters.push(String.fromCodePoint(code))
       }
       return letters
     }

@@ -30,10 +30,12 @@ export interface PerformanceCyclesProps {
   cycles: PerformanceCycle[]
   cyclesLoading: boolean
   cyclesError: string | null
-  refetchCycles: () => Promise<void>
   ratingScales: RatingScale[]
   valuesStore: ValueItemStored[]
-  accessToken: string | null
+  /** Passed by parent; refetch is triggered after save/activate/deactivate/delete in wrapper. */
+  refetchCycles?: () => Promise<void>
+  /** Passed by parent for consistency; auth is used in wrapper only. */
+  accessToken?: string | null
   onSaveFromModal: (values: CycleEditorValues) => Promise<void>
   onActivate: (cycleId: string) => Promise<void>
   onDeactivate: (cycleId: string) => Promise<void>

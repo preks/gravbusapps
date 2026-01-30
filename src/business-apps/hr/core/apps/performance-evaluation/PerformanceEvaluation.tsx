@@ -12,8 +12,7 @@ import { useSavePerformanceCycle } from './hooks/useSavePerformanceCycle'
 import { deleteRatingScale } from './services/ratingScaleApi'
 import type { PerformanceCycle, RatingScale, ValueItemStored } from './types'
 import translations from './_i18n'
-import type { CycleEditorValues } from './CycleEditorModal'
-import type { EvaluationStage as EditorStage } from './CycleEditorModal'
+import type { CycleEditorValues, EvaluationStage as EditorStage } from './CycleEditorModal'
 import type { RatingScaleValues } from './RatingScaleEditorModal'
 import type { ValueEditorValues } from './ValuesEditorModal'
 import { PerformanceCycles } from './tabs/PerformanceCycles'
@@ -110,10 +109,6 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   } = useRatingScales(accessToken)
   const { saveRatingScale } = useInsertRatingScale(accessToken)
   const { savePerformanceCycle, updateCycleActive, deletePerformanceCycle } = useSavePerformanceCycle(accessToken)
-
-  if (!devFeatureFlag) {
-    return null
-  }
 
   const [cycles, setCycles] = useState<PerformanceCycle[]>([])
   const [ratingScales, setRatingScales] = useState<RatingScale[]>([])
@@ -329,6 +324,10 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     setValuesStore(prev => prev.map(v => (v.id === id ? { ...v, active: false } : v)))
   }
 
+  if (!devFeatureFlag) {
+    return null
+  }
+
   return (
     <div data-testid="performance-evaluation-container">
       <PageLayout
@@ -354,6 +353,8 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
             cyclesError={cyclesError}
             ratingScales={ratingScales}
             valuesStore={valuesStore}
+            refetchCycles={refetchCycles}
+            accessToken={accessToken}
             onSaveFromModal={handleSaveFromModal}
             onActivate={handleActivate}
             onDeactivate={handleDeactivate}
