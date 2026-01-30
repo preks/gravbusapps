@@ -284,7 +284,7 @@ export const DocumentApiService = {
   ): Promise<Document> {
     debugLog('updateDocument', id, updates)
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       title: updates.title,
       description: updates.description,
       content: updates.content,
@@ -294,6 +294,9 @@ export const DocumentApiService = {
       formatting: updates.formatting,
       createVersion: options?.createVersion ?? true
     }
+    // When content is set (e.g. resolved placeholders or restore), clear contentJson so editor re-inits from content
+    const contentJson = (updates as Record<string, unknown>).contentJson
+    if (contentJson !== undefined) payload.contentJson = contentJson
 
     // Remove undefined values
     Object.keys(payload).forEach(key => {

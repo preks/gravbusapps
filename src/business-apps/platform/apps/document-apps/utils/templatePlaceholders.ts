@@ -29,9 +29,86 @@ function getByPath(obj: unknown, path: string): unknown {
   return current
 }
 
+/** Format ISO date string to dd/mm/yyyy */
+function formatDateString(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}/${month}/${year}`
+}
+
+/** Check if string looks like an ISO date (e.g. 2026-02-09 or 2026-02-09T00:00:00) */
+function isIsoDateString(s: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}/.test(s.trim())
+}
+
+/** Format probation-period JSON (e.g. {"value":3,"unit":"months"}) as "3 months". Returns empty if not valid. */
+function formatProbationPeriod(value: string): string {
+  try {
+    const parsed = JSON.parse(value) as { value?: number; unit?: string }
+    if (parsed != null && typeof parsed.value === 'number' && typeof parsed.unit === 'string') {
+      return `${parsed.value} ${parsed.unit}`
+    }
+  } catch {
+    // not JSON or wrong shape
+  }
+  return ''
+}
+
+/** Get string from object with camelCase/snake_case fallback */
+function getStr(obj: Record<string, unknown>, key: string): string | undefined {
+  const v = obj[key] ?? obj[camelToSnake(key)]
+  return typeof v === 'string' ? v : undefined
+}
+
+/** Get nested object with camelCase/snake_case fallback */
+function getObj(obj: Record<string, unknown>, key: string): Record<string, unknown> | undefined {
+  const v = obj[key] ?? obj[camelToSnake(key)]
+  return v != null && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined
+}
+
+/**
+ * Format address-like objects (company_address, primary, streetAddress, etc.) as a single readable line.
+ * Returns empty string if value is not address-like.
+ */
+function formatAddressLike(value: unknown): string {
+  if (value == null || typeof value !== 'object' || Array.isArray(value)) return ''
+  const o = value as Record<string, unknown>
+
+  // Simple shape: { streetAddress: "..." }
+  const streetAddress = getStr(o, 'streetAddress')
+  if (streetAddress) {
+    const parts = [streetAddress, getStr(o, 'locality'), getStr(o, 'postalCode')].filter(Boolean)
+    return parts.join(', ')
+  }
+
+  // Nested shape: { primary: { locality, postalCode, addressLine: { lines: [] } } }
+  const primary = getObj(o, 'primary') ?? o
+  const locality = getStr(primary, 'locality')
+  const postalCode = getStr(primary, 'postalCode')
+  const addressLine = getObj(primary, 'addressLine')
+  const linesArr = addressLine?.lines ?? addressLine?.addressLine
+  const lines = Array.isArray(linesArr)
+    ? (linesArr as string[]).filter(l => typeof l === 'string').join(', ')
+    : (getStr(primary, 'addressLine') ?? getStr(primary, 'streetAddress') ?? '')
+
+  const parts = [lines, locality, postalCode].filter(Boolean)
+  if (parts.length > 0) return parts.join(', ')
+  return ''
+}
+
 function formatValue(value: unknown): string {
   if (value === undefined || value === null) return ''
+  if (typeof value === 'string') {
+    if (isIsoDateString(value)) return formatDateString(value)
+    const probationFormatted = formatProbationPeriod(value)
+    if (probationFormatted) return probationFormatted
+  }
   if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
+    const addressFormatted = formatAddressLike(value)
+    if (addressFormatted) return addressFormatted
     return typeof (value as { displayName?: string }).displayName === 'string'
       ? (value as { displayName: string }).displayName
       : typeof (value as { name?: string }).name === 'string'
@@ -62,17 +139,31 @@ export function resolvePlaceholders(
     ? { [entityTypeOrMap]: data }
     : (entityTypeOrMap as Record<string, Record<string, unknown>>)
 
-  const regex = /\{\{(\w+)\.([^}]+)\}\}/g
-  return content.replace(regex, (_, entityKey: string, path: string) => {
-    const entityData = map[entityKey]
-    if (entityData == null) return _ // leave placeholder if no data
-    const value = getByPath(entityData, path.trim())
+  // Allow optional whitespace inside {{ }} so "{{ job_candidate.firstName }}" still matches
+  const regex = /\{\{\s*(\w+)\s*\.\s*([^}]+)\s*\}\}/g
+  return content.replace(regex, (match, entityKey: string, path: string) => {
+    const keyTrimmed = entityKey.trim()
+    const pathTrimmed = path.trim()
+    if (keyTrimmed.toLowerCase() === 'today') {
+      if (pathTrimmed.toLowerCase() === 'date' || pathTrimmed.toLowerCase() === 'dateonly') {
+        return formatDateString(new Date().toISOString())
+      }
+    }
+    // Case-insensitive entity lookup (templates may use Job_Candidate vs job_candidate)
+    const entityData =
+      map[keyTrimmed] ??
+      map[keyTrimmed.toLowerCase()] ??
+      (Object.entries(map).find(([k]) => k.toLowerCase() === keyTrimmed.toLowerCase())?.[1] as
+        | Record<string, unknown>
+        | undefined)
+    if (entityData == null) return match
+    const value = getByPath(entityData, pathTrimmed)
     return formatValue(value)
   })
 }
 
-/** Same regex used for placeholder replacement */
-const PLACEHOLDER_REGEX = /\{\{(\w+)\.([^}]+)\}\}/g
+/** Same regex used for placeholder replacement (allows optional whitespace inside braces) */
+const PLACEHOLDER_REGEX = /\{\{\s*(\w+)\s*\.\s*([^}]+)\s*\}\}/g
 
 /**
  * Extract unique entity keys referenced in template content (e.g. {{job_candidate.firstName}} → job_candidate).

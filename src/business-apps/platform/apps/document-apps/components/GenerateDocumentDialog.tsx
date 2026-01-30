@@ -111,7 +111,10 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
       const title = template.name ? `${template.name} - ${defaultTitle}` : defaultTitle
       const doc = await DocumentApiService.createDocumentFromTemplate(selectedTemplateId, title)
       if (doc?.id) {
-        await DocumentApiService.updateDocument(doc.id, { content: resolvedContent })
+        await DocumentApiService.updateDocument(doc.id, {
+          content: resolvedContent,
+          ...({ contentJson: {} } as { contentJson?: unknown })
+        })
         toast.success('Document created')
         onOpenChange(false)
         onSuccess?.(doc.id)
