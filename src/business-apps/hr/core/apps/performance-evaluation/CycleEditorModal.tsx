@@ -44,11 +44,20 @@ const participantOptions: ParticipantType[] = ['Self', 'Peer', 'Manager', 'Team'
 // (no-op helper previously used for stages removed)
 import translations from './_i18n'
 
+/** Value option for the cycle editor (from API; id, title, active). */
+export interface CycleEditorValueOption {
+  id: string
+  title: string
+  active?: boolean
+}
+
 interface CycleEditorModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSave: (values: CycleEditorValues) => void
   initialValues?: CycleEditorValues
+  /** Values for the Valori dropdown (from DB). When provided, localStorage is not used. */
+  availableValues?: CycleEditorValueOption[]
 }
 
 function defaultParticipantsState(initialValues?: CycleEditorValues): Record<ParticipantType, boolean> {
@@ -61,7 +70,13 @@ function defaultParticipantsState(initialValues?: CycleEditorValues): Record<Par
   }
 }
 
-export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpenChange, onSave, initialValues }) => {
+export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
+  open,
+  onOpenChange,
+  onSave,
+  initialValues,
+  availableValues: availableValuesProp = []
+}) => {
   const { t } = useTranslation(translations)
   const [name, setName] = useState(initialValues?.name || '')
   const [startDate, setStartDate] = useState(initialValues?.startDate || '')
@@ -78,11 +93,9 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
   const [availableScales, setAvailableScales] = useState<RatingScale[]>([])
   const [selectedScaleId, setSelectedScaleId] = useState<string | undefined>(initialValues?.ratingScaleId)
 
-  // Values (managed in Values tab)
-  const VALUES_STORAGE_KEY = 'hr.performance.values.v1'
-  type LocalValue = { id: string; title: string; description: string; active: boolean }
-  const [availableValues, setAvailableValues] = useState<LocalValue[]>([])
+  // Values: from prop (real data from DB via parent's valuesStore)
   const [selectedValueIds, setSelectedValueIds] = useState<string[]>(initialValues?.valueIds ?? [])
+  const availableValues = availableValuesProp
 
   // Populate form when modal opens: from initialValues (edit) or empty (create)
   useEffect(() => {
@@ -141,18 +154,6 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
       setAvailableScales(Array.isArray(parsedScales) ? parsedScales : [])
     } catch {
       setAvailableScales([])
-    }
-  }, [open])
-
-  // Load available values when modal opens
-  useEffect(() => {
-    if (!open) return
-    try {
-      const rawValues = localStorage.getItem(VALUES_STORAGE_KEY)
-      const parsedValues = rawValues ? (JSON.parse(rawValues) as LocalValue[]) : []
-      setAvailableValues(Array.isArray(parsedValues) ? parsedValues : [])
-    } catch {
-      setAvailableValues([])
     }
   }, [open])
 
@@ -257,14 +258,14 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
 
           <div className="gba:space-y-2">
             <Label>{t('field-values')}</Label>
-            {availableValues.filter(v => v.active).length === 0 ? (
+            {availableValues.filter(v => v.active !== false).length === 0 ? (
               <div className="gba:text-sm gba:text-muted-foreground">{t('placeholder-no-values')}</div>
             ) : (
               <Combobox
                 mode="multiple"
                 value={selectedValueIds}
                 onValueChange={(ids: string[]) => setSelectedValueIds(ids)}
-                options={availableValues.filter(v => v.active).map(v => ({ label: v.title, value: v.id }))}
+                options={availableValues.filter(v => v.active !== false).map(v => ({ label: v.title, value: v.id }))}
                 placeholder="Select values"
                 searchPlaceholder="Type to search values..."
                 emptyText="No results"

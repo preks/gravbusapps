@@ -6,6 +6,20 @@ const SAVE_PERFORMANCE_CYCLE_PATH = '/processes/employee/savePerformanceCycle'
 const UPDATE_PERFORMANCE_CYCLE_PATH = '/processes/employee/updatePerformanceCycle'
 const DELETE_PERFORMANCE_CYCLE_PATH = '/processes/employee/deletePerformanceCycle'
 
+/** One entry in companyValues: links a company value to the performance cycle. */
+export interface PerformanceCycleCompanyValueItem {
+  id?: string
+  version?: number
+  businessKey?: string
+  activeTo?: string
+  additionalProperties?: Record<string, string>
+  mandatory?: boolean
+  /** Cycle id (when updating); backend may set on insert. */
+  performanceCycle?: string
+  /** Company value definition id. */
+  companyValue: string
+}
+
 export interface SavePerformanceCyclePayload {
   changeMode: 'INSERT' | 'UPDATE' | 'DELETE'
   performanceCycle: {
@@ -18,10 +32,11 @@ export interface SavePerformanceCyclePayload {
     /** API expects key "ratingScale" with id value (not ratingScaleId). */
     ratingScale?: string | null
     participantTypes?: string[]
-    valueIds?: string[]
     /** API expects key "active" (not isActive). */
     active?: boolean
     status?: string
+    /** Company values linked to this cycle (nested inside performanceCycle). */
+    companyValues?: PerformanceCycleCompanyValueItem[]
   }
 }
 

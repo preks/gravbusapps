@@ -7,7 +7,8 @@ import {
   type SavePerformanceCycleResponse,
   type UpdatePerformanceCyclePayload,
   type UpdatePerformanceCycleResponse,
-  type DeletePerformanceCycleResponse
+  type DeletePerformanceCycleResponse,
+  type PerformanceCycleCompanyValueItem
 } from '../services/performanceCycleApi'
 import type { CycleEditorValues } from '../CycleEditorModal'
 
@@ -28,10 +29,26 @@ function isNewCycle(id: string | undefined): boolean {
   return !id || id.startsWith('cycle_')
 }
 
+/** Build companyValues array from selected value ids (API shape: companyValue, version, performanceCycle, etc.). */
+function buildCompanyValues(valueIds: string[], performanceCycleId?: string): PerformanceCycleCompanyValueItem[] {
+  return (valueIds ?? []).map(companyValueId => {
+    const item: PerformanceCycleCompanyValueItem = {
+      companyValue: companyValueId,
+      mandatory: true
+    }
+    if (performanceCycleId) {
+      item.performanceCycle = performanceCycleId
+    }
+    return item
+  })
+}
+
 /** Build REST API payload from cycle editor form. */
 function buildSavePayload(values: CycleEditorValues): SavePerformanceCyclePayload {
   const changeMode = isNewCycle(values.id) ? 'INSERT' : 'UPDATE'
   const frequencyApi = FREQUENCY_TO_API[values.frequency] ?? 'ANNUAL'
+  const valueIds = values.valueIds ?? []
+  const companyValues = buildCompanyValues(valueIds, changeMode === 'UPDATE' && values.id ? values.id : undefined)
   return {
     changeMode,
     performanceCycle: {
@@ -43,8 +60,8 @@ function buildSavePayload(values: CycleEditorValues): SavePerformanceCyclePayloa
       frequency: frequencyApi,
       ratingScale: values.ratingScaleId ?? null,
       participantTypes: participantTypesToApi(values.participants ?? []),
-      valueIds: values.valueIds ?? [],
-      ...(changeMode === 'INSERT' ? { status: 'DRAFT_CYCLE' } : {})
+      ...(changeMode === 'INSERT' ? { status: 'DRAFT_CYCLE' } : {}),
+      ...(companyValues.length > 0 ? { companyValues } : {})
     }
   }
 }
