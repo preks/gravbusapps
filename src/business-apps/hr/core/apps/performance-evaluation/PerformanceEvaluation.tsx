@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   PageLayout,
   Button,
@@ -14,13 +14,18 @@ import {
   CardTitle,
   CardContent,
   useTranslation,
-  toast
+  toast,
+  Spinner
 } from '@newwork/nw-design-system'
 import { CalendarBlank, ListChecks, PencilSimple, Plus, Warning as WarningIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
+import { usePerformanceCycles } from './hooks/usePerformanceCycles'
+import { useRatingScales } from './hooks/useRatingScales'
+import { useInsertRatingScale } from './hooks/useInsertRatingScale'
+import { useSavePerformanceCycle } from './hooks/useSavePerformanceCycle'
 import translations from './_i18n'
 import CycleEditorModal, {
   CycleEditorValues,
@@ -44,6 +49,7 @@ interface EvaluationStage {
 
 interface PerformanceCycle {
   id: string
+  version?: number
   name: string
   startDate: string // ISO (yyyy-mm-dd)
   endDate: string // ISO
@@ -138,6 +144,16 @@ function makeId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}`
 }
 
+/** Display "1 star"/"2 stars" etc. as ★, ★★, … in the Rating Scales table. */
+function formatRatingScaleValueForDisplay(value: string): string {
+  const match = value.trim().match(/^(\d+)\s+stars?$/i)
+  if (match) {
+    const n = Math.max(0, Math.min(parseInt(match[1], 10), 10))
+    return '★'.repeat(n)
+  }
+  return value
+}
+
 // Tabs for the Performance Evaluation page (defined outside component to avoid redeclaration)
 enum PerformanceTabEnum {
   Cycles = 'cycles',
@@ -145,9 +161,23 @@ enum PerformanceTabEnum {
   Values = 'values'
 }
 
-export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
+export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
   const { t } = useTranslation(translations)
+  const {
+    cycles: apiCycles,
+    loading: cyclesLoading,
+    error: cyclesError,
+    refetch: refetchCycles
+  } = usePerformanceCycles(accessToken)
+  const {
+    ratingScales: apiRatingScales,
+    loading: ratingScalesLoading,
+    error: ratingScalesError,
+    refetch: refetchRatingScales
+  } = useRatingScales(accessToken)
+  const { saveRatingScale } = useInsertRatingScale(accessToken)
+  const { savePerformanceCycle, updateCycleActive } = useSavePerformanceCycle(accessToken)
 
   // Show page only if dev.enabled feature flag is active
   if (!devFeatureFlag) {
@@ -164,11 +194,30 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
   const [editingScale, setEditingScale] = useState<RatingScale | null>(null)
   const [valuesStore, setValuesStore] = useState<ValueItemStored[]>([])
 
+  // Load values from localStorage on mount
   useEffect(() => {
-    setCycles(loadCycles())
-    setRatingScales(loadRatingScales())
     setValuesStore(loadValues())
   }, [])
+
+  // Populate rating scales from Hasura API and merge with localStorage (local-only scales appended)
+  const apiScaleIds = useMemo(() => new Set(apiRatingScales.map(s => s.id)), [apiRatingScales])
+  useEffect(() => {
+    if (!ratingScalesLoading) {
+      const localOnly = loadRatingScales().filter(s => !apiScaleIds.has(s.id))
+      const merged: RatingScale[] = [...apiRatingScales, ...localOnly]
+      setRatingScales(merged)
+    }
+  }, [ratingScalesLoading, apiRatingScales, apiScaleIds])
+
+  // Populate cycles from Hasura API and merge with localStorage (local-only cycles appended)
+  const apiCycleIds = useMemo(() => new Set(apiCycles.map(c => c.id)), [apiCycles])
+  useEffect(() => {
+    if (!cyclesLoading) {
+      const localOnly = loadCycles().filter(c => !apiCycleIds.has(c.id))
+      const merged: PerformanceCycle[] = [...apiCycles, ...localOnly]
+      setCycles(merged)
+    }
+  }, [cyclesLoading, apiCycles, apiCycleIds])
 
   useEffect(() => {
     saveCycles(cycles)
@@ -192,72 +241,123 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
     setIsModalOpen(true)
   }
 
-  const handleDeactivate = (cycleId: string) => {
-    setCycles(prev =>
-      prev.map(c =>
-        c.id === cycleId
-          ? {
-              ...c,
-              deactivated: true,
-              status: 'Inactive'
-            }
-          : c
-      )
-    )
-  }
-
-  const handleActivate = (cycleId: string) => {
-    setCycles(prev =>
-      prev.map(c =>
-        c.id === cycleId
-          ? {
-              ...c,
-              deactivated: false,
-              status: computeStatus({ ...c, deactivated: false })
-            }
-          : c
-      )
-    )
-  }
-
-  const handleSaveFromModal = (values: CycleEditorValues) => {
-    const base: Omit<PerformanceCycle, 'status'> = {
-      id: values.id || makeId('cycle'),
-      name: values.name,
-      startDate: values.startDate,
-      endDate: values.endDate,
-      frequency: values.frequency as FrequencyType,
-      participants: values.participants as ParticipantType[],
-      stages: (values.stages as EditorStage[]).map(s => ({
-        id: s.id,
-        type: s.type as ParticipantType,
-        label: s.label
-      })),
-      deactivated: false,
-      ratingScaleId: values.ratingScaleId,
-      valueIds: values.valueIds ?? []
+  const handleDeactivate = async (cycleId: string) => {
+    const cycle = cycles.find(c => c.id === cycleId)
+    if (!cycle) return
+    if (accessToken) {
+      try {
+        await updateCycleActive(cycle, false)
+        await refetchCycles()
+        toast.success(t('cycle-deactivated-to-database', { name: cycle.name }) ?? `"${cycle.name}" deactivated.`)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to deactivate cycle'
+        toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
+        return
+      }
+    } else {
+      setCycles(prev => prev.map(c => (c.id === cycleId ? { ...c, deactivated: true, status: 'Inactive' } : c)))
     }
-    const status = computeStatus(base)
-    const next: PerformanceCycle = { ...base, status }
-    setCycles(prev => {
-      const exists = prev.some(c => c.id === next.id)
-      return exists ? prev.map(c => (c.id === next.id ? next : c)) : [next, ...prev]
-    })
+  }
+
+  const handleActivate = async (cycleId: string) => {
+    const cycle = cycles.find(c => c.id === cycleId)
+    if (!cycle) return
+    if (accessToken) {
+      try {
+        await updateCycleActive(cycle, true)
+        await refetchCycles()
+        toast.success(t('cycle-activated-to-database', { name: cycle.name }) ?? `"${cycle.name}" activated.`)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to activate cycle'
+        toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
+        return
+      }
+    } else {
+      setCycles(prev =>
+        prev.map(c =>
+          c.id === cycleId
+            ? {
+                ...c,
+                deactivated: false,
+                status: computeStatus({ ...c, deactivated: false })
+              }
+            : c
+        )
+      )
+    }
+  }
+
+  const handleSaveFromModal = async (values: CycleEditorValues) => {
+    if (accessToken) {
+      try {
+        await savePerformanceCycle(values)
+        await refetchCycles()
+        toast.success(
+          t('cycle-saved-to-database', { name: values.name }) ?? `Performance cycle "${values.name}" saved.`
+        )
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to save performance cycle'
+        toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
+        return
+      }
+    } else {
+      const base: Omit<PerformanceCycle, 'status'> = {
+        id: values.id || makeId('cycle'),
+        name: values.name,
+        startDate: values.startDate,
+        endDate: values.endDate,
+        frequency: values.frequency as FrequencyType,
+        participants: values.participants as ParticipantType[],
+        stages: (values.stages as EditorStage[]).map(s => ({
+          id: s.id,
+          type: s.type as ParticipantType,
+          label: s.label
+        })),
+        deactivated: false,
+        ratingScaleId: values.ratingScaleId,
+        valueIds: values.valueIds ?? []
+      }
+      const status = computeStatus(base)
+      const next: PerformanceCycle = { ...base, status }
+      setCycles(prev => {
+        const exists = prev.some(c => c.id === next.id)
+        return exists ? prev.map(c => (c.id === next.id ? next : c)) : [next, ...prev]
+      })
+    }
     setEditing(null)
   }
 
   // Stages management tab removed as per requirements
 
-  const handleSaveFromScaleModal = (values: RatingScaleValues) => {
-    const base: RatingScale = {
-      id: values.id || makeId('scale'),
-      name: values.name,
-      values: values.values
+  const handleSaveFromScaleModal = async (values: RatingScaleValues) => {
+    const isNewScale = !values.id || values.id.startsWith('scale_')
+    if (accessToken && isNewScale) {
+      try {
+        await saveRatingScale({
+          id: values.id,
+          name: values.name,
+          values: values.values,
+          numValues: values.numValues,
+          displayMode: values.displayMode
+        })
+        await refetchRatingScales()
+        toast.success(t('scale-saved-to-database', { name: values.name }) ?? `Rating scale "${values.name}" saved.`)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to save rating scale'
+        toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
+        return
+      }
+    } else {
+      const base: RatingScale = {
+        id: values.id || makeId('scale'),
+        name: values.name,
+        values: values.values
+      }
+      setRatingScales(prev => {
+        const exists = prev.some(s => s.id === base.id)
+        return exists ? prev.map(s => (s.id === base.id ? base : s)) : [base, ...prev]
+      })
     }
-    setRatingScales(prev => {
-      const exists = prev.some(s => s.id === base.id)
-      return exists ? prev.map(s => (s.id === base.id ? base : s)) : [base, ...prev]
-    })
     setEditingScale(null)
   }
 
@@ -318,27 +418,38 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
             <CalendarBlank size={20} />
             {t('tab-cycles')}
           </CardTitle>
-          <Button
-            variant="default"
-            onClick={() => {
-              if (ratingScales.length === 0) {
-                toast.warning(t('cycles-error-no-rating-scales'), {
-                  position: 'bottom-right',
-                  className: 'gba:text-base',
-                  icon: <WarningIcon size={18} weight="fill" className="gba:text-warning" />
-                })
-              }
-              setEditing(null)
-              setIsModalOpen(true)
-            }}
-            data-testid="performance-cycles-add-button"
-          >
-            <Plus className="gba:mr-2" size={16} />
-            {t('button-add')}
-          </Button>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            {cyclesLoading && <Spinner className="gba:h-5 gba:w-5" data-testid="performance-cycles-loading" />}
+            <Button
+              variant="default"
+              onClick={() => {
+                if (ratingScales.length === 0) {
+                  toast.warning(t('cycles-error-no-rating-scales'), {
+                    position: 'bottom-right',
+                    className: 'gba:text-base',
+                    icon: <WarningIcon size={18} weight="fill" className="gba:text-warning" />
+                  })
+                }
+                setEditing(null)
+                setIsModalOpen(true)
+              }}
+              data-testid="performance-cycles-add-button"
+            >
+              <Plus className="gba:mr-2" size={16} />
+              {t('button-add')}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
+        {cyclesError && (
+          <div
+            className="gba:mb-4 gba:rounded-lg gba:bg-destructive/10 gba:px-4 gba:py-3 gba:text-destructive gba:text-sm"
+            data-testid="performance-cycles-error"
+          >
+            {cyclesError}
+          </div>
+        )}
         <div className="gba:border gba:rounded-lg gba:overflow-hidden">
           <Table>
             <TableHeader>
@@ -355,7 +466,13 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {cycles.length === 0 ? (
+              {cyclesLoading && cycles.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="gba:py-8 gba:text-center">
+                    <Spinner className="gba:mx-auto gba:h-8 gba:w-8" />
+                  </TableCell>
+                </TableRow>
+              ) : cycles.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="gba:text-center gba:text-muted-foreground">
                     {t('empty-no-cycles')}
@@ -440,20 +557,33 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
       <CardHeader>
         <div className="gba:flex gba:items-center gba:justify-between">
           <CardTitle className="gba:flex gba:items-center gba:gap-2">{t('tab-rating-scales')}</CardTitle>
-          <Button
-            variant="default"
-            onClick={() => {
-              setEditingScale(null)
-              setIsScaleModalOpen(true)
-            }}
-            data-testid="performance-rating-scales-add-button"
-          >
-            <Plus className="gba:mr-2" size={16} />
-            {t('button-add')}
-          </Button>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            {ratingScalesLoading && (
+              <Spinner className="gba:h-5 gba:w-5" data-testid="performance-rating-scales-loading" />
+            )}
+            <Button
+              variant="default"
+              onClick={() => {
+                setEditingScale(null)
+                setIsScaleModalOpen(true)
+              }}
+              data-testid="performance-rating-scales-add-button"
+            >
+              <Plus className="gba:mr-2" size={16} />
+              {t('button-add')}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
+        {ratingScalesError && (
+          <div
+            className="gba:mb-4 gba:rounded-lg gba:bg-destructive/10 gba:px-4 gba:py-3 gba:text-destructive gba:text-sm"
+            data-testid="performance-rating-scales-error"
+          >
+            {ratingScalesError}
+          </div>
+        )}
         <div className="gba:border gba:rounded-lg gba:overflow-hidden">
           <Table>
             <TableHeader>
@@ -465,7 +595,13 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {ratingScales.length === 0 ? (
+              {ratingScalesLoading && ratingScales.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="gba:py-8 gba:text-center">
+                    <Spinner className="gba:mx-auto gba:h-8 gba:w-8" />
+                  </TableCell>
+                </TableRow>
+              ) : ratingScales.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="gba:text-center gba:text-muted-foreground">
                     {t('empty-no-rating-scales')}
@@ -476,7 +612,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
                   <TableRow key={s.id}>
                     <TableCell>{i + 1}</TableCell>
                     <TableCell className="gba:font-medium">{s.name}</TableCell>
-                    <TableCell>{s.values.join(', ')}</TableCell>
+                    <TableCell>{s.values.map(formatRatingScaleValueForDisplay).join(', ')}</TableCell>
                     <TableCell className="gba:text-right">
                       <div className="gba:flex gba:justify-end gba:gap-1">
                         <Button
@@ -649,10 +785,16 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = () => {
           editing
             ? {
                 id: editing.id,
+                version: editing.version,
                 name: editing.name,
                 startDate: editing.startDate,
                 endDate: editing.endDate,
-                frequency: editing.frequency as EditorFrequencyType,
+                frequency:
+                  (String(editing.frequency).toUpperCase() === 'QUARTERLY'
+                    ? 'Quarterly'
+                    : String(editing.frequency).toUpperCase() === 'ANNUAL'
+                      ? 'Annual'
+                      : (editing.frequency as EditorFrequencyType)) ?? 'Annual',
                 participants: editing.participants as EditorParticipantType[],
                 stages: editing.stages as unknown as EditorStage[],
                 ratingScaleId: editing.ratingScaleId,

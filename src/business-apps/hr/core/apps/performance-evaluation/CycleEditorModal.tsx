@@ -25,6 +25,7 @@ export interface EvaluationStage {
 
 export interface CycleEditorValues {
   id?: string
+  version?: number
   name: string
   startDate: string
   endDate: string
@@ -50,19 +51,25 @@ interface CycleEditorModalProps {
   initialValues?: CycleEditorValues
 }
 
+function defaultParticipantsState(initialValues?: CycleEditorValues): Record<ParticipantType, boolean> {
+  return {
+    Self: initialValues?.participants?.includes('Self') ?? true,
+    Peer: initialValues?.participants?.includes('Peer') ?? true,
+    Manager: initialValues?.participants?.includes('Manager') ?? true,
+    Calibration: false,
+    Team: initialValues?.participants?.includes('Team') ?? true
+  }
+}
+
 export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpenChange, onSave, initialValues }) => {
   const { t } = useTranslation(translations)
   const [name, setName] = useState(initialValues?.name || '')
   const [startDate, setStartDate] = useState(initialValues?.startDate || '')
   const [endDate, setEndDate] = useState(initialValues?.endDate || '')
   const [frequency, setFrequency] = useState<FrequencyType>(initialValues?.frequency || 'Annual')
-  const [participantsState, setParticipantsState] = useState<Record<ParticipantType, boolean>>({
-    Self: initialValues?.participants?.includes('Self') ?? true,
-    Peer: initialValues?.participants?.includes('Peer') ?? true,
-    Manager: initialValues?.participants?.includes('Manager') ?? true,
-    Calibration: false,
-    Team: initialValues?.participants?.includes('Team') ?? true
-  })
+  const [participantsState, setParticipantsState] = useState<Record<ParticipantType, boolean>>(() =>
+    defaultParticipantsState(initialValues)
+  )
   const initialStages: EvaluationStage[] = initialValues?.stages ?? []
 
   // Rating scales (managed in Rating Scales tab)
@@ -76,6 +83,28 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
   type LocalValue = { id: string; title: string; description: string; active: boolean }
   const [availableValues, setAvailableValues] = useState<LocalValue[]>([])
   const [selectedValueIds, setSelectedValueIds] = useState<string[]>(initialValues?.valueIds ?? [])
+
+  // Populate form when modal opens: from initialValues (edit) or empty (create)
+  useEffect(() => {
+    if (!open) return
+    if (initialValues) {
+      setName(initialValues.name || '')
+      setStartDate(initialValues.startDate || '')
+      setEndDate(initialValues.endDate || '')
+      setFrequency(initialValues.frequency || 'Annual')
+      setParticipantsState(defaultParticipantsState(initialValues))
+      setSelectedScaleId(initialValues.ratingScaleId)
+      setSelectedValueIds(initialValues.valueIds ?? [])
+    } else {
+      setName('')
+      setStartDate('')
+      setEndDate('')
+      setFrequency('Annual')
+      setParticipantsState(defaultParticipantsState(undefined))
+      setSelectedScaleId(undefined)
+      setSelectedValueIds([])
+    }
+  }, [open])
 
   // Auto-calc end date based on start date and selected frequency (Annual = +12 months, Quarterly = +3 months).
   useEffect(() => {
@@ -133,6 +162,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
     if (!name.trim() || !startDate || !endDate) return
     onSave({
       id: initialValues?.id,
+      version: initialValues?.version,
       name: name.trim(),
       startDate,
       endDate,

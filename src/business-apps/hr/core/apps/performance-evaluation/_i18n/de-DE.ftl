@@ -76,6 +76,10 @@ frequency-custom = Benutzerdefiniert
 
 # Bewertungsskalen-Tabelle
 empty-no-rating-scales = Noch keine Bewertungsskalen definiert.
+scale-saved-to-database = Bewertungsskala "{ $name }" gespeichert.
+cycle-saved-to-database = Leistungszyklus "{ $name }" gespeichert.
+cycle-activated-to-database = "{ $name }" aktiviert.
+cycle-deactivated-to-database = "{ $name }" deaktiviert.
 table-values = Werte
 button-edit = Bearbeiten
 
