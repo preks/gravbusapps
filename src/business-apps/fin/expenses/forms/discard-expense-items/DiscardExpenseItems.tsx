@@ -155,7 +155,7 @@ const DiscardExpenseItems: React.FC<DiscardExpenseItemsProps> = ({
       formData={{}}
       onProcessCompletion={handleProcessCompletion}
       submitButtonText={t('lowcoder:discard_expense_items.confirm_button', 'Yes')}
-      cancelButtonText={t('lowcoder:discard_expense_items.cancel_button', 'No')}
+      cancelButtonText={t('lowcoder:add_items_to_plan.cancel_items_button', 'Cancel')}
       submitButtonVariant="default"
       data-testid="discard-expense-items-form"
     >
@@ -169,7 +169,7 @@ const DiscardExpenseItems: React.FC<DiscardExpenseItemsProps> = ({
           </h2>
           <Separator className="gba:my-4" />
         </div>
-        <p className="gba:text-base gba:text-foreground gba:text-center gba:font-medium">{confirmationMessage}</p>
+        <p className="gba:text-base gba:text-foreground gba:text-center gba:p-5">{confirmationMessage}</p>
         <Separator className="gba:my-4" />
       </div>
     </AppActionForm>
