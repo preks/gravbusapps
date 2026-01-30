@@ -7,6 +7,7 @@ import {
   SelectContent,
   SelectItem,
   Input,
+  DateInput,
   Avatar,
   AvatarImage,
   AvatarFallback,
@@ -182,7 +183,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     const curStart = current.startDate ? current.startDate.split('T')[0] : ''
     const curProb = current.probationEndDate ? current.probationEndDate.split('T')[0] : ''
     const curEnd = current.endDate ? current.endDate.split('T')[0] : ''
-    const curReason = current.additionalProperties?.fixedTermReason || ''
+    const curFixedTermReason = current.additionalProperties?.fixedTermReason || ''
     return (
       employmentType !== current.employmentTypeRef ||
       contractType !== current.contractTypeRef ||
@@ -191,7 +192,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
       (startDate || '') !== curStart ||
       (probationEndDate || '') !== curProb ||
       (endDate || '') !== curEnd ||
-      (fixedTermReason || '') !== curReason
+      fixedTermReason !== curFixedTermReason
     )
   }, [current, employmentType, contractType, remote, region, startDate, probationEndDate, endDate, fixedTermReason])
 
@@ -225,9 +226,9 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
         hireDate: startDate || undefined,
         probationEnd: probationEndDate || undefined,
         exitDate: endDate || undefined,
-        additionalProperties: fixedTermReason ? { fixedTermReason } : undefined,
         employeeId,
-        contractStatus: 'ACTIVE'
+        contractStatus: 'ACTIVE',
+        additionalProperties: fixedTermReason ? { fixedTermReason } : undefined
       }
     }
   }
@@ -365,10 +366,14 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <div className="gba:text-sm gba:font-medium">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.start_date', 'Start Date')}*
               </div>
-              <Input
+              <DateInput
                 type="date"
                 value={startDate}
-                onChange={(e: any) => setStartDate(e.target.value)}
+                onChange={(value: string | [string | null, string | null] | null) => {
+                  const stringValue = typeof value === 'string' ? value : ''
+                  setStartDate(stringValue)
+                }}
+                outputFormat="iso"
                 data-testid="flw_updateWorkingConditions_startDatePicker"
               />
             </div>
@@ -392,12 +397,16 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
                   'Probation End Date'
                 )}
               </div>
-              <Input
+              <DateInput
                 type="date"
                 value={probationEndDate}
-                onChange={(e: any) => setProbationEndDate(e.target.value)}
+                onChange={(value: string | [string | null, string | null] | null) => {
+                  const stringValue = typeof value === 'string' ? value : ''
+                  setProbationEndDate(stringValue)
+                }}
                 disabled={!startDate || loading}
                 min={startDate || undefined}
+                outputFormat="iso"
                 data-testid="flw_updateWorkingConditions_probationEndDatePicker"
               />
               {isProbationException && (
@@ -413,12 +422,13 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <div className="gba:text-sm gba:font-medium">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.end_date', 'End Date')}
               </div>
-              <Input
+              <DateInput
                 type="date"
                 value={endDate}
-                onChange={(e: any) => setEndDate(e.target.value)}
+                onChange={(value: string | null) => setEndDate(value || '')}
                 disabled={!startDate || loading}
                 min={startDate || undefined}
+                outputFormat="iso"
                 data-testid="flw_updateWorkingConditions_endDatePicker"
               />
             </div>
