@@ -13,8 +13,8 @@
  */
 
 import React, { useRef, useEffect } from 'react'
-import { Monitor, ArrowsOutSimple, MagnifyingGlassPlus, MicrophoneSlash, HandIcon } from '@phosphor-icons/react'
-import { Avatar, AvatarFallback } from '@newwork/nw-design-system'
+import { Monitor, ArrowsOutSimple, MagnifyingGlassPlus, MicrophoneSlashIcon, HandIcon } from '@phosphor-icons/react'
+import { Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
 import { getInitials } from '../../utils/callUtils'
 import { ReactionsOverlay, Reaction } from './ReactionsOverlay'
 import { rtkDebug } from '../../utils/rtkDebug'
@@ -24,6 +24,8 @@ export interface ParticipantVideoTileProps {
   peerId: string
   /** Display name */
   peerName: string
+  /** Avatar URL for displaying user profile picture */
+  avatarUrl?: string
   /** User ID for matching raised hands/reactions */
   userId?: string
   /** Custom participant ID for matching raised hands/reactions */
@@ -44,6 +46,8 @@ export interface ParticipantVideoTileProps {
   totalScreenShares?: number
   /** Whether participant's hand is raised */
   isHandRaised?: boolean
+  /** Order number for hand raise (1-based) */
+  handRaisedOrderNumber?: number
   /** Whether participant is the active speaker */
   isActiveSpeaker?: boolean
   /** Active reactions to display */
@@ -67,6 +71,7 @@ export interface ParticipantVideoTileProps {
 export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
   peerId,
   peerName,
+  avatarUrl,
   userId,
   customParticipantId,
   isLocal,
@@ -77,6 +82,7 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
   isFocusedScreenShare = false,
   totalScreenShares = 0,
   isHandRaised = false,
+  handRaisedOrderNumber,
   isActiveSpeaker = false,
   reactions = [],
   onScreenShareClick,
@@ -249,30 +255,45 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
 
       {/* Avatar (shown when no video) */}
       {!hasVideoTrack && (
-        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:w-full gba:h-full gba:gap-2">
-          <Avatar className="gba:w-20 gba:h-20">
-            <AvatarFallback className="gba:text-2xl">{getInitials(peerName)}</AvatarFallback>
+        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:w-full gba:h-full gba:gap-1.5">
+          <Avatar className="gba:w-14 gba:h-14">
+            {avatarUrl && <AvatarImage src={avatarUrl} alt={peerName} />}
+            <AvatarFallback className="gba:text-lg gba:font-semibold">{getInitials(peerName)}</AvatarFallback>
           </Avatar>
-          <span className="gba:text-sm gba:text-foreground">
-            {peerName} {isLocal ? '(You)' : ''}
-          </span>
+          <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:font-medium gba:text-foreground gba:px-1 gba:text-center">
+            <span className="gba:truncate gba:max-w-full">
+              {peerName} {isLocal ? '(You)' : ''}
+            </span>
+            {isMuted && (
+              <div className="gba:flex gba:items-center gba:justify-center gba:w-4 gba:h-4 gba:rounded-full gba:bg-destructive gba:flex-shrink-0">
+                <MicrophoneSlashIcon className="gba:w-2.5 gba:h-2.5 gba:text-destructive-foreground" weight="fill" />
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* Name overlay (only shown when video is on) */}
       {hasVideoTrack && (
-        <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm gba:flex gba:items-center gba:gap-1">
+        <div className="gba:absolute gba:bottom-2 gba:left-2 gba:px-2 gba:py-1 gba:rounded gba:bg-black/70 gba:text-white gba:text-sm gba:flex gba:items-center gba:gap-1.5">
           <span>
             {peerName} {isLocal ? '(You)' : ''}
           </span>
-          {isMuted && <MicrophoneSlash className="gba:w-3.5 gba:h-3.5" weight="fill" />}
+          {isMuted && (
+            <div className="gba:flex gba:items-center gba:justify-center gba:w-5 gba:h-5 gba:rounded-full gba:bg-destructive">
+              <MicrophoneSlashIcon className="gba:w-3 gba:h-3 gba:text-destructive-foreground" weight="fill" />
+            </div>
+          )}
         </div>
       )}
 
-      {/* Raised hand indicator */}
+      {/* Raised hand indicator with order number */}
       {isHandRaised && (
-        <div className="gba:absolute gba:top-2 gba:right-2 gba:px-2 gba:py-1 gba:rounded-full gba:bg-warning gba:text-warning-foreground gba:shadow-lg gba:animate-pulse">
+        <div className="gba:absolute gba:top-2 gba:right-2 gba:px-2 gba:py-1 gba:rounded-full gba:bg-warning gba:text-warning-foreground gba:shadow-lg gba:animate-pulse gba:flex gba:items-center gba:gap-1">
           <HandIcon className="gba:h-5 gba:w-5" weight="fill" />
+          {handRaisedOrderNumber !== undefined && (
+            <span className="gba:text-sm gba:font-bold">{handRaisedOrderNumber}</span>
+          )}
         </div>
       )}
 
@@ -303,6 +324,7 @@ export const MemoizedParticipantVideoTile = React.memo(ParticipantVideoTile, (pr
     prevProps.isFocusedScreenShare === nextProps.isFocusedScreenShare &&
     prevProps.totalScreenShares === nextProps.totalScreenShares &&
     prevProps.isHandRaised === nextProps.isHandRaised &&
+    prevProps.handRaisedOrderNumber === nextProps.handRaisedOrderNumber &&
     prevProps.isActiveSpeaker === nextProps.isActiveSpeaker &&
     prevProps.isMinimized === nextProps.isMinimized &&
     // Compare reactions array by length and content

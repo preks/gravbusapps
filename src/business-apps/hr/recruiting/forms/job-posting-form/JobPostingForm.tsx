@@ -34,7 +34,6 @@ import {
   getJobRequestStatusLabel
 } from '@/common/data/recruiting/types/enums'
 import type { JobRequest } from '@/common/data/recruiting/types/jobRequestTypes'
-import { JOB_REQUEST_LABELS } from '../_shared/constants/jobRequestLabels'
 
 interface JobPostingPublication {
   id?: string
@@ -514,13 +513,13 @@ const JobPostingForm: React.FC<JobPostingFormProps> = ({ accessToken, userInfo, 
                   { label: 'Employment Type', value: getValue(displayJobRequest.employmentType?.value) },
                   { label: 'Experience Level', value: getValue(displayJobRequest.jobExperienceLevel?.value) },
                   {
-                    label: JOB_REQUEST_LABELS.plannedHiringDate,
+                    label: 'Planned Hire Date',
                     value: displayJobRequest.plannedHireDate
                       ? new Date(displayJobRequest.plannedHireDate).toLocaleDateString()
                       : '-'
                   },
                   {
-                    label: JOB_REQUEST_LABELS.plannedExitDate,
+                    label: 'Planned Exit Date',
                     value: displayJobRequest.plannedExitDate
                       ? new Date(displayJobRequest.plannedExitDate).toLocaleDateString()
                       : '-'

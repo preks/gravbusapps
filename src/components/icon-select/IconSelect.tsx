@@ -11,70 +11,39 @@ interface IconSelectProps {
   className?: string
 }
 
-// Get all Phosphor icon names (excluding only utility exports)
+const DEFAULT_ICON = 'AppWindowIcon'
+
+// Only icon names with "Icon" suffix to avoid duplicates (library exports both Xxx and XxxIcon)
 const ALL_PHOSPHOR_ICONS = Object.keys(PhosphorIcons)
-  .filter(name => {
-    // Include all icon components (uppercase start)
-    // Only exclude IconContext and SSR utility exports
-    return /^[A-Z]/.test(name) && name !== 'IconContext' && name !== 'SSR'
-  })
+  .filter(name => /^[A-Z]/.test(name) && name.endsWith('Icon') && name !== 'IconContext' && name !== 'SSR')
   .sort()
 
-// Common/recommended icons that appear first (matching investment tile usage)
+// Common/recommended icons (Icon suffix only)
 const COMMON_ICONS = [
-  'Article',
-  'Target',
-  'TrendUp',
-  'Note',
-  'ListChecks',
-  'HandCoins',
-  'ChartBar',
-  'Lightbulb',
-  'Calendar',
-  'FileText',
-  'Users',
-  'Buildings',
-  'Warning',
-  'CheckCircle',
-  'Info',
-  'CurrencyDollar',
-  'ChartLineUp'
+  'ArticleIcon',
+  'TargetIcon',
+  'TrendUpIcon',
+  'NoteIcon',
+  'ListChecksIcon',
+  'HandCoinsIcon',
+  'ChartBarIcon',
+  'LightbulbIcon',
+  'CalendarIcon',
+  'FileTextIcon',
+  'UsersIcon',
+  'BuildingsIcon',
+  'WarningIcon',
+  'CheckCircleIcon',
+  'InfoIcon',
+  'CurrencyDollarIcon',
+  'ChartLineUpIcon',
+  'MapPinIcon'
 ]
 
-// Convert icon name to display label (e.g., "TrendUp" -> "Trend Up")
+// Convert icon name to display label (e.g., "TrendUpIcon" -> "Trend Up Icon")
 const getIconLabel = (iconName: string): string => {
   return iconName.replace(/([A-Z])/g, ' $1').trim()
 }
-
-// Map Material UI icon names to Phosphor icons for backward compatibility
-const MATERIAL_TO_PHOSPHOR_MAP: Record<string, string> = {
-  ArticleIcon: 'Article',
-  TargetIcon: 'Target',
-  TrendUpIcon: 'TrendUp',
-  NoteIcon: 'Note',
-  ListChecksIcon: 'ListChecks',
-  HandCoinsIcon: 'HandCoins',
-  ChartBarIcon: 'ChartBar',
-  LightbulbIcon: 'Lightbulb',
-  CalendarIcon: 'Calendar',
-  MapPinIcon: 'MapPin',
-  UsersIcon: 'Users',
-  BuildingsIcon: 'Buildings',
-  WarningIcon: 'Warning',
-  CheckCircleIcon: 'CheckCircle',
-  InfoIcon: 'Info',
-  FileTextIcon: 'FileText',
-  CurrencyDollarIcon: 'CurrencyDollar'
-}
-
-// Reverse map for saving back to Material UI format
-const PHOSPHOR_TO_MATERIAL_MAP: Record<string, string> = Object.entries(MATERIAL_TO_PHOSPHOR_MAP).reduce(
-  (acc, [key, value]) => {
-    acc[value] = key
-    return acc
-  },
-  {} as Record<string, string>
-)
 
 const ICONS_PER_PAGE = 54 // 6 columns x 9 rows
 
@@ -82,23 +51,18 @@ export const IconSelect: React.FC<IconSelectProps> = ({ value, onValueChange, di
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [displayCount, setDisplayCount] = useState(ICONS_PER_PAGE)
+  const [triggerMounted, setTriggerMounted] = useState(false)
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
-  // Convert Material UI name to Phosphor if needed
-  const phosphorValue = MATERIAL_TO_PHOSPHOR_MAP[value] || value || 'Article'
+  const setLoadMoreRef = React.useCallback((el: HTMLDivElement | null) => {
+    loadMoreRef.current = el
+    setTriggerMounted(!!el)
+  }, [])
 
-  // Try to get the icon component
-  let IconComponent = (PhosphorIcons as any)[phosphorValue]
-
-  // Final fallback to Article icon
+  const displayValue = value || DEFAULT_ICON
+  let IconComponent = (PhosphorIcons as any)[displayValue]
   if (!IconComponent) {
-    IconComponent = PhosphorIcons.Article
-    if (process.env.NODE_ENV === 'development') {
-      console.warn(
-        `Icon not found: ${value}, using Article as fallback. Available icons:`,
-        Object.keys(PhosphorIcons).slice(0, 10)
-      )
-    }
+    IconComponent = (PhosphorIcons as any)[DEFAULT_ICON]
   }
 
   // Filter icons based on search
@@ -144,10 +108,7 @@ export const IconSelect: React.FC<IconSelectProps> = ({ value, onValueChange, di
       entries => {
         const entry = entries[0]
         if (entry && entry.isIntersecting) {
-          setDisplayCount(prev => {
-            const newCount = Math.min(prev + ICONS_PER_PAGE, allOtherIcons.length)
-            return newCount
-          })
+          setDisplayCount(prev => Math.min(prev + ICONS_PER_PAGE, allOtherIcons.length))
         }
       },
       {
@@ -162,20 +123,19 @@ export const IconSelect: React.FC<IconSelectProps> = ({ value, onValueChange, di
     return () => {
       observer.disconnect()
     }
-  }, [open, hasMore, displayCount, allOtherIcons.length])
+  }, [open, hasMore, displayCount, allOtherIcons.length, triggerMounted])
 
   // Reset when closing
   useEffect(() => {
     if (!open) {
       setSearchQuery('')
       setDisplayCount(ICONS_PER_PAGE)
+      setTriggerMounted(false)
     }
   }, [open])
 
   const handleSelect = (iconName: string) => {
-    // Convert Phosphor back to Material UI format if mapping exists
-    const materialName = PHOSPHOR_TO_MATERIAL_MAP[iconName] || iconName
-    onValueChange(materialName)
+    onValueChange(iconName)
     setOpen(false)
     setSearchQuery('')
   }
@@ -221,7 +181,7 @@ export const IconSelect: React.FC<IconSelectProps> = ({ value, onValueChange, di
                   {commonFiltered.map(iconName => {
                     const Icon = (PhosphorIcons as any)[iconName]
                     if (!Icon) return null // Skip if icon not found
-                    const isSelected = phosphorValue === iconName
+                    const isSelected = displayValue === iconName
                     return (
                       <button
                         key={iconName}
@@ -252,7 +212,7 @@ export const IconSelect: React.FC<IconSelectProps> = ({ value, onValueChange, di
                   {otherFiltered.map(iconName => {
                     const Icon = (PhosphorIcons as any)[iconName]
                     if (!Icon) return null // Skip if icon not found
-                    const isSelected = phosphorValue === iconName
+                    const isSelected = displayValue === iconName
                     return (
                       <button
                         key={iconName}
@@ -273,7 +233,7 @@ export const IconSelect: React.FC<IconSelectProps> = ({ value, onValueChange, di
                 </div>
                 {/* Load more trigger for infinite scroll */}
                 <div
-                  ref={loadMoreRef}
+                  ref={setLoadMoreRef}
                   className="gba:h-2 gba:border-t gba:border-destructive"
                   data-testid="icon-select-load-more-trigger"
                   title="Infinite scroll trigger"

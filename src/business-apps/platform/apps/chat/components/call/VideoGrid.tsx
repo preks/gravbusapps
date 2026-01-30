@@ -1,9 +1,11 @@
 /**
  * VideoGrid Component
  *
- * Renders the participant grid with:
- * - Responsive grid layout based on participant count
- * - Support for focused screen shares (2x2 span)
+ * Renders the participant grid with two modes:
+ * - auto-fit: CSS Grid automatically calculates columns (industry standard)
+ * - fixed-grid: Manual cols/rows specification (legacy support)
+ *
+ * Features:
  * - Pagination for large participant lists
  * - Empty state
  */
@@ -20,8 +22,6 @@ export interface GridLayout {
 export interface VideoGridProps {
   /** Grid items to display (current page) */
   gridItems: React.ReactNode[]
-  /** Grid layout configuration */
-  gridLayout: GridLayout
   /** Current page number (0-indexed) */
   currentPage: number
   /** Total number of pages */
@@ -35,19 +35,27 @@ export interface VideoGridProps {
   /** Data test ID prefix */
   prefixDataTestId?: string
   /** Translation function */
-  t?: (key: string) => string
+  t?: (key: string, params?: Record<string, unknown>) => string
+  /** Grid mode: auto-fit uses CSS auto-fit, fixed-grid uses manual cols/rows */
+  mode?: 'auto-fit' | 'fixed-grid'
+  /** Minimum tile size for auto-fit mode (in pixels) */
+  minTileSize?: number
+  /** Grid layout configuration (only used in fixed-grid mode) */
+  gridLayout?: GridLayout
 }
 
 export const VideoGrid: React.FC<VideoGridProps> = ({
   gridItems,
-  gridLayout,
   currentPage,
   totalPages,
   totalItems,
   onPageChange,
   isEmpty = false,
   prefixDataTestId = 'rtk-group-call',
-  t = (key: string) => key
+  t = (key: string) => key,
+  mode = 'auto-fit',
+  minTileSize = 250,
+  gridLayout
 }) => {
   // Empty state
   if (isEmpty) {
@@ -55,21 +63,42 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:rounded-lg gba:bg-muted gba:text-muted-foreground">
         <div className="gba:text-center">
           <Users className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-2" />
-          <p>{t('groupCall-waitingForParticipants') || 'Waiting for participants...'}</p>
+          <p>{t('groupCall-waitingForParticipants')}</p>
         </div>
       </div>
     )
   }
 
+  // Calculate optimal number of columns for auto-fit mode
+  // This prevents creating too many thin columns
+  const calculateOptimalColumns = (itemCount: number): number => {
+    if (itemCount <= 1) return 1
+    if (itemCount <= 4) return 2
+    if (itemCount <= 9) return 3
+    if (itemCount <= 16) return 4
+    if (itemCount <= 25) return 5
+    // For larger counts, use square root rounded up, but cap at 6 columns max
+    return Math.min(Math.ceil(Math.sqrt(itemCount)), 6)
+  }
+
+  // Determine grid style based on mode
+  const gridStyle =
+    mode === 'auto-fit'
+      ? {
+          gridTemplateColumns: `repeat(${calculateOptimalColumns(gridItems.length)}, minmax(${minTileSize}px, 1fr))`,
+          gridAutoRows: '1fr'
+        }
+      : {
+          gridTemplateColumns: `repeat(${gridLayout?.cols || 1}, 1fr)`,
+          gridTemplateRows: `repeat(${gridLayout?.rows || 1}, 1fr)`
+        }
+
   return (
-    <div className="gba:flex gba:flex-col gba:flex-1 gba:h-0 gba:w-full gba:gap-2">
+    <div className="gba:flex gba:flex-col gba:flex-1 gba:w-full gba:gap-2 gba:min-h-0">
       {/* Participant Grid */}
       <div
-        className="gba:flex-1 gba:w-full gba:grid gba:gap-3 gba:min-h-0"
-        style={{
-          gridTemplateColumns: `repeat(${gridLayout.cols}, 1fr)`,
-          gridTemplateRows: `repeat(${gridLayout.rows}, 1fr)`
-        }}
+        className="gba:flex-1 gba:w-full gba:grid gba:gap-3 gba:min-h-0 gba:content-start"
+        style={gridStyle}
         data-testid={`${prefixDataTestId}-video-grid`}
       >
         {gridItems}
@@ -102,7 +131,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
             disabled={currentPage === 0}
             className="gba:p-2 gba:rounded-lg hover:gba:bg-accent disabled:gba:opacity-50 disabled:gba:cursor-not-allowed gba:transition-colors"
             data-testid={`${prefixDataTestId}-prev-page-btn`}
-            aria-label="Previous page"
+            aria-label={t('videogrid-previous-page')}
           >
             <ChevronLeft className="gba:w-5 gba:h-5" />
           </button>
@@ -110,10 +139,10 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
           {/* Page info */}
           <div className="gba:flex gba:items-center gba:gap-2">
             <span className="gba:text-sm gba:text-muted-foreground">
-              Page {currentPage + 1} of {totalPages}
+              {t('videogrid-page-info', { current: currentPage + 1, total: totalPages })}
             </span>
             <span className="gba:text-xs gba:text-muted-foreground gba:px-2 gba:py-1 gba:rounded gba:bg-muted/50">
-              {totalItems} participants
+              {totalItems} {totalItems === 1 ? t('chat-participant') : t('groupCall-participants')}
             </span>
           </div>
 
@@ -123,7 +152,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
             disabled={currentPage >= totalPages - 1}
             className="gba:p-2 gba:rounded-lg hover:gba:bg-accent disabled:gba:opacity-50 disabled:gba:cursor-not-allowed gba:transition-colors"
             data-testid={`${prefixDataTestId}-next-page-btn`}
-            aria-label="Next page"
+            aria-label={t('videogrid-next-page')}
           >
             <ChevronRight className="gba:w-5 gba:h-5" />
           </button>

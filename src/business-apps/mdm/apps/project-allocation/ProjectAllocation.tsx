@@ -102,7 +102,6 @@ const getProjectTimeStatus = (project: Project) => {
               : 70
     }
   }
-
   if (status === ProjectStatusUI.InProgress && project.daysUntilExpiry !== undefined) {
     const daysRemainingPattern = getTranslationFromI18nKeyAndLabel(
       'lowcoder:smart_project.time_status.days_remaining',
