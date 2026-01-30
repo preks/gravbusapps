@@ -13,7 +13,9 @@ import {
   getTemplateEntities,
   getTemplateEntity,
   formatTemplatePlaceholder,
-  type TemplateEntityDefinition
+  type TemplateEntityContext,
+  type TemplateEntityDefinition,
+  type TemplateEntityDomain
 } from '../entities'
 import { useTemplateEntityFields, type TemplateEntityFieldFromGraphQL } from '../hooks/useTemplateEntityFields'
 import { extractEntityKeysFromContent } from '../utils/templatePlaceholders'
@@ -22,7 +24,12 @@ export interface TemplateFieldsPanelProps {
   onInsertField: (placeholder: string) => void
   accessToken: string | undefined
   /** Optional: show only entities from this domain */
-  domain?: 'nw_orgchart' | 'nw_recruiting' | 'nw_catalog'
+  domain?: TemplateEntityDomain
+  /**
+   * Optional: context tag (e.g. 'recruitManager', 'onboarding'). When set, only entities
+   * that list this context in the registry are shown. Omit to show all entities.
+   */
+  context?: TemplateEntityContext
   /** Optional: template HTML content to show "Entities used in this template" (parsed from placeholders) */
   templateContent?: string
   'data-testid'?: string
@@ -159,12 +166,13 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
   onInsertField,
   accessToken,
   domain,
+  context,
   templateContent,
   'data-testid': testId = 'template-fields-panel'
 }) => {
   const [expandedEntities, setExpandedEntities] = useState<Set<string>>(new Set())
 
-  const entityList = useMemo(() => getTemplateEntities(domain), [domain])
+  const entityList = useMemo(() => getTemplateEntities(domain, context), [domain, context])
   const entitiesUsedInContent = useMemo(
     () => (templateContent ? extractEntityKeysFromContent(templateContent) : []),
     [templateContent]
@@ -181,10 +189,10 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
 
   return (
     <aside
-      className="gba:w-64 gba:flex-shrink-0 gba:border-r gba:bg-card gba:flex gba:flex-col gba:overflow-hidden"
+      className="gba:w-64 gba:h-full gba:min-h-0 gba:flex-shrink-0 gba:border-r gba:bg-card gba:flex gba:flex-col gba:overflow-hidden"
       data-testid={testId}
     >
-      <div className="gba:px-3 gba:py-3 gba:border-b">
+      <div className="gba:flex-shrink-0 gba:px-3 gba:py-3 gba:border-b">
         <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Insert field</h3>
         <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
           Choose an entity; fields come from GraphQL (e.g. {`{{job_candidate.firstName}}`}).
@@ -212,7 +220,7 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
           </div>
         )}
       </div>
-      <div className="gba:flex-1 gba:overflow-y-auto gba:py-2">
+      <div className="gba:min-h-0 gba:flex-1 gba:overflow-y-auto gba:overflow-x-hidden gba:py-2">
         {entityList.length === 0 ? (
           <p className="gba:px-3 gba:text-xs gba:text-muted-foreground">No entity types available.</p>
         ) : (

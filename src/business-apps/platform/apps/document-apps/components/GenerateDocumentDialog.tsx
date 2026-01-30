@@ -32,6 +32,8 @@ export interface GenerateDocumentDialogProps {
    * All {{entityKey.fieldPath}} placeholders are replaced when the entity is in this map.
    */
   entityDataMap: Record<string, Record<string, unknown>>
+  /** When true, candidate and related data (job_request, company, etc.) are still loading – show loading state and disable generate */
+  entityDataLoading?: boolean
   /** Document title for the generated document */
   defaultTitle?: string
   /** Called after document is created (e.g. to navigate to document) */
@@ -43,6 +45,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
   open,
   onOpenChange,
   entityDataMap,
+  entityDataLoading = false,
   defaultTitle = 'Generated Document',
   onSuccess,
   'data-testid': testId = 'generate-document-dialog'
@@ -141,32 +144,44 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
               data-testid={`${testId}-entity-data-status`}
             >
               <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Placeholder data status</p>
+              {entityDataLoading && (
+                <p className="gba:text-xs gba:text-muted-foreground gba:italic gba:mb-2">
+                  Loading candidate and related data (job_request, company)…
+                </p>
+              )}
               <ul className="gba:space-y-1.5">
-                {entityDataStatus.map(({ key, hasData, emptyReason, fieldCount }) => (
-                  <li
-                    key={key}
-                    className="gba:flex gba:items-start gba:gap-2 gba:text-sm"
-                    data-testid={`${testId}-entity-status-${key}`}
-                  >
-                    {hasData ? (
-                      <CheckCircle className="gba:w-4 gba:h-4 gba:text-success gba:flex-shrink-0 gba:mt-0.5" />
-                    ) : (
-                      <Info className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:flex-shrink-0 gba:mt-0.5" />
-                    )}
-                    <span className="gba:min-w-0">
-                      <Badge variant={hasData ? 'secondary' : 'outline'} className="gba:font-mono gba:text-[10px]">
-                        {key}
-                      </Badge>
+                {entityDataStatus.map(({ key, hasData, emptyReason, fieldCount }) => {
+                  const showLoading = entityDataLoading && !hasData
+                  return (
+                    <li
+                      key={key}
+                      className="gba:flex gba:items-start gba:gap-2 gba:text-sm"
+                      data-testid={`${testId}-entity-status-${key}`}
+                    >
                       {hasData ? (
-                        <span className="gba:ml-1.5 gba:text-muted-foreground">
-                          {fieldCount} field{fieldCount !== 1 ? 's' : ''} available
-                        </span>
-                      ) : emptyReason ? (
-                        <span className="gba:ml-1.5 gba:text-muted-foreground gba:italic">{emptyReason}</span>
-                      ) : null}
-                    </span>
-                  </li>
-                ))}
+                        <CheckCircle className="gba:w-4 gba:h-4 gba:text-success gba:flex-shrink-0 gba:mt-0.5" />
+                      ) : showLoading ? (
+                        <Spinner size="sm" className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:mt-0.5" />
+                      ) : (
+                        <Info className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:flex-shrink-0 gba:mt-0.5" />
+                      )}
+                      <span className="gba:min-w-0">
+                        <Badge variant={hasData ? 'secondary' : 'outline'} className="gba:font-mono gba:text-[10px]">
+                          {key}
+                        </Badge>
+                        {hasData ? (
+                          <span className="gba:ml-1.5 gba:text-muted-foreground">
+                            {fieldCount} field{fieldCount !== 1 ? 's' : ''} available
+                          </span>
+                        ) : showLoading ? (
+                          <span className="gba:ml-1.5 gba:text-muted-foreground gba:italic">Loading…</span>
+                        ) : emptyReason ? (
+                          <span className="gba:ml-1.5 gba:text-muted-foreground gba:italic">{emptyReason}</span>
+                        ) : null}
+                      </span>
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           )}
@@ -217,7 +232,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
           </Button>
           <Button
             onClick={handleGenerate}
-            disabled={!selectedTemplateId || generating || loading}
+            disabled={!selectedTemplateId || generating || loading || entityDataLoading}
             data-testid={`${testId}-generate`}
           >
             {generating ? (

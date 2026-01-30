@@ -8,4 +8,7 @@ export {
   getTemplateEntities,
   getTemplateEntity
 } from './templateEntityRegistry'
-export type { TemplateEntityDomain, TemplateEntityDefinition } from './templateEntityRegistry'
+export type { TemplateEntityContext, TemplateEntityDomain, TemplateEntityDefinition } from './templateEntityRegistry'
+
+export { TEMPLATE_CONTEXTS, ENTITY_KEYS_BY_CONTEXT, getTemplateContextDisplayName } from './templateContextConfig'
+export type { TemplateContextOption } from './templateContextConfig'

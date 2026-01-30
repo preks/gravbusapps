@@ -4,8 +4,14 @@
  * nested paths like job_candidate.address.locality or company_address.locality.
  */
 
+/** Convert camelCase to snake_case for API response key fallback */
+function camelToSnake(s: string): string {
+  return s.replace(/[A-Z]/g, c => `_${c.toLowerCase()}`)
+}
+
 /**
  * Get a value from an object by dot-separated path (e.g. "address.locality").
+ * Tries snake_case key when camelCase lookup is undefined (some GraphQL backends return snake_case).
  */
 function getByPath(obj: unknown, path: string): unknown {
   if (obj == null) return undefined
@@ -13,7 +19,12 @@ function getByPath(obj: unknown, path: string): unknown {
   let current: unknown = obj
   for (const key of parts) {
     if (current == null || typeof current !== 'object') return undefined
-    current = (current as Record<string, unknown>)[key]
+    const record = current as Record<string, unknown>
+    let value = record[key]
+    if (value === undefined && key !== camelToSnake(key)) {
+      value = record[camelToSnake(key)]
+    }
+    current = value
   }
   return current
 }

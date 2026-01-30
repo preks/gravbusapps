@@ -52,7 +52,7 @@ export { resolvePlaceholders, extractEntityKeysFromContent } from './utils/templ
 
 // Template entity registry (middle link for placeholder mapping – no flow-engine)
 export { TEMPLATE_ENTITY_REGISTRY, formatTemplatePlaceholder, getTemplateEntities, getTemplateEntity } from './entities'
-export type { TemplateEntityDomain, TemplateEntityDefinition } from './entities'
+export type { TemplateEntityContext, TemplateEntityDomain, TemplateEntityDefinition } from './entities'
 
 // Default export for module registration
 export { DocumentAppsHub as default } from './DocumentAppsHub'

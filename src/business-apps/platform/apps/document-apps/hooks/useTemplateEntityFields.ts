@@ -37,6 +37,7 @@ const INTROSPECTION_QUERY = `
   query IntrospectType($name: String!) {
     __type(name: $name) {
       name
+      kind
       fields {
         name
         type {
@@ -44,6 +45,9 @@ const INTROSPECTION_QUERY = `
           name
           ofType { kind name }
         }
+      }
+      enumValues {
+        name
       }
     }
   }
@@ -57,7 +61,9 @@ interface IntrospectionFieldType {
 
 interface IntrospectionType {
   name: string | null
+  kind?: string
   fields: Array<{ name: string; type: IntrospectionFieldType }> | null
+  enumValues?: Array<{ name: string }> | null
 }
 
 function humanizeFieldName(key: string): string {
@@ -79,10 +85,17 @@ function isObjectType(type: IntrospectionFieldType): boolean {
 }
 
 /** Sub-fields we expose for catalog refs (avoid dumping full catalog entry internals) */
-const CATALOG_DISPLAY_FIELDS = new Set(['id', 'code', 'displayName', 'name', 'description'])
+const CATALOG_DISPLAY_FIELDS = new Set(['id', 'code', 'displayName', 'name', 'description', 'value'])
 
-/** Only these catalog refs are shown under "Catalog values" (contract type and employment type) */
-const ALLOWED_CATALOG_FIELD_KEYS = new Set(['contractType', 'employmentType'])
+/**
+ * Catalog/reference fields shown under "Catalog values" with sub-fields (displayName, code, etc.).
+ * At document generation time the backend resolves the ref and substitutes the chosen sub-field
+ * (e.g. {{company_address.countryRef.displayName}} → resolved country name).
+ */
+const ALLOWED_CATALOG_FIELD_KEYS = new Set(['contractType', 'employmentType', 'countryRef', 'country'])
+
+/** Entity keys that are catalog-like: show displayName/code when introspection returns no type or no fields */
+const CATALOG_ENTITY_KEYS = new Set(['contract_type', 'employment_type'])
 
 /** Exclude catalog ref ID fields from direct list (e.g. academicTitleRef, genderRef) – keep table fields only */
 function isRefIdField(fieldName: string): boolean {
@@ -148,15 +161,51 @@ export function useTemplateEntityFields(
         name: entity.graphqlTypeName
       })
       const type = data?.__type
-      if (!type?.fields?.length) {
-        setDirectFields([])
-        setCatalogGroups([])
+      const direct: TemplateEntityFieldFromGraphQL[] = []
+      const catalogs: TemplateCatalogGroup[] = []
+
+      if (!type) {
+        // Type not in schema (e.g. not exposed). For known catalog entities, show common placeholders.
+        if (CATALOG_ENTITY_KEYS.has(entityKey)) {
+          direct.push(
+            { key: 'value', displayName: 'Value' },
+            { key: 'displayName', displayName: 'Display name' },
+            { key: 'code', displayName: 'Code' }
+          )
+        }
+        setDirectFields(direct)
+        setCatalogGroups(catalogs)
         setIsLoading(false)
         return
       }
 
-      const direct: TemplateEntityFieldFromGraphQL[] = []
-      const catalogs: TemplateCatalogGroup[] = []
+      // GraphQL ENUM types have enumValues, not fields (e.g. ContractType, EmploymentType)
+      if (type.kind === 'ENUM' && type.enumValues?.length) {
+        direct.push(
+          { key: 'value', displayName: 'Value' },
+          { key: 'displayName', displayName: 'Display name' },
+          { key: 'code', displayName: 'Code' }
+        )
+        setDirectFields(direct)
+        setCatalogGroups(catalogs)
+        setIsLoading(false)
+        return
+      }
+
+      if (!type.fields?.length) {
+        // Object type with no fields, or unknown kind. Fallback for catalog entities.
+        if (CATALOG_ENTITY_KEYS.has(entityKey)) {
+          direct.push(
+            { key: 'value', displayName: 'Value' },
+            { key: 'displayName', displayName: 'Display name' },
+            { key: 'code', displayName: 'Code' }
+          )
+        }
+        setDirectFields(direct)
+        setCatalogGroups(catalogs)
+        setIsLoading(false)
+        return
+      }
 
       for (const field of type.fields) {
         const typeInfo = field.type

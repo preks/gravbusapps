@@ -260,27 +260,66 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
   const [generateDocOpen, setGenerateDocOpen] = useState(false)
   const [generateDocCandidate, setGenerateDocCandidate] = useState<JobCandidate | null>(null)
 
-  // When "Generate document" is open, load full candidate by ID so placeholders (address, catalogs, etc.) resolve
+  // When "Generate document" is open, load full candidate by ID so placeholders (address, catalogs, job_request, etc.) resolve
   const candidateIdForDoc = generateDocOpen && generateDocCandidate?.id ? generateDocCandidate.id : undefined
-  const { jobCandidate: fullCandidateForDoc } = useJobCandidate(context.accessToken, candidateIdForDoc, 'record')
+  const { jobCandidate: fullCandidateForDoc, loading: fullCandidateLoading } = useJobCandidate(
+    context.accessToken,
+    candidateIdForDoc,
+    'record'
+  )
 
-  // Company ID from first application (job candidate -> job application -> job posting -> job request -> company)
-  const firstJobRequest = fullCandidateForDoc?.jobApplications?.[0]?.jobPosting?.jobRequest as
-    | { companyId?: string }
-    | undefined
-  const companyIdForDoc = firstJobRequest?.companyId ?? undefined
-  const { company: companyForDoc } = useCompany(context.accessToken, companyIdForDoc, 'record')
+  // Company ID from first application (job candidate → job_application → job_posting → job_request → company)
+  // Support both camelCase and snake_case (GraphQL backend may return either)
+  const applicationsForCompany =
+    (fullCandidateForDoc as Record<string, unknown> | null)?.jobApplications ??
+    (fullCandidateForDoc as Record<string, unknown> | null)?.job_applications
+  const firstAppForCompany = Array.isArray(applicationsForCompany) ? applicationsForCompany[0] : undefined
+  const firstPostingForCompany = firstAppForCompany
+    ? ((firstAppForCompany as Record<string, unknown>).jobPosting ??
+      (firstAppForCompany as Record<string, unknown>).job_posting)
+    : undefined
+  const firstJobRequestForCompany = firstPostingForCompany
+    ? ((firstPostingForCompany as Record<string, unknown>).jobRequest ??
+      (firstPostingForCompany as Record<string, unknown>).job_request)
+    : undefined
+  const companyIdForDoc =
+    (firstJobRequestForCompany as Record<string, unknown> | undefined)?.companyId ??
+    (firstJobRequestForCompany as Record<string, unknown> | undefined)?.company_id
+  const { company: companyForDoc } = useCompany(context.accessToken, companyIdForDoc as string | undefined, 'record')
 
-  // Build entity map for placeholder resolution: job_candidate, company, company_address (first address)
+  // Build entity map for placeholder resolution from linked data: job_candidate → job_application → job_posting → job_request → company
+  // Support both camelCase and snake_case response keys (GraphQL backends may return either)
   const entityDataMapForDoc = useMemo(() => {
     const candidate = fullCandidateForDoc ?? generateDocCandidate ?? {}
     const company = companyForDoc ?? {}
+    const addresses =
+      companyForDoc?.addresses ??
+      (companyForDoc != null ? (companyForDoc as unknown as Record<string, unknown>).addresses : undefined)
     const firstAddress =
-      companyForDoc?.addresses && Array.isArray(companyForDoc.addresses) && companyForDoc.addresses.length > 0
-        ? companyForDoc.addresses[0]
-        : {}
+      addresses && Array.isArray(addresses) && addresses.length > 0 ? (addresses[0] as Record<string, unknown>) : {}
+    const applications =
+      (fullCandidateForDoc as Record<string, unknown> | null)?.jobApplications ??
+      (fullCandidateForDoc as Record<string, unknown> | null)?.job_applications
+    const applicationsList = Array.isArray(applications) ? applications : []
+    const firstApplicationWithPosting = applicationsList.find(
+      (app: Record<string, unknown>) => app?.jobPosting != null || app?.job_posting != null
+    ) as Record<string, unknown> | undefined
+    const firstJobPosting = firstApplicationWithPosting
+      ? ((firstApplicationWithPosting.jobPosting ?? firstApplicationWithPosting.job_posting) as
+          | Record<string, unknown>
+          | undefined)
+      : undefined
+    const firstJobRequest = (firstJobPosting?.jobRequest ?? firstJobPosting?.job_request ?? {}) as Record<
+      string,
+      unknown
+    >
+    const firstJobPostingData = (firstJobPosting ?? {}) as Record<string, unknown>
+    const firstJobApplicationData = (firstApplicationWithPosting ?? {}) as Record<string, unknown>
     return {
       job_candidate: candidate as Record<string, unknown>,
+      job_application: firstJobApplicationData,
+      job_posting: firstJobPostingData,
+      job_request: firstJobRequest,
       company: company as Record<string, unknown>,
       company_address: firstAddress as Record<string, unknown>
     }
@@ -474,6 +513,7 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
         open={generateDocOpen}
         onOpenChange={setGenerateDocOpen}
         entityDataMap={entityDataMapForDoc}
+        entityDataLoading={candidateIdForDoc != null && fullCandidateLoading}
         defaultTitle={
           `${generateDocCandidate?.firstName ?? ''} ${generateDocCandidate?.lastName ?? ''}`.trim() || 'Candidate'
         }

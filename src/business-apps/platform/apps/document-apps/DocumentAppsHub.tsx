@@ -145,6 +145,7 @@ function formatDate(dateString: string): string {
 export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   accessToken,
   userInfo,
+  entityContext,
   'data-testid': testId = 'document-apps-hub'
 }) => {
   // View state
@@ -172,6 +173,13 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
+
+  // Entity context: prop wins; else from URL ?entityContext=recruitManager (so links can scope entities)
+  const effectiveEntityContext =
+    entityContext ??
+    (typeof window !== 'undefined'
+      ? (new URLSearchParams(window.location.search).get('entityContext') ?? undefined)
+      : undefined)
 
   // Hooks
   const {
@@ -460,6 +468,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
             <TemplateFieldsPanel
               onInsertField={placeholder => templateEditorRef.current?.insertAtCursor(placeholder)}
               accessToken={accessToken}
+              context={effectiveEntityContext}
               templateContent={templateBeingEdited.content}
               data-testid={`${testId}-template-fields-panel`}
             />
