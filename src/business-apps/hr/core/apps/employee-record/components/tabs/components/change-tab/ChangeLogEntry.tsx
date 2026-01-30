@@ -11,11 +11,12 @@ interface ChangeLogEntryProps {
 // FIELD_CATEGORIES imported from constants
 
 export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
-  if (!entry.isVisible) return null
-
   // Compute categories at runtime using useMemo to avoid module-level initialization
+  // Must be called before any conditional returns to comply with Rules of Hooks
   const fieldCategories = useMemo(() => getFieldCategories(), [])
   const categoryInfo = fieldCategories.find(cat => cat.value === entry.fieldCategory)
+
+  if (!entry.isVisible) return null
 
   const [open, setOpen] = React.useState(false)
 
