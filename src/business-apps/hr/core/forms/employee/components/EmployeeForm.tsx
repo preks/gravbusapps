@@ -177,6 +177,9 @@ const EmployeeForm: React.FC = () => {
       const hireDateFormatted = formatDateToMidnight(hireDateToUse)
       const fixedTermUntilFormatted = formatDateToMidnight(formValues.fixedTermUntil)
 
+      // Auto-set fixedTermReason to "Fixed-Term Employment" when fixedTermUntil is present
+      const fixedTermReason = formValues.fixedTermUntil ? 'Fixed-Term Employment' : formValues.fixedTermReason
+
       const payload: any = {
         employee: {
           firstName: formValues.firstName,
@@ -199,9 +202,7 @@ const EmployeeForm: React.FC = () => {
               employmentTypeRef: formValues.employmentTypeId,
               hireDate: hireDateFormatted,
               exitDate: fixedTermUntilFormatted,
-              additionalProperties: formValues.fixedTermReason
-                ? { fixedTermReason: formValues.fixedTermReason }
-                : undefined
+              additionalProperties: fixedTermReason ? { fixedTermReason: fixedTermReason } : undefined
             }
           ]
         },
@@ -418,34 +419,6 @@ const EmployeeForm: React.FC = () => {
 
                   <div>
                     <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                      {t('employee-form-fixed-term-end-date')}
-                    </label>
-                    <DateInput
-                      type="date"
-                      value={formValues.fixedTermUntil || ''}
-                      onChange={v => setFormValues({ fixedTermUntil: typeof v === 'string' ? v : '' })}
-                      className={`gba:w-full ${hasFixedTermDateError ? 'gba:border-destructive' : ''}`}
-                      captionLayout="dropdown"
-                    />
-                    {fixedTermDateError && (
-                      <div className="gba:text-destructive gba:text-sm gba:mt-1">{fixedTermDateError}</div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                      {t('employee-form-fixed-term-reason')}
-                    </label>
-                    <Input
-                      value={formValues.fixedTermReason}
-                      onChange={e => setFormValues({ fixedTermReason: e.target.value })}
-                      placeholder={t('action-enter-placeholder')}
-                      disabled={!formValues.fixedTermUntil}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
                       {t('employee-form-employment-type')}
                       <span className="gba:text-destructive"> *</span>
                     </label>
@@ -509,6 +482,22 @@ const EmployeeForm: React.FC = () => {
                     </Select>
                     {contractTypesError && (
                       <div className="gba:text-destructive gba:text-sm gba:mt-1">{contractTypesError}</div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
+                      {t('employee-form-fixed-term-end-date')}
+                    </label>
+                    <DateInput
+                      type="date"
+                      value={formValues.fixedTermUntil || ''}
+                      onChange={v => setFormValues({ fixedTermUntil: typeof v === 'string' ? v : '' })}
+                      className={`gba:w-full ${hasFixedTermDateError ? 'gba:border-destructive' : ''}`}
+                      captionLayout="dropdown"
+                    />
+                    {fixedTermDateError && (
+                      <div className="gba:text-destructive gba:text-sm gba:mt-1">{fixedTermDateError}</div>
                     )}
                   </div>
                 </div>
