@@ -92,16 +92,10 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
   const [runningAutomationId, setRunningAutomationId] = useState<string | null>(null)
 
   // Filter enabled automations
-  const enabledAutomations = useMemo(
-    () => automations.filter(a => a.isEnabled),
-    [automations]
-  )
+  const enabledAutomations = useMemo(() => automations.filter(a => a.isEnabled), [automations])
 
   // Filter manual trigger automations
-  const manualAutomations = useMemo(
-    () => enabledAutomations.filter(a => a.trigger === 'manual'),
-    [enabledAutomations]
-  )
+  const manualAutomations = useMemo(() => enabledAutomations.filter(a => a.trigger === 'manual'), [enabledAutomations])
 
   // Calculate workflow stats
   const workflowStats = useMemo(() => {
@@ -187,11 +181,7 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" disabled={isExecuting}>
-              {isExecuting ? (
-                <Spinner size="sm" className="gba:mr-2" />
-              ) : (
-                <Play className="gba:w-4 gba:h-4 gba:mr-2" />
-              )}
+              {isExecuting ? <Spinner size="sm" className="gba:mr-2" /> : <Play className="gba:w-4 gba:h-4 gba:mr-2" />}
               Run Automation
               {selectedRowIds.length > 0 && (
                 <Badge variant="outline" className="gba:ml-2">

@@ -138,11 +138,13 @@ const GET_LEAD_TASKS = `
       priority {
         value
       }
-      assignedEmployee {
-        id
-        firstName
-        lastName
-        displayName
+      taskAssignees(where: { isDeleted: { _eq: false } }) {
+        assignedEmployee {
+          id
+          firstName
+          lastName
+          displayName
+        }
       }
       creatorEmployee {
         id
@@ -339,14 +341,17 @@ function buildLeadActivities(params: { activities: any[]; tasks: any[]; notes: a
       type: normalizedType,
       title: task.name || 'Task',
       occurredAt: task.dueDate || task.createdAt || undefined,
-      relationId: task.assignedEmployee?.id || undefined,
+      relationId: task.taskAssignees?.[0]?.assignedEmployee?.id || undefined,
       meta: compactRecord({
         statusRef: task.statusRef,
         timingType: task.timingType,
         priority: task.priority?.value || task.priorityRef,
         assignedEmployee:
-          task.assignedEmployee?.displayName ||
-          [task.assignedEmployee?.firstName, task.assignedEmployee?.lastName].filter(Boolean).join(' ').trim() ||
+          task.taskAssignees?.[0]?.assignedEmployee?.displayName ||
+          [task.taskAssignees?.[0]?.assignedEmployee?.firstName, task.taskAssignees?.[0]?.assignedEmployee?.lastName]
+            .filter(Boolean)
+            .join(' ')
+            .trim() ||
           undefined,
         createdBy:
           task.creatorEmployee?.displayName ||

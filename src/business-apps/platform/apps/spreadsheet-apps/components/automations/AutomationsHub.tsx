@@ -9,9 +9,6 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
   Button,
   Badge,
   Switch,
@@ -39,7 +36,6 @@ import {
   Search,
   MoreVertical,
   Play,
-  Pause,
   Pencil,
   Trash2,
   Copy,
@@ -51,9 +47,7 @@ import {
   RefreshCw,
   FileSpreadsheet,
   Users,
-  ClipboardCheck,
-  BarChart3,
-  ChevronRight
+  ClipboardCheck
 } from 'lucide-react'
 import type {
   SpreadsheetAutomation,
@@ -232,24 +226,11 @@ const AutomationCard: React.FC<AutomationCardProps> = ({
 
           {/* Right: Actions */}
           <div className="gba:flex gba:items-center gba:gap-2">
-            <Switch
-              checked={automation.isEnabled}
-              onCheckedChange={onToggle}
-              aria-label="Toggle automation"
-            />
+            <Switch checked={automation.isEnabled} onCheckedChange={onToggle} aria-label="Toggle automation" />
 
             {automation.trigger === 'manual' && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={onRun}
-                disabled={!automation.isEnabled || isRunning}
-              >
-                {isRunning ? (
-                  <Spinner size="sm" className="gba:mr-1" />
-                ) : (
-                  <Play className="gba:w-4 gba:h-4 gba:mr-1" />
-                )}
+              <Button size="sm" variant="outline" onClick={onRun} disabled={!automation.isEnabled || isRunning}>
+                {isRunning ? <Spinner size="sm" className="gba:mr-1" /> : <Play className="gba:w-4 gba:h-4 gba:mr-1" />}
                 Run
               </Button>
             )}
@@ -294,16 +275,18 @@ interface ExecutionHistoryRowProps {
 const ExecutionHistoryRow: React.FC<ExecutionHistoryRowProps> = ({ entry, automationName }) => {
   const isSuccess = entry.failedCount === 0
   const StatusIcon = isSuccess ? CheckCircle : entry.failedCount < entry.rowCount ? AlertTriangle : XCircle
-  const statusColor = isSuccess ? 'gba:text-success' : entry.failedCount < entry.rowCount ? 'gba:text-warning' : 'gba:text-destructive'
+  const statusColor = isSuccess
+    ? 'gba:text-success'
+    : entry.failedCount < entry.rowCount
+      ? 'gba:text-warning'
+      : 'gba:text-destructive'
 
   return (
     <div className="gba:flex gba:items-center gba:justify-between gba:py-3 gba:border-b gba:last:border-b-0">
       <div className="gba:flex gba:items-center gba:gap-3">
         <StatusIcon className={`gba:w-5 gba:h-5 ${statusColor}`} />
         <div>
-          <div className="gba:text-sm gba:font-medium gba:text-foreground">
-            {automationName || 'Automation'}
-          </div>
+          <div className="gba:text-sm gba:font-medium gba:text-foreground">{automationName || 'Automation'}</div>
           <div className="gba:text-xs gba:text-muted-foreground">
             {formatRelativeTime(entry.executedAt)} • {entry.rowCount} rows
           </div>
@@ -312,9 +295,7 @@ const ExecutionHistoryRow: React.FC<ExecutionHistoryRowProps> = ({ entry, automa
       <div className="gba:text-right">
         <div className="gba:text-sm">
           <span className="gba:text-success">{entry.successCount} succeeded</span>
-          {entry.failedCount > 0 && (
-            <span className="gba:text-destructive gba:ml-2">{entry.failedCount} failed</span>
-          )}
+          {entry.failedCount > 0 && <span className="gba:text-destructive gba:ml-2">{entry.failedCount} failed</span>}
         </div>
         <div className="gba:text-xs gba:text-muted-foreground">{entry.durationMs}ms</div>
       </div>
@@ -371,9 +352,7 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
   const filteredAutomations = useMemo(() => {
     if (!searchQuery.trim()) return automations
     const query = searchQuery.toLowerCase()
-    return automations.filter(
-      a => a.name.toLowerCase().includes(query) || a.description?.toLowerCase().includes(query)
-    )
+    return automations.filter(a => a.name.toLowerCase().includes(query) || a.description?.toLowerCase().includes(query))
   }, [automations, searchQuery])
 
   // Count active workflows per automation
@@ -450,9 +429,7 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
             <Zap className="gba:w-5 gba:h-5 gba:text-primary" />
             Automations
           </h2>
-          <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-            Automate workflows for your spreadsheet data
-          </p>
+          <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">Automate workflows for your spreadsheet data</p>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
           {onRefresh && (
@@ -507,8 +484,12 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
       <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:flex-1 gba:flex gba:flex-col gba:min-h-0">
         <div className="gba:flex gba:flex-col gba:gap-3 gba:mb-4">
           <TabsList className="gba:w-full">
-            <TabsTrigger value="automations" className="gba:flex-1">Automations</TabsTrigger>
-            <TabsTrigger value="history" className="gba:flex-1">History</TabsTrigger>
+            <TabsTrigger value="automations" className="gba:flex-1">
+              Automations
+            </TabsTrigger>
+            <TabsTrigger value="history" className="gba:flex-1">
+              History
+            </TabsTrigger>
           </TabsList>
 
           {activeTab === 'automations' && (
@@ -576,9 +557,7 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
               <CardContent className="gba:py-16 gba:text-center">
                 <History className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mx-auto gba:mb-4" />
                 <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">No execution history</h3>
-                <p className="gba:text-muted-foreground">
-                  Run an automation to see execution history here.
-                </p>
+                <p className="gba:text-muted-foreground">Run an automation to see execution history here.</p>
               </CardContent>
             </Card>
           ) : (

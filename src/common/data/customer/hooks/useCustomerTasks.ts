@@ -104,16 +104,25 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
   )
 
   const fetchCustomerTasksByAccountId = useCallback(
-    async (accountId: string): Promise<CustomerTask[]> => {
+    async (accountId: string, limit?: number, offset?: number): Promise<CustomerTask[]> => {
       const query = buildCustomerTaskByAccountIdQuery()
       const whereCondition = buildCustomerTaskWhereCondition({}, [], [{ account: { id: { _eq: accountId } } }])
       const orderBy = buildCustomerTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
+      const graphQLVariables: Record<string, any> = {
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      if (limit !== undefined) {
+        graphQLVariables.limit = limit
+      }
+      if (offset !== undefined) {
+        graphQLVariables.offset = offset
+      }
+
       try {
-        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, {
-          where: whereCondition,
-          orderBy: orderBy
-        })
+        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, graphQLVariables)
         return result.SalesTask.map(toCustomerTask)
       } catch (error) {
         console.error('Error fetching customer tasks by account ID:', error)
@@ -124,16 +133,25 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
   )
 
   const fetchCustomerTasksByContactId = useCallback(
-    async (contactId: string): Promise<CustomerTask[]> => {
+    async (contactId: string, limit?: number, offset?: number): Promise<CustomerTask[]> => {
       const query = buildCustomerTaskByContactIdQuery()
       const whereCondition = buildCustomerTaskWhereCondition({}, [], [{ contact: { id: { _eq: contactId } } }])
       const orderBy = buildCustomerTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
+      const graphQLVariables: Record<string, any> = {
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      if (limit !== undefined) {
+        graphQLVariables.limit = limit
+      }
+      if (offset !== undefined) {
+        graphQLVariables.offset = offset
+      }
+
       try {
-        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, {
-          where: whereCondition,
-          orderBy: orderBy
-        })
+        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, graphQLVariables)
         return result.SalesTask.map(toCustomerTask)
       } catch (error) {
         console.error('Error fetching customer tasks by contact ID:', error)

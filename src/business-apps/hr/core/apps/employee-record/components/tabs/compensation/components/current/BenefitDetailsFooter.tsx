@@ -31,7 +31,7 @@ interface BenefitDetailsFooterProps {
  * Benefit Details Footer Component
  * Displays action buttons and error messages in the sheet footer
  *
- * Shows request button only for available benefits (not active or scheduled)
+ * Shows request button only when benefit can be requested (not active, scheduled, or pending)
  */
 const BenefitDetailsFooter: React.FC<BenefitDetailsFooterProps> = ({
   benefit,
@@ -41,7 +41,7 @@ const BenefitDetailsFooter: React.FC<BenefitDetailsFooterProps> = ({
   onClose
 }) => {
   const isEmployeeIdValid = Boolean(employeeId)
-  const isAvailableBenefit = !benefit.isActive && !benefit.isScheduled
+  const isAvailableBenefit = benefit.canRequest
 
   return (
     <SheetFooter className="gba:mt-auto gba:px-6 gba:flex-col gba:gap-2">
@@ -74,7 +74,7 @@ const BenefitDetailsFooter: React.FC<BenefitDetailsFooterProps> = ({
               accessToken={accessToken}
               className="gba:font-semibold gba:w-full"
             >
-              {benefit.isPending ? t('benefit-status-pending') : t('benefit-request-button')}
+              {t('benefit-request-button')}
             </AppAction>
           )}
         </>

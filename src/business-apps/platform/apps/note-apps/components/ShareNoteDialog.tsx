@@ -32,6 +32,7 @@ import { toast } from 'sonner'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { env } from '@/common/env/EnvUtils'
 import type { NotePermission } from '../types'
+import { useShareUsersEnrichment } from '../hooks/useShareUsersEnrichment'
 
 export interface SharedNoteUser {
   shareId?: string
@@ -221,21 +222,19 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
   const [selectedPermission, setSelectedPermission] = useState<NotePermission>('view')
   const [isSharing, setIsSharing] = useState(false)
   const [selectedUsers, setSelectedUsers] = useState<EmployeeLiteOption[]>([])
-  const [resolvedSharedUsers, setResolvedSharedUsers] = useState<SharedNoteUser[]>([])
   const [sentSuccess, setSentSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   // Employee search
   const { employees: searchResults, loading: isSearching, search: searchEmployees } = useEmployeeSearch(accessToken)
 
-  // Resolve shared user names from userIds
-  useEffect(() => {
-    if (open && sharedUsers && Array.isArray(sharedUsers) && sharedUsers.length > 0) {
-      setResolvedSharedUsers(sharedUsers)
-    } else {
-      setResolvedSharedUsers([])
-    }
-  }, [open, sharedUsers])
+  const { owner, sharedUsers: resolvedSharedUsers } = useShareUsersEnrichment({
+    accessToken,
+    open,
+    currentUserId,
+    currentUserName,
+    sharedUsers
+  })
 
   // Trigger search when search query changes
   useEffect(() => {
@@ -322,7 +321,7 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
             noteId,
             assigneeUserIds,
             initiatorId: currentUserId,
-            initiatorName: currentUserName
+            initiatorName: owner.name
           })
 
           if (!blinkResult.success) {
@@ -572,7 +571,8 @@ export const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
               {/* Owner */}
               <div className="gba:p-3 gba:flex gba:items-center gba:gap-3 gba:bg-accent/30">
                 <Avatar className="gba:h-10 gba:w-10">
-                  <AvatarFallback>{getInitials(isOwner ? currentUserName : 'Owner')}</AvatarFallback>
+                  {owner.avatarUrl && <AvatarImage src={owner.avatarUrl} alt={owner.name} />}
+                  <AvatarFallback>{getInitials(isOwner ? owner.name : 'Owner')}</AvatarFallback>
                 </Avatar>
                 <div className="gba:flex-1">
                   <p className="gba:text-sm gba:font-medium">{isOwner ? 'You' : 'Owner'}</p>

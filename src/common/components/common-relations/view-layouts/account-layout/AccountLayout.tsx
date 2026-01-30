@@ -17,6 +17,11 @@ import { buildDynamicFilterConfig } from './utils/filterHelpers'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import { useFilterGroups } from '@/common/data/common/hooks/useFilterGroups'
 
+export interface QuickFiltersRenderProps {
+  selectedFilters: Record<string, any>
+  onFilterChange: (filters: Record<string, any>) => void
+}
+
 export interface AccountViewConfig<TAccount extends Account = Account, TQueryVariables = any> {
   fetchAccounts: (variables: TQueryVariables) => Promise<{
     accounts?: TAccount[]
@@ -67,6 +72,7 @@ export interface AccountLayoutProps<TAccount extends Account = Account, TQueryVa
   readonly initialFilters?: Record<string, any>
   readonly hideFilters?: boolean
   readonly customPrimaryAction?: React.ReactNode
+  readonly renderQuickFilters?: (props: QuickFiltersRenderProps) => React.ReactNode
 }
 
 // Row Actions Component
@@ -109,7 +115,8 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
     dataTestId = 'account-view',
     initialFilters = {},
     hideFilters = false,
-    customPrimaryAction
+    customPrimaryAction,
+    renderQuickFilters
   } = props
 
   // View State
@@ -177,13 +184,13 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
   useEffect(() => {
     if (!context?.accessToken || !isInitialLoad) return
     loadData(true)
-  }, [context?.accessToken, isInitialLoad, loadData])
+  }, [context?.accessToken, isInitialLoad])
 
   // Reload data when filters/search/sort change (skip initial load)
   useEffect(() => {
     if (isInitialLoad || !context?.accessToken) return
     loadData(false)
-  }, [queryVariables, isInitialLoad, context?.accessToken, loadData])
+  }, [queryVariables, context?.accessToken, loadData])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
@@ -257,6 +264,16 @@ function ConfigAccountLayout<TAccount extends Account = Account, TQueryVariables
           variant={config.variant || 'customer'}
           data-testid={`${dataTestId}-statistics`}
         />
+      )}
+
+      {/* Quick Filters */}
+      {renderQuickFilters && (
+        <div className="gba:mb-4" data-testid={`${dataTestId}-quick-filters`}>
+          {renderQuickFilters({
+            selectedFilters,
+            onFilterChange: handleFilterUpdate
+          })}
+        </div>
       )}
 
       {/* DataDisplay */}

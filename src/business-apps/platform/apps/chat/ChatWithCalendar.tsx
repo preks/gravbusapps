@@ -222,7 +222,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
           forceMount
           className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'everyai' ? 'gba:hidden' : ''}`}
         >
-          <EveryAI accessToken={accessToken} userInfo={userInfo} {...props} />
+          <EveryAI accessToken={accessToken} userInfo={userInfo} isActive={activeTab === 'everyai'} {...props} />
         </TabsContent>
 
         <TabsContent

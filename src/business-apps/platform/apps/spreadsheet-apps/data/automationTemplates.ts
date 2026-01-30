@@ -119,7 +119,12 @@ export const expenseReportApprovalTemplate: AutomationTemplate = {
     workflowConfig: {
       columnMappings: [
         { columnId: 'amount', columnName: 'Amount', workflowParameter: 'formData.amount', direction: 'toWorkflow' },
-        { columnId: 'category', columnName: 'Category', workflowParameter: 'formData.category', direction: 'toWorkflow' },
+        {
+          columnId: 'category',
+          columnName: 'Category',
+          workflowParameter: 'formData.category',
+          direction: 'toWorkflow'
+        },
         { columnId: 'date', columnName: 'Date', workflowParameter: 'formData.expenseDate', direction: 'toWorkflow' },
         { columnId: 'receipt', columnName: 'Receipt', workflowParameter: 'formData.receipt', direction: 'toWorkflow' }
       ],
@@ -245,7 +250,8 @@ export const employeeSurveyTemplate: AutomationTemplate = {
 export const performanceReviewTemplate: AutomationTemplate = {
   id: 'template-performance-review',
   name: 'Performance Review Collection',
-  description: 'Collect performance reviews from managers for their direct reports. Includes rating scales and comments.',
+  description:
+    'Collect performance reviews from managers for their direct reports. Includes rating scales and comments.',
   category: 'hr',
   icon: 'star',
   automationConfig: {
@@ -259,7 +265,11 @@ export const performanceReviewTemplate: AutomationTemplate = {
       resultMappings: [
         { workflowOutputPath: 'step_0.formData.overallRating', targetColumnId: 'overallRating', aggregation: 'latest' },
         { workflowOutputPath: 'step_0.formData.achievements', targetColumnId: 'achievements', aggregation: 'latest' },
-        { workflowOutputPath: 'step_0.formData.improvements', targetColumnId: 'areasForImprovement', aggregation: 'latest' },
+        {
+          workflowOutputPath: 'step_0.formData.improvements',
+          targetColumnId: 'areasForImprovement',
+          aggregation: 'latest'
+        },
         { workflowOutputPath: 'step_0.formData.goals', targetColumnId: 'nextPeriodGoals', aggregation: 'latest' }
       ]
     },
@@ -270,7 +280,11 @@ export const performanceReviewTemplate: AutomationTemplate = {
       fieldMappings: [
         { workflowOutputPath: 'step_0.formData.overallRating', targetColumnId: 'overallRating', aggregation: 'latest' },
         { workflowOutputPath: 'step_0.formData.achievements', targetColumnId: 'achievements', aggregation: 'latest' },
-        { workflowOutputPath: 'step_0.formData.improvements', targetColumnId: 'areasForImprovement', aggregation: 'latest' },
+        {
+          workflowOutputPath: 'step_0.formData.improvements',
+          targetColumnId: 'areasForImprovement',
+          aggregation: 'latest'
+        },
         { workflowOutputPath: 'step_0.formData.goals', targetColumnId: 'nextPeriodGoals', aggregation: 'latest' }
       ],
       deduplication: 'replace'
@@ -363,8 +377,18 @@ export const invoiceProcessingTemplate: AutomationTemplate = {
     isEnabled: true,
     workflowConfig: {
       columnMappings: [
-        { columnId: 'invoiceNumber', columnName: 'Invoice #', workflowParameter: 'formData.invoiceNumber', direction: 'toWorkflow' },
-        { columnId: 'vendorName', columnName: 'Vendor', workflowParameter: 'formData.vendorName', direction: 'toWorkflow' },
+        {
+          columnId: 'invoiceNumber',
+          columnName: 'Invoice #',
+          workflowParameter: 'formData.invoiceNumber',
+          direction: 'toWorkflow'
+        },
+        {
+          columnId: 'vendorName',
+          columnName: 'Vendor',
+          workflowParameter: 'formData.vendorName',
+          direction: 'toWorkflow'
+        },
         { columnId: 'amount', columnName: 'Amount', workflowParameter: 'formData.amount', direction: 'toWorkflow' },
         { columnId: 'dueDate', columnName: 'Due Date', workflowParameter: 'formData.dueDate', direction: 'toWorkflow' }
       ],
@@ -384,11 +408,23 @@ export const invoiceProcessingTemplate: AutomationTemplate = {
             title: 'Code Invoice',
             message: 'Assign GL codes and cost center for this invoice.',
             form: [
-              { type: 'TEXT', name: 'invoiceNumber', label: 'Invoice #', readOnly: true, valueExpression: '{{invoiceNumber}}' },
+              {
+                type: 'TEXT',
+                name: 'invoiceNumber',
+                label: 'Invoice #',
+                readOnly: true,
+                valueExpression: '{{invoiceNumber}}'
+              },
               { type: 'TEXT', name: 'vendorName', label: 'Vendor', readOnly: true, valueExpression: '{{vendorName}}' },
               { type: 'NUMBER', name: 'amount', label: 'Amount', readOnly: true, valueExpression: '{{amount}}' },
               { type: 'TEXT', name: 'glCode', label: 'GL Code', required: true, placeholder: 'Enter GL code' },
-              { type: 'TEXT', name: 'costCenter', label: 'Cost Center', required: true, placeholder: 'Enter cost center' }
+              {
+                type: 'TEXT',
+                name: 'costCenter',
+                label: 'Cost Center',
+                required: true,
+                placeholder: 'Enter cost center'
+              }
             ],
             assignment: {
               targets: { capabilities: ['accounts_payable'] },
@@ -400,9 +436,7 @@ export const invoiceProcessingTemplate: AutomationTemplate = {
             type: 'APPROVAL',
             title: 'Approve Payment',
             message: 'Review coded invoice and approve for payment.',
-            form: [
-              { type: 'TEXTAREA', name: 'comments', label: 'Comments', required: false }
-            ],
+            form: [{ type: 'TEXTAREA', name: 'comments', label: 'Comments', required: false }],
             assignment: {
               targets: { capabilities: ['payment_approver'] },
               assignmentMode: 'ASSIGN'
@@ -425,8 +459,7 @@ export const invoiceProcessingTemplate: AutomationTemplate = {
 export const onboardingChecklistTemplate: AutomationTemplate = {
   id: 'template-onboarding-checklist',
   name: 'Employee Onboarding Checklist',
-  description:
-    'Track onboarding tasks for new hires. Each row represents a task that can be assigned and tracked.',
+  description: 'Track onboarding tasks for new hires. Each row represents a task that can be assigned and tracked.',
   category: 'hr',
   icon: 'user-plus',
   automationConfig: {
@@ -438,7 +471,12 @@ export const onboardingChecklistTemplate: AutomationTemplate = {
     workflowConfig: {
       columnMappings: [
         { columnId: 'taskName', columnName: 'Task', workflowParameter: 'formData.taskName', direction: 'toWorkflow' },
-        { columnId: 'assignee', columnName: 'Assignee', workflowParameter: 'formData.assignee', direction: 'toWorkflow' },
+        {
+          columnId: 'assignee',
+          columnName: 'Assignee',
+          workflowParameter: 'formData.assignee',
+          direction: 'toWorkflow'
+        },
         { columnId: 'dueDate', columnName: 'Due Date', workflowParameter: 'formData.dueDate', direction: 'toWorkflow' }
       ],
       resultMappings: [
@@ -528,9 +566,7 @@ export const automationTemplates: AutomationTemplate[] = [
 /**
  * Get templates by category
  */
-export function getTemplatesByCategory(
-  category: AutomationTemplate['category']
-): AutomationTemplate[] {
+export function getTemplatesByCategory(category: AutomationTemplate['category']): AutomationTemplate[] {
   return automationTemplates.filter(t => t.category === category)
 }
 

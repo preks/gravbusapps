@@ -52,8 +52,7 @@ export class RealtimeKitApiClient {
     displayName?: string,
     firstName?: string,
     lastName?: string,
-    meetingName?: string,
-    transcription_enabled?: boolean
+    meetingName?: string
   ): Promise<CreateMeetingResponse> {
     const response = await this.client.post<CreateMeetingResponse>('/meetings', {
       conversationId,
@@ -61,8 +60,7 @@ export class RealtimeKitApiClient {
       displayName,
       firstName,
       lastName,
-      meetingName,
-      transcription_enabled
+      meetingName
     })
     return response.data
   }

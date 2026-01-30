@@ -91,10 +91,9 @@ export function useCompany(
       setState({ company, loading: false, error: null })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch company'
-      console.error('Error fetching company:', error)
       setState({ company: null, loading: false, error: errorMessage })
     }
-  }, [id, accessToken, graphqlClient, config])
+  }, [id, accessToken, config])
 
   // Auto-fetch on mount and when dependencies change
   useEffect(() => {

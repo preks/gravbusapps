@@ -46,11 +46,9 @@ export interface AiAction {
 }
 
 /**
- * Props for the shared AiActions component
+ * Base props shared by both old and new API
  */
-export interface AiActionsProps {
-  /** Array of AI actions to display */
-  actions: AiAction[]
+interface BaseAiActionsProps {
   /** Custom test ID prefix for the button */
   dataTestId?: string
   /** Custom button text (defaults to "AI Actions") */
@@ -62,3 +60,51 @@ export interface AiActionsProps {
   /** Button size */
   size?: 'default' | 'sm' | 'lg' | 'icon' | 'iconSm' | 'iconLg'
 }
+
+/**
+ * Legacy API - Props for the shared AiActions component (array-based)
+ */
+export interface LegacyAiActionsProps extends BaseAiActionsProps {
+  /** Array of AI actions to display */
+  actions: AiAction[]
+}
+
+/**
+ * Supported AI action types
+ */
+export type AiActionType = 'summary' | 'meeting-planner' | 'booklet'
+
+/**
+ * Hook configuration for enhanced API
+ */
+export interface AiActionHooks {
+  /** Hook for AI summary (required for summary feature) */
+  summary?: AiSummaryHook
+  /** Hook for AI meeting planner (required for meeting-planner feature) */
+  meetingPlanner?: AiSummaryHook
+  /** Hook for AI booklet (required for booklet feature) */
+  booklet?: AiSummaryHook
+}
+
+/**
+ * Enhanced API - Props with declarative feature flags
+ */
+export interface EnhancedAiActionsProps extends BaseAiActionsProps {
+  /** Entity type for translations and prompts */
+  entityType: string
+  /** Entity ID for data-testid generation */
+  entityId: string
+  /** AI action features to enable */
+  features: AiActionType[]
+  /** Hooks for each enabled feature */
+  hooks: AiActionHooks
+  /** Require access token (for IRM) */
+  requireAccessToken?: boolean
+  /** Access token if required */
+  accessToken?: string
+}
+
+/**
+ * Union of old and new API props
+ */
+export type AiActionsProps = LegacyAiActionsProps | EnhancedAiActionsProps

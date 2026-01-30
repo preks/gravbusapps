@@ -1,0 +1,15 @@
+/* Clone: Used in DragOverlay - looks exactly like the element would at target position */
+.clone {
+  display: inline-block;
+  pointer-events: none;
+  padding: 0;
+}
+
+.clone > div {
+  border-radius: 4px;
+}
+
+/* Ghost: Completely hidden when dragging (no indicator anymore) */
+.ghost {
+  opacity: 0;
+}
