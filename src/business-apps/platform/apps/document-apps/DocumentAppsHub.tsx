@@ -80,6 +80,9 @@ import { useDocumentAppsHubFavorites } from './hooks/useDocumentAppsHubFavorites
 import { useDocumentAppsHubFiltering } from './hooks/useDocumentAppsHubFiltering'
 import { useDocumentAppsHubUrlState } from './hooks/useDocumentAppsHubUrlState'
 
+// Entities / context
+import { getContextForCategory } from './entities'
+
 // Types
 import type { DocumentTemplate, ParsedWordDocument, DocumentSummary } from './types'
 
@@ -174,12 +177,16 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
-  // Entity context: prop wins; else from URL ?entityContext=recruitManager (so links can scope entities)
+  // Entity context: prop > URL ?entityContext= > category-derived (when editing a template) > default
+  const urlEntityContext =
+    typeof window !== 'undefined'
+      ? (new URLSearchParams(window.location.search).get('entityContext') ?? undefined)
+      : undefined
   const effectiveEntityContext =
     entityContext ??
-    (typeof window !== 'undefined'
-      ? (new URLSearchParams(window.location.search).get('entityContext') ?? undefined)
-      : undefined)
+    urlEntityContext ??
+    (templateBeingEdited ? getContextForCategory(templateBeingEdited.category) : undefined) ??
+    'recruitManager'
 
   // Hooks
   const {

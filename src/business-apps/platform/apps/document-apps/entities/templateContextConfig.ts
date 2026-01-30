@@ -19,8 +19,8 @@ export interface TemplateContextOption {
  */
 export const TEMPLATE_CONTEXTS: TemplateContextOption[] = [
   { key: 'recruitManager', displayName: 'Recruitment' },
-  { key: 'onboarding', displayName: 'Onboarding' }
-  // Example for future: { key: 'letter_proposal', displayName: 'Letter proposal' },
+  { key: 'onboarding', displayName: 'Onboarding' },
+  { key: 'letter', displayName: 'Letter' }
 ]
 
 /**
@@ -43,13 +43,36 @@ export const ENTITY_KEYS_BY_CONTEXT: Record<string, string[]> = {
     'contract_type',
     'employment_type'
   ],
-  onboarding: ['company', 'company_address']
-  // Example for future letter_proposal (add entities to registry first):
-  // letter_proposal: ['employee', 'company', 'salary'],
+  onboarding: ['company', 'company_address'],
+  letter: ['job_candidate', 'employee', 'company', 'employment_type', 'contract_type', 'company_address']
 }
 
 /** Get display name for a context key, or the key itself if unknown */
 export function getTemplateContextDisplayName(contextKey: string): string {
   const found = TEMPLATE_CONTEXTS.find(c => c.key === contextKey)
   return found?.displayName ?? contextKey
+}
+
+/**
+ * Map template category (chosen in create modal) to entity context.
+ * Used when editing a template: the side panel loads entities for this context.
+ * Category is not shown as "context" in the UI; context is derived from category.
+ */
+const CONTEXT_BY_CATEGORY: Record<string, string> = {
+  contracts: 'recruitManager',
+  agreements: 'recruitManager',
+  letters: 'letter',
+  reports: 'recruitManager',
+  proposals: 'recruitManager',
+  policies: 'recruitManager',
+  procedures: 'recruitManager',
+  forms: 'onboarding',
+  other: 'recruitManager'
+}
+
+const DEFAULT_CONTEXT = 'recruitManager'
+
+/** Get entity context key for a template category (e.g. for "Insert field" panel when editing). */
+export function getContextForCategory(category: string): string {
+  return CONTEXT_BY_CATEGORY[category] ?? DEFAULT_CONTEXT
 }

@@ -10,5 +10,10 @@ export {
 } from './templateEntityRegistry'
 export type { TemplateEntityContext, TemplateEntityDomain, TemplateEntityDefinition } from './templateEntityRegistry'
 
-export { TEMPLATE_CONTEXTS, ENTITY_KEYS_BY_CONTEXT, getTemplateContextDisplayName } from './templateContextConfig'
+export {
+  TEMPLATE_CONTEXTS,
+  ENTITY_KEYS_BY_CONTEXT,
+  getTemplateContextDisplayName,
+  getContextForCategory
+} from './templateContextConfig'
 export type { TemplateContextOption } from './templateContextConfig'
