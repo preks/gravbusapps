@@ -20,6 +20,9 @@ export interface WorkingConditionsRecord {
   startDate?: string | null
   probationEndDate?: string | null
   endDate?: string | null
+  additionalProperties?: {
+    fixedTermReason?: string
+  }
 }
 
 export const GET_WORKING_CONDITIONS_LOOKUPS = `
@@ -49,6 +52,7 @@ export const GET_WORKING_CONDITIONS_LOOKUPS = `
         exitDate
         employeeId
         probationEnd
+        additionalProperties
       }
     }
     allEmploymentRegions: CatalogEntry(
@@ -173,7 +177,8 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
             regionRef: wcRaw.region?.id,
             startDate: wcRaw.hireDate || null,
             probationEndDate: wcRaw.probationEnd || null,
-            endDate: wcRaw.exitDate || null
+            endDate: wcRaw.exitDate || null,
+            additionalProperties: wcRaw.additionalProperties || undefined
           }
         : null
       setCurrent(wc)
