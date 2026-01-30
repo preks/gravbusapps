@@ -4,6 +4,17 @@
  * Provides functions to export presentations to various formats.
  */
 
+import type { SlideData } from '../components/slideElements'
+import type { SlideTheme } from '../components/slideThemes'
+import { exportToPptx as exportToPowerPoint } from './pptxExport'
+
+/**
+ * Export slides to PowerPoint (.pptx)
+ */
+export async function exportToPptx(slides: SlideData[], theme: SlideTheme, title: string): Promise<boolean> {
+  return exportToPowerPoint(slides, theme, title)
+}
+
 /**
  * Export presentation to PDF using browser print API
  */

@@ -10,7 +10,14 @@
 
 import React, { useState, useCallback, useMemo } from 'react'
 import { FileText, FileSpreadsheet, StickyNote, MessageSquare, Presentation } from 'lucide-react'
-import { Button } from '@newwork/nw-design-system'
+import {
+  Button,
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious
+} from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
@@ -53,7 +60,9 @@ const navigateToApp = (appPath: string, params?: Record<string, string>) => {
             ? '/platform/notes'
             : '/platform/apps/note-apps'
           : appName === 'slide-apps'
-            ? '/platform/apps/slide-apps'
+            ? isProduction
+              ? '/platform/slides'
+              : '/platform/apps/slide-apps'
             : `/platform/apps/${appName}`
   const urlParams = params?.from ? params : { from: 'desk', ...params }
   navigateTo(buildPlatformUrl(platformUrl, urlParams))
@@ -209,19 +218,35 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
                 </div>
               </div>
 
-              {/* Spaces grid */}
-              <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
-                {spaces.slice(0, 3).map((space, index) => (
-                  <div key={space.id} style={{ animation: `fadeInUp 0.4s ease-out ${index * 0.1}s both` }}>
-                    <SpaceCard
-                      space={space}
-                      onClick={() => handleSpaceClick(space.id)}
-                      isOwner={space.ownerId === currentUserId}
-                      data-testid={`${testId}-space-card-${space.id}`}
-                    />
-                  </div>
-                ))}
-              </div>
+              {/* Spaces slider – touch-friendly, works on iPad and mobile */}
+              <Carousel
+                opts={{ align: 'start', loop: false }}
+                className="gba:w-full gba:overflow-hidden"
+                data-testid={`${testId}-spaces-carousel`}
+              >
+                <CarouselContent className="gba:-ml-2 gba:md:-ml-4">
+                  {spaces.map((space, index) => (
+                    <CarouselItem
+                      key={space.id}
+                      className="gba:pl-2 gba:md:pl-4 gba:basis-full gba:sm:basis-[85%] gba:md:basis-1/2 gba:lg:basis-1/3"
+                      style={{ animation: `fadeInUp 0.4s ease-out ${index * 0.05}s both` }}
+                    >
+                      <SpaceCard
+                        space={space}
+                        onClick={() => handleSpaceClick(space.id)}
+                        isOwner={space.ownerId === currentUserId}
+                        data-testid={`${testId}-space-card-${space.id}`}
+                      />
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                {spaces.length > 1 && (
+                  <>
+                    <CarouselPrevious className="gba:left-0 gba:border gba:bg-card hover:gba:bg-accent" />
+                    <CarouselNext className="gba:right-0 gba:border gba:bg-card hover:gba:bg-accent" />
+                  </>
+                )}
+              </Carousel>
             </div>
           </section>
         )}
@@ -242,7 +267,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
                   Your work
                 </h2>
                 <p className="gba:text-muted-foreground">
-                  Access your documents, spreadsheets, notes, and presentations in one place
+                  Access your documents, spreadsheets, notes, and slides in one place
                 </p>
               </div>
             </div>
@@ -289,7 +314,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
                 data-testid={`${testId}-app-notes`}
               />
               <AppCard
-                title="Presentations"
+                title="Slides"
                 description="Create slide decks with live collaboration"
                 icon={Presentation}
                 count={stats.slides.total}

@@ -12,6 +12,7 @@ export interface SharedUserInfo {
   userName: string
   userAvatar?: string
   permission?: string
+  odataId?: string
 }
 
 function toAvatarDataUrl(pictureThumbnail?: string): string | undefined {
@@ -53,7 +54,11 @@ async function buildSharedUsersForSlide(params: {
   }
 }
 
-export function useSlidesHubUserLookup(params: { accessToken: string; slides: SlideSummary[] }): {
+export function useSlidesHubUserLookup(params: {
+  accessToken: string
+  slides: SlideSummary[]
+  currentUserId: string
+}): {
   ownerInfoMap: OwnerInfoMap
   sharedUsersMap: Record<string, SharedUserInfo[]>
   refreshSharedUsersForSlide: (slideId: string) => Promise<void>
@@ -145,7 +150,11 @@ export function useSlidesHubUserLookup(params: { accessToken: string; slides: Sl
     if (params.slides.length === 0) return
 
     const loadSharedUsersData = async () => {
-      const ownedSlides = params.slides.filter(slide => slide.isOwner && !loadedSharesRef.current.has(slide.id))
+      // Determine ownership same way as SlidesAppsHub
+      const ownedSlides = params.slides.filter(slide => {
+        const isOwner = slide.isOwner || slide.permission === 'owner' || slide.createdBy === params.currentUserId
+        return isOwner && !loadedSharesRef.current.has(slide.id)
+      })
       if (ownedSlides.length === 0) return
 
       ownedSlides.forEach(slide => loadedSharesRef.current.add(slide.id))
@@ -162,7 +171,7 @@ export function useSlidesHubUserLookup(params: { accessToken: string; slides: Sl
     }
 
     loadSharedUsersData()
-  }, [params.slides, graphqlClient, fetchUserInfoByUserId])
+  }, [params.slides, params.currentUserId, graphqlClient, fetchUserInfoByUserId])
 
   return { ownerInfoMap, sharedUsersMap, refreshSharedUsersForSlide }
 }

@@ -6,20 +6,19 @@
 
 import React, { useState, useCallback, useMemo } from 'react'
 import { Button, Input } from '@newwork/nw-design-system'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, LayoutDashboard } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo, EVERY_OFFICE_PLATFORM_PATH } from '@/common/utils/navigationUtils'
 
 // Components
 import { SpaceCard } from './components/SpaceCard'
 import { CreateSpaceDialog } from './components/CreateSpaceDialog'
 import { SpaceHeroBackground } from './components/SpaceHeroBackground'
 
-const hubHostedVideoUrl =
-  typeof import.meta !== 'undefined' && import.meta.env?.VITE_SPACES_HUB_VIDEO_URL
+const hubHostedVideoUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SPACES_HUB_VIDEO_URL
 const hubLocalVideoUrl = '/space-hub-background.mp4'
 const hubUseVideo =
-  hubHostedVideoUrl ||
-  (typeof import.meta !== 'undefined' && import.meta.env?.DEV && hubLocalVideoUrl)
+  hubHostedVideoUrl || (typeof import.meta !== 'undefined' && import.meta.env?.DEV && hubLocalVideoUrl)
 const hubVideoSrc = hubHostedVideoUrl || hubLocalVideoUrl
 
 // Hooks
@@ -156,15 +155,27 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
                 )}
               </div>
             </div>
-            <Button
-              size="lg"
-              onClick={() => setCreateDialogOpen(true)}
-              className="spaces-hero-cta-btn gba:gap-2 gba:rounded-xl gba:bg-white gba:text-primary gba:shrink-0 gba:font-medium gba:transition-colors"
-              data-testid={`${testId}-create-button`}
-            >
-              <Plus className="gba:w-5 gba:h-5" />
-              Create Space
-            </Button>
+            <div className="gba:flex gba:items-center gba:gap-3 gba:shrink-0">
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={() => navigateTo(EVERY_OFFICE_PLATFORM_PATH)}
+                className="gba:gap-2 gba:rounded-xl gba:bg-white/10 gba:text-white gba:border-white/20 hover:gba:bg-white/20"
+                data-testid={`${testId}-every-office-link`}
+              >
+                <LayoutDashboard className="gba:w-5 gba:h-5" />
+                Every Office
+              </Button>
+              <Button
+                size="lg"
+                onClick={() => setCreateDialogOpen(true)}
+                className="spaces-hero-cta-btn gba:gap-2 gba:rounded-xl gba:bg-white gba:text-primary gba:font-medium gba:transition-colors"
+                data-testid={`${testId}-create-button`}
+              >
+                <Plus className="gba:w-5 gba:h-5" />
+                Create Space
+              </Button>
+            </div>
           </div>
 
           {/* Search & Filters – clear bar below the hero message */}

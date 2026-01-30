@@ -41,7 +41,7 @@ export interface ManageSharesDialogProps {
   onOpenChange: (open: boolean) => void
   slideId: string
   slideTitle: string
-  accessToken: string
+  accessToken: string | undefined
   /** Callback when a share is added/removed/updated */
   onSharesChanged?: () => void
   /** Callback to open the share dialog to add more users */
@@ -114,12 +114,6 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
   const [removingShareId, setRemovingShareId] = useState<string | null>(null)
 
   const graphqlClient = useGraphQLClient(accessToken)
-
-  useEffect(() => {
-    if (open && slideId) {
-      loadShares()
-    }
-  }, [open, slideId, loadShares])
 
   const loadShares = useCallback(async () => {
     setIsLoading(true)
@@ -201,6 +195,12 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
     }
   }, [slideId, graphqlClient])
 
+  useEffect(() => {
+    if (open && slideId) {
+      loadShares()
+    }
+  }, [open, slideId, loadShares])
+
   const handleUpdatePermission = useCallback(
     async (shareId: string, newPermission: Permission) => {
       setUpdatingShareId(shareId)
@@ -255,9 +255,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
             <Users className="gba:w-5 gba:h-5" />
             Manage shares
           </DialogTitle>
-          <DialogDescription>
-            Manage who can access "{slideTitle}"
-          </DialogDescription>
+          <DialogDescription>Manage who can access "{slideTitle}"</DialogDescription>
         </DialogHeader>
 
         <div className="gba:py-4">
@@ -299,9 +297,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                     <p className="gba:text-sm gba:font-medium gba:truncate">
                       {share.userName || `User ${share.userId.slice(0, 8)}`}
                     </p>
-                    <p className="gba:text-xs gba:text-muted-foreground">
-                      Shared {formatRelativeDate(share.sharedAt)}
-                    </p>
+                    <p className="gba:text-xs gba:text-muted-foreground">Shared {formatRelativeDate(share.sharedAt)}</p>
                   </div>
 
                   <div className="gba:flex gba:items-center gba:gap-2">
@@ -345,7 +341,11 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                             disabled={removingShareId === share.id}
                             data-testid={`${testId}-remove-${share.id}`}
                           >
-                            {removingShareId === share.id ? <Spinner size="sm" /> : <Trash2 className="gba:w-4 gba:h-4" />}
+                            {removingShareId === share.id ? (
+                              <Spinner size="sm" />
+                            ) : (
+                              <Trash2 className="gba:w-4 gba:h-4" />
+                            )}
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>Remove user</TooltipContent>

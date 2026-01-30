@@ -27,6 +27,7 @@ interface UseSlidesResult extends UseSlidesState {
   ) => Promise<Slide | null>
   deleteSlide: (id: string) => Promise<boolean>
   duplicateSlide: (id: string) => Promise<Slide | null>
+  shareSlide: (slideId: string, userIds: string[], permission: 'view' | 'edit' | 'comment') => Promise<boolean>
   clearCurrentSlide: () => void
   refreshSlides: () => Promise<void>
 }
@@ -108,9 +109,7 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
       if (!accessToken) return null
       try {
         const updated = await SlidesApiService.updateSlide(id, updates, options)
-        setState(prev =>
-          prev.currentSlide?.id === id ? { ...prev, currentSlide: updated } : prev
-        )
+        setState(prev => (prev.currentSlide?.id === id ? { ...prev, currentSlide: updated } : prev))
         await refreshSlides()
         return updated
       } catch (err) {
@@ -166,6 +165,24 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
     setState(prev => ({ ...prev, currentSlide: null }))
   }, [])
 
+  const shareSlide = useCallback(
+    async (slideId: string, userIds: string[], permission: 'view' | 'edit' | 'comment'): Promise<boolean> => {
+      if (!accessToken) return false
+      try {
+        const shares = userIds.map(userId => ({ userId, permission }))
+        const result = await SlidesApiService.shareSlide(slideId, shares)
+        if (result) {
+          await refreshSlides()
+        }
+        return result
+      } catch (err) {
+        console.error('[useSlides] shareSlide:', err)
+        return false
+      }
+    },
+    [accessToken, refreshSlides]
+  )
+
   return {
     ...state,
     loadSlide,
@@ -173,6 +190,7 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
     updateSlide,
     deleteSlide,
     duplicateSlide,
+    shareSlide,
     clearCurrentSlide,
     refreshSlides
   }

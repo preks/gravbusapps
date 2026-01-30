@@ -33,6 +33,7 @@ import { Share2, Search, X, CheckCircle, AlertCircle, Eye, Pencil, MessageSquare
 import { toast } from 'sonner'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { env } from '@/common/env/EnvUtils'
+import { getCanonicalContentUrl } from '@/common/utils/navigationUtils'
 
 export interface ShareSlideDialogProps {
   open: boolean
@@ -41,7 +42,7 @@ export interface ShareSlideDialogProps {
   slideTitle: string
   currentUserId: string
   currentUserName?: string
-  accessToken: string
+  accessToken: string | undefined
   /** Function to share slide with users */
   shareSlide: (id: string, userIds: string[], permission: 'view' | 'edit' | 'comment') => Promise<boolean>
   /** Callback when sharing is complete */
@@ -53,6 +54,18 @@ type Permission = 'view' | 'edit' | 'comment'
 
 interface SelectedUser extends EmployeeLiteOption {
   permission: Permission
+}
+
+/**
+ * Get user initials for avatar
+ */
+const getInitials = (name: string): string => {
+  return name
+    .split(' ')
+    .map(part => part[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
 }
 
 /**
@@ -87,7 +100,7 @@ const sendShareNotification = async (
     const timestamp = Date.now()
     const blinkGroupId = `slide_share_${timestamp}_${payload.initiatorId}`
 
-    const slideUrl = `/platform/apps/slide-apps?slideId=${payload.slideId}&view=editor`
+    const slideUrl = getCanonicalContentUrl('slide', { slideId: payload.slideId, view: 'editor' })
 
     for (const recipient of payload.recipients) {
       const { userId, permission } = recipient
@@ -115,19 +128,19 @@ const sendShareNotification = async (
         permission
       }
 
-      const baseMessage = `${payload.initiatorName || 'Someone'} shared the presentation "${payload.slideTitle}" with you. You can ${permissionLabel} this presentation.`
+      const baseMessage = `${payload.initiatorName || 'Someone'} shared the slide "${payload.slideTitle}" with you. You can ${permissionLabel} this slide.`
       const taskMessage = payload.message ? `${baseMessage}\n\nMessage: ${payload.message}` : baseMessage
 
       const requestPayload = {
         templateDefinition: {
           type: 'TEMPLATE',
-          name: `Presentation Shared: ${payload.slideTitle}`,
-          description: `Presentation sharing notification`,
+          name: `Slide Shared: ${payload.slideTitle}`,
+          description: `Slide sharing notification`,
           version: 1,
           steps: [
             {
               type: 'TASK',
-              title: `Presentation Shared: ${payload.slideTitle}`,
+              title: `Slide Shared: ${payload.slideTitle}`,
               message: taskMessage,
               form: [],
               links: [entityLink],
@@ -291,7 +304,7 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
       }
 
       setSentSuccess(true)
-      toast.success('Presentation shared', {
+      toast.success('Slide shared', {
         description: `Shared with ${selectedUsers.length} ${selectedUsers.length === 1 ? 'person' : 'people'}`
       })
 
@@ -301,7 +314,7 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
         onOpenChange(false)
       }, 1500)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to share presentation'
+      const message = err instanceof Error ? err.message : 'Failed to share slide'
       setError(message)
       toast.error('Share failed', { description: message })
     } finally {
@@ -322,176 +335,250 @@ export const ShareSlideDialog: React.FC<ShareSlideDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gba:max-w-xl" data-testid={testId}>
+      <DialogContent className="gba:max-w-lg" data-testid={testId}>
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-            <Share2 className="gba:w-5 gba:h-5" />
-            Share presentation
+            <Share2 className="gba:w-5 gba:h-5 gba:text-primary" />
+            Share Slide
           </DialogTitle>
-          <DialogDescription>
-            Share "{slideTitle}" with others and send them a notification
-          </DialogDescription>
+          <DialogDescription>Share "{slideTitle}" with others and set their access level.</DialogDescription>
         </DialogHeader>
 
-        <div className="gba:space-y-4 gba:py-4">
-          {error && (
-            <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:rounded-lg gba:bg-destructive/10 gba:text-destructive">
-              <AlertCircle className="gba:w-4 gba:h-4 gba:shrink-0" />
-              <span className="gba:text-sm">{error}</span>
+        {sentSuccess ? (
+          <div className="gba:py-8 gba:text-center">
+            <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-success/10 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
+              <CheckCircle className="gba:w-8 gba:h-8 gba:text-success" />
             </div>
-          )}
-
-          {sentSuccess && (
-            <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:rounded-lg gba:bg-success/10 gba:text-success">
-              <CheckCircle className="gba:w-4 gba:h-4 gba:shrink-0" />
-              <span className="gba:text-sm">Presentation shared successfully!</span>
+            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">Slide Shared!</h3>
+            <p className="gba:text-muted-foreground">
+              {selectedUsers.length === 1
+                ? `${selectedUsers[0].displayName} has been notified and can now access this slide.`
+                : `${selectedUsers.length} people have been notified and can now access this slide.`}
+            </p>
+          </div>
+        ) : (
+          <div className="gba:space-y-6 gba:py-4">
+            {/* Default permission selector */}
+            <div className="gba:space-y-2">
+              <Label>Default permission for new users</Label>
+              <Select value={defaultPermission} onValueChange={v => setDefaultPermission(v as Permission)}>
+                <SelectTrigger className="gba:w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="view">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Eye className="gba:w-4 gba:h-4" />
+                      <span>Can view</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="comment">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <MessageSquare className="gba:w-4 gba:h-4" />
+                      <span>Can comment</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="edit">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Pencil className="gba:w-4 gba:h-4" />
+                      <span>Can edit</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          )}
 
-          <div className="gba:space-y-2">
-            <Label htmlFor="user-search">Search users</Label>
-            <div className="gba:relative">
-              <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
-              <Input
-                id="user-search"
-                placeholder="Search by name or email..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="gba:pl-9"
-                data-testid={`${testId}-search`}
-              />
-              {isSearching && (
-                <Spinner size="sm" className="gba:absolute gba:right-3 gba:top-1/2 gba:-translate-y-1/2" />
+            {/* Search input */}
+            <div className="gba:space-y-2">
+              <Label>Add people</Label>
+              <div className="gba:relative">
+                <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                <Input
+                  placeholder="Search for people..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="gba:pl-10"
+                  data-testid={`${testId}-search-input`}
+                />
+                {isSearching && (
+                  <Spinner size="sm" className="gba:absolute gba:right-3 gba:top-1/2 gba:-translate-y-1/2" />
+                )}
+              </div>
+
+              {/* Search results dropdown */}
+              {filteredResults.length > 0 && (
+                <div className="gba:relative gba:z-50">
+                  <div className="gba:max-h-40 gba:overflow-y-auto gba:border gba:rounded-md gba:bg-card gba:shadow-lg">
+                    <div className="gba:p-1">
+                      {filteredResults.map(user => (
+                        <button
+                          key={user.id}
+                          type="button"
+                          className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-2 gba:rounded-md hover:gba:bg-muted gba:transition-colors gba:text-left"
+                          onClick={() => addUser(user)}
+                          data-testid={`${testId}-user-option-${user.id}`}
+                        >
+                          <Avatar className="gba:h-8 gba:w-8">
+                            {user.pictureThumbnail && (
+                              <AvatarImage
+                                src={
+                                  user.pictureThumbnail.startsWith('data:')
+                                    ? user.pictureThumbnail
+                                    : `data:image/png;base64,${user.pictureThumbnail}`
+                                }
+                                alt={user.displayName}
+                              />
+                            )}
+                            <AvatarFallback className="gba:text-xs">{getInitials(user.displayName)}</AvatarFallback>
+                          </Avatar>
+                          <div className="gba:flex-1 gba:min-w-0">
+                            <p className="gba:font-medium gba:text-sm gba:truncate">{user.displayName}</p>
+                            {(user.jobPositionName || user.organizationalUnitName) && (
+                              <p className="gba:text-xs gba:text-muted-foreground gba:truncate">
+                                {[user.jobPositionName, user.organizationalUnitName].filter(Boolean).join(' • ')}
+                              </p>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* No results message */}
+              {searchQuery.length >= 2 && !isSearching && filteredResults.length === 0 && (
+                <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-2">
+                  No people found matching "{searchQuery}"
+                </p>
               )}
             </div>
 
-            {filteredResults.length > 0 && (
-              <div className="gba:border gba:rounded-lg gba:max-h-48 gba:overflow-y-auto">
-                {filteredResults.map(user => (
-                  <button
-                    key={user.id}
-                    onClick={() => addUser(user)}
-                    className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-3 hover:gba:bg-muted/50 gba:transition-colors"
-                    data-testid={`${testId}-user-${user.id}`}
-                  >
-                    <Avatar className="gba:w-8 gba:h-8">
-                      {user.avatar && <AvatarImage src={user.avatar} />}
-                      <AvatarFallback>{user.displayName.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="gba:flex-1 gba:text-left">
-                      <p className="gba:text-sm gba:font-medium">{user.displayName}</p>
-                      {user.email && <p className="gba:text-xs gba:text-muted-foreground">{user.email}</p>}
+            {/* Selected users list */}
+            {selectedUsers.length > 0 && (
+              <div className="gba:space-y-2">
+                <Label>People with access ({selectedUsers.length})</Label>
+                <div className="gba:border gba:rounded-md gba:divide-y gba:max-h-48 gba:overflow-y-auto">
+                  {selectedUsers.map(user => (
+                    <div key={user.id} className="gba:flex gba:items-center gba:gap-3 gba:p-3">
+                      <Avatar className="gba:h-8 gba:w-8">
+                        {user.pictureThumbnail && (
+                          <AvatarImage
+                            src={
+                              user.pictureThumbnail.startsWith('data:')
+                                ? user.pictureThumbnail
+                                : `data:image/png;base64,${user.pictureThumbnail}`
+                            }
+                            alt={user.displayName}
+                          />
+                        )}
+                        <AvatarFallback className="gba:text-xs">{getInitials(user.displayName)}</AvatarFallback>
+                      </Avatar>
+                      <div className="gba:flex-1 gba:min-w-0">
+                        <p className="gba:font-medium gba:text-sm gba:truncate">{user.displayName}</p>
+                        {(user.jobPositionName || user.organizationalUnitName) && (
+                          <p className="gba:text-xs gba:text-muted-foreground gba:truncate">
+                            {[user.jobPositionName, user.organizationalUnitName].filter(Boolean).join(' • ')}
+                          </p>
+                        )}
+                      </div>
+                      <Select
+                        value={user.permission}
+                        onValueChange={v => updateUserPermission(user.id, v as Permission)}
+                      >
+                        <SelectTrigger className="gba:w-32 gba:h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="view">
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <Eye className="gba:w-3 gba:h-3" />
+                              <span>View</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="comment">
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <MessageSquare className="gba:w-3 gba:h-3" />
+                              <span>Comment</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="edit">
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <Pencil className="gba:w-3 gba:h-3" />
+                              <span>Edit</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="gba:h-8 gba:w-8 hover:gba:bg-destructive/10 hover:gba:text-destructive"
+                        onClick={() => removeUser(user.id)}
+                        data-testid={`${testId}-remove-user-${user.id}`}
+                      >
+                        <X className="gba:w-4 gba:h-4" />
+                      </Button>
                     </div>
-                  </button>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
-          </div>
 
-          {selectedUsers.length > 0 && (
+            {/* Message section */}
             <div className="gba:space-y-2">
-              <Label>Selected users ({selectedUsers.length})</Label>
-              <div className="gba:space-y-2">
-                {selectedUsers.map(user => (
-                  <div
-                    key={user.id}
-                    className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:rounded-lg gba:bg-muted/50"
-                  >
-                    <Avatar className="gba:w-8 gba:h-8">
-                      {user.avatar && <AvatarImage src={user.avatar} />}
-                      <AvatarFallback>{user.displayName.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="gba:flex-1 gba:min-w-0">
-                      <p className="gba:text-sm gba:font-medium gba:truncate">{user.displayName}</p>
-                      {user.email && <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{user.email}</p>}
-                    </div>
-                    <Select
-                      value={user.permission}
-                      onValueChange={p => updateUserPermission(user.id, p as Permission)}
-                    >
-                      <SelectTrigger className="gba:w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="view">
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <Eye className="gba:w-3 gba:h-3" />
-                            Can view
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="comment">
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <MessageSquare className="gba:w-3 gba:h-3" />
-                            Can comment
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="edit">
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <Pencil className="gba:w-3 gba:h-3" />
-                            Can edit
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeUser(user.id)}
-                      data-testid={`${testId}-remove-${user.id}`}
-                    >
-                      <X className="gba:w-4 gba:h-4" />
-                    </Button>
-                  </div>
-                ))}
+              <Label htmlFor="share-message">Message (optional)</Label>
+              <Textarea
+                id="share-message"
+                placeholder="Add a message for the recipients..."
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                rows={2}
+                data-testid={`${testId}-message-input`}
+              />
+            </div>
+
+            {/* Error message */}
+            {error && (
+              <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:bg-destructive/10 gba:text-destructive gba:rounded-md gba:text-sm">
+                <AlertCircle className="gba:w-4 gba:h-4 gba:flex-shrink-0" />
+                {error}
+              </div>
+            )}
+
+            {/* Info box */}
+            <div className="gba:flex gba:items-start gba:gap-2 gba:p-3 gba:bg-primary/5 gba:rounded-md gba:text-sm">
+              <Share2 className="gba:w-4 gba:h-4 gba:text-primary gba:flex-shrink-0 gba:mt-0.5" />
+              <div className="gba:text-muted-foreground">
+                <p>
+                  People you share with will receive a notification and can access the slide based on their permission
+                  level.
+                </p>
               </div>
             </div>
-          )}
-
-          <div className="gba:space-y-2">
-            <Label htmlFor="default-permission">Default permission</Label>
-            <Select value={defaultPermission} onValueChange={v => setDefaultPermission(v as Permission)}>
-              <SelectTrigger id="default-permission" data-testid={`${testId}-default-permission`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="view">Can view</SelectItem>
-                <SelectItem value="comment">Can comment</SelectItem>
-                <SelectItem value="edit">Can edit</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
+        )}
 
-          <div className="gba:space-y-2">
-            <Label htmlFor="message">Message (optional)</Label>
-            <Textarea
-              id="message"
-              placeholder="Add a message..."
-              value={message}
-              onChange={e => setMessage(e.target.value)}
-              rows={3}
-              data-testid={`${testId}-message`}
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button onClick={handleShare} disabled={isSubmitting || selectedUsers.length === 0} data-testid={`${testId}-share-button`}>
-            {isSubmitting ? (
-              <>
-                <Spinner size="sm" className="gba:mr-2" />
-                Sharing...
-              </>
-            ) : (
-              <>
-                <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                Share
-              </>
-            )}
-          </Button>
-        </DialogFooter>
+        {!sentSuccess && (
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button onClick={handleShare} disabled={isSubmitting || selectedUsers.length === 0}>
+              {isSubmitting ? (
+                <>
+                  <Spinner size="sm" className="gba:mr-2" />
+                  Sharing...
+                </>
+              ) : (
+                <>
+                  <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                  Share
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   )
