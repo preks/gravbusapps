@@ -110,7 +110,7 @@ export const NewworkEvery: React.FC<NewworkEveryProps> = ({
       title: 'Notes',
       description: 'Quick capture for your thoughts and ideas. Organize notes with tags and search.',
       icon: StickyNote,
-      href: '/platform/apps/notes',
+      href: '/platform/apps/note-apps',
       isComingSoon: true,
       badge: 'Coming Soon',
       accentColor: 'offline'

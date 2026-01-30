@@ -86,27 +86,29 @@ export const PresenceIndicator: React.FC<PresenceIndicatorProps> = ({
           <TooltipProvider key={participant.socketId}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Avatar
-                  className={`${sizeClasses[size]} gba:border-2 gba:border-background gba:cursor-pointer gba:transition-transform hover:gba:scale-110 hover:gba:z-10`}
-                  style={{ borderColor: participant.userColor }}
-                >
-                  {participant.avatarUrl && (
-                    <AvatarImage
-                      src={participant.avatarUrl}
-                      alt={participant.userName}
-                      className="gba:object-cover"
-                    />
-                  )}
-                  <AvatarFallback
-                    className={textSizeClasses[size]}
-                    style={{
-                      backgroundColor: `${participant.userColor}20`,
-                      color: participant.userColor
-                    }}
+                <div className="gba:inline-block">
+                  <Avatar
+                    className={`${sizeClasses[size]} gba:border-2 gba:border-background gba:cursor-pointer gba:transition-transform hover:gba:scale-110 hover:gba:z-10`}
+                    style={{ borderColor: participant.userColor }}
                   >
-                    {getInitials(participant.userName)}
-                  </AvatarFallback>
-                </Avatar>
+                    {participant.avatarUrl && (
+                      <AvatarImage
+                        src={participant.avatarUrl}
+                        alt={participant.userName}
+                        className="gba:object-cover"
+                      />
+                    )}
+                    <AvatarFallback
+                      className={textSizeClasses[size]}
+                      style={{
+                        backgroundColor: `${participant.userColor}20`,
+                        color: participant.userColor
+                      }}
+                    >
+                      {getInitials(participant.userName)}
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
               </TooltipTrigger>
               <TooltipContent>
                 <div className="gba:flex gba:flex-col gba:gap-1">
@@ -124,13 +126,15 @@ export const PresenceIndicator: React.FC<PresenceIndicatorProps> = ({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Avatar
-                  className={`${sizeClasses[size]} gba:border-2 gba:border-background gba:cursor-pointer gba:bg-muted`}
-                >
-                  <AvatarFallback className={`${textSizeClasses[size]} gba:text-muted-foreground`}>
-                    +{remainingCount}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="gba:inline-block">
+                  <Avatar
+                    className={`${sizeClasses[size]} gba:border-2 gba:border-background gba:cursor-pointer gba:bg-muted`}
+                  >
+                    <AvatarFallback className={`${textSizeClasses[size]} gba:text-muted-foreground`}>
+                      +{remainingCount}
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
               </TooltipTrigger>
               <TooltipContent>
                 <div className="gba:flex gba:flex-col gba:gap-1">

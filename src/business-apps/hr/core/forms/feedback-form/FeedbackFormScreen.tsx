@@ -23,7 +23,8 @@ const FeedbackFormScreen: React.FC<FeedbackFormScreenProps> = ({
     preSelectedEmployeeId
 
   // Add receiverId as an additional fallback option (contains userId from psi_taskPayload)
-  const receiverId = additionalData?.psi_taskPayload?.receiverId
+  const receiverId =
+    additionalData?.psi_taskPayload?.receiverId || additionalData?.psi_taskPayload?.psi_initialParameters?.receiverId
 
   // Use the new hook to map receiverId (userId) to employeeId
   const { employeeId: mappedEmployeeId } = useEmployeeByUserId({

@@ -72,7 +72,9 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
     const urlParams = new URLSearchParams(window.location.search)
     cameFromDeskRef.current =
       referrer.includes('/platform/apps/desk') ||
+      referrer.includes('/platform/every-office') ||
       referrer.includes('?app=platform/apps/desk') ||
+      referrer.includes('?app=platform/apps/every-office') ||
       urlParams.get('from') === 'desk'
 
     if (cameFromDeskRef.current && currentView === 'list') {
@@ -86,7 +88,7 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
       const state = event.state as { noteId?: string; view?: HubView; fromDesk?: boolean } | null
 
       if (state?.fromDesk && !state?.noteId && currentView === 'list') {
-        navigateTo('/platform/apps/desk')
+        navigateTo('/platform/every-office')
         return
       }
 

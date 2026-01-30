@@ -3,10 +3,10 @@ import { RecordLayout, Spinner, IconAvatar, HeaderSlot } from '@newwork/nw-desig
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentById } from '@/common/data/investment/hooks/useInvestments'
 import { useGetInvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
-import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
+import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { RobotIcon, TrendUpIcon, HouseIcon, ChartBarIcon } from '@phosphor-icons/react'
+import { TrendUpIcon, HouseIcon, ChartBarIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
@@ -327,31 +327,13 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
   // Header configuration using centralized utilities
   const headerMeta = createHeaderMeta(investment, investmentType, typeSpecificData, props.accessToken)
 
-  const actions: AiAction[] = [
-    {
-      key: 'ai-summary',
-      label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-      icon: <RobotIcon size={16} />,
-      hook: aiSummaryHook,
-      config: {
-        entityType: 'investment',
-        loadingMessage: getTranslationFromI18nKeyAndLabel(
-          'crm.investments.ai.summary.loading',
-          'Generating AI Summary...'
-        ),
-        loadingSubtitle: getTranslationFromI18nKeyAndLabel(
-          'crm.investments.ai.summary.subtitle',
-          'Analyzing investment data and activities'
-        )
-      }
-    }
-  ]
-
   const headerActions = (
     <AiActions
-      actions={actions}
+      entityType="investment"
+      entityId={investmentId || ''}
+      features={['summary']}
+      hooks={{ summary: aiSummaryHook }}
       dataTestId={`${investmentType}-update-button-${investmentId}`}
-      buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')}
     />
   )
 

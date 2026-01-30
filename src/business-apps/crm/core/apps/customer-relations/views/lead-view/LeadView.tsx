@@ -148,7 +148,7 @@ export const LeadView: React.FC<LeadViewProps> = context => {
         addLead: { key: 'crm:lead.addLead', default: 'Add Lead' }
       }
     }),
-    [fetchCustomerLeads, accessToken]
+    [fetchCustomerLeads, leadStatisticsData, accessToken]
   )
 
   return <LeadLayout context={context} config={config} dataTestId="customer-lead-view" />
