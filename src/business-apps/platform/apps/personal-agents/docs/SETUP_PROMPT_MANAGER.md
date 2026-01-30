@@ -2,8 +2,8 @@
 
 ## Option 1: Via Task Expert Studio (Easiest)
 
-1. **Navigate to Task Expert Studio**
-   - Go to https://newwork-dev.newwork.com/platform/apps/task-expert-studio
+1. **Navigate to Prompt Manager**
+   - Go to https://newwork-dev.newwork.com/platform/create/prompt-manager
 
 2. **Create New Prompt**
    - Click "Create New Prompt"

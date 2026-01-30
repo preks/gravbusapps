@@ -4,8 +4,9 @@ import { Empty, Progress } from 'antd'
 import { Employee } from '../../hooks/useEmployeeData'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import { PiStar, PiCheckCircle } from 'react-icons/pi'
 import { calculateSkillStats, getLevelInfo, getSkillCategory, getTimeSince } from '../../utils/utils'
 
@@ -21,6 +22,7 @@ interface SkillsTabProps {
  * Displays skills for the employee with enhanced visual design
  */
 const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
+  const { t } = useTranslation(translations)
   // Use employee skills data directly
   const employeeSkills = useMemo(() => {
     return employee.skills || []
@@ -41,13 +43,10 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
       <div className="gba:flex gba:justify-between gba:items-start" data-testid="skills-header">
         <div className="gba:skills-header">
           <div className="gba:font-bold gba:text-2xl" data-testid="skills-title">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:employee_record.skills_title', 'Employee Skills')}
+            {t('skills-title')}
           </div>
           <div className="gba:text-muted-foreground gba:text-lg" data-testid="skills-description">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:employee_record.skills_description',
-              'View and manage employee skills and competencies'
-            )}
+            {t('skills-description')}
           </div>
         </div>
         <AppAction
@@ -58,18 +57,12 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
           accessToken={accessToken}
           autoExecute={true}
         >
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_profile.employee_tabs.flow_button.edit_skills',
-            'Edit Skills'
-          )}
+          {t('skills-edit-button')}
         </AppAction>
       </div>
 
       {validSkills.length === 0 ? (
-        <Empty
-          description={getTranslationFromI18nKeyAndLabel('lowcoder:employee_record.no_skills', 'No skills found')}
-          data-testid="skills-empty"
-        />
+        <Empty description={t('skills-empty')} data-testid="skills-empty" />
       ) : (
         <>
           {/* Skills Statistics */}
@@ -78,7 +71,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
               <div className="gba:flex gba:items-center gba:justify-between">
                 <div>
                   <div className="gba:text-2xl gba:font-bold gba:text-info">{skillStats.total}</div>
-                  <div className="gba:text-sm gba:text-muted-foreground">Total Skills</div>
+                  <div className="gba:text-sm gba:text-muted-foreground">{t('skills-total')}</div>
                 </div>
                 <PiStar className="gba:h-8 gba:w-8 gba:text-info" />
               </div>
@@ -90,9 +83,9 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
                   <div className="gba:text-lg gba:font-bold gba:text-info">
                     {skillStats.highestSkills.length > 0
                       ? skillStats.highestSkills.map((skill: any) => skill.skill.name).join(', ')
-                      : 'None'}
+                      : t('skills-none')}
                   </div>
-                  <div className="gba:text-sm gba:text-muted-foreground">Highest Skills</div>
+                  <div className="gba:text-sm gba:text-muted-foreground">{t('skills-highest')}</div>
                 </div>
                 <PiCheckCircle className="gba:h-8 gba:w-8" style={{ color: 'var(--nw-color-purple-500)' }} />
               </div>
@@ -106,7 +99,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
           >
             {validSkills.map(skillItem => {
               const hasLevel = skillItem.level && skillItem.level !== null && skillItem.level !== ''
-              const levelInfo = hasLevel ? getLevelInfo(Number(skillItem.level)) : getLevelInfo(0)
+              const levelInfo = hasLevel ? getLevelInfo(Number(skillItem.level), t) : getLevelInfo(0, t)
               const category = getSkillCategory(skillItem.skill.additionalProperties)
               const timeSinceCreated = getTimeSince(skillItem.skill.createdAt || '')
               const timeSinceUpdated = getTimeSince(skillItem.skill.updatedAt || '')
@@ -138,9 +131,9 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
                         </div>
                         <div className="gba:flex gba:flex-col gba:items-end">
                           <div className="gba:font-bold gba:text-xl" style={{ color: levelInfo.color }}>
-                            {hasLevel ? skillItem.level : 'N/A'}
+                            {hasLevel ? skillItem.level : t('skills-na')}
                           </div>
-                          <div className="gba:text-xs gba:text-gray-500">Level</div>
+                          <div className="gba:text-xs gba:text-gray-500">{t('skills-level')}</div>
                         </div>
                       </div>
 
@@ -165,14 +158,14 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
                       {/* Additional Information */}
                       <div className="gba:space-y-2 gba:border-t gba:border-gray-100 gba:pt-4">
                         <div className="gba:flex gba:justify-between gba:items-center">
-                          <span className="gba:text-xs gba:text-gray-500">Category</span>
+                          <span className="gba:text-xs gba:text-gray-500">{t('skills-category')}</span>
                           <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
                             {category}
                           </span>
                         </div>
 
                         <div className="gba:flex gba:justify-between gba:items-center">
-                          <span className="gba:text-xs gba:text-gray-500">Added</span>
+                          <span className="gba:text-xs gba:text-gray-500">{t('skills-added')}</span>
                           <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
                             {timeSinceCreated}
                           </span>
@@ -180,7 +173,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
 
                         {skillItem.skill.updatedAt && skillItem.skill.updatedAt !== skillItem.skill.createdAt && (
                           <div className="gba:flex gba:justify-between gba:items-center">
-                            <span className="gba:text-xs gba:text-gray-500">Updated</span>
+                            <span className="gba:text-xs gba:text-gray-500">{t('skills-updated')}</span>
                             <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
                               {timeSinceUpdated}
                             </span>

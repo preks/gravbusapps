@@ -35,6 +35,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/irm/investment-launcher': 'irm/core/apps/investment-launcher',
   '/platform/irm/investment-relations': 'irm/core/apps/investment-relations',
   '/platform/irm/investment-settings': 'irm/core/apps/investment-settings',
+  '/platform/irm/data-import': 'irm/core/apps/data-import',
 
   /// Core: Records
   '/platform/irm/account-record': 'irm/core/records/account-record',
@@ -98,6 +99,15 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/apps/note-apps': 'platform/apps/note-apps',
   '/platform/apps/spreadsheet-apps': 'platform/apps/spreadsheet-apps',
   '/platform/apps/slide-apps': 'platform/apps/slide-apps',
+
+  // Create
+  '/platform/create': 'core/create/apps/create-workspace',
+  '/platform/create/function-manager': 'core/create/apps/function-manager',
+  '/platform/create/prompt-manager': 'core/create/apps/prompt-manager',
+  '/platform/ai-builder': 'core/create/apps/ai-builder',
+
+  // Flow
+  '/platform/apps/flow/apps/creator': 'flow/apps/creator',
 
   // Obsolete
   // TODO: Clean Up

@@ -1,5 +1,2 @@
 export { DataImport } from './DataImport'
-export { LeadImportView } from './views/lead-import-view'
-export { ContactImportView } from './views/contact-import-view'
-export { AccountImportView } from './views/account-import-view'
 export { default } from './DataImport'

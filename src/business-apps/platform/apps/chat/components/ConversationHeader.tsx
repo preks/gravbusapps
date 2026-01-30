@@ -44,6 +44,7 @@ interface ConversationHeaderProps {
   otherUserPresence?: UserPresence
   isCallEnabled?: boolean
   isInCall?: boolean
+  isStartingCall?: boolean
   activeCall?: ActiveCallInfo | null
   t: (key: string, params?: Record<string, any>) => string
 }
@@ -187,6 +188,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   otherUserPresence,
   isCallEnabled = true,
   isInCall = false,
+  isStartingCall = false,
   activeCall = null,
   t
 }) => {
@@ -317,6 +319,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                       variant="ghost"
                       size="icon"
                       onClick={onAudioCall}
+                      disabled={isStartingCall}
                       className="gba:h-8 gba:w-8 gba:flex-shrink-0"
                       data-testid="conversation-audio-call-button"
                       title={t('chat-startAudioCall')}
@@ -329,6 +332,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                       variant="ghost"
                       size="icon"
                       onClick={onVideoCall}
+                      disabled={isStartingCall}
                       className="gba:h-8 gba:w-8 gba:flex-shrink-0"
                       data-testid="conversation-video-call-button"
                       title={t('chat-startVideoCall')}

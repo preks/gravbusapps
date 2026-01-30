@@ -3,7 +3,7 @@
  * Extracted from LeadImportExample lines 68-93
  */
 
-import { TargetFieldDefinition, ImportConfig } from '@/common/data/customer/agents/types'
+import { TargetFieldDefinition, ImportConfig } from '@/common/components/common-relations/apps/data-import/types'
 
 export const leadTargetFields: TargetFieldDefinition[] = [
   // Personal Information
@@ -61,6 +61,7 @@ export const leadTargetFields: TargetFieldDefinition[] = [
 
 export const leadImportConfig: ImportConfig = {
   entityType: 'lead',
+  domain: 'customer',
   aiAgentName: 'LeadImportAnalyzer',
   targetFields: leadTargetFields,
   requiredCatalogs: [

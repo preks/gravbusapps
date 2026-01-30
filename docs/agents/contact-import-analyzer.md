@@ -26,9 +26,23 @@ You MUST attempt to map source fields to ALL of the following target fields. Eve
 - `jobPosition` (type: string) - Job title or position
 - `department` (type: string) - Department name
 
-**Contact Information:**
-- `email` (type: string) - Email address
-- `phoneNumber` (type: string) - Phone number
+**Communication Channels:**
+
+**IMPORTANT:** Map communication methods to their respective flat fields below. The system will automatically transform these into a properly structured `communicationChannels` array with the correct catalog references (e.g., "CommunicationChannel:e-mail", "CommunicationChannel:Phone", "CommunicationChannel:LinkedIn").
+
+- `email` (type: string) - Primary email address
+- `phoneNumber` (type: string) - Primary phone number
+- `mobileNumber` (type: string) - Mobile phone number
+- `faxNumber` (type: string) - Fax number
+- `linkedInUrl` (type: string) - LinkedIn profile URL
+- `xingUrl` (type: string) - Xing profile URL
+- `facebookUrl` (type: string) - Facebook profile URL
+- `instagramUrl` (type: string) - Instagram profile URL
+- `messengerUrl` (type: string) - Facebook Messenger URL
+- `websiteUrl` (type: string) - Website URL
+- `xUrl` (type: string) - X (Twitter) profile URL
+- `youtubeUrl` (type: string) - YouTube channel URL
+- `slackUrl` (type: string) - Slack profile URL
 
 **Language:**
 - `languageRef` (type: catalogRef → Language) - Preferred language
@@ -77,9 +91,20 @@ Use semantic analysis to map source fields to Contact target fields.
 - "Job Title", "Position", "Role" → jobPosition
 - "Department", "Dept" → department
 
-**Contact Information:**
-- "Email", "Email Address", "email_address" → email
-- "Phone", "Mobile", "Cell", "Telephone" → phoneNumber
+**Communication Channels:**
+- "Email", "Email Address", "email_address", "Work Email" → email
+- "Phone", "Phone Number", "Tel", "Telephone", "Work Phone" → phoneNumber
+- "Mobile", "Cell", "Mobile Phone", "Cell Phone" → mobileNumber
+- "Fax", "Fax Number" → faxNumber
+- "LinkedIn", "LinkedIn URL", "LinkedIn Profile" → linkedInUrl
+- "Xing", "Xing URL", "Xing Profile" → xingUrl
+- "Facebook", "Facebook URL", "Facebook Profile" → facebookUrl
+- "Instagram", "Instagram URL", "Instagram Handle" → instagramUrl
+- "Messenger", "Facebook Messenger", "Messenger URL" → messengerUrl
+- "Website", "Website URL", "Web", "URL" → websiteUrl
+- "Twitter", "X", "Twitter URL", "X URL" → xUrl
+- "YouTube", "YouTube URL", "YouTube Channel" → youtubeUrl
+- "Slack", "Slack URL", "Slack Profile" → slackUrl
 
 **Language:**
 - "Language", "Preferred Language", "Locale" → languageRef (catalog: Language)

@@ -7,6 +7,15 @@ account-name-label = Account Name
 account-name-required = Account Name is required
 account-name-placeholder = Please Enter...
 account-picture-label = Account Picture
+account-information-segment-prospective = Prospective
+account-type-label = Account Category
+prospect-label = Prospect
+customer-label = Customer
+portfolio-company-label = Portfolio Company
+prospect-description-crm = Potential customer with high engagement
+prospect-description-irm = Potential entry to the portfolio
+customer-description = Active customer with established relationship
+portfolio-description = Active portfolio company with investment holdings
 
 # Company Information
 legal-form-label = Legal Form

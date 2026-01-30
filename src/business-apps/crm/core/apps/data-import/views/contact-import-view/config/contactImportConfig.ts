@@ -2,7 +2,7 @@
  * Contact Import Configuration
  */
 
-import { TargetFieldDefinition, ImportConfig } from '@/common/data/customer/agents/types'
+import { TargetFieldDefinition, ImportConfig } from '@/common/components/common-relations/apps/data-import/types'
 
 export const contactTargetFields: TargetFieldDefinition[] = [
   // Personal Information
@@ -14,9 +14,20 @@ export const contactTargetFields: TargetFieldDefinition[] = [
   { value: 'jobPosition', label: 'Job Position', type: 'direct' },
   { value: 'department', label: 'Department', type: 'direct' },
 
-  // Contact Information
+  // Communication Channels (will be transformed into communicationChannels array)
   { value: 'email', label: 'Email', type: 'direct' },
   { value: 'phoneNumber', label: 'Phone Number', type: 'direct' },
+  { value: 'mobileNumber', label: 'Mobile Number', type: 'direct' },
+  { value: 'faxNumber', label: 'Fax Number', type: 'direct' },
+  { value: 'linkedInUrl', label: 'LinkedIn URL', type: 'direct' },
+  { value: 'xingUrl', label: 'Xing URL', type: 'direct' },
+  { value: 'facebookUrl', label: 'Facebook URL', type: 'direct' },
+  { value: 'instagramUrl', label: 'Instagram URL', type: 'direct' },
+  { value: 'messengerUrl', label: 'Messenger URL', type: 'direct' },
+  { value: 'websiteUrl', label: 'Website URL', type: 'direct' },
+  { value: 'xUrl', label: 'X (Twitter) URL', type: 'direct' },
+  { value: 'youtubeUrl', label: 'YouTube URL', type: 'direct' },
+  { value: 'slackUrl', label: 'Slack URL', type: 'direct' },
 
   // Language
   { value: 'languageRef', label: 'Language (Catalog)', type: 'catalog', catalog: 'Language' },
@@ -40,6 +51,7 @@ export const contactTargetFields: TargetFieldDefinition[] = [
 
 export const contactImportConfig: ImportConfig = {
   entityType: 'contact',
+  domain: 'customer',
   aiAgentName: 'ContactImportAnalyzer',
   targetFields: contactTargetFields,
   requiredCatalogs: ['Salutation', 'AcademicTitle', 'Language', 'Country']
