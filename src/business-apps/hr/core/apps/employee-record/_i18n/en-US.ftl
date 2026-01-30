@@ -339,7 +339,8 @@ profile-header-no-manager = No manager
 profile-header-job-position = Job Position
 profile-header-cost-center = Cost Center
 profile-header-hire-date = Hire Date
-profile-header-fixed-term-until = Fixed Term until
+profile-header-fixed-term-until = Fixed-Term End Date
+profile-header-fixed-term-reason = Reason for Fixed Term
 profile-header-na = N/A
 
 # Profile Header - Time units (tenure)

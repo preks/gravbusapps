@@ -318,13 +318,16 @@ employee-form-email = E-Mail
 employee-form-organizational-unit = Organisationseinheit
 employee-form-job-position = Stelle
 employee-form-hire-date = Einstellungsdatum
-employee-form-fixed-term-until = Befristet bis
+employee-form-fixed-term-end-date = Befristungsende
+employee-form-fixed-term-reason = Grund für Befristung
 employee-form-preferred-name = Bevorzugter Name
 employee-form-employment-type = Beschäftigungsart
 employee-form-contract-type = Vertragsart
 
 # Validation Messages
 employee-form-email-invalid = Bitte geben Sie eine gültige E-Mail-Adresse ein
+employee-form-hire-date-required = Einstellungsdatum ist erforderlich, wenn Befristungsende angegeben ist
+employee-form-fixed-term-before-hire = Befristungsende muss am oder nach dem Einstellungsdatum liegen
 
 # Empty States
 employee-form-no-results = Keine Ergebnisse gefunden
