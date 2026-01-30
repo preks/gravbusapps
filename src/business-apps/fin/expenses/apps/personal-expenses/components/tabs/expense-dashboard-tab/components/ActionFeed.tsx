@@ -1,11 +1,10 @@
 import React, { useState } from 'react'
-import { Card, CardHeader, CardContent, CardTitle, Button, Alert } from '@newwork/nw-design-system'
+import { Card, CardHeader, CardContent, CardTitle, Button, Alert, Badge } from '@newwork/nw-design-system'
 import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons'
 import { DashboardStats, RecentActivity } from '../types'
 // import { formatNumberFunction } from '@/common/utils/windowUtils';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { getExpenseRequestStatusDisplay } from '../../../../utils'
-import Pill from '@/components/pill'
 
 interface ActionFeedProps {
   stats: DashboardStats | undefined
@@ -115,12 +114,9 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
                     {(() => {
                       const statusConfig = getExpenseRequestStatusDisplay(item.status)
                       return (
-                        <Pill
-                          type={statusConfig.type}
-                          label={statusConfig.label}
-                          color={statusConfig.color}
-                          data-testid="expense-status-cell"
-                        />
+                        <Badge variant={statusConfig.badgeVariant ?? 'outline'} data-testid="expense-status-cell">
+                          {statusConfig.label}
+                        </Badge>
                       )
                     })()}
                   </div>
