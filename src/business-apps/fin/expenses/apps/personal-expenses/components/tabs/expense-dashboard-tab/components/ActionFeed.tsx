@@ -4,7 +4,7 @@ import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons'
 import { DashboardStats, RecentActivity } from '../types'
 // import { formatNumberFunction } from '@/common/utils/windowUtils';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { getExpenseRequestStatusDisplay } from '../../../../utils'
+import { getExpenseRequestStatusDisplay, type StatusDisplayConfig } from '../../../../utils'
 
 interface ActionFeedProps {
   stats: DashboardStats | undefined
@@ -112,7 +112,7 @@ export const ActionFeed: React.FC<ActionFeedProps> = ({ stats, isLoading, error 
                   <div className="gba:col-span-5 gba:text-xs gba:font-medium gba:truncate">{item.title}</div>
                   <div className="gba:col-span-2 gba:flex gba:justify-center">
                     {(() => {
-                      const statusConfig = getExpenseRequestStatusDisplay(item.status)
+                      const statusConfig: StatusDisplayConfig = getExpenseRequestStatusDisplay(item.status)
                       return (
                         <Badge variant={statusConfig.badgeVariant ?? 'outline'} data-testid="expense-status-cell">
                           {statusConfig.label}

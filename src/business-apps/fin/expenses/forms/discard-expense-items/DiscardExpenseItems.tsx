@@ -100,7 +100,7 @@ const DiscardExpenseItems: React.FC<DiscardExpenseItemsProps> = ({
         'Are you sure you want to delete these expense items?'
       )
     }
-    if (expenseItemStatus === 'CREATED' || expenseItemStatus === 'DRAFT') {
+    if (expenseItemStatus === 'CREATED') {
       return t(
         'lowcoder:discard_expense_items.draft_expense_item',
         'Are you sure you want to delete this expense item?'
