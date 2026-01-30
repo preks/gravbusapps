@@ -12,7 +12,8 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle
+  CardTitle,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Employee } from '../../hooks/useEmployeeData'
 import { useEmployeeAssets } from '../../hooks/useEmployeeAssets'
@@ -26,7 +27,6 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { formatDate, getCatalogValue } from '@/common/utils/windowUtils'
 import { SortableTableHead } from '../../../../apps/assets/components/SortableTableHead'
 import { AssetTablePagination } from '../../../../apps/assets/components/AssetTablePagination'
-import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
 
 interface AssetsTabProps {
@@ -398,17 +398,23 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
                               {formatDate(asset.startDate) || asset.startDate}
                             </span>
                           </div>
-                          {asset.endDate ? (
-                            <div className="gba:text-sm gba:text-muted-foreground">
-                              {t('assets-to')} {formatDate(asset.endDate) || asset.endDate}
-                            </div>
-                          ) : asset.expectedEndDate ? (
-                            <div className="gba:text-sm gba:text-warning">
-                              {t('assets-expected')}: {formatDate(asset.expectedEndDate) || asset.expectedEndDate}
-                            </div>
-                          ) : (
-                            <div className="gba:text-sm gba:text-success">{t('assets-currently-active')}</div>
-                          )}
+                          {(() => {
+                            if (asset.endDate) {
+                              return (
+                                <div className="gba:text-sm gba:text-muted-foreground">
+                                  {t('assets-to')} {formatDate(asset.endDate) || asset.endDate}
+                                </div>
+                              )
+                            }
+                            if (asset.expectedEndDate) {
+                              return (
+                                <div className="gba:text-sm gba:text-warning">
+                                  {t('assets-expected')}: {formatDate(asset.expectedEndDate) || asset.expectedEndDate}
+                                </div>
+                              )
+                            }
+                            return <div className="gba:text-sm gba:text-success">{t('assets-currently-active')}</div>
+                          })()}
                         </div>
                       </TableCell>
                       <TableCell>
