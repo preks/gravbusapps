@@ -59,7 +59,7 @@ const formatFlowId = (id: string): string => {
  * Handles both development and production environments
  */
 const buildServiceDeskTaskUrl = (taskId: string): string => {
-  const isProduction = process.env.NODE_ENV === 'production'
+  const isProduction = import.meta.env.MODE === 'production'
   const platformPath = '/platform/sales-demo/service-desk'
 
   if (isProduction) {
@@ -863,7 +863,7 @@ export const FlowManagementPanel: React.FC<FlowManagementPanelProps> = ({
                 variant="outline"
                 onClick={() => {
                   // Fallback: View flow in service-desk (no specific task to open)
-                  const isProduction = process.env.NODE_ENV === 'production'
+                  const isProduction = import.meta.env.MODE === 'production'
                   if (isProduction) {
                     const flowUrl = buildPlatformUrl('/platform/sales-demo/service-desk', {
                       flowId: selectedFlow?.workflowId || ''

@@ -83,7 +83,7 @@ export class CaseApiClient {
   /**
    * Create a new case
    *
-   * Backend DTO expects: { initiator, title?, assignment?, correlationId?, tags?: string[] }
+   * Backend DTO expects: { initiator, title?, metadata?, assignment?, correlationId?, tags? }
    */
   async createCase(data: CreateCaseRequest): Promise<{ caseId: string }> {
     // Transform frontend request to backend DTO format
@@ -91,8 +91,15 @@ export class CaseApiClient {
       initiator: data.initiator || 'system',
       title: data.metadata?.title || 'New Case',
       correlationId: data.correlationId,
-      // Convert tags object to array format: ["app:AppCatalog:1:SER", "priority:high"]
-      tags: this.formatTags(data.tags, data.metadata)
+      // Send full metadata object to backend
+      metadata: {
+        title: data.metadata?.title || 'New Case',
+        description: data.metadata?.description || '',
+        priority: data.metadata?.priority || 'medium',
+        status: data.metadata?.status || 'open'
+      },
+      // Send tags as object with app field
+      tags: data.tags
     }
 
     console.log('[CaseApiClient] Creating case:', { url: this.baseUrl, payload: backendPayload })

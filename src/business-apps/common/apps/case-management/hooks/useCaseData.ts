@@ -10,7 +10,7 @@ import { Case, LinkedFlow } from '../types'
 import { CaseApiClient } from '../services'
 import { AUTO_REFRESH_INTERVAL } from '../utils'
 
-const BASE_URL = process.env.REACT_APP_FLOW_ENGINE_BASE_URL || window.location.origin
+const BASE_URL = import.meta.env.VITE_CFLOW_ENGINE_URL || window.location.origin
 
 export const useCaseData = (caseId: string | null, context: BusinessAppContextProps) => {
   const [caseData, setCaseData] = useState<Case | null>(null)
