@@ -7,6 +7,15 @@ account-name-label = Kontoname
 account-name-required = Kontoname ist erforderlich
 account-name-placeholder = Bitte eingeben...
 account-picture-label = Kontobild
+account-information-segment-prospective = Interessent
+account-type-label = Kontokategorie
+prospect-label = Interessent
+customer-label = Kunde
+portfolio-company-label = Portfoliounternehmen
+prospect-description-crm = Potenzieller Kunde mit hohem Engagement
+prospect-description-irm = Potenzieller Eintrag in das Portfolio
+customer-description = Aktiver Kunde mit etablierter Geschäftsbeziehung
+portfolio-description = Aktives Portfoliounternehmen mit Investitionsbeteiligungen
 
 # Company Information
 legal-form-label = Rechtsform

@@ -1,11 +1,18 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { AccountLayout, type AccountViewConfig } from '@/common/components/common-relations/view-layouts/account-layout'
+import {
+  AccountLayout,
+  type AccountViewConfig,
+  type QuickFiltersRenderProps,
+  AccountQuickFilters,
+  type QuickFilterType
+} from '@/common/components/common-relations/view-layouts/account-layout'
 import type { Account } from '@/common/data/relations/types/accountTypes'
 import { INVESTMENT_ACCOUNT_DESCRIPTORS } from '@/common/data/investment/types/investmentAccountTypes'
 import {
   commonAccountColumns,
-  commonAccountFilterConfig
+  commonAccountFilterConfig,
+  createProspectiveColumn
 } from '@/common/components/common-relations/view-layouts/account-layout/config'
 import { useGetInvestmentAccounts } from '@/common/data/investment/hooks/useInvestmentAccounts'
 import type { InvestmentAccountQueryVariables } from '@/common/data/investment/queries/investmentAccountQueries'
@@ -55,6 +62,41 @@ export type AccountViewProps = BusinessAppContextProps
 
 export const AccountView: React.FC<AccountViewProps> = context => {
   const { accessToken } = context
+  const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterType>('all')
+
+  const handleQuickFilterChange = useCallback(
+    (
+      filter: QuickFilterType,
+      prospective: boolean | undefined,
+      onFilterChange: (filters: Record<string, any>) => void,
+      currentFilters: Record<string, any>
+    ) => {
+      setActiveQuickFilter(filter)
+      onFilterChange({
+        ...currentFilters,
+        prospective: prospective
+      })
+    },
+    []
+  )
+
+  const renderQuickFilters = useCallback(
+    ({ selectedFilters, onFilterChange }: QuickFiltersRenderProps) => (
+      <AccountQuickFilters
+        activeFilter={activeQuickFilter}
+        onFilterChange={(filter, prospective) =>
+          handleQuickFilterChange(filter, prospective, onFilterChange, selectedFilters)
+        }
+        labels={{
+          all: 'All',
+          established: 'Portfolio Companies',
+          prospect: 'Prospects'
+        }}
+        dataTestIdPrefix="investment-account"
+      />
+    ),
+    [activeQuickFilter, handleQuickFilterChange]
+  )
 
   // Data Hooks
   const { fetchInvestmentAccounts } = useGetInvestmentAccounts(context)
@@ -75,7 +117,10 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         }
       },
       entityName: 'InvestmentAccount',
-      createColumns: () => commonAccountColumns,
+      createColumns: () => {
+        // Replace generic prospective column with IRM-specific version
+        return commonAccountColumns.map(col => (col.id === 'prospective' ? createProspectiveColumn('irm') : col))
+      },
       descriptors: INVESTMENT_ACCOUNT_DESCRIPTORS,
       columnLabels: {
         name: 'Account Name',
@@ -114,6 +159,15 @@ export const AccountView: React.FC<AccountViewProps> = context => {
 
         // Copy all other filters using helper
         copyInvestmentAccountFilters(params.selectedFilters, dateRangeKeys, vars)
+
+        // Special handling for prospective filter (checkbox-group returns array of strings)
+        if (params.selectedFilters.prospective && Array.isArray(params.selectedFilters.prospective)) {
+          const prospectiveValues = params.selectedFilters.prospective
+          // Only filter if exactly one option is selected (not both or neither)
+          if (prospectiveValues.length === 1) {
+            vars.prospective = prospectiveValues[0] === 'true'
+          }
+        }
 
         // Use column ID directly - buildOrderBy will use descriptors (INVESTMENT_ACCOUNT_DESCRIPTORS)
         // to resolve correct GraphQL paths (e.g., ownerEmployee.displayName, industryClass.value)
@@ -155,7 +209,14 @@ export const AccountView: React.FC<AccountViewProps> = context => {
     [fetchInvestmentAccounts, accountStatisticsData, accessToken]
   )
 
-  return <AccountLayout context={context} config={config} dataTestId="investment-account-view" />
+  return (
+    <AccountLayout
+      context={context}
+      config={config}
+      dataTestId="investment-account-view"
+      renderQuickFilters={renderQuickFilters}
+    />
+  )
 }
 
 export default AccountView

@@ -2,7 +2,7 @@
  * Account Import Configuration
  */
 
-import { TargetFieldDefinition, ImportConfig } from '@/common/data/customer/agents/types'
+import { TargetFieldDefinition, ImportConfig } from '@/common/components/common-relations/apps/data-import/types'
 
 export const accountTargetFields: TargetFieldDefinition[] = [
   // Company Information
@@ -34,11 +34,20 @@ export const accountTargetFields: TargetFieldDefinition[] = [
   { value: 'countryRef', label: 'Country (Catalog)', type: 'catalog', catalog: 'Country' },
   { value: 'regionRef', label: 'Region (Catalog)', type: 'catalog', catalog: 'Region' },
 
-  // Communication
+  // Communication Channels (will be transformed into communicationChannels array)
   { value: 'email', label: 'Email', type: 'direct' },
   { value: 'phoneNumber', label: 'Phone Number', type: 'direct' },
   { value: 'mobileNumber', label: 'Mobile Number', type: 'direct' },
   { value: 'faxNumber', label: 'Fax Number', type: 'direct' },
+  { value: 'linkedInUrl', label: 'LinkedIn URL', type: 'direct' },
+  { value: 'xingUrl', label: 'Xing URL', type: 'direct' },
+  { value: 'facebookUrl', label: 'Facebook URL', type: 'direct' },
+  { value: 'instagramUrl', label: 'Instagram URL', type: 'direct' },
+  { value: 'messengerUrl', label: 'Messenger URL', type: 'direct' },
+  { value: 'websiteUrl', label: 'Website URL', type: 'direct' },
+  { value: 'xUrl', label: 'X (Twitter) URL', type: 'direct' },
+  { value: 'youtubeUrl', label: 'YouTube URL', type: 'direct' },
+  { value: 'slackUrl', label: 'Slack URL', type: 'direct' },
 
   // Management
   { value: 'ownerEmployeeId', label: 'Owner Employee ID', type: 'direct' },
@@ -52,6 +61,7 @@ export const accountTargetFields: TargetFieldDefinition[] = [
 
 export const accountImportConfig: ImportConfig = {
   entityType: 'account',
+  domain: 'customer',
   aiAgentName: 'AccountImportAnalyzer',
   targetFields: accountTargetFields,
   requiredCatalogs: [

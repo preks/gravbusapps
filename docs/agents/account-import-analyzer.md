@@ -36,11 +36,23 @@ You MUST attempt to map source fields to ALL of the following target fields. Eve
 - `countryRef` (type: catalogRef → Country) - Country
 - `regionRef` (type: catalogRef → Region) - State/province/region
 
-**Communication:**
+**Communication Channels:**
+
+**IMPORTANT:** Map communication methods to their respective flat fields below. The system will automatically transform these into a properly structured `communicationChannels` array with the correct catalog references (e.g., "CommunicationChannel:e-mail", "CommunicationChannel:Phone", "CommunicationChannel:LinkedIn").
+
 - `email` (type: string) - Company email address
 - `phoneNumber` (type: string) - Company phone number
 - `mobileNumber` (type: string) - Company mobile number
 - `faxNumber` (type: string) - Company fax number
+- `linkedInUrl` (type: string) - Company LinkedIn page URL
+- `xingUrl` (type: string) - Company Xing page URL
+- `facebookUrl` (type: string) - Company Facebook page URL
+- `instagramUrl` (type: string) - Company Instagram page URL
+- `messengerUrl` (type: string) - Company Messenger URL
+- `websiteUrl` (type: string) - Company website URL
+- `xUrl` (type: string) - Company X (Twitter) page URL
+- `youtubeUrl` (type: string) - Company YouTube channel URL
+- `slackUrl` (type: string) - Company Slack workspace URL
 
 **Management:**
 - `ownerEmployeeId` (type: string) - Owner employee ID (who manages this account)
@@ -89,11 +101,20 @@ Use semantic analysis to map source fields to Account target fields.
 - "State", "Region", "Province" → regionRef (catalog: Region)
 - "Country" → countryRef (catalog: Country)
 
-**Communication:**
-- "Email", "Company Email", "Contact Email" → email
-- "Phone", "Company Phone", "Telephone", "Office Phone" → phoneNumber
-- "Mobile", "Cell Phone", "Mobile Phone" → mobileNumber
+**Communication Channels:**
+- "Email", "Company Email", "Contact Email", "Work Email" → email
+- "Phone", "Company Phone", "Telephone", "Office Phone", "Phone Number" → phoneNumber
+- "Mobile", "Cell Phone", "Mobile Phone", "Cell" → mobileNumber
 - "Fax", "Fax Number" → faxNumber
+- "LinkedIn", "LinkedIn URL", "LinkedIn Page", "Company LinkedIn" → linkedInUrl
+- "Xing", "Xing URL", "Xing Page", "Company Xing" → xingUrl
+- "Facebook", "Facebook URL", "Facebook Page", "Company Facebook" → facebookUrl
+- "Instagram", "Instagram URL", "Instagram Page", "Company Instagram" → instagramUrl
+- "Messenger", "Facebook Messenger", "Messenger URL" → messengerUrl
+- "Website", "Company Website", "Web", "URL" → websiteUrl
+- "Twitter", "X", "Twitter URL", "X URL", "Company Twitter" → xUrl
+- "YouTube", "YouTube URL", "YouTube Channel", "Company YouTube" → youtubeUrl
+- "Slack", "Slack URL", "Slack Workspace", "Company Slack" → slackUrl
 
 **Management:**
 - "Owner", "Owner Employee ID", "Account Owner", "Assigned To" → ownerEmployeeId

@@ -23,7 +23,7 @@ import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
 import { HomeView } from './views/home-view/HomeView'
 import { getEmailChannel, getPhoneChannel } from '@/common/data/common/utils/communicationChannelHelpers'
-import { getAccountPriorityBadgeVariant } from '@/common/utils/badgeUtils'
+import { getAccountPriorityBadgeVariant, getProspectiveBadgeConfig } from '@/common/utils/badgeUtils'
 
 interface AccountRecordContentProps extends BusinessAppContextProps {
   accountId: string
@@ -133,23 +133,32 @@ const InvestmentAccountRecordContent: React.FC<AccountRecordContentProps> = ({ a
   )
 
   const headerMeta = useMemo(() => {
-    if (!accountData?.accountPriority) {
-      return null
-    }
+    const badges = []
 
-    const priority = accountData.accountPriority
-    const value = priority.value || priority.code || ''
-    const additionalValue1 = priority.additionalValue1 || ''
-    const displayValue = additionalValue1 ? `${value}: ${additionalValue1}` : value
+    // Priority badge
+    if (accountData?.accountPriority) {
+      const priority = accountData.accountPriority
+      const value = priority.value || priority.code || ''
+      const additionalValue1 = priority.additionalValue1 || ''
+      const displayValue = additionalValue1 ? `${value}: ${additionalValue1}` : value
 
-    return (
-      <div className="gba:flex gba:items-center gba:gap-2">
-        <Badge variant={getAccountPriorityBadgeVariant(priority)} data-testid="account-priority-badge">
+      badges.push(
+        <Badge key="priority" variant={getAccountPriorityBadgeVariant(priority)} data-testid="account-priority-badge">
           {displayValue}
         </Badge>
-      </div>
+      )
+    }
+
+    // Prospective badge
+    const prospectiveConfig = getProspectiveBadgeConfig(accountData?.prospective ?? false, 'irm')
+    badges.push(
+      <Badge key="prospective" variant={prospectiveConfig.variant} data-testid="account-prospective-badge">
+        {prospectiveConfig.label}
+      </Badge>
     )
-  }, [accountData?.accountPriority])
+
+    return badges.length > 0 ? <div className="gba:flex gba:items-center gba:gap-2">{badges}</div> : null
+  }, [accountData?.accountPriority, accountData?.prospective])
 
   const headerActions = (
     <AiActions
