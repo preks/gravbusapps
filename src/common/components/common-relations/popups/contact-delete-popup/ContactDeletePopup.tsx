@@ -68,12 +68,12 @@ const ContactDeletePopup: React.FC<ContactDeletePopupProps> = ({
     return null
   }
 
-  // Setup redirect after delete (if on record page)
+  // Setup redirect after delete (only if deleting the current contact record)
   useDeleteRedirect({
     domain,
     entityType: 'contacts',
     recordUrlPattern: '/contact-record',
-    additionalData: props.additionalData
+    entityId: contactId
   })
 
   if (loading) {

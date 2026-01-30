@@ -70,12 +70,12 @@ const OpportunityDeletePopup: React.FC<OpportunityDeletePopupProps> = ({
     return null
   }
 
-  // Setup redirect after delete (if on record page)
+  // Setup redirect after delete (only if deleting the current opportunity record)
   useDeleteRedirect({
     domain,
     entityType: 'opportunities',
     recordUrlPattern: '/opportunity-record',
-    additionalData: props.additionalData
+    entityId: opportunityId
   })
 
   if (loading) {
