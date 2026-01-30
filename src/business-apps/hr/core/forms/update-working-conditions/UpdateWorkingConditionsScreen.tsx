@@ -425,10 +425,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
 
             <div className="gba:space-y-2">
               <div className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:working_conditions_form.fixed_term_reason',
-                  'Reason for Fixed Term'
-                )}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.fixed_term_reason', 'Exit Reason')}
               </div>
               <Input
                 type="text"
