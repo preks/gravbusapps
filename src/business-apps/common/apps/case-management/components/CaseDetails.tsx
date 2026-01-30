@@ -27,7 +27,7 @@ import {
   DialogFooter,
   Badge
 } from '@newwork/nw-design-system'
-import { RefreshCw, Check, AlertTriangle, Bot, Sparkles, X, Copy, CheckCheck } from 'lucide-react'
+import { RefreshCw, Check, AlertTriangle, Bot, Sparkles, X, Copy, CheckCheck, Users } from 'lucide-react'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import { Case, AddFlowRequest, LinkedEntity, LinkedFlow } from '../types'
 import { formatDate, canCompleteCase, formatCaseId, isFlowTerminal } from '../utils'
@@ -38,6 +38,8 @@ import { EntityLinkingPanel } from './EntityLinkingPanel'
 import { CaseActivityFeed } from './CaseActivityFeed'
 import { useCaseData } from '../hooks'
 import { openEveryAI } from '@/common/utils/openEveryAI'
+import { useEmployeeNamesBatch } from '@/business-apps/ser/hooks/useEmployeeNamesBatch'
+import { Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
 
 /**
  * Builds a comprehensive AI prompt for case analysis with actual case data
@@ -132,6 +134,27 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
   const [aiPrompt, setAiPrompt] = useState('')
   const [promptCopied, setPromptCopied] = useState(false)
 
+  // Calculate active flows and participants (must be before hook calls)
+  const activeFlows = linkedFlows.filter(f => !f.removedAt)
+  const allParticipantIds = [
+    ...new Set(
+      activeFlows.flatMap(
+        f => [f.initiator, f.addedBy, f.currentAssignee, ...(f.participants || [])].filter(Boolean) as string[]
+      )
+    )
+  ]
+
+  // Fetch employee data for all participants (hook must be called unconditionally)
+  const {
+    displayNames: userNames,
+    employees: userEmployees,
+    isLoading: isLoadingEmployees
+  } = useEmployeeNamesBatch({
+    userIds: allParticipantIds,
+    accessToken: context.accessToken,
+    enabled: allParticipantIds.length > 0
+  })
+
   if (isLoading || !caseData) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
@@ -147,7 +170,6 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
   const canComplete = canCompleteCase(caseData)
 
   // Calculate blocking flows (active flows not in terminal state)
-  const activeFlows = linkedFlows.filter(f => !f.removedAt)
   const blockingFlows = activeFlows.filter(f => !isFlowTerminal(f))
 
   const handleComplete = async () => {
@@ -336,6 +358,71 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
                   </CardHeader>
                   <CardContent>
                     <p className="gba:text-sm gba:whitespace-pre-wrap">{metadata.description}</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Participants from linked flows */}
+              {allParticipantIds.length > 0 && (
+                <Card>
+                  <CardHeader className="gba:pb-3">
+                    <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
+                      <Users className="gba:h-4 gba:w-4" />
+                      Participants ({allParticipantIds.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoadingEmployees ? (
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <div className="gba:animate-spin gba:rounded-full gba:h-4 gba:w-4 gba:border-b-2 gba:border-primary" />
+                        <span className="gba:text-sm gba:text-muted-foreground">Loading participants...</span>
+                      </div>
+                    ) : (
+                      <div className="gba:flex gba:flex-wrap gba:gap-3">
+                        {allParticipantIds.map(userId => {
+                          const displayName = userNames.get(userId) || userId.slice(0, 8) + '...'
+                          const employee = userEmployees.get(userId)
+                          const initials = displayName
+                            .split(' ')
+                            .map(n => n[0])
+                            .join('')
+                            .toUpperCase()
+                            .slice(0, 2)
+
+                          return (
+                            <TooltipProvider key={userId}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:rounded-lg gba:border gba:border-border gba:bg-card hover:gba:bg-accent gba:transition-colors gba:cursor-pointer"
+                                    onClick={() => {
+                                      window.open(`/platform/employee/profile/${userId}`, '_blank')
+                                    }}
+                                  >
+                                    <Avatar className="gba:h-8 gba:w-8">
+                                      {employee?.pictureThumbnail ? (
+                                        <AvatarImage
+                                          src={`data:image/png;base64,${employee.pictureThumbnail}`}
+                                          alt={displayName}
+                                        />
+                                      ) : null}
+                                      <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
+                                    </Avatar>
+                                    <span className="gba:text-sm gba:font-medium gba:max-w-[120px] gba:truncate">
+                                      {displayName}
+                                    </span>
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                  <p>{displayName}</p>
+                                  <p className="gba:text-xs gba:text-muted-foreground">Click to view profile</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )
+                        })}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}

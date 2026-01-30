@@ -48,6 +48,9 @@ export interface LinkedFlow {
   currentStepReference?: string
   currentStepStatus?: string
   currentTaskId?: string
+  currentAssignee?: string
+  // Participants - all unique assignees from this flow
+  participants?: string[]
 }
 
 export interface CaseMetadata {
