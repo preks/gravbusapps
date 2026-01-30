@@ -38,21 +38,21 @@ interface AssetsTabProps {
 
 type EmployeeAsset = ReturnType<typeof useEmployeeAssets>['assets'][0]
 
-const getTableColumns = () => [
+const TABLE_COLUMNS = [
   { field: 'category', labelKey: 'assets-category' },
   { field: 'brand', labelKey: 'assets-brand-model' },
   { field: 'serialNumber', labelKey: 'assets-serial-number' },
   { field: 'startDate', labelKey: 'assets-assignment-period' },
   { field: 'condition', labelKey: 'assets-condition' },
   { field: 'status', labelKey: 'assets-status' }
-]
+] as const
 
-const getStatsConfig = () => [
+const STATS_CONFIG = [
   { labelKey: 'assets-total-assets', className: 'gba:text-foreground' },
   { labelKey: 'assets-in-use', className: 'gba:text-success' },
   { labelKey: 'assets-status-in-repair', className: 'gba:text-warning' },
   { labelKey: 'assets-handed-over', className: 'gba:text-muted-foreground' }
-]
+] as const
 
 const STATUS_VARIANTS: Record<string, 'default' | 'success' | 'destructive' | 'warning' | 'info'> = {
   [AssetStatus.AVAILABLE]: 'success',
@@ -70,9 +70,6 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const { options: conditionOptions } = useAssetConditionCatalog({ accessToken })
-
-  const tableColumns = getTableColumns()
-  const statsConfig = getStatsConfig()
 
   const conditionLookup = useMemo(
     () => new Map(conditionOptions.map((opt: AssetConditionOption) => [opt.id, opt.value])),
@@ -331,7 +328,7 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
         </CardHeader>
         <CardContent>
           <div className="gba:flex gba:gap-6 gba:text-sm">
-            {statsConfig.map(({ labelKey, className }, idx) => (
+            {STATS_CONFIG.map(({ labelKey, className }, idx) => (
               <div key={labelKey}>
                 <div className="gba:text-muted-foreground">{t(labelKey)}</div>
                 <div className={`gba:text-2xl gba:font-semibold ${className}`}>
@@ -352,7 +349,7 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
             <Table>
               <TableHeader>
                 <TableRow>
-                  {tableColumns.map(({ field, labelKey }) => (
+                  {TABLE_COLUMNS.map(({ field, labelKey }) => (
                     <SortableTableHead
                       key={field}
                       field={field}

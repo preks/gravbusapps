@@ -76,31 +76,29 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
     }
   }, [employee?.id, accessToken, employeePerformanceGoals, fetchPerformanceData])
 
-  const statusMap: Record<string, { label: string; color: string }> = useMemo(
-    () => ({
-      ON_TRACK: {
-        label: t('performance-status-on-track'),
-        color: 'gba:bg-success-secondary gba:text-success'
-      },
-      BEHIND_TARGET: {
-        label: t('performance-status-behind-target'),
-        color: 'gba:bg-destructive-secondary gba:text-destructive'
-      },
-      AT_RISK: {
-        label: t('performance-status-at-risk'),
-        color: 'gba:bg-warning-secondary gba:text-warning'
-      },
-      ACHIEVED: {
-        label: t('performance-status-achieved'),
-        color: 'gba:bg-info-secondary gba:text-info'
-      },
-      NOT_ACHIEVED: {
-        label: t('performance-status-not-achieved'),
-        color: 'gba:bg-muted gba:text-muted-foreground'
-      }
-    }),
-    [t]
-  )
+  // statusMap is recreated on each render since t() is stable but useMemo dependency would be ineffective
+  const statusMap: Record<string, { label: string; color: string }> = {
+    ON_TRACK: {
+      label: t('performance-status-on-track'),
+      color: 'gba:bg-success-secondary gba:text-success'
+    },
+    BEHIND_TARGET: {
+      label: t('performance-status-behind-target'),
+      color: 'gba:bg-destructive-secondary gba:text-destructive'
+    },
+    AT_RISK: {
+      label: t('performance-status-at-risk'),
+      color: 'gba:bg-warning-secondary gba:text-warning'
+    },
+    ACHIEVED: {
+      label: t('performance-status-achieved'),
+      color: 'gba:bg-info-secondary gba:text-info'
+    },
+    NOT_ACHIEVED: {
+      label: t('performance-status-not-achieved'),
+      color: 'gba:bg-muted gba:text-muted-foreground'
+    }
+  }
 
   const isGoalValid = (goal: ExtendedEmployeePerformanceGoal) => {
     return goal.title && goal.startDate && goal.dueDate
