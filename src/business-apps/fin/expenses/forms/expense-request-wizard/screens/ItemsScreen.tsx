@@ -452,7 +452,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
         if (newItemIds.length === 0) return
 
         // Determine currency and fetch items
-        const itemCurrency = determineItemCurrency(currentCurrency, expenseRequestData, additionalData)
+        const itemCurrency = determineItemCurrency(currentCurrency ?? '', expenseRequestData, additionalData) ?? ''
         await fetchAndAddPayloadItems(newItemIds, itemCurrency)
       } catch {
         showToast(

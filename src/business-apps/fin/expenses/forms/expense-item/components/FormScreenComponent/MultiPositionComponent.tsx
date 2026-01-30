@@ -40,6 +40,7 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
           title={`Position ${index + 1}`}
           className="gba:mb-4 gba:border-[3px] gba:border-border"
           data-testid={`position-card-${index}`}
+          tabIndex={0}
           extra={
             positions.length > 1 && (
               <Button
