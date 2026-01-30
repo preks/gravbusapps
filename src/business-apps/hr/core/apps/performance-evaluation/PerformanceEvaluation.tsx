@@ -7,8 +7,10 @@ import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
 import { usePerformanceCycles } from './hooks/usePerformanceCycles'
 import { useRatingScales } from './hooks/useRatingScales'
+import { useCompanyValues } from './hooks/useCompanyValues'
 import { useInsertRatingScale } from './hooks/useInsertRatingScale'
 import { useSavePerformanceCycle } from './hooks/useSavePerformanceCycle'
+import { useSaveCompanyValue } from './hooks/useSaveCompanyValue'
 import { deleteRatingScale } from './services/ratingScaleApi'
 import type { PerformanceCycle, RatingScale, ValueItemStored } from './types'
 import translations from './_i18n'
@@ -21,7 +23,6 @@ import { CompanyValues } from './tabs/CompanyValues'
 
 const STORAGE_KEY = 'hr.performance.cycles.v1'
 const RATING_SCALES_STORAGE_KEY = 'hr.performance.ratingScales.v1'
-const VALUES_STORAGE_KEY = 'hr.performance.values.v1'
 
 function loadCycles(): PerformanceCycle[] {
   try {
@@ -61,17 +62,6 @@ function saveRatingScales(scales: RatingScale[]) {
   }
 }
 
-function loadValues(): ValueItemStored[] {
-  try {
-    const raw = localStorage.getItem(VALUES_STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as ValueItemStored[]
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
 function computeStatus(cycle: Omit<PerformanceCycle, 'status'> & { deactivated?: boolean }) {
   if (cycle.deactivated) return 'Inactive' as const
   const today = new Date()
@@ -107,8 +97,15 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     error: ratingScalesError,
     refetch: refetchRatingScales
   } = useRatingScales(accessToken)
+  const {
+    values: apiValues,
+    loading: valuesLoading,
+    error: valuesError,
+    refetch: refetchValues
+  } = useCompanyValues(accessToken)
   const { saveRatingScale } = useInsertRatingScale(accessToken)
   const { savePerformanceCycle, updateCycleActive, deletePerformanceCycle } = useSavePerformanceCycle(accessToken)
+  const { saveCompanyValue, deleteCompanyValue, updateCompanyValueActive } = useSaveCompanyValue(accessToken)
 
   const [cycles, setCycles] = useState<PerformanceCycle[]>([])
   const [ratingScales, setRatingScales] = useState<RatingScale[]>([])
@@ -116,9 +113,12 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   const [activeTab, setActiveTab] = useState<PerformanceTabEnum>(PerformanceTabEnum.Cycles)
   const handleTabChange = (value: string) => setActiveTab(value as PerformanceTabEnum)
 
+  // Values: use only API data (no localStorage merge) to avoid duplicates
   useEffect(() => {
-    setValuesStore(loadValues())
-  }, [])
+    if (!valuesLoading) {
+      setValuesStore(apiValues)
+    }
+  }, [valuesLoading, apiValues])
 
   const apiScaleIds = useMemo(() => new Set(apiRatingScales.map(s => s.id)), [apiRatingScales])
   useEffect(() => {
@@ -142,13 +142,6 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   useEffect(() => {
     saveRatingScales(ratingScales)
   }, [ratingScales])
-  useEffect(() => {
-    try {
-      localStorage.setItem(VALUES_STORAGE_KEY, JSON.stringify(valuesStore))
-    } catch {
-      // ignore
-    }
-  }, [valuesStore])
 
   const pageTitle = t('title')
   const pageSubtitle = t('subtitle')
@@ -299,29 +292,65 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     }
   }
 
-  const handleSaveFromValuesModal = (values: ValueEditorValues) => {
-    const base: ValueItemStored = {
-      id: values.id || makeId('value'),
-      title: values.title,
-      description: values.description,
-      active: values.active
+  const handleSaveFromValuesModal = async (values: ValueEditorValues) => {
+    if (accessToken) {
+      try {
+        await saveCompanyValue(values)
+        await refetchValues()
+        toast.success(t('value-saved-to-database', { title: values.title }) ?? `Company value "${values.title}" saved.`)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to save company value'
+        toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
+        throw err
+      }
+      return
     }
-    setValuesStore(prev => {
-      const exists = prev.some(v => v.id === base.id)
-      return exists ? prev.map(v => (v.id === base.id ? base : v)) : [base, ...prev]
-    })
   }
 
-  const handleDeleteValue = (id: string) => {
-    setValuesStore(prev => prev.filter(v => v.id !== id))
+  const handleDeleteValue = async (id: string) => {
+    const value = valuesStore.find(v => v.id === id)
+    if (accessToken && value) {
+      try {
+        await deleteCompanyValue(value)
+        await refetchValues()
+        toast.success(t('value-deleted-to-database', { title: value.title }) ?? `"${value.title}" deleted.`)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to delete company value'
+        toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
+      }
+      return
+    }
   }
 
-  const handleActivateValue = (id: string) => {
-    setValuesStore(prev => prev.map(v => (v.id === id ? { ...v, active: true } : v)))
+  const handleActivateValue = async (id: string) => {
+    const value = valuesStore.find(v => v.id === id)
+    if (accessToken && value) {
+      try {
+        await updateCompanyValueActive(value, true)
+        await refetchValues()
+        toast.success(t('value-activated-to-database', { title: value.title }) ?? `"${value.title}" activated.`)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to activate value'
+        toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
+        return
+      }
+      return
+    }
   }
 
-  const handleDeactivateValue = (id: string) => {
-    setValuesStore(prev => prev.map(v => (v.id === id ? { ...v, active: false } : v)))
+  const handleDeactivateValue = async (id: string) => {
+    const value = valuesStore.find(v => v.id === id)
+    if (accessToken && value) {
+      try {
+        await updateCompanyValueActive(value, false)
+        await refetchValues()
+        toast.success(t('value-deactivated-to-database', { title: value.title }) ?? `"${value.title}" deactivated.`)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to deactivate value'
+        toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
+      }
+      return
+    }
   }
 
   if (!devFeatureFlag) {
@@ -372,6 +401,8 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
         {activeTab === PerformanceTabEnum.Values && (
           <CompanyValues
             valuesStore={valuesStore}
+            valuesLoading={valuesLoading}
+            valuesError={valuesError}
             cycles={cycles}
             onSaveFromValuesModal={handleSaveFromValuesModal}
             onDeleteValue={handleDeleteValue}

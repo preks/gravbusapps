@@ -83,3 +83,30 @@ export interface RatingScaleApi {
 export interface GetRatingScalesResponse {
   RatingScale: RatingScaleApi[]
 }
+
+/**
+ * GraphQL query for CompanyValue (company values) via Hasura – same pattern as RatingScale
+ */
+export const GET_COMPANY_VALUES = /* GraphQL */ `
+  query GetCompanyValues {
+    CompanyValue(where: { isDeleted: { _eq: false } }, orderBy: [{ title: ASC }]) {
+      id
+      version
+      title
+      description
+      isActive
+    }
+  }
+`
+
+export interface CompanyValueApi {
+  id: string
+  version: number | null
+  title: string | null
+  description: string | null
+  isActive: boolean | null
+}
+
+export interface GetCompanyValuesResponse {
+  CompanyValue: CompanyValueApi[]
+}

@@ -35,6 +35,7 @@ export interface RatingScale {
 
 export interface ValueItemStored {
   id: string
+  version?: number
   title: string
   description: string
   active: boolean

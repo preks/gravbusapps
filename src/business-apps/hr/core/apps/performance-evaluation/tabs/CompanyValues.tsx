@@ -13,7 +13,8 @@ import {
   CardTitle,
   CardContent,
   useTranslation,
-  toast
+  toast,
+  Spinner
 } from '@newwork/nw-design-system'
 import { Plus, Warning as WarningIcon } from '@phosphor-icons/react'
 import type { PerformanceCycle, ValueItemStored } from '../types'
@@ -22,6 +23,8 @@ import translations from '../_i18n'
 
 export interface CompanyValuesProps {
   valuesStore: ValueItemStored[]
+  valuesLoading?: boolean
+  valuesError?: string | null
   cycles: PerformanceCycle[]
   onSaveFromValuesModal: (values: ValueEditorValues) => void
   onDeleteValue: (id: string) => void
@@ -31,6 +34,8 @@ export interface CompanyValuesProps {
 
 export const CompanyValues: React.FC<CompanyValuesProps> = ({
   valuesStore,
+  valuesLoading,
+  valuesError,
   cycles,
   onSaveFromValuesModal,
   onDeleteValue,
@@ -46,10 +51,14 @@ export const CompanyValues: React.FC<CompanyValuesProps> = ({
     setIsValuesModalOpen(true)
   }
 
-  const handleSaveFromModal = (values: ValueEditorValues) => {
-    onSaveFromValuesModal(values)
-    setEditingValue(null)
-    setIsValuesModalOpen(false)
+  const handleSaveFromModal = async (values: ValueEditorValues) => {
+    try {
+      await onSaveFromValuesModal(values)
+      setEditingValue(null)
+      setIsValuesModalOpen(false)
+    } catch {
+      // Error already toasted by parent; keep modal open
+    }
   }
 
   const handleDeactivateValue = (id: string) => {
@@ -71,13 +80,24 @@ export const CompanyValues: React.FC<CompanyValuesProps> = ({
         <CardHeader>
           <div className="gba:flex gba:items-center gba:justify-between">
             <CardTitle className="gba:flex gba:items-center gba:gap-2">{t('tab-values')}</CardTitle>
-            <Button variant="default" onClick={handleAdd} data-testid="performance-values-add-button">
-              <Plus className="gba:mr-2" size={16} />
-              {t('button-add')}
-            </Button>
+            <div className="gba:flex gba:items-center gba:gap-2">
+              {valuesLoading && <Spinner className="gba:h-5 gba:w-5" data-testid="performance-values-loading" />}
+              <Button variant="default" onClick={handleAdd} data-testid="performance-values-add-button">
+                <Plus className="gba:mr-2" size={16} />
+                {t('button-add')}
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
+          {valuesError && (
+            <div
+              className="gba:mb-4 gba:rounded-lg gba:bg-destructive/10 gba:px-4 gba:py-3 gba:text-destructive gba:text-sm"
+              data-testid="performance-values-error"
+            >
+              {valuesError}
+            </div>
+          )}
           <div className="gba:border gba:rounded-lg gba:overflow-hidden">
             <Table>
               <TableHeader>
@@ -90,7 +110,13 @@ export const CompanyValues: React.FC<CompanyValuesProps> = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {valuesStore.length === 0 ? (
+                {valuesLoading && valuesStore.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="gba:py-8 gba:text-center">
+                      <Spinner className="gba:mx-auto gba:h-8 gba:w-8" />
+                    </TableCell>
+                  </TableRow>
+                ) : valuesStore.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="gba:text-center gba:text-muted-foreground">
                       {t('empty-no-values')}
@@ -163,6 +189,7 @@ export const CompanyValues: React.FC<CompanyValuesProps> = ({
           editingValue
             ? {
                 id: editingValue.id,
+                version: editingValue.version,
                 title: editingValue.title,
                 description: editingValue.description,
                 active: editingValue.active
