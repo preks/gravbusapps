@@ -318,13 +318,16 @@ employee-form-email = Email
 employee-form-organizational-unit = Unitate organizațională
 employee-form-job-position = Poziție
 employee-form-hire-date = Data angajării
-employee-form-fixed-term-until = Contract pe perioadă determinată până la
+employee-form-fixed-term-end-date = Data de încheiere a contractului cu durată determinată
+employee-form-fixed-term-reason = Motivul contractului cu durată determinată
 employee-form-preferred-name = Nume preferat
 employee-form-employment-type = Tip angajare
 employee-form-contract-type = Tip contract
 
 # Validation Messages
 employee-form-email-invalid = Vă rugăm să introduceți o adresă de email validă
+employee-form-hire-date-required = Data angajării este obligatorie când este specificată data de încheiere a contractului cu durată determinată
+employee-form-fixed-term-before-hire = Data de încheiere a contractului cu durată determinată trebuie să fie la sau după data angajării
 
 # Empty States
 employee-form-no-results = Nu s-au găsit rezultate

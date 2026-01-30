@@ -26,6 +26,9 @@ export interface AccountQueryVariables extends BaseQueryVariables {
   countryIds?: string[]
   regionIds?: string[]
 
+  // Boolean filters
+  prospective?: boolean
+
   // Date range filters
   foundationDateFrom?: string
   foundationDateTo?: string
@@ -100,6 +103,7 @@ export const buildAccountQuery = (
         }
         ${entityFields.ownerEmployeeId}
         ${entityFields.pictureThumbnail}
+        ${entityFields.prospective}
         ${entityFields.timeZone} {
           ${CATALOG_ENTRY}
         }
@@ -165,6 +169,7 @@ export const buildAccountByPkQuery = (
         }
         ${entityFields.ownerEmployeeId}
         ${entityFields.pictureThumbnail}
+        ${entityFields.prospective}
         ${entityFields.timeZone} {
           ${CATALOG_ENTRY}
         }

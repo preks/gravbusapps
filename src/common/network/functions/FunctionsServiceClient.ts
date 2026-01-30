@@ -35,30 +35,24 @@ export interface FunctionVersionsResponse {
 
 export class FunctionsServiceClient {
   readonly baseUrl: string
-  constructor() {
-    const explicit = env('NEXT_PUBLIC_FUNCTIONS_SERVICE_URL')
-    if (explicit) {
-      const trimmed = explicit.endsWith('/') ? explicit.slice(0, -1) : explicit
-      this.baseUrl = trimmed + '/api/v1'
-    } else {
-      // Prefer local when running on localhost
-      if (typeof window !== 'undefined') {
-        const host = window.location.hostname
-        if (host === 'localhost' || host === '127.0.0.1') {
-          this.baseUrl = 'http://localhost:8081/api/v1'
-          return
-        }
-      }
-      const platformBase = env('NEXT_PUBLIC_BASE_URL')
-      if (platformBase) {
-        // Gravity Platform default: <BASE_URL>/functions/api/v1
-        const baseTrimmed = platformBase.endsWith('/') ? platformBase.slice(0, -1) : platformBase
-        this.baseUrl = baseTrimmed + '/functions/api/v1'
-      } else {
-        // Local default
-        this.baseUrl = 'http://localhost:8081/api/v1'
-      }
+  private accessToken?: string
+
+  constructor(accessToken?: string) {
+    const functionsServiceUrl = env('NEXT_PUBLIC_BASE_URL') + '/functions'
+    if (!functionsServiceUrl) {
+      throw new Error('NEXT_PUBLIC_FUNCTIONS_SERVICE_URL environment variable is required')
     }
+    const trimmed = functionsServiceUrl.endsWith('/') ? functionsServiceUrl.slice(0, -1) : functionsServiceUrl
+    this.baseUrl = trimmed + '/api/v1'
+    this.accessToken = accessToken
+  }
+
+  private getAuthHeaders(): Record<string, string> {
+    const headers: Record<string, string> = {}
+    if (this.accessToken) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`
+    }
+    return headers
   }
 
   private async get<T>(path: string, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
@@ -68,7 +62,10 @@ export class FunctionsServiceClient {
         if (v !== undefined && v !== null) url.searchParams.set(k, String(v))
       })
     }
-    const res = await fetch(url.toString(), { method: 'GET' })
+    const res = await fetch(url.toString(), {
+      method: 'GET',
+      headers: this.getAuthHeaders()
+    })
     if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`)
     return (await res.json()) as T
   }
@@ -86,27 +83,24 @@ export class FunctionsServiceClient {
   }
 
   // Authenticated methods for creating/updating functions
-  async createFunctionWithVersion(
-    accessToken: string,
-    data: {
-      name: string
-      description?: string
-      agentEnabled?: boolean
-      workflowEnabled?: boolean
-      config?: Record<string, string>
-      firstVersion: {
-        source: string
-        inputSchema?: Record<string, unknown>
-        outputSchema?: Record<string, unknown>
-        settings?: Record<string, unknown>
-      }
+  async createFunctionWithVersion(data: {
+    name: string
+    description?: string
+    agentEnabled?: boolean
+    workflowEnabled?: boolean
+    config?: Record<string, string>
+    firstVersion: {
+      source: string
+      inputSchema?: Record<string, unknown>
+      outputSchema?: Record<string, unknown>
+      settings?: Record<string, unknown>
     }
-  ): Promise<{ id: string }> {
+  }): Promise<{ id: string }> {
     const res = await fetch(this.baseUrl + '/functions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`
+        ...this.getAuthHeaders()
       },
       body: JSON.stringify(data)
     })
@@ -117,8 +111,30 @@ export class FunctionsServiceClient {
     return (await res.json()) as { id: string }
   }
 
+  async updateFunction(
+    functionId: string,
+    data: {
+      description?: string
+      agentEnabled?: boolean
+      workflowEnabled?: boolean
+      config?: Record<string, string>
+    }
+  ): Promise<void> {
+    const res = await fetch(this.baseUrl + `/functions/${functionId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders()
+      },
+      body: JSON.stringify(data)
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(`Update function failed: ${res.status} - ${text}`)
+    }
+  }
+
   async createVersion(
-    accessToken: string,
     functionId: string,
     version: number,
     data: {
@@ -132,7 +148,7 @@ export class FunctionsServiceClient {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`
+        ...this.getAuthHeaders()
       },
       body: JSON.stringify({ version, ...data })
     })
@@ -141,6 +157,32 @@ export class FunctionsServiceClient {
       throw new Error(`Create version failed: ${res.status} - ${text}`)
     }
     return (await res.json()) as { id: string; version: number }
+  }
+
+  async testFunction(data: {
+    source: string
+    payload: Record<string, unknown>
+    inputSchema?: Record<string, unknown>
+    outputSchema?: Record<string, unknown>
+    config?: Record<string, string>
+  }): Promise<{ result: unknown }> {
+    const res = await fetch(this.baseUrl + '/test', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders()
+      },
+      body: JSON.stringify(data)
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(`Test function failed: ${res.status} - ${text}`)
+    }
+    return (await res.json()) as { result: unknown }
+  }
+
+  async getFunction(functionId: string): Promise<FunctionMetadata & { version?: { source?: string } }> {
+    return await this.get<FunctionMetadata & { version?: { source?: string } }>(`/functions/${functionId}`)
   }
 
   async findFunctionByName(name: string): Promise<FunctionMetadata | null> {
@@ -154,12 +196,10 @@ export class FunctionsServiceClient {
     return Math.max(...data.versions.map(v => v.version))
   }
 
-  async deleteFunction(accessToken: string, functionId: string): Promise<void> {
+  async deleteFunction(functionId: string): Promise<void> {
     const res = await fetch(this.baseUrl + `/functions/${functionId}`, {
       method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
+      headers: this.getAuthHeaders()
     })
     if (!res.ok) {
       const text = await res.text()

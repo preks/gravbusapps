@@ -6,15 +6,18 @@ import { useGetInvestmentNotesByInvestmentId } from './useInvestmentNotesByInves
 import { GET_INVESTMENT_BY_ID } from '@/common/data/investment/queries/investmentQueries'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
-const taskDescription = `You are an assistant that summarises investment records and their activity timelines. 
-Provide a concise executive summary in plain language covering investment performance, key activities, and current status. 
-Focus on:
-- Investment performance and key financial metrics
-- Recent activities and developments  
-- Current status and risk assessment
-- Strategic implications and trends
+const taskDescription = `You are an investment portfolio assistant analyzing a specific investment asset.
 
-Include up to 5 key insights or actionable next steps as an array of strings. 
+Analyze all available investment data including asset details, financial metrics, performance indicators, activities, notes, and tasks to provide:
+1. A concise executive summary highlighting the investment profile (type, status, stake), financial position (amounts, market value, returns), portfolio company, and current performance
+2. Up to 5 key insights covering:
+   - Investment performance and value trends
+   - Portfolio company developments and risk indicators
+   - Recent activities and engagement patterns
+   - Outstanding tasks or concerns requiring attention
+   - Recommended next steps for portfolio management
+
+Emphasize portfolio performance, value creation, and risk management considerations.
 Respond strictly in JSON conforming to the provided schema.`
 
 const summarySchema = z.object({
@@ -103,7 +106,9 @@ Notes (${sortedNotes.length} items): ${JSON.stringify(sortedNotes, null, 2)}
 
 Tasks (${sortedTasks.length} items): ${JSON.stringify(sortedTasks, null, 2)}`
 
-      console.log('AI Summary Input Data Length:', inputData.length, 'characters')
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('AI Summary Input Data Length:', inputData.length, 'characters')
+      }
       return inputData
     } catch (error) {
       console.error('Error collecting investment data for AI summary:', error)

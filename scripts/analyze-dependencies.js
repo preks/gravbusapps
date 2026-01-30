@@ -24,6 +24,7 @@ async function findAllScreens() {
     'src/business-apps/**/forms/*/index.ts',
     'src/business-apps/**/popups/*/index.ts',
     'src/business-apps/**/records/*/index.ts',
+    'src/business-apps/**/windows/*/index.ts',
     'src/business-apps/**/debug/*/index.ts'
   ]
 
@@ -168,7 +169,8 @@ async function getScreenDirectories() {
     'src/business-apps/**/apps/*/index.ts',
     'src/business-apps/**/forms/*/index.ts',
     'src/business-apps/**/popups/*/index.ts',
-    'src/business-apps/**/records/*/index.ts'
+    'src/business-apps/**/records/*/index.ts',
+    'src/business-apps/**/windows/*/index.ts'
   ]
 
   const screenDirs = new Set()

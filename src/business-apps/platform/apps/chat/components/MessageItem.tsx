@@ -32,6 +32,7 @@ interface MessageItemProps {
   previewLabel?: string // Pre-translated label for attachments
   timestampRefreshKey?: number // Triggers timestamp recalculation when changed
   aiInitiatedByCurrentUser?: boolean // Explicitly computed by MessageList for backward compatibility
+  compact?: boolean // Compact mode for in-call chat (Teams-style density)
 }
 
 /**
@@ -86,7 +87,8 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
     participants,
     previewLabel = 'Open preview',
     timestampRefreshKey = 0,
-    aiInitiatedByCurrentUser
+    aiInitiatedByCurrentUser,
+    compact = false
   }) => {
     const isAIResponse = message.metadata?.isAIResponse === true
     const isExpertResponse = message.metadata?.isEveryExpertResponse === true
@@ -231,13 +233,13 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
 
     return (
       <div
-        className={`gba:flex gba:gap-2 gba:px-4 gba:py-2 ${isOwnMessage ? 'gba:flex-row-reverse' : 'gba:flex-row'}`}
+        className={`gba:flex gba:gap-2 ${compact ? 'gba:px-3 gba:py-1' : 'gba:px-4 gba:py-2'} ${isOwnMessage ? 'gba:flex-row-reverse' : 'gba:flex-row'} ${compact ? 'hover:gba:bg-muted/30 gba:transition-colors' : ''}`}
         data-testid={`message-item-${message.id}`}
       >
         {/* Avatar (only show for other users in group chats) */}
         {!isOwnMessage && isGroupChat && showSender && (
           <div
-            className={`gba:flex-shrink-0 gba:w-8 gba:h-8 ${employeeId ? 'gba:cursor-pointer' : ''}`}
+            className={`gba:flex-shrink-0 ${compact ? 'gba:w-8 gba:h-8 gba:mt-0.5' : 'gba:w-8 gba:h-8'} ${employeeId ? 'gba:cursor-pointer' : ''}`}
             onClick={() => {
               if (employeeId) {
                 navigateTo(`/platform/employee-record?employeeId=${employeeId}`)
@@ -255,12 +257,17 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
         )}
 
         {/* Message content */}
-        <div className={`gba:flex gba:flex-col gba:max-w-[70%] ${isOwnMessage ? 'gba:items-end' : 'gba:items-start'}`}>
+        <div
+          className={`gba:flex gba:flex-col gba:max-w-[70%] ${isOwnMessage ? 'gba:items-end' : 'gba:items-start'} ${compact ? 'gba:flex-1' : ''}`}
+        >
           {/* Sender name (for group chats, other users only) - but not for AI/Expert responses */}
           {!isOwnMessage && isGroupChat && showSender && sender && !isAIResponse && !isExpertResponse && (
-            <span className="gba:text-xs gba:text-muted-foreground gba:mb-1">
-              {sender.displayName || sender.username || 'Unknown User'}
-            </span>
+            <div className={`gba:flex gba:items-baseline gba:gap-2 ${compact ? 'gba:mb-0.5' : 'gba:mb-1'}`}>
+              <span className={`${compact ? 'gba:text-sm gba:font-medium' : 'gba:text-xs'} gba:text-foreground`}>
+                {sender.displayName || sender.username || 'Unknown User'}
+              </span>
+              {compact && <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>}
+            </div>
           )}
 
           {/* Message bubble - AI and Expert responses get special rendering */}
@@ -353,7 +360,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
             </>
           ) : (
             <div
-              className={`gba:rounded-lg gba:px-3 gba:py-2 gba:break-words ${(() => {
+              className={`${compact ? 'gba:rounded-md gba:px-2.5 gba:py-1.5' : 'gba:rounded-lg gba:px-3 gba:py-2'} gba:break-words ${(() => {
                 if (isExpertResponse) {
                   return 'gba:bg-gradient-to-br gba:from-muted/50 gba:to-accent/5 gba:text-foreground gba:rounded-2xl gba:rounded-bl-md gba:border-2'
                 }
@@ -417,23 +424,25 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
                 </div>
               )}
 
-              {/* Timestamp and Status */}
-              <div className="gba:flex gba:items-center gba:justify-end gba:gap-1 gba:mt-1">
-                <span
-                  className={`gba:text-xs ${isOwnMessage ? 'gba:text-primary-foreground gba:opacity-70' : 'gba:text-muted-foreground'}`}
-                >
-                  {formattedTime}
-                </span>
-                {/* Status icon (only for own messages) */}
-                {isOwnMessage && message.status && (
-                  <span className="gba:text-xs gba:text-primary-foreground gba:opacity-70" title={message.status}>
-                    {message.status === 'sending' && '⏳'}
-                    {message.status === 'sent' && '✓'}
-                    {message.status === 'delivered' && '✓✓'}
-                    {message.status === 'read' && <span className="gba:text-primary-foreground">✓✓</span>}
+              {/* Timestamp and Status - hide timestamp in compact mode if shown inline with sender */}
+              {!(compact && !isOwnMessage && isGroupChat && showSender) && (
+                <div className="gba:flex gba:items-center gba:justify-end gba:gap-1 gba:mt-1">
+                  <span
+                    className={`gba:text-xs ${isOwnMessage ? 'gba:text-primary-foreground gba:opacity-70' : 'gba:text-muted-foreground'}`}
+                  >
+                    {formattedTime}
                   </span>
-                )}
-              </div>
+                  {/* Status icon (only for own messages) */}
+                  {isOwnMessage && message.status && (
+                    <span className="gba:text-xs gba:text-primary-foreground gba:opacity-70" title={message.status}>
+                      {message.status === 'sending' && '⏳'}
+                      {message.status === 'sent' && '✓'}
+                      {message.status === 'delivered' && '✓✓'}
+                      {message.status === 'read' && <span className="gba:text-primary-foreground">✓✓</span>}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

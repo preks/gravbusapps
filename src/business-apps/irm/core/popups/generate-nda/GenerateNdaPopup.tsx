@@ -180,16 +180,19 @@ const GenerateNdaPopup: React.FC<GenerateNdaPopupProps> = ({ initialValues = {},
     toast.success('NDA document generated and downloaded successfully')
   }, [])
 
-  const handleCancel = useCallback(() => {
-    // If onClose is provided, call it (direct usage)
+  // Centralized closing logic (DRY principle)
+  const handleClose = useCallback(() => {
     if (props.onClose) {
       props.onClose()
     } else {
-      // If no onClose provided, assume it's opened via process flow
-      // Dispatch pause event to close the popup
+      // Dispatch pause event to close the popup (process flow)
       dispatchProcessContinueEvent('pse_pause', {})
     }
   }, [props])
+
+  const handleCancel = useCallback(() => {
+    handleClose()
+  }, [handleClose])
 
   const handleSubmit = useCallback(async () => {
     setIsGeneratingNda(true)
@@ -257,7 +260,7 @@ const GenerateNdaPopup: React.FC<GenerateNdaPopupProps> = ({ initialValues = {},
 
       // Close modal after a brief delay to ensure download starts
       setTimeout(() => {
-        props.onClose?.()
+        handleClose()
       }, 500)
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Unknown error occurred')
@@ -269,7 +272,7 @@ const GenerateNdaPopup: React.FC<GenerateNdaPopupProps> = ({ initialValues = {},
     } finally {
       setIsGeneratingNda(false)
     }
-  }, [opportunity, accounts, contacts, teamEmployees, form, generateNdaReport, props])
+  }, [opportunity, accounts, contacts, teamEmployees, form, generateNdaReport, props, handleClose])
 
   // Early validation - must be after all hooks
   if (!opportunityId) {

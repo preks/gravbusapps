@@ -2,7 +2,7 @@
  * Account Import Types
  */
 
-import { ConvertedEntity } from '@/common/data/customer/agents/types'
+import { ConvertedEntity } from '@/common/components/common-relations/apps/data-import/types'
 
 /**
  * Converted Account from import data

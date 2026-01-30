@@ -461,6 +461,16 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 }
               />
 
+              {/* Fixed Term Reason */}
+              <ProfileInfoItem
+                icon={<PiCalendar className="gba:h-4 gba:w-4" />}
+                label={t('employee-details-fixed-term-reason')}
+                value={
+                  employeeData.workingCondition?.[0]?.additionalProperties?.fixedTermReason ||
+                  t('employee-details-not-available')
+                }
+              />
+
               {/* Employment Type */}
               <ProfileInfoItem
                 icon={<PiUser className="gba:h-4 gba:w-4" />}

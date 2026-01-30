@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import dayjs from 'dayjs'
 import isBetween from 'dayjs/plugin/isBetween'
 import { Button, useTranslation } from '@newwork/nw-design-system'
@@ -15,7 +15,9 @@ import {
 } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import translations from './_i18n'
 import { calculateContextMenuPosition } from './utils/contextMenuPositioning'
+import { hasHolidayInRange, isHoliday } from './utils/holidayUtils'
 import { AVAILABLE_ABSENCE_TYPES } from './constants/absenceTypes'
+import { startProcess } from '@/common/utils/start-process'
 
 // Import dayjs locale
 import 'dayjs/locale/ro'
@@ -118,12 +120,23 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 })
   const [contextMenuDate, setContextMenuDate] = useState<dayjs.Dayjs | null>(null)
+  const contextMenuRef = useRef<HTMLDivElement | null>(null)
 
   // Close context menu when clicking anywhere (left click)
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
       // Close menu on any left click (button 0 is left mouse button)
-      if (contextMenuOpen && event.button === 0) {
+      if (!contextMenuOpen || event.button !== 0) {
+        return
+      }
+
+      const target = event.target as Node | null
+      // Don't close if clicking inside the context menu (otherwise the click never reaches menu items)
+      if (target && contextMenuRef.current?.contains(target)) {
+        return
+      }
+
+      if (contextMenuOpen) {
         setContextMenuOpen(false)
       }
     }
@@ -139,31 +152,34 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
     e.preventDefault()
     e.stopPropagation()
 
-    // If a range is already selected, check if clicked day is within the range
-    // If clicked day is outside the range, deselect range and select the clicked day
-    // Otherwise, preserve the range
+    // Determine which date range to check based on current selection
+    // Calculate isInRange once to avoid duplication
+    const isInRange =
+      selectedStartDate && selectedEndDate ? day.isBetween(selectedStartDate, selectedEndDate, 'day', '[]') : false
+
     let dateRangeToCheck = { start: day, end: day }
     if (selectedStartDate && selectedEndDate) {
-      // Check if clicked day is within the selected range (inclusive on both ends)
-      const isInRange = day.isBetween(selectedStartDate, selectedEndDate, 'day', '[]')
-
       if (isInRange) {
-        // If clicking within the range, check the entire range for absences
+        // If clicking within the range, check the entire range for absences/holidays
         dateRangeToCheck = { start: selectedStartDate, end: selectedEndDate }
       } else {
-        // Clicked day is outside range - deselect range and select this day
-        setSelectedStartDate(day.startOf('day'))
-        setSelectedEndDate(null)
+        // Clicked day is outside range - check only this day before selecting
         dateRangeToCheck = { start: day, end: day }
       }
     } else {
-      // No range selected or only start date - right-click always selects just this day (single day, no range)
-      setSelectedStartDate(day.startOf('day'))
-      setSelectedEndDate(null)
+      // No range selected or only start date - check only this day before selecting
       dateRangeToCheck = { start: day, end: day }
     }
 
-    // Check if the day(s) have any existing absences - if so, don't allow right-click to create new ones
+    // Check if any day in the range has a holiday
+    const hasHoliday = hasHolidayInRange(holidayDates, dateRangeToCheck.start, dateRangeToCheck.end)
+
+    if (hasHoliday) {
+      // Day(s) have holidays, prevent selection and context menu
+      return
+    }
+
+    // Check if the day(s) have any existing absences (vacations or other absences) - if so, don't allow right-click to create new ones
     const hasExistingAbsences = absenceList.some((absence: any) => {
       const absenceStart = dayjs(absence.startDate)
       const absenceEnd = dayjs(absence.endDate)
@@ -177,8 +193,25 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
     })
 
     if (hasExistingAbsences) {
-      // Day(s) already have absences booked, prevent context menu
+      // Day(s) already have absences booked, prevent selection and context menu
       return
+    }
+
+    // Only set selection if the day is clear (no holidays or absences)
+    // If a range is already selected, check if clicked day is within the range
+    // If clicked day is outside the range, deselect range and select the clicked day
+    // Otherwise, preserve the range
+    if (selectedStartDate && selectedEndDate) {
+      if (!isInRange) {
+        // Clicked day is outside range - deselect range and select this day
+        setSelectedStartDate(day.startOf('day'))
+        setSelectedEndDate(null)
+      }
+      // If in range, keep the existing selection
+    } else {
+      // No range selected or only start date - right-click always selects just this day (single day, no range)
+      setSelectedStartDate(day.startOf('day'))
+      setSelectedEndDate(null)
     }
 
     // Calculate menu dimensions (fixed list of 4 items)
@@ -217,7 +250,31 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
     const startDateFormatted = startDate.format('YYYY-MM-DD')
     const endDateFormatted = endDate.format('YYYY-MM-DD')
 
-    if (onAbsenceTypeSelect) {
+    // Start the absence request process directly (reliable, immediate)
+    // This avoids relying on FlowRegistry/AppAction resolution which can result in no-op.
+    const absenceTypeToProcessName: Record<string, string> = {
+      'AbsenceType:v1:A001': 'createEmployeeVacation',
+      'AbsenceType:v1:A021': 'createEmployeeSickLeave',
+      'AbsenceType:v1:A050': 'createEmployeeSpecialLeave',
+      'AbsenceType:v1:A170': 'createEmployeeWorkLeave'
+    }
+
+    const processName = absenceTypeToProcessName[absenceTypeId]
+    if (processName) {
+      startProcess({
+        domain: 'employee-time',
+        processName,
+        payload: {
+          employeeId: employee.id,
+          startDate: startDateFormatted,
+          endDate: endDateFormatted,
+          absenceType: absenceTypeId,
+          flowType
+        },
+        builderType: 'NATIVE_SCREEN'
+      })
+    } else if (onAbsenceTypeSelect) {
+      // Fallback to legacy flow handling if we don't recognize the absence type
       onAbsenceTypeSelect(absenceTypeId, startDateFormatted, endDateFormatted, flowType)
     }
 
@@ -244,13 +301,13 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
     <div className="gba:calendar-content">
       {contextMenuOpen && (
         <div
+          ref={contextMenuRef}
           className="gba:fixed gba:bg-popover gba:border gba:border-border gba:rounded-md gba:shadow-lg gba:z-[10000] gba:w-[180px] gba:py-1"
           style={{
             left: `${contextMenuPosition.x}px`,
             top: `${contextMenuPosition.y}px`
           }}
           data-testid="absence-context-menu"
-          onMouseDown={e => e.stopPropagation()}
         >
           {AVAILABLE_ABSENCE_TYPES.map(absenceType => (
             <div
@@ -275,6 +332,11 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
       <div
         className="gba:calendar-view gba:bg-card gba:rounded gba:border gba:border-border gba:shadow-sm"
         data-testid="absence-calendar-view"
+        onContextMenu={e => {
+          // Prevent browser context menu on calendar borders
+          e.preventDefault()
+          e.stopPropagation()
+        }}
       >
         <div className="gba:calendar-header gba:flex gba:justify-between gba:items-center gba:p-4 gba:border-b gba:border-border">
           <div className="gba:calendar-month-year gba:font-medium gba:text-lg">
@@ -321,7 +383,14 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
         </div>
 
         {/* Calendar Grid */}
-        <div className="gba:calendar-grid gba:p-4">
+        <div
+          className="gba:calendar-grid gba:p-4"
+          onContextMenu={e => {
+            // Prevent browser context menu on empty spaces between calendar days
+            e.preventDefault()
+            e.stopPropagation()
+          }}
+        >
           {/* Weekday Headers */}
           <div className="gba:grid gba:grid-cols-7 gba:gap-1 gba:mb-2">
             {(() => {
@@ -367,15 +436,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                   enableSelection && selectedStartDate && selectedEndDate
                     ? currentDay.isAfter(selectedStartDate, 'day') && currentDay.isBefore(selectedEndDate, 'day')
                     : false
-                const isHoliday = (() => {
-                  try {
-                    if (!Array.isArray(holidayDates) || holidayDates.length === 0) return false
-                    const key = currentDay.format('YYYY-MM-DD')
-                    return holidayDates.includes(key)
-                  } catch {
-                    return false
-                  }
-                })()
+                const isHolidayDay = isHoliday(holidayDates, currentDay)
 
                 const handleDayClick = () => {
                   if (!enableSelection) return
@@ -411,7 +472,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                     bgClass = 'gba:bg-info-secondary/20'
                   } else if (isToday) {
                     bgClass = 'gba:bg-info-secondary/20 gba:border-info'
-                  } else if (isHoliday) {
+                  } else if (isHolidayDay) {
                     bgClass = 'gba:bg-card gba:border-warning'
                   }
 
@@ -435,7 +496,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                       >
                         {currentDay.date()}
                       </div>
-                      {isCurrentMonth && isHoliday && (
+                      {isCurrentMonth && isHolidayDay && (
                         <div className="gba:flex gba:gap-1 gba:mt-1">
                           <div className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:min-h-4 gba:px-1 gba:w-full gba:bg-warning-secondary/80">
                             <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">

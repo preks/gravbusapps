@@ -332,7 +332,8 @@ profile-header-no-manager = Fără manager
 profile-header-job-position = Poziție
 profile-header-cost-center = Centru de cost
 profile-header-hire-date = Data angajării
-profile-header-fixed-term-until = Contract pe termen determinat până la
+profile-header-fixed-term-until = Data de încheiere a contractului cu durată determinată
+profile-header-fixed-term-reason = Motivul contractului cu durată determinată
 profile-header-na = N/A
 
 # Profile Header - Time units (tenure)
