@@ -68,6 +68,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   const {
     isProcessingFiles,
     isFormDisabled,
+    isCreating,
     expenseRuleError,
     receiptCurrencyError,
     hasLinkedExpenseRequest,
@@ -515,6 +516,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           variant="primary"
           onClick={handleCreateClick}
           disabled={
+            isCreating ||
             isProcessingFiles ||
             (isEditMode && hadBackendRequestRef.current && !selectedExpenseRequestId) ||
             !!receiptCurrencyError

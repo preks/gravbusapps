@@ -345,6 +345,19 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
     return expenseItems.slice(startIndex, endIndex)
   }, [expenseItems, initialCurrentPage, itemListLimit])
 
+  // When current page is empty after deleting items (e.g. were on page 2, deleted all on page 2),
+  // go to last valid page so the user sees remaining items instead of a blank page.
+  const lastValidInitialPage = useMemo(
+    () =>
+      expenseItems.length > 0 && itemListLimit > 0 ? Math.max(1, Math.ceil(expenseItems.length / itemListLimit)) : 1,
+    [expenseItems.length, itemListLimit]
+  )
+  useEffect(() => {
+    if (expenseItems.length > 0 && initialCurrentPage > lastValidInitialPage) {
+      setInitialCurrentPage(lastValidInitialPage)
+    }
+  }, [expenseItems.length, initialCurrentPage, lastValidInitialPage])
+
   /**
    * Extracts valid item IDs from payload
    */
