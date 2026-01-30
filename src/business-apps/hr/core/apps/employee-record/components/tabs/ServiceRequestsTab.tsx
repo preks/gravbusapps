@@ -5,10 +5,11 @@ import { Employee } from '../../hooks/useEmployeeData'
 import { UserInfoProps } from '@/common/BusinessAppContext'
 import { getUserRequests } from '../../services/service-requests/serviceRequestsService'
 import type { SubmittedRequest } from '../../services/service-requests/serviceRequestsTypes'
-import { Card, Badge, Spinner, Alert, Button } from '@newwork/nw-design-system'
+import { Card, Badge, Spinner, Alert, Button, useTranslation } from '@newwork/nw-design-system'
 import { PiReceipt, PiCheckCircle, PiClock, PiPlus } from 'react-icons/pi'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { formatDate } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import translations from '../../_i18n'
 
 interface ServiceRequestsTabProps {
   employee: Employee
@@ -23,6 +24,7 @@ interface ServiceRequestsTabProps {
  * Displays service requests initiated by the employee
  */
 const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, accessToken, userInfo, isSelfView }) => {
+  const { t } = useTranslation(translations)
   const [requests, setRequests] = useState<SubmittedRequest[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -108,12 +110,21 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
     }
   }
 
-  // Format status text
+  // Format status text with translation
   const formatStatusText = (status: string) => {
-    return status
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ')
+    const statusMap: Record<string, string> = {
+      open: t('service-requests-status-open'),
+      in_progress: t('service-requests-status-in-progress'),
+      completed: t('service-requests-status-completed'),
+      canceled: t('service-requests-status-canceled')
+    }
+    return (
+      statusMap[status] ||
+      status
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ')
+    )
   }
 
   // Calculate progress
@@ -127,7 +138,7 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
   // Get current step name
   const getCurrentStepName = (request: SubmittedRequest): string => {
     if (request.steps.length === 0) {
-      return getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.service_requests_no_steps', 'No steps defined')
+      return t('service-requests-no-steps')
     }
 
     // Find the first in-progress step
@@ -139,17 +150,14 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
       s => s.status === 'PENDING' || s.status === 'QUEUED' || s.status === 'AVAILABLE' || s.status === 'SCHEDULED'
     )
     if (pendingStep) {
-      const nextLabel = getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.service_requests_next_step', 'Next')
+      const nextLabel = t('service-requests-next-step')
       return `${nextLabel}: ${pendingStep.name}`
     }
 
     // If all completed, show the last step
     const completedSteps = request.steps.filter(s => s.status === 'COMPLETED' || s.status === 'DONE')
     if (completedSteps.length === request.steps.length && completedSteps.length > 0) {
-      const completedLabel = getTranslationFromI18nKeyAndLabel(
-        'lowcoder:hr_employee.service_requests_completed_step',
-        'Completed'
-      )
+      const completedLabel = t('service-requests-completed-step')
       return `${completedLabel}: ${completedSteps[completedSteps.length - 1].name}`
     }
 
@@ -177,12 +185,7 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
     return (
       <div className="gba:p-6">
         <Alert variant="destructive">
-          <h4 className="gba:font-semibold gba:mb-2">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:hr_employee.service_requests_error',
-              'Error Loading Service Requests'
-            )}
-          </h4>
+          <h4 className="gba:font-semibold gba:mb-2">{t('service-requests-error')}</h4>
           <p>{error}</p>
         </Alert>
       </div>
@@ -194,19 +197,11 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-start">
         <div>
-          <h3 className="gba:text-2xl gba:font-bold gba:text-gray-900">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.service_requests_title', 'Service Requests')}
-          </h3>
+          <h3 className="gba:text-2xl gba:font-bold gba:text-gray-900">{t('service-requests-title')}</h3>
           <p className="gba:text-gray-600 gba:mt-1">
             {isSelfView
-              ? getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:hr_employee.service_requests_desc_self',
-                  'Your submitted service requests'
-                )
-              : getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:hr_employee.service_requests_desc_other',
-                  `Service requests submitted by ${employee.displayName}`
-                )}
+              ? t('service-requests-desc-self')
+              : t('service-requests-desc-other', { name: employee.displayName })}
           </p>
         </div>
         {isSelfView && (
@@ -217,7 +212,7 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
               data-testid="create-new-request-button"
             >
               <PiPlus className="gba:h-4 gba:w-4" />
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.service_requests_create_new', 'Service Portal')}
+              {t('service-requests-create-new')}
             </Button>
           </div>
         )}
@@ -231,9 +226,7 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
               <PiReceipt className="gba:w-5 gba:h-5 gba:text-blue-600" />
             </div>
             <div>
-              <p className="gba:text-sm gba:text-gray-600">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.service_requests_total', 'Total')}
-              </p>
+              <p className="gba:text-sm gba:text-gray-600">{t('service-requests-total')}</p>
               <p className="gba:text-2xl gba:font-bold gba:text-gray-900">{stats.total}</p>
             </div>
           </div>
@@ -245,9 +238,7 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
               <PiClock className="gba:w-5 gba:h-5 gba:text-yellow-600" />
             </div>
             <div>
-              <p className="gba:text-sm gba:text-gray-600">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.service_requests_active', 'Active')}
-              </p>
+              <p className="gba:text-sm gba:text-gray-600">{t('service-requests-active')}</p>
               <p className="gba:text-2xl gba:font-bold gba:text-gray-900">{stats.active}</p>
             </div>
           </div>
@@ -259,9 +250,7 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
               <PiCheckCircle className="gba:w-5 gba:h-5 gba:text-green-600" />
             </div>
             <div>
-              <p className="gba:text-sm gba:text-gray-600">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.service_requests_completed', 'Completed')}
-              </p>
+              <p className="gba:text-sm gba:text-gray-600">{t('service-requests-completed')}</p>
               <p className="gba:text-2xl gba:font-bold gba:text-gray-900">{stats.completed}</p>
             </div>
           </div>
@@ -273,12 +262,7 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
               <PiCheckCircle className="gba:w-5 gba:h-5 gba:text-purple-600" />
             </div>
             <div>
-              <p className="gba:text-sm gba:text-gray-600">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:hr_employee.service_requests_completion_rate',
-                  'Completion Rate'
-                )}
-              </p>
+              <p className="gba:text-sm gba:text-gray-600">{t('service-requests-completion-rate')}</p>
               <p className="gba:text-2xl gba:font-bold gba:text-gray-900">{stats.completionRate}%</p>
             </div>
           </div>
@@ -290,18 +274,12 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
         <Card className="gba:p-12 gba:text-center gba:border gba:border-gray-200">
           <PiReceipt className="gba:w-16 gba:h-16 gba:mx-auto gba:mb-4 gba:text-gray-400" />
           <h4 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:mb-2">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.no_service_requests', 'No Service Requests')}
+            {t('service-requests-no-service-requests')}
           </h4>
           <p className="gba:text-gray-600">
             {isSelfView
-              ? getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:hr_employee.no_service_requests_desc_self',
-                  'You have not submitted any service requests yet.'
-                )
-              : getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:hr_employee.no_service_requests_desc_other',
-                  'This employee has not submitted any service requests yet.'
-                )}
+              ? t('service-requests-no-service-requests-desc-self')
+              : t('service-requests-no-service-requests-desc-other')}
           </p>
         </Card>
       ) : (
@@ -311,31 +289,19 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
               <thead className="gba:bg-gray-50 gba:border-b gba:border-gray-200">
                 <tr>
                   <th className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:hr_employee.service_requests_column_request',
-                      'Request'
-                    )}
+                    {t('service-requests-column-request')}
                   </th>
                   <th className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_request_list.expense_plan_table.status',
-                      'Status'
-                    )}
+                    {t('service-requests-column-status')}
                   </th>
                   <th className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:hr_employee.service_requests_column_progress',
-                      'Progress'
-                    )}
+                    {t('service-requests-column-progress')}
                   </th>
                   <th className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:hr_employee.service_requests_column_created',
-                      'Created'
-                    )}
+                    {t('service-requests-column-created')}
                   </th>
                   <th className="gba:px-6 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-gray-500 gba:uppercase gba:tracking-wider">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.service_requests_column_steps', 'Steps')}
+                    {t('service-requests-column-steps')}
                   </th>
                 </tr>
               </thead>

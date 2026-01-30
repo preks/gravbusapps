@@ -3,14 +3,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import dayjs from 'dayjs'
 import { Employee, EmployeePerformanceGoal } from '../../hooks/useEmployeeData'
-import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
+import { Card, CardHeader, CardTitle, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { Empty, Spin } from 'antd'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { employeePerformanceQuery } from '../../queries/performanceQueries'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
+import translations from '../../_i18n'
 
 interface PerformanceTabProps {
   employee: Employee
@@ -37,6 +37,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   employeePerformanceGoals = [],
   userInfo
 }) => {
+  const { t } = useTranslation(translations)
   const [localPerformanceGoals, setLocalPerformanceGoals] = useState<ExtendedEmployeePerformanceGoal[]>([])
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
@@ -60,7 +61,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       }
     } catch (err) {
       console.error('Error fetching performance data:', err)
-      setError('Failed to load performance data')
+      setError(t('performance-error-load'))
     } finally {
       setLoading(false)
     }
@@ -75,25 +76,26 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
     }
   }, [employee?.id, accessToken, employeePerformanceGoals, fetchPerformanceData])
 
+  // statusMap is recreated on each render since t() is stable but useMemo dependency would be ineffective
   const statusMap: Record<string, { label: string; color: string }> = {
     ON_TRACK: {
-      label: 'On Track',
+      label: t('performance-status-on-track'),
       color: 'gba:bg-success-secondary gba:text-success'
     },
     BEHIND_TARGET: {
-      label: 'Behind Target',
+      label: t('performance-status-behind-target'),
       color: 'gba:bg-destructive-secondary gba:text-destructive'
     },
     AT_RISK: {
-      label: 'At Risk',
+      label: t('performance-status-at-risk'),
       color: 'gba:bg-warning-secondary gba:text-warning'
     },
     ACHIEVED: {
-      label: 'Achieved',
+      label: t('performance-status-achieved'),
       color: 'gba:bg-info-secondary gba:text-info'
     },
     NOT_ACHIEVED: {
-      label: 'Not Achieved',
+      label: t('performance-status-not-achieved'),
       color: 'gba:bg-muted gba:text-muted-foreground'
     }
   }
@@ -182,13 +184,10 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       <div className="gba:flex gba:justify-between gba:items-start" data-testid="performance-goals-header">
         <div className="gba:performance-header">
           <div className="gba:font-bold gba:text-2xl" data-testid="performance-goals-title">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_performance.performance_goals', 'Performance Goals')}
+            {t('performance-title')}
           </div>
           <div className="gba:text-gray-500 gba:text-lg" data-testid="performance-goals-description">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:hr_performance.goals_description',
-              'View and manage employee performance goals'
-            )}
+            {t('performance-description')}
           </div>
         </div>
 
@@ -205,7 +204,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
           accessToken={accessToken}
           autoExecute={true}
         >
-          {getTranslationFromI18nKeyAndLabel('lowcoder:new_goal.set_new_goal', 'Set New Goal')}
+          {t('performance-edit-button')}
         </AppAction>
       </div>
 
@@ -213,7 +212,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:py-4">
         <section className="gba:flex gba:flex-col gba:gap-4">
           {!sortedPerformanceGoals?.length ? (
-            <Empty description="No goals available" className="gba:py-10" data-testid="empty-goals-state" />
+            <Empty description={t('performance-empty')} className="gba:py-10" data-testid="empty-goals-state" />
           ) : (
             <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-3">
               {sortedPerformanceGoals.map(goal => {
@@ -247,22 +246,22 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                           ></div>
                         </div>
                         <div className="gba:flex gba:justify-between gba:mt-1 gba:text-sm gba:text-gray-600">
-                          <span>progress</span>
+                          <span>{t('performance-progress')}</span>
                           <span>{goal.progressPercent}%</span>
                         </div>
                       </div>
 
                       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:text-sm">
                         <div>
-                          <span className="gba:block gba:text-gray-500">Start Date</span>
+                          <span className="gba:block gba:text-gray-500">{t('performance-start-date')}</span>
                           <span>{dayjs(goal.startDate).format('MMM D, YYYY')}</span>
                         </div>
                         <div>
-                          <span className="gba:block gba:text-gray-500">Due Date</span>
+                          <span className="gba:block gba:text-gray-500">{t('performance-due-date')}</span>
                           <span>{dayjs(goal.dueDate).format('MMM D, YYYY')}</span>
                         </div>
                         <div>
-                          <span className="gba:block gba:text-gray-500">Completion Date</span>
+                          <span className="gba:block gba:text-gray-500">{t('performance-completion-date')}</span>
                           <span>{goal.completionDate ? dayjs(goal.completionDate).format('MMM D, YYYY') : '-'}</span>
                         </div>
                       </div>
