@@ -150,15 +150,20 @@ const SalesCampaignDeletePopup: React.FC<SalesCampaignDeletePopupProps> = ({ ini
 
   const displayName = campaign.name || 'Unnamed Sales Campaign'
 
-  const handleProcessCompletion = (detail: { resolution?: 'success' | 'failure' } | null) => {
-    if (detail?.resolution === 'success') {
-      // Small delay to ensure the popup closes properly before navigation
-      setTimeout(() => {
-        // Navigate to customer-relations with campaigns tab to preserve the navbar
-        navigateTo('/platform/crm/customer-relations?view=campaigns')
-      }, 100)
-    }
-  }
+  // Check if we should redirect after delete
+  // Auto-detect if we're on a campaign record page by checking the current URL
+  const isOnRecordPage = globalThis.location.pathname.includes('/campaign-record')
+
+  // If on record page, redirect to campaigns list after delete
+  const handleProcessCompletion = isOnRecordPage
+    ? (detail: { resolution?: 'success' | 'failure' } | null) => {
+        if (detail?.resolution === 'success') {
+          setTimeout(() => {
+            navigateTo('/platform/crm/customer-relations?view=campaigns')
+          }, 100)
+        }
+      }
+    : undefined
 
   return (
     <AppActionForm
@@ -186,7 +191,7 @@ const SalesCampaignDeletePopup: React.FC<SalesCampaignDeletePopupProps> = ({ ini
           data-testid={formatDataTestId(prefixDataTestId, 'warning')}
         >
           <div className="gba:flex">
-            <div className="gba:flex-shrink-0">
+            <div className="gba:shrink-0">
               <svg className="gba:h-5 gba:w-5 gba:text-destructive" viewBox="0 0 20 20" fill="currentColor">
                 <path
                   fillRule="evenodd"
