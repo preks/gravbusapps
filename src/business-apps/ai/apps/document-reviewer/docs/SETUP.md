@@ -16,7 +16,7 @@ The Document Reviewer is an AI agent that analyzes documents (knowledge articles
 
 ### Option A: Via Task Expert Studio (Recommended)
 
-1. Navigate to **Task Expert Studio**: https://newwork-dev.newwork.com/platform/apps/task-expert-studio
+1. Navigate to **Prompt Manager**: https://newwork-dev.newwork.com/platform/create/prompt-manager
 
 2. Go to the **Tools** tab
 

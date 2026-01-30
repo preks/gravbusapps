@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useId, useEffect } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { Button, Textarea, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
 import { Plus, Paperclip, Globe, Trash, PaperPlaneTilt } from '@phosphor-icons/react'
 import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '../hooks/useFileUploadManager'
@@ -83,7 +83,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const { files, uploadFile, removeFile, clearFiles } = useFileUploadManager()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const suggestionsScrollId = useId()
 
   const handleSend = useCallback(() => {
     const { canSend, trimmed } = shouldSendMessage({ disabled, value, fileCount: files.length })
@@ -158,17 +157,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           background-size: 200% 200%;
           animation: golden-border-flow 3s ease infinite;
         }
-        #${suggestionsScrollId} {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-          overflow-x: auto;
-          overflow-y: hidden;
-        }
-        #${suggestionsScrollId}::-webkit-scrollbar {
-          display: none;
-          width: 0;
-          height: 0;
-        }
         @keyframes golden-glow {
           0%, 100% { box-shadow: 0 4px 20px rgba(${goldRgb}, 0.15), 0 0 0 1px rgba(${goldRgb}, 0.1); }
           50% { box-shadow: 0 4px 30px rgba(${goldRgb}, 0.25), 0 0 0 1px rgba(${goldRgb}, 0.2); }
@@ -208,75 +196,48 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         className={`gba:flex gba:flex-col gba:gap-3 ${disabled ? 'gba:opacity-50 gba:pointer-events-none' : ''} ${className || ''}`}
         data-testid="chat-input"
       >
-        {/* Premium Suggestions - floating glass pills */}
-        {suggestions && suggestions.length > 0 && (
-          <div className="gba:relative gba:overflow-hidden gba:-mt-2">
-            {/* Fade overlay on right edge */}
-            <div className="gba:absolute gba:right-0 gba:top-0 gba:bottom-0 gba:w-12 gba:bg-gradient-to-l gba:from-background gba:to-transparent gba:z-10 gba:pointer-events-none" />
-            <div
-              id={suggestionsScrollId}
-              className="gba:flex gba:flex-nowrap gba:gap-2 gba:pr-12 gba:overflow-x-auto gba:overflow-y-hidden gba:py-1"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {isPrechatLoading ? (
-                <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground gba:px-1">
-                  <div
-                    className="gba:h-4 gba:w-4 gba:rounded-full gba:border-2"
-                    style={{
-                      borderColor: `rgba(${goldRgb}, 0.3)`,
-                      borderTopColor: `rgb(${goldRgb})`,
-                      animation: 'spin 1s linear infinite'
+        {/* Suggestions */}
+        {(isPrechatLoading || (suggestions && suggestions.length > 0)) && (
+          <div
+            className="gba:flex gba:flex-wrap gba:items-center gba:gap-2 gba:-mt-1"
+            data-testid="chat-input-suggestions"
+          >
+            {isPrechatLoading ? (
+              <span className="gba:text-xs gba:text-muted-foreground">Loading suggestions…</span>
+            ) : (
+              suggestions?.map((s, idx) => {
+                const label = typeof s === 'string' ? s : s.heading || s.message || ''
+                const text = typeof s === 'string' ? s : s.message || s.heading || ''
+
+                if (!label || !text) return null
+
+                return (
+                  <Button
+                    key={idx}
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="gba:h-7 gba:rounded-full gba:px-3 gba:text-xs"
+                    onClick={e => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      onSend(
+                        text,
+                        files.map(f => f.file),
+                        false,
+                        isSearching,
+                        undefined
+                      )
+                      clearFiles()
+                      setIsSearching(false)
                     }}
-                  />
-                  <span>Thinking of suggestions...</span>
-                </div>
-              ) : (
-                suggestions.map((s, idx) => {
-                  const label = typeof s === 'string' ? s : s.heading || s.message || ''
-                  const text = typeof s === 'string' ? s : s.message || s.heading || ''
-                  return (
-                    <button
-                      key={idx}
-                      onClick={e => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        onSend(
-                          text,
-                          files.map(f => f.file),
-                          false,
-                          isSearching,
-                          undefined
-                        )
-                        clearFiles()
-                        setIsSearching(false)
-                      }}
-                      className="gba:group gba:flex-shrink-0 gba:inline-flex gba:items-center gba:gap-1.5 gba:whitespace-nowrap gba:text-xs gba:rounded-full gba:px-4 gba:py-2 gba:transition-all gba:duration-300"
-                      className="gba:bg-card/90"
-                      style={{
-                        boxShadow: `0 2px 8px rgba(${goldRgb}, 0.1), 0 0 0 1px rgba(${goldRgb}, 0.15)`,
-                        animation: `suggestion-float 3s ease-in-out infinite`,
-                        animationDelay: `${idx * 0.15}s`
-                      }}
-                      onMouseEnter={e => {
-                        ;(e.currentTarget as HTMLButtonElement).style.boxShadow =
-                          `0 4px 16px rgba(${goldRgb}, 0.25), 0 0 0 1px rgba(${goldRgb}, 0.3)`
-                        ;(e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)'
-                      }}
-                      onMouseLeave={e => {
-                        ;(e.currentTarget as HTMLButtonElement).style.boxShadow =
-                          `0 2px 8px rgba(${goldRgb}, 0.1), 0 0 0 1px rgba(${goldRgb}, 0.15)`
-                        ;(e.currentTarget as HTMLButtonElement).style.transform = ''
-                      }}
-                      data-testid={`suggestion-${idx}`}
-                    >
-                      <span className="gba:font-medium gba:transition-colors" className="gba:text-foreground">
-                        {label}
-                      </span>
-                    </button>
-                  )
-                })
-              )}
-            </div>
+                    data-testid={`suggestion-${idx}`}
+                  >
+                    <span className="gba:max-w-xs gba:truncate">{label}</span>
+                  </Button>
+                )
+              })
+            )}
           </div>
         )}
 
@@ -286,8 +247,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             {files.map(f => (
               <div
                 key={f.id}
-                className="gba:group/file gba:flex gba:items-center gba:gap-2 gba:rounded-xl gba:px-3 gba:py-2 gba:text-xs gba:transition-all gba:duration-300"
-                className="gba:bg-card/95"
+                className="gba:group/file gba:flex gba:items-center gba:gap-2 gba:rounded-xl gba:bg-card/95 gba:px-3 gba:py-2 gba:text-xs gba:transition-all gba:duration-300"
                 style={{
                   boxShadow: `0 2px 8px rgba(${goldRgb}, 0.12), 0 0 0 1px rgba(${goldRgb}, 0.2)`
                 }}
@@ -305,10 +265,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     />
                   </svg>
                 </div>
-                <span
-                  className="gba:truncate gba:max-w-[180px] gba:font-medium gba:text-foreground"
-                  title={f.file.name}
-                >
+                <span className="gba:truncate gba:max-w-48 gba:font-medium gba:text-foreground" title={f.file.name}>
                   {f.file.name}
                 </span>
                 <button
@@ -366,8 +323,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent
-                  className="gba:w-60 gba:p-2.5 gba:rounded-xl gba:border-0"
-                  className="gba:bg-card/98"
+                  className="gba:w-60 gba:rounded-xl gba:border-0 gba:bg-card/98 gba:p-2.5"
                   style={{
                     backdropFilter: 'blur(20px)',
                     boxShadow: `0 8px 40px rgba(0,0,0,0.12), 0 0 0 1px rgba(${goldRgb}, 0.1)`
@@ -380,8 +336,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     {/* Attach File */}
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="gba:group/option gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-xl gba:text-sm gba:transition-all gba:duration-200 gba:w-full gba:text-left"
-                      className="gba:text-foreground"
+                      className="gba:group/option gba:flex gba:w-full gba:items-center gba:gap-3 gba:rounded-xl gba:px-3 gba:py-2.5 gba:text-left gba:text-sm gba:text-foreground gba:transition-all gba:duration-200"
                       onMouseEnter={e => {
                         ;(e.currentTarget as HTMLButtonElement).style.background = `rgba(${goldRgb}, 0.08)`
                       }}
@@ -478,8 +433,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 value={value}
                 onChange={e => setValue(e.target.value)}
                 placeholder={placeholder}
-                className="gba:flex-1 gba:min-w-0 gba:min-h-[40px] gba:max-h-32 gba:resize-none gba:bg-transparent gba:border-none focus-visible:gba:ring-0 gba:text-base gba:py-2 gba:px-1 gba:leading-relaxed"
-                className="gba:text-foreground"
+                className="gba:flex-1 gba:min-w-0 gba:min-h-10 gba:max-h-32 gba:resize-none gba:bg-transparent gba:border-none gba:px-1 gba:py-2 gba:text-base gba:text-foreground gba:leading-relaxed focus-visible:gba:ring-0"
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()

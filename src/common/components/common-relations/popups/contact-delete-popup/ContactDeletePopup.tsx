@@ -3,8 +3,8 @@ import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { createRedirectAfterDelete } from '../utils/redirectAfterDelete'
 import { renderLoadingState, renderErrorState, renderDeleteWarning } from '../utils/deletePopupHelpers'
+import { useDeleteRedirect } from '../utils/useDeleteRedirect'
 import type { Contact } from '@/common/data/relations/types/contactTypes'
 
 export interface ContactDeletePopupValues {
@@ -68,6 +68,14 @@ const ContactDeletePopup: React.FC<ContactDeletePopupProps> = ({
     return null
   }
 
+  // Setup redirect after delete (if on record page)
+  useDeleteRedirect({
+    domain,
+    entityType: 'contacts',
+    recordUrlPattern: '/contact-record',
+    additionalData: props.additionalData
+  })
+
   if (loading) {
     return renderLoadingState(prefixDataTestId, 'contact')
   }
@@ -105,7 +113,6 @@ const ContactDeletePopup: React.FC<ContactDeletePopupProps> = ({
       validateForm={validateForm}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.delete', 'Delete')}
       submitButtonVariant="destructive"
-      onProcessCompletion={createRedirectAfterDelete(domain, 'contacts')}
       data-testid={formatDataTestId(prefixDataTestId, 'form')}
     >
       <div className="gba:space-y-4" data-testid={formatDataTestId(prefixDataTestId, 'container')}>
