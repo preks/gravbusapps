@@ -84,10 +84,6 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
         value: workingCondition?.hireDate ? dayjs(workingCondition.hireDate).format('MMM D, YYYY') : ''
       },
       {
-        label: 'Fixed Term until',
-        value: workingCondition?.exitDate ? dayjs(workingCondition.exitDate).format('MMM D, YYYY') : ''
-      },
-      {
         label: 'Contract Type',
         value: getCatalogValue(workingCondition?.contractType) || ''
       },
@@ -102,6 +98,10 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
       {
         label: 'Exit Date',
         value: workingCondition?.exitDate ? dayjs(workingCondition.exitDate).format('MMM D, YYYY') : ''
+      },
+      {
+        label: 'Exit Reason',
+        value: workingCondition?.additionalProperties?.fixedTermReason || ''
       },
       {
         label: 'Region',
@@ -258,11 +258,15 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
       {data.map(item => (
         <div
           key={`${item.label}-${item.value}`}
-          className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-muted gba:rounded-md gba:transition-colors"
+          className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-muted gba:rounded-md gba:transition-colors gba:min-w-0"
           data-testid={`employment-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
         >
-          <span className="gba:text-sm gba:text-muted-foreground gba:mb-0.5">{item.label}</span>
-          <span className="gba:font-medium gba:text-foreground">{item.value || '-'}</span>
+          <span className="gba:text-sm gba:text-muted-foreground gba:mb-0.5 gba:truncate gba:block" title={item.label}>
+            {item.label}
+          </span>
+          <span className="gba:font-medium gba:text-foreground gba:truncate gba:block" title={item.value}>
+            {item.value || '-'}
+          </span>
         </div>
       ))}
     </div>
