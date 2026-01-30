@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ChangeLogFilters as ChangeLogFiltersType } from '../../ChangeLogTab'
-import { getFieldCategories } from './constants'
+import { FIELD_CATEGORIES } from './constants'
 import { useDebounce } from '@/common/hooks/useDebounce'
-import { useTranslation } from '@newwork/nw-design-system'
-import translations from '../../../../_i18n'
 
 interface ChangeLogFiltersProps {
   filters: ChangeLogFiltersType
@@ -44,10 +42,8 @@ export const ChangeLogFilters: React.FC<ChangeLogFiltersProps> = ({
   totalEntriesCount,
   actorNames: propsActorNames
 }) => {
-  const { t } = useTranslation(translations)
   const availableCategories = getAvailableFieldCategories(userRole)
-  const fieldCategories = getFieldCategories(t)
-  const filteredFieldCategories = fieldCategories.filter(cat => availableCategories.includes(cat.value))
+  const filteredFieldCategories = FIELD_CATEGORIES.filter(cat => availableCategories.includes(cat.value))
 
   // Local state + debounce for search input
   const [searchLocal, setSearchLocal] = useState<string>(filters.searchTerm || '')

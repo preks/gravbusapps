@@ -1,9 +1,8 @@
 import React from 'react'
-import { formatDate } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { ChangeLogEntry as ChangeLogEntryType } from '../../ChangeLogTab'
-import { getFieldCategories } from './constants'
-import { useTranslation, Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
-import translations from '../../../../_i18n'
+import { FIELD_CATEGORIES } from './constants'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
 
 interface ChangeLogEntryProps {
   entry: ChangeLogEntryType
@@ -12,12 +11,9 @@ interface ChangeLogEntryProps {
 // FIELD_CATEGORIES imported from constants
 
 export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
-  const { t } = useTranslation(translations)
-
   if (!entry.isVisible) return null
 
-  const fieldCategories = getFieldCategories(t)
-  const categoryInfo = fieldCategories.find(cat => cat.value === entry.fieldCategory)
+  const categoryInfo = FIELD_CATEGORIES.find(cat => cat.value === entry.fieldCategory)
 
   const [open, setOpen] = React.useState(false)
 
@@ -53,7 +49,8 @@ export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
             </div>
           </div>
           <div className="gba:mt-2 gba:text-sm gba:text-muted-foreground">
-            {t('changelog-label-created-by')} {entry.changedBy.userName || entry.changedBy.userId}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.privacy.created_by', 'Created by')}{' '}
+            {entry.changedBy.userName || entry.changedBy.userId}
           </div>
         </div>
       </div>
@@ -75,32 +72,34 @@ export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
                   return channel ? (
                     <div className="gba:py-2 gba:px-1">
                       <p className="gba:text-base gba:font-semibold gba:text-foreground">
-                        {t('changelog-label-channel')}
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.labels.channel', 'Channel')}
                       </p>
                       <p className="gba:text-sm gba:text-foreground">{channel}</p>
                     </div>
                   ) : null
                 })()}
                 <div className="gba:py-2 gba:px-1">
-                  <p className="gba:text-base gba:font-semibold gba:text-foreground">{t('changelog-label-category')}</p>
+                  <p className="gba:text-base gba:font-semibold gba:text-foreground">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.labels.category', 'Category')}
+                  </p>
                   <p className="gba:text-sm gba:text-foreground">{categoryInfo?.label || '-'}</p>
                 </div>
                 <div className="gba:py-2 gba:px-1">
                   <p className="gba:text-base gba:font-semibold gba:text-foreground">
-                    {t('changelog-label-timestamp')}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.labels.timestamp', 'Timestamp')}
                   </p>
                   <p className="gba:text-sm gba:text-foreground">{safeFormatDate(entry.timestamp, 'date.short')}</p>
                 </div>
                 <div className="gba:py-2 gba:px-1">
                   <p className="gba:text-base gba:font-semibold gba:text-foreground">
-                    {t('changelog-label-created-by')}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.privacy.created_by', 'Created by')}
                   </p>
                   <p className="gba:text-sm gba:text-foreground">
                     {entry.changedBy.userName || entry.changedBy.userId}
                   </p>
                 </div>
                 <div className="gba:py-2 gba:px-1">
-                  <p className="gba:text-base gba:font-semibold gba:text-foreground">{t('changelog-label-flow')}</p>
+                  <p className="gba:text-base gba:font-semibold gba:text-foreground">Flow</p>
                   <p className="gba:text-sm gba:text-foreground">{entry.changeOrigin.flowName}</p>
                 </div>
               </div>
