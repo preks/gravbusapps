@@ -33,7 +33,7 @@ export interface PerformanceCycleFromApi {
   fromApi?: boolean
 }
 
-/** Map API participant type (any casing) to UI ParticipantType. */
+/** Map API participant type (any casing) to UI ParticipantType. API has SELF, PEER, MANAGER, TEAM, HR_ADMIN (no CALIBRATION). */
 const PARTICIPANT_MAP: Record<string, ParticipantType> = {
   Self: 'Self',
   Peer: 'Peer',
@@ -44,7 +44,8 @@ const PARTICIPANT_MAP: Record<string, ParticipantType> = {
   PEER: 'Peer',
   MANAGER: 'Manager',
   CALIBRATION: 'Calibration',
-  TEAM: 'Team'
+  TEAM: 'Team',
+  HR_ADMIN: 'Calibration' // API uses HR_ADMIN; UI shows as Calibration for round-trip
 }
 
 function formatDateOnly(isoOrTimestamp: string | null): string {

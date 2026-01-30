@@ -8,7 +8,8 @@ import {
   type UpdatePerformanceCyclePayload,
   type UpdatePerformanceCycleResponse,
   type DeletePerformanceCycleResponse,
-  type PerformanceCycleCompanyValueItem
+  type PerformanceCycleCompanyValueItem,
+  type PerformanceCycleParticipantItem
 } from '../services/performanceCycleApi'
 import type { CycleEditorValues } from '../CycleEditorModal'
 
@@ -19,9 +20,23 @@ const FREQUENCY_TO_API: Record<string, string> = {
   Custom: 'ANNUAL'
 }
 
-/** Backend may expect participant types in uppercase (e.g. SELF, PEER, MANAGER, TEAM). */
-function participantTypesToApi(participants: string[]): string[] {
-  return participants.map(p => String(p).toUpperCase())
+/** API participant type enum: SELF, PEER, MANAGER, TEAM, HR_ADMIN (no CALIBRATION). */
+const API_PARTICIPANT_TYPES = ['SELF', 'PEER', 'MANAGER', 'TEAM', 'HR_ADMIN'] as const
+
+/** Map UI participant label to API participantType (e.g. Calibration -> HR_ADMIN). */
+const UI_TO_API_PARTICIPANT: Record<string, string> = {
+  CALIBRATION: 'HR_ADMIN'
+}
+
+/** Build participants array: each type with enabled true if selected in form. */
+function buildParticipants(selectedParticipants: string[]): PerformanceCycleParticipantItem[] {
+  const selectedSet = new Set(
+    selectedParticipants.map(p => UI_TO_API_PARTICIPANT[String(p).toUpperCase()] ?? String(p).toUpperCase())
+  )
+  return API_PARTICIPANT_TYPES.map(participantType => ({
+    participantType,
+    enabled: selectedSet.has(participantType)
+  }))
 }
 
 /** True when the cycle is from local storage (client-generated id). */
@@ -59,7 +74,8 @@ function buildSavePayload(values: CycleEditorValues): SavePerformanceCyclePayloa
       endDate: values.endDate,
       frequency: frequencyApi,
       ratingScale: values.ratingScaleId ?? null,
-      participantTypes: participantTypesToApi(values.participants ?? []),
+      // participants: buildParticipants(values.participants ?? []),
+      participants: buildParticipants([]),
       ...(changeMode === 'INSERT' ? { status: 'DRAFT_CYCLE' } : {}),
       ...(companyValues.length > 0 ? { companyValues } : {})
     }

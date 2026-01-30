@@ -6,6 +6,12 @@ const SAVE_PERFORMANCE_CYCLE_PATH = '/processes/employee/savePerformanceCycle'
 const UPDATE_PERFORMANCE_CYCLE_PATH = '/processes/employee/updatePerformanceCycle'
 const DELETE_PERFORMANCE_CYCLE_PATH = '/processes/employee/deletePerformanceCycle'
 
+/** One participant entry in the save payload. */
+export interface PerformanceCycleParticipantItem {
+  participantType: string
+  enabled: boolean
+}
+
 /** One entry in companyValues: links a company value to the performance cycle. */
 export interface PerformanceCycleCompanyValueItem {
   id?: string
@@ -31,7 +37,8 @@ export interface SavePerformanceCyclePayload {
     frequency: string
     /** API expects key "ratingScale" with id value (not ratingScaleId). */
     ratingScale?: string | null
-    participantTypes?: string[]
+    /** Participants with participantType (e.g. SELF, MANAGER) and enabled flag. */
+    participants?: PerformanceCycleParticipantItem[]
     /** API expects key "active" (not isActive). */
     active?: boolean
     status?: string
