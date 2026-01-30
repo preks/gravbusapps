@@ -367,6 +367,16 @@ if (globalThis.__APP_BUILD_INFO__) {
     allPossibleEntries[key] = relativePath
   })
 
+  // Ensure platform/apps/slide-apps is always available for dynamic loading (in case discovery missed it)
+  const slideAppsKey = 'platform/apps/slide-apps'
+  if (!allPossibleEntries[slideAppsKey]) {
+    const slideAppsPath = path.join(projectRootDir, 'src', 'business-apps', 'platform', 'apps', 'slide-apps', 'index.ts')
+    if (fs.existsSync(slideAppsPath)) {
+      allPossibleEntries[slideAppsKey] = path.relative(projectRootDir, slideAppsPath).replace(/\\/g, '/')
+      console.log('[vite.config.ts] Registered slide-apps for dynamic loading:', allPossibleEntries[slideAppsKey])
+    }
+  }
+
   if (isBuildCommand && isSingleBuild) {
     // Single build mode - use only the specified entry
     dynamicEntries[targetEntryKey] = resolve(projectRootDir, targetEntryFile)

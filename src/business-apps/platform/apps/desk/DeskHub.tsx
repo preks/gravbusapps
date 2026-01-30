@@ -9,7 +9,7 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react'
-import { FileText, FileSpreadsheet, StickyNote, MessageSquare } from 'lucide-react'
+import { FileText, FileSpreadsheet, StickyNote, MessageSquare, Presentation } from 'lucide-react'
 import { Button } from '@newwork/nw-design-system'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
@@ -52,7 +52,9 @@ const navigateToApp = (appPath: string, params?: Record<string, string>) => {
           ? isProduction
             ? '/platform/notes'
             : '/platform/apps/note-apps'
-          : `/platform/apps/${appName}`
+          : appName === 'slide-apps'
+            ? '/platform/apps/slide-apps'
+            : `/platform/apps/${appName}`
   const urlParams = params?.from ? params : { from: 'desk', ...params }
   navigateTo(buildPlatformUrl(platformUrl, urlParams))
 }
@@ -69,8 +71,8 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
-  // Fetch data from all three apps
-  const { documents, spreadsheets, notes, recentItems, isLoading, stats, activityData } = useDeskData(
+  // Fetch data from all content apps
+  const { documents, spreadsheets, notes, slides, recentItems, isLoading, stats, activityData } = useDeskData(
     accessToken,
     currentUserId
   )
@@ -84,10 +86,10 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
 
   // Combine all items for search
   const allItems = useMemo(() => {
-    return [...documents, ...spreadsheets, ...notes].sort(
+    return [...documents, ...spreadsheets, ...notes, ...slides].sort(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     )
-  }, [documents, spreadsheets, notes])
+  }, [documents, spreadsheets, notes, slides])
 
   // Filter items based on search - search all items when searching, show recent when not
   const displayItems = useMemo(() => {
@@ -122,16 +124,20 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
     navigateToApp('note-apps', { action: 'new' })
   }, [])
 
+  const handleOpenSlides = useCallback(() => {
+    navigateToApp('slide-apps')
+  }, [])
+
+  const handleCreateSlide = useCallback(() => {
+    navigateToApp('slide-apps', { action: 'new' })
+  }, [])
+
   const handleOpenSpaces = useCallback(() => {
-    const isProduction = process.env.NODE_ENV === 'production'
-    const url = isProduction ? '/platform/spaces' : '/platform/apps/spaces'
-    navigateTo(buildPlatformUrl(url))
+    navigateTo(buildPlatformUrl('/platform/spaces'))
   }, [])
 
   const handleSpaceClick = useCallback((spaceId: string) => {
-    // Navigate to spaces screen with spaceId param
-    // Use /platform/apps/spaces directly since /platform/spaces alias doesn't support query params
-    navigateTo(buildPlatformUrl('/platform/apps/spaces', { spaceId, from: 'desk' }))
+    navigateTo(buildPlatformUrl('/platform/spaces', { spaceId, from: 'desk' }))
   }, [])
 
   // Handle item click - navigate to the specific item
@@ -145,6 +151,9 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
         break
       case 'note':
         navigateToApp('note-apps', { noteId: item.id, view: 'editor' })
+        break
+      case 'slide':
+        navigateToApp('slide-apps', { slideId: item.id, view: 'editor' })
         break
     }
   }, [])
@@ -185,22 +194,19 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
             <div className="gba:absolute gba:inset-0 gba:bg-background" />
 
             <div className="gba:relative gba:max-w-6xl gba:mx-auto">
-              {/* Section header */}
+              {/* Section header – aligned with Your Spaces */}
               <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
                 <div>
-                  <h2 className="gba:text-2xl gba:sm:text-3xl gba:font-bold gba:mb-2">
-                    <span className="gba:bg-gradient-to-r gba:from-sky-500 gba:via-cyan-500 gba:to-teal-500 gba:bg-clip-text gba:text-transparent">
-                      Your Spaces
-                    </span>
-                  </h2>
+                  <button
+                    type="button"
+                    onClick={handleOpenSpaces}
+                    className="desk-section-title gba:text-2xl gba:sm:text-3xl gba:font-semibold gba:mb-2 gba:block gba:text-left gba:w-full gba:bg-transparent gba:border-0 gba:cursor-pointer hover:gba:opacity-90 gba:transition-opacity focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary focus:gba:ring-offset-2 gba:rounded"
+                    data-testid={`${testId}-spaces-section-title`}
+                  >
+                    Your Spaces
+                  </button>
                   <p className="gba:text-muted-foreground">Collaborative workspaces for your team</p>
                 </div>
-                <button
-                  onClick={handleOpenSpaces}
-                  className="gba:text-primary gba:font-medium gba:text-sm hover:gba:underline"
-                >
-                  View all
-                </button>
               </div>
 
               {/* Spaces grid */}
@@ -229,18 +235,20 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
           <div className="gba:absolute gba:inset-0 gba:bg-background" />
 
           <div className="gba:relative gba:max-w-6xl gba:mx-auto">
-            {/* Section header */}
-            <div className="gba:text-center gba:mb-6">
-              <h2 className="gba:text-2xl gba:sm:text-3xl gba:font-bold gba:text-foreground gba:mb-2">
-                Your workspace
-              </h2>
-              <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">
-                Access your documents, spreadsheets, and notes in one place
-              </p>
+            {/* Section header – aligned with Your Spaces */}
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
+              <div>
+                <h2 className="desk-section-title gba:text-2xl gba:sm:text-3xl gba:font-semibold gba:mb-2">
+                  Your work
+                </h2>
+                <p className="gba:text-muted-foreground">
+                  Access your documents, spreadsheets, notes, and presentations in one place
+                </p>
+              </div>
             </div>
 
             {/* App cards grid */}
-            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
+            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 lg:gba:grid-cols-4 gba:gap-4">
               <AppCard
                 title="Documents"
                 description="Create and edit rich text documents with collaboration"
@@ -279,6 +287,19 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
                 isLoading={isLoading}
                 animationDelay={0.3}
                 data-testid={`${testId}-app-notes`}
+              />
+              <AppCard
+                title="Presentations"
+                description="Create slide decks with live collaboration"
+                icon={Presentation}
+                count={stats.slides.total}
+                sharedCount={stats.slides.shared}
+                accentColor="primary"
+                onOpen={handleOpenSlides}
+                onCreate={handleCreateSlide}
+                isLoading={isLoading}
+                animationDelay={0.4}
+                data-testid={`${testId}-app-slides`}
               />
             </div>
           </div>
@@ -329,13 +350,14 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
       )}
 
       {/* Document Chat Panel */}
-      {isChatOpen && accessToken && currentUserId && (
+      {accessToken && currentUserId && (
         <DocumentChat
           userId={currentUserId}
           userName={
             `${userInfo?.employeeDetails?.firstName || ''} ${userInfo?.employeeDetails?.lastName || ''}`.trim() ||
             userInfo?.userName
           }
+          isOpen={isChatOpen}
           accessToken={accessToken}
           scope={chatScope}
           spaceId={selectedSpaceId}

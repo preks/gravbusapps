@@ -1,79 +1,27 @@
-import React, { useMemo } from 'react'
+import React from 'react'
 import { Avatar, AvatarFallback, AvatarImage, Card } from '@newwork/nw-design-system'
 import { User, Bot } from 'lucide-react'
 import { ChatMessage as ChatMessageType } from '../../types/chat.types'
 import { SourceCitation } from './SourceCitation'
+import { MarkdownWithChipsRenderer } from '@/common/components/markdown'
 
 interface ChatMessageProps {
   message: ChatMessageType
   isStreaming?: boolean
   userName?: string
   userAvatarSrc?: string
+  accessToken?: string
 }
 
-type FormattedBlock = { type: 'p'; text: string } | { type: 'ul'; items: string[] }
-
-const normalizeText = (value: string): string =>
-  value
-    .replace(/\r\n/g, '\n')
-    .replace(/[ \t]+\n/g, '\n')
-    .trim()
-
-const formatAssistantContent = (value: string): FormattedBlock[] => {
-  const text = normalizeText(value)
-  if (!text) return []
-
-  const lines = text.split('\n')
-  const blocks: FormattedBlock[] = []
-  let paragraph: string[] = []
-  let list: string[] = []
-
-  const flushParagraph = () => {
-    if (paragraph.length > 0) {
-      blocks.push({ type: 'p', text: paragraph.join(' ') })
-      paragraph = []
-    }
-  }
-
-  const flushList = () => {
-    if (list.length > 0) {
-      blocks.push({ type: 'ul', items: list })
-      list = []
-    }
-  }
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim()
-
-    if (!line) {
-      flushList()
-      flushParagraph()
-      continue
-    }
-
-    const isBullet = line.startsWith('- ') || line.startsWith('• ') || line.startsWith('* ')
-    if (isBullet) {
-      flushParagraph()
-      list.push(line.slice(2).trim())
-      continue
-    }
-
-    flushList()
-    paragraph.push(line)
-  }
-
-  flushList()
-  flushParagraph()
-
-  return blocks
-}
-
-export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isStreaming = false, userName, userAvatarSrc }) => {
+export const ChatMessage: React.FC<ChatMessageProps> = ({
+  message,
+  isStreaming = false,
+  userName,
+  userAvatarSrc,
+  accessToken
+}) => {
   const isUser = message.role === 'user'
-  const formattedBlocks = useMemo(
-    () => (isUser ? [] : formatAssistantContent(message.content)),
-    [isUser, message.content]
-  )
+  const assistantContent = isStreaming && !message.content.trim() ? 'Thinking…' : message.content
 
   return (
     <div
@@ -96,35 +44,16 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isStreaming =
           ].join(' ')}
         >
           {isUser ? (
-            <p className="gba:text-sm gba:leading-relaxed gba:whitespace-pre-wrap">{message.content}</p>
+            <p className="gba:text-sm gba:leading-relaxed gba:whitespace-pre-wrap gba:font-sans">{message.content}</p>
           ) : (
-            <div className="gba:text-sm gba:leading-relaxed gba:space-y-2">
-              {formattedBlocks.length === 0 ? (
-                <p className="gba:whitespace-pre-wrap">
-                  {isStreaming && !message.content.trim() ? 'Thinking…' : message.content}
-                </p>
-              ) : (
-                formattedBlocks.map((block, idx) => {
-                  if (block.type === 'p') {
-                    return (
-                      <p key={idx} className="gba:whitespace-pre-wrap">
-                        {block.text}
-                      </p>
-                    )
-                  }
-
-                  return (
-                    <ul key={idx} className="gba:list-disc gba:pl-5 gba:space-y-1">
-                      {block.items.map((item, itemIdx) => (
-                        <li key={itemIdx} className="gba:whitespace-pre-wrap">
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  )
-                })
-              )}
-            </div>
+            <MarkdownWithChipsRenderer
+              content={assistantContent}
+              accessToken={accessToken}
+              variant="chat"
+              renderHttpLinksAsChips={true}
+              className="gba:font-sans"
+              data-testid="chat-assistant-markdown"
+            />
           )}
         </Card>
 

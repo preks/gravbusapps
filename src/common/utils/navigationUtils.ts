@@ -92,10 +92,12 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/every-ai': 'platform/apps/every-ai',
   '/platform/debugger': 'platform/apps/debugger',
   '/platform/every-office': 'platform/apps/every-office',
+  '/platform/spaces': 'platform/apps/spaces',
   '/platform/apps/desk': 'platform/apps/desk',
   '/platform/apps/document-apps': 'platform/apps/document-apps',
   '/platform/apps/note-apps': 'platform/apps/note-apps',
   '/platform/apps/spreadsheet-apps': 'platform/apps/spreadsheet-apps',
+  '/platform/apps/slide-apps': 'platform/apps/slide-apps',
 
   // Obsolete
   // TODO: Clean Up

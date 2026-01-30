@@ -40,6 +40,7 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingContent, setStreamingContent] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [lastSessionTitleUpdate, setLastSessionTitleUpdate] = useState<{ sessionId: string; title: string } | null>(null)
 
   const streamingContentRef = useRef('')
   const streamingRafRef = useRef<number | null>(null)
@@ -168,6 +169,11 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
       pendingUserMessageRef.current = null
     })
 
+    newSocket.on('session-updated', (data: { sessionId: string; title: string }) => {
+      setLastSessionTitleUpdate({ sessionId: data.sessionId, title: data.title })
+      setCurrentSession(prev => (prev?.id === data.sessionId ? { ...prev, title: data.title } : prev))
+    })
+
     newSocket.on('error', (data: { message: string }) => {
       console.error('Chat error:', data.message)
       setError(data.message)
@@ -222,12 +228,11 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
       }
 
       // Join the session room
-      return new Promise<void>((resolve, reject) => {
+      return new Promise<ChatSession | null>((resolve, reject) => {
         socket.emit('join', { sessionId }, (response: { success: boolean; error?: string }) => {
           if (response.success) {
             // Fetch session and history via REST API
-            fetchSessionHistory(sessionId)
-            resolve()
+            fetchSessionHistory(sessionId).then(result => resolve(result?.session ?? null))
           } else {
             reject(new Error(response.error || 'Failed to join session'))
           }
@@ -239,7 +244,15 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
 
   // Fetch session history via REST API
   const fetchSessionHistory = useCallback(
-    async (sessionId: string) => {
+    async (
+      sessionId: string
+    ): Promise<
+      | {
+          session?: ChatSession
+          history: ChatMessage[]
+        }
+      | null
+    > => {
       const apiUrl = getDocumentServiceApiUrl()
       try {
         const response = await fetch(`${apiUrl}/chat/sessions/${sessionId}/history`, {
@@ -262,13 +275,17 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
           }
         })
 
+        let session: ChatSession | undefined
         if (sessionResponse.ok) {
-          const session: ChatSession = await sessionResponse.json()
+          session = await sessionResponse.json()
           setCurrentSession(session)
         }
+
+        return { session, history }
       } catch (error) {
         console.error('Failed to fetch history:', error)
         setError('Failed to load conversation history')
+        return null
       }
     },
     [accessToken]
@@ -276,7 +293,7 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
 
   // Send message
   const sendMessage = useCallback(
-    async (message: string) => {
+    async (message: string, options?: { scope?: 'all' | 'space'; spaceId?: string | null }) => {
       if (!socket || !currentSession) {
         throw new Error('No active session')
       }
@@ -302,7 +319,9 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
       socket.emit('message', {
         sessionId: currentSession.id,
         message,
-        userId
+        userId,
+        scope: options?.scope,
+        spaceId: options?.spaceId || undefined
       })
     },
     [socket, currentSession, userId]
@@ -369,6 +388,7 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
     joinSession,
     sendMessage,
     getUserSessions,
-    deleteSession
+    deleteSession,
+    lastSessionTitleUpdate
   }
 }

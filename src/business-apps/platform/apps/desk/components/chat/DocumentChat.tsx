@@ -1,12 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Card, CardHeader, CardContent, CardTitle, Button, Alert, AlertDescription } from '@newwork/nw-design-system'
-import { X, MessageSquare, Loader2 } from 'lucide-react'
+import {
+  Card,
+  CardContent,
+  Alert,
+  AlertDescription
+} from '@newwork/nw-design-system'
+import { Loader2, MessageSquare } from 'lucide-react'
 import { ChatMessage } from './ChatMessage'
 import { ChatInput } from './ChatInput'
 import { ScopeSelector } from './ScopeSelector'
 import { useDocumentChat } from '../../hooks/useDocumentChat'
-import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
+import { DocumentChatHeader } from './DocumentChatHeader'
+import { useCurrentUserAvatar } from './useCurrentUserAvatar'
+import { useChatSessions } from './useChatSessions'
 
 interface Space {
   id: string
@@ -16,6 +23,7 @@ interface Space {
 interface DocumentChatProps {
   userId: string
   userName?: string
+  isOpen: boolean
   accessToken: string
   scope: 'all' | 'space'
   spaceId: string | null
@@ -28,6 +36,7 @@ interface DocumentChatProps {
 export const DocumentChat: React.FC<DocumentChatProps> = ({
   userId,
   userName,
+  isOpen,
   accessToken,
   scope,
   spaceId,
@@ -37,8 +46,6 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
   onClose
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const [isInitialized, setIsInitialized] = useState(false)
-  const [userAvatarSrc, setUserAvatarSrc] = useState<string | undefined>(undefined)
 
   const portalRoot = useMemo(() => {
     if (typeof document === 'undefined') return null
@@ -50,102 +57,71 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
     return el
   }, [])
 
-  const { isConnected, currentSession, messages, isStreaming, streamingContent, error, createSession, sendMessage } =
-    useDocumentChat({ userId, accessToken })
+  const {
+    isConnected,
+    currentSession,
+    messages,
+    isStreaming,
+    streamingContent,
+    error,
+    createSession,
+    joinSession,
+    getUserSessions,
+    deleteSession,
+    sendMessage,
+    lastSessionTitleUpdate
+  } = useDocumentChat({ userId, accessToken })
+
+  const userAvatarSrc = useCurrentUserAvatar(accessToken, userId)
+
+  const { sessions, isLoadingSessions, handleSelectSession, handleNewSession, handleDeleteCurrentSession } = useChatSessions({
+    userId,
+    isConnected,
+    currentSession,
+    scope,
+    spaceId,
+    onScopeChange,
+    onSpaceChange,
+    createSession,
+    joinSession,
+    getUserSessions,
+    deleteSession
+  })
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streamingContent])
 
-  // Load current user avatar (best-effort)
+  const [isTitleJustUpdated, setIsTitleJustUpdated] = useState(false)
+
   useEffect(() => {
-    if (!accessToken || !userId) return
-
-    const normalizeImageSrc = (raw?: string): string | undefined => {
-      if (!raw) return undefined
-      const value = raw.trim()
-      if (!value) return undefined
-      if (
-        value.startsWith('data:') ||
-        value.startsWith('http://') ||
-        value.startsWith('https://') ||
-        value.startsWith('/')
-      ) {
-        return value
-      }
-      if (value.startsWith('iVBOR')) return `data:image/png;base64,${value}`
-      if (value.startsWith('/9j/')) return `data:image/jpeg;base64,${value}`
-      return `data:image/png;base64,${value}`
-    }
-
-    const query = `
-      query GetEmployeeAvatar($userId: String!) {
-        Employee(where: { userId: { _eq: $userId }, isDeleted: { _eq: false } }) {
-          userId
-          pictureThumbnail
-        }
-      }
-    `
-
-    let cancelled = false
-    ;(async () => {
-      try {
-        graphQLClient.setAccessToken(accessToken)
-        const res = await graphQLClient.request<{
-          Employee: Array<{ userId?: string; pictureThumbnail?: string }>
-        }>(query, { userId })
-
-        const thumb = res?.Employee?.[0]?.pictureThumbnail
-        const normalized = normalizeImageSrc(thumb)
-        if (!cancelled) setUserAvatarSrc(normalized)
-      } catch {
-        // ignore (avatar is best-effort)
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [accessToken, userId])
-
-  // Initialize session on mount
-  useEffect(() => {
-    if (isConnected && !isInitialized && !currentSession) {
-      createSession({
-        scope,
-        spaceId: spaceId || undefined
-      })
-        .then(() => setIsInitialized(true))
-        .catch(err => console.error('Failed to initialize session:', err))
-    }
-  }, [isConnected, isInitialized, currentSession, scope, spaceId, createSession])
+    if (!lastSessionTitleUpdate) return
+    if (lastSessionTitleUpdate.sessionId !== currentSession?.id) return
+    setIsTitleJustUpdated(true)
+    const t = setTimeout(() => setIsTitleJustUpdated(false), 900)
+    return () => clearTimeout(t)
+  }, [lastSessionTitleUpdate, currentSession?.id])
 
   // Handle scope/space changes - create new session
   const handleScopeChange = (newScope: 'all' | 'space') => {
     onScopeChange(newScope)
     if (newScope === 'all') {
       onSpaceChange(null)
-      createNewSession('all', null)
     }
   }
 
   const handleSpaceChange = (newSpaceId: string | null) => {
     onSpaceChange(newSpaceId)
-    if (newSpaceId) {
-      createNewSession('space', newSpaceId)
-    }
-  }
-
-  const createNewSession = (newScope: 'all' | 'space', newSpaceId: string | null) => {
-    createSession({
-      scope: newScope,
-      spaceId: newSpaceId || undefined
-    }).catch(err => console.error('Failed to create new session:', err))
+    onScopeChange(newSpaceId ? 'space' : 'all')
   }
 
   const handleSendMessage = (message: string) => {
-    sendMessage(message).catch(err => console.error('Failed to send message:', err))
+    sendMessage(message, { scope, spaceId }).catch(err => console.error('Failed to send message:', err))
+  }
+
+  if (!isOpen) {
+    return null
   }
 
   const content = (
@@ -165,26 +141,23 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
         <div className="gba:absolute gba:inset-0 gba:bg-muted gba:opacity-35" />
 
         <div className="gba:relative gba:flex gba:flex-col gba:flex-1 gba:min-h-0">
-          <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:border-b gba:border-border gba:bg-transparent">
-            <div className="gba:flex gba:flex-col gba:gap-0.5">
-              <CardTitle className="gba:flex gba:items-center gba:gap-2">
-                <MessageSquare className="gba:h-5 gba:w-5" />
-                Ask your content
-              </CardTitle>
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <span className="gba:text-xs gba:text-muted-foreground">
-                  {userName ? `Hi, ${userName}` : 'Documents · Notes · Sheets'}
-                </span>
-              </div>
-            </div>
-            <Button variant="ghost" size="sm" onClick={onClose} data-testid="chat-close-button">
-              <X className="gba:h-4 gba:w-4" />
-            </Button>
-          </CardHeader>
+          <DocumentChatHeader
+            title={currentSession?.title}
+            animateTitle={isTitleJustUpdated}
+            sessions={sessions}
+            isSessionsDisabled={!isConnected || isLoadingSessions || isStreaming || sessions.length === 0}
+            onSelectSession={handleSelectSession}
+            onNewSession={handleNewSession}
+            onDeleteSession={handleDeleteCurrentSession}
+            onClose={onClose}
+            isStreaming={isStreaming}
+            showDelete={Boolean(currentSession)}
+            data-testid="document-chat-header"
+          />
 
           <CardContent className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:p-0 gba:bg-transparent">
             {/* Scope Selector */}
-            <div className="gba:p-4 gba:border-b gba:border-border gba:bg-transparent">
+            <div className="gba:px-4 gba:py-2 gba:border-b gba:border-border gba:bg-transparent">
               <ScopeSelector
                 scope={scope}
                 selectedSpaceId={spaceId}
@@ -227,7 +200,13 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
               )}
 
               {messages.map(msg => (
-                <ChatMessage key={msg.id} message={msg} userName={userName} userAvatarSrc={userAvatarSrc} />
+                <ChatMessage
+                  key={msg.id}
+                  message={msg}
+                  userName={userName}
+                  userAvatarSrc={userAvatarSrc}
+                  accessToken={accessToken}
+                />
               ))}
 
               {isStreaming && (
@@ -243,6 +222,7 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
                   isStreaming={true}
                   userName={userName}
                   userAvatarSrc={userAvatarSrc}
+                  accessToken={accessToken}
                 />
               )}
 

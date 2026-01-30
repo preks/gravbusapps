@@ -36,11 +36,10 @@ export const ScopeSelector: React.FC<ScopeSelectorProps> = ({
   const currentValue = scope === 'all' ? 'all' : selectedSpaceId || 'all'
 
   return (
-    <div className="gba:flex gba:items-center gba:gap-2">
-      <span className="gba:text-sm gba:text-muted-foreground">Search in:</span>
+    <div className="gba:flex gba:items-center gba:gap-2 gba:w-full">
       <Select value={currentValue} onValueChange={handleValueChange} disabled={disabled}>
-        <SelectTrigger className="gba:w-56" data-testid="scope-selector-trigger">
-          <SelectValue placeholder="Select scope" />
+        <SelectTrigger className="gba:w-full gba:h-8 gba:rounded-xl gba:text-sm" data-testid="scope-selector-trigger">
+          <SelectValue placeholder="All my content" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all" data-testid="scope-selector-option-all">

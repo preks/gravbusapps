@@ -12,12 +12,23 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 // Components
 import { SpaceCard } from './components/SpaceCard'
 import { CreateSpaceDialog } from './components/CreateSpaceDialog'
+import { SpaceHeroBackground } from './components/SpaceHeroBackground'
+
+const hubHostedVideoUrl =
+  typeof import.meta !== 'undefined' && import.meta.env?.VITE_SPACES_HUB_VIDEO_URL
+const hubLocalVideoUrl = '/space-hub-background.mp4'
+const hubUseVideo =
+  hubHostedVideoUrl ||
+  (typeof import.meta !== 'undefined' && import.meta.env?.DEV && hubLocalVideoUrl)
+const hubVideoSrc = hubHostedVideoUrl || hubLocalVideoUrl
 
 // Hooks
 import { useSpaces } from './hooks/useSpaces'
 import type { CreateSpaceInput } from './types/space.types'
 
 export interface SpacesHubProps extends BusinessAppContextProps {
+  /** Open a specific space in detail view (handled by SpacesRouter) */
+  onOpenSpace: (spaceId: string) => void
   'data-testid'?: string
 }
 
@@ -26,6 +37,7 @@ type FilterType = 'all' | 'owned' | 'shared'
 export const SpacesHub: React.FC<SpacesHubProps> = ({
   accessToken,
   userInfo,
+  onOpenSpace,
   'data-testid': testId = 'spaces-hub'
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
@@ -76,88 +88,106 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
         urlParams.set('spaceId', space.id)
         const newUrl = `${window.location.pathname}?${urlParams.toString()}`
         window.history.pushState({ spaceId: space.id }, '', newUrl)
-        window.dispatchEvent(new PopStateEvent('popstate', { state: { spaceId: space.id } }))
+        onOpenSpace(space.id)
       }
     },
-    [createSpace]
+    [createSpace, onOpenSpace]
   )
 
-  const handleSpaceClick = useCallback((spaceId: string) => {
-    const urlParams = new URLSearchParams(window.location.search)
-    urlParams.set('spaceId', spaceId)
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
-    window.history.pushState({ spaceId }, '', newUrl)
-    window.dispatchEvent(new PopStateEvent('popstate', { state: { spaceId } }))
-  }, [])
+  const handleSpaceClick = useCallback(
+    (spaceId: string) => {
+      const urlParams = new URLSearchParams(window.location.search)
+      urlParams.set('spaceId', spaceId)
+      const newUrl = `${window.location.pathname}?${urlParams.toString()}`
+      window.history.pushState({ spaceId }, '', newUrl)
+      onOpenSpace(spaceId)
+    },
+    [onOpenSpace]
+  )
 
   return (
     <div className="gba:min-h-screen gba:bg-background" data-testid={testId}>
-      {/* Header with decorative gradient background */}
-      {/* eslint-disable newwork-local/no-hardcoded-colors */}
-      <header
-        className="gba:relative"
-        style={{
-          backgroundColor: '#000021',
-          backgroundImage: `
-            radial-gradient(120% 120% at 72% 55%,
-              #0076d0 0%,
-              #0066c3 22%,
-              #0052b0 38%,
-              #003f9d 56%,
-              #002787 70%,
-              #001271 82%,
-              #000021 100%
-            ),
-            linear-gradient(110deg,
-              rgba(0, 0, 0, 0.92) 0%,
-              rgba(0, 0, 0, 0.00) 46%
-            )`,
-          backgroundRepeat: 'no-repeat',
-          backgroundSize: 'cover'
-        }}
-      >
+      {/* Hero: same visual weight as Space detail – entry page impact */}
+      <header className="gba:relative gba:overflow-hidden gba:min-h-96">
+        {hubUseVideo ? (
+          <video
+            src={hubVideoSrc}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="metadata"
+            className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
+            aria-hidden
+            data-testid="spaces-hub-video"
+          />
+        ) : (
+          <SpaceHeroBackground />
+        )}
+        {/* Overlay for text readability */}
+        {/* eslint-disable newwork-local/no-hardcoded-colors */}
+        <div
+          className="gba:absolute gba:inset-0 gba:pointer-events-none"
+          style={{
+            background: `linear-gradient(105deg, rgba(15, 23, 42, 0.38) 0%, rgba(15, 23, 42, 0.12) 40%, transparent 60%)`
+          }}
+          aria-hidden
+        />
         {/* eslint-enable newwork-local/no-hardcoded-colors */}
-        <div className="gba:max-w-7xl gba:mx-auto gba:px-6 gba:py-10">
-          {/* Title & CTA */}
-          <div className="gba:flex gba:items-center gba:justify-between gba:mb-8">
+        <div className="gba:relative gba:max-w-7xl gba:mx-auto gba:px-6 gba:pt-12 gba:pb-14">
+          {/* Title block – big and confident like Space detail */}
+          <div className="gba:flex gba:items-start gba:justify-between gba:gap-6 gba:mb-10">
             <div>
-              <h1 className="gba:text-3xl gba:font-semibold gba:text-white">Spaces</h1>
-              <p className="gba:text-sm gba:text-white/60 gba:mt-1">
-                {stats.total} space{stats.total !== 1 ? 's' : ''}
+              <h1 className="gba:font-funnel-display gba:text-4xl gba:sm:text-5xl gba:lg:text-6xl gba:font-semibold gba:text-white gba:tracking-tight gba:mb-3">
+                Spaces
+              </h1>
+              <p className="gba:text-lg gba:text-white/80 gba:max-w-xl gba:mb-6">
+                Collaborative workspaces for your team. Documents, notes, and spreadsheets in one place.
               </p>
+              <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-white/60">
+                <span data-testid={`${testId}-stat-total`}>
+                  {stats.total} space{stats.total !== 1 ? 's' : ''}
+                </span>
+                {stats.owned > 0 && (
+                  <span>
+                    {stats.owned} yours
+                    {stats.shared > 0 ? ` · ${stats.shared} shared with you` : ''}
+                  </span>
+                )}
+              </div>
             </div>
             <Button
+              size="lg"
               onClick={() => setCreateDialogOpen(true)}
-              className="gba:gap-2 gba:bg-white gba:text-primary hover:gba:bg-white/90"
+              className="spaces-hero-cta-btn gba:gap-2 gba:rounded-xl gba:bg-white gba:text-primary gba:shrink-0 gba:font-medium gba:transition-colors"
               data-testid={`${testId}-create-button`}
             >
-              <Plus className="gba:w-4 gba:h-4" />
+              <Plus className="gba:w-5 gba:h-5" />
               Create Space
             </Button>
           </div>
 
-          {/* Search & Filters */}
+          {/* Search & Filters – clear bar below the hero message */}
           <div className="gba:flex gba:flex-col gba:sm:flex-row gba:gap-4">
-            {/* Search */}
             <div className="gba:relative gba:flex-1">
               <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-white/50" />
               <Input
                 placeholder="Search spaces..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="gba:pl-9 gba:h-10 gba:bg-white/10 gba:border-white/20 gba:text-white placeholder:gba:text-white/50 focus:gba:border-white/40"
+                className="gba:pl-9 gba:h-11 gba:bg-white/10 gba:border-white/20 gba:text-white placeholder:gba:text-white/50 focus:gba:border-white/40"
                 data-testid={`${testId}-search`}
               />
             </div>
-
-            {/* Filter Tabs */}
-            <div className="gba:flex gba:gap-1 gba:p-1 gba:bg-white/10 gba:rounded-lg">
+            <div className="gba:flex gba:gap-1 gba:p-1 gba:bg-white/10 gba:rounded-xl gba:backdrop-blur-sm">
               {(['all', 'owned', 'shared'] as FilterType[]).map(f => (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:rounded-md gba:transition-colors ${
-                    filter === f ? 'gba:bg-white gba:text-primary' : 'gba:text-white/70 hover:gba:text-white'
+                  className={`gba:px-4 gba:py-2.5 gba:text-sm gba:font-medium gba:rounded-lg gba:transition-colors ${
+                    filter === f
+                      ? 'gba:bg-white gba:text-primary'
+                      : 'gba:text-white/80 hover:gba:text-white hover:gba:bg-white/15'
                   }`}
                   data-testid={`${testId}-filter-${f}`}
                 >

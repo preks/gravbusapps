@@ -1,0 +1,1 @@
+export { SlidesApiService } from './SlidesApiService'
