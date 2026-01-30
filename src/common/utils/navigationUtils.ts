@@ -93,10 +93,17 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/every-ai': 'platform/apps/every-ai',
   '/platform/debugger': 'platform/apps/debugger',
   '/platform/every-office': 'platform/apps/every-office',
+  '/platform/spaces': 'platform/apps/spaces',
   '/platform/apps/desk': 'platform/apps/desk',
   '/platform/apps/document-apps': 'platform/apps/document-apps',
   '/platform/apps/note-apps': 'platform/apps/note-apps',
   '/platform/apps/spreadsheet-apps': 'platform/apps/spreadsheet-apps',
+  '/platform/slides': 'platform/apps/slide-apps',
+
+  // Canonical URLs for content apps (production-ready)
+  '/platform/documents': 'platform/apps/document-apps',
+  '/platform/notes': 'platform/apps/note-apps',
+  '/platform/spreadsheets': 'platform/apps/spreadsheet-apps',
 
   // Create
   '/platform/create': 'core/create/apps/create-workspace',
@@ -112,6 +119,9 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/crm/lead-list': 'crm/common/apps/lead-list',
   '/platform/irm/liquid-portfolio-record': 'crm/investments/apps/liquid-portfolio-record'
 }
+
+/** Canonical platform path for Every Office (Desk hub). Use with navigateTo(). */
+export const EVERY_OFFICE_PLATFORM_PATH = '/platform/every-office'
 
 /**
  * Checks if a URL is a platform URL that should be mapped to app query parameters
@@ -264,4 +274,23 @@ export const buildPlatformUrl = (basePath: string, params?: Record<string, strin
 
   const queryString = new URLSearchParams(params).toString()
   return `${basePath}?${queryString}`
+}
+
+/**
+ * Get canonical URL for content apps (for sharing notifications, etc.)
+ * Always returns production-style URLs regardless of environment
+ */
+export const getCanonicalContentUrl = (
+  type: 'document' | 'spreadsheet' | 'note' | 'slide',
+  params?: Record<string, string>
+): string => {
+  const baseUrls = {
+    document: '/platform/documents',
+    spreadsheet: '/platform/spreadsheets',
+    note: '/platform/notes',
+    slide: '/platform/slides'
+  }
+
+  const basePath = baseUrls[type]
+  return buildPlatformUrl(basePath, params)
 }

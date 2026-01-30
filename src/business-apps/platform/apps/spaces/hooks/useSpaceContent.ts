@@ -15,6 +15,7 @@ export interface UseSpaceContentResult {
   documents: SpaceContentItem[]
   notes: SpaceContentItem[]
   spreadsheets: SpaceContentItem[]
+  slides: SpaceContentItem[]
   allContent: SpaceContentItem[]
   isLoading: boolean
   error: string | null
@@ -38,6 +39,7 @@ export function useSpaceContent(
   const [documents, setDocuments] = useState<SpaceContentItem[]>([])
   const [notes, setNotes] = useState<SpaceContentItem[]>([])
   const [spreadsheets, setSpreadsheets] = useState<SpaceContentItem[]>([])
+  const [slides, setSlides] = useState<SpaceContentItem[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -61,6 +63,7 @@ export function useSpaceContent(
         setDocuments([])
         setNotes([])
         setSpreadsheets([])
+        setSlides([])
         return
       }
 
@@ -70,14 +73,16 @@ export function useSpaceContent(
       const docs: SpaceContentItem[] = []
       const notesItems: SpaceContentItem[] = []
       const sheets: SpaceContentItem[] = []
+      const slidesItems: SpaceContentItem[] = []
 
       const items = Array.isArray(data) ? data : []
 
       for (const item of items) {
         // Map entityType to frontend type
-        let type: 'document' | 'note' | 'spreadsheet' = 'document'
+        let type: 'document' | 'note' | 'spreadsheet' | 'slide' = 'document'
         if (item.entityType === 'note') type = 'note'
         else if (item.entityType === 'spreadsheet_app' || item.entityType === 'spreadsheet') type = 'spreadsheet'
+        else if (item.entityType === 'slide') type = 'slide'
         else if (item.entityType === 'document') type = 'document'
 
         const contentItem: SpaceContentItem = {
@@ -101,12 +106,16 @@ export function useSpaceContent(
           case 'spreadsheet':
             sheets.push(contentItem)
             break
+          case 'slide':
+            slidesItems.push(contentItem)
+            break
         }
       }
 
       setDocuments(docs)
       setNotes(notesItems)
       setSpreadsheets(sheets)
+      setSlides(slidesItems)
     } catch (err) {
       console.error('[useSpaceContent] Fetch error:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch content')
@@ -123,7 +132,7 @@ export function useSpaceContent(
   }, [spaceId, accessToken, space?.updatedAt, fetchContent])
 
   // Compute all content sorted by update time
-  const allContent = [...documents, ...notes, ...spreadsheets].sort(
+  const allContent = [...documents, ...notes, ...spreadsheets, ...slides].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
   )
 
@@ -137,7 +146,8 @@ export function useSpaceContent(
       try {
         setIsLoading(true)
         // Map content type to backend entity type
-        const entityType = input.contentType === 'spreadsheet' ? 'spreadsheet_app' : input.contentType
+        const entityType =
+          input.contentType === 'spreadsheet' ? 'spreadsheet_app' : input.contentType
 
         const response = await fetch(`${API_URL}/spaces/${spaceId}/content`, {
           method: 'POST',
@@ -182,7 +192,8 @@ export function useSpaceContent(
       try {
         setIsLoading(true)
         // Map content type to backend entity type
-        const backendEntityType = entityType === 'spreadsheet' ? 'spreadsheet_app' : entityType
+        const backendEntityType =
+          entityType === 'spreadsheet' ? 'spreadsheet_app' : entityType
 
         const response = await fetch(`${API_URL}/spaces/${spaceId}/content/${backendEntityType}/${entityId}`, {
           method: 'DELETE',
@@ -215,6 +226,7 @@ export function useSpaceContent(
     documents,
     notes,
     spreadsheets,
+    slides,
     allContent,
     isLoading,
     error,

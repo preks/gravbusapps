@@ -19,22 +19,21 @@ import {
   Input,
   Textarea,
   Label,
-  Badge,
   Spinner,
   Avatar,
   AvatarImage,
   AvatarFallback,
-  Checkbox,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { Share2, Search, User, X, CheckCircle, AlertCircle, Eye, Pencil, MessageSquare } from 'lucide-react'
+import { Share2, Search, X, CheckCircle, AlertCircle, Eye, Pencil, MessageSquare } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { env } from '@/common/env/EnvUtils'
+import { getCanonicalContentUrl } from '@/common/utils/navigationUtils'
 
 export interface ShareDocumentDialogProps {
   open: boolean
@@ -89,15 +88,14 @@ const sendShareNotification = async (
     const timestamp = Date.now()
     const blinkGroupId = `doc_share_${timestamp}_${payload.initiatorId}`
 
-    // Build the document URL
-    const documentUrl = `/platform/apps/document-apps?docId=${payload.documentId}&view=editor`
+    // Build the document URL using canonical URL
+    const documentUrl = getCanonicalContentUrl('document', { docId: payload.documentId, view: 'editor' })
 
     for (const recipient of payload.recipients) {
-      const { userId, userName, permission } = recipient
+      const { userId, permission } = recipient
 
       // Permission label for the message
-      const permissionLabel =
-        permission === 'edit' ? 'edit' : permission === 'comment' ? 'view and comment on' : 'view'
+      const permissionLabel = permission === 'edit' ? 'edit' : permission === 'comment' ? 'view and comment on' : 'view'
 
       // Build entity link
       const entityLink = {
@@ -180,34 +178,6 @@ const sendShareNotification = async (
   } catch (err) {
     console.error('[ShareDocument] Error sending notifications:', err)
     return { success: false, error: err instanceof Error ? err.message : 'Failed to send notifications' }
-  }
-}
-
-/**
- * Get permission icon
- */
-const PermissionIcon: React.FC<{ permission: Permission; className?: string }> = ({ permission, className }) => {
-  switch (permission) {
-    case 'edit':
-      return <Pencil className={className} />
-    case 'comment':
-      return <MessageSquare className={className} />
-    default:
-      return <Eye className={className} />
-  }
-}
-
-/**
- * Get permission label
- */
-const getPermissionLabel = (permission: Permission): string => {
-  switch (permission) {
-    case 'edit':
-      return 'Can edit'
-    case 'comment':
-      return 'Can comment'
-    default:
-      return 'Can view'
   }
 }
 
@@ -613,7 +583,10 @@ export const ShareDocumentDialog: React.FC<ShareDocumentDialogProps> = ({
             <div className="gba:flex gba:items-start gba:gap-2 gba:p-3 gba:bg-primary/5 gba:rounded-md gba:text-sm">
               <Share2 className="gba:w-4 gba:h-4 gba:text-primary gba:flex-shrink-0 gba:mt-0.5" />
               <div className="gba:text-muted-foreground">
-                <p>People you share with will receive a notification and can access the document based on their permission level.</p>
+                <p>
+                  People you share with will receive a notification and can access the document based on their
+                  permission level.
+                </p>
               </div>
             </div>
           </div>

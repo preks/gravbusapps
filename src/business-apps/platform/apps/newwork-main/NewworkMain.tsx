@@ -121,12 +121,9 @@ export const NewworkMain: React.FC<NewworkMainProps> = ({ 'data-testid': testId 
 
   return (
     <div className="gba:min-h-screen gba:bg-background" data-testid={testId}>
-      {/* Hero Section with Neural Network Background - scrolls together */}
+      {/* Hero Section with Neural Network Background */}
       <div className="gba:relative">
-        {/* Neural Network Background - positioned absolute within hero, scrolls with content */}
         <EnterpriseNeuralBackground height="100%" />
-
-        {/* Hero Content */}
         <div className="gba:relative gba:z-10">
           <HeroSection data-testid={`${testId}-hero`} />
         </div>
