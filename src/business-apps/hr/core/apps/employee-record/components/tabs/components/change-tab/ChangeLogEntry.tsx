@@ -1,7 +1,7 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { ChangeLogEntry as ChangeLogEntryType } from '../../ChangeLogTab'
-import { FIELD_CATEGORIES } from './constants'
+import { getFieldCategories } from './constants'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
 
 interface ChangeLogEntryProps {
@@ -13,7 +13,9 @@ interface ChangeLogEntryProps {
 export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
   if (!entry.isVisible) return null
 
-  const categoryInfo = FIELD_CATEGORIES.find(cat => cat.value === entry.fieldCategory)
+  // Compute categories at runtime using useMemo to avoid module-level initialization
+  const fieldCategories = useMemo(() => getFieldCategories(), [])
+  const categoryInfo = fieldCategories.find(cat => cat.value === entry.fieldCategory)
 
   const [open, setOpen] = React.useState(false)
 
@@ -80,7 +82,7 @@ export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
                 })()}
                 <div className="gba:py-2 gba:px-1">
                   <p className="gba:text-base gba:font-semibold gba:text-foreground">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.labels.category', 'Category')}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.group_by.category', 'Category')}
                   </p>
                   <p className="gba:text-sm gba:text-foreground">{categoryInfo?.label || '-'}</p>
                 </div>
