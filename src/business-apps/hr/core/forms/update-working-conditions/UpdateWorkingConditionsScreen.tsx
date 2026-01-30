@@ -425,10 +425,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <DateInput
                 type="date"
                 value={endDate}
-                onChange={(value: string | [string | null, string | null] | null) => {
-                  const stringValue = typeof value === 'string' ? value : ''
-                  setEndDate(stringValue)
-                }}
+                onChange={(value: string | null) => setEndDate(value || '')}
                 disabled={!startDate || loading}
                 min={startDate || undefined}
                 outputFormat="iso"
