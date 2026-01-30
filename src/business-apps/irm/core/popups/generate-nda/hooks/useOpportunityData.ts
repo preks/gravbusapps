@@ -36,10 +36,6 @@ export interface OpportunityData {
       value: string
     }
   }>
-  account?: {
-    id: string
-    name: string
-  }
   opportunityAccounts: Array<{
     accountId: string
     accountTypeRef?: string
@@ -112,10 +108,6 @@ const OPPORTUNITY_QUERY = `
         country {
           value
         }
-      }
-      account {
-        id
-        name
       }
       opportunityAccounts(where: { isDeleted: { _eq: false } }) {
         accountId

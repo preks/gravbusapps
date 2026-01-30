@@ -23,6 +23,7 @@ interface MessageListProps {
   accessToken?: string
   onSendMessage?: (content: string, metadata?: Record<string, any>) => Promise<void>
   participants?: ConversationParticipant[]
+  compact?: boolean // Compact mode for in-call chat
 }
 
 /**
@@ -50,7 +51,8 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     onReplyToAI,
     accessToken,
     onSendMessage,
-    participants
+    participants,
+    compact = false
   }) => {
     // OPTIMIZATION: Call useTranslation once and memoize the result
     const t = useChatTranslation()
@@ -502,6 +504,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
                         previewLabel={previewLabel}
                         timestampRefreshKey={timestampRefreshKey}
                         aiInitiatedByCurrentUser={aiInitiatedByCurrentUser}
+                        compact={compact}
                       />
                     )
                   })

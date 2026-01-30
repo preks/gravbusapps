@@ -158,8 +158,8 @@ export class WorkflowStatusSyncService {
           if (progress.steps) {
             stepDetails = progress.steps.map((step: Record<string, unknown>, index: number) => ({
               index,
-              title: step.title as string || `Step ${index + 1}`,
-              type: step.type as WorkflowStepDetail['type'] || 'TASK',
+              title: (step.title as string) || `Step ${index + 1}`,
+              type: (step.type as WorkflowStepDetail['type']) || 'TASK',
               status: this.mapStepStatus(step.status as string),
               assignedTo: step.assignedTo as string,
               completedBy: step.completedBy as string,
@@ -195,7 +195,7 @@ export class WorkflowStatusSyncService {
     resultMappings: ResultMapping[],
     currentRowData: Record<string, unknown>
   ): Promise<CallbackHandlerResult> {
-    const { workflowId, status, outputData, tags } = payload
+    const { status, outputData, tags } = payload
     const { rowId } = tags
 
     try {
@@ -296,10 +296,7 @@ export class WorkflowStatusSyncService {
   /**
    * Start polling for workflow status updates
    */
-  startPolling(
-    params: SyncWorkflowStatusesParams,
-    onUpdate: (links: WorkflowRowLink[]) => void
-  ): void {
+  startPolling(params: SyncWorkflowStatusesParams, onUpdate: (links: WorkflowRowLink[]) => void): void {
     if (this.isPolling) {
       return
     }

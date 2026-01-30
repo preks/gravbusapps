@@ -215,11 +215,7 @@ export const AutomationCard: React.FC<AutomationCardProps> = ({
           {/* Right: Actions */}
           <div className="gba:flex gba:items-center gba:gap-2">
             {onToggle && (
-              <Switch
-                checked={automation.isEnabled}
-                onCheckedChange={onToggle}
-                aria-label="Toggle automation"
-              />
+              <Switch checked={automation.isEnabled} onCheckedChange={onToggle} aria-label="Toggle automation" />
             )}
 
             {automation.trigger === 'manual' && onRun && (

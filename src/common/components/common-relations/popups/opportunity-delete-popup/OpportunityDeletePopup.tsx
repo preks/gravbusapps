@@ -3,8 +3,8 @@ import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { createRedirectAfterDelete } from '../utils/redirectAfterDelete'
 import { renderLoadingState, renderErrorState, renderDeleteWarning } from '../utils/deletePopupHelpers'
+import { useDeleteRedirect } from '../utils/useDeleteRedirect'
 import type { Opportunity } from '@/common/data/relations/types/opportunityTypes'
 
 export interface OpportunityDeletePopupValues {
@@ -70,6 +70,14 @@ const OpportunityDeletePopup: React.FC<OpportunityDeletePopupProps> = ({
     return null
   }
 
+  // Setup redirect after delete (if on record page)
+  useDeleteRedirect({
+    domain,
+    entityType: 'opportunities',
+    recordUrlPattern: '/opportunity-record',
+    additionalData: props.additionalData
+  })
+
   if (loading) {
     return renderLoadingState(prefixDataTestId, 'opportunity')
   }
@@ -107,7 +115,6 @@ const OpportunityDeletePopup: React.FC<OpportunityDeletePopupProps> = ({
       validateForm={validateForm}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.delete', 'Delete')}
       submitButtonVariant="destructive"
-      onProcessCompletion={createRedirectAfterDelete(domain, 'opportunities')}
       data-testid={formatDataTestId(prefixDataTestId, 'form')}
     >
       <div className="gba:space-y-4" data-testid={formatDataTestId(prefixDataTestId, 'container')}>

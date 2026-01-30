@@ -105,6 +105,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     backgroundEnabled: false,
     handRaised: false,
     remoteHandsRaised: {},
+    handRaisedOrder: {},
     startTime: null,
     duration: 0,
     callImplementation: 'realtime-kit'
@@ -201,7 +202,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     currentUser,
     localStream: media.localStream,
     callStatus: callState.status,
-    emitSocketEvent: websocket.emitSocketEvent
+    emitSocketEvent: websocket.emitSocketEvent,
+    cleanupParticipantHandState: websocket.cleanupParticipantHandState
   })
 
   // Diagnostics and monitoring
@@ -256,8 +258,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   }
 
   // Combined call state for compatibility
-  const combinedCallState: GroupCallUIState = useMemo(
-    () => ({
+  const combinedCallState: GroupCallUIState = useMemo(() => {
+    const state = {
       roomId: callState.roomId,
       callType: callState.callType,
       status: callState.status,
@@ -269,31 +271,41 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       backgroundEnabled: media.backgroundEnabled,
       handRaised: websocket.handRaised,
       remoteHandsRaised: websocket.remoteHandsRaised || {},
+      handRaisedOrder: websocket.handRaisedOrder || {},
       participants: participantsHook.participants,
       hostId: callState.hostId,
       startTime: callState.callStartTime,
       duration: callState.duration,
-      callImplementation: 'realtime-kit'
-    }),
-    [
-      callState.roomId,
-      callState.callType,
-      callState.status,
-      callState.isMinimized,
-      callState.hostId,
-      callState.callStartTime,
-      // CRITICAL: callState.duration REMOVED - it updates every second and would cause
-      // combinedCallState to be recreated every second, triggering re-renders
-      media.isMuted,
-      media.isVideoEnabled,
-      screenShare.isScreenSharing,
-      media.videoQuality,
-      media.backgroundEnabled,
-      websocket.handRaised,
-      websocket.remoteHandsRaised,
-      participantsHook.participants
-    ]
-  )
+      callImplementation: 'realtime-kit' as const
+    }
+
+    rtkDebug.log('[RTK] 🔄 combinedCallState recomputed:', {
+      handRaised: state.handRaised,
+      remoteHandsRaisedKeys: Object.keys(state.remoteHandsRaised),
+      remoteHandsRaisedValues: state.remoteHandsRaised,
+      handRaisedOrderKeys: Object.keys(state.handRaisedOrder)
+    })
+
+    return state
+  }, [
+    callState.roomId,
+    callState.callType,
+    callState.status,
+    callState.isMinimized,
+    callState.hostId,
+    callState.callStartTime,
+    // CRITICAL: callState.duration REMOVED - it updates every second and would cause
+    // combinedCallState to be recreated every second, triggering re-renders
+    media.isMuted,
+    media.isVideoEnabled,
+    screenShare.isScreenSharing,
+    media.videoQuality,
+    media.backgroundEnabled,
+    websocket.handRaised,
+    websocket.remoteHandsRaised,
+    websocket.handRaisedOrder,
+    participantsHook.participants
+  ])
 
   /**
    * Start the duration timer - updates every second
@@ -335,7 +347,13 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
    * Start a new call
    */
   const startCall = useCallback(
-    async (conversationId: string, callType: CallType, participants: CallParticipant[], conversationName?: string) => {
+    async (
+      conversationId: string,
+      callType: CallType,
+      participants: CallParticipant[],
+      conversationName?: string,
+      initialPreferences?: { micEnabled?: boolean; cameraEnabled?: boolean; backgroundEnabled?: boolean }
+    ) => {
       if (!currentUser || !apiClient) {
         rtkDebug.error('[RTK] Cannot start call: missing currentUser or apiClient')
         return
@@ -347,7 +365,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           callType,
           participantCount: participants.length,
           conversationName,
-          currentStatus: callState.status
+          currentStatus: callState.status,
+          initialPreferences
         })
 
         // CRITICAL: Check if we were idle BEFORE changing state
@@ -387,20 +406,35 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           conversationName
         })
 
-        // Initialize meeting with SDK
-        rtkDebug.log('[RTK] Initializing meeting with SDK...', {
+        // Initialize meeting with initial preferences
+        // Initiator defaults: audio=true, video=(depends on callType), background=true
+        const shouldEnableAudio = initialPreferences?.micEnabled ?? true
+        const shouldEnableVideo = initialPreferences?.cameraEnabled ?? callType === 'video'
+        const shouldEnableBackground = initialPreferences?.backgroundEnabled ?? true // ON by default for initiator
+
+        // Save background preference if explicitly provided (persists for future calls)
+        if (initialPreferences?.backgroundEnabled === undefined) {
+          // Initiator: save true as default
+          preferences.setBackgroundEnabled(true)
+        } else {
+          preferences.setBackgroundEnabled(initialPreferences.backgroundEnabled)
+        }
+
+        rtkDebug.log('[RTK] Initializing meeting with preferences:', {
           hasAuthToken: !!authToken,
           authTokenLength: authToken?.length,
           callType,
-          audioEnabled: true,
-          videoEnabled: callType === 'video'
+          audio: shouldEnableAudio,
+          video: shouldEnableVideo,
+          background: shouldEnableBackground,
+          fromPreferences: !!initialPreferences
         })
 
         const initializedMeeting = await initMeeting({
           authToken,
           defaults: {
-            audio: true,
-            video: callType === 'video'
+            audio: shouldEnableAudio,
+            video: shouldEnableVideo
           },
           overrides: {
             simulcastConfig: {
@@ -574,7 +608,13 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
    * Join an existing call
    */
   const joinCall = useCallback(
-    async (roomId: string, callType: CallType, meetingId?: string, conversationName?: string) => {
+    async (
+      roomId: string,
+      callType: CallType,
+      meetingId?: string,
+      conversationName?: string,
+      initialPreferences?: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled?: boolean }
+    ) => {
       if (!currentUser || !apiClient) {
         rtkDebug.error('[RTK] Cannot join call: missing currentUser or apiClient')
         return
@@ -586,7 +626,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           callType,
           meetingId: meetingId || 'will-generate',
           conversationName,
-          currentStatus: callState.status
+          currentStatus: callState.status,
+          preferences: initialPreferences
         })
 
         // When joining an existing meeting, we need to call addParticipant to get participant auth token
@@ -635,12 +676,30 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           willEnableVideo: callType === 'video'
         })
 
-        // Initialize meeting
+        // Initialize meeting with initial preferences
+        // If preferences provided from invite dialog, use those; otherwise use call type defaults
+        const shouldEnableAudio = initialPreferences?.micEnabled ?? true
+        const shouldEnableVideo = initialPreferences?.cameraEnabled ?? callType === 'video'
+        const shouldEnableBackground = initialPreferences?.backgroundEnabled ?? preferences.backgroundEnabled
+
+        // Save background preference if explicitly provided (persists for future calls)
+        if (initialPreferences?.backgroundEnabled !== undefined) {
+          preferences.setBackgroundEnabled(initialPreferences.backgroundEnabled)
+        }
+
+        rtkDebug.log('[RTK] Initializing meeting with preferences:', {
+          audio: shouldEnableAudio,
+          video: shouldEnableVideo,
+          background: shouldEnableBackground,
+          fromPreferences: !!initialPreferences,
+          callType
+        })
+
         const initializedMeeting = await initMeeting({
           authToken,
           defaults: {
-            audio: true,
-            video: callType === 'video'
+            audio: shouldEnableAudio,
+            video: shouldEnableVideo
           },
           overrides: {
             simulcastConfig: {
@@ -758,30 +817,36 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   /**
    * Accept incoming invite
    */
-  const acceptInvite = useCallback(async () => {
-    if (!incomingInvite) return
+  const acceptInvite = useCallback(
+    async (initialPreferences?: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => {
+      if (!incomingInvite) return
 
-    rtkDebug.log('[RTK] Accepting invite:', {
-      conversationId: incomingInvite.conversationId,
-      meetingId: incomingInvite.roomId,
-      callType: incomingInvite.callType,
-      conversationName: incomingInvite.conversationName,
-      from: incomingInvite.from.odName
-    })
+      rtkDebug.log('[RTK] Accepting invite with preferences:', {
+        conversationId: incomingInvite.conversationId,
+        meetingId: incomingInvite.roomId,
+        callType: incomingInvite.callType,
+        conversationName: incomingInvite.conversationName,
+        from: incomingInvite.from.odName,
+        preferences: initialPreferences
+      })
 
-    // CRITICAL: Call internal joinCall directly with proper IDs from invite
-    // - conversationId from invite.conversationId
-    // - meetingId from invite.roomId (backend meeting ID)
-    // - conversationName from invite.conversationName
-    // Don't use the wrapper because invite has all the info we need!
-    await joinCall(
-      incomingInvite.conversationId || incomingInvite.roomId, // conversationId
-      incomingInvite.callType,
-      incomingInvite.roomId, // meetingId (stored in roomId field of invite)
-      incomingInvite.conversationName // conversationName
-    )
-    setIncomingInvite(null)
-  }, [incomingInvite, joinCall])
+      // CRITICAL: Call internal joinCall directly with proper IDs from invite
+      // - conversationId from invite.conversationId
+      // - meetingId from invite.roomId (backend meeting ID)
+      // - conversationName from invite.conversationName
+      // - initial preferences from pre-call dialog (mic/camera/background)
+      // Don't use the wrapper because invite has all the info we need!
+      await joinCall(
+        incomingInvite.conversationId || incomingInvite.roomId, // conversationId
+        incomingInvite.callType,
+        incomingInvite.roomId, // meetingId (stored in roomId field of invite)
+        incomingInvite.conversationName, // conversationName
+        initialPreferences // initial mic/camera/background settings
+      )
+      setIncomingInvite(null)
+    },
+    [incomingInvite, joinCall]
+  )
 
   /**
    * Decline incoming invite
@@ -1140,16 +1205,45 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       })
     }
 
+    const handleDeclined = (data: { conversationId: string; meetingId: string; participantId: string }) => {
+      rtkDebug.log('[RTK] 📵 Participant declined invite:', data)
+
+      // Update pending invite status to 'declined'
+      participantsHook.handleDeclinedInvite(data.participantId, 'declined')
+    }
+
+    const handleNotAnswered = (data: {
+      conversationId: string
+      meetingId: string
+      participantId: string
+      participantName: string
+    }) => {
+      rtkDebug.log('[RTK] ⏱️ Participant did not answer invite:', data)
+
+      // Update pending invite status to 'not-answered'
+      participantsHook.handleDeclinedInvite(data.participantId, 'not-answered')
+
+      // If this is the current user's invite, dismiss it
+      if (currentUser && data.participantId === currentUser.id) {
+        rtkDebug.log('[RTK] ⏱️ Current user did not answer - dismissing invite')
+        setIncomingInvite(null)
+      }
+    }
+
     rtkDebug.log('[RTK] 🎧 Registering WebSocket listeners')
 
     socket.on('rtk-group-call:invite', handleInvite)
     socket.on('rtk-group-call:ended', handleCallEnded)
+    socket.on('rtk-group-call:declined', handleDeclined)
+    socket.on('rtk-group-call:not-answered', handleNotAnswered)
     socket.on('conversation:call-started', handleConversationCallStarted)
     socket.on('conversation:call-ended', handleConversationCallEnded)
 
     return () => {
       socket.off('rtk-group-call:invite', handleInvite)
       socket.off('rtk-group-call:ended', handleCallEnded)
+      socket.off('rtk-group-call:declined', handleDeclined)
+      socket.off('rtk-group-call:not-answered', handleNotAnswered)
       socket.off('conversation:call-started', handleConversationCallStarted)
       socket.off('conversation:call-ended', handleConversationCallEnded)
     }
@@ -1263,7 +1357,20 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
   /**
    * Stable callbacks - wrap in useCallback to prevent re-creating on every render
+   * CRITICAL: These wrappers prevent video element destruction/recreation
    */
+  const stableToggleMute = useCallback(() => {
+    return media.toggleMute()
+  }, [media.toggleMute])
+
+  const stableToggleVideo = useCallback(() => {
+    return media.toggleVideo()
+  }, [media.toggleVideo])
+
+  const stableToggleBackground = useCallback(() => {
+    return media.toggleBackground()
+  }, [media.toggleBackground])
+
   const stableToggleRaiseHand = useCallback(async () => {
     // Pass the current hand raised state from callState, not websocket.handRaised
     return await websocket.toggleRaiseHand(combinedCallState.handRaised)
@@ -1367,12 +1474,12 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     acceptInvite,
     declineInvite,
     leaveCall,
-    toggleMute: media.toggleMute,
-    toggleVideo: media.toggleVideo,
+    toggleMute: stableToggleMute, // Stable callback - prevents video flashing
+    toggleVideo: stableToggleVideo, // Stable callback - prevents video flashing
     toggleScreenShare: screenShare.toggleScreenShare,
     setVideoQuality: media.setVideoQuality,
     toggleMinimize,
-    toggleBackground: media.toggleBackground,
+    toggleBackground: () => void stableToggleBackground(), // Stable callback - prevents video flashing
     toggleRaiseHand: stableToggleRaiseHand, // Stable callback
     sendReaction: websocket.sendReaction,
     inviteToCall: participantsHook.inviteToCall,

@@ -73,7 +73,9 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
     const urlParams = new URLSearchParams(window.location.search)
     cameFromDeskRef.current =
       referrer.includes('/platform/apps/desk') ||
+      referrer.includes('/platform/every-office') ||
       referrer.includes('?app=platform/apps/desk') ||
+      referrer.includes('?app=platform/apps/every-office') ||
       urlParams.get('from') === 'desk'
 
     if (cameFromDeskRef.current && currentView === 'list') {
@@ -88,7 +90,7 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
 
       // If we came from desk and there's no document, go back to desk.
       if (state?.fromDesk && !state?.docId && currentView === 'list') {
-        navigateTo('/platform/apps/desk')
+        navigateTo('/platform/every-office')
         return
       }
 

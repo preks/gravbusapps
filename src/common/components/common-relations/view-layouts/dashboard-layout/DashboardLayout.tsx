@@ -1,10 +1,27 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger, EmptyState } from '@newwork/nw-design-system'
 import { Home, PieChart as PieChartIcon } from 'lucide-react'
 import { OverviewTabLayout, OverviewTabLayoutProps } from './overview/OverviewTabLayout'
 import { PipelineTabLayout, PipelineTabLayoutProps } from './pipeline/PipelineTabLayout'
 
 export type DashboardTabKey = 'overview' | 'pipeline-details' | string
+
+// Valid tab values for URL parameter
+const VALID_TABS = new Set<DashboardTabKey>(['overview', 'pipeline-details'])
+
+// Initialize tab state from URL parameter
+const getInitialTabFromUrl = (): DashboardTabKey | null => {
+  if (typeof globalThis.window === 'undefined') return null
+
+  const urlParams = new URLSearchParams(globalThis.window.location.search)
+  const tab = urlParams.get('tab')
+
+  if (tab && VALID_TABS.has(tab)) {
+    return tab
+  }
+
+  return null // Return null if no valid tab in URL
+}
 
 export interface DashboardLayoutProps {
   header?: React.ReactNode
@@ -60,10 +77,49 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     return items
   }, [overviewProps, pipelineProps, moduleColor])
 
-  const [activeTab, setActiveTab] = useState<string>(initialTab || tabs[0]?.key || '')
+  // Initialize active tab from URL parameter, fallback to initialTab or first available tab
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const urlTab = getInitialTabFromUrl()
+    return urlTab || initialTab || tabs[0]?.key || ''
+  })
 
   // Check if there's no data to display
   const hasNoData = !overviewProps && !pipelineProps
+
+  // Update URL when tab changes (bookmarkable tabs)
+  const updateUrl = useCallback((tab: string) => {
+    if (typeof globalThis.window === 'undefined') return
+
+    const urlParams = new URLSearchParams(globalThis.window.location.search)
+    urlParams.set('tab', tab)
+    const newUrl = `${globalThis.window.location.pathname}?${urlParams.toString()}`
+    globalThis.window.history.replaceState({}, '', newUrl)
+  }, [])
+
+  // Set initial URL parameter if missing (runs once on mount)
+  useEffect(() => {
+    if (typeof globalThis.window === 'undefined') return
+
+    const urlParams = new URLSearchParams(globalThis.window.location.search)
+    if (!urlParams.has('tab') && activeTab) {
+      updateUrl(activeTab)
+    }
+  }, [activeTab, updateUrl])
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    if (typeof globalThis.window === 'undefined') return
+
+    const handlePopState = () => {
+      const newTab = getInitialTabFromUrl()
+      if (newTab) {
+        setActiveTab(newTab)
+      }
+    }
+
+    globalThis.window.addEventListener('popstate', handlePopState)
+    return () => globalThis.window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   if (hasNoData) {
     return (
@@ -81,6 +137,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
   const handleTabChange = (key: string) => {
     setActiveTab(key)
+    updateUrl(key)
     onTabChange?.(key)
   }
 

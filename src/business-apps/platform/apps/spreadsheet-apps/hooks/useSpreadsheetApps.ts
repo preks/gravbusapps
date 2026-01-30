@@ -144,13 +144,17 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
         // Use permission from API response (already mapped: admin -> owner)
         const isOwner = app.createdBy === userId
         const backendPermission = app.permission
-        const resolvedPermission: 'owner' | 'edit' | 'view' | null = 
-          isOwner ? 'owner' : 
-          backendPermission === 'owner' ? 'owner' :
-          backendPermission === 'admin' ? 'owner' :
-          backendPermission === 'edit' ? 'edit' : 
-          backendPermission === 'view' ? 'view' : 
-          null
+        const resolvedPermission: 'owner' | 'edit' | 'view' | null = isOwner
+          ? 'owner'
+          : backendPermission === 'owner'
+            ? 'owner'
+            : backendPermission === 'admin'
+              ? 'owner'
+              : backendPermission === 'edit'
+                ? 'edit'
+                : backendPermission === 'view'
+                  ? 'view'
+                  : null
 
         console.log('[useSpreadsheetApps] loadApp:', {
           id,
@@ -367,7 +371,8 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
             await SpreadsheetApiService.updateRow(appId, sheetId, rowId, row)
           } else {
             // Remove the local non-UUID _id before adding via API
-            const { _id: _, ...rowWithoutId } = row
+            const rowWithoutId = { ...row }
+            delete (rowWithoutId as Record<string, unknown>)._id
             await SpreadsheetApiService.addRow(appId, sheetId, rowWithoutId)
           }
         }
@@ -414,11 +419,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
             currentApp: prev.currentApp
               ? {
                   ...prev.currentApp,
-                  sheets: prev.currentApp.sheets.map(s => 
-                    s.id === sheetId 
-                      ? { ...s, ...updatedSheet }
-                      : s
-                  )
+                  sheets: prev.currentApp.sheets.map(s => (s.id === sheetId ? { ...s, ...updatedSheet } : s))
                 }
               : null
           }))

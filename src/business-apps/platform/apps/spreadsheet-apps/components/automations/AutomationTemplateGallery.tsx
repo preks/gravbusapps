@@ -54,9 +54,7 @@ export interface AutomationTemplateGalleryProps {
   /** Callback to close the dialog */
   onClose: () => void
   /** Callback when a template is selected */
-  onSelectTemplate: (
-    automation: Omit<SpreadsheetAutomation, 'id' | 'createdAt' | 'updatedAt' | 'runCount'>
-  ) => void
+  onSelectTemplate: (automation: Omit<SpreadsheetAutomation, 'id' | 'createdAt' | 'updatedAt' | 'runCount'>) => void
   /** Data test ID */
   'data-testid'?: string
 }
@@ -115,9 +113,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, isSelected, onSel
   return (
     <Card
       className={`gba:cursor-pointer gba:transition-all gba:h-full ${
-        isSelected
-          ? 'gba:border-primary gba:ring-2 gba:ring-primary/20'
-          : 'gba:hover:border-primary/50'
+        isSelected ? 'gba:border-primary gba:ring-2 gba:ring-primary/20' : 'gba:hover:border-primary/50'
       }`}
       onClick={onSelect}
     >
@@ -138,15 +134,11 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, isSelected, onSel
               </Badge>
             </div>
           </div>
-          {template.isFeatured && (
-            <Star className="gba:w-4 gba:h-4 gba:text-warning gba:fill-warning" />
-          )}
+          {template.isFeatured && <Star className="gba:w-4 gba:h-4 gba:text-warning gba:fill-warning" />}
         </div>
       </CardHeader>
       <CardContent>
-        <CardDescription className="gba:text-sm gba:line-clamp-2 gba:mb-3">
-          {template.description}
-        </CardDescription>
+        <CardDescription className="gba:text-sm gba:line-clamp-2 gba:mb-3">{template.description}</CardDescription>
 
         {template.useCases && template.useCases.length > 0 && (
           <div className="gba:flex gba:flex-wrap gba:gap-1">
@@ -235,9 +227,7 @@ export const AutomationTemplateGallery: React.FC<AutomationTemplateGalleryProps>
             <Zap className="gba:w-5 gba:h-5 gba:text-primary" />
             Automation Templates
           </DialogTitle>
-          <DialogDescription>
-            Choose a pre-built template to quickly set up your automation.
-          </DialogDescription>
+          <DialogDescription>Choose a pre-built template to quickly set up your automation.</DialogDescription>
         </DialogHeader>
 
         {/* Search */}
@@ -277,9 +267,7 @@ export const AutomationTemplateGallery: React.FC<AutomationTemplateGalleryProps>
                   <Zap className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:opacity-50" />
                   <p className="gba:text-lg gba:font-medium">No templates found</p>
                   <p className="gba:text-sm gba:mt-1">
-                    {searchQuery
-                      ? 'Try a different search term'
-                      : 'No templates available in this category'}
+                    {searchQuery ? 'Try a different search term' : 'No templates available in this category'}
                   </p>
                 </div>
               ) : (
@@ -304,9 +292,7 @@ export const AutomationTemplateGallery: React.FC<AutomationTemplateGalleryProps>
             <div className="gba:flex gba:items-start gba:gap-4">
               <div className="gba:flex-1">
                 <h3 className="gba:font-semibold">{selectedTemplate.name}</h3>
-                <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-                  {selectedTemplate.description}
-                </p>
+                <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{selectedTemplate.description}</p>
                 {selectedTemplate.requiredColumns && selectedTemplate.requiredColumns.length > 0 && (
                   <div className="gba:mt-2">
                     <span className="gba:text-xs gba:text-muted-foreground">Required columns: </span>
