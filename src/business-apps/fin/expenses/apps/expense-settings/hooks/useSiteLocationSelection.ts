@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { DEV_STRUCTURE_ID } from './constants'
 
 export interface SiteLocationOption {
   id: string
@@ -82,8 +83,6 @@ export const useSiteLocationSelection = (
       }))
 
       try {
-        // NEWWORK DEV structureId for local development fallback
-        const DEV_STRUCTURE_ID = '99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf'
         const structureId = getCurrentActiveStructureId() || DEV_STRUCTURE_ID
         console.log('📍 useSiteLocationSelection - structureId:', structureId)
 

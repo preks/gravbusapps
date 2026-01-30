@@ -150,13 +150,8 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
 
   // Get the first available order number for default
   const firstAvailableOrder = useMemo(() => {
-    return availableOrderNumbers.length > 0 ? parseInt(availableOrderNumbers[0].value, 10) : 1
+    return availableOrderNumbers.length > 0 ? Number.parseInt(availableOrderNumbers[0].value, 10) : 1
   }, [availableOrderNumbers])
-
-  // Feature flag guard
-  if (isDevEnabled === false) {
-    return null
-  }
 
   // Load catalog data
   const loadCatalogs = useCallback(async () => {
@@ -297,7 +292,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   useEffect(() => {
     if (!isEditing && !initialData && availableOrderNumbers.length > 0) {
       const currentOrder = form.getValues('assignmentOrder')
-      const isCurrentOrderAvailable = availableOrderNumbers.some(opt => parseInt(opt.value, 10) === currentOrder)
+      const isCurrentOrderAvailable = availableOrderNumbers.some(opt => Number.parseInt(opt.value, 10) === currentOrder)
       if (!isCurrentOrderAvailable) {
         form.setValue('assignmentOrder', firstAvailableOrder)
       }
@@ -317,7 +312,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
 
       const assignmentData: any = {
         ...(isEditing && initialData?.id ? { id: initialData.id } : {}),
-        ...(currentVersion !== undefined ? { version: currentVersion } : {}),
+        ...(currentVersion != null ? { version: currentVersion } : {}),
         assignmentOrder: data.assignmentOrder,
         cascading: data.cascading || false,
         applicants: data.applicants || false,
@@ -352,6 +347,11 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // Feature flag guard - must be after all hooks
+  if (isDevEnabled === false) {
+    return null
   }
 
   if (catalogsLoading) {
@@ -418,7 +418,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                               options={availableRules.map(rule => ({
                                 id: rule.id,
                                 value: rule.id,
-                                label: `${rule.code}${rule.name ? ` - ${rule.name}` : ''}`,
+                                label: rule.name ? `${rule.code} - ${rule.name}` : rule.code,
                                 name: rule.name || rule.code,
                                 code: rule.code
                               }))}
@@ -677,7 +677,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                                 'Select order'
                               )}
                               value={field.value ? String(field.value) : ''}
-                              onChange={val => field.onChange(val ? parseInt(val, 10) : firstAvailableOrder)}
+                              onChange={val => field.onChange(val ? Number.parseInt(val, 10) : firstAvailableOrder)}
                               options={availableOrderNumbers.map(opt => ({
                                 id: opt.value,
                                 value: opt.value,
