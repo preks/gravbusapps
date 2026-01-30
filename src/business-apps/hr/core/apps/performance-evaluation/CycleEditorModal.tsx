@@ -100,7 +100,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
       setStartDate('')
       setEndDate('')
       setFrequency('Annual')
-      setParticipantsState(defaultParticipantsState(undefined))
+      setParticipantsState(defaultParticipantsState())
       setSelectedScaleId(undefined)
       setSelectedValueIds([])
     }

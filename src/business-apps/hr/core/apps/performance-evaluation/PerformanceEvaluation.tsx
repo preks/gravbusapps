@@ -1,23 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import {
-  PageLayout,
-  Button,
-  Badge,
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  useTranslation,
-  toast,
-  Spinner
-} from '@newwork/nw-design-system'
-import { CalendarBlank, ListChecks, PencilSimple, Plus, Warning as WarningIcon } from '@phosphor-icons/react'
+import { PageLayout, useTranslation, toast } from '@newwork/nw-design-system'
+import { ListChecks } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { useFeature } from '@/common/hooks/useFeature'
@@ -26,41 +9,16 @@ import { usePerformanceCycles } from './hooks/usePerformanceCycles'
 import { useRatingScales } from './hooks/useRatingScales'
 import { useInsertRatingScale } from './hooks/useInsertRatingScale'
 import { useSavePerformanceCycle } from './hooks/useSavePerformanceCycle'
+import { deleteRatingScale } from './services/ratingScaleApi'
+import type { PerformanceCycle, RatingScale, ValueItemStored } from './types'
 import translations from './_i18n'
-import CycleEditorModal, {
-  CycleEditorValues,
-  EvaluationStage as EditorStage,
-  ParticipantType as EditorParticipantType,
-  FrequencyType as EditorFrequencyType
-} from './CycleEditorModal'
-import RatingScaleEditorModal, { RatingScaleValues } from './RatingScaleEditorModal'
-import ValuesEditorModal, { ValueEditorValues } from './ValuesEditorModal'
-
-type FrequencyType = 'Annual' | 'Quarterly' | 'Custom'
-type ParticipantType = 'Self' | 'Peer' | 'Manager' | 'Calibration' | 'Team'
-
-type CycleStatus = 'Active' | 'Upcoming' | 'Inactive'
-
-interface EvaluationStage {
-  id: string
-  type: ParticipantType
-  label: string
-}
-
-interface PerformanceCycle {
-  id: string
-  version?: number
-  name: string
-  startDate: string // ISO (yyyy-mm-dd)
-  endDate: string // ISO
-  frequency: FrequencyType
-  participants: ParticipantType[]
-  stages: EvaluationStage[]
-  status: CycleStatus
-  deactivated?: boolean
-  ratingScaleId?: string
-  valueIds?: string[]
-}
+import type { CycleEditorValues } from './CycleEditorModal'
+import type { EvaluationStage as EditorStage } from './CycleEditorModal'
+import type { RatingScaleValues } from './RatingScaleEditorModal'
+import type { ValueEditorValues } from './ValuesEditorModal'
+import { PerformanceCycles } from './tabs/PerformanceCycles'
+import { RatingScales } from './tabs/RatingScales'
+import { CompanyValues } from './tabs/CompanyValues'
 
 const STORAGE_KEY = 'hr.performance.cycles.v1'
 const RATING_SCALES_STORAGE_KEY = 'hr.performance.ratingScales.v1'
@@ -85,14 +43,6 @@ function saveCycles(cycles: PerformanceCycle[]) {
   }
 }
 
-// Stages feature removed
-
-interface RatingScale {
-  id: string
-  name: string
-  values: string[]
-}
-
 function loadRatingScales(): RatingScale[] {
   try {
     const raw = localStorage.getItem(RATING_SCALES_STORAGE_KEY)
@@ -112,13 +62,6 @@ function saveRatingScales(scales: RatingScale[]) {
   }
 }
 
-interface ValueItemStored {
-  id: string
-  title: string
-  description: string
-  active: boolean
-}
-
 function loadValues(): ValueItemStored[] {
   try {
     const raw = localStorage.getItem(VALUES_STORAGE_KEY)
@@ -130,31 +73,20 @@ function loadValues(): ValueItemStored[] {
   }
 }
 
-function computeStatus(cycle: Omit<PerformanceCycle, 'status'> & { deactivated?: boolean }): CycleStatus {
-  if (cycle.deactivated) return 'Inactive'
+function computeStatus(cycle: Omit<PerformanceCycle, 'status'> & { deactivated?: boolean }) {
+  if (cycle.deactivated) return 'Inactive' as const
   const today = new Date()
   const start = new Date(cycle.startDate)
   const end = new Date(cycle.endDate)
-  if (today < start) return 'Upcoming'
-  if (today >= start && today <= end) return 'Active'
-  return 'Inactive'
+  if (today < start) return 'Upcoming' as const
+  if (today >= start && today <= end) return 'Active' as const
+  return 'Inactive' as const
 }
 
 function makeId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}`
 }
 
-/** Display "1 star"/"2 stars" etc. as ★, ★★, … in the Rating Scales table. */
-function formatRatingScaleValueForDisplay(value: string): string {
-  const match = value.trim().match(/^(\d+)\s+stars?$/i)
-  if (match) {
-    const n = Math.max(0, Math.min(parseInt(match[1], 10), 10))
-    return '★'.repeat(n)
-  }
-  return value
-}
-
-// Tabs for the Performance Evaluation page (defined outside component to avoid redeclaration)
 enum PerformanceTabEnum {
   Cycles = 'cycles',
   RatingScales = 'rating-scales',
@@ -177,45 +109,35 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     refetch: refetchRatingScales
   } = useRatingScales(accessToken)
   const { saveRatingScale } = useInsertRatingScale(accessToken)
-  const { savePerformanceCycle, updateCycleActive } = useSavePerformanceCycle(accessToken)
+  const { savePerformanceCycle, updateCycleActive, deletePerformanceCycle } = useSavePerformanceCycle(accessToken)
 
-  // Show page only if dev.enabled feature flag is active
   if (!devFeatureFlag) {
     return null
   }
 
   const [cycles, setCycles] = useState<PerformanceCycle[]>([])
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editing, setEditing] = useState<PerformanceCycle | null>(null)
+  const [ratingScales, setRatingScales] = useState<RatingScale[]>([])
+  const [valuesStore, setValuesStore] = useState<ValueItemStored[]>([])
   const [activeTab, setActiveTab] = useState<PerformanceTabEnum>(PerformanceTabEnum.Cycles)
   const handleTabChange = (value: string) => setActiveTab(value as PerformanceTabEnum)
-  const [ratingScales, setRatingScales] = useState<RatingScale[]>([])
-  const [isScaleModalOpen, setIsScaleModalOpen] = useState(false)
-  const [editingScale, setEditingScale] = useState<RatingScale | null>(null)
-  const [valuesStore, setValuesStore] = useState<ValueItemStored[]>([])
 
-  // Load values from localStorage on mount
   useEffect(() => {
     setValuesStore(loadValues())
   }, [])
 
-  // Populate rating scales from Hasura API and merge with localStorage (local-only scales appended)
   const apiScaleIds = useMemo(() => new Set(apiRatingScales.map(s => s.id)), [apiRatingScales])
   useEffect(() => {
     if (!ratingScalesLoading) {
       const localOnly = loadRatingScales().filter(s => !apiScaleIds.has(s.id))
-      const merged: RatingScale[] = [...apiRatingScales, ...localOnly]
-      setRatingScales(merged)
+      setRatingScales([...apiRatingScales, ...localOnly])
     }
   }, [ratingScalesLoading, apiRatingScales, apiScaleIds])
 
-  // Populate cycles from Hasura API and merge with localStorage (local-only cycles appended)
   const apiCycleIds = useMemo(() => new Set(apiCycles.map(c => c.id)), [apiCycles])
   useEffect(() => {
     if (!cyclesLoading) {
       const localOnly = loadCycles().filter(c => !apiCycleIds.has(c.id))
-      const merged: PerformanceCycle[] = [...apiCycles, ...localOnly]
-      setCycles(merged)
+      setCycles([...apiCycles, ...localOnly])
     }
   }, [cyclesLoading, apiCycles, apiCycleIds])
 
@@ -236,9 +158,65 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   const pageTitle = t('title')
   const pageSubtitle = t('subtitle')
 
-  const handleEdit = (cycle: PerformanceCycle) => {
-    setEditing(cycle)
-    setIsModalOpen(true)
+  const handleSaveFromModal = async (values: CycleEditorValues) => {
+    if (accessToken) {
+      try {
+        await savePerformanceCycle(values)
+        await refetchCycles()
+        toast.success(
+          t('cycle-saved-to-database', { name: values.name }) ?? `Performance cycle "${values.name}" saved.`
+        )
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to save performance cycle'
+        toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
+        return
+      }
+    } else {
+      const base: Omit<PerformanceCycle, 'status'> = {
+        id: values.id || makeId('cycle'),
+        name: values.name,
+        startDate: values.startDate,
+        endDate: values.endDate,
+        frequency: values.frequency as PerformanceCycle['frequency'],
+        participants: values.participants as PerformanceCycle['participants'],
+        stages: (values.stages as EditorStage[]).map(s => ({
+          id: s.id,
+          type: s.type as PerformanceCycle['participants'][number],
+          label: s.label
+        })),
+        deactivated: false,
+        ratingScaleId: values.ratingScaleId,
+        valueIds: values.valueIds ?? []
+      }
+      const status = computeStatus(base)
+      const next: PerformanceCycle = { ...base, status }
+      setCycles(prev => {
+        const exists = prev.some(c => c.id === next.id)
+        return exists ? prev.map(c => (c.id === next.id ? next : c)) : [next, ...prev]
+      })
+    }
+  }
+
+  const handleActivate = async (cycleId: string) => {
+    const cycle = cycles.find(c => c.id === cycleId)
+    if (!cycle) return
+    if (accessToken) {
+      try {
+        await updateCycleActive(cycle, true)
+        await refetchCycles()
+        toast.success(t('cycle-activated-to-database', { name: cycle.name }) ?? `"${cycle.name}" activated.`)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to activate cycle'
+        toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
+        return
+      }
+    } else {
+      setCycles(prev =>
+        prev.map(c =>
+          c.id === cycleId ? { ...c, deactivated: false, status: computeStatus({ ...c, deactivated: false }) } : c
+        )
+      )
+    }
   }
 
   const handleDeactivate = async (cycleId: string) => {
@@ -259,75 +237,22 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     }
   }
 
-  const handleActivate = async (cycleId: string) => {
-    const cycle = cycles.find(c => c.id === cycleId)
-    if (!cycle) return
+  const handleDeleteCycle = async (cycle: PerformanceCycle) => {
     if (accessToken) {
       try {
-        await updateCycleActive(cycle, true)
+        await deletePerformanceCycle(cycle)
+        setCycles(prev => prev.filter(c => c.id !== cycle.id))
         await refetchCycles()
-        toast.success(t('cycle-activated-to-database', { name: cycle.name }) ?? `"${cycle.name}" activated.`)
+        toast.success(t('cycle-deleted-to-database', { name: cycle.name }) ?? `"${cycle.name}" deleted.`)
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to activate cycle'
+        const message = err instanceof Error ? err.message : 'Failed to delete cycle'
         toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
         return
       }
     } else {
-      setCycles(prev =>
-        prev.map(c =>
-          c.id === cycleId
-            ? {
-                ...c,
-                deactivated: false,
-                status: computeStatus({ ...c, deactivated: false })
-              }
-            : c
-        )
-      )
+      setCycles(prev => prev.filter(c => c.id !== cycle.id))
     }
   }
-
-  const handleSaveFromModal = async (values: CycleEditorValues) => {
-    if (accessToken) {
-      try {
-        await savePerformanceCycle(values)
-        await refetchCycles()
-        toast.success(
-          t('cycle-saved-to-database', { name: values.name }) ?? `Performance cycle "${values.name}" saved.`
-        )
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to save performance cycle'
-        toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
-        return
-      }
-    } else {
-      const base: Omit<PerformanceCycle, 'status'> = {
-        id: values.id || makeId('cycle'),
-        name: values.name,
-        startDate: values.startDate,
-        endDate: values.endDate,
-        frequency: values.frequency as FrequencyType,
-        participants: values.participants as ParticipantType[],
-        stages: (values.stages as EditorStage[]).map(s => ({
-          id: s.id,
-          type: s.type as ParticipantType,
-          label: s.label
-        })),
-        deactivated: false,
-        ratingScaleId: values.ratingScaleId,
-        valueIds: values.valueIds ?? []
-      }
-      const status = computeStatus(base)
-      const next: PerformanceCycle = { ...base, status }
-      setCycles(prev => {
-        const exists = prev.some(c => c.id === next.id)
-        return exists ? prev.map(c => (c.id === next.id ? next : c)) : [next, ...prev]
-      })
-    }
-    setEditing(null)
-  }
-
-  // Stages management tab removed as per requirements
 
   const handleSaveFromScaleModal = async (values: RatingScaleValues) => {
     const isNewScale = !values.id || values.id.startsWith('scale_')
@@ -358,20 +283,26 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
         return exists ? prev.map(s => (s.id === base.id ? base : s)) : [base, ...prev]
       })
     }
-    setEditingScale(null)
   }
 
-  const handleDeleteScale = (id: string) => {
-    setRatingScales(prev => prev.filter(s => s.id !== id))
+  const handleDeleteScale = async (scale: RatingScale) => {
+    if (accessToken) {
+      try {
+        await deleteRatingScale(accessToken, {
+          ratingScale: { id: scale.id, version: scale.version ?? 0 }
+        })
+        setRatingScales(prev => prev.filter(s => s.id !== scale.id))
+        await refetchRatingScales()
+        toast.success(t('scale-deleted-to-database', { name: scale.name }) ?? `Rating scale "${scale.name}" deleted.`)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to delete rating scale'
+        toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
+        return
+      }
+    } else {
+      setRatingScales(prev => prev.filter(s => s.id !== scale.id))
+    }
   }
-
-  const handleDeleteCycle = (cycleId: string) => {
-    setCycles(prev => prev.filter(c => c.id !== cycleId))
-  }
-
-  // Values handlers
-  const [isValuesModalOpen, setIsValuesModalOpen] = useState(false)
-  const [editingValue, setEditingValue] = useState<ValueItemStored | null>(null)
 
   const handleSaveFromValuesModal = (values: ValueEditorValues) => {
     const base: ValueItemStored = {
@@ -384,7 +315,6 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
       const exists = prev.some(v => v.id === base.id)
       return exists ? prev.map(v => (v.id === base.id ? base : v)) : [base, ...prev]
     })
-    setEditingValue(null)
   }
 
   const handleDeleteValue = (id: string) => {
@@ -396,353 +326,8 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   }
 
   const handleDeactivateValue = (id: string) => {
-    // Guard: prevent deactivation if value is used in any active cycle
-    const usedInActiveCycle = cycles.some(c => c.status === 'Active' && (c.valueIds ?? []).includes(id))
-    if (usedInActiveCycle) {
-      // Inform the user and abort
-      toast.warning(t('values-error-cannot-deactivate-active-cycle'), {
-        position: 'bottom-right',
-        className: 'gba:text-base',
-        icon: <WarningIcon size={18} weight="fill" className="gba:text-warning" />
-      })
-      return
-    }
     setValuesStore(prev => prev.map(v => (v.id === id ? { ...v, active: false } : v)))
   }
-
-  const renderTable = () => (
-    <Card>
-      <CardHeader>
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <CalendarBlank size={20} />
-            {t('tab-cycles')}
-          </CardTitle>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            {cyclesLoading && <Spinner className="gba:h-5 gba:w-5" data-testid="performance-cycles-loading" />}
-            <Button
-              variant="default"
-              onClick={() => {
-                if (ratingScales.length === 0) {
-                  toast.warning(t('cycles-error-no-rating-scales'), {
-                    position: 'bottom-right',
-                    className: 'gba:text-base',
-                    icon: <WarningIcon size={18} weight="fill" className="gba:text-warning" />
-                  })
-                }
-                setEditing(null)
-                setIsModalOpen(true)
-              }}
-              data-testid="performance-cycles-add-button"
-            >
-              <Plus className="gba:mr-2" size={16} />
-              {t('button-add')}
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {cyclesError && (
-          <div
-            className="gba:mb-4 gba:rounded-lg gba:bg-destructive/10 gba:px-4 gba:py-3 gba:text-destructive gba:text-sm"
-            data-testid="performance-cycles-error"
-          >
-            {cyclesError}
-          </div>
-        )}
-        <div className="gba:border gba:rounded-lg gba:overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="gba:w-[24px]"></TableHead>
-                <TableHead>{t('table-name')}</TableHead>
-                <TableHead>{t('table-dates')}</TableHead>
-                <TableHead>{t('table-type')}</TableHead>
-                <TableHead>{t('table-scale')}</TableHead>
-                <TableHead>{t('table-values')}</TableHead>
-                <TableHead>{t('table-participants')}</TableHead>
-                <TableHead>{t('table-status')}</TableHead>
-                <TableHead className="gba:text-right">{t('table-actions')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {cyclesLoading && cycles.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="gba:py-8 gba:text-center">
-                    <Spinner className="gba:mx-auto gba:h-8 gba:w-8" />
-                  </TableCell>
-                </TableRow>
-              ) : cycles.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="gba:text-center gba:text-muted-foreground">
-                    {t('empty-no-cycles')}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                cycles.map((c, i) => {
-                  const participants = c.participants.join(', ')
-                  const dates = `${c.startDate} → ${c.endDate}`
-                  const valueTitles =
-                    (c.valueIds ?? [])
-                      .map(id => valuesStore.find(v => v.id === id)?.title)
-                      .filter(Boolean)
-                      .join(', ') || '-'
-                  return (
-                    <TableRow key={c.id}>
-                      <TableCell>{i + 1}</TableCell>
-                      <TableCell className="gba:font-medium">{c.name}</TableCell>
-                      <TableCell>{dates}</TableCell>
-                      <TableCell>{c.frequency}</TableCell>
-                      <TableCell>
-                        {c.ratingScaleId ? ratingScales.find(s => s.id === c.ratingScaleId)?.name || '-' : '-'}
-                      </TableCell>
-                      <TableCell>{valueTitles}</TableCell>
-                      <TableCell>{participants}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={c.status === 'Active' ? 'success' : c.status === 'Upcoming' ? 'info' : 'secondary'}
-                        >
-                          {c.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="gba:text-right">
-                        <div className="gba:flex gba:justify-end gba:gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(c)} aria-label="Edit">
-                            <PencilSimple />
-                          </Button>
-                          {c.status === 'Inactive' ? (
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => handleActivate(c.id)}
-                              data-testid={`cycle-activate-${c.id}`}
-                            >
-                              {t('button-activate')}
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeactivate(c.id)}
-                              data-testid={`cycle-deactivate-${c.id}`}
-                            >
-                              {t('button-deactivate')}
-                            </Button>
-                          )}
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDeleteCycle(c.id)}
-                            data-testid={`cycle-delete-${c.id}`}
-                          >
-                            {t('button-delete')}
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
-  )
-
-  // Stages table removed
-
-  const renderRatingScalesTable = () => (
-    <Card>
-      <CardHeader>
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">{t('tab-rating-scales')}</CardTitle>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            {ratingScalesLoading && (
-              <Spinner className="gba:h-5 gba:w-5" data-testid="performance-rating-scales-loading" />
-            )}
-            <Button
-              variant="default"
-              onClick={() => {
-                setEditingScale(null)
-                setIsScaleModalOpen(true)
-              }}
-              data-testid="performance-rating-scales-add-button"
-            >
-              <Plus className="gba:mr-2" size={16} />
-              {t('button-add')}
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {ratingScalesError && (
-          <div
-            className="gba:mb-4 gba:rounded-lg gba:bg-destructive/10 gba:px-4 gba:py-3 gba:text-destructive gba:text-sm"
-            data-testid="performance-rating-scales-error"
-          >
-            {ratingScalesError}
-          </div>
-        )}
-        <div className="gba:border gba:rounded-lg gba:overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="gba:w-[24px]"></TableHead>
-                <TableHead>{t('table-name')}</TableHead>
-                <TableHead>{t('table-values')}</TableHead>
-                <TableHead className="gba:text-right">{t('table-actions')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {ratingScalesLoading && ratingScales.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="gba:py-8 gba:text-center">
-                    <Spinner className="gba:mx-auto gba:h-8 gba:w-8" />
-                  </TableCell>
-                </TableRow>
-              ) : ratingScales.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="gba:text-center gba:text-muted-foreground">
-                    {t('empty-no-rating-scales')}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                ratingScales.map((s, i) => (
-                  <TableRow key={s.id}>
-                    <TableCell>{i + 1}</TableCell>
-                    <TableCell className="gba:font-medium">{s.name}</TableCell>
-                    <TableCell>{s.values.map(formatRatingScaleValueForDisplay).join(', ')}</TableCell>
-                    <TableCell className="gba:text-right">
-                      <div className="gba:flex gba:justify-end gba:gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setEditingScale(s)
-                            setIsScaleModalOpen(true)
-                          }}
-                          aria-label="Edit Scale"
-                        >
-                          {t('button-edit')}
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDeleteScale(s.id)}
-                          aria-label="Delete Scale"
-                        >
-                          {t('button-delete')}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
-  )
-
-  const renderValuesTable = () => (
-    <Card>
-      <CardHeader>
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <CardTitle className="gba:flex gba:items-center gba:gap-2">{t('tab-values')}</CardTitle>
-          <Button
-            variant="default"
-            onClick={() => {
-              setEditingValue(null)
-              setIsValuesModalOpen(true)
-            }}
-            data-testid="performance-values-add-button"
-          >
-            <Plus className="gba:mr-2" size={16} />
-            {t('button-add')}
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="gba:border gba:rounded-lg gba:overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="gba:w-[24px]"></TableHead>
-                <TableHead>{t('field-title')}</TableHead>
-                <TableHead>{t('field-description')}</TableHead>
-                <TableHead>{t('table-status')}</TableHead>
-                <TableHead className="gba:text-right">{t('table-actions')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {valuesStore.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="gba:text-center gba:text-muted-foreground">
-                    {t('empty-no-values')}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                valuesStore.map((v, i) => (
-                  <TableRow key={v.id}>
-                    <TableCell>{i + 1}</TableCell>
-                    <TableCell className="gba:font-medium">{v.title}</TableCell>
-                    <TableCell>{v.description}</TableCell>
-                    <TableCell>
-                      <Badge variant={v.active ? 'success' : 'secondary'}>{v.active ? 'Active' : 'Inactive'}</Badge>
-                    </TableCell>
-                    <TableCell className="gba:text-right">
-                      <div className="gba:flex gba:justify-end gba:gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setEditingValue(v)
-                            setIsValuesModalOpen(true)
-                          }}
-                          aria-label="Edit Value"
-                        >
-                          {t('button-edit')}
-                        </Button>
-                        {v.active ? (
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDeactivateValue(v.id)}
-                            data-testid={`value-deactivate-${v.id}`}
-                          >
-                            {t('button-deactivate')}
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleActivateValue(v.id)}
-                            data-testid={`value-activate-${v.id}`}
-                          >
-                            {t('button-activate')}
-                          </Button>
-                        )}
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleDeleteValue(v.id)}
-                          data-testid={`value-delete-${v.id}`}
-                        >
-                          {t('button-delete')}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
-  )
 
   return (
     <div data-testid="performance-evaluation-container">
@@ -754,84 +339,48 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
           value: activeTab,
           onValueChange: handleTabChange,
           items: [
-            {
-              value: PerformanceTabEnum.Cycles,
-              label: t('tab-cycles')
-            },
-            {
-              value: PerformanceTabEnum.RatingScales,
-              label: t('tab-rating-scales')
-            },
-            {
-              value: PerformanceTabEnum.Values,
-              label: t('tab-values')
-            }
+            { value: PerformanceTabEnum.Cycles, label: t('tab-cycles') },
+            { value: PerformanceTabEnum.RatingScales, label: t('tab-rating-scales') },
+            { value: PerformanceTabEnum.Values, label: t('tab-values') }
           ]
         }}
         variant={MODULE_COLORS.HR}
         className="gba:min-h-screen gba:space-y-6"
       >
-        {activeTab === PerformanceTabEnum.Cycles && <div className="gba:space-y-6">{renderTable()}</div>}
-        {activeTab === PerformanceTabEnum.RatingScales && (
-          <div className="gba:space-y-6">{renderRatingScalesTable()}</div>
+        {activeTab === PerformanceTabEnum.Cycles && (
+          <PerformanceCycles
+            cycles={cycles}
+            cyclesLoading={cyclesLoading}
+            cyclesError={cyclesError}
+            ratingScales={ratingScales}
+            valuesStore={valuesStore}
+            onSaveFromModal={handleSaveFromModal}
+            onActivate={handleActivate}
+            onDeactivate={handleDeactivate}
+            onDeleteCycle={handleDeleteCycle}
+          />
         )}
-        {activeTab === PerformanceTabEnum.Values && <div className="gba:space-y-6">{renderValuesTable()}</div>}
+        {activeTab === PerformanceTabEnum.RatingScales && (
+          <RatingScales
+            ratingScales={ratingScales}
+            ratingScalesLoading={ratingScalesLoading}
+            ratingScalesError={ratingScalesError}
+            refetchRatingScales={refetchRatingScales}
+            onSaveFromScaleModal={handleSaveFromScaleModal}
+            onDeleteScale={handleDeleteScale}
+          />
+        )}
+        {activeTab === PerformanceTabEnum.Values && (
+          <CompanyValues
+            valuesStore={valuesStore}
+            cycles={cycles}
+            onSaveFromValuesModal={handleSaveFromValuesModal}
+            onDeleteValue={handleDeleteValue}
+            onActivateValue={handleActivateValue}
+            onDeactivateValue={handleDeactivateValue}
+          />
+        )}
       </PageLayout>
-      <CycleEditorModal
-        open={isModalOpen}
-        onOpenChange={open => setIsModalOpen(open)}
-        onSave={handleSaveFromModal}
-        initialValues={
-          editing
-            ? {
-                id: editing.id,
-                version: editing.version,
-                name: editing.name,
-                startDate: editing.startDate,
-                endDate: editing.endDate,
-                frequency:
-                  (String(editing.frequency).toUpperCase() === 'QUARTERLY'
-                    ? 'Quarterly'
-                    : String(editing.frequency).toUpperCase() === 'ANNUAL'
-                      ? 'Annual'
-                      : (editing.frequency as EditorFrequencyType)) ?? 'Annual',
-                participants: editing.participants as EditorParticipantType[],
-                stages: editing.stages as unknown as EditorStage[],
-                ratingScaleId: editing.ratingScaleId,
-                valueIds: editing.valueIds ?? []
-              }
-            : undefined
-        }
-      />
-      <RatingScaleEditorModal
-        open={isScaleModalOpen}
-        onOpenChange={open => setIsScaleModalOpen(open)}
-        onSave={handleSaveFromScaleModal}
-        initialValues={
-          editingScale
-            ? {
-                id: editingScale.id,
-                name: editingScale.name,
-                values: editingScale.values
-              }
-            : undefined
-        }
-      />
-      <ValuesEditorModal
-        open={isValuesModalOpen}
-        onOpenChange={open => setIsValuesModalOpen(open)}
-        onSave={handleSaveFromValuesModal}
-        initialValues={
-          editingValue
-            ? {
-                id: editingValue.id,
-                title: editingValue.title,
-                description: editingValue.description,
-                active: editingValue.active
-              }
-            : undefined
-        }
-      />
     </div>
   )
 }

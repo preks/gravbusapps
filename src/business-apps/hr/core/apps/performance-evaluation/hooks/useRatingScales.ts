@@ -8,6 +8,7 @@ import {
 
 export interface RatingScaleFromApi {
   id: string
+  version: number
   name: string
   values: string[]
 }
@@ -20,6 +21,7 @@ function mapApiScaleToUi(api: RatingScaleApi): RatingScaleFromApi {
       .filter(Boolean) ?? []
   return {
     id: api.id,
+    version: api.version ?? 0,
     name: api.name ?? '',
     values
   }

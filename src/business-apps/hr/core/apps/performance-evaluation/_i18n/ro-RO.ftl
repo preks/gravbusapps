@@ -77,9 +77,11 @@ frequency-custom = Personalizat
 # Tabel scale de evaluare
 empty-no-rating-scales = Nu există încă scale de evaluare definite.
 scale-saved-to-database = Scala de evaluare "{ $name }" a fost salvată.
+scale-deleted-to-database = Scala de evaluare "{ $name }" a fost ștearsă.
 cycle-saved-to-database = Ciclul de performanță "{ $name }" a fost salvat.
 cycle-activated-to-database = "{ $name }" a fost activat.
 cycle-deactivated-to-database = "{ $name }" a fost dezactivat.
+cycle-deleted-to-database = "{ $name }" a fost șters.
 table-values = Valori
 button-edit = Editează
 

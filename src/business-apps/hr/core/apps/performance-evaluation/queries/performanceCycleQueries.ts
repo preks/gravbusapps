@@ -50,6 +50,7 @@ export const GET_RATING_SCALES = /* GraphQL */ `
   query GetRatingScales {
     RatingScale(where: { isDeleted: { _eq: false } }, orderBy: [{ name: ASC }]) {
       id
+      version
       name
       description
       scaleType
@@ -72,6 +73,7 @@ export interface RatingScaleValueApi {
 
 export interface RatingScaleApi {
   id: string
+  version: number | null
   name: string | null
   description: string | null
   scaleType: string | null

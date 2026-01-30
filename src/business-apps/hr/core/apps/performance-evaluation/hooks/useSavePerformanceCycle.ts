@@ -2,10 +2,12 @@ import { useCallback } from 'react'
 import {
   savePerformanceCycle as savePerformanceCycleApi,
   updatePerformanceCycle as updatePerformanceCycleApi,
+  deletePerformanceCycle as deletePerformanceCycleApi,
   type SavePerformanceCyclePayload,
   type SavePerformanceCycleResponse,
   type UpdatePerformanceCyclePayload,
-  type UpdatePerformanceCycleResponse
+  type UpdatePerformanceCycleResponse,
+  type DeletePerformanceCycleResponse
 } from '../services/performanceCycleApi'
 import type { CycleEditorValues } from '../CycleEditorModal'
 
@@ -68,6 +70,7 @@ function buildUpdateActivePayload(cycle: CycleForUpdate, isActive: boolean): Upd
 export interface UseSavePerformanceCycleResult {
   savePerformanceCycle: (values: CycleEditorValues) => Promise<SavePerformanceCycleResponse | null>
   updateCycleActive: (cycle: CycleForUpdate, isActive: boolean) => Promise<UpdatePerformanceCycleResponse | null>
+  deletePerformanceCycle: (cycle: CycleForUpdate) => Promise<DeletePerformanceCycleResponse | null>
 }
 
 export function useSavePerformanceCycle(accessToken: string | undefined): UseSavePerformanceCycleResult {
@@ -91,5 +94,17 @@ export function useSavePerformanceCycle(accessToken: string | undefined): UseSav
     [accessToken]
   )
 
-  return { savePerformanceCycle, updateCycleActive }
+  const deletePerformanceCycle = useCallback(
+    async (cycle: CycleForUpdate): Promise<DeletePerformanceCycleResponse | null> => {
+      if (!accessToken) return null
+      const payload = {
+        performanceCycle: { id: cycle.id, version: cycle.version ?? 0 }
+      }
+      const result = await deletePerformanceCycleApi(accessToken, payload)
+      return result ?? null
+    },
+    [accessToken]
+  )
+
+  return { savePerformanceCycle, updateCycleActive, deletePerformanceCycle }
 }

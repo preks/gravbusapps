@@ -4,6 +4,7 @@ import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtil
 
 const SAVE_PERFORMANCE_CYCLE_PATH = '/processes/employee/savePerformanceCycle'
 const UPDATE_PERFORMANCE_CYCLE_PATH = '/processes/employee/updatePerformanceCycle'
+const DELETE_PERFORMANCE_CYCLE_PATH = '/processes/employee/deletePerformanceCycle'
 
 export interface SavePerformanceCyclePayload {
   changeMode: 'INSERT' | 'UPDATE' | 'DELETE'
@@ -70,6 +71,33 @@ export async function updatePerformanceCycle(
     Authorization: setAccessTokenToAuthorizationHeader(accessToken)
   })
   return client.post<UpdatePerformanceCycleResponse>(UPDATE_PERFORMANCE_CYCLE_PATH, payload, {
+    headers: { 'Content-Type': 'application/json' }
+  })
+}
+
+export interface DeletePerformanceCyclePayload {
+  performanceCycle: {
+    id: string
+    version: number
+  }
+}
+
+export interface DeletePerformanceCycleResponse {
+  [key: string]: unknown
+}
+
+/**
+ * POST to deletePerformanceCycle API (remove cycle from database).
+ */
+export async function deletePerformanceCycle(
+  accessToken: string,
+  payload: DeletePerformanceCyclePayload
+): Promise<DeletePerformanceCycleResponse> {
+  const baseUrl = env('NEXT_PUBLIC_BASE_URL') ?? ''
+  const client = new RestClient(baseUrl, {
+    Authorization: setAccessTokenToAuthorizationHeader(accessToken)
+  })
+  return client.post<DeletePerformanceCycleResponse>(DELETE_PERFORMANCE_CYCLE_PATH, payload, {
     headers: { 'Content-Type': 'application/json' }
   })
 }

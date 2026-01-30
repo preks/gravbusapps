@@ -76,9 +76,11 @@ frequency-custom = Custom
 # Rating scales table
 empty-no-rating-scales = No rating scales defined yet.
 scale-saved-to-database = Rating scale "{ $name }" saved.
+scale-deleted-to-database = Rating scale "{ $name }" deleted.
 cycle-saved-to-database = Performance cycle "{ $name }" saved.
 cycle-activated-to-database = "{ $name }" activated.
 cycle-deactivated-to-database = "{ $name }" deactivated.
+cycle-deleted-to-database = "{ $name }" deleted.
 table-values = Values
 button-edit = Edit
 
