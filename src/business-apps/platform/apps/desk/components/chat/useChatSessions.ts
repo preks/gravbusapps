@@ -7,9 +7,10 @@ export interface UseChatSessionsOptions {
   currentSession: ChatSession | null
   scope: 'all' | 'space'
   spaceId: string | null
+  llmProvider?: string
   onScopeChange: (scope: 'all' | 'space') => void
   onSpaceChange: (spaceId: string | null) => void
-  createSession: (dto?: { scope?: 'all' | 'space'; spaceId?: string }) => Promise<ChatSession>
+  createSession: (dto?: { scope?: 'all' | 'space'; spaceId?: string; llmProvider?: string }) => Promise<ChatSession>
   joinSession: (sessionId: string) => Promise<ChatSession | null>
   getUserSessions: () => Promise<ChatSession[]>
   deleteSession: (sessionId: string) => Promise<void>
@@ -20,6 +21,7 @@ export interface UseChatSessionsReturn {
   isLoadingSessions: boolean
   handleSelectSession: (sessionId: string) => Promise<void>
   handleNewSession: () => void
+  handleNewSessionWithProvider: (llmProvider?: string) => void
   handleDeleteCurrentSession: () => Promise<void>
 }
 
@@ -30,6 +32,7 @@ export function useChatSessions(options: UseChatSessionsOptions): UseChatSession
     currentSession,
     scope,
     spaceId,
+    llmProvider,
     onScopeChange,
     onSpaceChange,
     createSession,
@@ -74,7 +77,7 @@ export function useChatSessions(options: UseChatSessionsOptions): UseChatSession
           return
         }
 
-        const created = await createSession({ scope, spaceId: spaceId || undefined })
+        const created = await createSession({ scope, spaceId: spaceId || undefined, llmProvider })
         if (cancelled) return
         setSessions(prev => [created, ...prev].slice(0, maxVisibleSessions))
         if (typeof window !== 'undefined') window.localStorage.setItem(storageKey, created.id)
@@ -88,18 +91,29 @@ export function useChatSessions(options: UseChatSessionsOptions): UseChatSession
     return () => {
       cancelled = true
     }
-  }, [isConnected, currentSession, refreshSessions, storageKey, joinSession, onScopeChange, onSpaceChange, createSession, scope, spaceId])
+  }, [
+    isConnected,
+    currentSession,
+    refreshSessions,
+    storageKey,
+    joinSession,
+    onScopeChange,
+    onSpaceChange,
+    createSession,
+    scope,
+    spaceId
+  ])
 
   const createNewSession = useCallback(
-    (newScope: 'all' | 'space', newSpaceId: string | null) => {
-      createSession({ scope: newScope, spaceId: newSpaceId || undefined })
+    (newScope: 'all' | 'space', newSpaceId: string | null, providerOverride?: string) => {
+      createSession({ scope: newScope, spaceId: newSpaceId || undefined, llmProvider: providerOverride ?? llmProvider })
         .then(session => {
           setSessions(prev => [session, ...prev.filter(s => s.id !== session.id)].slice(0, maxVisibleSessions))
           if (typeof window !== 'undefined') window.localStorage.setItem(storageKey, session.id)
         })
         .catch(err => console.error('Failed to create new session:', err))
     },
-    [createSession, storageKey]
+    [createSession, storageKey, llmProvider]
   )
 
   const handleSelectSession = useCallback(
@@ -117,6 +131,13 @@ export function useChatSessions(options: UseChatSessionsOptions): UseChatSession
     createNewSession(scope, spaceId)
   }, [createNewSession, scope, spaceId])
 
+  const handleNewSessionWithProvider = useCallback(
+    (provider?: string) => {
+      createNewSession(scope, spaceId, provider)
+    },
+    [createNewSession, scope, spaceId]
+  )
+
   const handleDeleteCurrentSession = useCallback(async () => {
     if (!currentSession?.id) return
     if (typeof window !== 'undefined' && !window.confirm('Delete this chat session?')) return
@@ -131,7 +152,7 @@ export function useChatSessions(options: UseChatSessionsOptions): UseChatSession
     isLoadingSessions,
     handleSelectSession,
     handleNewSession,
+    handleNewSessionWithProvider,
     handleDeleteCurrentSession
   }
 }
-

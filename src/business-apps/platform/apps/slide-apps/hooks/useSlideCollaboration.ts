@@ -44,6 +44,7 @@ export interface UseSlideCollaborationReturn {
   updateElement: (slideIndex: number, elementId: string, updates: Partial<AnySlideElement>) => void
   addSlide: (slide: SlideData, position?: number) => void
   removeSlide: (index: number) => void
+  applyContentJsonSnapshot: (contentJson: Record<string, unknown>) => void
 }
 
 /**
@@ -472,6 +473,19 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
     [ySlides]
   )
 
+  const applyContentJsonSnapshot = useCallback(
+    (contentJson: Record<string, unknown>) => {
+      const snapshotSlides = (contentJson.slides as SlideData[] | undefined) || []
+      const snapshotThemeId = (contentJson.themeId as string | undefined) || 'corporate'
+
+      Y.transact(ydoc, () => {
+        slidesToYjs(snapshotSlides, ySlides)
+        yMeta.set('themeId', snapshotThemeId)
+      })
+    },
+    [ydoc, ySlides, yMeta]
+  )
+
   return {
     slides,
     themeId,
@@ -484,6 +498,7 @@ export function useSlideCollaboration(options: UseSlideCollaborationOptions): Us
     updateSlide,
     updateElement,
     addSlide,
-    removeSlide
+    removeSlide,
+    applyContentJsonSnapshot
   }
 }

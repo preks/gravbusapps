@@ -40,7 +40,9 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingContent, setStreamingContent] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [lastSessionTitleUpdate, setLastSessionTitleUpdate] = useState<{ sessionId: string; title: string } | null>(null)
+  const [lastSessionTitleUpdate, setLastSessionTitleUpdate] = useState<{ sessionId: string; title: string } | null>(
+    null
+  )
 
   const streamingContentRef = useRef('')
   const streamingRafRef = useRef<number | null>(null)
@@ -246,13 +248,10 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
   const fetchSessionHistory = useCallback(
     async (
       sessionId: string
-    ): Promise<
-      | {
-          session?: ChatSession
-          history: ChatMessage[]
-        }
-      | null
-    > => {
+    ): Promise<{
+      session?: ChatSession
+      history: ChatMessage[]
+    } | null> => {
       const apiUrl = getDocumentServiceApiUrl()
       try {
         const response = await fetch(`${apiUrl}/chat/sessions/${sessionId}/history`, {
@@ -293,7 +292,7 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
 
   // Send message
   const sendMessage = useCallback(
-    async (message: string, options?: { scope?: 'all' | 'space'; spaceId?: string | null }) => {
+    async (message: string, options?: { scope?: 'all' | 'space'; spaceId?: string | null; llmProvider?: string }) => {
       if (!socket || !currentSession) {
         throw new Error('No active session')
       }
@@ -320,6 +319,7 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
         sessionId: currentSession.id,
         message,
         userId,
+        llmProvider: options?.llmProvider,
         scope: options?.scope,
         spaceId: options?.spaceId || undefined
       })

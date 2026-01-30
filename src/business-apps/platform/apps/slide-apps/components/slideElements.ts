@@ -2,14 +2,14 @@
  * Slide Element Types - Define all element types for the slide editor
  */
 
-export type ElementType = 'text' | 'image' | 'shape' | 'code' | 'video'
+export type ElementType = 'text' | 'image' | 'shape' | 'code' | 'video' | 'table'
 
-export type ShapeType = 
-  | 'rectangle' 
-  | 'rounded-rectangle' 
-  | 'circle' 
-  | 'ellipse' 
-  | 'triangle' 
+export type ShapeType =
+  | 'rectangle'
+  | 'rounded-rectangle'
+  | 'circle'
+  | 'ellipse'
+  | 'triangle'
   | 'diamond'
   | 'arrow-right'
   | 'arrow-left'
@@ -113,7 +113,24 @@ export interface VideoElement extends SlideElement {
   shadow: boolean
 }
 
-export type AnySlideElement = TextElement | ImageElement | ShapeElement | CodeElement | VideoElement
+export interface TableElement extends SlideElement {
+  type: 'table'
+  headers: string[]
+  rows: string[][]
+  headerBackground: string
+  headerTextColor: string
+  rowBackground: string
+  rowAlternateBackground?: string
+  rowTextColor: string
+  borderColor: string
+  borderWidth: number
+  fontSize: number
+  headerFontSize: number
+  cellPadding: number
+  borderRadius: number
+}
+
+export type AnySlideElement = TextElement | ImageElement | ShapeElement | CodeElement | VideoElement | TableElement
 
 export interface SlideData {
   id: string
@@ -230,6 +247,35 @@ export const createVideoElement = (src: string, partial?: Partial<VideoElement>)
   ...partial
 })
 
+export const createTableElement = (
+  headers: string[],
+  rows: string[][],
+  partial?: Partial<TableElement>
+): TableElement => ({
+  id: `table-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+  type: 'table',
+  position: { x: 80, y: 150 },
+  size: { width: 600, height: 300 },
+  rotation: 0,
+  opacity: 1,
+  locked: false,
+  zIndex: 1,
+  headers,
+  rows,
+  headerBackground: '#1e3a5f',
+  headerTextColor: '#ffffff',
+  rowBackground: '#ffffff',
+  rowAlternateBackground: '#f8fafc',
+  rowTextColor: '#334155',
+  borderColor: '#e2e8f0',
+  borderWidth: 1,
+  fontSize: 14,
+  headerFontSize: 14,
+  cellPadding: 12,
+  borderRadius: 8,
+  ...partial
+})
+
 // Font options
 export const FONT_FAMILIES = [
   { value: 'Inter', label: 'Inter' },
@@ -248,67 +294,133 @@ export const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 56, 64, 7
 
 // Shape definitions for rendering
 export const SHAPE_DEFINITIONS: Record<ShapeType, { name: string; icon: string }> = {
-  'rectangle': { name: 'Rectangle', icon: '▬' },
+  rectangle: { name: 'Rectangle', icon: '▬' },
   'rounded-rectangle': { name: 'Rounded Rectangle', icon: '▢' },
-  'circle': { name: 'Circle', icon: '●' },
-  'ellipse': { name: 'Ellipse', icon: '⬭' },
-  'triangle': { name: 'Triangle', icon: '▲' },
-  'diamond': { name: 'Diamond', icon: '◆' },
+  circle: { name: 'Circle', icon: '●' },
+  ellipse: { name: 'Ellipse', icon: '⬭' },
+  triangle: { name: 'Triangle', icon: '▲' },
+  diamond: { name: 'Diamond', icon: '◆' },
   'arrow-right': { name: 'Arrow Right', icon: '➡' },
   'arrow-left': { name: 'Arrow Left', icon: '⬅' },
   'arrow-up': { name: 'Arrow Up', icon: '⬆' },
   'arrow-down': { name: 'Arrow Down', icon: '⬇' },
-  'star': { name: 'Star', icon: '★' },
-  'hexagon': { name: 'Hexagon', icon: '⬡' },
-  'line': { name: 'Line', icon: '─' },
-  'callout': { name: 'Callout', icon: '💬' }
+  star: { name: 'Star', icon: '★' },
+  hexagon: { name: 'Hexagon', icon: '⬡' },
+  line: { name: 'Line', icon: '─' },
+  callout: { name: 'Callout', icon: '💬' }
 }
 
 // Preset gradients
 export const PRESET_GRADIENTS: { name: string; gradient: GradientConfig }[] = [
   {
     name: 'Sunset',
-    gradient: { type: 'linear', angle: 135, stops: [{ color: '#f97316', position: 0 }, { color: '#ec4899', position: 100 }] }
+    gradient: {
+      type: 'linear',
+      angle: 135,
+      stops: [
+        { color: '#f97316', position: 0 },
+        { color: '#ec4899', position: 100 }
+      ]
+    }
   },
   {
     name: 'Ocean',
-    gradient: { type: 'linear', angle: 135, stops: [{ color: '#06b6d4', position: 0 }, { color: '#3b82f6', position: 100 }] }
+    gradient: {
+      type: 'linear',
+      angle: 135,
+      stops: [
+        { color: '#06b6d4', position: 0 },
+        { color: '#3b82f6', position: 100 }
+      ]
+    }
   },
   {
     name: 'Forest',
-    gradient: { type: 'linear', angle: 135, stops: [{ color: '#22c55e', position: 0 }, { color: '#14b8a6', position: 100 }] }
+    gradient: {
+      type: 'linear',
+      angle: 135,
+      stops: [
+        { color: '#22c55e', position: 0 },
+        { color: '#14b8a6', position: 100 }
+      ]
+    }
   },
   {
     name: 'Purple Haze',
-    gradient: { type: 'linear', angle: 135, stops: [{ color: '#8b5cf6', position: 0 }, { color: '#ec4899', position: 100 }] }
+    gradient: {
+      type: 'linear',
+      angle: 135,
+      stops: [
+        { color: '#8b5cf6', position: 0 },
+        { color: '#ec4899', position: 100 }
+      ]
+    }
   },
   {
     name: 'Fire',
-    gradient: { type: 'linear', angle: 180, stops: [{ color: '#ef4444', position: 0 }, { color: '#f97316', position: 50 }, { color: '#fbbf24', position: 100 }] }
+    gradient: {
+      type: 'linear',
+      angle: 180,
+      stops: [
+        { color: '#ef4444', position: 0 },
+        { color: '#f97316', position: 50 },
+        { color: '#fbbf24', position: 100 }
+      ]
+    }
   },
   {
     name: 'Night Sky',
-    gradient: { type: 'linear', angle: 180, stops: [{ color: '#0f172a', position: 0 }, { color: '#1e3a5f', position: 50 }, { color: '#3b82f6', position: 100 }] }
+    gradient: {
+      type: 'linear',
+      angle: 180,
+      stops: [
+        { color: '#0f172a', position: 0 },
+        { color: '#1e3a5f', position: 50 },
+        { color: '#3b82f6', position: 100 }
+      ]
+    }
   },
   {
     name: 'Rainbow',
-    gradient: { type: 'linear', angle: 90, stops: [
-      { color: '#ef4444', position: 0 },
-      { color: '#f97316', position: 20 },
-      { color: '#fbbf24', position: 40 },
-      { color: '#22c55e', position: 60 },
-      { color: '#3b82f6', position: 80 },
-      { color: '#8b5cf6', position: 100 }
-    ]}
+    gradient: {
+      type: 'linear',
+      angle: 90,
+      stops: [
+        { color: '#ef4444', position: 0 },
+        { color: '#f97316', position: 20 },
+        { color: '#fbbf24', position: 40 },
+        { color: '#22c55e', position: 60 },
+        { color: '#3b82f6', position: 80 },
+        { color: '#8b5cf6', position: 100 }
+      ]
+    }
   }
 ]
 
 // Color presets
 export const COLOR_PRESETS = [
-  '#000000', '#ffffff', '#ef4444', '#f97316', '#fbbf24', '#22c55e', 
-  '#14b8a6', '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e',
-  '#1e293b', '#475569', '#94a3b8', '#e2e8f0', '#fef3c7', '#d1fae5',
-  '#cffafe', '#dbeafe', '#e9d5ff', '#fce7f3'
+  '#000000',
+  '#ffffff',
+  '#ef4444',
+  '#f97316',
+  '#fbbf24',
+  '#22c55e',
+  '#14b8a6',
+  '#06b6d4',
+  '#3b82f6',
+  '#8b5cf6',
+  '#ec4899',
+  '#f43f5e',
+  '#1e293b',
+  '#475569',
+  '#94a3b8',
+  '#e2e8f0',
+  '#fef3c7',
+  '#d1fae5',
+  '#cffafe',
+  '#dbeafe',
+  '#e9d5ff',
+  '#fce7f3'
 ]
 
 export const gradientToCss = (gradient: GradientConfig): string => {

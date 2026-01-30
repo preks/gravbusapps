@@ -3,7 +3,16 @@
  */
 
 import React, { useRef, useState, useCallback, useEffect } from 'react'
-import type { AnySlideElement, TextElement, ShapeElement, ImageElement, VideoElement, Position, Size } from './slideElements'
+import type {
+  AnySlideElement,
+  TextElement,
+  ShapeElement,
+  ImageElement,
+  VideoElement,
+  TableElement,
+  Position,
+  Size
+} from './slideElements'
 import { gradientToCss } from './slideElements'
 
 interface SlideCanvasProps {
@@ -47,7 +56,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
       case 'gradient':
         return background.gradient ? { background: gradientToCss(background.gradient) } : {}
       case 'image':
-        return background.imageUrl 
+        return background.imageUrl
           ? { backgroundImage: `url(${background.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
           : {}
       case 'video':
@@ -83,7 +92,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
   const handleElementMouseDown = (e: React.MouseEvent, element: AnySlideElement) => {
     e.stopPropagation()
     if (element.locked) return
-    
+
     onSelectElement(element.id)
     setIsDragging(true)
     setDragStart({ x: e.clientX / scale, y: e.clientY / scale })
@@ -93,72 +102,75 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
   const handleResizeMouseDown = (e: React.MouseEvent, handle: ResizeHandle, element: AnySlideElement) => {
     e.stopPropagation()
     if (element.locked) return
-    
+
     setIsResizing(true)
     setResizeHandle(handle)
     setDragStart({ x: e.clientX / scale, y: e.clientY / scale })
     setElementStart({ position: { ...element.position }, size: { ...element.size } })
   }
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (!selectedId || !elementStart) return
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!selectedId || !elementStart) return
 
-    const currentX = e.clientX / scale
-    const currentY = e.clientY / scale
-    const deltaX = currentX - dragStart.x
-    const deltaY = currentY - dragStart.y
+      const currentX = e.clientX / scale
+      const currentY = e.clientY / scale
+      const deltaX = currentX - dragStart.x
+      const deltaY = currentY - dragStart.y
 
-    if (isDragging) {
-      onUpdateElement(selectedId, {
-        position: {
-          x: Math.max(0, elementStart.position.x + deltaX),
-          y: Math.max(0, elementStart.position.y + deltaY)
+      if (isDragging) {
+        onUpdateElement(selectedId, {
+          position: {
+            x: Math.max(0, elementStart.position.x + deltaX),
+            y: Math.max(0, elementStart.position.y + deltaY)
+          }
+        })
+      } else if (isResizing && resizeHandle) {
+        const newPosition = { ...elementStart.position }
+        const newSize = { ...elementStart.size }
+
+        switch (resizeHandle) {
+          case 'se':
+            newSize.width = Math.max(50, elementStart.size.width + deltaX)
+            newSize.height = Math.max(30, elementStart.size.height + deltaY)
+            break
+          case 'sw':
+            newPosition.x = Math.max(0, elementStart.position.x + deltaX)
+            newSize.width = Math.max(50, elementStart.size.width - deltaX)
+            newSize.height = Math.max(30, elementStart.size.height + deltaY)
+            break
+          case 'ne':
+            newPosition.y = Math.max(0, elementStart.position.y + deltaY)
+            newSize.width = Math.max(50, elementStart.size.width + deltaX)
+            newSize.height = Math.max(30, elementStart.size.height - deltaY)
+            break
+          case 'nw':
+            newPosition.x = Math.max(0, elementStart.position.x + deltaX)
+            newPosition.y = Math.max(0, elementStart.position.y + deltaY)
+            newSize.width = Math.max(50, elementStart.size.width - deltaX)
+            newSize.height = Math.max(30, elementStart.size.height - deltaY)
+            break
+          case 'n':
+            newPosition.y = Math.max(0, elementStart.position.y + deltaY)
+            newSize.height = Math.max(30, elementStart.size.height - deltaY)
+            break
+          case 's':
+            newSize.height = Math.max(30, elementStart.size.height + deltaY)
+            break
+          case 'e':
+            newSize.width = Math.max(50, elementStart.size.width + deltaX)
+            break
+          case 'w':
+            newPosition.x = Math.max(0, elementStart.position.x + deltaX)
+            newSize.width = Math.max(50, elementStart.size.width - deltaX)
+            break
         }
-      })
-    } else if (isResizing && resizeHandle) {
-      let newPosition = { ...elementStart.position }
-      let newSize = { ...elementStart.size }
 
-      switch (resizeHandle) {
-        case 'se':
-          newSize.width = Math.max(50, elementStart.size.width + deltaX)
-          newSize.height = Math.max(30, elementStart.size.height + deltaY)
-          break
-        case 'sw':
-          newPosition.x = Math.max(0, elementStart.position.x + deltaX)
-          newSize.width = Math.max(50, elementStart.size.width - deltaX)
-          newSize.height = Math.max(30, elementStart.size.height + deltaY)
-          break
-        case 'ne':
-          newPosition.y = Math.max(0, elementStart.position.y + deltaY)
-          newSize.width = Math.max(50, elementStart.size.width + deltaX)
-          newSize.height = Math.max(30, elementStart.size.height - deltaY)
-          break
-        case 'nw':
-          newPosition.x = Math.max(0, elementStart.position.x + deltaX)
-          newPosition.y = Math.max(0, elementStart.position.y + deltaY)
-          newSize.width = Math.max(50, elementStart.size.width - deltaX)
-          newSize.height = Math.max(30, elementStart.size.height - deltaY)
-          break
-        case 'n':
-          newPosition.y = Math.max(0, elementStart.position.y + deltaY)
-          newSize.height = Math.max(30, elementStart.size.height - deltaY)
-          break
-        case 's':
-          newSize.height = Math.max(30, elementStart.size.height + deltaY)
-          break
-        case 'e':
-          newSize.width = Math.max(50, elementStart.size.width + deltaX)
-          break
-        case 'w':
-          newPosition.x = Math.max(0, elementStart.position.x + deltaX)
-          newSize.width = Math.max(50, elementStart.size.width - deltaX)
-          break
+        onUpdateElement(selectedId, { position: newPosition, size: newSize })
       }
-
-      onUpdateElement(selectedId, { position: newPosition, size: newSize })
-    }
-  }, [selectedId, isDragging, isResizing, resizeHandle, dragStart, elementStart, onUpdateElement, scale])
+    },
+    [selectedId, isDragging, isResizing, resizeHandle, dragStart, elementStart, onUpdateElement, scale]
+  )
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false)
@@ -181,7 +193,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
   const renderShape = (element: ShapeElement) => {
     const { shapeType, fill, gradient, strokeColor, strokeWidth, strokeStyle, cornerRadius, shadow } = element
     const fillStyle = gradient ? gradientToCss(gradient) : fill
-    
+
     const baseStyle: React.CSSProperties = {
       width: '100%',
       height: '100%',
@@ -309,7 +321,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
 
   const renderElement = (element: AnySlideElement) => {
     const isSelected = selectedId === element.id
-    
+
     const wrapperStyle: React.CSSProperties = {
       position: 'absolute',
       left: element.position.x,
@@ -330,7 +342,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
       <div
         key={element.id}
         style={wrapperStyle}
-        onMouseDown={(e) => handleElementMouseDown(e, element)}
+        onMouseDown={e => handleElementMouseDown(e, element)}
         onDoubleClick={() => element.type === 'text' && onEditText(element.id)}
       >
         {element.type === 'text' && (
@@ -345,18 +357,20 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
               textDecoration: (element as TextElement).textDecoration,
               textAlign: (element as TextElement).textAlign,
               color: (element as TextElement).color,
-              backgroundColor: (element as TextElement).gradient 
-                ? undefined 
-                : (element as TextElement).backgroundColor,
-              background: (element as TextElement).gradient 
+              backgroundColor: (element as TextElement).gradient ? undefined : (element as TextElement).backgroundColor,
+              background: (element as TextElement).gradient
                 ? gradientToCss((element as TextElement).gradient!)
                 : undefined,
               lineHeight: (element as TextElement).lineHeight,
               letterSpacing: (element as TextElement).letterSpacing,
               padding: (element as TextElement).padding,
               display: 'flex',
-              alignItems: (element as TextElement).verticalAlign === 'top' ? 'flex-start' 
-                : (element as TextElement).verticalAlign === 'bottom' ? 'flex-end' : 'center',
+              alignItems:
+                (element as TextElement).verticalAlign === 'top'
+                  ? 'flex-start'
+                  : (element as TextElement).verticalAlign === 'bottom'
+                    ? 'flex-end'
+                    : 'center',
               overflow: 'hidden',
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-word'
@@ -377,10 +391,11 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
               height: '100%',
               objectFit: (element as ImageElement).objectFit,
               borderRadius: (element as ImageElement).borderRadius,
-              border: (element as ImageElement).borderWidth > 0 
-                ? `${(element as ImageElement).borderWidth}px solid ${(element as ImageElement).borderColor}`
-                : 'none',
-              boxShadow: (element as ImageElement).shadow 
+              border:
+                (element as ImageElement).borderWidth > 0
+                  ? `${(element as ImageElement).borderWidth}px solid ${(element as ImageElement).borderColor}`
+                  : 'none',
+              boxShadow: (element as ImageElement).shadow
                 ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
                 : 'none'
             }}
@@ -419,11 +434,91 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
               height: '100%',
               objectFit: (element as VideoElement).objectFit,
               borderRadius: (element as VideoElement).borderRadius,
-              boxShadow: (element as VideoElement).shadow 
+              boxShadow: (element as VideoElement).shadow
                 ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
                 : 'none'
             }}
           />
+        )}
+
+        {element.type === 'table' && (
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              overflow: 'hidden',
+              borderRadius: (element as TableElement).borderRadius,
+              border: `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
+            }}
+          >
+            <table
+              style={{
+                width: '100%',
+                height: '100%',
+                borderCollapse: 'collapse',
+                tableLayout: 'fixed'
+              }}
+            >
+              <thead>
+                <tr>
+                  {(element as TableElement).headers.map((header, idx) => (
+                    <th
+                      key={`header-${idx}`}
+                      style={{
+                        backgroundColor: (element as TableElement).headerBackground,
+                        color: (element as TableElement).headerTextColor,
+                        fontSize: (element as TableElement).headerFontSize,
+                        fontWeight: 'bold',
+                        padding: (element as TableElement).cellPadding,
+                        textAlign: 'left',
+                        borderBottom: `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`,
+                        borderRight:
+                          idx < (element as TableElement).headers.length - 1
+                            ? `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
+                            : 'none'
+                      }}
+                    >
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(element as TableElement).rows.map((row, rowIdx) => (
+                  <tr key={`row-${rowIdx}`}>
+                    {row.map((cell, cellIdx) => (
+                      <td
+                        key={`cell-${rowIdx}-${cellIdx}`}
+                        style={{
+                          backgroundColor:
+                            (element as TableElement).rowAlternateBackground && rowIdx % 2 === 1
+                              ? (element as TableElement).rowAlternateBackground
+                              : (element as TableElement).rowBackground,
+                          color: (element as TableElement).rowTextColor,
+                          fontSize: (element as TableElement).fontSize,
+                          padding: (element as TableElement).cellPadding,
+                          textAlign: 'left',
+                          borderBottom:
+                            rowIdx < (element as TableElement).rows.length - 1
+                              ? `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
+                              : 'none',
+                          borderRight:
+                            cellIdx < row.length - 1
+                              ? `${(element as TableElement).borderWidth}px solid ${(element as TableElement).borderColor}`
+                              : 'none',
+                          verticalAlign: 'middle',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}
+                      >
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {/* Resize handles */}
@@ -456,7 +551,7 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
                 <div
                   key={handle}
                   style={{ ...handleStyle, ...positions[handle] }}
-                  onMouseDown={(e) => handleResizeMouseDown(e, handle, element)}
+                  onMouseDown={e => handleResizeMouseDown(e, handle, element)}
                 />
               )
             })}
@@ -468,9 +563,9 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
 
   // Wrapper to contain scaled canvas properly
   return (
-    <div 
-      style={{ 
-        width: 1280 * scale, 
+    <div
+      style={{
+        width: 1280 * scale,
         height: 720 * scale,
         overflow: 'hidden'
       }}
@@ -489,11 +584,9 @@ export const SlideCanvas: React.FC<SlideCanvasProps> = ({
       >
         {/* Video Background */}
         {renderVideoBackground()}
-        
+
         {/* Elements */}
-        {(elements || [])
-          .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0))
-          .map(element => renderElement(element))}
+        {(elements || []).sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)).map(element => renderElement(element))}
       </div>
     </div>
   )

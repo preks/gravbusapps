@@ -63,6 +63,7 @@ import { SlideCanvas } from './SlideCanvas'
 import { PropertyPanel } from './PropertyPanel'
 import { CollaboratorCursors } from './CollaboratorCursors'
 import { PresenceIndicator } from '../../shared/components/PresenceIndicator'
+import { SlideEditorHeaderActions } from './editor/SlideEditorHeaderActions'
 import { SLIDE_THEMES, getThemeById } from './slideThemes'
 import { useSlideCollaboration } from '../hooks/useSlideCollaboration'
 import {
@@ -78,6 +79,7 @@ import {
   COLOR_PRESETS
 } from './slideElements'
 import { GradientBuilder } from './GradientBuilder'
+import { GeneratePresentationButton } from './GeneratePresentationButton'
 import { exportToPptx } from '../utils/exportUtils'
 
 export interface SlideEditorProps extends BusinessAppContextProps {
@@ -180,11 +182,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     isSynced,
     isInitialized,
     awareness,
+    updateSlides: updateCollaborativeSlides,
     updateTheme: updateCollaborativeTheme,
     updateSlide: updateCollaborativeSlide,
     updateElement: updateCollaborativeElement,
     addSlide: addCollaborativeSlide,
-    removeSlide: removeCollaborativeSlide
+    removeSlide: removeCollaborativeSlide,
+    applyContentJsonSnapshot
   } = useSlideCollaboration({
     slideId,
     accessToken: accessToken || localStorage.getItem('business-app-ide-access-token') || '',
@@ -471,6 +475,27 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     toast.success('Slide duplicated')
   }, [currentSlide, currentSlideIndex, isSynced, addCollaborativeSlide])
 
+  // Handle AI-generated slides
+  const handleGeneratedSlides = useCallback(
+    (generatedSlides: SlideData[], title: string) => {
+      if (!isSynced || generatedSlides.length === 0) return
+
+      // Replace all slides with generated ones
+      updateCollaborativeSlides(generatedSlides)
+      setCurrentSlideIndex(0)
+      setSelectedElementId(null)
+
+      // Update presentation title if changed
+      if (title && title !== presentationTitle) {
+        setPresentationTitle(title)
+        SlidesApiService.updateSlide(slideId, { title }).catch(err => {
+          console.error('[SlideEditor] Failed to update title:', err)
+        })
+      }
+    },
+    [isSynced, updateCollaborativeSlides, presentationTitle, slideId]
+  )
+
   // Handle image upload
   const handleImageUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -717,6 +742,20 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 </>
               )}
 
+              <SlideEditorHeaderActions
+                slideId={slideId}
+                slideTitle={presentationTitle}
+                accessToken={accessToken}
+                currentUserId={currentUserId}
+                currentUserName={currentUserName}
+                applyContentJsonSnapshot={contentJson => {
+                  applyContentJsonSnapshot(contentJson)
+                }}
+                data-testid={`${testId}-header-actions`}
+              />
+
+              <Separator orientation="vertical" className="gba:h-6" />
+
               {/* Save status */}
               <div className="gba:flex gba:items-center gba:gap-2 gba:mr-2">
                 {isSaving ? (
@@ -801,6 +840,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              {/* AI Generate - positioned at far right like Transform in NoteEditor */}
+              <GeneratePresentationButton
+                onGenerate={handleGeneratedSlides}
+                accessToken={accessToken || localStorage.getItem('business-app-ide-access-token') || ''}
+                disabled={!isSynced}
+                data-testid={`${testId}-generate-button`}
+              />
             </div>
           </div>
         </div>

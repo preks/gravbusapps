@@ -1,11 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import {
-  Card,
-  CardContent,
-  Alert,
-  AlertDescription
-} from '@newwork/nw-design-system'
+import { Card, CardContent, Alert, AlertDescription } from '@newwork/nw-design-system'
 import { Loader2, MessageSquare } from 'lucide-react'
 import { ChatMessage } from './ChatMessage'
 import { ChatInput } from './ChatInput'
@@ -14,6 +9,7 @@ import { useDocumentChat } from '../../hooks/useDocumentChat'
 import { DocumentChatHeader } from './DocumentChatHeader'
 import { useCurrentUserAvatar } from './useCurrentUserAvatar'
 import { useChatSessions } from './useChatSessions'
+import { env } from '@/common/env/EnvUtils'
 
 interface Space {
   id: string
@@ -46,6 +42,12 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
   onClose
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const providerStorageKey = useMemo(() => `desk-document-chat:llm-provider:${userId}`, [userId])
+  const [llmProvider, setLlmProvider] = useState<string | undefined>(() => {
+    if (typeof window === 'undefined') return env('NEXT_PUBLIC_DOCUMENT_CHAT_LLM_PROVIDER')
+    const stored = window.localStorage.getItem(providerStorageKey)
+    return stored || env('NEXT_PUBLIC_DOCUMENT_CHAT_LLM_PROVIDER')
+  })
 
   const portalRoot = useMemo(() => {
     if (typeof document === 'undefined') return null
@@ -72,14 +74,37 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
     lastSessionTitleUpdate
   } = useDocumentChat({ userId, accessToken })
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      if (llmProvider) window.localStorage.setItem(providerStorageKey, llmProvider)
+      else window.localStorage.removeItem(providerStorageKey)
+    } catch {
+      // ignore
+    }
+  }, [llmProvider, providerStorageKey])
+
+  useEffect(() => {
+    if (!currentSession?.llmProvider) return
+    setLlmProvider(prev => (prev === currentSession.llmProvider ? prev : currentSession.llmProvider))
+  }, [currentSession?.llmProvider])
+
   const userAvatarSrc = useCurrentUserAvatar(accessToken, userId)
 
-  const { sessions, isLoadingSessions, handleSelectSession, handleNewSession, handleDeleteCurrentSession } = useChatSessions({
+  const {
+    sessions,
+    isLoadingSessions,
+    handleSelectSession,
+    handleNewSession,
+    handleNewSessionWithProvider,
+    handleDeleteCurrentSession
+  } = useChatSessions({
     userId,
     isConnected,
     currentSession,
     scope,
     spaceId,
+    llmProvider,
     onScopeChange,
     onSpaceChange,
     createSession,
@@ -117,7 +142,7 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
   }
 
   const handleSendMessage = (message: string) => {
-    sendMessage(message, { scope, spaceId }).catch(err => console.error('Failed to send message:', err))
+    sendMessage(message, { scope, spaceId, llmProvider }).catch(err => console.error('Failed to send message:', err))
   }
 
   if (!isOpen) {
@@ -129,16 +154,15 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
       className={[
         // Render as a true floating panel (portal to body avoids "fixed inside transformed parents")
         'gba:fixed gba:z-50 gba:flex gba:flex-col gba:overflow-hidden',
-        'gba:top-24 gba:bottom-4 gba:inset-x-4',
-        'gba:sm:top-24 gba:sm:bottom-6 gba:sm:left-auto gba:sm:right-6 gba:sm:w-96',
-        'gba:bg-transparent gba:border gba:border-border gba:rounded-2xl'
+        'gba:top-20 gba:bottom-4 gba:inset-x-4',
+        'gba:sm:top-20 gba:sm:bottom-6 gba:sm:left-auto gba:sm:right-6 gba:sm:w-[480px]',
+        'gba:bg-background/95 gba:backdrop-blur-xl gba:border gba:border-border/50 gba:rounded-2xl'
       ].join(' ')}
       data-testid="document-chat-panel"
     >
       <div className="gba:relative gba:flex gba:flex-col gba:flex-1 gba:min-h-0">
-        {/* Glass background layers */}
-        <div className="gba:absolute gba:inset-0 gba:bg-background gba:opacity-70 gba:backdrop-blur-xl" />
-        <div className="gba:absolute gba:inset-0 gba:bg-muted gba:opacity-35" />
+        {/* Subtle gradient overlay for depth */}
+        <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-b gba:from-muted/20 gba:via-transparent gba:to-muted/10 gba:pointer-events-none gba:rounded-2xl" />
 
         <div className="gba:relative gba:flex gba:flex-col gba:flex-1 gba:min-h-0">
           <DocumentChatHeader
@@ -152,12 +176,17 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
             onClose={onClose}
             isStreaming={isStreaming}
             showDelete={Boolean(currentSession)}
+            llmProvider={llmProvider}
+            onLlmProviderChange={next => {
+              setLlmProvider(next)
+              handleNewSessionWithProvider(next)
+            }}
             data-testid="document-chat-header"
           />
 
-          <CardContent className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:p-0 gba:bg-transparent">
+          <CardContent className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:p-0">
             {/* Scope Selector */}
-            <div className="gba:px-4 gba:py-2 gba:border-b gba:border-border gba:bg-transparent">
+            <div className="gba:px-4 gba:py-2.5 gba:border-b gba:border-border/40 gba:bg-muted/30">
               <ScopeSelector
                 scope={scope}
                 selectedSpaceId={spaceId}
@@ -170,7 +199,7 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
 
             {/* Connection Status */}
             {!isConnected && (
-              <Alert variant="info" className="gba:m-4">
+              <Alert className="gba:m-4 gba:rounded-xl">
                 <Loader2 className="gba:h-4 gba:w-4 gba:animate-spin" />
                 <AlertDescription>Connecting to chat service...</AlertDescription>
               </Alert>
@@ -178,22 +207,28 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
 
             {/* Error Display */}
             {error && (
-              <Alert variant="destructive" className="gba:m-4">
+              <Alert variant="destructive" className="gba:m-4 gba:rounded-xl">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
             {/* Messages */}
             <div
-              className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:p-4 gba:space-y-3"
+              className="gba:flex-1 gba:min-h-0 gba:overflow-auto gba:px-4 gba:py-4 gba:space-y-4"
               data-testid="chat-messages-container"
             >
               {messages.length === 0 && !isStreaming && isConnected && (
-                <div className="gba:text-center gba:text-muted-foreground gba:py-10">
-                  <div className="gba:mx-auto gba:mb-4 gba:h-12 gba:w-12 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center">
-                    <MessageSquare className="gba:h-6 gba:w-6" />
+                <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-center gba:py-12">
+                  <div className="gba:relative gba:mb-5">
+                    <div className="gba:absolute gba:inset-0 gba:bg-primary/15 gba:rounded-full gba:blur-xl" />
+                    <div className="gba:relative gba:h-16 gba:w-16 gba:rounded-full gba:bg-gradient-to-br gba:from-primary/20 gba:to-primary/5 gba:border gba:border-primary/20 gba:flex gba:items-center gba:justify-center">
+                      <MessageSquare className="gba:h-7 gba:w-7 gba:text-primary/70" />
+                    </div>
                   </div>
-                  <p className="gba:text-sm gba:leading-relaxed">
+                  <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-2">
+                    Ask anything about your content
+                  </h4>
+                  <p className="gba:text-xs gba:text-muted-foreground gba:leading-relaxed gba:max-w-[240px]">
                     Ask questions like “What did we decide about X?” or “Summarize my notes about Y”.
                   </p>
                 </div>
