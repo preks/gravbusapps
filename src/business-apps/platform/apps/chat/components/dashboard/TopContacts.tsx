@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useMemo, useEffect } from 'react'
 import { Avatar, AvatarFallback, AvatarImage, Button } from '@newwork/nw-design-system'
 import { MessageSquare, Clock, UserPlus, ArrowRight } from 'lucide-react'
 import type { UserContactsResponse, ContactInfo, ReachOutSuggestion } from '../../services/chatApiClient'
+import { useEmployeeAvatarsCache } from '../../hooks/useEmployeeAvatarsCache'
 
 interface TopContactsProps {
   contacts: UserContactsResponse | null
@@ -56,12 +57,22 @@ const MostContactedCard: React.FC<MostContactedCardProps> = ({
   onClick,
   'data-testid': testId
 }) => {
-  // Build avatar URL if we have access token
-  const avatarUrl =
-    contact.avatarUrl ||
-    (accessToken
-      ? `${import.meta.env.VITE_USER_MANAGEMENT_URL || ''}/api/v1/users/${contact.userId}/avatar`
-      : undefined)
+  // Use avatar cache hook for proper avatar resolution
+  const avatarCache = useEmployeeAvatarsCache(accessToken || '')
+  const avatarInfo = useMemo(() => {
+    if (!accessToken) return null
+    return avatarCache.requestAvatars([contact.userId]).get(contact.userId)
+  }, [contact.userId, accessToken, avatarCache.cacheVersion])
+
+  // Prefetch avatar if not already cached
+  useEffect(() => {
+    if (accessToken && contact.userId) {
+      avatarCache.prefetchAvatars([contact.userId])
+    }
+  }, [contact.userId, accessToken, avatarCache])
+
+  // Use avatarUrl from contact if available, otherwise use cached avatar
+  const avatarUrl = contact.avatarUrl || avatarInfo?.avatarUrl
 
   return (
     <div
@@ -97,11 +108,22 @@ interface ReachOutCardProps {
  * ReachOutCard - Subtle suggestion card following DS rules
  */
 const ReachOutCard: React.FC<ReachOutCardProps> = ({ suggestion, accessToken, onClick, 'data-testid': testId }) => {
-  const avatarUrl =
-    suggestion.avatarUrl ||
-    (accessToken
-      ? `${import.meta.env.VITE_USER_MANAGEMENT_URL || ''}/api/v1/users/${suggestion.userId}/avatar`
-      : undefined)
+  // Use avatar cache hook for proper avatar resolution
+  const avatarCache = useEmployeeAvatarsCache(accessToken || '')
+  const avatarInfo = useMemo(() => {
+    if (!accessToken) return null
+    return avatarCache.requestAvatars([suggestion.userId]).get(suggestion.userId)
+  }, [suggestion.userId, accessToken, avatarCache.cacheVersion])
+
+  // Prefetch avatar if not already cached
+  useEffect(() => {
+    if (accessToken && suggestion.userId) {
+      avatarCache.prefetchAvatars([suggestion.userId])
+    }
+  }, [suggestion.userId, accessToken, avatarCache])
+
+  // Use avatarUrl from suggestion if available, otherwise use cached avatar
+  const avatarUrl = suggestion.avatarUrl || avatarInfo?.avatarUrl
 
   return (
     <div

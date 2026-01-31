@@ -11,7 +11,7 @@ import { useCurrentUserPicture } from './hooks/useCurrentUserPicture'
 import { VoiceOverlay } from './components/voice/VoiceOverlay'
 import type { OutputItem, AnswerOutput, NavigationData } from './types/models'
 import { VoiceFormProvider, useVoiceForm } from './context/VoiceFormContext'
-import { HeroSection } from './components/HeroSection'
+import { HeroSection, DeepBlueNeuralBackground } from './components/HeroSection'
 
 export interface EveryAIProps extends BusinessAppContextProps {
   className?: string
@@ -515,11 +515,30 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     sendMessage(text, files, isThinking, isSearching, mentions)
   }
 
+  const isEmptyState = conversation.length === 0 && !isLoading
+
   return (
     <div
-      className={`gba:h-full gba:flex gba:flex-col gba:bg-background gba:relative gba:overflow-hidden ${className || ''}`}
+      className={`gba:h-full gba:flex gba:flex-col gba:relative gba:overflow-hidden ${className || ''}`}
+      style={
+        {
+          backgroundColor: isEmptyState ? 'rgb(15, 23, 42)' : 'var(--nw-background)',
+          // Override AI colors to blue theme
+          '--nw-ai': '#3b82f6',
+          '--nw-ai-secondary': '#60a5fa',
+          '--nw-ai-foreground': '#ffffff',
+          '--nw-ai-secondary-foreground': '#ffffff'
+        } as React.CSSProperties
+      }
       data-testid="every-ai-app"
     >
+      {/* Full-page animated background for empty state */}
+      {isEmptyState && (
+        <div className="gba:absolute gba:inset-0 gba:z-0">
+          <DeepBlueNeuralBackground />
+        </div>
+      )}
+
       {/* Voice Mode Overlay */}
       <VoiceOverlay
         isVisible={isSpeechMode}
@@ -575,7 +594,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
           data-testid="conversation-area"
         >
           {conversation.length === 0 && !isLoading ? (
-            <div className="gba:flex-1 gba:flex gba:flex-col">
+            <div className="gba:flex-1 gba:flex gba:flex-col gba:relative gba:min-h-full">
               <HeroSection data-testid="every-ai-hero" />
             </div>
           ) : (
@@ -596,29 +615,82 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
           )}
         </div>
 
-        {/* Input Area with premium styling - seamless transition from hero */}
-        <div className="gba:flex-shrink-0 gba:bg-background gba:backdrop-blur-md gba:pt-2 gba:px-6 gba:pb-6 gba:relative gba:z-10">
-          <ChatInput
-            onSend={handleSend}
-            onClear={clearConversation}
-            disabled={isLoading}
-            suggestions={nextStepProposals}
-            isPrechatLoading={isPrechatLoading}
-            placeholder="Ask EveryAI anything..."
-            // Voice mode props
-            isSpeechMode={isSpeechMode}
-            isListening={voiceInput.isListening}
-            isSpeaking={voiceSynthesis.isSpeaking}
-            isVoiceLoading={voiceSynthesis.isLoading}
-            voiceVolume={voiceInput.volume}
-            onToggleVoiceMode={toggleSpeechMode}
-            onStopSpeaking={voiceSynthesis.stop}
-            // Pre-upload files as soon as they are attached for faster first answers.
-            onFilesAttached={files => attachFiles(files)}
-            // Cancel restoration props
-            cancelledMessageText={cancelledMessageText}
-            onClearCancelledMessage={clearCancelledMessage}
-          />
+        {/* Input Area - translucent glassmorphism style for empty state */}
+        <div
+          className={`gba:flex-shrink-0 gba:relative gba:z-20 ${
+            isEmptyState
+              ? 'gba:absolute gba:bottom-6 gba:left-1/2 gba:-translate-x-1/2 gba:w-full gba:max-w-2xl gba:px-4'
+              : 'gba:bg-background gba:pt-2 gba:px-6 gba:pb-6'
+          }`}
+        >
+          {/* Animated circling border for empty state */}
+          {isEmptyState && (
+            <style>{`
+              @keyframes rotateBorder {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
+          )}
+          <div className={isEmptyState ? 'gba:relative gba:rounded-2xl gba:p-[1.5px]' : ''}>
+            {/* Rotating border gradient - masked to only show on border */}
+            {isEmptyState && (
+              <>
+                <div className="gba:absolute gba:inset-0 gba:rounded-2xl gba:overflow-hidden gba:pointer-events-none">
+                  {/* eslint-disable newwork-local/no-hardcoded-colors -- Animated border gradient and mask require specific colors */}
+                  <div
+                    className="gba:absolute"
+                    style={{
+                      width: '150%',
+                      height: '150%',
+                      top: '-25%',
+                      left: '-25%',
+                      background:
+                        'conic-gradient(from 0deg, transparent 0deg, rgba(147, 197, 253, 0.9) 45deg, rgba(96, 165, 250, 0.7) 90deg, transparent 135deg, transparent 360deg)',
+                      animation: 'rotateBorder 3s linear infinite'
+                    }}
+                  />
+                </div>
+                {/* Inner mask to cut out the center, leaving only the border visible */}
+                <div
+                  className="gba:absolute gba:rounded-[14px] gba:pointer-events-none"
+                  style={{
+                    inset: '1.5px',
+                    backgroundColor: 'rgb(15, 23, 42)'
+                  }}
+                />
+                {/* eslint-enable newwork-local/no-hardcoded-colors */}
+              </>
+            )}
+            {/* Inner container - translucent */}
+            <div
+              className={isEmptyState ? 'gba:relative gba:rounded-[14px] gba:backdrop-blur-md' : ''}
+              style={isEmptyState ? { backgroundColor: 'rgba(255, 255, 255, 0.08)' } : undefined}
+            >
+              <ChatInput
+                onSend={handleSend}
+                onClear={clearConversation}
+                disabled={isLoading}
+                suggestions={nextStepProposals}
+                isPrechatLoading={isPrechatLoading}
+                placeholder="Ask EveryAI anything..."
+                // Voice mode props
+                isSpeechMode={isSpeechMode}
+                isListening={voiceInput.isListening}
+                isSpeaking={voiceSynthesis.isSpeaking}
+                isVoiceLoading={voiceSynthesis.isLoading}
+                voiceVolume={voiceInput.volume}
+                onToggleVoiceMode={toggleSpeechMode}
+                onStopSpeaking={voiceSynthesis.stop}
+                // Pre-upload files as soon as they are attached for faster first answers.
+                onFilesAttached={files => attachFiles(files)}
+                // Cancel restoration props
+                cancelledMessageText={cancelledMessageText}
+                onClearCancelledMessage={clearCancelledMessage}
+                darkMode={isEmptyState}
+              />
+            </div>
+          </div>
         </div>
       </FormSubmissionProvider>
     </div>
