@@ -58,6 +58,8 @@ interface ChatInputProps {
   onClearCancelledMessage?: () => void
   /** When true, applies translucent dark mode styling for dark backgrounds */
   darkMode?: boolean
+  /** When true, show fewer suggestions (e.g. in sidebar) so they fit in one row */
+  compactSuggestions?: boolean
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -79,7 +81,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onFilesAttached,
   cancelledMessageText,
   onClearCancelledMessage,
-  darkMode = false
+  darkMode = false,
+  compactSuggestions = false
 }) => {
   const [value, setValue] = useState('')
   const [isSearching, setIsSearching] = useState(false)
@@ -178,9 +181,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           100% { background-position: 200% 0; }
         }
         .input-container-premium {
-          background: var(--nw-card);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
+          background: transparent;
         }
         .input-container-premium:focus-within {
           animation: golden-glow 2s ease-in-out infinite;
@@ -194,15 +195,34 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           background: linear-gradient(135deg, rgb(${goldRgb}) 0%, var(--nw-ai-secondary) 50%, rgb(${goldRgb}) 100%);
           filter: brightness(1.1);
         }
+        @keyframes chat-input-pulse-glow {
+          0%, 100% { box-shadow: 0 0 0 1px rgba(${goldRgb}, 0.35), 0 0 16px rgba(${goldRgb}, 0.2); }
+          50% { box-shadow: 0 0 0 2px rgba(${goldRgb}, 0.6), 0 0 24px rgba(${goldRgb}, 0.35); }
+        }
+        .chat-input-pulse {
+          animation: chat-input-pulse-glow 2.5s ease-in-out infinite;
+        }
       `}</style>
+      <div className="chat-input-pulse gba:relative gba:rounded-2xl gba:p-[2px] gba:min-w-0" data-testid="chat-input-outer">
+        {/* Subtle circling lighter-blue ring - uses rgba for conic-gradient animation effect */}
+        <div
+          className="gba:absolute gba:inset-0 gba:rounded-2xl gba:overflow-hidden gba:pointer-events-none"
+          style={{
+            // eslint-disable-next-line newwork-local/no-hardcoded-colors
+            background: `conic-gradient(from 0deg, transparent 0deg, transparent 300deg, rgba(147, 197, 253, 0.5) 330deg, rgba(191, 219, 254, 0.6) 360deg)`,
+            animation: 'chat-input-circle-rotate 5s linear infinite',
+            WebkitMaskImage: 'radial-gradient(circle at center, transparent calc(100% - 2px), black 100%)',
+            maskImage: 'radial-gradient(circle at center, transparent calc(100% - 2px), black 100%)'
+          }}
+        />
       <div
-        className={`gba:flex gba:flex-col gba:gap-3 ${disabled ? 'gba:opacity-50 gba:pointer-events-none' : ''} ${className || ''}`}
+        className={`gba:relative gba:rounded-2xl gba:flex gba:flex-col gba:gap-3 gba:pt-2 gba:px-2 ${disabled ? 'gba:opacity-50 gba:pointer-events-none' : ''} ${className || ''}`}
         data-testid="chat-input"
       >
-        {/* Suggestions */}
+        {/* Suggestions - in compact mode (sidebar) show fewer so they fit in one row */}
         {(isPrechatLoading || (suggestions && suggestions.length > 0)) && (
           <div
-            className="gba:flex gba:w-full gba:max-w-full gba:min-w-0 gba:flex-nowrap gba:items-center gba:justify-start gba:gap-1.5 gba:overflow-x-auto gba:-mb-1"
+            className="gba:flex gba:w-full gba:max-w-full gba:min-w-0 gba:flex-nowrap gba:items-center gba:justify-start gba:gap-1.5 gba:overflow-hidden gba:-mb-1"
             data-testid="chat-input-suggestions"
           >
             {isPrechatLoading ? (
@@ -210,7 +230,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 Loading suggestions…
               </span>
             ) : (
-              suggestions?.map((s, idx) => {
+              (compactSuggestions ? suggestions?.slice(0, 3) : suggestions)?.map((s, idx) => {
                 const label = typeof s === 'string' ? s : s.heading || s.message || ''
                 const text = typeof s === 'string' ? s : s.message || s.heading || ''
 
@@ -220,7 +240,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   <button
                     key={idx}
                     type="button"
-                    className={`gba:flex-shrink-0 gba:h-6 gba:rounded-full gba:px-2.5 gba:text-[11px] gba:font-medium gba:transition-all gba:duration-200 gba:whitespace-nowrap ${
+                    className={`gba:flex-shrink gba:min-w-0 gba:max-w-full gba:h-6 gba:rounded-full gba:px-2.5 gba:text-[11px] gba:font-medium gba:transition-all gba:duration-200 gba:truncate ${
                       darkMode
                         ? 'gba:bg-white/10 gba:text-white/70 gba:border gba:border-white/15 hover:gba:bg-white/15 hover:gba:text-white'
                         : 'gba:bg-secondary gba:text-secondary-foreground hover:gba:bg-secondary/80'
@@ -305,8 +325,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             style={{
               boxShadow: darkMode
                 ? 'none'
-                : `0 4px 24px rgba(${goldRgb}, 0.08), 0 0 0 1px rgba(${goldRgb}, 0.1), inset 0 1px 0 rgba(255,255,255,0.8)`,
-              background: darkMode ? 'transparent' : undefined
+                : `0 4px 24px rgba(${goldRgb}, 0.06), 0 0 0 1px rgba(${goldRgb}, 0.08)`,
+              background: 'transparent'
             }}
           >
             <div className="gba:flex gba:items-center gba:gap-3">
@@ -541,6 +561,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             if (e.target) e.target.value = ''
           }}
         />
+      </div>
       </div>
     </>
   )

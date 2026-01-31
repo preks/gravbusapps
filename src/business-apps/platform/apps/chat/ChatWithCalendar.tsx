@@ -72,7 +72,8 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
         setActiveTab('dashboard')
       }
     } else if (viewParam === 'everyai') {
-      setActiveTab('everyai')
+      // EveryAI tab only available in sidebar; in fullscreen fall back to dashboard
+      setActiveTab(isInSidepanel ? 'everyai' : 'dashboard')
     } else if (viewParam === 'calendar') {
       setActiveTab('calendar')
     } else if (viewParam === 'chat') {
@@ -80,7 +81,17 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     } else if (viewParam === 'reminders') {
       setActiveTab('reminders')
     }
-  }, [isCompactMode])
+  }, [isCompactMode, isInSidepanel])
+
+  // In fullscreen, EveryAI tab is not available; ensure we never stay on it
+  useEffect(() => {
+    if (!isInSidepanel && activeTab === 'everyai') {
+      setActiveTab('dashboard')
+      const url = new URL(window.location.href)
+      url.searchParams.set('view', 'dashboard')
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [isInSidepanel, activeTab])
 
   // Listen for custom event to open sidebar with specific tab
   useEffect(() => {
@@ -173,13 +184,15 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
                   Dashboard
                 </TabSwitchTrigger>
               )}
-              <TabSwitchTrigger
-                value="everyai"
-                startIcon={<Sparkles className="gba:h-4 gba:w-4" />}
-                data-testid={`${prefixDataTestId}-everyai-tab`}
-              >
-                {t('chat-tab-everyai')}
-              </TabSwitchTrigger>
+              {isInSidepanel && (
+                <TabSwitchTrigger
+                  value="everyai"
+                  startIcon={<Sparkles className="gba:h-4 gba:w-4" />}
+                  data-testid={`${prefixDataTestId}-everyai-tab`}
+                >
+                  {t('chat-tab-everyai')}
+                </TabSwitchTrigger>
+              )}
               <TabSwitchTrigger
                 value="chat"
                 startIcon={<MessageSquare className="gba:h-4 gba:w-4" />}
@@ -234,13 +247,15 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
           </TabSwitchContent>
         )}
 
-        <TabSwitchContent
-          value="everyai"
-          forceMount
-          className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'everyai' ? 'gba:hidden' : ''}`}
-        >
-          <EveryAI accessToken={accessToken} userInfo={userInfo} isActive={activeTab === 'everyai'} {...props} />
-        </TabSwitchContent>
+        {isInSidepanel && (
+          <TabSwitchContent
+            value="everyai"
+            forceMount
+            className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'everyai' ? 'gba:hidden' : ''}`}
+          >
+            <EveryAI accessToken={accessToken} userInfo={userInfo} isActive={activeTab === 'everyai'} compactSuggestions={isInSidepanel} {...props} />
+          </TabSwitchContent>
+        )}
 
         <TabSwitchContent
           value="chat"

@@ -16,6 +16,8 @@ import { HeroSection, DeepBlueNeuralBackground } from './components/HeroSection'
 export interface EveryAIProps extends BusinessAppContextProps {
   className?: string
   isActive?: boolean
+  /** When true (e.g. in sidebar), show fewer suggestions so they fit in one row */
+  compactSuggestions?: boolean
 }
 
 /**
@@ -35,7 +37,7 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
  * Inner component that uses the VoiceFormContext
  */
 const EveryAIInner: React.FC<EveryAIProps> = props => {
-  const { accessToken, className, userInfo, isActive = true } = props
+  const { accessToken, className, userInfo, isActive = true, compactSuggestions = false } = props
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isSpeechMode, setIsSpeechMode] = useState(false)
   const isSpeechModeRef = useRef(false) // Ref for use in callbacks
@@ -613,12 +615,12 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
           )}
         </div>
 
-        {/* Input Area - translucent glassmorphism style for empty state */}
+        {/* Input Area - fully transparent, content behind shows through */}
         <div
           className={`gba:flex-shrink-0 gba:relative gba:z-20 ${
             isEmptyState
               ? 'gba:absolute gba:bottom-6 gba:left-1/2 gba:-translate-x-1/2 gba:w-full gba:max-w-2xl gba:px-4'
-              : 'gba:bg-background gba:pt-2 gba:px-6 gba:pb-6'
+              : 'gba:pt-2 gba:px-6 gba:pb-6'
           }`}
         >
           {/* Animated circling border for empty state */}
@@ -658,10 +660,10 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                 />
               </>
             )}
-            {/* Inner container - translucent */}
+            {/* Inner container - fully transparent, no blur so content behind shows through */}
             <div
-              className={isEmptyState ? 'gba:relative gba:rounded-[14px] gba:backdrop-blur-md' : ''}
-              style={isEmptyState ? { backgroundColor: 'rgba(255, 255, 255, 0.08)' } : undefined}
+              className={isEmptyState ? 'gba:relative gba:rounded-[14px]' : ''}
+              style={isEmptyState ? { backgroundColor: 'transparent' } : undefined}
             >
               <ChatInput
                 onSend={handleSend}
@@ -684,6 +686,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                 cancelledMessageText={cancelledMessageText}
                 onClearCancelledMessage={clearCancelledMessage}
                 darkMode={isEmptyState}
+                compactSuggestions={compactSuggestions}
               />
             </div>
           </div>

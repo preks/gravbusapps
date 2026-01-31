@@ -88,6 +88,23 @@ function mapApiDocumentToDocument(apiDoc: Record<string, unknown>): Document {
     permission = 'owner'
   }
 
+  // Map sourceFileInfo from backend to sourceFile
+  const sourceFileInfo = apiDoc.sourceFileInfo as Record<string, unknown> | undefined
+  const sourceFile = sourceFileInfo
+    ? {
+        originalName: sourceFileInfo.originalName as string,
+        fileSize: sourceFileInfo.fileSize as number,
+        mimeType: sourceFileInfo.mimeType as string,
+        uploadedAt: sourceFileInfo.uploadedAt as string,
+        path: sourceFileInfo.path as string | undefined,
+        fileId: sourceFileInfo.fileId as string | undefined,
+        accessScope: sourceFileInfo.accessScope as string | undefined,
+        appName: sourceFileInfo.appName as string | undefined,
+        folderPath: sourceFileInfo.folderPath as string | undefined,
+        pageCount: sourceFileInfo.pageCount as number | undefined
+      }
+    : undefined
+
   return {
     id: apiDoc.id as string,
     title: apiDoc.title as string,
@@ -108,7 +125,9 @@ function mapApiDocumentToDocument(apiDoc: Record<string, unknown>): Document {
     // Permission info from backend
     permission,
     isShared: apiDoc.isShared as boolean | undefined,
-    sharedBy: apiDoc.sharedBy as string | undefined
+    sharedBy: apiDoc.sharedBy as string | undefined,
+    // Source file info for PDFs
+    sourceFile
   }
 }
 
@@ -169,30 +188,53 @@ export const DocumentApiService = {
     const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
     debugLog('listDocuments response items:', response.items.length)
 
-    return response.items.map(doc => ({
-      id: doc.id as string,
-      title: doc.title as string,
-      description: doc.description as string | undefined,
-      status: doc.status as DocumentStatus,
-      category: doc.category as string | undefined,
-      tags: doc.tags as string[] | undefined,
-      createdAt: doc.createdAt as string,
-      updatedAt: doc.updatedAt as string,
-      createdBy: doc.ownerId as string,
-      wordCount: (doc.wordCount as number) || 0,
-      approvalStatus: (doc.status === 'pending_approval'
-        ? 'pending'
-        : doc.status === 'approved'
-          ? 'approved'
-          : doc.status === 'rejected'
-            ? 'rejected'
-            : undefined) as DocumentSummary['approvalStatus'],
-      // Sharing information from backend
-      isShared: doc.isShared as boolean | undefined,
-      sharedBy: doc.sharedBy as string | undefined,
-      // Map backend 'admin' permission to frontend 'owner'
-      permission: (doc.permission === 'admin' ? 'owner' : doc.permission) as DocumentSummary['permission']
-    }))
+    return response.items.map(doc => {
+      // Map sourceFileInfo from backend to sourceFile
+      const sourceFileInfo = doc.sourceFileInfo as Record<string, unknown> | undefined
+      const sourceFile = sourceFileInfo
+        ? {
+            originalName: sourceFileInfo.originalName as string,
+            fileSize: sourceFileInfo.fileSize as number,
+            mimeType: sourceFileInfo.mimeType as string,
+            uploadedAt: sourceFileInfo.uploadedAt as string,
+            path: sourceFileInfo.path as string | undefined,
+            fileId: sourceFileInfo.fileId as string | undefined,
+            accessScope: sourceFileInfo.accessScope as string | undefined,
+            appName: sourceFileInfo.appName as string | undefined,
+            folderPath: sourceFileInfo.folderPath as string | undefined,
+            pageCount: sourceFileInfo.pageCount as number | undefined
+          }
+        : undefined
+      const isPdf = sourceFile?.mimeType === 'application/pdf'
+
+      return {
+        id: doc.id as string,
+        title: doc.title as string,
+        description: doc.description as string | undefined,
+        status: doc.status as DocumentStatus,
+        category: doc.category as string | undefined,
+        tags: doc.tags as string[] | undefined,
+        createdAt: doc.createdAt as string,
+        updatedAt: doc.updatedAt as string,
+        createdBy: doc.ownerId as string,
+        wordCount: (doc.wordCount as number) || 0,
+        approvalStatus: (doc.status === 'pending_approval'
+          ? 'pending'
+          : doc.status === 'approved'
+            ? 'approved'
+            : doc.status === 'rejected'
+              ? 'rejected'
+              : undefined) as DocumentSummary['approvalStatus'],
+        // Sharing information from backend
+        isShared: doc.isShared as boolean | undefined,
+        sharedBy: doc.sharedBy as string | undefined,
+        // Map backend 'admin' permission to frontend 'owner'
+        permission: (doc.permission === 'admin' ? 'owner' : doc.permission) as DocumentSummary['permission'],
+        // Source file info for PDFs
+        sourceFile,
+        isPdf
+      }
+    })
   },
 
   /**
@@ -231,6 +273,47 @@ export const DocumentApiService = {
       body: JSON.stringify(payload)
     })
 
+    return mapApiDocumentToDocument(created)
+  },
+
+  /**
+   * Import a PDF document
+   * Uploads the PDF to file service and creates a document record with extracted text
+   */
+  async importPdf(
+    file: File,
+    options?: {
+      title?: string
+      description?: string
+      category?: string
+      tags?: string[]
+    }
+  ): Promise<Document> {
+    debugLog('importPdf', file.name, options)
+
+    const formData = new FormData()
+    formData.append('file', file)
+    if (options?.title) formData.append('title', options.title)
+    if (options?.description) formData.append('description', options.description)
+    if (options?.category) formData.append('category', options.category)
+    if (options?.tags?.length) formData.append('tags', options.tags.join(','))
+
+    const token = currentAccessToken
+
+    const response = await fetch(`${API_URL}/documents/import/pdf`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: formData
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: response.statusText }))
+      throw new Error(error.message || `API Error: ${response.status}`)
+    }
+
+    const created = await response.json()
     return mapApiDocumentToDocument(created)
   },
 
