@@ -202,7 +202,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         {/* Suggestions */}
         {(isPrechatLoading || (suggestions && suggestions.length > 0)) && (
           <div
-            className="gba:flex gba:flex-wrap gba:items-center gba:justify-center gba:gap-1.5 gba:mb-4 gba:px-2 gba:overflow-hidden gba:max-w-full"
+            className="gba:flex gba:w-full gba:max-w-full gba:min-w-0 gba:flex-nowrap gba:items-center gba:justify-start gba:gap-1.5 gba:overflow-x-auto gba:-mb-1"
             data-testid="chat-input-suggestions"
           >
             {isPrechatLoading ? (
@@ -220,7 +220,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   <button
                     key={idx}
                     type="button"
-                    className={`gba:h-6 gba:rounded-full gba:px-2.5 gba:text-[10px] gba:font-medium gba:transition-all gba:duration-200 gba:truncate gba:max-w-[140px] ${
+                    className={`gba:flex-shrink-0 gba:h-6 gba:rounded-full gba:px-2.5 gba:text-[11px] gba:font-medium gba:transition-all gba:duration-200 gba:whitespace-nowrap ${
                       darkMode
                         ? 'gba:bg-white/10 gba:text-white/70 gba:border gba:border-white/15 hover:gba:bg-white/15 hover:gba:text-white'
                         : 'gba:bg-secondary gba:text-secondary-foreground hover:gba:bg-secondary/80'

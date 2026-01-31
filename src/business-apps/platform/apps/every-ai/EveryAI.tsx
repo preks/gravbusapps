@@ -522,12 +522,10 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
       className={`gba:h-full gba:flex gba:flex-col gba:relative gba:overflow-hidden ${className || ''}`}
       style={
         {
-          backgroundColor: isEmptyState ? 'rgb(15, 23, 42)' : 'var(--nw-background)',
-          // Override AI colors to blue theme
-          '--nw-ai': '#3b82f6',
-          '--nw-ai-secondary': '#60a5fa',
-          '--nw-ai-foreground': '#ffffff',
-          '--nw-ai-secondary-foreground': '#ffffff'
+          backgroundColor: isEmptyState ? 'var(--nw-ai-hero-background)' : 'var(--nw-background)',
+          // Override AI colors to match decorative theme (blue)
+          '--nw-ai': 'var(--nw-decorative)',
+          '--nw-ai-secondary': 'var(--nw-decorative-secondary)'
         } as React.CSSProperties
       }
       data-testid="every-ai-app"
@@ -637,7 +635,6 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
             {isEmptyState && (
               <>
                 <div className="gba:absolute gba:inset-0 gba:rounded-2xl gba:overflow-hidden gba:pointer-events-none">
-                  {/* eslint-disable newwork-local/no-hardcoded-colors -- Animated border gradient and mask require specific colors */}
                   <div
                     className="gba:absolute"
                     style={{
@@ -646,7 +643,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                       top: '-25%',
                       left: '-25%',
                       background:
-                        'conic-gradient(from 0deg, transparent 0deg, rgba(147, 197, 253, 0.9) 45deg, rgba(96, 165, 250, 0.7) 90deg, transparent 135deg, transparent 360deg)',
+                        'conic-gradient(from 0deg, transparent 0deg, color-mix(in srgb, var(--nw-ai-secondary) 90%, transparent) 45deg, color-mix(in srgb, var(--nw-ai) 70%, transparent) 90deg, transparent 135deg, transparent 360deg)',
                       animation: 'rotateBorder 3s linear infinite'
                     }}
                   />
@@ -656,10 +653,9 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                   className="gba:absolute gba:rounded-[14px] gba:pointer-events-none"
                   style={{
                     inset: '1.5px',
-                    backgroundColor: 'rgb(15, 23, 42)'
+                    backgroundColor: 'var(--nw-ai-hero-background)'
                   }}
                 />
-                {/* eslint-enable newwork-local/no-hardcoded-colors */}
               </>
             )}
             {/* Inner container - translucent */}

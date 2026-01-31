@@ -25,15 +25,6 @@ interface ChatWithCalendarProps extends BusinessAppContextProps {
   defaultTab?: TabValue
 }
 
-// Note: chat:open-with-user event is handled by useOpenChatFromPlatform hook in Chat component
-
-/**
- * ChatWithCalendar - Combined EveryAI, Chat, Calendar, and Reminders view
- *
- * This component provides a unified interface for AI assistance, messaging, scheduling, and reminders,
- * allowing users to seamlessly switch between EveryAI conversations, chat conversations,
- * their meeting calendar, and personal reminders.
- */
 const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   accessToken,
   userInfo,
@@ -44,27 +35,24 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   const t = useChatTranslation()
   const [overdueRemindersCount, setOverdueRemindersCount] = useState<number>(0)
 
-  // Detect if we're in sidepanel mode (not the fullscreen view)
   const isInSidepanel = useMemo(() => {
     if (typeof window === 'undefined') return false
 
-    // In prod mode, check if we're on /platform/chat (actual fullscreen route)
     if (window.location.pathname === '/platform/chat') return false
 
-    // For dev mode with ?app parameter:
-    // In dev, the component is always loaded via ?app parameter
-    // We can't reliably distinguish sidebar from fullscreen in dev mode this way
-    // So in dev mode (when ?app parameter exists), always show the button
-    // This matches EveryAI behavior where button is always visible in dev
-
-    return true // Always show button in dev mode, hide only in prod fullscreen
+    return true
   }, [])
 
-  // In sidepanel mode, default to everyai instead of dashboard
-  const effectiveDefaultTab = isInSidepanel ? 'everyai' : defaultTab
+  const isNarrowViewport = useMemo(() => {
+    if (typeof window === 'undefined') return false
+    return window.innerWidth < 768
+  }, [])
+
+  const isCompactMode = isInSidepanel || isNarrowViewport
+
+  const effectiveDefaultTab = isCompactMode ? 'everyai' : defaultTab
   const [activeTab, setActiveTab] = useState<TabValue>(effectiveDefaultTab)
 
-  // Navigate to fullscreen mode
   const openFullscreen = useCallback(() => {
     // Preserve the current tab when going fullscreen
     const url = `/platform/chat?view=${activeTab}`
@@ -78,7 +66,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
 
     // In sidepanel mode, don't allow dashboard tab - redirect to everyai
     if (viewParam === 'dashboard') {
-      if (isInSidepanel) {
+      if (isCompactMode) {
         setActiveTab('everyai')
       } else {
         setActiveTab('dashboard')
@@ -92,9 +80,9 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     } else if (viewParam === 'reminders') {
       setActiveTab('reminders')
     }
-  }, [isInSidepanel])
+  }, [isCompactMode])
 
-  // Listen for custom event to open sidebar with specific tab (e.g., from AI Summary button)
+  // Listen for custom event to open sidebar with specific tab
   useEffect(() => {
     const handleChatSidebarOpened = (event: CustomEvent<{ defaultTab?: TabValue }>) => {
       const tab = event.detail?.defaultTab
@@ -109,7 +97,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     }
   }, [])
 
-  // Listen for custom event to switch to chat (e.g., from platform chat opener)
+  // Listen for custom event to switch to chat
   useEffect(() => {
     const handleSwitchToChat = () => {
       setActiveTab('chat')
@@ -122,7 +110,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     }
   }, [activeTab])
 
-  // Listen for custom event to switch to calendar (e.g., from MeetingCard click)
+  // Listen for custom event to switch to calendar
   useEffect(() => {
     const handleSwitchToCalendar = () => {
       setActiveTab('calendar')
@@ -147,7 +135,6 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col gba:bg-background gba:relative" data-testid={prefixDataTestId}>
-      {/* Floating fullscreen button (only in sidepanel mode) */}
       {isInSidepanel && (
         <div className="gba:absolute gba:top-4 gba:left-4 gba:z-50">
           <Button
@@ -172,65 +159,61 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
         showBottomBorder
         className="gba:h-full gba:flex gba:flex-col"
       >
-        {/* Tab bar - left-aligned in fullscreen, compact in sidebar */}
-        <div className={`gba:flex gba:bg-card ${isInSidepanel ? 'gba:justify-center' : 'gba:justify-start gba:px-6'}`}>
-          <TabSwitchList className={isInSidepanel ? 'gba:gap-0' : ''}>
-            {/* Dashboard tab only visible in fullscreen mode */}
-            {!isInSidepanel && (
+        <div
+          className={`gba:flex gba:bg-card ${isCompactMode ? 'gba:justify-start gba:px-2 gba:py-1' : 'gba:justify-start gba:px-6 gba:py-2'}`}
+        >
+          <div className={isCompactMode ? 'gba:scale-95 gba:origin-left' : ''}>
+            <TabSwitchList>
+              {!isCompactMode && (
+                <TabSwitchTrigger
+                  value="dashboard"
+                  startIcon={<LayoutDashboard className="gba:h-4 gba:w-4" />}
+                  data-testid={`${prefixDataTestId}-dashboard-tab`}
+                >
+                  Dashboard
+                </TabSwitchTrigger>
+              )}
               <TabSwitchTrigger
-                value="dashboard"
-                startIcon={<LayoutDashboard className="gba:h-4 gba:w-4" />}
-                data-testid={`${prefixDataTestId}-dashboard-tab`}
+                value="everyai"
+                startIcon={<Sparkles className="gba:h-4 gba:w-4" />}
+                data-testid={`${prefixDataTestId}-everyai-tab`}
               >
-                Dashboard
+                {t('chat-tab-everyai')}
               </TabSwitchTrigger>
-            )}
-            <TabSwitchTrigger
-              value="everyai"
-              startIcon={<Sparkles className={isInSidepanel ? 'gba:h-3.5 gba:w-3.5' : 'gba:h-4 gba:w-4'} />}
-              className={isInSidepanel ? 'gba:text-xs gba:px-2 gba:py-1.5' : ''}
-              data-testid={`${prefixDataTestId}-everyai-tab`}
-            >
-              {isInSidepanel ? 'AI' : t('chat-tab-everyai')}
-            </TabSwitchTrigger>
-            <TabSwitchTrigger
-              value="chat"
-              startIcon={<MessageSquare className={isInSidepanel ? 'gba:h-3.5 gba:w-3.5' : 'gba:h-4 gba:w-4'} />}
-              className={isInSidepanel ? 'gba:text-xs gba:px-2 gba:py-1.5' : ''}
-              data-testid={`${prefixDataTestId}-chat-tab`}
-            >
-              {t('chat-tab-chat')}
-            </TabSwitchTrigger>
-            <TabSwitchTrigger
-              value="calendar"
-              startIcon={<CalendarIcon className={isInSidepanel ? 'gba:h-3.5 gba:w-3.5' : 'gba:h-4 gba:w-4'} />}
-              className={isInSidepanel ? 'gba:text-xs gba:px-2 gba:py-1.5' : ''}
-              data-testid={`${prefixDataTestId}-calendar-tab`}
-            >
-              {isInSidepanel ? 'Cal' : t('chat-tab-calendar')}
-            </TabSwitchTrigger>
-            <TabSwitchTrigger
-              value="reminders"
-              startIcon={<Bell className={isInSidepanel ? 'gba:h-3.5 gba:w-3.5' : 'gba:h-4 gba:w-4'} />}
-              className={isInSidepanel ? 'gba:text-xs gba:px-2 gba:py-1.5' : ''}
-              endAdornment={
-                overdueRemindersCount > 0 ? (
-                  <TabSwitchBadge variant="destructive" size="sm">
-                    {overdueRemindersCount}
-                  </TabSwitchBadge>
-                ) : undefined
-              }
-              data-testid={`${prefixDataTestId}-reminders-tab`}
-            >
-              {isInSidepanel ? '' : t('chat-tab-reminders')}
-            </TabSwitchTrigger>
-          </TabSwitchList>
+              <TabSwitchTrigger
+                value="chat"
+                startIcon={<MessageSquare className="gba:h-4 gba:w-4" />}
+                data-testid={`${prefixDataTestId}-chat-tab`}
+              >
+                {t('chat-tab-chat')}
+              </TabSwitchTrigger>
+              <TabSwitchTrigger
+                value="calendar"
+                startIcon={<CalendarIcon className="gba:h-4 gba:w-4" />}
+                data-testid={`${prefixDataTestId}-calendar-tab`}
+              >
+                {t('chat-tab-calendar')}
+              </TabSwitchTrigger>
+              <TabSwitchTrigger
+                value="reminders"
+                startIcon={<Bell className="gba:h-4 gba:w-4" />}
+                endAdornment={
+                  overdueRemindersCount > 0 ? (
+                    <TabSwitchBadge variant="destructive" size="sm">
+                      {overdueRemindersCount}
+                    </TabSwitchBadge>
+                  ) : undefined
+                }
+                data-testid={`${prefixDataTestId}-reminders-tab`}
+              >
+                {t('chat-tab-reminders')}
+              </TabSwitchTrigger>
+            </TabSwitchList>
+          </div>
         </div>
 
-        {/* Tab content - ensure proper height for mobile web views */}
         {/* Use forceMount to keep all tabs mounted for call persistence */}
-        {/* Dashboard content only in fullscreen mode */}
-        {!isInSidepanel && (
+        {!isCompactMode && (
           <TabSwitchContent
             value="dashboard"
             forceMount
@@ -241,10 +224,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
               userInfo={userInfo}
               isActive={activeTab === 'dashboard'}
               onOpenChat={userId => {
-                // Switch to chat tab and trigger opening chat with user
                 setActiveTab('chat')
-                // Dispatch event for Chat component to handle (use correct event name)
-                // Add small delay to ensure Chat component is ready to receive the event
                 setTimeout(() => {
                   window.dispatchEvent(new CustomEvent('chat:open-with-user', { detail: { userId } }))
                 }, 100)

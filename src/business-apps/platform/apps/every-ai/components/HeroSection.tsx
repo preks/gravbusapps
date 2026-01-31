@@ -302,31 +302,26 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
           {/* Animated logo */}
           <div className="gba:mb-6" style={{ animation: 'fadeInUp 0.6s ease-out' }} data-testid={`${testId}-logo`}>
             <div className="gba:inline-flex gba:flex-col gba:items-center gba:gap-2">
-              {/* eslint-disable newwork-local/no-hardcoded-colors -- Icon glow and glassmorphism effects require specific translucent colors */}
               {/* Icon with glow effect */}
               <div className="gba:relative">
                 {/* Subtle glow ring */}
                 <div
-                  className="gba:absolute gba:inset-0 gba:rounded-2xl gba:blur-xl"
+                  className="gba:absolute gba:inset-0 gba:rounded-2xl gba:blur-xl gba:bg-ai/25"
                   style={{
                     animation: 'pulse-glow-ai 3s ease-in-out infinite',
-                    transform: 'scale(1.8)',
-                    background: 'rgba(147, 197, 253, 0.25)'
+                    transform: 'scale(1.8)'
                   }}
                 />
                 {/* Icon container - translucent with outline brain */}
                 <div
-                  className="gba:relative gba:w-16 gba:h-16 gba:rounded-2xl gba:flex gba:items-center gba:justify-center gba:border gba:border-white/20"
+                  className="gba:relative gba:w-16 gba:h-16 gba:rounded-2xl gba:flex gba:items-center gba:justify-center gba:border gba:border-white/20 gba:bg-ai/15 gba:backdrop-blur-md"
                   style={{
-                    animation: 'float-subtle 4s ease-in-out infinite',
-                    background: 'rgba(147, 197, 253, 0.15)',
-                    backdropFilter: 'blur(8px)'
+                    animation: 'float-subtle 4s ease-in-out infinite'
                   }}
                 >
-                  <Brain className="gba:w-8 gba:h-8" style={{ color: 'rgba(147, 197, 253, 0.8)' }} strokeWidth={1.5} />
+                  <Brain className="gba:w-8 gba:h-8 gba:text-ai" strokeWidth={1.5} />
                 </div>
               </div>
-              {/* eslint-enable newwork-local/no-hardcoded-colors */}
 
               {/* Brand text */}
               <span className="gba:text-xs gba:font-medium gba:tracking-[0.4em] gba:uppercase gba:mt-3 gba:text-white/60">
@@ -334,14 +329,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
               </span>
               <h1 className="gba:text-5xl gba:sm:text-6xl gba:lg:text-7xl gba:font-bold gba:tracking-tight">
                 <span className="gba:text-white">Every</span>
-                <span
-                  className="gba:bg-clip-text gba:text-transparent"
-                  style={{
-                    backgroundImage: 'linear-gradient(90deg, #60a5fa, #93c5fd, #60a5fa)',
-                    backgroundSize: '200% 100%',
-                    animation: 'gradient-shift-ai 4s ease infinite'
-                  }}
-                >
+                <span className="gba:bg-gradient-to-r gba:from-ai-secondary gba:via-ai gba:to-ai-secondary gba:bg-clip-text gba:text-transparent">
                   AI
                 </span>
               </h1>
