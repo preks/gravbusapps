@@ -45,42 +45,11 @@ const debugLog = (...args: unknown[]) => {
   }
 }
 
-// Get auth token - check multiple storage locations
-const getAuthToken = (): string | null => {
-  try {
-    // First check the IDE's storage key (Business App IDE)
-    const ideToken = localStorage.getItem('business-app-ide-access-token')
-    if (ideToken) return ideToken
-
-    // Check keycloak token format
-    const authData = localStorage.getItem('keycloak-token')
-    if (authData) {
-      try {
-        const parsed = JSON.parse(authData)
-        return parsed.token || parsed.access_token || null
-      } catch {
-        return authData // Return as-is if not JSON
-      }
-    }
-
-    // Check session storage
-    const sessionToken = sessionStorage.getItem('auth_token')
-    if (sessionToken) return sessionToken
-
-    // Check window global
-    if (typeof window !== 'undefined' && (window as unknown as { authToken?: string }).authToken) {
-      return (window as unknown as { authToken: string }).authToken
-    }
-
-    return null
-  } catch {
-    return null
-  }
-}
+let currentAccessToken: string | null = null
 
 // API request helper
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = getAuthToken()
+  const token = currentAccessToken
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -165,6 +134,9 @@ function mapApiTemplateToTemplate(apiTemplate: Record<string, unknown>): Documen
  * Document API Service
  */
 export const DocumentApiService = {
+  setAccessToken(token: string | null) {
+    currentAccessToken = token
+  },
   // ============ Documents ============
 
   /**
@@ -195,19 +167,7 @@ export const DocumentApiService = {
     debugLog('listDocuments', endpoint)
 
     const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
-
-    console.log(
-      '[DocumentApiService] listDocuments raw response:',
-      response.items.map(d => ({
-        id: d.id,
-        title: d.title,
-        ownerId: d.ownerId,
-        isShared: d.isShared,
-        sharedBy: d.sharedBy,
-        permission: d.permission,
-        rawPermission: d.permission // Log the exact value
-      }))
-    )
+    debugLog('listDocuments response items:', response.items.length)
 
     return response.items.map(doc => ({
       id: doc.id as string,
@@ -372,7 +332,6 @@ export const DocumentApiService = {
           permission: s.permission
         }))
       }
-      console.log('[DocumentApiService] shareDocument payload:', JSON.stringify(payload, null, 2))
       debugLog('shareDocument', documentId, shares)
       await apiRequest('/sharing', {
         method: 'POST',
@@ -390,10 +349,8 @@ export const DocumentApiService = {
    */
   async getSharedUsers(documentId: string): Promise<Array<DocumentShare & { id: string }>> {
     try {
-      console.log('[DocumentApiService] getSharedUsers called for:', documentId)
       debugLog('getSharedUsers', documentId)
       const shares = await apiRequest<Array<Record<string, unknown>>>(`/sharing/document/${documentId}`)
-      console.log('[DocumentApiService] getSharedUsers raw response:', JSON.stringify(shares, null, 2))
       const mapped = (shares || []).map(s => ({
         id: s.id as string,
         userId: s.userId as string,
@@ -401,10 +358,6 @@ export const DocumentApiService = {
         sharedAt: s.createdAt as string,
         sharedBy: s.sharedBy as string
       }))
-      console.log(
-        '[DocumentApiService] getSharedUsers mapped:',
-        mapped.map(m => ({ userId: m.userId, permission: m.permission }))
-      )
       return mapped
     } catch (error) {
       console.error('[DocumentApiService] Failed to get shared users:', error)
@@ -780,14 +733,12 @@ export const DocumentApiService = {
    */
   async restoreVersion(documentId: string, versionNumber: number): Promise<boolean> {
     try {
-      console.log('[DocumentApiService] Restoring version:', documentId, versionNumber)
+      debugLog('restoreVersion', documentId, versionNumber)
 
       // Get the version content
       const versionData = await apiRequest<Record<string, unknown>>(`/versions/document/${documentId}/${versionNumber}`)
-      console.log('[DocumentApiService] Version data:', versionData)
 
       const snapshot = versionData.contentSnapshot as Record<string, unknown>
-      console.log('[DocumentApiService] Content snapshot:', snapshot)
 
       if (!snapshot) {
         console.error('[DocumentApiService] No snapshot found')
@@ -795,8 +746,7 @@ export const DocumentApiService = {
       }
 
       // Update the document with the old content and clear Yjs state
-      console.log('[DocumentApiService] Updating document with old content...')
-      const updated = await this.updateDocument(documentId, {
+      await this.updateDocument(documentId, {
         title: snapshot.title as string,
         content: snapshot.content as string,
         description: snapshot.description as string | undefined,
@@ -804,15 +754,12 @@ export const DocumentApiService = {
         category: snapshot.category as string | undefined,
         contentJson: {} // Clear Yjs state to force re-initialization with restored content
       })
-      console.log('[DocumentApiService] Document updated:', updated?.title)
 
       // Create a new version marking it as a restore
-      console.log('[DocumentApiService] Creating restore checkpoint...')
       await this.createVersion(documentId, {
         changeDescription: `Restored from version ${versionNumber}`,
         isCheckpoint: true
       })
-      console.log('[DocumentApiService] Restore complete!')
 
       return true
     } catch (error) {

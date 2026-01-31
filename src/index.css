@@ -167,6 +167,9 @@
     --nw-ai-foreground: #ffffff; /* White text on AI backgrounds */
     --nw-ai-secondary: #fbbf24; /* Lighter orange for secondary elements */
     --nw-ai-secondary-foreground: #000000; /* Dark text on secondary AI backgrounds */
+
+    /* EveryAI hero background (deep navy) */
+    --nw-ai-hero-background: rgb(15, 23, 42);
   }
 }
 

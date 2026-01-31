@@ -56,6 +56,8 @@ interface ChatInputProps {
   // Cancel restoration props
   cancelledMessageText?: string | null
   onClearCancelledMessage?: () => void
+  /** When true, applies translucent dark mode styling for dark backgrounds */
+  darkMode?: boolean
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -76,7 +78,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onStopSpeaking,
   onFilesAttached,
   cancelledMessageText,
-  onClearCancelledMessage
+  onClearCancelledMessage,
+  darkMode = false
 }) => {
   const [value, setValue] = useState('')
   const [isSearching, setIsSearching] = useState(false)
@@ -145,9 +148,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }
   }, [cancelledMessageText, onClearCancelledMessage])
 
-  // Golden color for animations
-  const goldRgb = '212, 175, 55'
-  const goldSecondary = 'var(--nw-ai-secondary)'
+  // Blue color theme for animations (matching the EveryAI hero)
+  const goldRgb = '59, 130, 246' // Royal blue
+  const goldSecondary = 'rgb(96, 165, 250)' // Light blue
 
   return (
     <>
@@ -199,11 +202,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         {/* Suggestions */}
         {(isPrechatLoading || (suggestions && suggestions.length > 0)) && (
           <div
-            className="gba:flex gba:flex-wrap gba:items-center gba:gap-2 gba:-mt-1"
+            className="gba:flex gba:w-full gba:max-w-full gba:min-w-0 gba:flex-nowrap gba:items-center gba:justify-start gba:gap-1.5 gba:overflow-x-auto gba:-mb-1"
             data-testid="chat-input-suggestions"
           >
             {isPrechatLoading ? (
-              <span className="gba:text-xs gba:text-muted-foreground">Loading suggestions…</span>
+              <span className={`gba:text-xs ${darkMode ? 'gba:text-white/50' : 'gba:text-muted-foreground'}`}>
+                Loading suggestions…
+              </span>
             ) : (
               suggestions?.map((s, idx) => {
                 const label = typeof s === 'string' ? s : s.heading || s.message || ''
@@ -212,12 +217,14 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 if (!label || !text) return null
 
                 return (
-                  <Button
+                  <button
                     key={idx}
                     type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="gba:h-7 gba:rounded-full gba:px-3 gba:text-xs"
+                    className={`gba:flex-shrink-0 gba:h-6 gba:rounded-full gba:px-2.5 gba:text-[11px] gba:font-medium gba:transition-all gba:duration-200 gba:whitespace-nowrap ${
+                      darkMode
+                        ? 'gba:bg-white/10 gba:text-white/70 gba:border gba:border-white/15 hover:gba:bg-white/15 hover:gba:text-white'
+                        : 'gba:bg-secondary gba:text-secondary-foreground hover:gba:bg-secondary/80'
+                    }`}
                     onClick={e => {
                       e.preventDefault()
                       e.stopPropagation()
@@ -233,8 +240,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     }}
                     data-testid={`suggestion-${idx}`}
                   >
-                    <span className="gba:max-w-xs gba:truncate">{label}</span>
-                  </Button>
+                    {label}
+                  </button>
                 )
               })
             )}
@@ -296,7 +303,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           <div
             className="input-container-premium gba:relative gba:rounded-2xl gba:p-3 gba:transition-all gba:duration-500"
             style={{
-              boxShadow: `0 4px 24px rgba(${goldRgb}, 0.08), 0 0 0 1px rgba(${goldRgb}, 0.1), inset 0 1px 0 rgba(255,255,255,0.8)`
+              boxShadow: darkMode
+                ? 'none'
+                : `0 4px 24px rgba(${goldRgb}, 0.08), 0 0 0 1px rgba(${goldRgb}, 0.1), inset 0 1px 0 rgba(255,255,255,0.8)`,
+              background: darkMode ? 'transparent' : undefined
             }}
           >
             <div className="gba:flex gba:items-center gba:gap-3">
@@ -311,8 +321,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                       background:
                         isSearching || files.length > 0
                           ? `linear-gradient(135deg, rgb(${goldRgb}), ${goldSecondary})`
-                          : 'rgba(0,0,0,0.04)',
-                      color: isSearching || files.length > 0 ? 'white' : '#666',
+                          : darkMode
+                            ? 'rgba(255,255,255,0.1)'
+                            : 'rgba(0,0,0,0.04)',
+                      color: isSearching || files.length > 0 ? 'white' : darkMode ? 'rgba(255,255,255,0.7)' : '#666',
                       boxShadow: isSearching || files.length > 0 ? `0 2px 12px rgba(${goldRgb}, 0.3)` : 'none'
                     }}
                     aria-label="More options"
@@ -323,10 +335,13 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent
-                  className="gba:w-60 gba:rounded-xl gba:border-0 gba:bg-card/98 gba:p-2.5"
+                  className={`gba:w-60 gba:rounded-xl gba:border-0 gba:p-2.5 ${darkMode ? '' : 'gba:bg-card/98'}`}
                   style={{
                     backdropFilter: 'blur(20px)',
-                    boxShadow: `0 8px 40px rgba(0,0,0,0.12), 0 0 0 1px rgba(${goldRgb}, 0.1)`
+                    boxShadow: darkMode
+                      ? '0 8px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(147, 197, 253, 0.2)'
+                      : `0 8px 40px rgba(0,0,0,0.12), 0 0 0 1px rgba(${goldRgb}, 0.1)`,
+                    background: darkMode ? 'rgba(15, 23, 42, 0.95)' : undefined
                   }}
                   side="top"
                   align="start"
@@ -336,28 +351,35 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     {/* Attach File */}
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="gba:group/option gba:flex gba:w-full gba:items-center gba:gap-3 gba:rounded-xl gba:px-3 gba:py-2.5 gba:text-left gba:text-sm gba:text-foreground gba:transition-all gba:duration-200"
+                      className={`gba:group/option gba:flex gba:w-full gba:items-center gba:gap-3 gba:rounded-xl gba:px-3 gba:py-2.5 gba:text-left gba:text-sm gba:transition-all gba:duration-200 ${darkMode ? 'gba:text-white/90 hover:gba:bg-white/10' : 'gba:text-foreground'}`}
                       onMouseEnter={e => {
-                        ;(e.currentTarget as HTMLButtonElement).style.background = `rgba(${goldRgb}, 0.08)`
+                        if (!darkMode)
+                          (e.currentTarget as HTMLButtonElement).style.background = `rgba(${goldRgb}, 0.08)`
                       }}
                       onMouseLeave={e => {
-                        ;(e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+                        if (!darkMode) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'
                       }}
                       disabled={disabled}
                     >
                       <div
                         className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
-                        style={{ background: `rgba(${goldRgb}, 0.12)` }}
+                        style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
                       >
-                        <Paperclip className="gba:h-4 gba:w-4" style={{ color: `rgb(${goldRgb})` }} weight="bold" />
+                        <Paperclip
+                          className="gba:h-4 gba:w-4"
+                          style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
+                          weight="bold"
+                        />
                       </div>
                       <span className="gba:font-medium">Attach file</span>
                       {files.length > 0 && (
                         <span
                           className="gba:ml-auto gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-semibold"
                           style={{
-                            background: `linear-gradient(135deg, rgb(${goldRgb}), ${goldSecondary})`,
-                            color: 'var(--nw-ai-foreground)'
+                            background: darkMode
+                              ? 'rgba(96, 165, 250, 0.3)'
+                              : `linear-gradient(135deg, rgb(${goldRgb}), ${goldSecondary})`,
+                            color: darkMode ? 'white' : 'var(--nw-ai-foreground)'
                           }}
                         >
                           {files.length}
@@ -368,20 +390,32 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     {/* Web Search Toggle */}
                     <button
                       onClick={() => setIsSearching(!isSearching)}
-                      className="gba:group/option gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-xl gba:text-sm gba:transition-all gba:duration-200 gba:w-full gba:text-left"
+                      className={`gba:group/option gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-xl gba:text-sm gba:transition-all gba:duration-200 gba:w-full gba:text-left ${darkMode && !isSearching ? 'gba:text-white/90 hover:gba:bg-white/10' : ''}`}
                       style={{
                         background: isSearching ? 'var(--nw-success)1A' : 'transparent',
-                        color: isSearching ? 'var(--nw-success)' : 'var(--nw-foreground)'
+                        color: isSearching ? 'var(--nw-success)' : darkMode ? undefined : 'var(--nw-foreground)'
                       }}
                       disabled={disabled}
                     >
                       <div
                         className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
-                        style={{ background: isSearching ? 'rgb(34, 197, 94)' : `rgba(${goldRgb}, 0.12)` }}
+                        style={{
+                          background: isSearching
+                            ? 'rgb(34, 197, 94)'
+                            : darkMode
+                              ? 'rgba(96, 165, 250, 0.2)'
+                              : `rgba(${goldRgb}, 0.12)`
+                        }}
                       >
                         <Globe
                           className="gba:h-4 gba:w-4"
-                          style={{ color: isSearching ? 'var(--nw-success-foreground)' : `rgb(${goldRgb})` }}
+                          style={{
+                            color: isSearching
+                              ? 'var(--nw-success-foreground)'
+                              : darkMode
+                                ? 'rgb(147, 197, 253)'
+                                : `rgb(${goldRgb})`
+                          }}
                           weight={isSearching ? 'fill' : 'bold'}
                         />
                       </div>
@@ -397,7 +431,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     <div
                       className="gba:h-px gba:my-1.5"
                       style={{
-                        background: `linear-gradient(to right, transparent, rgba(${goldRgb}, 0.2), transparent)`
+                        background: darkMode
+                          ? 'linear-gradient(to right, transparent, rgba(147, 197, 253, 0.3), transparent)'
+                          : `linear-gradient(to right, transparent, rgba(${goldRgb}, 0.2), transparent)`
                       }}
                     />
 
@@ -409,13 +445,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                         onClear()
                         focusTextarea()
                       }}
-                      className="gba:group/option gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-xl gba:text-sm gba:text-destructive gba:transition-all gba:duration-200 gba:w-full gba:text-left"
-                      onMouseEnter={e => {
-                        ;(e.currentTarget as HTMLButtonElement).style.background = 'rgba(239, 68, 68, 0.08)'
-                      }}
-                      onMouseLeave={e => {
-                        ;(e.currentTarget as HTMLButtonElement).style.background = 'transparent'
-                      }}
+                      className="gba:group/option gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-xl gba:text-sm gba:text-destructive gba:transition-all gba:duration-200 gba:w-full gba:text-left hover:gba:bg-destructive/10"
                       disabled={disabled}
                     >
                       <div className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:bg-destructive/10 gba:flex gba:items-center gba:justify-center gba:transition-all">
@@ -433,7 +463,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 value={value}
                 onChange={e => setValue(e.target.value)}
                 placeholder={placeholder}
-                className="gba:flex-1 gba:min-w-0 gba:min-h-10 gba:max-h-32 gba:resize-none gba:bg-transparent gba:border-none gba:px-1 gba:py-2 gba:text-base gba:text-foreground gba:leading-relaxed focus-visible:gba:ring-0"
+                className={`gba:flex-1 gba:min-w-0 gba:min-h-10 gba:max-h-32 gba:resize-none gba:bg-transparent gba:border-none gba:px-1 gba:py-2 gba:text-base gba:leading-relaxed focus-visible:gba:ring-0 ${darkMode ? 'gba:text-white gba:placeholder-white/50' : 'gba:text-foreground'}`}
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
@@ -460,7 +490,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   />
                 )}
 
-                {/* Send Button - Premium golden design */}
+                {/* Send Button - Premium design */}
                 <Button
                   variant="default"
                   size="sm"
@@ -472,14 +502,24 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   style={{
                     background:
                       !disabled && (value.trim() || files.length > 0)
-                        ? `linear-gradient(135deg, rgb(${goldRgb}), ${goldSecondary})`
-                        : 'rgba(0,0,0,0.06)',
+                        ? darkMode
+                          ? 'linear-gradient(135deg, rgb(59, 130, 246), rgb(96, 165, 250))'
+                          : `linear-gradient(135deg, rgb(${goldRgb}), ${goldSecondary})`
+                        : darkMode
+                          ? 'rgba(255,255,255,0.1)'
+                          : 'rgba(0,0,0,0.06)',
                     color:
                       !disabled && (value.trim() || files.length > 0)
-                        ? 'var(--nw-ai-foreground)'
-                        : 'var(--nw-muted-foreground)',
+                        ? 'white'
+                        : darkMode
+                          ? 'rgba(255,255,255,0.5)'
+                          : 'var(--nw-muted-foreground)',
                     boxShadow:
-                      !disabled && (value.trim() || files.length > 0) ? `0 4px 16px rgba(${goldRgb}, 0.4)` : 'none',
+                      !disabled && (value.trim() || files.length > 0)
+                        ? darkMode
+                          ? '0 4px 16px rgba(59, 130, 246, 0.4)'
+                          : `0 4px 16px rgba(${goldRgb}, 0.4)`
+                        : 'none',
                     transform: !disabled && (value.trim() || files.length > 0) ? 'scale(1)' : 'scale(0.95)'
                   }}
                 >
