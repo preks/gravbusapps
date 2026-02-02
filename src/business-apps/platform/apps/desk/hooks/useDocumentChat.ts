@@ -40,8 +40,21 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingContent, setStreamingContent] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [lastSessionTitleUpdate, setLastSessionTitleUpdate] = useState<{ sessionId: string; title: string } | null>(
+    null
+  )
 
   const streamingContentRef = useRef('')
+  const streamingRafRef = useRef<number | null>(null)
+  const pendingUserMessageRef = useRef<{ tempId: string; sessionId: string; content: string } | null>(null)
+
+  const upsertById = (prev: ChatMessage[], next: ChatMessage): ChatMessage[] => {
+    const idx = prev.findIndex(m => m.id === next.id)
+    if (idx === -1) return [...prev, next]
+    const copy = prev.slice()
+    copy[idx] = next
+    return copy
+  }
 
   // Initialize WebSocket connection
   useEffect(() => {
@@ -120,14 +133,47 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
 
     newSocket.on('token', (data: { token: string }) => {
       streamingContentRef.current += data.token
-      setStreamingContent(streamingContentRef.current)
+      if (typeof window === 'undefined') {
+        setStreamingContent(streamingContentRef.current)
+        return
+      }
+
+      if (streamingRafRef.current !== null) return
+      streamingRafRef.current = window.requestAnimationFrame(() => {
+        streamingRafRef.current = null
+        setStreamingContent(streamingContentRef.current)
+      })
     })
 
     newSocket.on('complete', (data: { userMessage: ChatMessage; assistantMessage: ChatMessage }) => {
-      setMessages(prev => [...prev, data.userMessage, data.assistantMessage])
+      setMessages(prev => {
+        const pending = pendingUserMessageRef.current
+
+        // Replace the optimistic temp message (prevents user message from being duplicated)
+        if (pending && pending.sessionId === data.userMessage.sessionId) {
+          const tempIdx = prev.findIndex(m => m.id === pending.tempId)
+          pendingUserMessageRef.current = null
+
+          if (tempIdx !== -1) {
+            const next = prev.slice()
+            next[tempIdx] = data.userMessage
+            return upsertById(next, data.assistantMessage)
+          }
+        }
+
+        // Fallback: de-duplicate by id if complete is emitted twice
+        const nextWithUser = upsertById(prev, data.userMessage)
+        return upsertById(nextWithUser, data.assistantMessage)
+      })
       setIsStreaming(false)
       setStreamingContent('')
       streamingContentRef.current = ''
+      pendingUserMessageRef.current = null
+    })
+
+    newSocket.on('session-updated', (data: { sessionId: string; title: string }) => {
+      setLastSessionTitleUpdate({ sessionId: data.sessionId, title: data.title })
+      setCurrentSession(prev => (prev?.id === data.sessionId ? { ...prev, title: data.title } : prev))
     })
 
     newSocket.on('error', (data: { message: string }) => {
@@ -136,11 +182,16 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
       setIsStreaming(false)
       setStreamingContent('')
       streamingContentRef.current = ''
+      pendingUserMessageRef.current = null
     })
 
     setSocket(newSocket)
 
     return () => {
+      if (typeof window !== 'undefined' && streamingRafRef.current !== null) {
+        window.cancelAnimationFrame(streamingRafRef.current)
+        streamingRafRef.current = null
+      }
       newSocket.disconnect()
     }
   }, [userId, accessToken])
@@ -179,12 +230,11 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
       }
 
       // Join the session room
-      return new Promise<void>((resolve, reject) => {
+      return new Promise<ChatSession | null>((resolve, reject) => {
         socket.emit('join', { sessionId }, (response: { success: boolean; error?: string }) => {
           if (response.success) {
             // Fetch session and history via REST API
-            fetchSessionHistory(sessionId)
-            resolve()
+            fetchSessionHistory(sessionId).then(result => resolve(result?.session ?? null))
           } else {
             reject(new Error(response.error || 'Failed to join session'))
           }
@@ -196,7 +246,12 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
 
   // Fetch session history via REST API
   const fetchSessionHistory = useCallback(
-    async (sessionId: string) => {
+    async (
+      sessionId: string
+    ): Promise<{
+      session?: ChatSession
+      history: ChatMessage[]
+    } | null> => {
       const apiUrl = getDocumentServiceApiUrl()
       try {
         const response = await fetch(`${apiUrl}/chat/sessions/${sessionId}/history`, {
@@ -219,13 +274,17 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
           }
         })
 
+        let session: ChatSession | undefined
         if (sessionResponse.ok) {
-          const session: ChatSession = await sessionResponse.json()
+          session = await sessionResponse.json()
           setCurrentSession(session)
         }
+
+        return { session, history }
       } catch (error) {
         console.error('Failed to fetch history:', error)
         setError('Failed to load conversation history')
+        return null
       }
     },
     [accessToken]
@@ -233,7 +292,7 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
 
   // Send message
   const sendMessage = useCallback(
-    async (message: string) => {
+    async (message: string, options?: { scope?: 'all' | 'space'; spaceId?: string | null; llmProvider?: string }) => {
       if (!socket || !currentSession) {
         throw new Error('No active session')
       }
@@ -244,20 +303,25 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
       setError(null)
 
       // Add user message to UI immediately
+      const tempId = 'temp-' + Date.now()
       const tempUserMessage: ChatMessage = {
-        id: 'temp-' + Date.now(),
+        id: tempId,
         sessionId: currentSession.id,
         role: 'user',
         content: message,
         sources: [],
         createdAt: new Date().toISOString()
       }
+      pendingUserMessageRef.current = { tempId, sessionId: currentSession.id, content: message }
       setMessages(prev => [...prev, tempUserMessage])
 
       socket.emit('message', {
         sessionId: currentSession.id,
         message,
-        userId
+        userId,
+        llmProvider: options?.llmProvider,
+        scope: options?.scope,
+        spaceId: options?.spaceId || undefined
       })
     },
     [socket, currentSession, userId]
@@ -324,6 +388,7 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
     joinSession,
     sendMessage,
     getUserSessions,
-    deleteSession
+    deleteSession,
+    lastSessionTitleUpdate
   }
 }

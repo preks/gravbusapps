@@ -7,7 +7,14 @@
 import React from 'react'
 import { Button, Badge, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { ArrowLeft, Settings, Share2, Globe, Lock, Plus } from 'lucide-react'
+import { SpaceHeroBackground } from './SpaceHeroBackground'
 import type { Space, SpaceMember } from '../types/space.types'
+
+const hostedVideoUrl =
+  typeof import.meta !== 'undefined' && import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
+const localVideoUrl = '/space-hero-background.mp4'
+const useVideo = hostedVideoUrl || (typeof import.meta !== 'undefined' && import.meta.env?.DEV && localVideoUrl)
+const SPACE_HERO_VIDEO_SRC = hostedVideoUrl || localVideoUrl
 
 export interface EnrichedSpaceMember extends SpaceMember {
   userName?: string
@@ -62,16 +69,41 @@ export const SpaceHero: React.FC<SpaceHeroProps> = ({
 
   return (
     <div data-testid={testId}>
-      {/* Hero with decorative gradient background */}
-      <div className="gba:relative gba:overflow-hidden gba:bg-primary">
-        <div className="gba:max-w-7xl gba:mx-auto gba:px-6 gba:py-8">
+      {/* Hero: video only when VITE_SPACE_HERO_VIDEO_URL is set (hosted); else canvas (avoids 404 on prod) */}
+      <div className="gba:relative gba:overflow-hidden">
+        {useVideo ? (
+          <video
+            src={SPACE_HERO_VIDEO_SRC}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="metadata"
+            className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
+            aria-hidden
+            data-testid="space-hero-video"
+          />
+        ) : (
+          <SpaceHeroBackground />
+        )}
+        {/* Overlay for text readability */}
+        {/* eslint-disable newwork-local/no-hardcoded-colors */}
+        <div
+          className="gba:absolute gba:inset-0 gba:pointer-events-none"
+          style={{
+            background: `linear-gradient(105deg, rgba(15, 23, 42, 0.38) 0%, rgba(15, 23, 42, 0.12) 40%, transparent 60%)`
+          }}
+          aria-hidden
+        />
+        {/* eslint-enable newwork-local/no-hardcoded-colors */}
+        <div className="gba:relative gba:max-w-7xl gba:mx-auto gba:px-6 gba:py-8">
           {/* Top Navigation */}
           <div className="gba:flex gba:items-center gba:justify-between gba:mb-12">
             <Button
               variant="ghost"
               size="sm"
               onClick={onBack}
-              className="gba:gap-2 gba:text-white/70 hover:gba:text-white hover:gba:bg-white/10"
+              className="spaces-hero-ghost-btn gba:gap-2 gba:text-white/80 gba:rounded-lg gba:transition-colors"
               data-testid={`${testId}-back-button`}
             >
               <ArrowLeft className="gba:w-4 gba:h-4" />
@@ -84,7 +116,7 @@ export const SpaceHero: React.FC<SpaceHeroProps> = ({
                   variant="ghost"
                   size="icon"
                   onClick={onSettings}
-                  className="gba:text-white/70 hover:gba:text-white hover:gba:bg-white/10"
+                  className="spaces-hero-ghost-btn gba:text-white/80 gba:rounded-lg gba:transition-colors"
                   data-testid={`${testId}-settings-button`}
                 >
                   <Settings className="gba:w-4 gba:h-4" />
@@ -94,7 +126,7 @@ export const SpaceHero: React.FC<SpaceHeroProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={onShare}
-                className="gba:gap-2 gba:text-white/70 hover:gba:text-white hover:gba:bg-white/10"
+                className="spaces-hero-ghost-btn gba:gap-2 gba:text-white/80 gba:rounded-lg gba:transition-colors"
                 data-testid={`${testId}-share-button`}
               >
                 <Share2 className="gba:w-4 gba:h-4" />
@@ -104,7 +136,7 @@ export const SpaceHero: React.FC<SpaceHeroProps> = ({
                 <Button
                   size="sm"
                   onClick={onAddContent}
-                  className="gba:gap-2 gba:bg-white gba:text-primary hover:gba:bg-white/90"
+                  className="spaces-hero-cta-btn gba:gap-2 gba:rounded-lg gba:bg-white gba:text-primary gba:transition-colors gba:font-medium"
                   data-testid={`${testId}-add-content-button`}
                 >
                   <Plus className="gba:w-4 gba:h-4" />
@@ -134,7 +166,7 @@ export const SpaceHero: React.FC<SpaceHeroProps> = ({
             </div>
 
             {/* Space Name */}
-            <h1 className="gba:text-4xl gba:sm:text-5xl gba:font-semibold gba:text-white gba:tracking-tight gba:mb-3">
+            <h1 className="gba:font-funnel-display gba:text-4xl gba:sm:text-5xl gba:font-semibold gba:text-white gba:tracking-tight gba:mb-3">
               {space.name}
             </h1>
 

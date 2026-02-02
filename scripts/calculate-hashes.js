@@ -57,11 +57,27 @@ function parseArgs() {
  * Find all screen directories in the project
  */
 async function findAllScreenDirectories() {
-  const appIndexFiles = await glob('src/business-apps/**/apps/*/index.ts', { cwd: projectRoot, nodir: true })
-  const formIndexFiles = await glob('src/business-apps/**/forms/*/index.ts', { cwd: projectRoot, nodir: true })
-  const popupIndexFiles = await glob('src/business-apps/**/popups/*/index.ts', { cwd: projectRoot, nodir: true })
-  const recordIndexFiles = await glob('src/business-apps/**/records/*/index.ts', { cwd: projectRoot, nodir: true })
-  const windowIndexFiles = await glob('src/business-apps/**/windows/*/index.ts', { cwd: projectRoot, nodir: true })
+  const appIndexFiles = await glob('src/business-apps/**/apps/*/index.ts', { cwd: projectRoot, nodir: true, dot: true })
+  const formIndexFiles = await glob('src/business-apps/**/forms/*/index.ts', {
+    cwd: projectRoot,
+    nodir: true,
+    dot: true
+  })
+  const popupIndexFiles = await glob('src/business-apps/**/popups/*/index.ts', {
+    cwd: projectRoot,
+    nodir: true,
+    dot: true
+  })
+  const recordIndexFiles = await glob('src/business-apps/**/records/*/index.ts', {
+    cwd: projectRoot,
+    nodir: true,
+    dot: true
+  })
+  const windowIndexFiles = await glob('src/business-apps/**/windows/*/index.ts', {
+    cwd: projectRoot,
+    nodir: true,
+    dot: true
+  })
 
   const allIndexFiles = [
     ...appIndexFiles,

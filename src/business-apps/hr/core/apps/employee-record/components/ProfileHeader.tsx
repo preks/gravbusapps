@@ -289,20 +289,6 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
               ? `${dayjs(employee.workingCondition[0].hireDate).format('MMM D, YYYY')} - ${calculateTimeSince()}`
               : na,
             icon: CalendarIcon
-          },
-          {
-            id: 'fixedTermUntil',
-            label: t('profile-header-fixed-term-until'),
-            value: employee.workingCondition[0]?.exitDate
-              ? dayjs(employee.workingCondition[0].exitDate).format('MMM D, YYYY')
-              : na,
-            icon: CalendarIcon
-          },
-          {
-            id: 'fixedTermReason',
-            label: t('profile-header-fixed-term-reason'),
-            value: employee.workingCondition[0]?.additionalProperties?.fixedTermReason || na,
-            icon: CalendarIcon
           }
         ]
       }

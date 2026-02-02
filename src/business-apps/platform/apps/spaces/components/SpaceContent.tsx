@@ -8,7 +8,7 @@
 import React, { useState, useMemo } from 'react'
 import { format } from 'date-fns'
 import { Input } from '@newwork/nw-design-system'
-import { Search, FileText, Table2, StickyNote, FolderOpen, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Search, FileText, Table2, StickyNote, Presentation, FolderOpen, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import type { SpaceContentItem } from '../types/space.types'
 
 export interface SpaceContentProps {
@@ -18,7 +18,7 @@ export interface SpaceContentProps {
   'data-testid'?: string
 }
 
-type ContentTab = 'all' | 'document' | 'spreadsheet' | 'note'
+type ContentTab = 'all' | 'document' | 'spreadsheet' | 'note' | 'slide'
 type SortField = 'title' | 'updatedAt' | 'createdAt' | 'type'
 type SortDirection = 'asc' | 'desc'
 
@@ -26,13 +26,15 @@ const tabConfig: Record<ContentTab, { icon: typeof FileText; label: string }> = 
   all: { icon: FolderOpen, label: 'All' },
   document: { icon: FileText, label: 'Documents' },
   spreadsheet: { icon: Table2, label: 'Spreadsheets' },
-  note: { icon: StickyNote, label: 'Notes' }
+  note: { icon: StickyNote, label: 'Notes' },
+  slide: { icon: Presentation, label: 'Presentations' }
 }
 
 const contentTypeConfig: Record<string, { icon: typeof FileText; label: string }> = {
   document: { icon: FileText, label: 'Document' },
   spreadsheet: { icon: Table2, label: 'Spreadsheet' },
-  note: { icon: StickyNote, label: 'Note' }
+  note: { icon: StickyNote, label: 'Note' },
+  slide: { icon: Presentation, label: 'Presentation' }
 }
 
 export const SpaceContent: React.FC<SpaceContentProps> = ({
