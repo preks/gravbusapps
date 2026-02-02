@@ -5,6 +5,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFeature } from '@/common/hooks/useFeature'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient'
+import { formatDateForInput } from '../../utils'
 import { useGetExpenseRuleById } from '../../queries/ExpenseRuleQueries'
 import {
   Dialog,
@@ -199,8 +200,8 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
               name: freshData.name || '',
               description: freshData.name || '',
               standard: freshData.standard || false,
-              activeFrom: freshData.activeFrom ? dayjs(freshData.activeFrom).format('YYYY-MM-DD') : '',
-              activeTo: freshData.activeTo ? dayjs(freshData.activeTo).format('YYYY-MM-DD') : '',
+              activeFrom: formatDateForInput(freshData.activeFrom) || '',
+              activeTo: formatDateForInput(freshData.activeTo) || '',
               deductionLimit: freshData.deductionLimit || false,
               useLastCountry: freshData.useLastCountry || false,
               useSingleCurrency: freshData.useSingleCurrency || false,
@@ -223,8 +224,8 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
       if (initialData) {
         form.reset({
           ...initialData,
-          activeFrom: initialData.activeFrom ? dayjs(initialData.activeFrom).format('YYYY-MM-DD') : '',
-          activeTo: initialData.activeTo ? dayjs(initialData.activeTo).format('YYYY-MM-DD') : ''
+          activeFrom: formatDateForInput(initialData.activeFrom) || '',
+          activeTo: formatDateForInput(initialData.activeTo) || ''
         })
       } else {
         form.reset({

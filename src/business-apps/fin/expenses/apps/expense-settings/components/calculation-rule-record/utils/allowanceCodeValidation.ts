@@ -26,7 +26,7 @@ export const validateAmountAndPercentage = (amount?: number | null, percentage?:
 }
 
 export interface DateValidationError {
-  field: 'validFrom' | 'validTo'
+  field: 'activeFrom' | 'activeTo'
   message: string
 }
 
@@ -35,8 +35,8 @@ export interface DateValidationError {
  * Returns array of errors, empty if all valid
  */
 export const validateAllowanceCodeDates = (
-  validFrom: string,
-  validTo: string | undefined,
+  activeFrom: string,
+  activeTo: string | undefined,
   ruleActiveFrom: string,
   ruleActiveTo?: string
 ): DateValidationError[] => {
@@ -44,13 +44,13 @@ export const validateAllowanceCodeDates = (
 
   const ruleFrom = dayjs(ruleActiveFrom)
   const ruleTo = ruleActiveTo ? dayjs(ruleActiveTo) : null
-  const entryFrom = dayjs(validFrom)
-  const entryTo = validTo ? dayjs(validTo) : null
+  const entryFrom = dayjs(activeFrom)
+  const entryTo = activeTo ? dayjs(activeTo) : null
 
   // Valid From cannot be before rule's Valid From
   if (entryFrom.isBefore(ruleFrom, 'day')) {
     errors.push({
-      field: 'validFrom',
+      field: 'activeFrom',
       message: `Valid From must be on or after ${ruleFrom.format('DD/MM/YYYY')} (rule start date)`
     })
   }
@@ -58,7 +58,7 @@ export const validateAllowanceCodeDates = (
   // Valid From cannot be after rule's Valid To
   if (ruleTo && entryFrom.isAfter(ruleTo, 'day')) {
     errors.push({
-      field: 'validFrom',
+      field: 'activeFrom',
       message: `Valid From must be on or before ${ruleTo.format('DD/MM/YYYY')} (rule end date)`
     })
   }
@@ -66,7 +66,7 @@ export const validateAllowanceCodeDates = (
   // Valid To cannot be after rule's Valid To
   if (ruleTo?.isAfter && entryTo?.isAfter(ruleTo, 'day')) {
     errors.push({
-      field: 'validTo',
+      field: 'activeTo',
       message: `Valid To must be on or before ${ruleTo.format('DD/MM/YYYY')} (rule end date)`
     })
   }
@@ -74,7 +74,7 @@ export const validateAllowanceCodeDates = (
   // Valid To cannot be before Valid From
   if (entryTo && entryFrom.isAfter(entryTo, 'day')) {
     errors.push({
-      field: 'validTo',
+      field: 'activeTo',
       message: `Valid To must be on or after Valid From`
     })
   }

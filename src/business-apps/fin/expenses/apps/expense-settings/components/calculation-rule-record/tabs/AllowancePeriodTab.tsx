@@ -88,8 +88,8 @@ interface AllowancePeriod {
   overnightAccommodation?: boolean
   startAfter?: string
   returnBefore?: string
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
   order?: number
   version?: number
   isDeleted: boolean
@@ -106,8 +106,8 @@ interface AllowancePeriodFormData {
   overnightAccommodation?: boolean
   startAfter?: string
   returnBefore?: string
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
   order?: number
   version?: number
 }
@@ -137,8 +137,8 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
       startAfter: createFieldMappings.string((a: AllowancePeriod) => a.startAfter),
       periodOrder: createFieldMappings.number((a: AllowancePeriod) => a.order),
       returnBefore: createFieldMappings.string((a: AllowancePeriod) => a.returnBefore),
-      activeFrom: createFieldMappings.date((a: AllowancePeriod) => a.validFrom),
-      activeTo: createFieldMappings.date((a: AllowancePeriod) => a.validTo, '9999-12-31')
+      activeFrom: createFieldMappings.date((a: AllowancePeriod) => a.activeFrom),
+      activeTo: createFieldMappings.date((a: AllowancePeriod) => a.activeTo, '9999-12-31')
     }),
     []
   )
@@ -157,8 +157,8 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
       name: '',
       minHours: 0,
       midnightRule: false,
-      validFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
-      validTo: formatDateForInput(activeTo) || '9999-12-31'
+      activeFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      activeTo: formatDateForInput(activeTo) || '9999-12-31'
     }
   })
 
@@ -309,8 +309,8 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
         overnightAccommodation: false, // TODO: Map from additionalProperties if available
         startAfter: '', // TODO: Map from additionalProperties if available
         returnBefore: '', // TODO: Map from additionalProperties if available
-        validFrom: period.activeFrom,
-        validTo: period.activeTo,
+        activeFrom: period.activeFrom,
+        activeTo: period.activeTo,
         order: period.periodOrder || index + 1,
         version: period.version,
         isDeleted: false
@@ -344,7 +344,11 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
     setCurrentUsageInfo(null)
 
     // Get validity dates using shared utility (copies from first existing entry if available)
-    const { validFrom, validTo } = getValidityDatesFromExisting(allowancePeriods, activeFrom, activeTo)
+    const { activeFrom: entryActiveFrom, activeTo: entryActiveTo } = getValidityDatesFromExisting(
+      allowancePeriods,
+      activeFrom,
+      activeTo
+    )
 
     form.reset({
       code: '',
@@ -352,8 +356,8 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
       minHours: 0,
       midnightRule: false,
       overnightAccommodation: false,
-      validFrom,
-      validTo,
+      activeFrom: entryActiveFrom,
+      activeTo: entryActiveTo,
       order: allowancePeriods.length + 1
     })
     setIsModalVisible(true)
@@ -378,8 +382,9 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
       overnightAccommodation: record.overnightAccommodation,
       startAfter: record.startAfter,
       returnBefore: record.returnBefore,
-      validFrom: formatDateForInput(record.validFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
-      validTo: formatDateForInput(record.validTo),
+      activeFrom:
+        formatDateForInput(record.activeFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      activeTo: formatDateForInput(record.activeTo),
       order: record.order,
       version: record.version
     })
@@ -489,7 +494,12 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
       setIsSaving(true)
 
       // Check code uniqueness within overlapping validity periods
-      const codeExists = await checkCodeUniqueness(formData.code, formData.validFrom, formData.validTo, editingItem?.id)
+      const codeExists = await checkCodeUniqueness(
+        formData.code,
+        formData.activeFrom,
+        formData.activeTo,
+        editingItem?.id
+      )
 
       if (codeExists) {
         form.setError('code', {
@@ -503,8 +513,8 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
 
       // Date validation using shared utility
       const dateErrors = validateDateRange({
-        entryFrom: formData.validFrom,
-        entryTo: formData.validTo,
+        entryFrom: formData.activeFrom,
+        entryTo: formData.activeTo,
         ruleFrom: activeFrom,
         ruleTo: activeTo
       })
@@ -917,7 +927,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                             data-testid={`allowance-period-valid-from-icon-${record.id}`}
                           />
                           <span className="gba:text-sm" data-testid={`allowance-period-valid-from-text-${record.id}`}>
-                            {formatDate(record.validFrom)}
+                            {formatDate(record.activeFrom)}
                           </span>
                         </div>
                       </TableCell>
@@ -930,7 +940,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                             data-testid={`allowance-period-valid-to-icon-${record.id}`}
                           />
                           <span className="gba:text-sm" data-testid={`allowance-period-valid-to-text-${record.id}`}>
-                            {record.validTo ? formatDate(record.validTo) : '∞'}
+                            {record.activeTo ? formatDate(record.activeTo) : '∞'}
                           </span>
                         </div>
                       </TableCell>
@@ -1179,7 +1189,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                 {/* Valid From */}
                 <FormField
                   control={form.control}
-                  name="validFrom"
+                  name="activeFrom"
                   rules={{ required: 'Valid From is required' }}
                   render={({ field }) => (
                     <FormItem data-testid="allowance-period-valid-from-field">
@@ -1200,7 +1210,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                 {/* Valid To */}
                 <FormField
                   control={form.control}
-                  name="validTo"
+                  name="activeTo"
                   render={({ field }) => (
                     <FormItem data-testid="allowance-period-valid-to-field">
                       <FormLabel data-testid="allowance-period-valid-to-label">Valid To</FormLabel>

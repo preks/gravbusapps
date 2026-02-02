@@ -9,19 +9,19 @@ export interface SetupDateValidationError {
  * Returns error message if invalid, null if valid
  */
 export const validateAllowanceSetupDates = (
-  validFrom: string | undefined,
-  validTo: string | undefined,
+  activeFrom: string | undefined,
+  activeTo: string | undefined,
   ruleActiveFrom: string,
   ruleActiveTo?: string
 ): SetupDateValidationError | null => {
-  if (!validFrom) {
+  if (!activeFrom) {
     return { message: 'Valid From date is required' }
   }
 
   const ruleFrom = dayjs(ruleActiveFrom)
   const ruleTo = ruleActiveTo ? dayjs(ruleActiveTo) : null
-  const setupFrom = dayjs(validFrom)
-  const setupTo = validTo ? dayjs(validTo) : null
+  const setupFrom = dayjs(activeFrom)
+  const setupTo = activeTo ? dayjs(activeTo) : null
 
   // Valid From must be on or after rule's start date
   if (setupFrom.isBefore(ruleFrom, 'day')) {

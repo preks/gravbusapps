@@ -35,7 +35,7 @@ import {
 } from '../../types/ExpenseRuleTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
-import dayjs from 'dayjs'
+import { formatDate } from '../../utils'
 
 // Import filter components
 import TargetTypeFilter from './filters/TargetTypeFilter'
@@ -497,11 +497,11 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
                                 className="gba:py-3 gba:px-6"
                                 data-testid={`${PREFIX}-cell-valid-from-${index}`}
                               >
-                                <span className="gba:text-sm">{dayjs(assignment.activeFrom).format('DD/MM/YYYY')}</span>
+                                <span className="gba:text-sm">{formatDate(assignment.activeFrom)}</span>
                               </TableCell>
                               <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-valid-to-${index}`}>
                                 <span className="gba:text-sm">
-                                  {assignment.activeTo ? dayjs(assignment.activeTo).format('DD/MM/YYYY') : 'Ongoing'}
+                                  {assignment.activeTo ? formatDate(assignment.activeTo) : 'Ongoing'}
                                 </span>
                               </TableCell>
                               <TableCell

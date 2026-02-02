@@ -177,7 +177,7 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
               Valid From <span className="gba:text-destructive gba:ml-1">*</span>
             </Label>
             <DateInput
-              value={group.validFrom}
+              value={group.activeFrom}
               onChange={date => onUpdateField('activeFrom', date || '')}
               data-testid={`travel-region-rule-group-valid-from-${groupIndex}`}
               disabled={isEditRestricted}
@@ -186,7 +186,7 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
           <div className="gba:space-y-1">
             <Label className="gba:text-xs gba:font-medium">Valid To</Label>
             <DateInput
-              value={group.validTo || ''}
+              value={group.activeTo || ''}
               onChange={date => onUpdateField('activeTo', date || '')}
               data-testid={`travel-region-rule-group-valid-to-${groupIndex}`}
               max="2099-12-31"

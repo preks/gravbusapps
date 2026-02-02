@@ -12,6 +12,7 @@ import {
 import { PiFloppyDisk, PiX } from 'react-icons/pi'
 import dayjs from 'dayjs'
 import { EditableCell, CurrencyOption, UsageInfo } from './types'
+import { formatDateForInput } from '../../utils'
 
 interface MatrixCellProps {
   cell: EditableCell
@@ -96,7 +97,7 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
           <div>
             <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">From:</label>
             <DateInput
-              value={cell.activeFrom ? dayjs(cell.activeFrom).format('YYYY-MM-DD') : ''}
+              value={formatDateForInput(cell.activeFrom) || ''}
               onChange={date => {
                 const dateValue = date ? `${date}T00:00:00+00:00` : ''
                 updateCellField(cell.id!, cell.validityPeriodId!, 'activeFrom', dateValue)
@@ -110,7 +111,7 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
           <div>
             <label className="gba:text-xs gba:text-muted-foreground gba:block gba:mb-1">To:</label>
             <DateInput
-              value={cell.activeTo ? dayjs(cell.activeTo).format('YYYY-MM-DD') : ''}
+              value={formatDateForInput(cell.activeTo) || ''}
               onChange={date => {
                 const dateValue = date ? `${date}T00:00:00+00:00` : undefined
                 updateCellField(cell.id!, cell.validityPeriodId!, 'activeTo', dateValue)

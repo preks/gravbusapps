@@ -38,6 +38,7 @@ dayjs.extend(localeData)
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { SaveExpenseRuleAssignmentInput, ExpenseRule, ExpenseRuleAssignment } from '../../types/ExpenseRuleTypes'
 import { useGetExpenseRuleAssignmentById } from '../../queries/ExpenseRuleQueries'
+import { formatDateForInput } from '../../utils'
 import { assignmentFormSchema } from '../../schemas'
 
 export interface AssignmentFormData {
@@ -207,21 +208,14 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
             // Store the version for update operations
             if (freshData.version !== undefined) {
               setCurrentVersion(freshData.version)
-              console.log('📦 Stored version from fresh data:', freshData.version)
-            }
-
-            // Format dates to YYYY-MM-DD for DateInput component
-            const formatDateForForm = (date: string | null | undefined): string => {
-              if (!date) return ''
-              return dayjs(date).format('YYYY-MM-DD')
             }
 
             const formValues = {
               assignmentOrder: freshData.assignmentOrder || 1,
               cascading: freshData.cascading || false,
               applicants: freshData.applicants || false,
-              activeFrom: formatDateForForm(freshData.activeFrom) || dayjs().format('YYYY-MM-DD'),
-              activeTo: formatDateForForm(freshData.activeTo) || '9999-12-31',
+              activeFrom: formatDateForInput(freshData.activeFrom) || dayjs().format('YYYY-MM-DD'),
+              activeTo: formatDateForInput(freshData.activeTo) || '9999-12-31',
               expenseRuleId: freshData.expenseRuleId || '',
               employeeId: freshData.employeeId || '',
               companyId: freshData.companyId || '',
@@ -231,7 +225,6 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
               contractTypeRef: freshData.contractTypeRef || '',
               id: freshData.id
             }
-            console.log('📝 Form reset with fresh data:', formValues)
             form.reset(formValues)
             return
           }
@@ -243,18 +236,12 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
 
       // Fallback: Use initial data (for creating or if fresh fetch failed)
       if (initialData) {
-        // Format dates to YYYY-MM-DD for DateInput component
-        const formatDateForForm = (date: string | null | undefined): string => {
-          if (!date) return ''
-          return dayjs(date).format('YYYY-MM-DD')
-        }
-
         const fallbackValues = {
           assignmentOrder: initialData.assignmentOrder || 1,
           cascading: initialData.cascading || false,
           applicants: initialData.applicants || false,
-          activeFrom: formatDateForForm(initialData.activeFrom) || dayjs().format('YYYY-MM-DD'),
-          activeTo: formatDateForForm(initialData.activeTo) || '9999-12-31',
+          activeFrom: formatDateForInput(initialData.activeFrom) || dayjs().format('YYYY-MM-DD'),
+          activeTo: formatDateForInput(initialData.activeTo) || '9999-12-31',
           expenseRuleId: initialData.expenseRuleId || '',
           employeeId: initialData.employeeId || '',
           companyId: initialData.companyId || '',
@@ -264,7 +251,6 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
           contractTypeRef: initialData.contractTypeRef || '',
           id: initialData.id
         }
-        console.log('📝 Form reset with initial data (fallback):', fallbackValues)
         form.reset(fallbackValues)
       } else {
         // Set defaults for new assignment

@@ -393,7 +393,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
     setIsRestrictedEdit(false)
 
     // Get validity dates using shared utility (inherits from parent rule)
-    const { validFrom, validTo } = getValidityDatesFromRule(activeFrom, activeTo)
+    const { activeFrom: entryActiveFrom, activeTo: entryActiveTo } = getValidityDatesFromRule(activeFrom, activeTo)
 
     form.reset({
       expenseRuleId: ruleId,
@@ -403,8 +403,8 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
       taxValue: 0,
       unitPrice: 0,
       expenseGroupRef: 'ExpenseGroup:v1:OTHER_TRANSPORT',
-      activeFrom: validFrom,
-      activeTo: validTo
+      activeFrom: entryActiveFrom,
+      activeTo: entryActiveTo
     })
     setAdditionalPropertiesJson('')
     setIsModalVisible(true)

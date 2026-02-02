@@ -7,8 +7,8 @@ export interface OtherCalculationFormValues {
   relatedId?: string
   costCenterId?: string
   reimbursablePercent?: number
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
 }
 
 export interface OtherCalculationItem {
@@ -31,7 +31,7 @@ export interface OtherCalculationSaveData {
 }
 
 /**
- * Transform form values for restricted update (only validTo can be changed)
+ * Transform form values for restricted update (only activeTo can be changed)
  */
 export const transformOtherCalcForRestrictedUpdate = (
   formValues: OtherCalculationFormValues,
@@ -41,7 +41,7 @@ export const transformOtherCalcForRestrictedUpdate = (
   id: editingItem.id,
   version: editingItem.version,
   expenseRuleId: ruleId,
-  activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null
+  activeTo: formValues.activeTo ? dayjs(formValues.activeTo).endOf('day').toISOString() : null
 })
 
 /**
@@ -54,8 +54,8 @@ export const transformOtherCalcForSave = (
 ): OtherCalculationSaveData => ({
   ...(editingItem && { id: editingItem.id, version: editingItem.version }),
   expenseRuleId: ruleId,
-  activeFrom: formValues.validFrom ? dayjs(formValues.validFrom).startOf('day').toISOString() : null,
-  activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null,
+  activeFrom: formValues.activeFrom ? dayjs(formValues.activeFrom).startOf('day').toISOString() : null,
+  activeTo: formValues.activeTo ? dayjs(formValues.activeTo).endOf('day').toISOString() : null,
   costCenterId: formValues.costCenterId || null,
   source: formValues.source || null,
   reimbursablePercent: formValues.reimbursablePercent || null,

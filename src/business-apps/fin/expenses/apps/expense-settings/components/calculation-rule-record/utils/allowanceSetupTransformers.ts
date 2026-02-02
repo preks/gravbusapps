@@ -2,8 +2,8 @@ export interface AllowanceSetupFormValues {
   name: string
   issue: string
   onlyTax: boolean
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
   allowancePeriodId: string
   allowanceCodeId: string
 }
@@ -25,7 +25,7 @@ export interface AllowanceSetupSaveData {
 }
 
 /**
- * Transforms form values to save data for restricted UPDATE (only validTo editable)
+ * Transforms form values to save data for restricted UPDATE (only activeTo editable)
  */
 export const transformAllowanceSetupForRestrictedUpdate = (
   formValues: AllowanceSetupFormValues,
@@ -40,8 +40,8 @@ export const transformAllowanceSetupForRestrictedUpdate = (
     name: editingItem.name,
     issue: editingItem.issue,
     onlyTax: editingItem.onlyTax,
-    activeFrom: formatDate(editingItem.validFrom),
-    activeTo: formatDate(formValues.validTo),
+    activeFrom: formatDate(editingItem.activeFrom),
+    activeTo: formatDate(formValues.activeTo),
     allowancePeriodId: editingItem.allowancePeriod.id,
     allowanceCodeId: editingItem.allowanceCode.id
   }
@@ -65,8 +65,8 @@ export const transformAllowanceSetupForSave = (
     name: formValues.name,
     issue: formValues.issue,
     onlyTax: formValues.onlyTax,
-    activeFrom: formatDate(formValues.validFrom),
-    activeTo: formatDate(formValues.validTo),
+    activeFrom: formatDate(formValues.activeFrom),
+    activeTo: formatDate(formValues.activeTo),
     setupOrder: undefined,
     additionalProperties: undefined,
     allowancePeriodId: formValues.allowancePeriodId,

@@ -90,8 +90,8 @@ interface AllowanceSetup {
   name: string
   issue: string
   onlyTax: boolean
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
   allowancePeriod: {
     id: string
     code: string
@@ -111,8 +111,8 @@ interface AllowanceSetupFormData {
   name: string
   issue: string
   onlyTax: boolean
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
   allowancePeriodId: string
   allowanceCodeId: string
   version?: number
@@ -138,8 +138,8 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       allowanceCode: createFieldMappings.nested((a: AllowanceSetup) => a.allowanceCode),
       issue: createFieldMappings.string((a: AllowanceSetup) => a.issue),
       onlyTax: createFieldMappings.boolean((a: AllowanceSetup) => a.onlyTax),
-      activeFrom: createFieldMappings.date((a: AllowanceSetup) => a.validFrom),
-      activeTo: createFieldMappings.date((a: AllowanceSetup) => a.validTo, '9999-12-31')
+      activeFrom: createFieldMappings.date((a: AllowanceSetup) => a.activeFrom),
+      activeTo: createFieldMappings.date((a: AllowanceSetup) => a.activeTo, '9999-12-31')
     }),
     []
   )
@@ -159,8 +159,8 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       name: '',
       issue: 'DAILY_ALLOWANCE',
       onlyTax: false,
-      validFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
-      validTo: formatDateForInput(activeTo) || '9999-12-31',
+      activeFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      activeTo: formatDateForInput(activeTo) || '9999-12-31',
       allowancePeriodId: '',
       allowanceCodeId: ''
     }
@@ -354,8 +354,8 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
         name: setup.name || '',
         issue: setup.issue || '',
         onlyTax: setup.onlyTax || false,
-        validFrom: setup.activeFrom,
-        validTo: setup.activeTo,
+        activeFrom: setup.activeFrom,
+        activeTo: setup.activeTo,
         allowancePeriod: setup.allowancePeriod || { id: '', code: '', name: '' },
         allowanceCode: setup.allowanceCode || { id: '', code: '', name: '' },
         version: setup.version,
@@ -420,14 +420,18 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
     setValidityError(null)
 
     // Get validity dates using shared utility (copies from first existing entry if available)
-    const { validFrom, validTo } = getValidityDatesFromExisting(allowanceSetups, activeFrom, activeTo)
+    const { activeFrom: entryActiveFrom, activeTo: entryActiveTo } = getValidityDatesFromExisting(
+      allowanceSetups,
+      activeFrom,
+      activeTo
+    )
 
     form.reset({
       name: '',
       issue: 'DAILY_ALLOWANCE',
       onlyTax: false,
-      validFrom,
-      validTo,
+      activeFrom: entryActiveFrom,
+      activeTo: entryActiveTo,
       allowancePeriodId: '',
       allowanceCodeId: ''
     })
@@ -448,8 +452,9 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       name: record.name,
       issue: record.issue,
       onlyTax: record.onlyTax,
-      validFrom: formatDateForInput(record.validFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
-      validTo: formatDateForInput(record.validTo),
+      activeFrom:
+        formatDateForInput(record.activeFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      activeTo: formatDateForInput(record.activeTo),
       allowancePeriodId: record.allowancePeriod.id,
       allowanceCodeId: record.allowanceCode.id,
       version: record.version
@@ -565,8 +570,8 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       const setupExists = await checkSetupUniqueness(
         formValues.allowanceCodeId,
         formValues.allowancePeriodId,
-        formValues.validFrom,
-        formValues.validTo,
+        formValues.activeFrom,
+        formValues.activeTo,
         editingItem?.id
       )
 
@@ -580,8 +585,8 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
       // Validate validity period
       const validationError = validateAllowanceSetupDates(
-        formValues.validFrom,
-        formValues.validTo,
+        formValues.activeFrom,
+        formValues.activeTo,
         activeFrom,
         activeTo
       )
@@ -858,7 +863,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                           data-testid={`allowance-setup-valid-from-icon-${record.id}`}
                         />
                         <span className="gba:text-sm" data-testid={`allowance-setup-valid-from-text-${record.id}`}>
-                          {formatDate(record.validFrom)}
+                          {formatDate(record.activeFrom)}
                         </span>
                       </div>
                     </TableCell>
@@ -870,7 +875,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                           data-testid={`allowance-setup-valid-to-icon-${record.id}`}
                         />
                         <span className="gba:text-sm" data-testid={`allowance-setup-valid-to-text-${record.id}`}>
-                          {record.validTo ? formatDate(record.validTo) : '∞'}
+                          {record.activeTo ? formatDate(record.activeTo) : '∞'}
                         </span>
                       </div>
                     </TableCell>
@@ -1085,7 +1090,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
               <div className="gba:space-y-4">
                 <FormField
                   control={form.control}
-                  name="validFrom"
+                  name="activeFrom"
                   rules={{ required: 'Valid From is required' }}
                   render={({ field }) => (
                     <FormItem data-testid="allowance-setup-valid-from-field">
@@ -1104,7 +1109,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                 />
                 <FormField
                   control={form.control}
-                  name="validTo"
+                  name="activeTo"
                   render={({ field }) => (
                     <FormItem data-testid="allowance-setup-valid-to-field">
                       <FormLabel data-testid="allowance-setup-valid-to-label">Valid To</FormLabel>

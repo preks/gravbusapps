@@ -13,8 +13,8 @@ export interface AllowanceCodeFormValues {
   secondAllowanceRegionRulePercent?: number
   firstWageCode?: string
   travelLocation?: string
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
 }
 
 export interface AllowanceCodeSaveData {
@@ -83,13 +83,13 @@ export const transformAllowanceCodeForUnrestrictedUpdate = (
     secondAllowanceRegionRuleId: formValues.secondAllowanceRegionRuleId || null,
     secondAllowanceRegionRulePercent: formValues.secondAllowanceRegionRulePercent ?? 0,
     firstWageCode: formValues.firstWageCode || null,
-    activeFrom: formatActiveFrom(formValues.validFrom),
-    activeTo: formatActiveTo(formValues.validTo)
+    activeFrom: formatActiveFrom(formValues.activeFrom),
+    activeTo: formatActiveTo(formValues.activeTo)
   }
 }
 
 /**
- * Transforms form values to save data for restricted UPDATE operation (only validTo editable)
+ * Transforms form values to save data for restricted UPDATE operation (only activeTo editable)
  */
 export const transformAllowanceCodeForRestrictedUpdate = (
   formValues: AllowanceCodeFormValues,
@@ -116,8 +116,8 @@ export const transformAllowanceCodeForRestrictedUpdate = (
     secondAllowanceRegionRuleId: editingItem.secondAllowanceRegionRuleId || null,
     secondAllowanceRegionRulePercent: editingItem.secondAllowanceRegionRulePercent ?? 0,
     firstWageCode: editingItem.firstWageCode || null,
-    activeFrom: formatActiveFrom(editingItem.validFrom),
-    activeTo: formatActiveTo(formValues.validTo)
+    activeFrom: formatActiveFrom(editingItem.activeFrom),
+    activeTo: formatActiveTo(formValues.activeTo)
   }
 }
 
@@ -143,8 +143,8 @@ export const transformAllowanceCodeForCreate = (
     firstWageCode: formValues.firstWageCode || null,
     secondWageCode: null,
     travelLocation: formValues.travelLocation || null,
-    activeFrom: formatActiveFrom(formValues.validFrom),
-    activeTo: formatActiveTo(formValues.validTo)
+    activeFrom: formatActiveFrom(formValues.activeFrom),
+    activeTo: formatActiveTo(formValues.activeTo)
   }
 }
 
@@ -168,8 +168,8 @@ export const transformAllowanceCodeFromAPI = (code: any): any => {
     secondAllowanceRegionRule: code.secondAllowanceRegionRule,
     firstWageCode: code.firstWageCode,
     secondWageCode: code.secondWageCode,
-    validFrom: code.activeFrom,
-    validTo: code.activeTo,
+    activeFrom: code.activeFrom,
+    activeTo: code.activeTo,
     version: code.version,
     businessKey: code.businessKey,
     additionalProperties: code.additionalProperties,

@@ -9,8 +9,8 @@ import {
   SelectValue,
   DateInput
 } from '@newwork/nw-design-system'
-import dayjs from 'dayjs'
 import { EditableCell, CurrencyOption, EditableAllowanceRegionRule } from '../types'
+import { formatDateForInput } from '../../../utils'
 
 interface MatrixCellEditModalContentProps {
   cell: EditableCell
@@ -46,7 +46,7 @@ const DateField: React.FC<{
     </label>
     <DateInput
       id={`${fieldName}-field`}
-      value={value ? dayjs(value).format('YYYY-MM-DD') : ''}
+      value={formatDateForInput(value) || ''}
       onChange={date => {
         const dateValue = date ? `${date}T00:00:00+00:00` : undefined
         onUpdate(fieldName, dateValue)

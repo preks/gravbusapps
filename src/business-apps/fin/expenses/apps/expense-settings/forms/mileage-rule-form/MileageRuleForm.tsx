@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import dayjs from 'dayjs'
 import { useFeature } from '@/common/hooks/useFeature'
 import {
   Button,
@@ -41,6 +40,7 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import { useSensors, useSensor, PointerSensor, KeyboardSensor } from '@dnd-kit/core'
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient'
+import { formatDateForInput } from '../../utils'
 import { useGetMileageRuleStandaloneById } from '../../queries/ExpenseRuleQueries'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { mileageRuleFormSchema } from '../../schemas'
@@ -174,8 +174,8 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
               ruleName: freshData.name || '',
               description: freshData.description || '',
               rulePeriod: freshData.rulePeriod || '',
-              activeFrom: freshData.activeFrom ? dayjs(freshData.activeFrom).format('YYYY-MM-DD') : '',
-              activeTo: freshData.activeTo ? dayjs(freshData.activeTo).format('YYYY-MM-DD') : '',
+              activeFrom: formatDateForInput(freshData.activeFrom) || '',
+              activeTo: formatDateForInput(freshData.activeTo) || '',
               details: (freshData.mileageRuleDetail || []).map((detail: any) => ({
                 id: detail.id,
                 version: detail.version,
@@ -183,8 +183,8 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
                 limitTo: detail.limitTo,
                 rateAmount: detail.amount || 0,
                 detailOrder: detail.detailOrder || 0,
-                activeFrom: detail.activeFrom ? dayjs(detail.activeFrom).format('YYYY-MM-DD') : '',
-                activeTo: detail.activeTo ? dayjs(detail.activeTo).format('YYYY-MM-DD') : '',
+                activeFrom: formatDateForInput(detail.activeFrom) || '',
+                activeTo: formatDateForInput(detail.activeTo) || '',
                 tempId: `temp-${detail.id}`,
                 mileageRuleId: freshData.id,
                 additionalProperties: detail.additionalProperties

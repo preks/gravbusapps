@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
+import { formatDateForInput } from '../../utils'
 
 // Register dayjs plugins
 dayjs.extend(weekday)
@@ -586,8 +587,8 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
                 ruleName: editingRule.name,
                 description: editingRule.description || '',
                 rulePeriod: editingRule.rulePeriod || '',
-                activeFrom: editingRule.effectiveFrom ? dayjs(editingRule.effectiveFrom).format('YYYY-MM-DD') : '',
-                activeTo: editingRule.effectiveTo ? dayjs(editingRule.effectiveTo).format('YYYY-MM-DD') : '',
+                activeFrom: formatDateForInput(editingRule.effectiveFrom) || '',
+                activeTo: formatDateForInput(editingRule.effectiveTo) || '',
                 details: editingRule.details.map(detail => ({
                   id: detail.id,
                   version: detail.version,
@@ -595,8 +596,8 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
                   limitFrom: detail.limitFrom,
                   limitTo: detail.limitTo,
                   detailOrder: detail.detailOrder,
-                  activeFrom: detail.activeFrom ? dayjs(detail.activeFrom).format('YYYY-MM-DD') : '',
-                  activeTo: detail.activeTo ? dayjs(detail.activeTo).format('YYYY-MM-DD') : ''
+                  activeFrom: formatDateForInput(detail.activeFrom) || '',
+                  activeTo: formatDateForInput(detail.activeTo) || ''
                 }))
               }
 

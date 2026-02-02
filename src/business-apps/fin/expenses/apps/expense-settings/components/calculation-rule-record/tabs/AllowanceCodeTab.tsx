@@ -120,8 +120,8 @@ interface AllowanceCode {
   secondAllowanceRegionRule?: AllowanceRegionRule
   firstWageCode?: string
   secondWageCode?: string
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
   version?: number
   isDeleted: boolean
   businessKey?: string
@@ -144,8 +144,8 @@ interface AllowanceCodeFormData {
   secondAllowanceRegionRulePercent?: number
   firstWageCode?: string
   travelLocation?: string
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
   version?: number
 }
 
@@ -181,8 +181,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       secondAllowanceRegionRulePercent: undefined,
       firstWageCode: '',
       travelLocation: TravelLocation.BOTH, // Default to BOTH (Home & Abroad)
-      validFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
-      validTo: formatDateForInput(activeTo) || '9999-12-31'
+      activeFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      activeTo: formatDateForInput(activeTo) || '9999-12-31'
     }
   })
 
@@ -223,8 +223,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       name: createFieldMappings.string((a: AllowanceCode) => a.name),
       reimbursable: createFieldMappings.boolean((a: AllowanceCode) => a.reimbursable),
       amount: createFieldMappings.number((a: AllowanceCode) => a.amount),
-      activeFrom: createFieldMappings.date((a: AllowanceCode) => a.validFrom),
-      activeTo: createFieldMappings.date((a: AllowanceCode) => a.validTo, '9999-12-31'),
+      activeFrom: createFieldMappings.date((a: AllowanceCode) => a.activeFrom),
+      activeTo: createFieldMappings.date((a: AllowanceCode) => a.activeTo, '9999-12-31'),
       travelLocation: createFieldMappings.travelLocation((a: AllowanceCode) => a.travelLocation),
       regionRule: createFieldMappings.nested((a: AllowanceCode) => a.firstAllowanceRegionRule),
       percentage: createFieldMappings.number((a: AllowanceCode) => a.firstAllowanceRegionRulePercent),
@@ -466,7 +466,11 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
     setPercentageInputValue('') // Reset percentage input state
 
     // Get validity dates using shared utility (copies from first existing entry if available)
-    const { validFrom, validTo } = getValidityDatesFromExisting(allowanceCodes, activeFrom, activeTo)
+    const { activeFrom: entryActiveFrom, activeTo: entryActiveTo } = getValidityDatesFromExisting(
+      allowanceCodes,
+      activeFrom,
+      activeTo
+    )
 
     form.reset({
       code: '',
@@ -481,8 +485,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       secondAllowanceRegionRulePercent: 0,
       firstWageCode: '',
       travelLocation: TravelLocation.BOTH, // Default to BOTH (Home & Abroad)
-      validFrom,
-      validTo
+      activeFrom: entryActiveFrom,
+      activeTo: entryActiveTo
     })
     // Keep the travel region set filter - don't reset it between adds
     setIsModalVisible(true)
@@ -514,9 +518,9 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         secondAllowanceRegionRulePercent: record.secondAllowanceRegionRulePercent ?? 0,
         firstWageCode: record.firstWageCode || '',
         travelLocation: (record.travelLocation as TravelLocation) || TravelLocation.BOTH,
-        validFrom:
-          formatDateForInput(record.validFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
-        validTo: formatDateForInput(record.validTo),
+        activeFrom:
+          formatDateForInput(record.activeFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+        activeTo: formatDateForInput(record.activeTo),
         version: record.version
       })
 
@@ -637,7 +641,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       setIsSaving(true)
 
       // Clear any previous manual errors
-      form.clearErrors(['validFrom', 'validTo', 'amount', 'firstAllowanceRegionRulePercent', 'code'])
+      form.clearErrors(['activeFrom', 'activeTo', 'amount', 'firstAllowanceRegionRulePercent', 'code'])
 
       const formValues = form.getValues()
 
@@ -655,7 +659,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       }
 
       // Date validation
-      const dateErrors = validateAllowanceCodeDates(formValues.validFrom, formValues.validTo, activeFrom, activeTo)
+      const dateErrors = validateAllowanceCodeDates(formValues.activeFrom, formValues.activeTo, activeFrom, activeTo)
 
       if (dateErrors.length > 0) {
         dateErrors.forEach(err => {
@@ -668,8 +672,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       // Check code uniqueness within overlapping validity periods
       const uniquenessCheck = await checkCodeUniqueness(
         formValues.code,
-        formValues.validFrom,
-        formValues.validTo,
+        formValues.activeFrom,
+        formValues.activeTo,
         editingItem?.id
       )
 
@@ -1069,7 +1073,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                             data-testid={`allowance-code-valid-from-icon-${record.id}`}
                           />
                           <span className="gba:text-sm" data-testid={`allowance-code-valid-from-text-${record.id}`}>
-                            {formatDate(record.validFrom)}
+                            {formatDate(record.activeFrom)}
                           </span>
                         </div>
                       </TableCell>
@@ -1082,7 +1086,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                             data-testid={`allowance-code-valid-to-icon-${record.id}`}
                           />
                           <span className="gba:text-sm" data-testid={`allowance-code-valid-to-text-${record.id}`}>
-                            {record.validTo ? formatDate(record.validTo) : '∞'}
+                            {record.activeTo ? formatDate(record.activeTo) : '∞'}
                           </span>
                         </div>
                       </TableCell>
@@ -1160,15 +1164,15 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                           onBlur={async () => {
                             field.onBlur()
                             const codeValue = form.getValues('code')
-                            const validFrom = form.getValues('validFrom')
-                            const validTo = form.getValues('validTo')
+                            const entryActiveFrom = form.getValues('activeFrom')
+                            const entryActiveTo = form.getValues('activeTo')
 
                             // Only validate if code is not empty
                             if (codeValue?.trim()) {
                               const uniquenessCheck = await checkCodeUniqueness(
                                 codeValue,
-                                validFrom,
-                                validTo,
+                                entryActiveFrom,
+                                entryActiveTo,
                                 editingItem?.id
                               )
 
@@ -1520,7 +1524,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                 {/* Valid From */}
                 <FormField
                   control={form.control}
-                  name="validFrom"
+                  name="activeFrom"
                   rules={{ required: 'Valid From is required' }}
                   render={({ field }) => (
                     <FormItem data-testid="allowance-code-valid-from-field">
@@ -1530,7 +1534,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                           value={field.value || ''}
                           onChange={date => {
                             field.onChange(date)
-                            form.clearErrors('validFrom')
+                            form.clearErrors('activeFrom')
                           }}
                           disabled={isRestrictedEdit}
                           data-testid="allowance-code-valid-from-input"
@@ -1544,7 +1548,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                 {/* Valid To */}
                 <FormField
                   control={form.control}
-                  name="validTo"
+                  name="activeTo"
                   render={({ field }) => (
                     <FormItem data-testid="allowance-code-valid-to-field">
                       <FormLabel data-testid="allowance-code-valid-to-label">Valid To</FormLabel>
@@ -1553,7 +1557,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                           value={field.value || ''}
                           onChange={date => {
                             field.onChange(date)
-                            form.clearErrors('validTo')
+                            form.clearErrors('activeTo')
                           }}
                           data-testid="allowance-code-valid-to-input"
                         />

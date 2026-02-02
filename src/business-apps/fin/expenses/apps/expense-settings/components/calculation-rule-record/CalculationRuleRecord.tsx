@@ -30,6 +30,7 @@ import { PiArrowLeft, PiWarning, PiCheckCircle, PiCalendar } from 'react-icons/p
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
+import { formatDateForInput } from '../../utils'
 
 // Register dayjs plugins
 dayjs.extend(weekday)
@@ -153,6 +154,12 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
     romanianCalculation: false,
     austrianAbroad: false
   })
+
+  const normalizeDateInputValue = (value: string | [string | null, string | null] | null | undefined): string => {
+    if (!value) return ''
+    if (Array.isArray(value)) return value[0] ?? ''
+    return value
+  }
   // Tab and sub-tab management with query parameters
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search)
@@ -288,8 +295,8 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
         standard: ruleDetails.standard || false,
 
         // Validity & Configuration
-        activeFrom: ruleDetails.activeFrom ? dayjs(ruleDetails.activeFrom).format('YYYY-MM-DD') : '',
-        activeTo: ruleDetails.activeTo ? dayjs(ruleDetails.activeTo).format('YYYY-MM-DD') : '',
+        activeFrom: formatDateForInput(ruleDetails.activeFrom) || '',
+        activeTo: formatDateForInput(ruleDetails.activeTo) || '',
         calculationTypeRef: ruleDetails.calculationTypeRef || '',
         currencyRef: ruleDetails.currencyRef || '',
 
@@ -646,7 +653,7 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                       <DateInput
                         data-testid="rule-active-from-picker"
                         value={formData.activeFrom}
-                        onChange={date => setFormData({ ...formData, activeFrom: date || '' })}
+                        onChange={date => setFormData({ ...formData, activeFrom: normalizeDateInputValue(date) })}
                       />
                     </div>
                     <div>
@@ -657,7 +664,7 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                       <DateInput
                         data-testid="rule-active-to-picker"
                         value={formData.activeTo}
-                        onChange={date => setFormData({ ...formData, activeTo: date || '' })}
+                        onChange={date => setFormData({ ...formData, activeTo: normalizeDateInputValue(date) })}
                       />
                     </div>
                     <div>
