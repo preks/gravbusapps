@@ -152,10 +152,40 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
     }
   })
 
+  // Calendar hook - must be called before useRealtimeKitGroupCall
+  const {
+    currentDate,
+    view,
+    events,
+    pendingInvitations,
+    selectedEvent,
+    isLoading,
+    error,
+    setCurrentDate,
+    setView,
+    goToToday,
+    goToPrevious,
+    goToNext,
+    selectEvent,
+    createMeeting,
+    updateMeeting,
+    cancelMeeting,
+    respondToInvitation,
+    refresh,
+    dateRange,
+    viewTitle,
+    apiClient: calendarApiClient
+  } = useCalendar({
+    accessToken,
+    apiUrl
+  })
+
   const realtimeKitGroupCall = useRealtimeKitGroupCall({
     wsClient: wsClient || null,
     apiClient: realtimeKitApiClient,
-    currentUser: currentUserAsParticipant
+    calendarApiClient: calendarApiClient || null,
+    currentUser: currentUserAsParticipant,
+    accessToken: accessToken || undefined
   })
 
   // Route to appropriate implementation based on feature flag
@@ -198,33 +228,6 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
       setIsStartingCall(false)
     }
   }, [isInAnyCall, isStartingCall])
-
-  // Calendar hook
-  const {
-    currentDate,
-    view,
-    events,
-    pendingInvitations,
-    selectedEvent,
-    isLoading,
-    error,
-    setCurrentDate,
-    setView,
-    goToToday,
-    goToPrevious,
-    goToNext,
-    selectEvent,
-    createMeeting,
-    updateMeeting,
-    cancelMeeting,
-    respondToInvitation,
-    refresh,
-    dateRange,
-    viewTitle
-  } = useCalendar({
-    accessToken,
-    apiUrl
-  })
 
   // Modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -605,7 +608,7 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
       rtkDebug.log('[Calendar] Starting call for meeting:', {
         meetingId: enrichedSelectedEvent.id,
         meetingTitle: enrichedSelectedEvent.title,
-        linkedConversationId: enrichedSelectedEvent.conversationId,
+        chatConversationId: enrichedSelectedEvent.conversationId,
         usingConversationId: conversationId,
         isLinkedToChat: !!enrichedSelectedEvent.conversationId,
         participants: enrichedSelectedEvent.participants?.map(p => ({ id: p.id, name: p.displayName || p.email })) || []
@@ -711,14 +714,16 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
             isLinkedToChat: !!enrichedSelectedEvent.conversationId,
             meetingTitle: enrichedSelectedEvent.title,
             participantCount: callParticipants.length,
-            participants: callParticipants.map(p => ({ id: p.id, name: p.odName }))
+            participants: callParticipants.map(p => ({ id: p.id, name: p.odName })),
+            calendarMeetingId: enrichedSelectedEvent.id,
+            meetingMetadata: enrichedSelectedEvent.metadata
           })
           startGroupCall(
             conversationId,
             'video',
             callParticipants,
-            enrichedSelectedEvent.title
-            // No linkedConversationId - using conversation ID directly as room ID
+            enrichedSelectedEvent.title,
+            enrichedSelectedEvent.id // Pass calendar meeting ID for AI transcription
           )
         }
       } else {
@@ -965,7 +970,12 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
                 location: editingMeeting.location,
                 meetingLink: editingMeeting.meetingLink,
                 isAllDay: editingMeeting.allDay,
-                color: editingMeeting.color
+                color: editingMeeting.color,
+                recurrence: editingMeeting.recurrence,
+                recurrenceEndDate: editingMeeting.recurrenceEndDate,
+                reminderMinutes: editingMeeting.reminderMinutes,
+                participants: editingMeeting.participants,
+                metadata: editingMeeting.metadata
               }
             : undefined
         }

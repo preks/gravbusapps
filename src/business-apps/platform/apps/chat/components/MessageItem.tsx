@@ -216,14 +216,54 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
       }
     })()
 
-    // System message (meeting start/end, etc.)
+    // Phase 1 MVP: Transcript ready system message with download link
+    // TODO Phase 2: Remove this when full document-service integration is ready
+    // CHECK FIRST before generic system message rendering
+    if (message.type === 'system' && message.metadata?.transcriptReady) {
+      const downloadUrl = message.metadata.downloadUrl
+      const sessionName = message.metadata.sessionName
+
+      return (
+        <div className="gba:flex gba:justify-center gba:py-2" data-testid={`message-transcript-${message.id}`}>
+          <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:bg-success-secondary/20 gba:border gba:border-success gba:px-4 gba:py-3 gba:rounded-lg gba:max-w-md">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span className="gba:text-lg">📝</span>
+              <span className="gba:text-sm gba:font-medium gba:text-foreground">Transcript Ready: {sessionName}</span>
+            </div>
+            <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
+              The call transcript is now available for download
+            </p>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => {
+                if (downloadUrl) {
+                  window.open(downloadUrl, '_blank', 'noopener,noreferrer')
+                }
+              }}
+              className="gba:mt-1"
+              data-testid={`transcript-download-btn-${message.id}`}
+            >
+              Download Transcript (CSV)
+            </Button>
+            <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>
+          </div>
+        </div>
+      )
+    }
+
+    // System message (meeting/call start/end, etc.)
     if (message.type === 'system') {
-      const isMeetingMessage = message.metadata?.type === 'meeting_start' || message.metadata?.type === 'meeting_end'
+      const messageType = message.metadata?.type
+      const isMeetingMessage = messageType === 'meeting_start' || messageType === 'meeting_end'
+      const isCallMessage = messageType === 'call_start' || messageType === 'call_end'
 
       return (
         <div className="gba:flex gba:justify-center gba:py-1.5" data-testid={`message-system-${message.id}`}>
           <div className="gba:flex gba:items-center gba:gap-2 gba:bg-muted/50 gba:px-3 gba:py-1.5 gba:rounded-full">
-            {isMeetingMessage && <VideoCamera className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />}
+            {(isMeetingMessage || isCallMessage) && (
+              <VideoCamera className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />
+            )}
             <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>
             <span className="gba:text-xs gba:text-foreground gba:font-medium">{message.content}</span>
           </div>

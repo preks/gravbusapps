@@ -22,7 +22,7 @@ export interface UseRealtimeKitParticipantsOptions {
   callStatus: 'idle' | 'joining' | 'connected' | 'reconnecting' | 'ended'
   emitSocketEvent: (event: string, data: any) => void
   cleanupParticipantHandState?: (participantId: string, peerId?: string, userId?: string) => void
-  linkedConversationId?: string | null // Link to chat conversation for system messages
+  calendarMeetingId?: string | null // Calendar meeting ID for AI transcription
 }
 
 export interface UseRealtimeKitParticipantsReturn {
@@ -35,7 +35,7 @@ export interface UseRealtimeKitParticipantsReturn {
     overrideMeetingId?: string,
     overrideRoomId?: string,
     overrideCallType?: 'audio' | 'video',
-    overrideLinkedConversationId?: string | null
+    overrideCalendarMeetingId?: string | null
   ) => void
   reconnectParticipant: (participantId: string) => Promise<void>
   handleDeclinedInvite: (participantId: string, status?: 'declined' | 'not-answered') => void
@@ -65,7 +65,7 @@ export const useRealtimeKitParticipants = ({
   callStatus,
   emitSocketEvent,
   cleanupParticipantHandState,
-  linkedConversationId
+  calendarMeetingId
 }: UseRealtimeKitParticipantsOptions): UseRealtimeKitParticipantsReturn => {
   const [participants, setParticipants] = useState<GroupCallParticipant[]>([])
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map())
@@ -81,15 +81,12 @@ export const useRealtimeKitParticipants = ({
       conversationName?: string,
       overrideMeetingId?: string,
       overrideRoomId?: string,
-      overrideCallType?: 'audio' | 'video',
-      overrideLinkedConversationId?: string | null
+      overrideCallType?: 'audio' | 'video'
     ) => {
       // Use override values if provided (for initial call start), otherwise use hook's values
       const effectiveMeetingId = overrideMeetingId || meetingId
       const effectiveRoomId = overrideRoomId || roomId
       const effectiveCallType = overrideCallType || callType
-      const effectiveLinkedConversationId =
-        overrideLinkedConversationId !== undefined ? overrideLinkedConversationId : linkedConversationId
 
       if (!effectiveRoomId || !currentUser || !effectiveMeetingId) {
         rtkDebug.warn('[RTK] Cannot invite: missing roomId, meetingId, or currentUser', {
@@ -139,7 +136,6 @@ export const useRealtimeKitParticipants = ({
         conversationId: effectiveRoomId,
         meetingId: effectiveMeetingId, // Use actual backend meeting ID, not roomId
         callType: effectiveCallType,
-        linkedConversationId: effectiveLinkedConversationId, // Use effective value
         from: {
           id: currentUser.id,
           odId: currentUser.odId,
@@ -150,7 +146,7 @@ export const useRealtimeKitParticipants = ({
         conversationName
       })
     },
-    [emitSocketEvent, roomId, meetingId, callType, currentUser, participants, linkedConversationId]
+    [emitSocketEvent, roomId, meetingId, callType, currentUser, participants, calendarMeetingId]
   )
 
   /**

@@ -195,24 +195,24 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   // CRITICAL: Use ref + effect to maintain stable object reference
   const callConversationRef = useRef<any>(null)
 
-  // Update the ref only when roomId or linkedConversationId changes
+  // Update the ref only when roomId or calendarMeetingId changes
   useEffect(() => {
     if (!callState.roomId) {
       callConversationRef.current = null
       return
     }
 
-    // For chat panel: Use linkedConversationId if available (calendar meeting case)
+    // For chat panel: Use calendarMeetingId if available (calendar meeting case)
     // For call session: Still use roomId (meeting ID)
-    const chatConversationId = callState.linkedConversationId || callState.roomId
+    const chatConversationId = callState.calendarMeetingId || callState.roomId
 
     // Only create/update if the chat conversation ID changed
     if (!callConversationRef.current || callConversationRef.current.id !== chatConversationId) {
       rtkDebug.log('[RTK Modal] Creating call conversation for chat:', {
         roomId: callState.roomId,
-        linkedConversationId: callState.linkedConversationId,
+        calendarMeetingId: callState.calendarMeetingId,
         chatConversationId,
-        isCalendarMeeting: !!callState.linkedConversationId
+        isCalendarMeeting: !!callState.calendarMeetingId
       })
 
       callConversationRef.current = {
@@ -226,7 +226,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         updatedAt: activeConversation?.updatedAt || new Date().toISOString()
       }
     }
-  }, [callState.roomId, callState.linkedConversationId]) // Depend on both roomId and linkedConversationId
+  }, [callState.roomId, callState.calendarMeetingId]) // Depend on both roomId and calendarMeetingId
 
   // Return the stable reference - this never changes unless chat conversation ID changes
   const callConversation = callConversationRef.current
