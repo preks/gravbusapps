@@ -68,12 +68,12 @@ const AccountDeletePopup: React.FC<AccountDeletePopupProps> = ({
     return null
   }
 
-  // Setup redirect after delete (if on record page)
+  // Setup redirect after delete (only if deleting the current account record)
   useDeleteRedirect({
     domain,
     entityType: 'accounts',
     recordUrlPattern: '/account-record',
-    additionalData: props.additionalData
+    entityId: accountId
   })
 
   if (loading) {

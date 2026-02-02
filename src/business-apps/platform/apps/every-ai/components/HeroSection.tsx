@@ -38,13 +38,15 @@ interface NeuralNode {
 }
 
 /**
- * GoldenNeuralBackground - Canvas-based neural network with golden/amber colors on silver background
+ * DeepBlueNeuralBackground - Canvas-based neural network with deep blue/cyan colors
+ * Matches the EveryOne dashboard style with dark navy background and bright nodes
  */
-const GoldenNeuralBackground: React.FC = () => {
+export const DeepBlueNeuralBackground: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const animationRef = useRef<number>()
   const nodesRef = useRef<NeuralNode[]>([])
+  const startTimeRef = useRef<number>(Date.now())
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -63,17 +65,17 @@ const GoldenNeuralBackground: React.FC = () => {
 
     const initializeNodes = () => {
       const nodes: NeuralNode[] = []
-      const nodeCount = Math.min(55, Math.floor((canvas.width * canvas.height) / 12000))
+      const nodeCount = Math.min(65, Math.floor((canvas.width * canvas.height) / 10000))
 
       for (let i = 0; i < nodeCount; i++) {
         nodes.push({
           x: Math.random() * canvas.width,
           y: Math.random() * canvas.height,
-          vx: (Math.random() - 0.5) * 0.25,
-          vy: (Math.random() - 0.5) * 0.25,
-          radius: Math.random() * 1.5 + 0.8,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: (Math.random() - 0.5) * 0.3,
+          radius: Math.random() * 2 + 1,
           pulsePhase: Math.random() * Math.PI * 2,
-          brightness: 0.5 + Math.random() * 0.5
+          brightness: 0.6 + Math.random() * 0.4
         })
       }
 
@@ -85,22 +87,101 @@ const GoldenNeuralBackground: React.FC = () => {
     const resizeObserver = new ResizeObserver(resizeCanvas)
     resizeObserver.observe(container)
 
-    // Golden/amber colors for neural network - visible against silver/gray background
-    const goldPrimary = { r: 212, g: 175, b: 55 } // Rich gold
-    const goldLight = { r: 244, g: 208, b: 63 } // Light gold/amber
-    const goldWarm = { r: 230, g: 180, b: 80 } // Warm gold
+    // Deep blue color palette matching EveryOne dashboard
+    const cyanBright = { r: 147, g: 197, b: 253 } // Light sky blue (nodes)
+    const cyanLight = { r: 224, g: 242, b: 254 } // Very light cyan (highlights)
+    const royalBlue = { r: 59, g: 130, b: 246 } // Royal blue (connections)
 
-    const drawCentralGlow = () => {
-      const centerX = canvas.width / 2
-      const centerY = canvas.height * 0.45
-      const glowRadius = Math.min(canvas.width, canvas.height) * 0.45
+    // Soft circular blobs for smooth animated background
+    const softBlobs = [
+      { baseX: 0.2, baseY: 0.3, ampX: 0.1, ampY: 0.15, radius: 0.6, phase: 0, r: 59, g: 130, b: 246, alpha: 0.25 },
+      {
+        baseX: 0.5,
+        baseY: 0.4,
+        ampX: 0.12,
+        ampY: 0.1,
+        radius: 0.5,
+        phase: Math.PI * 0.5,
+        r: 96,
+        g: 165,
+        b: 250,
+        alpha: 0.2
+      },
+      {
+        baseX: 0.75,
+        baseY: 0.35,
+        ampX: 0.08,
+        ampY: 0.12,
+        radius: 0.45,
+        phase: Math.PI,
+        r: 147,
+        g: 197,
+        b: 253,
+        alpha: 0.18
+      },
+      {
+        baseX: 0.3,
+        baseY: 0.65,
+        ampX: 0.1,
+        ampY: 0.08,
+        radius: 0.5,
+        phase: Math.PI * 1.5,
+        r: 30,
+        g: 64,
+        b: 175,
+        alpha: 0.3
+      },
+      {
+        baseX: 0.7,
+        baseY: 0.7,
+        ampX: 0.06,
+        ampY: 0.1,
+        radius: 0.4,
+        phase: Math.PI * 0.3,
+        r: 59,
+        g: 130,
+        b: 246,
+        alpha: 0.22
+      }
+    ]
 
-      const centralGlow = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, glowRadius)
-      centralGlow.addColorStop(0, `rgba(${goldWarm.r}, ${goldWarm.g}, ${goldWarm.b}, 0.08)`)
-      centralGlow.addColorStop(0.5, `rgba(${goldPrimary.r}, ${goldPrimary.g}, ${goldPrimary.b}, 0.03)`)
-      centralGlow.addColorStop(1, 'transparent')
-      ctx.fillStyle = centralGlow
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
+    const drawBackground = (time: number) => {
+      const w = canvas.width
+      const h = canvas.height
+      const maxDim = Math.max(w, h)
+
+      // Deep navy base - solid dark background
+      ctx.fillStyle = 'rgb(15, 23, 42)'
+      ctx.fillRect(0, 0, w, h)
+
+      // Add subtle static gradient overlay
+      const baseGradient = ctx.createRadialGradient(w * 0.3, h * 0.3, 0, w * 0.3, h * 0.3, maxDim * 0.8)
+      baseGradient.addColorStop(0, 'rgba(30, 58, 138, 0.4)')
+      baseGradient.addColorStop(0.5, 'rgba(30, 64, 175, 0.2)')
+      baseGradient.addColorStop(1, 'transparent')
+      ctx.fillStyle = baseGradient
+      ctx.fillRect(0, 0, w, h)
+
+      // Draw soft animated circular blobs (no hard edges)
+      for (const blob of softBlobs) {
+        const wx = Math.sin(time * 0.2 + blob.phase) * blob.ampX * w
+        const wy = Math.cos(time * 0.15 + blob.phase * 1.2) * blob.ampY * h
+        const x = blob.baseX * w + wx
+        const y = blob.baseY * h + wy
+        const r = maxDim * blob.radius * (0.9 + 0.1 * Math.sin(time * 0.25 + blob.phase))
+
+        // Draw as pure radial gradient circle - no transforms that create hard edges
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, r)
+        gradient.addColorStop(0, `rgba(${blob.r}, ${blob.g}, ${blob.b}, ${blob.alpha})`)
+        gradient.addColorStop(0.3, `rgba(${blob.r}, ${blob.g}, ${blob.b}, ${blob.alpha * 0.5})`)
+        gradient.addColorStop(0.6, `rgba(${blob.r}, ${blob.g}, ${blob.b}, ${blob.alpha * 0.2})`)
+        gradient.addColorStop(1, 'transparent')
+
+        ctx.beginPath()
+        ctx.arc(x, y, r, 0, Math.PI * 2)
+        ctx.fillStyle = gradient
+        ctx.fill()
+      }
     }
 
     const updateNodes = (nodes: NeuralNode[]) => {
@@ -117,7 +198,7 @@ const GoldenNeuralBackground: React.FC = () => {
     }
 
     const drawConnections = (nodes: NeuralNode[]) => {
-      const maxDist = 100
+      const maxDist = 120
       for (let i = 0; i < nodes.length; i++) {
         const node = nodes[i]
         for (let j = i + 1; j < nodes.length; j++) {
@@ -127,16 +208,16 @@ const GoldenNeuralBackground: React.FC = () => {
           const distance = Math.sqrt(dx * dx + dy * dy)
           if (distance >= maxDist || distance <= 0) continue
 
-          const opacity = (1 - distance / maxDist) * 0.18
+          const opacity = (1 - distance / maxDist) * 0.35
           const gradient = ctx.createLinearGradient(node.x, node.y, other.x, other.y)
-          gradient.addColorStop(0, `rgba(${goldPrimary.r}, ${goldPrimary.g}, ${goldPrimary.b}, ${opacity})`)
-          gradient.addColorStop(1, `rgba(${goldLight.r}, ${goldLight.g}, ${goldLight.b}, ${opacity})`)
+          gradient.addColorStop(0, `rgba(${royalBlue.r}, ${royalBlue.g}, ${royalBlue.b}, ${opacity})`)
+          gradient.addColorStop(1, `rgba(${cyanBright.r}, ${cyanBright.g}, ${cyanBright.b}, ${opacity})`)
 
           ctx.beginPath()
           ctx.moveTo(node.x, node.y)
           ctx.lineTo(other.x, other.y)
           ctx.strokeStyle = gradient
-          ctx.lineWidth = 0.8
+          ctx.lineWidth = 1
           ctx.stroke()
         }
       }
@@ -147,30 +228,35 @@ const GoldenNeuralBackground: React.FC = () => {
         const pulse = Math.sin(time * 2 + node.pulsePhase) * 0.3 + 0.7
         const radius = node.radius * pulse
 
-        const glowGradient = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, radius * 5)
-        glowGradient.addColorStop(0, `rgba(${goldLight.r}, ${goldLight.g}, ${goldLight.b}, ${0.2 * node.brightness})`)
+        // Larger glow effect for visibility on dark background
+        const glowGradient = ctx.createRadialGradient(node.x, node.y, 0, node.x, node.y, radius * 8)
+        glowGradient.addColorStop(0, `rgba(${cyanLight.r}, ${cyanLight.g}, ${cyanLight.b}, ${0.4 * node.brightness})`)
+        glowGradient.addColorStop(
+          0.5,
+          `rgba(${cyanBright.r}, ${cyanBright.g}, ${cyanBright.b}, ${0.15 * node.brightness})`
+        )
         glowGradient.addColorStop(1, 'transparent')
         ctx.beginPath()
-        ctx.arc(node.x, node.y, radius * 5, 0, Math.PI * 2)
+        ctx.arc(node.x, node.y, radius * 8, 0, Math.PI * 2)
         ctx.fillStyle = glowGradient
         ctx.fill()
 
+        // Bright node core
         ctx.beginPath()
         ctx.arc(node.x, node.y, radius, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(${goldPrimary.r}, ${goldPrimary.g}, ${goldPrimary.b}, ${0.8 * node.brightness})`
+        ctx.fillStyle = `rgba(${cyanLight.r}, ${cyanLight.g}, ${cyanLight.b}, ${0.95 * node.brightness})`
         ctx.fill()
       }
     }
 
-    let time = 0
     const animate = () => {
       if (!canvas || !ctx) return
 
-      time += 0.007
+      const time = (Date.now() - startTimeRef.current) * 0.001
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
       const nodes = nodesRef.current
-      drawCentralGlow()
+      drawBackground(time)
       updateNodes(nodes)
       drawConnections(nodes)
       drawNodes(nodes, time)
@@ -201,79 +287,49 @@ const GoldenNeuralBackground: React.FC = () => {
 
 /**
  * HeroSection - Premium animated hero for EveryAI
- * Features elegant silver/gray background with golden neural network
+ * Features deep blue gradient background with animated neural network (matches EveryOne style)
  */
 export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId = 'every-ai-hero' }) => {
   return (
     <>
       <style>{keyframesStyles}</style>
       <section
-        className="gba:relative gba:pt-12 gba:pb-0 gba:px-6 gba:overflow-hidden gba:bg-gradient-to-br gba:from-muted/30 gba:via-background gba:to-muted/20"
+        className="gba:relative gba:pt-12 gba:pb-16 gba:px-6 gba:overflow-hidden gba:flex-1 gba:flex gba:flex-col gba:h-full"
         data-testid={testId}
       >
-        {/* Golden neural network background */}
-        <GoldenNeuralBackground />
-
-        {/* Subtle silver/warm mesh gradient overlay */}
-        <div
-          className="gba:absolute gba:inset-0 gba:opacity-30"
-          className="gba:bg-gradient-to-br"
-          style={{
-            background:
-              'radial-gradient(ellipse at 30% 20%, var(--nw-ai)14 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, var(--nw-muted)26 0%, transparent 50%)',
-            animation: 'gradient-shift-ai 25s ease infinite',
-            backgroundSize: '200% 200%'
-          }}
-        />
-
-        {/* Subtle dot pattern */}
-        <div
-          className="gba:absolute gba:inset-0 gba:opacity-[0.03]"
-          style={{
-            backgroundImage: 'radial-gradient(#9ca3af 1px, transparent 1px)',
-            backgroundSize: '24px 24px'
-          }}
-        />
-
-        {/* Content */}
+        {/* Content - white text on dark background */}
         <div className="gba:relative gba:max-w-4xl gba:mx-auto gba:text-center" style={{ zIndex: 10 }}>
           {/* Animated logo */}
           <div className="gba:mb-6" style={{ animation: 'fadeInUp 0.6s ease-out' }} data-testid={`${testId}-logo`}>
             <div className="gba:inline-flex gba:flex-col gba:items-center gba:gap-2">
               {/* Icon with glow effect */}
               <div className="gba:relative">
-                {/* Glow ring */}
+                {/* Subtle glow ring */}
                 <div
-                  className="gba:absolute gba:inset-0 gba:rounded-2xl gba:blur-xl gba:bg-ai/30"
+                  className="gba:absolute gba:inset-0 gba:rounded-2xl gba:blur-xl gba:bg-ai/25"
                   style={{
                     animation: 'pulse-glow-ai 3s ease-in-out infinite',
-                    transform: 'scale(2)'
+                    transform: 'scale(1.8)'
                   }}
                 />
-                {/* Icon container */}
+                {/* Icon container - translucent with outline brain */}
                 <div
-                  className="gba:relative gba:w-14 gba:h-14 gba:rounded-xl gba:flex gba:items-center gba:justify-center gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary"
+                  className="gba:relative gba:w-16 gba:h-16 gba:rounded-2xl gba:flex gba:items-center gba:justify-center gba:border gba:border-white/20 gba:bg-ai/15 gba:backdrop-blur-md"
                   style={{
                     animation: 'float-subtle 4s ease-in-out infinite'
                   }}
                 >
-                  <Brain className="gba:w-7 gba:h-7 gba:text-ai-foreground" />
+                  <Brain className="gba:w-8 gba:h-8 gba:text-ai" strokeWidth={1.5} />
                 </div>
               </div>
 
               {/* Brand text */}
-              <span className="gba:text-xs gba:font-medium gba:tracking-[0.4em] gba:uppercase gba:mt-3 gba:text-muted-foreground">
+              <span className="gba:text-xs gba:font-medium gba:tracking-[0.4em] gba:uppercase gba:mt-3 gba:text-white/60">
                 NEWWORK
               </span>
               <h1 className="gba:text-5xl gba:sm:text-6xl gba:lg:text-7xl gba:font-bold gba:tracking-tight">
-                <span className="gba:text-foreground">Every</span>
-                <span
-                  className="gba:bg-gradient-to-r gba:from-ai gba:via-ai-secondary gba:to-ai gba:bg-clip-text gba:text-transparent"
-                  style={{
-                    backgroundSize: '200% 100%',
-                    animation: 'gradient-shift-ai 4s ease infinite'
-                  }}
-                >
+                <span className="gba:text-white">Every</span>
+                <span className="gba:bg-gradient-to-r gba:from-ai-secondary gba:via-ai gba:to-ai-secondary gba:bg-clip-text gba:text-transparent">
                   AI
                 </span>
               </h1>
@@ -285,15 +341,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
             className="gba:flex gba:items-center gba:justify-center gba:gap-2.5 gba:mb-5"
             style={{ animation: 'fadeInUp 0.6s ease-out 0.1s both' }}
           >
-            <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:bg-ai/10 gba:text-ai gba:border gba:border-ai/20">
+            <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:bg-white/10 gba:text-white/90 gba:border gba:border-white/20">
               <Microphone className="gba:w-3 gba:h-3" weight="fill" />
               Voice
             </span>
-            <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:bg-ai-secondary/10 gba:text-ai-secondary gba:border gba:border-ai-secondary/20">
+            <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:bg-white/10 gba:text-white/90 gba:border gba:border-white/20">
               <Lightning className="gba:w-3 gba:h-3" weight="fill" />
               Workflows
             </span>
-            <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:bg-ai/10 gba:text-ai gba:border gba:border-ai/20">
+            <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:bg-white/10 gba:text-white/90 gba:border gba:border-white/20">
               <ChartLineUp className="gba:w-3 gba:h-3" weight="fill" />
               Insights
             </span>
@@ -301,32 +357,23 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
 
           {/* Main headline */}
           <h2
-            className="gba:text-xl gba:sm:text-2xl gba:font-semibold gba:tracking-tight gba:mb-2.5 gba:text-foreground"
+            className="gba:text-xl gba:sm:text-2xl gba:font-semibold gba:tracking-tight gba:mb-2.5 gba:text-white"
             style={{ animation: 'fadeInUp 0.6s ease-out 0.15s both' }}
             data-testid={`${testId}-headline`}
           >
             Your intelligent assistant.
-            <span className="gba:text-muted-foreground"> Voice-enabled.</span>
+            <span className="gba:text-white/70"> Voice-enabled.</span>
           </h2>
 
           {/* Subtitle */}
           <p
-            className="gba:text-sm gba:max-w-lg gba:mx-auto gba:leading-relaxed gba:mb-12 gba:text-muted-foreground"
+            className="gba:text-sm gba:max-w-lg gba:mx-auto gba:leading-relaxed gba:mb-12 gba:text-white/60"
             style={{ animation: 'fadeInUp 0.6s ease-out 0.2s both' }}
             data-testid={`${testId}-subtitle`}
           >
             Ask questions, automate workflows, analyze data, and get intelligent insights — all by voice or text.
           </p>
         </div>
-
-        {/* Smooth gradient transition to input */}
-        <div
-          className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-20 gba:pointer-events-none"
-          style={{
-            background: 'linear-gradient(to bottom, transparent 0%, var(--nw-muted)80 40%, var(--nw-background) 100%)',
-            zIndex: 5
-          }}
-        />
       </section>
     </>
   )

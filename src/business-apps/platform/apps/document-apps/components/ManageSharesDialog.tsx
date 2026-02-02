@@ -7,7 +7,7 @@
  * - Allows removing users
  */
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -24,14 +24,9 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-  Badge,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
+  SelectValue
 } from '@newwork/nw-design-system'
-import { Users, Eye, Pencil, MessageSquare, Trash2, AlertCircle, UserPlus, Crown } from 'lucide-react'
+import { Users, Eye, Pencil, MessageSquare, Trash2, AlertCircle, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { DocumentApiService } from '../services/DocumentApiService'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
@@ -58,34 +53,6 @@ interface ShareWithUserInfo extends DocumentShare {
   userName?: string
   userAvatar?: string
   isLoading?: boolean
-}
-
-/**
- * Get permission icon
- */
-const PermissionIcon: React.FC<{ permission: Permission; className?: string }> = ({ permission, className }) => {
-  switch (permission) {
-    case 'edit':
-      return <Pencil className={className} />
-    case 'comment':
-      return <MessageSquare className={className} />
-    default:
-      return <Eye className={className} />
-  }
-}
-
-/**
- * Get permission label
- */
-const getPermissionLabel = (permission: Permission): string => {
-  switch (permission) {
-    case 'edit':
-      return 'Can edit'
-    case 'comment':
-      return 'Can comment'
-    default:
-      return 'Can view'
-  }
 }
 
 /**
@@ -139,7 +106,11 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
   const [error, setError] = useState<string | null>(null)
   const [updatingShareId, setUpdatingShareId] = useState<string | null>(null)
   const [removingShareId, setRemovingShareId] = useState<string | null>(null)
-  
+
+  useEffect(() => {
+    DocumentApiService.setAccessToken(accessToken || null)
+  }, [accessToken])
+
   // GraphQL client for fetching user info
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -150,8 +121,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
     if (open && documentId) {
       loadShares()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, documentId])
+  }, [open, documentId, loadShares])
 
   /**
    * Load shares and enrich with user info
@@ -178,15 +148,17 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
         const userInfoPromises = userIds.map(async userId => {
           try {
             const query = GET_EMPLOYEE_LIGHT_BY_USER_ID(userId)
-            const result = await graphqlClient.request<{ Employee: Array<{
-              id: string
-              displayName: string
-              firstName?: string
-              lastName?: string
-              userId: string
-              pictureThumbnail?: string
-            }> }>(query)
-            
+            const result = await graphqlClient.request<{
+              Employee: Array<{
+                id: string
+                displayName: string
+                firstName?: string
+                lastName?: string
+                userId: string
+                pictureThumbnail?: string
+              }>
+            }>(query)
+
             const emp = result.Employee?.[0]
             if (emp) {
               return {
@@ -245,7 +217,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
         } else {
           toast.error('Failed to update permission')
         }
-      } catch (err) {
+      } catch {
         toast.error('Failed to update permission')
       } finally {
         setUpdatingShareId(null)
@@ -272,7 +244,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
         } else {
           toast.error('Failed to remove access')
         }
-      } catch (err) {
+      } catch {
         toast.error('Failed to remove access')
       } finally {
         setRemovingShareId(null)
@@ -289,9 +261,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
             <Users className="gba:w-5 gba:h-5 gba:text-primary" />
             Manage Sharing
           </DialogTitle>
-          <DialogDescription>
-            People who have access to "{documentTitle}"
-          </DialogDescription>
+          <DialogDescription>People who have access to "{documentTitle}"</DialogDescription>
         </DialogHeader>
 
         <div className="gba:py-4">
@@ -365,11 +335,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                       disabled={updatingShareId === share.id}
                     >
                       <SelectTrigger className="gba:w-28 gba:h-8">
-                        {updatingShareId === share.id ? (
-                          <Spinner size="sm" />
-                        ) : (
-                          <SelectValue />
-                        )}
+                        {updatingShareId === share.id ? <Spinner size="sm" /> : <SelectValue />}
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="view">
@@ -402,11 +368,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                       disabled={removingShareId === share.id}
                       data-testid={`${testId}-remove-${share.id}`}
                     >
-                      {removingShareId === share.id ? (
-                        <Spinner size="sm" />
-                      ) : (
-                        <Trash2 className="gba:w-4 gba:h-4" />
-                      )}
+                      {removingShareId === share.id ? <Spinner size="sm" /> : <Trash2 className="gba:w-4 gba:h-4" />}
                     </Button>
                   </div>
                 ))}

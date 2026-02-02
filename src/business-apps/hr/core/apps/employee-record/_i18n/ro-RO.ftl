@@ -314,8 +314,51 @@ employee-record-video-cannot-self = Nu te poți apela pe tine însuți prin vide
 
 # Employee Record - Tab labels
 employee-record-tab-summary = Rezumat
-employee-record-tab-hr-admin = HR Admin
-employee-record-tab-hr-growth = HR Growth
+employee-record-tab-hr-admin = Administrare HR
+employee-record-tab-hr-growth = Dezvoltare HR
+hr-growth-skills = Competențe
+hr-growth-feedback = Feedback
+hr-growth-performance = Performanță
+
+# Skills Tab
+skills-title = Competențe angajat
+skills-description = Vizualizați și gestionați competențele și abilitățile angajaților
+skills-edit-button = Editează competențe
+skills-empty = Nu s-au găsit competențe
+skills-total = Total competențe
+skills-highest = Competențe maxime
+skills-none = Niciuna
+skills-level = Nivel
+skills-category = Categorie
+skills-added = Adăugat
+skills-updated = Actualizat
+skills-na = N/A
+skills-level-0 = Niciun nivel atribuit
+skills-level-1 = Începător - Înțelegere de bază
+skills-level-2 = Novice - Experiență limitată
+skills-level-3 = Intermediar - Cunoștințe de lucru
+skills-level-4 = Avansat - Competent
+skills-level-5 = Expert - Nivel de maestru
+
+# Performance Tab
+performance-title = Obiective de performanță
+performance-description = Vizualizați și gestionați obiectivele de performanță ale angajaților
+performance-edit-button = Setează obiectiv nou
+performance-empty = Nu sunt disponibile obiective
+performance-progress = progres
+performance-start-date = Data începerii
+performance-due-date = Data scadenței
+performance-completion-date = Data finalizării
+performance-status-on-track = Pe drumul cel bun
+performance-status-behind-target = În urmă față de țintă
+performance-status-at-risk = În pericol
+performance-status-achieved = Atins
+performance-status-not-achieved = Neatins
+performance-error-load = Nu s-au putut încărca datele de performanță
+
+# Feedback Tab - Pagination
+feedback-pagination-per-page = / pagină
+
 employee-record-tab-compensation = Compensații
 employee-record-tab-time-tracking = Pontaj
 employee-record-tab-absences = Absențe
@@ -348,3 +391,207 @@ profile-header-capabilities = Competențe
 profile-header-skills = Competențe
 profile-header-no-capabilities = Nicio competență asignată
 profile-header-no-skills = Nicio competență asignată
+
+# Summary Tab
+summary-overview = Prezentare generală angajat
+summary-description = Vizualizați și editați profilul angajatului
+summary-organization-chart = Organigramă
+summary-job-information = Informații despre locul de muncă
+summary-availability-schedule = Disponibilitate și program
+summary-job-profile = Profil loc de muncă
+summary-job-family = Familie locuri de muncă
+summary-job-function = Funcție loc de muncă
+summary-job-level = Nivel loc de muncă
+summary-sap-number = Număr SAP
+summary-current-status = Status curent
+summary-available = Disponibil
+summary-unavailable = Indisponibil
+summary-timezone = Fus orar
+summary-weekly-hours = Ore săptămânale
+summary-hours-per-week = { $hours } ore/săptămână
+summary-not-specified = Nespecificat
+summary-quick-actions = Acțiuni rapide
+summary-clock-in = Pontaj intrare
+summary-clock-out = Pontaj ieșire
+summary-request-absence = Solicită absență
+summary-next-planned-absence = Următoarea absență planificată
+summary-out-of-office = În afara biroului
+summary-days = zile
+summary-loading-upcoming-absence = Se încarcă absența viitoare...
+summary-view-profile = Vizualizați profilul lui { $name }
+summary-day-mon = Lun
+summary-day-tue = Mar
+summary-day-wed = Mie
+summary-day-thu = Joi
+summary-day-fri = Vin
+summary-day-sat = Sâm
+summary-day-sun = Dum
+summary-day-mon-short = L
+summary-day-tue-short = M
+summary-day-wed-short = M
+summary-day-thu-short = J
+summary-day-fri-short = V
+summary-day-sat-short = S
+summary-day-sun-short = D
+
+# HR Admin Tab
+hr-admin-subtab-details = Detalii
+hr-admin-subtab-employment = Angajare
+hr-admin-subtab-documents = Documente
+hr-admin-subtab-change-log = Jurnal modificări
+hr-admin-subtab-hr-notes = Note HR
+
+# Details Tab
+details-overview = Detalii angajat
+details-description = Vizualizați informațiile personale ale angajatului
+details-personal-data = Date personale
+details-address = Adresă
+details-bank-account = Cont bancar
+details-private-communication = Comunicare privată
+details-emergency-contact = Contact de urgență
+details-additional-attributes = Atribute suplimentare
+details-no-emergency-contact = Nu sunt disponibile informații despre contactul de urgență
+details-label-salutation = Salutare
+details-label-academic-titles = Titluri academice
+details-label-first-name = Prenume
+details-label-last-name = Nume
+details-label-preferred-name = Nume preferat
+details-label-birth-name = Nume la naștere
+details-label-date-of-birth = Data nașterii
+details-label-place-of-birth = Locul nașterii
+details-label-nationality = Naționalitate
+details-label-gender = Gen
+details-label-marital-status = Stare civilă
+details-label-postal-code = Cod poștal
+details-label-city = Oraș
+details-label-country = Țară
+details-label-address-line = Linie adresă
+details-label-bank-name = Nume bancă
+details-label-account-holder = Deținător cont
+details-label-iban = IBAN
+details-label-private-phone = Telefon privat
+details-label-private-mobile = Mobil privat
+details-label-private-email = E-mail privat
+details-label-contact-name = Nume contact
+details-label-phone-number = Număr telefon
+
+# Employment Tab
+employment-overview = Date angajare
+employment-description = Vizualizați informațiile despre angajare și condițiile de lucru
+employment-profile = Profil angajare
+employment-working-conditions = Condiții de lucru
+employment-working-hours = Ore de lucru
+employment-payroll = Salarizare
+employment-tax-information = Informații fiscale
+employment-label-employee-id = ID angajat
+employment-label-company = Companie
+employment-label-job-position = Poziție
+employment-label-location = Locație
+employment-label-organizational-unit = Unitate organizațională
+employment-label-workspace = Spațiu de lucru
+employment-label-management-level = Nivel management
+employment-label-cost-center = Centru de cost
+employment-label-employment-type = Tip angajare
+employment-label-hire-date = Data angajării
+employment-label-fixed-term-until = Contract pe termen determinat până la
+employment-label-contract-type = Tip contract
+employment-label-probation-end-date = Data sfârșitului perioadei de probă
+employment-label-remote = Remote
+employment-label-exit-date = Data ieșirii
+employment-label-region = Regiune
+employment-label-vacation-entitlement-days = Drepturi de concediu (zile)
+employment-label-weekly-hours = Ore săptămânale
+employment-label-fte = ETC (Echivalent normă întreagă)
+employment-label-days-per-week = Zile pe săptămână
+employment-label-salary-group = Grup salarial
+employment-label-payment-method = Metodă de plată
+employment-label-bank-account = Cont bancar
+employment-label-bank-name = Nume bancă
+employment-label-account-holder = Deținător cont
+employment-label-full-time-equivalent = Echivalent normă întreagă
+employment-label-tax-number = Număr fiscal
+employment-label-tax-identification-number = Număr de identificare fiscală
+employment-label-social-security-number = Număr asigurări sociale
+employment-label-tax-bracket = Cota de impozitare
+employment-label-church-affiliation = Aparținere biserică
+employment-label-child-tax-allowance = Deducere fiscală pentru copii
+employment-label-health-insurance = Asigurare de sănătate
+employment-label-type-of-health-insurance = Tip asigurare de sănătate
+common-loading = Se încarcă...
+
+# Change Log Categories
+changelog-category-personal = Date personale
+changelog-category-address = Adresă & Comunicare
+changelog-category-org = Atribuire organizațională
+changelog-category-employment = Angajare
+changelog-category-financial = Financiar
+changelog-category-skills = Abilități & Competențe
+changelog-category-documents = Documente
+
+# Change Log Entry Details
+changelog-label-channel = Canal
+changelog-label-category = Categorie
+changelog-label-timestamp = Marcă temporală
+changelog-label-created-by = Creat de
+changelog-label-flow = Flux
+
+# Assets Tab
+assets-category = Categorie
+assets-brand-model = Marcă & Model
+assets-serial-number = Număr de serie
+assets-assignment-period = Perioada de atribuire
+assets-condition = Stare
+assets-status = Status
+assets-total-assets = Total Active
+assets-in-use = În utilizare
+assets-status-in-repair = În reparație
+assets-handed-over = Predat
+assets-status-available = Disponibil
+assets-status-allocated = Alocat
+assets-status-in-repair-label = În reparație
+assets-status-retired = Retras
+assets-status-handed-over = Predat
+assets-status-in-use = În utilizare
+assets-not-available = N/A
+assets-error-loading-assets = Eroare la încărcarea activelor
+assets-no-assets-assigned = Nu sunt active atribuite
+assets-no-equipment-assigned-self = Nu aveți echipamente atribuite în acest moment.
+assets-no-equipment-assigned-employee = Acestui angajat nu i-au fost atribuite echipamente în acest moment.
+assets-assigned-equipment = Rezumat Active
+assets-request-new-asset = Solicită activ nou
+assets-asset-assignment-history = Istoric atribuire active
+assets-unknown = Necunoscut
+assets-to = până la
+assets-expected = Așteptat
+assets-currently-active = În prezent activ
+assets-start = Început
+assets-end = Sfârșit
+assets-assignment-notes = Note de atribuire
+
+# Service Requests Tab
+service-requests-title = Cereri de servicii
+service-requests-desc-self = Cererile dvs. de servicii trimise
+service-requests-desc-other = Cereri de servicii trimise de { $name }
+service-requests-create-new = Portal servicii
+service-requests-total = Total
+service-requests-active = Activ
+service-requests-completed = Finalizat
+service-requests-completion-rate = Rata de finalizare
+service-requests-error = Eroare la încărcarea cererilor de servicii
+service-requests-no-steps = Nu sunt definiți pași
+service-requests-next-step = Următor
+service-requests-completed-step = Finalizat
+service-requests-no-service-requests = Fără cereri de servicii
+service-requests-no-service-requests-desc-self = Nu ați trimis încă nicio cerere de servicii.
+service-requests-no-service-requests-desc-other = Acest angajat nu a trimis încă nicio cerere de servicii.
+service-requests-column-request = Cerere
+service-requests-column-status = Status
+service-requests-column-progress = Progres
+service-requests-column-created = Creat
+service-requests-column-steps = Pași
+
+# Service Request Status Values
+service-requests-status-open = Deschis
+service-requests-status-in-progress = În progres
+service-requests-status-completed = Finalizat
+service-requests-status-canceled = Anulat
