@@ -56,6 +56,10 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
     storageMode: 'database'
   })
 
+  useEffect(() => {
+    DocumentApiService.setAccessToken(accessToken || null)
+  }, [accessToken])
+
   /**
    * Load all documents from the backend
    */
@@ -115,7 +119,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
           // Backend returns 'admin' for owner, which gets mapped to 'owner' in the API service
           // Default to 'owner' if not specified (for newly created documents)
           const permission = document.permission || 'owner'
-          
+
           console.log('[useDocumentApps] loadDocument:', {
             id: document.id,
             createdBy: document.createdBy,

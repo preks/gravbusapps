@@ -36,7 +36,20 @@ export const SpaceCard: React.FC<SpaceCardProps> = ({
       data-testid={testId}
     >
       {/* Header with monogram */}
-      <div className="gba:relative gba:h-24 gba:flex gba:items-center gba:justify-center gba:bg-primary">
+      {/* eslint-disable newwork-local/no-hardcoded-colors */}
+      <div
+        className="gba:relative gba:h-24 gba:flex gba:items-center gba:justify-center"
+        style={{
+          backgroundColor: '#001271',
+          backgroundImage: `
+            radial-gradient(ellipse at top right,
+              rgba(0, 118, 208, 0.6) 0%,
+              rgba(0, 39, 135, 0.4) 50%,
+              transparent 100%
+            )`
+        }}
+      >
+        {/* eslint-enable newwork-local/no-hardcoded-colors */}
         {/* Monogram */}
         <span className="gba:text-4xl gba:font-semibold gba:text-white/30">{monogram}</span>
 

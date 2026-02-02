@@ -86,14 +86,6 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
         value: workingCondition?.hireDate ? dayjs(workingCondition.hireDate).format('MMM D, YYYY') : ''
       },
       {
-        label: t('employment-label-fixed-term-until'),
-        value: workingCondition?.exitDate ? dayjs(workingCondition.exitDate).format('MMM D, YYYY') : ''
-      },
-      {
-        label: t('profile-header-fixed-term-reason'),
-        value: workingCondition?.additionalProperties?.fixedTermReason || ''
-      },
-      {
         label: t('employment-label-contract-type'),
         value: getCatalogValue(workingCondition?.contractType) || ''
       },
@@ -108,6 +100,10 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
       {
         label: t('employment-label-exit-date'),
         value: workingCondition?.exitDate ? dayjs(workingCondition.exitDate).format('MMM D, YYYY') : ''
+      },
+      {
+        label: 'Exit Reason',
+        value: workingCondition?.additionalProperties?.fixedTermReason || ''
       },
       {
         label: t('employment-label-region'),

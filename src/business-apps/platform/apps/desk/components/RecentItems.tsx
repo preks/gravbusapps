@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, CardContent, Badge, Button, Spinner } from '@newwork/nw-design-system'
-import { FileText, FileSpreadsheet, StickyNote, Clock, ArrowRight, Inbox, Search } from 'lucide-react'
+import { FileText, FileSpreadsheet, StickyNote, Presentation, Clock, ArrowRight, Inbox, Search } from 'lucide-react'
 import type { ContentItem } from '../hooks/useDeskData'
 
 interface RecentItemsProps {
@@ -35,6 +35,13 @@ const typeConfig = {
     bg: 'gba:bg-amber-500/10',
     borderHover: 'hover:gba:border-amber-500/30',
     label: 'Note'
+  },
+  slide: {
+    icon: Presentation,
+    color: 'gba:text-info',
+    bg: 'gba:bg-info/10',
+    borderHover: 'hover:gba:border-info/30',
+    label: 'Presentation'
   }
 }
 

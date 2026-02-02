@@ -46,7 +46,7 @@ while IFS= read -r app_dir; do
   echo "Publishing: $publish_path"
 
   # Publish the screen (with no-interaction flag for pipeline usage)
-  if ! yarn publish:screen -- "$publish_path" --no-interaction; then
+  if ! yarn publish:screen -- "$publish_path" --ci; then
     echo "Publish failed for: $publish_path"
     FAILED_SCREENS+=("$publish_path")
     # Continue with next iteration without exiting the script

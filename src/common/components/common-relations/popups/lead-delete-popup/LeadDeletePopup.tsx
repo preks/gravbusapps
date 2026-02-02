@@ -79,12 +79,12 @@ const LeadDeletePopup: React.FC<LeadDeletePopupProps> = ({
     return null
   }
 
-  // Setup redirect after delete (if on record page)
+  // Setup redirect after delete (only if deleting the current lead record)
   useDeleteRedirect({
     domain,
     entityType: 'leads',
     recordUrlPattern: '/lead-record',
-    additionalData: props.additionalData
+    entityId: leadId
   })
 
   if (loading) {
