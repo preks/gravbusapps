@@ -108,6 +108,10 @@ current = Current
 points = points
 error = Error
 retry = Retry
+my-content = My Content
+show-my-content-description = View all content entries you have created
+no-my-content-found = You have not created any content yet.
+other = Other
 
 # Glossary
 glossary-subtitle = A shared language for terms, acronyms, and how we work
@@ -127,6 +131,7 @@ viewing-as = Viewing as
 all = All
 search = Search
 loading = Loading...
+loading_more = Loading more...
 refresh = Refresh
 edit = Edit
 cancel = Cancel

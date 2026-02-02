@@ -83,7 +83,13 @@ const SalaryAdjustmentGroup: React.FC<SalaryAdjustmentGroupProps> = ({
       </div>
 
       {/* Amount and Percentage Inputs - Side by Side */}
-      <SalaryCalculatorInputs control={control} adjustmentFrequency={adjustmentFrequency} />
+      <SalaryCalculatorInputs
+        control={control}
+        adjustmentFrequency={adjustmentFrequency}
+        currentSalaryAnnual={currentSalaryAnnual}
+        currentSalaryMonthly={currentSalaryMonthly}
+        currentSalaryHourly={currentSalaryHourly}
+      />
 
       {/* Salary Adjustment Summary - Combines calculation and new salary preview */}
       <SalaryCalculationVisualization
@@ -98,7 +104,11 @@ const SalaryAdjustmentGroup: React.FC<SalaryAdjustmentGroupProps> = ({
       />
 
       {/* Other Form Fields */}
-      <SalaryAdjustmentFields control={control} salaryAdjustReasonEntries={salaryAdjustReasonEntries} />
+      <SalaryAdjustmentFields
+        control={control}
+        salaryAdjustReasonEntries={salaryAdjustReasonEntries}
+        isAssignMode={isAssignMode}
+      />
     </div>
   )
 }
