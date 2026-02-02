@@ -44,7 +44,10 @@ import {
   UserCheck,
   Activity,
   CheckCircle2,
-  Loader2
+  Loader2,
+  AlertCircle,
+  CalendarClock,
+  FileText
 } from 'lucide-react'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import { Case, AddFlowRequest, LinkedEntity, LinkedFlow, CasePriority } from '../types'
@@ -331,36 +334,121 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
         </div>
       </div>
 
-      {/* KPIs Row */}
+      {/* KPIs Row - Compact design for case detail context */}
       <div className="gba:grid gba:grid-cols-4 gba:gap-4">
-        <Card>
-          <CardContent className="gba:pt-4">
-            <div className="gba:text-xs gba:text-muted-foreground gba:uppercase gba:tracking-wide">Status</div>
-            <div className="gba:mt-1">
-              {metadata?.status ? (
-                <CaseStatusBadge status={metadata.status} />
-              ) : (
-                <span className="gba:text-sm">N/A</span>
-              )}
+        {/* Status KPI */}
+        <Card className="gba:shadow-none gba:border">
+          <CardContent className="gba:p-4">
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+              <span className="gba:text-xs gba:text-muted-foreground gba:uppercase gba:tracking-wide">Status</span>
+              <CaseStatusBadge status={metadata?.status || 'open'} />
+            </div>
+            <div className="gba:text-xs gba:text-muted-foreground">Created {formatDate(caseData.createdAt)}</div>
+          </CardContent>
+        </Card>
+
+        {/* Due In KPI */}
+        <Card className="gba:shadow-none gba:border">
+          <CardContent className="gba:p-4">
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+              <span className="gba:text-xs gba:text-muted-foreground gba:uppercase gba:tracking-wide">Due In</span>
+              {(() => {
+                if (!metadata?.dueDate) return null
+                const dueDate = new Date(metadata.dueDate)
+                const today = new Date()
+                today.setHours(0, 0, 0, 0)
+                dueDate.setHours(0, 0, 0, 0)
+                const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+                const isCompleted = metadata?.status === 'completed' || metadata?.status === 'closed'
+
+                if (isCompleted) return <Badge variant="success">Completed</Badge>
+                if (diffDays < 0) return <Badge variant="destructive">Overdue</Badge>
+                if (diffDays <= 3) return <Badge variant="warning">Due soon</Badge>
+                return <Badge variant="success">On track</Badge>
+              })()}
+            </div>
+            <div className="gba:text-sm gba:font-medium">
+              {(() => {
+                if (!metadata?.dueDate) return 'Not set'
+                const dueDate = new Date(metadata.dueDate)
+                const today = new Date()
+                today.setHours(0, 0, 0, 0)
+                dueDate.setHours(0, 0, 0, 0)
+                const diffDays = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+                const isCompleted = metadata?.status === 'completed' || metadata?.status === 'closed'
+
+                if (isCompleted) return 'Done'
+                if (diffDays < 0) return `${Math.abs(diffDays)} day${Math.abs(diffDays) !== 1 ? 's' : ''} overdue`
+                if (diffDays === 0) return 'Today'
+                return `${diffDays} day${diffDays !== 1 ? 's' : ''}`
+              })()}
+            </div>
+            <div className="gba:text-xs gba:text-muted-foreground">
+              {metadata?.dueDate ? formatDate(metadata.dueDate) : 'No due date'}
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="gba:pt-4">
-            <div className="gba:text-xs gba:text-muted-foreground gba:uppercase gba:tracking-wide">Flows</div>
-            <div className="gba:text-2xl gba:font-semibold">{linkedFlows.filter(f => !f.removedAt).length}</div>
+
+        {/* Progress KPI */}
+        <Card className="gba:shadow-none gba:border">
+          <CardContent className="gba:p-4">
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+              <span className="gba:text-xs gba:text-muted-foreground gba:uppercase gba:tracking-wide">Progress</span>
+              <span className="gba:text-sm gba:font-semibold">
+                {(() => {
+                  const flows = activeFlows
+                  if (flows.length === 0) return '0%'
+                  const totalSteps = flows.reduce((sum, f) => sum + (f.totalSteps || 0), 0)
+                  const completedSteps = flows.reduce((sum, f) => sum + (f.completedSteps || 0), 0)
+                  return totalSteps > 0 ? `${Math.round((completedSteps / totalSteps) * 100)}%` : '0%'
+                })()}
+              </span>
+            </div>
+            <Progress
+              value={(() => {
+                const flows = activeFlows
+                if (flows.length === 0) return 0
+                const totalSteps = flows.reduce((sum, f) => sum + (f.totalSteps || 0), 0)
+                const completedSteps = flows.reduce((sum, f) => sum + (f.completedSteps || 0), 0)
+                return totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0
+              })()}
+              className="gba:h-1.5 gba:mb-2"
+            />
+            <div className="gba:text-xs gba:text-muted-foreground">
+              {(() => {
+                const flows = activeFlows
+                if (flows.length === 0) return 'No flows'
+                const totalSteps = flows.reduce((sum, f) => sum + (f.totalSteps || 0), 0)
+                const completedSteps = flows.reduce((sum, f) => sum + (f.completedSteps || 0), 0)
+                return `${completedSteps} of ${totalSteps} steps`
+              })()}
+            </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="gba:pt-4">
-            <div className="gba:text-xs gba:text-muted-foreground gba:uppercase gba:tracking-wide">Created</div>
-            <div className="gba:text-sm gba:mt-1">{formatDate(caseData.createdAt)}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="gba:pt-4">
-            <div className="gba:text-xs gba:text-muted-foreground gba:uppercase gba:tracking-wide">Priority</div>
-            <div className="gba:text-sm gba:mt-1 gba:capitalize">{metadata?.priority || 'medium'}</div>
+
+        {/* Priority KPI */}
+        <Card className="gba:shadow-none gba:border">
+          <CardContent className="gba:p-4">
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+              <span className="gba:text-xs gba:text-muted-foreground gba:uppercase gba:tracking-wide">Priority</span>
+              {(() => {
+                const priority = metadata?.priority || 'medium'
+                const variants: Record<string, 'default' | 'destructive' | 'warning' | 'info'> = {
+                  low: 'default',
+                  medium: 'info',
+                  high: 'warning',
+                  critical: 'destructive'
+                }
+                return (
+                  <Badge variant={variants[priority] || 'info'} className="gba:capitalize">
+                    {priority}
+                  </Badge>
+                )
+              })()}
+            </div>
+            <div className="gba:text-xs gba:text-muted-foreground">
+              {metadata?.assignedTo ? 'Assigned' : 'Unassigned'}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -386,10 +474,15 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
               <div className="gba:grid gba:grid-cols-2 gba:gap-4">
                 {/* Case Information with Description */}
                 <Card className="gba:h-full">
-                  <CardHeader className="gba:pb-3">
-                    <CardTitle className="gba:text-base">Case Information</CardTitle>
+                  <CardHeader className="gba:py-3 gba:px-4">
+                    <CardTitle className="gba:flex gba:items-center gba:justify-between gba:text-base">
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <FileText className="gba:h-4 gba:w-4" />
+                        Case Information
+                      </div>
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent className="gba:space-y-4">
+                  <CardContent className="gba:px-4 gba:pt-0 gba:space-y-4">
                     <dl className="gba:space-y-3">
                       <div className="gba:grid gba:grid-cols-2 gba:gap-x-4 gba:gap-y-3">
                         <div>
@@ -462,7 +555,32 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
                             Due Date
                           </dt>
                           <dd className="gba:mt-0.5 gba:text-sm">
-                            {metadata?.dueDate ? formatDate(metadata.dueDate) : 'Not set'}
+                            {metadata?.dueDate ? (
+                              (() => {
+                                const dueDate = new Date(metadata.dueDate)
+                                const today = new Date()
+                                today.setHours(0, 0, 0, 0)
+                                const isOverdue = dueDate < today && metadata?.status !== 'completed'
+                                const isDueSoon =
+                                  !isOverdue &&
+                                  dueDate <= new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000) &&
+                                  metadata?.status !== 'completed'
+
+                                return (
+                                  <span
+                                    className={`gba:flex gba:items-center gba:gap-1.5 ${isOverdue ? 'gba:text-destructive gba:font-medium' : isDueSoon ? 'gba:text-orange-600' : ''}`}
+                                  >
+                                    {isOverdue && <AlertCircle className="gba:h-3.5 gba:w-3.5" />}
+                                    {isDueSoon && !isOverdue && <CalendarClock className="gba:h-3.5 gba:w-3.5" />}
+                                    {formatDate(metadata.dueDate)}
+                                    {isOverdue && <span className="gba:text-xs">(Overdue)</span>}
+                                    {isDueSoon && !isOverdue && <span className="gba:text-xs">(Due soon)</span>}
+                                  </span>
+                                )
+                              })()
+                            ) : (
+                              <span className="gba:text-muted-foreground">Not set</span>
+                            )}
                           </dd>
                         </div>
                       </div>
@@ -486,12 +604,12 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
                 <div className="gba:space-y-4">
                   {/* Flows Progress */}
                   <Card>
-                    <CardHeader className="gba:pb-3">
-                      <div className="gba:flex gba:items-center gba:justify-between">
-                        <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
+                    <CardHeader className="gba:py-3 gba:px-4">
+                      <CardTitle className="gba:flex gba:items-center gba:justify-between gba:text-base">
+                        <div className="gba:flex gba:items-center gba:gap-2">
                           <Activity className="gba:h-4 gba:w-4" />
                           Flows Progress
-                        </CardTitle>
+                        </div>
                         {activeFlows.length > 0 && (
                           <Button
                             variant="ghost"
@@ -499,13 +617,13 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
                             className="gba:text-xs gba:h-7"
                             onClick={() => setActiveTab('flows')}
                           >
-                            View all
+                            View all ({activeFlows.length})
                             <ArrowRight className="gba:h-3 gba:w-3 gba:ml-1" />
                           </Button>
                         )}
-                      </div>
+                      </CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="gba:px-4 gba:pt-0">
                       {activeFlows.length > 0 ? (
                         (() => {
                           // Calculate overall step-level progress across all flows
@@ -602,7 +720,7 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
 
                   {/* Participants */}
                   <Card>
-                    <CardHeader className="gba:pb-3">
+                    <CardHeader className="gba:py-3 gba:px-4">
                       <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
                         <Users className="gba:h-4 gba:w-4" />
                         Participants {allParticipantIds.length > 0 && `(${allParticipantIds.length})`}
@@ -676,12 +794,12 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
 
               {/* Recent Notes */}
               <Card>
-                <CardHeader className="gba:pb-3">
-                  <div className="gba:flex gba:items-center gba:justify-between">
-                    <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
+                <CardHeader className="gba:py-3 gba:px-4">
+                  <CardTitle className="gba:flex gba:items-center gba:justify-between gba:text-base">
+                    <div className="gba:flex gba:items-center gba:gap-2">
                       <MessageSquare className="gba:h-4 gba:w-4" />
                       Recent Notes
-                    </CardTitle>
+                    </div>
                     {notes.length > 0 && (
                       <Button
                         variant="ghost"
@@ -693,7 +811,7 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
                         <ArrowRight className="gba:h-3 gba:w-3 gba:ml-1" />
                       </Button>
                     )}
-                  </div>
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {notes.length === 0 ? (

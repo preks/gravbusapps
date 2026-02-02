@@ -20,7 +20,8 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  DateInput
 } from '@newwork/nw-design-system'
 import { Loader2 } from 'lucide-react'
 import { CreateCaseRequest, CasePriority } from '../types'
@@ -48,6 +49,7 @@ export const CreateCaseDialog: React.FC<CreateCaseDialogProps> = ({
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<CasePriority>('medium')
   const [assignedTo, setAssignedTo] = useState<string | null>(null)
+  const [dueDate, setDueDate] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -66,6 +68,7 @@ export const CreateCaseDialog: React.FC<CreateCaseDialogProps> = ({
     setDescription('')
     setPriority('medium')
     setAssignedTo(null)
+    setDueDate('')
     setError(null)
   }
 
@@ -100,7 +103,8 @@ export const CreateCaseDialog: React.FC<CreateCaseDialogProps> = ({
           description: description.trim() || undefined,
           priority,
           status: 'open',
-          assignedTo: assignedToUserId
+          assignedTo: assignedToUserId,
+          dueDate: dueDate || undefined
         }
       })
 
@@ -169,6 +173,19 @@ export const CreateCaseDialog: React.FC<CreateCaseDialogProps> = ({
                 <SelectItem value="critical">Critical</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Due Date */}
+          <div className="gba:space-y-2">
+            <Label htmlFor="dueDate">Due Date</Label>
+            <DateInput
+              type="date"
+              value={dueDate}
+              onChange={setDueDate}
+              placeholder="Select due date (optional)"
+              disabled={isSubmitting}
+              min={new Date().toISOString().split('T')[0]}
+            />
           </div>
 
           {/* Assign To */}

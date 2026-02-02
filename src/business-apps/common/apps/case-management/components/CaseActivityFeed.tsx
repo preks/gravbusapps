@@ -13,13 +13,18 @@ import {
   Plus,
   Minus,
   Link2,
+  Link2Off,
   MessageSquare,
   User,
-  FileText,
+  UserPlus,
   Loader2,
   RefreshCw,
   AlertTriangle,
-  PlayCircle
+  PlayCircle,
+  Pencil,
+  Calendar,
+  Flag,
+  ArrowUpDown
 } from 'lucide-react'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -81,6 +86,10 @@ export const CaseActivityFeed: React.FC<CaseActivityFeedProps> = ({ caseId, cont
     switch (type) {
       case 'case_created':
         return <PlayCircle className="gba:h-4 gba:w-4 gba:text-blue-500" />
+      case 'case_updated':
+        return <Pencil className="gba:h-4 gba:w-4 gba:text-blue-400" />
+      case 'case_completed':
+        return <CheckCircle className="gba:h-4 gba:w-4 gba:text-green-600" />
       case 'flow_added':
         return <Plus className="gba:h-4 gba:w-4 gba:text-green-500" />
       case 'flow_linked':
@@ -90,11 +99,17 @@ export const CaseActivityFeed: React.FC<CaseActivityFeedProps> = ({ caseId, cont
       case 'note_added':
         return <MessageSquare className="gba:h-4 gba:w-4 gba:text-blue-400" />
       case 'entity_linked':
-        return <User className="gba:h-4 gba:w-4 gba:text-purple-500" />
-      case 'case_completed':
-        return <CheckCircle className="gba:h-4 gba:w-4 gba:text-green-600" />
+        return <UserPlus className="gba:h-4 gba:w-4 gba:text-purple-500" />
+      case 'entity_unlinked':
+        return <Link2Off className="gba:h-4 gba:w-4 gba:text-orange-500" />
       case 'status_changed':
-        return <FileText className="gba:h-4 gba:w-4 gba:text-purple-500" />
+        return <ArrowUpDown className="gba:h-4 gba:w-4 gba:text-purple-500" />
+      case 'priority_changed':
+        return <Flag className="gba:h-4 gba:w-4 gba:text-orange-500" />
+      case 'due_date_changed':
+        return <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />
+      case 'assignee_changed':
+        return <User className="gba:h-4 gba:w-4 gba:text-indigo-500" />
       default:
         return <Activity className="gba:h-4 gba:w-4 gba:text-gray-500" />
     }
@@ -180,8 +195,8 @@ export const CaseActivityFeed: React.FC<CaseActivityFeedProps> = ({ caseId, cont
   return (
     <Card className="gba:h-full gba:flex gba:flex-col">
       <CardHeader className="gba:py-3 gba:px-4 gba:flex-shrink-0">
-        <CardTitle className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:font-semibold">
-          <div className="gba:flex gba:items-center gba:gap-1.5">
+        <CardTitle className="gba:flex gba:items-center gba:justify-between gba:text-base">
+          <div className="gba:flex gba:items-center gba:gap-2">
             <Activity className="gba:h-4 gba:w-4 gba:text-primary" />
             Activity Log
           </div>
@@ -194,7 +209,7 @@ export const CaseActivityFeed: React.FC<CaseActivityFeedProps> = ({ caseId, cont
           </button>
         </CardTitle>
       </CardHeader>
-      <CardContent className="gba:px-4 gba:py-0 gba:flex-1 gba:overflow-hidden">
+      <CardContent className="gba:px-4 gba:pt-0 gba:flex-1 gba:overflow-hidden">
         {activities.length === 0 ? (
           <div className="gba:text-center gba:py-6">
             <Activity className="gba:h-6 gba:w-6 gba:mx-auto gba:mb-2 gba:text-muted-foreground" />

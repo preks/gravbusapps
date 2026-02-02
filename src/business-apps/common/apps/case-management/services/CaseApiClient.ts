@@ -249,9 +249,15 @@ export class CaseApiClient {
         linkedFlows: c.state?.linkedFlows || [],
         createdAt: c.createdAt,
         metadata: {
-          title: c.title,
-          status: this.parseStatusFromTags(c.tags),
-          priority: this.parsePriorityFromTags(c.tags)
+          // Use metadata from backend state, fallback to parsed tags for backward compatibility
+          title: c.state?.metadata?.title || c.title,
+          description: c.state?.metadata?.description,
+          status: c.state?.metadata?.status || this.parseStatusFromTags(c.tags),
+          priority: c.state?.metadata?.priority || this.parsePriorityFromTags(c.tags),
+          assignedTo: c.state?.metadata?.assignedTo,
+          dueDate: c.state?.metadata?.dueDate,
+          linkedEntities: c.state?.metadata?.linkedEntities || [],
+          notes: c.state?.metadata?.notes || []
         }
       },
       createdAt: c.createdAt,

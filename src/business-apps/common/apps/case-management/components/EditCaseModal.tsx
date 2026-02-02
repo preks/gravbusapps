@@ -20,7 +20,8 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  DateInput
 } from '@newwork/nw-design-system'
 import { Loader2, Save } from 'lucide-react'
 import { Case, CasePriority } from '../types'
@@ -37,6 +38,7 @@ export interface EditCaseModalProps {
     description?: string
     priority?: CasePriority
     assignedTo?: string
+    dueDate?: string
   }) => Promise<void>
 }
 
@@ -54,12 +56,14 @@ export const EditCaseModal: React.FC<EditCaseModalProps> = ({ isOpen, onClose, c
   const currentDescription = metadata?.description || ''
   const currentPriority = metadata?.priority || 'medium'
   const currentAssignedTo = metadata?.assignedTo || ''
+  const currentDueDate = metadata?.dueDate || ''
 
   // Form state
   const [title, setTitle] = useState(currentTitle)
   const [description, setDescription] = useState(currentDescription)
   const [priority, setPriority] = useState<CasePriority>(currentPriority)
   const [assignedTo, setAssignedTo] = useState<string | null>(currentAssignedTo || null)
+  const [dueDate, setDueDate] = useState(currentDueDate)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -87,9 +91,10 @@ export const EditCaseModal: React.FC<EditCaseModalProps> = ({ isOpen, onClose, c
       setDescription(currentDescription)
       setPriority(currentPriority)
       setAssignedTo(currentAssignedTo || null)
+      setDueDate(currentDueDate)
       setError(null)
     }
-  }, [isOpen, currentTitle, currentDescription, currentPriority, currentAssignedTo])
+  }, [isOpen, currentTitle, currentDescription, currentPriority, currentAssignedTo, currentDueDate])
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -102,6 +107,7 @@ export const EditCaseModal: React.FC<EditCaseModalProps> = ({ isOpen, onClose, c
         description?: string
         priority?: CasePriority
         assignedTo?: string
+        dueDate?: string
       } = {}
 
       if (title !== currentTitle) {
@@ -118,6 +124,9 @@ export const EditCaseModal: React.FC<EditCaseModalProps> = ({ isOpen, onClose, c
       const newAssignedToUserId = selectedEmployee?.userId || assignedTo || ''
       if (newAssignedToUserId !== currentAssignedTo) {
         updates.assignedTo = newAssignedToUserId
+      }
+      if (dueDate !== currentDueDate) {
+        updates.dueDate = dueDate
       }
 
       // Only save if there are changes
@@ -141,7 +150,8 @@ export const EditCaseModal: React.FC<EditCaseModalProps> = ({ isOpen, onClose, c
     title !== currentTitle ||
     description !== currentDescription ||
     priority !== currentPriority ||
-    newAssignedToUserId !== currentAssignedTo
+    newAssignedToUserId !== currentAssignedTo ||
+    dueDate !== currentDueDate
 
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
@@ -193,6 +203,18 @@ export const EditCaseModal: React.FC<EditCaseModalProps> = ({ isOpen, onClose, c
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Due Date Field */}
+          <div className="gba:space-y-2">
+            <Label htmlFor="case-dueDate">Due Date</Label>
+            <DateInput
+              type="date"
+              value={dueDate}
+              onChange={setDueDate}
+              placeholder="Select due date"
+              disabled={isSaving}
+            />
           </div>
 
           {/* Assigned To Field */}

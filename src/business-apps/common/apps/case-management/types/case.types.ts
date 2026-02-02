@@ -100,13 +100,18 @@ export interface CaseAnalytics {
 // Activity types for audit log
 export type CaseActivityType =
   | 'case_created'
+  | 'case_updated'
+  | 'case_completed'
   | 'flow_added'
   | 'flow_linked'
   | 'flow_removed'
   | 'note_added'
   | 'entity_linked'
-  | 'case_completed'
+  | 'entity_unlinked'
   | 'status_changed'
+  | 'priority_changed'
+  | 'due_date_changed'
+  | 'assignee_changed'
   | 'other'
 
 export interface CaseActivity {
