@@ -24,6 +24,11 @@ import { CharacterCount } from '@tiptap/extension-character-count'
 import {
   Button,
   Badge,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
   Separator,
   DropdownMenu,
   DropdownMenuContent,
@@ -64,7 +69,9 @@ import {
   MessageSquare,
   Upload,
   Lock as LockIcon,
-  Unlock as UnlockIcon
+  Unlock as UnlockIcon,
+  ListTodo,
+  RefreshCw
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCollaboration } from '../shared/hooks/useCollaboration'
@@ -83,9 +90,12 @@ import { StatusBadge } from '../shared/components/StatusBadge'
 import { PublishDialog } from '../shared/components/PublishDialog'
 import { CommentPanel } from '../shared/components/CommentPanel'
 import { InlineCommentPopover } from '../shared/components/InlineCommentPopover'
+import { Drawing } from '../shared/extensions/Drawing'
+import { HybridEditorCanvas } from '../shared/components/HybridEditorCanvas'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 import { NoteApiService } from './services/NoteApiService'
+import { DrawingApiService } from './services/DrawingApiService'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
 import Mention from '@tiptap/extension-mention'
@@ -100,6 +110,21 @@ import {
 import { mergeAttributes } from '@tiptap/core'
 import { FileText } from 'lucide-react'
 import type { Note, NoteColor } from './types'
+import { toast } from 'sonner'
+import {
+  TransformMenu,
+  SummaryPanel,
+  TranslationPanel,
+  ActionItemsModal,
+  ActionItemsList,
+  type TransformType
+} from './components/handwriting'
+import type { NoteActionItemFlow } from './types'
+import type { NoteTranslation, TranslationLanguage } from './types/translation'
+import { TRANSLATION_LANGUAGE_NAMES } from './types/translation'
+import { TextTransformService } from './services/TextTransformService'
+import { useActionItemFlowStatusSync } from './hooks/useActionItemFlowStatusSync'
+import { useActionItemAssigneeEnrichment } from './hooks/useActionItemAssigneeEnrichment'
 
 // Note color mapping
 const noteColors: Array<{ value: NoteColor; label: string; class: string }> = [
@@ -209,83 +234,6 @@ const MentionNodeView: React.FC<{ node: any }> = ({ node }) => {
   )
 }
 
-type JwtPayload = {
-  sub?: string
-  userId?: string
-  name?: string
-  preferred_username?: string
-  username?: string
-}
-
-type GraphqlClientLike = {
-  request: <T>(query: string, variables?: Record<string, unknown>) => Promise<T>
-} | null
-
-function safeParseJwtPayload(token: string): JwtPayload | null {
-  try {
-    const parts = token.split('.')
-    if (parts.length < 2) return null
-    const rawPayload = parts[1]
-    if (!rawPayload) return null
-    return JSON.parse(atob(rawPayload)) as JwtPayload
-  } catch {
-    return null
-  }
-}
-
-function toAvatarDataUrl(pictureThumbnail?: string): string | null {
-  if (!pictureThumbnail) return null
-  return pictureThumbnail.startsWith('data:') ? pictureThumbnail : `data:image/png;base64,${pictureThumbnail}`
-}
-
-async function fetchEmployeeLightByUserId(
-  graphqlClient: GraphqlClientLike,
-  userId: string
-): Promise<{ displayName?: string; pictureThumbnail?: string } | null> {
-  if (!graphqlClient) return null
-  if (!userId) return null
-
-  try {
-    const query = GET_EMPLOYEE_LIGHT_BY_USER_ID(userId)
-    const result = await graphqlClient.request<{ Employee: Array<{ displayName: string; pictureThumbnail?: string }> }>(
-      query
-    )
-    return result.Employee?.[0] || null
-  } catch {
-    return null
-  }
-}
-
-async function loadCurrentUserInfo(params: {
-  accessToken: string
-  graphqlClient: GraphqlClientLike
-  setCurrentUserId: (value: string | null) => void
-  setCurrentUserName: (value: string | null) => void
-  setCurrentUserAvatar: (value: string | null) => void
-}): Promise<void> {
-  const token = params.accessToken || localStorage.getItem('business-app-ide-access-token') || ''
-  if (!token) return
-
-  const payload = safeParseJwtPayload(token)
-  if (!payload) return
-
-  const userId = payload.sub || payload.userId || null
-  const userName = payload.name || payload.preferred_username || payload.username || null
-
-  params.setCurrentUserId(userId)
-  params.setCurrentUserName(userName)
-
-  if (!userId) return
-
-  const emp = await fetchEmployeeLightByUserId(params.graphqlClient, userId)
-  if (emp?.pictureThumbnail) {
-    params.setCurrentUserAvatar(toAvatarDataUrl(emp.pictureThumbnail))
-  }
-  if (emp?.displayName) {
-    params.setCurrentUserName(emp.displayName)
-  }
-}
-
 export interface NoteEditorProps extends Partial<BusinessAppContextProps> {
   note: Note
   onSave: (title: string, content: string, contentJson?: Record<string, unknown>) => Promise<void>
@@ -327,6 +275,37 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const titleInputRef = useRef<HTMLInputElement>(null)
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const editorRef = useRef<any>(null)
+  const editorContainerRef = useRef<HTMLDivElement>(null)
+
+  // AI Transform + Action Items state (persisted in note.contentJson)
+  const initialMeta = (note.contentJson as Record<string, unknown> | undefined) || undefined
+  const [isTransforming, setIsTransforming] = useState(false)
+  const [currentSummary, setCurrentSummary] = useState<string | null>(
+    (initialMeta?._summary as string | null | undefined) ?? null
+  )
+  const [actionItemFlows, setActionItemFlows] = useState<NoteActionItemFlow[]>(
+    (initialMeta?.actionItemFlows as unknown[] as NoteActionItemFlow[] | undefined) || []
+  )
+  const [translations, setTranslations] = useState<NoteTranslation[]>(
+    (initialMeta?._translation as unknown[] as NoteTranslation[] | undefined) || []
+  )
+  const [actionItemsModalOpen, setActionItemsModalOpen] = useState(false)
+  const [currentActionItems, setCurrentActionItems] = useState<string[]>([])
+  const [actionItemsPanelOpen, setActionItemsPanelOpen] = useState(false)
+  const lastMetaPersistSigRef = useRef<string>('')
+  const metaPersistTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Reset metadata when switching notes
+  useEffect(() => {
+    const meta = (note.contentJson as Record<string, unknown> | undefined) || undefined
+    setCurrentSummary((meta?._summary as string | null | undefined) ?? null)
+    setActionItemFlows((meta?.actionItemFlows as unknown[] as NoteActionItemFlow[] | undefined) || [])
+    setTranslations((meta?._translation as unknown[] as NoteTranslation[] | undefined) || [])
+    setActionItemsModalOpen(false)
+    setCurrentActionItems([])
+    setActionItemsPanelOpen(false)
+    lastMetaPersistSigRef.current = ''
+  }, [note.id])
 
   // Collaboration state
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -365,6 +344,19 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   // Get access token for GraphQL - must be before effects that use it
   const accessToken = accessTokenProp || (note as any).accessToken || ''
   const graphqlClient = useGraphQLClient(accessToken)
+
+  // Fill missing avatar/name for older flows
+  useActionItemAssigneeEnrichment({
+    accessToken,
+    flows: actionItemFlows,
+    setFlows: next => setActionItemFlows(next)
+  })
+
+  const { isSyncing: isFlowStatusSyncing, syncNow: syncFlowStatuses } = useActionItemFlowStatusSync({
+    accessToken,
+    flows: actionItemFlows,
+    onFlowsUpdated: next => setActionItemFlows(next)
+  })
 
   // Collaboration hook
   const {
@@ -558,16 +550,44 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
   // Get current user info including avatar
   useEffect(() => {
-    loadCurrentUserInfo({
-      accessToken,
-      graphqlClient,
-      setCurrentUserId,
-      setCurrentUserName,
-      setCurrentUserAvatar
-    }).catch(error => {
-      const message = error instanceof Error ? error.message : 'Unknown error'
-      console.error('[NoteEditor] Failed to load current user info:', message)
-    })
+    const loadUserInfo = async () => {
+      try {
+        // Prefer accessToken prop (published screens may not have token in localStorage)
+        const token = accessToken || localStorage.getItem('business-app-ide-access-token')
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]))
+          const userId = payload.sub || payload.userId || null
+          const userName = payload.name || payload.preferred_username || payload.username || null
+
+          setCurrentUserId(userId)
+          setCurrentUserName(userName)
+
+          // Fetch avatar from GraphQL if we have userId and graphqlClient
+          if (userId && graphqlClient) {
+            try {
+              const query = GET_EMPLOYEE_LIGHT_BY_USER_ID(userId)
+              const result = await graphqlClient.request<{
+                Employee: Array<{ displayName: string; pictureThumbnail?: string }>
+              }>(query)
+              const emp = result.Employee?.[0]
+              if (emp?.pictureThumbnail) {
+                const avatarUrl = emp.pictureThumbnail.startsWith('data:')
+                  ? emp.pictureThumbnail
+                  : `data:image/png;base64,${emp.pictureThumbnail}`
+                setCurrentUserAvatar(avatarUrl)
+              }
+              if (emp?.displayName) {
+                setCurrentUserName(emp.displayName)
+              }
+            } catch {
+              // Ignore - avatar is optional
+            }
+          }
+        }
+      } catch {}
+    }
+
+    loadUserInfo()
   }, [graphqlClient, accessToken])
 
   // Create mention suggestion with access token
@@ -711,6 +731,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           },
           suggestion: mentionSuggestion
         }),
+        Drawing,
         ...(collaborationExtension ? [collaborationExtension] : []),
         ...(yjsCursorExtension ? [yjsCursorExtension] : [])
       ],
@@ -822,6 +843,175 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     [editor]
   )
 
+  const getPlainTextForTransform = useCallback((): string => {
+    if (editor) {
+      return (editor.getText() || '').trim()
+    }
+    return ((note.content || '') as string)
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }, [editor, note.content])
+
+  const persistMeta = useCallback(
+    async (nextSummary: string | null, nextFlows: NoteActionItemFlow[], nextTranslations: NoteTranslation[]) => {
+      const base = ((note.contentJson as Record<string, unknown> | undefined) || {}) as Record<string, unknown>
+      const next: Record<string, unknown> = { ...base }
+
+      if (nextSummary && nextSummary.trim().length > 0) {
+        next._summary = nextSummary
+      } else {
+        delete next._summary
+      }
+
+      if (nextFlows.length > 0) {
+        next.actionItemFlows = nextFlows
+      } else {
+        delete next.actionItemFlows
+      }
+
+      if (nextTranslations.length > 0) {
+        next._translation = nextTranslations
+      } else {
+        delete next._translation
+      }
+
+      const sig = `${note.id}::${next._summary ? String(next._summary).slice(0, 80) : ''}::${nextFlows
+        .map(f => `${f.workflowId}:${f.status}:${f.completedAt || ''}:${f.assigneeAvatarUrl || ''}`)
+        .join('|')}::${nextTranslations.map(t => `${t.id}:${t.targetLanguage}`).join('|')}`
+      if (sig === lastMetaPersistSigRef.current) return
+
+      lastMetaPersistSigRef.current = sig
+      await NoteApiService.updateNote(note.id, { contentJson: next })
+    },
+    [note.contentJson, note.id]
+  )
+
+  const queuePersistMeta = useCallback(
+    (nextSummary: string | null, nextFlows: NoteActionItemFlow[], nextTranslations: NoteTranslation[]) => {
+      if (metaPersistTimerRef.current) clearTimeout(metaPersistTimerRef.current)
+      metaPersistTimerRef.current = setTimeout(() => {
+        void persistMeta(nextSummary, nextFlows, nextTranslations)
+      }, 800)
+    },
+    [persistMeta]
+  )
+
+  useEffect(() => {
+    return () => {
+      if (metaPersistTimerRef.current) clearTimeout(metaPersistTimerRef.current)
+    }
+  }, [])
+
+  // Persist metadata when it changes (debounced)
+  useEffect(() => {
+    queuePersistMeta(currentSummary, actionItemFlows, translations)
+  }, [queuePersistMeta, currentSummary, actionItemFlows, translations])
+
+  // Sync flow statuses once on open (no background polling)
+  useEffect(() => {
+    void syncFlowStatuses()
+  }, [note.id, syncFlowStatuses])
+
+  const handleTextTransform = useCallback(
+    async (type: TransformType, options?: { targetLanguage?: TranslationLanguage }) => {
+      if (!accessToken) {
+        toast.error('Not authenticated')
+        return
+      }
+
+      const text = getPlainTextForTransform()
+      if (!text) {
+        toast.error('No text to transform')
+        return
+      }
+
+      setIsTransforming(true)
+      try {
+        const service = new TextTransformService(accessToken)
+        const result = await service.transform(type, text, options)
+        if (!result.success) {
+          toast.error(result.error || 'Transform failed')
+          return
+        }
+
+        switch (type) {
+          case 'copy-text':
+            await navigator.clipboard.writeText(result.transformedContent)
+            toast.success('Copied to clipboard')
+            break
+          case 'to-text':
+            // For typed notes, this just copies a plain-text version
+            await navigator.clipboard.writeText(result.transformedContent)
+            toast.success('Plain text copied')
+            break
+          case 'create-text-note':
+            await navigator.clipboard.writeText(result.transformedContent)
+            toast.success('Copied (create note manually)')
+            break
+          case 'summarize':
+            setCurrentSummary(result.transformedContent)
+            void persistMeta(result.transformedContent, actionItemFlows, translations)
+            toast.success('Summary generated')
+            break
+          case 'translate':
+            setTranslations(prev => {
+              const targetLang = options?.targetLanguage || 'en'
+              const targetLanguageName = TRANSLATION_LANGUAGE_NAMES[targetLang] || 'English'
+              const entry: NoteTranslation = {
+                id: `tr_${Date.now()}`,
+                targetLanguage: targetLang,
+                targetLanguageName,
+                text: result.transformedContent,
+                createdAt: new Date().toISOString()
+              }
+              const next = [entry, ...prev]
+              void persistMeta(currentSummary, actionItemFlows, next)
+              return next
+            })
+            toast.success('Translation created')
+            break
+          case 'action-items':
+            if (result.actionItems && result.actionItems.length > 0) {
+              setCurrentActionItems(result.actionItems)
+              setActionItemsModalOpen(true)
+              toast.success(`Found ${result.actionItems.length} action item${result.actionItems.length > 1 ? 's' : ''}`)
+            } else {
+              toast.success('No action items found')
+            }
+            break
+          default:
+            setCurrentSummary(result.transformedContent)
+        }
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Transform failed')
+      } finally {
+        setIsTransforming(false)
+      }
+    },
+    [accessToken, actionItemFlows, currentSummary, getPlainTextForTransform, persistMeta, translations]
+  )
+
+  const handleDeleteTranslation = useCallback(
+    (id: string) => {
+      setTranslations(prev => {
+        const next = prev.filter(t => t.id !== id)
+        void persistMeta(currentSummary, actionItemFlows, next)
+        return next
+      })
+      toast.success('Translation deleted')
+    },
+    [actionItemFlows, currentSummary, persistMeta]
+  )
+
+  const handleFlowsCreated = useCallback((created: NoteActionItemFlow[]) => {
+    setActionItemFlows(prev => {
+      const existing = new Set(prev.map(f => f.workflowId))
+      return [...prev, ...created.filter(f => !existing.has(f.workflowId))]
+    })
+    setActionItemsPanelOpen(true)
+  }, [])
+
   // Save
   const handleSave = useCallback(async () => {
     if (isReadOnly || isSaving || !editor) return
@@ -838,6 +1028,60 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       setIsSaving(false)
     }
   }, [title, editor, onSave, isReadOnly, isSaving])
+
+  /**
+   * Handle stroke completion from hybrid canvas (Apple Pencil handwriting)
+   * GoodNotes/Apple Notes approach: Store only vector data, generate PNG temporarily for OCR
+   */
+  const handleStrokeComplete = useCallback(
+    async (
+      svgData: string,
+      strokeData: { points: Array<{ x: number; y: number; pressure: number }>; color?: string; width?: number },
+      bounds: { x: number; y: number; width: number; height: number }
+    ) => {
+      if (!editor) return
+
+      const drawingId = `drawing-${Date.now()}`
+
+      // Insert drawing inline at current position (vector only, no PNG!)
+      editor.commands.insertDrawing({
+        id: drawingId,
+        svgData,
+        pngDataUrl: '', // No longer needed - SVG is all we need
+        width: Math.round(bounds.width),
+        height: Math.round(bounds.height),
+        strokeCount: strokeData.points.length,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })
+
+      setHasUnsavedChanges(true)
+
+      // Send to backend for OCR processing (GoodNotes approach)
+      // Backend will generate PNG temporarily from SVG, extract text, discard PNG
+      try {
+        const drawingService = new DrawingApiService(accessToken)
+        await drawingService.createDrawing({
+          entityType: 'note',
+          entityId: note.id,
+          svgData, // Vector format only
+          strokeData, // Raw points for future editing
+          width: Math.round(bounds.width),
+          height: Math.round(bounds.height),
+          strokeCount: strokeData.points.length,
+          metadata: {
+            drawingId,
+            createdInEditor: true
+          }
+        })
+        console.log('[NoteEditor] Drawing (vector only) sent to backend for OCR processing')
+      } catch (error) {
+        console.error('[NoteEditor] Failed to send drawing to backend:', error)
+        // Don't fail the UI - drawing is still saved in the note content
+      }
+    },
+    [editor, note.id, accessToken]
+  )
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -958,6 +1202,20 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
             {/* Right side - Actions */}
             <div className="gba:flex gba:items-center gba:gap-2">
+              {/* Action items panel button for iPad/mobile (only when tasks exist) */}
+              {actionItemFlows.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActionItemsPanelOpen(true)}
+                  className="gba:gap-2 gba:lg:hidden"
+                  data-testid={`${testId}-action-items-open`}
+                >
+                  <ListTodo className="gba:w-4 gba:h-4" />
+                  Tasks ({actionItemFlows.length})
+                </Button>
+              )}
+
               {/* Active collaborators */}
               {participants.length > 0 && (
                 <div className="gba:flex gba:items-center gba:gap-2 gba:mr-2 gba:pr-2 gba:border-r">
@@ -1134,6 +1392,16 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                   )}
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              {/* Transform (AI) - positioned at far right */}
+              {!isReadOnly && (
+                <TransformMenu
+                  onTransform={handleTextTransform}
+                  isProcessing={isTransforming}
+                  disabled={!editor}
+                  mode="text"
+                />
+              )}
             </div>
           </div>
         </div>
@@ -1347,6 +1615,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
             <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
 
+            {/* Drawing */}
             {/* Mention Entity */}
             <TooltipProvider>
               <Tooltip>
@@ -1370,36 +1639,139 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       )}
 
       {/* Editor Area */}
-      <div className="gba:flex-1 gba:overflow-auto gba:relative">
-        <div className="gba:max-w-3xl gba:mx-auto gba:px-8 gba:py-8">
-          {/* Title */}
-          <input
-            ref={titleInputRef}
-            type="text"
-            value={title}
-            onChange={handleTitleChange}
-            onKeyDown={handleTitleKeyDown}
-            placeholder="Untitled"
-            disabled={isReadOnly}
-            className="gba:w-full gba:text-4xl gba:font-bold gba:bg-transparent gba:border-0 gba:outline-none gba:mb-4 gba:text-foreground placeholder:gba:text-muted-foreground/50"
-            data-testid="note-editor-title-input"
-          />
+      <div className="gba:flex-1 gba:flex gba:overflow-hidden">
+        <div className="gba:flex-1 gba:overflow-auto gba:relative">
+          <div className="gba:max-w-3xl gba:mx-auto gba:px-8 gba:py-8">
+            {/* Title */}
+            <input
+              ref={titleInputRef}
+              type="text"
+              value={title}
+              onChange={handleTitleChange}
+              onKeyDown={handleTitleKeyDown}
+              placeholder="Untitled"
+              disabled={isReadOnly}
+              className="gba:w-full gba:text-4xl gba:font-bold gba:bg-transparent gba:border-0 gba:outline-none gba:mb-4 gba:text-foreground placeholder:gba:text-muted-foreground/50"
+              data-testid="note-editor-title-input"
+            />
 
-          {/* Tags area */}
-          {note.tags && note.tags.length > 0 && (
-            <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mb-6">
-              {note.tags.map(tag => (
-                <Badge key={tag} variant="secondary">
-                  {tag}
-                </Badge>
-              ))}
+            {/* Summary (below title) */}
+            {currentSummary && (
+              <div className="gba:mb-6">
+                <SummaryPanel
+                  summary={currentSummary}
+                  onDismiss={() => {
+                    setCurrentSummary(null)
+                    void persistMeta(null, actionItemFlows, translations)
+                  }}
+                  data-testid={`${testId}-summary-panel`}
+                />
+              </div>
+            )}
+
+            {/* Translations (history) */}
+            {translations.length > 0 && (
+              <div className="gba:mb-6 gba:space-y-3" data-testid={`${testId}-translations`}>
+                {translations.map(t => (
+                  <TranslationPanel
+                    key={t.id}
+                    translation={t}
+                    onDelete={handleDeleteTranslation}
+                    data-testid={`${testId}-translation-${t.id}`}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Tags area */}
+            {note.tags && note.tags.length > 0 && (
+              <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mb-6">
+                {note.tags.map(tag => (
+                  <Badge key={tag} variant="secondary">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            {/* Editor content with hybrid canvas overlay for Apple Pencil */}
+            <div ref={editorContainerRef} className="gba:relative">
+              <EditorContent editor={editor} className="note-editor-content" />
+
+              {/* Hybrid Canvas - Automatically captures Apple Pencil input */}
+              {editor && !isReadOnly && (
+                <HybridEditorCanvas
+                  editorRef={editorContainerRef}
+                  onStrokeComplete={handleStrokeComplete}
+                  disabled={isReadOnly}
+                  className="gba:z-10"
+                />
+              )}
             </div>
-          )}
-
-          {/* Editor content */}
-          <EditorContent editor={editor} className="note-editor-content" />
+          </div>
         </div>
+
+        {/* Action Items Sidebar (desktop) - only after tasks exist */}
+        {actionItemFlows.length > 0 && (
+          <div className="gba:hidden gba:lg:block gba:w-80 gba:border-l gba:border-border gba:bg-card gba:overflow-y-auto gba:p-4">
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+              <div className="gba:text-sm gba:font-semibold gba:text-foreground">Action Items</div>
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <div className="gba:text-xs gba:text-muted-foreground">{actionItemFlows.length}</div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void syncFlowStatuses()}
+                  disabled={isFlowStatusSyncing}
+                  className="gba:h-7 gba:w-7 gba:p-0"
+                  data-testid={`${testId}-action-items-refresh`}
+                >
+                  <RefreshCw className={`gba:w-4 gba:h-4 ${isFlowStatusSyncing ? 'gba:animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </div>
+            <ActionItemsList flows={actionItemFlows} data-testid={`${testId}-action-items-list`} />
+          </div>
+        )}
       </div>
+
+      {/* Action Items Panel (iPad/mobile) */}
+      {actionItemFlows.length > 0 && (
+        <Dialog open={actionItemsPanelOpen} onOpenChange={setActionItemsPanelOpen}>
+          <DialogContent className="gba:sm:max-w-[650px] gba:max-h-[80vh] gba:overflow-y-auto">
+            <DialogHeader>
+              <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+                <DialogTitle>Action Items</DialogTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void syncFlowStatuses()}
+                  disabled={isFlowStatusSyncing}
+                  className="gba:h-8 gba:w-8 gba:p-0"
+                  data-testid={`${testId}-action-items-refresh-dialog`}
+                >
+                  <RefreshCw className={`gba:w-4 gba:h-4 ${isFlowStatusSyncing ? 'gba:animate-spin' : ''}`} />
+                </Button>
+              </div>
+              <DialogDescription>Status of blinks created from this note.</DialogDescription>
+            </DialogHeader>
+            <ActionItemsList flows={actionItemFlows} data-testid={`${testId}-action-items-list-dialog`} />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Action Items Modal (after AI extraction) */}
+      <ActionItemsModal
+        open={actionItemsModalOpen}
+        onOpenChange={setActionItemsModalOpen}
+        actionItems={currentActionItems}
+        noteTitle={title || note.title || 'Untitled'}
+        noteId={note.id}
+        accessToken={accessToken}
+        currentUserId={currentUserId || note.ownerId || 'unknown'}
+        onFlowsCreated={handleFlowsCreated}
+        data-testid={`${testId}-action-items-modal`}
+      />
 
       {/* Footer */}
       <div className="gba:border-t gba:bg-background/80 gba:px-6 gba:py-2">

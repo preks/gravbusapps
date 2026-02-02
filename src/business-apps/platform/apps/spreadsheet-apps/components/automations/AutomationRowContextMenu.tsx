@@ -24,11 +24,9 @@ import {
   RefreshCw,
   FileSpreadsheet,
   Users,
-  ClipboardCheck,
-  Clock,
-  AlertTriangle
+  ClipboardCheck
 } from 'lucide-react'
-import type { SpreadsheetAutomation, WorkflowRowLink, AutomationType, WorkflowStatus } from '../../types/automation'
+import type { SpreadsheetAutomation, WorkflowRowLink, AutomationType } from '../../types/automation'
 import { getWorkflowStatusLabel, isTerminalStatus } from '../../types/automation'
 
 export interface AutomationRowContextMenuProps {
@@ -76,24 +74,6 @@ function getAutomationTypeIcon(type: AutomationType) {
 /**
  * Get icon for workflow status
  */
-function getStatusIcon(status: WorkflowStatus) {
-  switch (status) {
-    case 'PENDING':
-      return Clock
-    case 'RUNNING':
-      return RefreshCw
-    case 'COMPLETED':
-      return CheckCircle
-    case 'FAILED':
-      return XCircle
-    case 'CANCELED':
-      return XCircle
-    case 'TIMED_OUT':
-      return AlertTriangle
-    default:
-      return Clock
-  }
-}
 
 /**
  * AutomationRowContextMenu Component
@@ -119,9 +99,7 @@ export const AutomationRowContextMenu: React.FC<AutomationRowContextMenuProps> =
   const triggerableAutomations = useMemo(
     () =>
       automations.filter(
-        a =>
-          a.isEnabled &&
-          (a.trigger === 'manual' || a.type === 'row_workflow' || a.type === 'line_approval')
+        a => a.isEnabled && (a.trigger === 'manual' || a.type === 'row_workflow' || a.type === 'line_approval')
       ),
     [automations]
   )
@@ -141,13 +119,9 @@ export const AutomationRowContextMenu: React.FC<AutomationRowContextMenuProps> =
     onClaimTask
 
   const canComplete =
-    workflowLink &&
-    workflowLink.workflowStatus === 'RUNNING' &&
-    isAssignedToCurrentUser &&
-    onCompleteTask
+    workflowLink && workflowLink.workflowStatus === 'RUNNING' && isAssignedToCurrentUser && onCompleteTask
 
-  const canCancel =
-    workflowLink && !isTerminalStatus(workflowLink.workflowStatus) && onCancelWorkflow
+  const canCancel = workflowLink && !isTerminalStatus(workflowLink.workflowStatus) && onCancelWorkflow
 
   // No automations and no workflow link - don't render anything
   if (triggerableAutomations.length === 0 && !workflowLink) {
@@ -289,10 +263,7 @@ export const AutomationRowMenuItems: React.FC<{
       {visibleAutomations.map(automation => {
         const Icon = getAutomationTypeIcon(automation.type)
         return (
-          <DropdownMenuItem
-            key={automation.id}
-            onClick={() => onRunAutomation(automation.id, rowId, rowData)}
-          >
+          <DropdownMenuItem key={automation.id} onClick={() => onRunAutomation(automation.id, rowId, rowData)}>
             <Icon className="gba:w-4 gba:h-4 gba:mr-2" />
             Run {automation.name}
           </DropdownMenuItem>

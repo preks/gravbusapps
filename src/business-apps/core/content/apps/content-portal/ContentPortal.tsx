@@ -192,7 +192,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
         }
       case 'engagement':
         return {
-          variant: BannerVariant.INTRANET,
+          variant: BannerVariant.ENGAGEMENT,
           title: t('engagement-dashboard-title'),
           subtitle: t('engagement-dashboard-subtitle')
         }

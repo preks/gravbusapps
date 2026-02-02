@@ -62,11 +62,13 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 
 // Components
 import { WordUploader } from './components/WordUploader'
+import { PdfUploader } from './components/PdfUploader'
 import { TemplateGallery } from './components/TemplateGallery'
 import { SendForApprovalDialog } from './components/SendForApprovalDialog'
 import { ShareDocumentDialog } from './components/ShareDocumentDialog'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
 import { PagedDocumentEditor } from './components/PagedDocumentEditor'
+import { PdfDocumentViewer } from './components/PdfDocumentViewer'
 
 // Hooks
 import { useDocumentApps } from './hooks/useDocumentApps'
@@ -84,7 +86,7 @@ export interface DocumentAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
-type HubView = 'list' | 'upload' | 'editor' | 'templates'
+type HubView = 'list' | 'upload' | 'upload-pdf' | 'editor' | 'templates'
 type SidebarSection = 'home' | 'my-documents' | 'shared' | 'templates' | 'favorites' | 'recent' | 'archived'
 
 /** Get initials from a name */
@@ -336,11 +338,18 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   }, [clearCurrentDocument, resetLoadAttempt, updateUrl])
 
   /**
-   * Start upload flow
+   * Start upload flow (Word)
    */
   const handleStartUpload = useCallback(() => {
     setParsedWordDocument(null)
     setCurrentView('upload')
+  }, [])
+
+  /**
+   * Start PDF upload flow
+   */
+  const handleStartPdfUpload = useCallback(() => {
+    setCurrentView('upload-pdf')
   }, [])
 
   /**
@@ -464,6 +473,21 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
     // If we have a current document loaded
     if (currentDocument) {
+      // Check if this is a PDF document - render read-only viewer
+      const isPdfDocument = currentDocument.sourceFile?.mimeType === 'application/pdf'
+      
+      if (isPdfDocument) {
+        return (
+          <PdfDocumentViewer
+            key={currentDocument.id}
+            document={currentDocument}
+            accessToken={accessToken}
+            onBack={handleBack}
+            data-testid={`${testId}-pdf-viewer`}
+          />
+        )
+      }
+
       return (
         <PagedDocumentEditor
           key={currentDocument.id}
@@ -515,13 +539,22 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
         {/* Logo / Brand */}
         <div className="gba:p-4 gba:border-b">
           {/* Back button row */}
-          <button
-            onClick={() => navigateTo('/platform/apps/platform/apps/desk')}
-            className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors gba:mb-3"
-          >
-            <ChevronLeft className="gba:w-4 gba:h-4" />
-            <span>Back to Desk</span>
-          </button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigateTo('/platform/every-office')}
+                  data-testid={`${testId}-back-to-desk`}
+                  className="gba:mb-2"
+                >
+                  <ChevronLeft className="gba:w-4 gba:h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Back to Desk</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           {/* Existing brand section */}
           <div className="gba:flex gba:items-center gba:gap-3">
@@ -557,6 +590,13 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                 <div>
                   <div className="gba:font-medium">Upload Word</div>
                   <div className="gba:text-xs gba:text-muted-foreground">Import .docx or .doc file</div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleStartPdfUpload}>
+                <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-red-500" />
+                <div>
+                  <div className="gba:font-medium">Upload PDF</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">Import PDF for search & Q&A</div>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setActiveSection('templates')}>
@@ -693,7 +733,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
       {/* Main Content */}
       <main className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:overflow-hidden">
-        {/* Upload View */}
+        {/* Upload View (Word) */}
         {currentView === 'upload' && (
           <div className="gba:flex-1 gba:overflow-auto gba:p-8">
             <div className="gba:max-w-2xl gba:mx-auto gba:space-y-6">
@@ -714,6 +754,38 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                 onFileParsed={handleWordFileParsed}
                 onError={error => toast.error(error)}
                 data-testid={`${testId}-uploader`}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Upload PDF View */}
+        {currentView === 'upload-pdf' && (
+          <div className="gba:flex-1 gba:overflow-auto gba:p-8">
+            <div className="gba:max-w-2xl gba:mx-auto gba:space-y-6">
+              <div className="gba:text-center gba:mb-8">
+                <div className="gba:w-16 gba:h-16 gba:rounded-2xl gba:bg-gradient-to-br gba:from-red-500 gba:to-red-600 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
+                  <FileText className="gba:w-8 gba:h-8 gba:text-white" />
+                </div>
+                <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">Upload PDF Document</h2>
+                <p className="gba:text-muted-foreground">
+                  Upload a PDF to make it searchable and available for Q&A in Desk
+                </p>
+              </div>
+
+              <PdfUploader
+                accessToken={accessToken}
+                onUploadComplete={async document => {
+                  // Navigate to the document viewer
+                  setSelectedDocumentId(document.id)
+                  await loadDocument(document.id)
+                  setCurrentView('editor')
+                  updateUrl(document.id, 'editor')
+                  toast.success('PDF uploaded successfully')
+                }}
+                onError={error => toast.error(error)}
+                onCancel={handleBack}
+                data-testid={`${testId}-pdf-uploader`}
               />
             </div>
           </div>

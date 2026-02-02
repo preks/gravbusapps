@@ -1,7 +1,6 @@
 import * as z from 'zod'
-import { env } from '../env/EnvUtils'
-
 import { useCallback, useMemo, useState } from 'react'
+import { useRestClient } from '../network/rest/useRestClient'
 
 type AvailableLlmModels = 'gpt-4.1' | 'gpt-4.1-mini' | 'gpt-4o' | 'gpt-4o-mini'
 
@@ -40,12 +39,10 @@ export default function useInformationExtraction<T>(
   llmModel: AvailableLlmModels = 'gpt-4.1'
 ): UseInformationExtractionReturn<T> {
   const [state, setState] = useState<InformationExtractionState<T> | null>(null)
+  const restClient = useRestClient()
 
   // Memoise values that do not change between invocations of the returned function
-  const endpointUrl = useMemo(
-    () => `${env('NEXT_PUBLIC_BASE_URL')}/flowbot/information-extraction/extract_information`,
-    []
-  )
+  const endpointPath = useMemo(() => '/flowbot/information-extraction/extract_information', [])
   const outputJsonSchema = useMemo(() => z.toJSONSchema(responseModel), [responseModel])
 
   /**
@@ -61,24 +58,20 @@ export default function useInformationExtraction<T>(
       // ⬇ files intentionally left out
       form.append('llm_model', llmModel)
 
-      const res = await fetch(endpointUrl, {
-        method: 'POST',
-        body: form,
+      const response = await restClient.post(endpointPath, form, {
         headers: {
           Authorization: `Bearer ${accessToken}`
         }
       })
 
-      if (!res.ok) throw new Error(`Request failed: ${res.status} ${res.statusText}`)
-
       // Validate the result against the response model
       const ExtractInformationResponse = z.object({
         extracted_data: responseModel
       })
-      const result = ExtractInformationResponse.parse(await res.json())
+      const result = ExtractInformationResponse.parse(response)
       return result.extracted_data
     },
-    [endpointUrl, llmModel, outputJsonSchema, responseModel, taskDescription]
+    [endpointPath, llmModel, outputJsonSchema, responseModel, taskDescription, accessToken, restClient]
   )
 
   const generateSummary = useCallback(async () => {
@@ -91,7 +84,8 @@ export default function useInformationExtraction<T>(
     try {
       const result = await extractInformation(inputData)
       setState({ type: 'success', content: result })
-    } catch (e) {
+    } catch (error) {
+      console.error('Error extracting information:', error)
       setState({ type: 'error' })
     }
   }, [extractInformation, generateInputData, setState])

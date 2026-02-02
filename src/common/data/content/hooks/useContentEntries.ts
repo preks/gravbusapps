@@ -52,6 +52,10 @@ const buildContentEntryWhereClause = (params: ContentEntryQueryParams): Record<s
     conditions.creatorEmployeeId = { _eq: params.creatorEmployeeId }
   }
 
+  if (params.createdBy) {
+    conditions.createdBy = { _eq: params.createdBy }
+  }
+
   if (params.parentContentEntryId !== undefined && params.parentContentEntryId !== null) {
     conditions.parentContentEntryId = { _eq: params.parentContentEntryId }
   }

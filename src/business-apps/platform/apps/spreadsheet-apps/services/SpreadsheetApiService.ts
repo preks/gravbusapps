@@ -297,7 +297,7 @@ export const SpreadsheetApiService = {
   },
 
   /**
-   * Update an app
+   * Update an app (app-level properties only, not sheets/rows)
    */
   async updateApp(id: string, updates: Partial<SpreadsheetApp>): Promise<SpreadsheetApp> {
     debugLog('updateApp', id, updates)
@@ -310,29 +310,21 @@ export const SpreadsheetApiService = {
       settings: updates.settings
     }
 
-    // Include sheets if provided (for column renames, view updates, etc.)
-    if (updates.sheets) {
-      payload.sheets = updates.sheets.map(sheet => ({
-        id: sheet.id,
-        name: sheet.name,
-        description: sheet.description,
-        columns: sheet.columns,
-        views: sheet.views,
-        settings: sheet.settings,
-        entityDataSource: sheet.entityDataSource,
-        chartConfigs: sheet.chartConfigs,
-        data: sheet.data,
-        automations: sheet.automations,
-        workflowLinks: sheet.workflowLinks
-      }))
-    }
+    // CRITICAL: Do NOT include sheets/relationships in updateApp - backend rejects it!
+    // Use updateSheet() and updateRow() methods instead for sheet-level changes.
+    // The backend API separates app metadata from sheet/row data.
 
-    // Remove undefined
+    // Remove undefined and forbidden properties
     Object.keys(payload).forEach(key => {
       if (payload[key as keyof typeof payload] === undefined) {
         delete payload[key as keyof typeof payload]
       }
     })
+
+    // Explicitly remove sheets/relationships if they somehow got included
+    delete payload.sheets
+    delete payload.relationships
+    delete payload.sharedWith
 
     const updated = await apiRequest<Record<string, unknown>>(`/spreadsheets/${id}`, {
       method: 'PATCH',

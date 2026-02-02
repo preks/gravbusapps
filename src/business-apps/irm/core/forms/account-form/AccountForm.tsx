@@ -147,6 +147,7 @@ export const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo,
           accountPriorityCatalogIdentifier={ACCOUNT_PRIORITY}
           useContacts={useContacts}
           avatarFileRef={avatarFileRef}
+          accountContext="irm"
           loading={loading && !!accountId}
         />
       </AppActionForm>

@@ -314,8 +314,51 @@ employee-record-video-cannot-self = Sie können sich nicht selbst per Video anru
 
 # Employee Record - Tab labels
 employee-record-tab-summary = Übersicht
-employee-record-tab-hr-admin = HR Admin
-employee-record-tab-hr-growth = HR Growth
+employee-record-tab-hr-admin = HR-Administration
+employee-record-tab-hr-growth = Personalentwicklung
+hr-growth-skills = Fähigkeiten
+hr-growth-feedback = Feedback
+hr-growth-performance = Leistung
+
+# Skills Tab
+skills-title = Mitarbeiterfähigkeiten
+skills-description = Mitarbeiterfähigkeiten und Kompetenzen anzeigen und verwalten
+skills-edit-button = Fähigkeiten bearbeiten
+skills-empty = Keine Fähigkeiten gefunden
+skills-total = Gesamte Fähigkeiten
+skills-highest = Höchste Fähigkeiten
+skills-none = Keine
+skills-level = Stufe
+skills-category = Kategorie
+skills-added = Hinzugefügt
+skills-updated = Aktualisiert
+skills-na = K.A.
+skills-level-0 = Keine Stufe zugewiesen
+skills-level-1 = Anfänger - Grundlegendes Verständnis
+skills-level-2 = Anfänger - Begrenzte Erfahrung
+skills-level-3 = Mittelstufe - Arbeitswissen
+skills-level-4 = Fortgeschritten - Kompetent
+skills-level-5 = Experte - Meisterniveau
+
+# Performance Tab
+performance-title = Leistungsziele
+performance-description = Mitarbeiterleistungsziele anzeigen und verwalten
+performance-edit-button = Neues Ziel setzen
+performance-empty = Keine Ziele verfügbar
+performance-progress = Fortschritt
+performance-start-date = Startdatum
+performance-due-date = Fälligkeitsdatum
+performance-completion-date = Abschlussdatum
+performance-status-on-track = Im Plan
+performance-status-behind-target = Hinter dem Ziel
+performance-status-at-risk = Gefährdet
+performance-status-achieved = Erreicht
+performance-status-not-achieved = Nicht erreicht
+performance-error-load = Leistungsdaten konnten nicht geladen werden
+
+# Feedback Tab - Pagination
+feedback-pagination-per-page = / Seite
+
 employee-record-tab-compensation = Vergütung
 employee-record-tab-time-tracking = Zeiterfassung
 employee-record-tab-absences = Abwesenheiten
@@ -332,7 +375,8 @@ profile-header-no-manager = Kein Vorgesetzter
 profile-header-job-position = Position
 profile-header-cost-center = Kostenstelle
 profile-header-hire-date = Eintrittsdatum
-profile-header-fixed-term-until = Befristet bis
+profile-header-fixed-term-until = Befristungsende
+profile-header-fixed-term-reason = Grund für Befristung
 profile-header-na = k. A.
 
 # Profile Header - Time units (tenure)
@@ -347,3 +391,207 @@ profile-header-capabilities = Fähigkeiten
 profile-header-skills = Kompetenzen
 profile-header-no-capabilities = Keine Fähigkeiten zugewiesen
 profile-header-no-skills = Keine Kompetenzen zugewiesen
+
+# Summary Tab
+summary-overview = Mitarbeiterübersicht
+summary-description = Mitarbeiterprofil anzeigen und bearbeiten
+summary-organization-chart = Organigramm
+summary-job-information = Stelleninformationen
+summary-availability-schedule = Verfügbarkeit & Zeitplan
+summary-job-profile = Stellenprofil
+summary-job-family = Stellenfamilie
+summary-job-function = Stellenfunktion
+summary-job-level = Stellenebene
+summary-sap-number = SAP-Nummer
+summary-current-status = Aktueller Status
+summary-available = Verfügbar
+summary-unavailable = Nicht verfügbar
+summary-timezone = Zeitzone
+summary-weekly-hours = Wochenstunden
+summary-hours-per-week = { $hours } Stunden/Woche
+summary-not-specified = Nicht angegeben
+summary-quick-actions = Schnellaktionen
+summary-clock-in = Einstempeln
+summary-clock-out = Ausstempeln
+summary-request-absence = Abwesenheit beantragen
+summary-next-planned-absence = Nächste geplante Abwesenheit
+summary-out-of-office = Nicht im Büro
+summary-days = Tage
+summary-loading-upcoming-absence = Lade bevorstehende Abwesenheit...
+summary-view-profile = Profil von { $name } anzeigen
+summary-day-mon = Mo
+summary-day-tue = Di
+summary-day-wed = Mi
+summary-day-thu = Do
+summary-day-fri = Fr
+summary-day-sat = Sa
+summary-day-sun = So
+summary-day-mon-short = M
+summary-day-tue-short = D
+summary-day-wed-short = M
+summary-day-thu-short = D
+summary-day-fri-short = F
+summary-day-sat-short = S
+summary-day-sun-short = S
+
+# HR Admin Tab
+hr-admin-subtab-details = Details
+hr-admin-subtab-employment = Beschäftigung
+hr-admin-subtab-documents = Dokumente
+hr-admin-subtab-change-log = Änderungsprotokoll
+hr-admin-subtab-hr-notes = HR-Notizen
+
+# Details Tab
+details-overview = Mitarbeiterdetails
+details-description = Mitarbeiterpersönliche Informationen anzeigen
+details-personal-data = Persönliche Daten
+details-address = Adresse
+details-bank-account = Bankkonto
+details-private-communication = Private Kommunikation
+details-emergency-contact = Notfallkontakt
+details-additional-attributes = Zusätzliche Attribute
+details-no-emergency-contact = Keine Notfallkontaktinformationen verfügbar
+details-label-salutation = Anrede
+details-label-academic-titles = Akademische Titel
+details-label-first-name = Vorname
+details-label-last-name = Nachname
+details-label-preferred-name = Bevorzugter Name
+details-label-birth-name = Geburtsname
+details-label-date-of-birth = Geburtsdatum
+details-label-place-of-birth = Geburtsort
+details-label-nationality = Nationalität
+details-label-gender = Geschlecht
+details-label-marital-status = Familienstand
+details-label-postal-code = Postleitzahl
+details-label-city = Stadt
+details-label-country = Land
+details-label-address-line = Adresszeile
+details-label-bank-name = Bankname
+details-label-account-holder = Kontoinhaber
+details-label-iban = IBAN
+details-label-private-phone = Private Telefonnummer
+details-label-private-mobile = Private Mobilnummer
+details-label-private-email = Private E-Mail
+details-label-contact-name = Kontaktname
+details-label-phone-number = Telefonnummer
+
+# Employment Tab
+employment-overview = Beschäftigungsdaten
+employment-description = Beschäftigungsinformationen und Arbeitsbedingungen anzeigen
+employment-profile = Beschäftigungsprofil
+employment-working-conditions = Arbeitsbedingungen
+employment-working-hours = Arbeitszeiten
+employment-payroll = Gehaltsabrechnung
+employment-tax-information = Steuerinformationen
+employment-label-employee-id = Mitarbeiter-ID
+employment-label-company = Unternehmen
+employment-label-job-position = Position
+employment-label-location = Standort
+employment-label-organizational-unit = Organisationseinheit
+employment-label-workspace = Arbeitsplatz
+employment-label-management-level = Führungsebene
+employment-label-cost-center = Kostenstelle
+employment-label-employment-type = Beschäftigungstyp
+employment-label-hire-date = Einstellungsdatum
+employment-label-fixed-term-until = Befristet bis
+employment-label-contract-type = Vertragstyp
+employment-label-probation-end-date = Probezeitende
+employment-label-remote = Remote
+employment-label-exit-date = Austrittsdatum
+employment-label-region = Region
+employment-label-vacation-entitlement-days = Urlaubsanspruch (Tage)
+employment-label-weekly-hours = Wochenstunden
+employment-label-fte = VZÄ (Vollzeitäquivalent)
+employment-label-days-per-week = Tage pro Woche
+employment-label-salary-group = Gehaltsgruppe
+employment-label-payment-method = Zahlungsmethode
+employment-label-bank-account = Bankkonto
+employment-label-bank-name = Bankname
+employment-label-account-holder = Kontoinhaber
+employment-label-full-time-equivalent = Vollzeitäquivalent
+employment-label-tax-number = Steuernummer
+employment-label-tax-identification-number = Steueridentifikationsnummer
+employment-label-social-security-number = Sozialversicherungsnummer
+employment-label-tax-bracket = Steuerklasse
+employment-label-church-affiliation = Kirchenzugehörigkeit
+employment-label-child-tax-allowance = Kinderfreibetrag
+employment-label-health-insurance = Krankenversicherung
+employment-label-type-of-health-insurance = Art der Krankenversicherung
+common-loading = Wird geladen...
+
+# Change Log Categories
+changelog-category-personal = Persönliche Daten
+changelog-category-address = Adresse & Kommunikation
+changelog-category-org = Organisationszuordnung
+changelog-category-employment = Beschäftigung
+changelog-category-financial = Finanziell
+changelog-category-skills = Fähigkeiten & Kompetenzen
+changelog-category-documents = Dokumente
+
+# Change Log Entry Details
+changelog-label-channel = Kanal
+changelog-label-category = Kategorie
+changelog-label-timestamp = Zeitstempel
+changelog-label-created-by = Erstellt von
+changelog-label-flow = Ablauf
+
+# Assets Tab
+assets-category = Kategorie
+assets-brand-model = Marke & Modell
+assets-serial-number = Seriennummer
+assets-assignment-period = Zuweisungszeitraum
+assets-condition = Zustand
+assets-status = Status
+assets-total-assets = Gesamt Assets
+assets-in-use = In Verwendung
+assets-status-in-repair = In Reparatur
+assets-handed-over = Übergeben
+assets-status-available = Verfügbar
+assets-status-allocated = Zugewiesen
+assets-status-in-repair-label = In Reparatur
+assets-status-retired = Ausgemustert
+assets-status-handed-over = Übergeben
+assets-status-in-use = In Verwendung
+assets-not-available = N/V
+assets-error-loading-assets = Fehler beim Laden der Assets
+assets-no-assets-assigned = Keine Assets zugewiesen
+assets-no-equipment-assigned-self = Ihnen sind derzeit keine Geräte zugewiesen.
+assets-no-equipment-assigned-employee = Diesem Mitarbeiter sind derzeit keine Geräte zugewiesen.
+assets-assigned-equipment = Asset-Zusammenfassung
+assets-request-new-asset = Neues Asset anfordern
+assets-asset-assignment-history = Asset-Zuweisungsverlauf
+assets-unknown = Unbekannt
+assets-to = bis
+assets-expected = Erwartet
+assets-currently-active = Derzeit aktiv
+assets-start = Start
+assets-end = Ende
+assets-assignment-notes = Zuweisungsnotizen
+
+# Service Requests Tab
+service-requests-title = Service-Anfragen
+service-requests-desc-self = Ihre eingereichten Service-Anfragen
+service-requests-desc-other = Service-Anfragen, die von { $name } eingereicht wurden
+service-requests-create-new = Service-Portal
+service-requests-total = Gesamt
+service-requests-active = Aktiv
+service-requests-completed = Abgeschlossen
+service-requests-completion-rate = Abschlussrate
+service-requests-error = Fehler beim Laden der Service-Anfragen
+service-requests-no-steps = Keine Schritte definiert
+service-requests-next-step = Nächster
+service-requests-completed-step = Abgeschlossen
+service-requests-no-service-requests = Keine Service-Anfragen
+service-requests-no-service-requests-desc-self = Sie haben noch keine Service-Anfragen eingereicht.
+service-requests-no-service-requests-desc-other = Dieser Mitarbeiter hat noch keine Service-Anfragen eingereicht.
+service-requests-column-request = Anfrage
+service-requests-column-status = Status
+service-requests-column-progress = Fortschritt
+service-requests-column-created = Erstellt
+service-requests-column-steps = Schritte
+
+# Service Request Status Values
+service-requests-status-open = Offen
+service-requests-status-in-progress = In Bearbeitung
+service-requests-status-completed = Abgeschlossen
+service-requests-status-canceled = Abgebrochen

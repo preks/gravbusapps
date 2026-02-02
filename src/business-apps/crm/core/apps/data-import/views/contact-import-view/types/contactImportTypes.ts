@@ -2,7 +2,7 @@
  * Contact-specific import types
  */
 
-import { ConvertedEntity } from '@/common/data/customer/agents/types'
+import { ConvertedEntity } from '@/common/components/common-relations/apps/data-import/types'
 
 // Converted contact structure ready for API
 export interface ConvertedContact extends ConvertedEntity {

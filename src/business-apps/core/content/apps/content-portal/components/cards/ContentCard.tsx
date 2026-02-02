@@ -184,8 +184,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
             {/* Stats */}
             <div className="gba:flex gba:items-center gba:gap-4 gba:pt-2 gba:border-t gba:border-border">
               {item.allowReaction && (
-                <button
-                  type="button"
+                <div
                   onClick={e => e.stopPropagation()}
                   onKeyDown={e => e.stopPropagation()}
                   className="gba:bg-transparent gba:border-0 gba:p-0"
@@ -202,7 +201,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
                     reactionCatalogMap={reactionCatalogMap}
                     data-testid={`content-card-reaction-${item.id}`}
                   />
-                </button>
+                </div>
               )}
               {item.allowComment && (
                 <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">

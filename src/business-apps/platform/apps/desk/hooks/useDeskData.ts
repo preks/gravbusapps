@@ -9,11 +9,12 @@ import { useState, useEffect, useMemo } from 'react'
 import { useDocumentApps } from '../../document-apps/hooks/useDocumentApps'
 import { useSpreadsheetApps } from '../../spreadsheet-apps/hooks/useSpreadsheetApps'
 import { useNotes } from '../../note-apps/hooks/useNotes'
+import { useSlides } from '../../slide-apps/hooks/useSlides'
 
 /** Unified content item type */
 export interface ContentItem {
   id: string
-  type: 'document' | 'spreadsheet' | 'note'
+  type: 'document' | 'spreadsheet' | 'note' | 'slide'
   title: string
   updatedAt: string
   createdAt: string
@@ -35,6 +36,10 @@ export interface DeskStats {
     total: number
     shared: number
   }
+  slides: {
+    total: number
+    shared: number
+  }
   totalItems: number
 }
 
@@ -44,6 +49,7 @@ export interface ActivityDataPoint {
   documents: number
   spreadsheets: number
   notes: number
+  slides: number
 }
 
 /** Return type for useDeskData */
@@ -54,6 +60,8 @@ export interface UseDeskDataReturn {
   spreadsheets: ContentItem[]
   /** All notes */
   notes: ContentItem[]
+  /** All slide decks */
+  slides: ContentItem[]
   /** Combined recent items sorted by updatedAt */
   recentItems: ContentItem[]
   /** Whether any data is loading */
@@ -96,12 +104,17 @@ export function useDeskData(accessToken: string | undefined, userId: string): Us
     isLoading: isLoadingNotes
   } = useNotes({ accessToken, userId })
 
+  const {
+    slides: rawSlides,
+    isLoading: isLoadingSlides
+  } = useSlides(accessToken, userId)
+
   // Mark as initialized after first load
   useEffect(() => {
-    if (!isLoadingDocuments && !isLoadingSpreadsheets && !isLoadingNotes && !isInitialized) {
+    if (!isLoadingDocuments && !isLoadingSpreadsheets && !isLoadingNotes && !isLoadingSlides && !isInitialized) {
       setIsInitialized(true)
     }
-  }, [isLoadingDocuments, isLoadingSpreadsheets, isLoadingNotes, isInitialized])
+  }, [isLoadingDocuments, isLoadingSpreadsheets, isLoadingNotes, isLoadingSlides, isInitialized])
 
   // Transform documents to ContentItem format
   const documents: ContentItem[] = useMemo(() => {
@@ -142,13 +155,26 @@ export function useDeskData(accessToken: string | undefined, userId: string): Us
     }))
   }, [rawNotes, userId])
 
+  // Transform slides to ContentItem format
+  const slides: ContentItem[] = useMemo(() => {
+    return rawSlides.map(slide => ({
+      id: slide.id,
+      type: 'slide' as const,
+      title: slide.title || 'Untitled presentation',
+      updatedAt: slide.updatedAt,
+      createdAt: slide.createdAt,
+      isShared: slide.isShared,
+      isOwner: slide.createdBy === userId || slide.permission === 'owner' || slide.permission === 'admin'
+    }))
+  }, [rawSlides, userId])
+
   // Combine and sort recent items
   const recentItems: ContentItem[] = useMemo(() => {
-    const allItems = [...documents, ...spreadsheets, ...notes]
+    const allItems = [...documents, ...spreadsheets, ...notes, ...slides]
     return allItems
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
       .slice(0, 10)
-  }, [documents, spreadsheets, notes])
+  }, [documents, spreadsheets, notes, slides])
 
   // Calculate stats
   const stats: DeskStats = useMemo(() => ({
@@ -164,14 +190,18 @@ export function useDeskData(accessToken: string | undefined, userId: string): Us
       total: notes.length,
       shared: notes.filter(n => n.isShared && !n.isOwner).length
     },
-    totalItems: documents.length + spreadsheets.length + notes.length
-  }), [documents, spreadsheets, notes])
+    slides: {
+      total: slides.length,
+      shared: slides.filter(s => s.isShared && !s.isOwner).length
+    },
+    totalItems: documents.length + spreadsheets.length + notes.length + slides.length
+  }), [documents, spreadsheets, notes, slides])
 
   // Generate activity data for the last 7 days
   const activityData: ActivityDataPoint[] = useMemo(() => {
     const now = new Date()
     const last7Days: ActivityDataPoint[] = []
-    
+
     for (let i = 6; i >= 0; i--) {
       const date = new Date(now)
       date.setDate(date.getDate() - i)
@@ -193,24 +223,31 @@ export function useDeskData(accessToken: string | undefined, userId: string): Us
         return updated >= dayStart && updated <= dayEnd
       }).length
 
+      const slidesCount = slides.filter(s => {
+        const updated = new Date(s.updatedAt)
+        return updated >= dayStart && updated <= dayEnd
+      }).length
+
       last7Days.push({
         day: getDayName(dayStart),
         documents: docsCount,
         spreadsheets: sheetsCount,
-        notes: notesCount
+        notes: notesCount,
+        slides: slidesCount
       })
     }
 
     return last7Days
-  }, [documents, spreadsheets, notes])
+  }, [documents, spreadsheets, notes, slides])
 
   // Combined loading state
-  const isLoading = !isInitialized && (isLoadingDocuments || isLoadingSpreadsheets || isLoadingNotes)
+  const isLoading = !isInitialized && (isLoadingDocuments || isLoadingSpreadsheets || isLoadingNotes || isLoadingSlides)
 
   return {
     documents,
     spreadsheets,
     notes,
+    slides,
     recentItems,
     isLoading,
     stats,
