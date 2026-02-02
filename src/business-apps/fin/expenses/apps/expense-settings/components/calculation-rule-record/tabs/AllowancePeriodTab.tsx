@@ -988,309 +988,317 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
 
       {/* Add/Edit Dialog */}
       <Dialog open={isModalVisible} onOpenChange={setIsModalVisible}>
-        <DialogContent className="gba:max-w-4xl" data-testid="allowance-period-modal">
-          <DialogHeader data-testid="allowance-period-modal-header">
+        <DialogContent
+          className="gba:max-w-4xl gba:max-h-[90vh] gba:overflow-hidden gba:flex gba:flex-col"
+          data-testid="allowance-period-modal"
+        >
+          <DialogHeader className="gba:px-6 gba:pt-6 gba:pb-4" data-testid="allowance-period-modal-header">
             <DialogTitle data-testid="allowance-period-modal-title">
               {editingItem ? 'Edit' : 'Add'} Allowance Period
             </DialogTitle>
           </DialogHeader>
 
-          <Form {...form}>
-            <div data-testid="allowance-period-form" className="gba:space-y-4">
-              {isRestrictedEdit && currentUsageInfo && (
-                <Alert
-                  className="gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:border-warning"
-                  data-testid="allowance-period-restricted-alert"
-                >
-                  <PiWarning className="gba:h-4 gba:w-4" />
-                  <AlertDescription>{currentUsageInfo.message}</AlertDescription>
-                </Alert>
-              )}
+          <div className="gba:flex-1 gba:overflow-y-auto gba:px-6 gba:pb-6">
+            <Form {...form}>
+              <div data-testid="allowance-period-form" className="gba:space-y-4">
+                {isRestrictedEdit && currentUsageInfo && (
+                  <Alert
+                    className="gba:bg-warning-secondary gba:text-warning-secondary-foreground gba:border-warning"
+                    data-testid="allowance-period-restricted-alert"
+                  >
+                    <PiWarning className="gba:h-4 gba:w-4" />
+                    <AlertDescription>{currentUsageInfo.message}</AlertDescription>
+                  </Alert>
+                )}
 
-              <div className="gba:space-y-4">
-                {/* Code */}
-                <FormField
-                  control={form.control}
-                  name="code"
-                  rules={{ required: 'Allowance Period Code is required' }}
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-period-code-field">
-                      <FormLabel data-testid="allowance-period-code-label">Allowance Period Code *</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder="e.g., FULL, 12, 24"
-                          disabled={isRestrictedEdit}
-                          data-testid="allowance-period-code-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Name */}
-                <FormField
-                  control={form.control}
-                  name="name"
-                  rules={{ required: 'Name is required' }}
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-period-name-field">
-                      <FormLabel data-testid="allowance-period-name-label">Name *</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder="e.g., Full Day, 12 hours"
-                          disabled={isRestrictedEdit}
-                          data-testid="allowance-period-name-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Minimum Hours */}
-                <FormField
-                  control={form.control}
-                  name="minHours"
-                  rules={{
-                    required: 'Minimum Hours is required',
-                    min: { value: 0, message: 'Must be at least 0' },
-                    max: { value: 24, message: 'Must be at most 24' }
-                  }}
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-period-min-hours-field">
-                      <FormLabel data-testid="allowance-period-min-hours-label">Minimum Hours *</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="24"
-                          placeholder="24"
-                          value={field.value}
-                          onChange={e => field.onChange(Number(e.target.value))}
-                          disabled={isRestrictedEdit}
-                          data-testid="allowance-period-min-hours-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Order */}
-                <FormField
-                  control={form.control}
-                  name="order"
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-period-order-field">
-                      <FormLabel data-testid="allowance-period-order-label">Order</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="1"
-                          placeholder="1"
-                          value={field.value || ''}
-                          onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                          disabled={isRestrictedEdit}
-                          data-testid="allowance-period-order-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Time From */}
-                <FormField
-                  control={form.control}
-                  name="fromTime"
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-period-from-time-field">
-                      <FormLabel data-testid="allowance-period-from-time-label">Time From</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="time"
-                          value={field.value || ''}
-                          onChange={e => field.onChange(e.target.value || undefined)}
-                          disabled={isRestrictedEdit}
-                          data-testid="allowance-period-from-time-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Time To */}
-                <FormField
-                  control={form.control}
-                  name="toTime"
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-period-to-time-field">
-                      <FormLabel data-testid="allowance-period-to-time-label">Time To</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="time"
-                          value={field.value || ''}
-                          onChange={e => field.onChange(e.target.value || undefined)}
-                          disabled={isRestrictedEdit}
-                          data-testid="allowance-period-to-time-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Start After */}
-                <FormField
-                  control={form.control}
-                  name="startAfter"
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-period-start-after-field">
-                      <FormLabel data-testid="allowance-period-start-after-label">Start After</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="time"
-                          value={field.value || ''}
-                          onChange={e => field.onChange(e.target.value || undefined)}
-                          disabled={isRestrictedEdit}
-                          data-testid="allowance-period-start-after-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Return Before */}
-                <FormField
-                  control={form.control}
-                  name="returnBefore"
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-period-return-before-field">
-                      <FormLabel data-testid="allowance-period-return-before-label">Return Before</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="time"
-                          value={field.value || ''}
-                          onChange={e => field.onChange(e.target.value || undefined)}
-                          disabled={isRestrictedEdit}
-                          data-testid="allowance-period-return-before-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Valid From */}
-                <FormField
-                  control={form.control}
-                  name="activeFrom"
-                  rules={{ required: 'Valid From is required' }}
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-period-valid-from-field">
-                      <FormLabel data-testid="allowance-period-valid-from-label">Valid From *</FormLabel>
-                      <FormControl>
-                        <DateInput
-                          value={field.value || ''}
-                          onChange={date => field.onChange(date)}
-                          disabled={isRestrictedEdit}
-                          data-testid="allowance-period-valid-from-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Valid To */}
-                <FormField
-                  control={form.control}
-                  name="activeTo"
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-period-valid-to-field">
-                      <FormLabel data-testid="allowance-period-valid-to-label">Valid To</FormLabel>
-                      <FormControl>
-                        <DateInput
-                          value={field.value || ''}
-                          onChange={date => field.onChange(date)}
-                          data-testid="allowance-period-valid-to-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Switches */}
-              <div className="gba:space-y-4">
-                <FormField
-                  control={form.control}
-                  name="midnightRule"
-                  render={({ field }) => (
-                    <FormItem
-                      className="gba:flex gba:items-center gba:justify-between"
-                      data-testid="allowance-period-midnight-rule-field"
-                    >
-                      <FormLabel data-testid="allowance-period-midnight-rule-label">Midnight Rule</FormLabel>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <span
-                          className="gba:text-sm gba:text-muted-foreground"
-                          data-testid="allowance-period-midnight-rule-status"
-                        >
-                          {field.value ? 'Yes' : 'No'}
-                        </span>
+                <div className="gba:space-y-4">
+                  {/* Code */}
+                  <FormField
+                    control={form.control}
+                    name="code"
+                    rules={{ required: 'Allowance Period Code is required' }}
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-period-code-field">
+                        <FormLabel data-testid="allowance-period-code-label">Allowance Period Code *</FormLabel>
                         <FormControl>
-                          <NWSwitch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
+                          <Input
+                            {...field}
+                            placeholder="e.g., FULL, 12, 24"
                             disabled={isRestrictedEdit}
-                            data-testid="allowance-period-midnight-rule-switch"
+                            data-testid="allowance-period-code-input"
                           />
                         </FormControl>
-                      </div>
-                    </FormItem>
-                  )}
-                />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="overnightAccommodation"
-                  render={({ field }) => (
-                    <FormItem
-                      className="gba:flex gba:items-center gba:justify-between"
-                      data-testid="allowance-period-overnight-field"
-                    >
-                      <FormLabel data-testid="allowance-period-overnight-label">Overnight Accommodation</FormLabel>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <span
-                          className="gba:text-sm gba:text-muted-foreground"
-                          data-testid="allowance-period-overnight-status"
-                        >
-                          {field.value ? 'Yes' : 'No'}
-                        </span>
+                  {/* Name */}
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    rules={{ required: 'Name is required' }}
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-period-name-field">
+                        <FormLabel data-testid="allowance-period-name-label">Name *</FormLabel>
                         <FormControl>
-                          <NWSwitch
-                            checked={field.value || false}
-                            onCheckedChange={field.onChange}
+                          <Input
+                            {...field}
+                            placeholder="e.g., Full Day, 12 hours"
                             disabled={isRestrictedEdit}
-                            data-testid="allowance-period-overnight-switch"
+                            data-testid="allowance-period-name-input"
                           />
                         </FormControl>
-                      </div>
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-          </Form>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-          <DialogFooter data-testid="allowance-period-modal-footer">
+                  {/* Minimum Hours */}
+                  <FormField
+                    control={form.control}
+                    name="minHours"
+                    rules={{
+                      required: 'Minimum Hours is required',
+                      min: { value: 0, message: 'Must be at least 0' },
+                      max: { value: 24, message: 'Must be at most 24' }
+                    }}
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-period-min-hours-field">
+                        <FormLabel data-testid="allowance-period-min-hours-label">Minimum Hours *</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="24"
+                            placeholder="24"
+                            value={field.value}
+                            onChange={e => field.onChange(Number(e.target.value))}
+                            disabled={isRestrictedEdit}
+                            data-testid="allowance-period-min-hours-input"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Order */}
+                  <FormField
+                    control={form.control}
+                    name="order"
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-period-order-field">
+                        <FormLabel data-testid="allowance-period-order-label">Order</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="1"
+                            placeholder="1"
+                            value={field.value || ''}
+                            onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                            disabled={isRestrictedEdit}
+                            data-testid="allowance-period-order-input"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Time From */}
+                  <FormField
+                    control={form.control}
+                    name="fromTime"
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-period-from-time-field">
+                        <FormLabel data-testid="allowance-period-from-time-label">Time From</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="time"
+                            value={field.value || ''}
+                            onChange={e => field.onChange(e.target.value || undefined)}
+                            disabled={isRestrictedEdit}
+                            data-testid="allowance-period-from-time-input"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Time To */}
+                  <FormField
+                    control={form.control}
+                    name="toTime"
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-period-to-time-field">
+                        <FormLabel data-testid="allowance-period-to-time-label">Time To</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="time"
+                            value={field.value || ''}
+                            onChange={e => field.onChange(e.target.value || undefined)}
+                            disabled={isRestrictedEdit}
+                            data-testid="allowance-period-to-time-input"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Start After */}
+                  <FormField
+                    control={form.control}
+                    name="startAfter"
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-period-start-after-field">
+                        <FormLabel data-testid="allowance-period-start-after-label">Start After</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="time"
+                            value={field.value || ''}
+                            onChange={e => field.onChange(e.target.value || undefined)}
+                            disabled={isRestrictedEdit}
+                            data-testid="allowance-period-start-after-input"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Return Before */}
+                  <FormField
+                    control={form.control}
+                    name="returnBefore"
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-period-return-before-field">
+                        <FormLabel data-testid="allowance-period-return-before-label">Return Before</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="time"
+                            value={field.value || ''}
+                            onChange={e => field.onChange(e.target.value || undefined)}
+                            disabled={isRestrictedEdit}
+                            data-testid="allowance-period-return-before-input"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Valid From */}
+                  <FormField
+                    control={form.control}
+                    name="activeFrom"
+                    rules={{ required: 'Valid From is required' }}
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-period-valid-from-field">
+                        <FormLabel data-testid="allowance-period-valid-from-label">Valid From *</FormLabel>
+                        <FormControl>
+                          <DateInput
+                            value={field.value || ''}
+                            onChange={date => field.onChange(date)}
+                            disabled={isRestrictedEdit}
+                            data-testid="allowance-period-valid-from-input"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Valid To */}
+                  <FormField
+                    control={form.control}
+                    name="activeTo"
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-period-valid-to-field">
+                        <FormLabel data-testid="allowance-period-valid-to-label">Valid To</FormLabel>
+                        <FormControl>
+                          <DateInput
+                            value={field.value || ''}
+                            onChange={date => field.onChange(date)}
+                            data-testid="allowance-period-valid-to-input"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Switches */}
+                <div className="gba:space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="midnightRule"
+                    render={({ field }) => (
+                      <FormItem
+                        className="gba:flex gba:items-center gba:justify-between"
+                        data-testid="allowance-period-midnight-rule-field"
+                      >
+                        <FormLabel data-testid="allowance-period-midnight-rule-label">Midnight Rule</FormLabel>
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <span
+                            className="gba:text-sm gba:text-muted-foreground"
+                            data-testid="allowance-period-midnight-rule-status"
+                          >
+                            {field.value ? 'Yes' : 'No'}
+                          </span>
+                          <FormControl>
+                            <NWSwitch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              disabled={isRestrictedEdit}
+                              data-testid="allowance-period-midnight-rule-switch"
+                            />
+                          </FormControl>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="overnightAccommodation"
+                    render={({ field }) => (
+                      <FormItem
+                        className="gba:flex gba:items-center gba:justify-between"
+                        data-testid="allowance-period-overnight-field"
+                      >
+                        <FormLabel data-testid="allowance-period-overnight-label">Overnight Accommodation</FormLabel>
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <span
+                            className="gba:text-sm gba:text-muted-foreground"
+                            data-testid="allowance-period-overnight-status"
+                          >
+                            {field.value ? 'Yes' : 'No'}
+                          </span>
+                          <FormControl>
+                            <NWSwitch
+                              checked={field.value || false}
+                              onCheckedChange={field.onChange}
+                              disabled={isRestrictedEdit}
+                              data-testid="allowance-period-overnight-switch"
+                            />
+                          </FormControl>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            </Form>
+          </div>
+
+          <DialogFooter
+            className="gba:shrink-0 gba:border-t gba:border-border gba:bg-background gba:px-6 gba:py-4"
+            data-testid="allowance-period-modal-footer"
+          >
             <Button
               variant="outline"
               onClick={() => setIsModalVisible(false)}

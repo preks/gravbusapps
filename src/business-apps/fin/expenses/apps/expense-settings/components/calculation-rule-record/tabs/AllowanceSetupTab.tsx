@@ -915,227 +915,238 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
 
       {/* Add/Edit Dialog */}
       <Dialog open={isModalVisible} onOpenChange={setIsModalVisible}>
-        <DialogContent className="gba:max-w-2xl" data-testid="allowance-setup-modal">
-          <DialogHeader data-testid="allowance-setup-modal-header">
+        <DialogContent
+          className="gba:max-w-2xl gba:max-h-[90vh] gba:overflow-hidden gba:flex gba:flex-col"
+          data-testid="allowance-setup-modal"
+        >
+          <DialogHeader className="gba:px-6 gba:pt-6 gba:pb-4" data-testid="allowance-setup-modal-header">
             <DialogTitle data-testid="allowance-setup-modal-title">
               {editingItem ? 'Edit' : 'Add'} Allowance Setup
             </DialogTitle>
           </DialogHeader>
 
-          <Form {...form}>
-            <div data-testid="allowance-setup-form" className="gba:space-y-4">
-              {isRestrictedEdit && currentUsageInfo && (
-                <Alert
-                  className="gba:border-warning gba:bg-warning-secondary"
-                  data-testid="allowance-setup-restricted-alert"
-                >
-                  <PiWarning className="gba:h-4 gba:w-4 gba:text-warning" />
-                  <AlertDescription>{currentUsageInfo.message}</AlertDescription>
-                </Alert>
-              )}
-
-              {/* Allowance Period */}
-              <FormField
-                control={form.control}
-                name="allowancePeriodId"
-                rules={{ required: 'Allowance Period is required' }}
-                render={({ field }) => (
-                  <FormItem data-testid="allowance-setup-period-field">
-                    <FormLabel data-testid="allowance-setup-period-label">Allowance Period *</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange} disabled={isRestrictedEdit}>
-                      <FormControl>
-                        <SelectTrigger data-testid="allowance-setup-period-select">
-                          <SelectValue placeholder="Select allowance period" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent data-testid="allowance-setup-period-options">
-                        {allowancePeriods.map(period => (
-                          <SelectItem
-                            key={period.id}
-                            value={period.id}
-                            data-testid={`allowance-setup-period-option-${period.code}`}
-                          >
-                            {period.code} - {period.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
+          <div className="gba:flex-1 gba:overflow-y-auto gba:px-6 gba:pb-6">
+            <Form {...form}>
+              <div data-testid="allowance-setup-form" className="gba:space-y-4">
+                {isRestrictedEdit && currentUsageInfo && (
+                  <Alert
+                    className="gba:border-warning gba:bg-warning-secondary"
+                    data-testid="allowance-setup-restricted-alert"
+                  >
+                    <PiWarning className="gba:h-4 gba:w-4 gba:text-warning" />
+                    <AlertDescription>{currentUsageInfo.message}</AlertDescription>
+                  </Alert>
                 )}
-              />
 
-              {/* Allowance Code */}
-              <FormField
-                control={form.control}
-                name="allowanceCodeId"
-                rules={{ required: 'Allowance Code is required' }}
-                render={({ field }) => (
-                  <FormItem data-testid="allowance-setup-code-field">
-                    <FormLabel data-testid="allowance-setup-code-label">Allowance Code *</FormLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={value => {
-                        field.onChange(value)
-                        // Auto-populate name field with selected allowance code's name
-                        const selectedCode = filteredAllowanceCodes.find(code => code.id === value)
-                        if (selectedCode && !editingItem) {
-                          form.setValue('name', selectedCode.name)
-                        }
-                      }}
-                      disabled={isRestrictedEdit}
+                {/* Allowance Period */}
+                <FormField
+                  control={form.control}
+                  name="allowancePeriodId"
+                  rules={{ required: 'Allowance Period is required' }}
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-setup-period-field">
+                      <FormLabel data-testid="allowance-setup-period-label">Allowance Period *</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange} disabled={isRestrictedEdit}>
+                        <FormControl>
+                          <SelectTrigger data-testid="allowance-setup-period-select">
+                            <SelectValue placeholder="Select allowance period" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent data-testid="allowance-setup-period-options">
+                          {allowancePeriods.map(period => (
+                            <SelectItem
+                              key={period.id}
+                              value={period.id}
+                              data-testid={`allowance-setup-period-option-${period.code}`}
+                            >
+                              {period.code} - {period.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Allowance Code */}
+                <FormField
+                  control={form.control}
+                  name="allowanceCodeId"
+                  rules={{ required: 'Allowance Code is required' }}
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-setup-code-field">
+                      <FormLabel data-testid="allowance-setup-code-label">Allowance Code *</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={value => {
+                          field.onChange(value)
+                          // Auto-populate name field with selected allowance code's name
+                          const selectedCode = filteredAllowanceCodes.find(code => code.id === value)
+                          if (selectedCode && !editingItem) {
+                            form.setValue('name', selectedCode.name)
+                          }
+                        }}
+                        disabled={isRestrictedEdit}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="allowance-setup-code-select">
+                            <SelectValue placeholder="Select allowance code" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent data-testid="allowance-setup-code-options">
+                          {filteredAllowanceCodes.map(code => (
+                            <SelectItem
+                              key={code.id}
+                              value={code.id}
+                              data-testid={`allowance-setup-code-option-${code.code}`}
+                            >
+                              {code.code} - {code.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Name */}
+                <FormField
+                  control={form.control}
+                  name="name"
+                  rules={{ required: 'Name is required' }}
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-setup-name-field">
+                      <FormLabel data-testid="allowance-setup-name-label">Name *</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          disabled={isRestrictedEdit}
+                          placeholder={getTranslationFromI18nKeyAndLabel(
+                            'expense-settings:allowance_setup_name_placeholder',
+                            'Enter allowance setup name'
+                          )}
+                          data-testid="allowance-setup-name-input"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Issue */}
+                <FormField
+                  control={form.control}
+                  name="issue"
+                  rules={{ required: 'Issue is required' }}
+                  render={({ field }) => (
+                    <FormItem data-testid="allowance-setup-issue-field">
+                      <FormLabel data-testid="allowance-setup-issue-label">Issue *</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange} disabled={isRestrictedEdit}>
+                        <FormControl>
+                          <SelectTrigger data-testid="allowance-setup-issue-select">
+                            <SelectValue placeholder="Select issue type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent data-testid="allowance-setup-issue-options">
+                          {issueOptions.map(option => (
+                            <SelectItem
+                              key={option.value}
+                              value={option.value}
+                              data-testid={`allowance-setup-issue-option-${option.value}`}
+                            >
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Tax Only */}
+                <FormField
+                  control={form.control}
+                  name="onlyTax"
+                  render={({ field }) => (
+                    <FormItem
+                      className="gba:flex gba:items-center gba:gap-2"
+                      data-testid="allowance-setup-tax-only-field"
                     >
                       <FormControl>
-                        <SelectTrigger data-testid="allowance-setup-code-select">
-                          <SelectValue placeholder="Select allowance code" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent data-testid="allowance-setup-code-options">
-                        {filteredAllowanceCodes.map(code => (
-                          <SelectItem
-                            key={code.id}
-                            value={code.id}
-                            data-testid={`allowance-setup-code-option-${code.code}`}
-                          >
-                            {code.code} - {code.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Name */}
-              <FormField
-                control={form.control}
-                name="name"
-                rules={{ required: 'Name is required' }}
-                render={({ field }) => (
-                  <FormItem data-testid="allowance-setup-name-field">
-                    <FormLabel data-testid="allowance-setup-name-label">Name *</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        disabled={isRestrictedEdit}
-                        placeholder={getTranslationFromI18nKeyAndLabel(
-                          'expense-settings:allowance_setup_name_placeholder',
-                          'Enter allowance setup name'
-                        )}
-                        data-testid="allowance-setup-name-input"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Issue */}
-              <FormField
-                control={form.control}
-                name="issue"
-                rules={{ required: 'Issue is required' }}
-                render={({ field }) => (
-                  <FormItem data-testid="allowance-setup-issue-field">
-                    <FormLabel data-testid="allowance-setup-issue-label">Issue *</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange} disabled={isRestrictedEdit}>
-                      <FormControl>
-                        <SelectTrigger data-testid="allowance-setup-issue-select">
-                          <SelectValue placeholder="Select issue type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent data-testid="allowance-setup-issue-options">
-                        {issueOptions.map(option => (
-                          <SelectItem
-                            key={option.value}
-                            value={option.value}
-                            data-testid={`allowance-setup-issue-option-${option.value}`}
-                          >
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Tax Only */}
-              <FormField
-                control={form.control}
-                name="onlyTax"
-                render={({ field }) => (
-                  <FormItem
-                    className="gba:flex gba:items-center gba:gap-2"
-                    data-testid="allowance-setup-tax-only-field"
-                  >
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                        disabled={isRestrictedEdit}
-                        data-testid="allowance-setup-tax-only-checkbox"
-                      />
-                    </FormControl>
-                    <FormLabel className="gba:text-sm gba:font-normal" data-testid="allowance-setup-tax-only-label">
-                      Tax Only
-                    </FormLabel>
-                  </FormItem>
-                )}
-              />
-
-              {/* Validity Period */}
-              <div className="gba:space-y-4">
-                <FormField
-                  control={form.control}
-                  name="activeFrom"
-                  rules={{ required: 'Valid From is required' }}
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-setup-valid-from-field">
-                      <FormLabel data-testid="allowance-setup-valid-from-label">Valid From *</FormLabel>
-                      <FormControl>
-                        <DateInput
-                          value={field.value || ''}
-                          onChange={date => field.onChange(date)}
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
                           disabled={isRestrictedEdit}
-                          data-testid="allowance-setup-valid-from-input"
+                          data-testid="allowance-setup-tax-only-checkbox"
                         />
                       </FormControl>
-                      <FormMessage />
+                      <FormLabel className="gba:text-sm gba:font-normal" data-testid="allowance-setup-tax-only-label">
+                        Tax Only
+                      </FormLabel>
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="activeTo"
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-setup-valid-to-field">
-                      <FormLabel data-testid="allowance-setup-valid-to-label">Valid To</FormLabel>
-                      <FormControl>
-                        <DateInput
-                          value={field.value || ''}
-                          onChange={date => field.onChange(date)}
-                          data-testid="allowance-setup-valid-to-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
 
-              {/* Validity Error Message */}
-              {validityError && (
-                <div className="gba:text-sm gba:text-destructive gba:mt-2" data-testid="allowance-setup-validity-error">
-                  {validityError}
+                {/* Validity Period */}
+                <div className="gba:space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="activeFrom"
+                    rules={{ required: 'Valid From is required' }}
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-setup-valid-from-field">
+                        <FormLabel data-testid="allowance-setup-valid-from-label">Valid From *</FormLabel>
+                        <FormControl>
+                          <DateInput
+                            value={field.value || ''}
+                            onChange={date => field.onChange(date)}
+                            disabled={isRestrictedEdit}
+                            data-testid="allowance-setup-valid-from-input"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="activeTo"
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-setup-valid-to-field">
+                        <FormLabel data-testid="allowance-setup-valid-to-label">Valid To</FormLabel>
+                        <FormControl>
+                          <DateInput
+                            value={field.value || ''}
+                            onChange={date => field.onChange(date)}
+                            data-testid="allowance-setup-valid-to-input"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-              )}
-            </div>
-          </Form>
 
-          <DialogFooter data-testid="allowance-setup-modal-footer">
+                {/* Validity Error Message */}
+                {validityError && (
+                  <div
+                    className="gba:text-sm gba:text-destructive gba:mt-2"
+                    data-testid="allowance-setup-validity-error"
+                  >
+                    {validityError}
+                  </div>
+                )}
+              </div>
+            </Form>
+          </div>
+
+          <DialogFooter
+            className="gba:shrink-0 gba:border-t gba:border-border gba:bg-background gba:px-6 gba:py-4"
+            data-testid="allowance-setup-modal-footer"
+          >
             <Button
               variant="outline"
               onClick={() => setIsModalVisible(false)}
