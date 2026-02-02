@@ -8,7 +8,7 @@
  */
 
 import React from 'react'
-import { Progress, cn, Badge } from '@newwork/nw-design-system'
+import { Progress, Badge } from '@newwork/nw-design-system'
 import { CheckCircle2, XCircle, Clock, Loader2, Search, Link2, Recycle } from 'lucide-react'
 import { BuildTile } from './tiles'
 import type { TileState, ComponentType, BuildStatus, BuildPhase } from '../types/orchestrator'
@@ -30,20 +30,20 @@ export interface ProgressTilesGridProps {
 const tileOrder: ComponentType[] = ['data_model', 'function', 'agent', 'flow', 'screen']
 
 /**
- * Get phase display info
+ * Get phase display info - Monochrome
  */
-function getPhaseInfo(phase: BuildPhase | null): { icon: React.ReactNode; label: string; color: string } {
+function getPhaseInfo(phase: BuildPhase | null): { icon: React.ReactNode; label: string } {
   switch (phase) {
     case 'discovery':
-      return { icon: <Search className="gba:w-4 gba:h-4" />, label: 'Discovery', color: 'info' }
+      return { icon: <Search className="gba:w-4 gba:h-4" />, label: 'Discovery' }
     case 'building':
-      return { icon: <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />, label: 'Building', color: 'info' }
+      return { icon: <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />, label: 'Building' }
     case 'wiring':
-      return { icon: <Link2 className="gba:w-4 gba:h-4" />, label: 'Connecting', color: 'info' }
+      return { icon: <Link2 className="gba:w-4 gba:h-4" />, label: 'Connecting' }
     case 'complete':
-      return { icon: <CheckCircle2 className="gba:w-4 gba:h-4" />, label: 'Complete', color: 'success' }
+      return { icon: <CheckCircle2 className="gba:w-4 gba:h-4" />, label: 'Complete' }
     default:
-      return { icon: <Clock className="gba:w-4 gba:h-4" />, label: 'Pending', color: 'offline' }
+      return { icon: <Clock className="gba:w-4 gba:h-4" />, label: 'Pending' }
   }
 }
 
@@ -84,28 +84,33 @@ export const ProgressTilesGrid: React.FC<ProgressTilesGridProps> = ({
 
   return (
     <div className="gba:space-y-6" data-testid={testId}>
-      {/* Overall Progress Header */}
+      {/* Overall Progress Header - Monochrome */}
       <div className="gba:space-y-3">
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-3">
-            {overallStatus === 'building' && <Loader2 className="gba:w-5 gba:h-5 gba:text-info gba:animate-spin" />}
-            {overallStatus === 'completed' && <CheckCircle2 className="gba:w-5 gba:h-5 gba:text-success" />}
-            {overallStatus === 'error' && <XCircle className="gba:w-5 gba:h-5 gba:text-destructive" />}
+            {/* Animated focal point - monochrome spinner */}
+            {overallStatus === 'building' && (
+              <div className="gba:relative gba:w-5 gba:h-5">
+                <Loader2 className="gba:w-5 gba:h-5 gba:text-foreground gba:animate-spin" />
+              </div>
+            )}
+            {overallStatus === 'completed' && <CheckCircle2 className="gba:w-5 gba:h-5 gba:text-foreground" />}
+            {overallStatus === 'error' && <XCircle className="gba:w-5 gba:h-5 gba:text-foreground" />}
             {overallStatus === 'pending' && <Clock className="gba:w-5 gba:h-5 gba:text-muted-foreground" />}
 
             <div>
               <div className="gba:flex gba:items-center gba:gap-2">
                 <h3 className="gba:font-semibold gba:text-foreground">
                   {overallStatus === 'building' && 'Building your components...'}
-                  {overallStatus === 'completed' && 'Build complete!'}
+                  {overallStatus === 'completed' && 'Build complete'}
                   {overallStatus === 'error' && 'Build completed with errors'}
                   {overallStatus === 'pending' && 'Ready to build'}
                 </h3>
 
-                {/* Phase badge */}
+                {/* Phase badge - Monochrome */}
                 {currentPhase && isBuilding && (
-                  <Badge variant={phaseInfo.color as 'info' | 'success' | 'offline'}>
-                    <span className="gba:flex gba:items-center gba:gap-1">
+                  <Badge variant="secondary" className="gba:bg-muted gba:text-foreground gba:border-border">
+                    <span className="gba:flex gba:items-center gba:gap-1.5">
                       {phaseInfo.icon}
                       {phaseInfo.label}
                     </span>
@@ -117,7 +122,7 @@ export const ProgressTilesGrid: React.FC<ProgressTilesGridProps> = ({
                 {completedCount} built
                 {reusedCount > 0 && (
                   <span className="gba:inline-flex gba:items-center gba:gap-1 gba:ml-1">
-                    <Recycle className="gba:w-3 gba:h-3 gba:text-success" />
+                    <Recycle className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
                     {reusedCount} reused
                   </span>
                 )}
@@ -136,14 +141,8 @@ export const ProgressTilesGrid: React.FC<ProgressTilesGridProps> = ({
           <span className="gba:text-2xl gba:font-bold gba:text-foreground">{overallProgress}%</span>
         </div>
 
-        <Progress
-          value={overallProgress}
-          className={cn(
-            'gba:h-2',
-            overallStatus === 'completed' && '[&>div]:gba:bg-success',
-            overallStatus === 'error' && '[&>div]:gba:bg-destructive'
-          )}
-        />
+        {/* Progress bar - Monochrome */}
+        <Progress value={overallProgress} className="gba:h-2 [&>div]:gba:bg-foreground" />
       </div>
 
       {/* Tiles Grid */}
