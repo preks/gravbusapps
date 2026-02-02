@@ -1,4 +1,8 @@
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import { toISOStartOfDay, toISOEndOfDay } from '../../../utils/dateUtils'
+
+dayjs.extend(utc)
 
 type SourceEnum = 'GENERAL_EXPENSE_RULE' | 'MILEAGE_RULE' | 'ALLOWANCE_RULE' | 'ATTENTION_RULE' | ''
 
@@ -41,7 +45,7 @@ export const transformOtherCalcForRestrictedUpdate = (
   id: editingItem.id,
   version: editingItem.version,
   expenseRuleId: ruleId,
-  activeTo: formValues.activeTo ? dayjs(formValues.activeTo).endOf('day').toISOString() : null
+  activeTo: formValues.activeTo ? toISOEndOfDay(formValues.activeTo) : null
 })
 
 /**
@@ -54,8 +58,8 @@ export const transformOtherCalcForSave = (
 ): OtherCalculationSaveData => ({
   ...(editingItem && { id: editingItem.id, version: editingItem.version }),
   expenseRuleId: ruleId,
-  activeFrom: formValues.activeFrom ? dayjs(formValues.activeFrom).startOf('day').toISOString() : null,
-  activeTo: formValues.activeTo ? dayjs(formValues.activeTo).endOf('day').toISOString() : null,
+  activeFrom: formValues.activeFrom ? toISOStartOfDay(formValues.activeFrom) : null,
+  activeTo: formValues.activeTo ? toISOEndOfDay(formValues.activeTo) : null,
   costCenterId: formValues.costCenterId || null,
   source: formValues.source || null,
   reimbursablePercent: formValues.reimbursablePercent || null,

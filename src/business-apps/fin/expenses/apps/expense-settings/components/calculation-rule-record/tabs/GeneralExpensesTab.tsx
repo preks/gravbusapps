@@ -46,8 +46,47 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ExpenseRuleGeneralExpense, ExpenseGroupWithTranslations } from '../../../types/ExpenseRuleTypes'
-import { expenseSettingsClient, formatDate } from '../../../utils'
+import { expenseSettingsClient, formatDate, toISOStartOfDay, toISOEndOfDay } from '../../../utils'
 import { useTableSorting, createFieldMappings } from '../hooks'
+import { validateDateRange } from '../utils/sharedDateValidation'
+
+const shouldLogExpenseSettingsDateDebug = (): boolean => {
+  try {
+    if (typeof window === 'undefined') return false
+    const isEnabledViaSearch = (w: Window): boolean => {
+      try {
+        const params = new URLSearchParams(w.location.search)
+        return params.get('debugExpenseSettingsDates') === '1'
+      } catch {
+        return false
+      }
+    }
+
+    if (
+      isEnabledViaSearch(window) ||
+      (window.parent !== window && isEnabledViaSearch(window.parent)) ||
+      (window.top ? window.top !== window && isEnabledViaSearch(window.top) : false)
+    ) {
+      return true
+    }
+
+    const isEnabledViaLocalStorage = (w: Window): boolean => {
+      try {
+        return w.localStorage?.getItem('debugExpenseSettingsDates') === '1'
+      } catch {
+        return false
+      }
+    }
+
+    return (
+      isEnabledViaLocalStorage(window) ||
+      (window.parent !== window && isEnabledViaLocalStorage(window.parent)) ||
+      (window.top ? window.top !== window && isEnabledViaLocalStorage(window.top) : false)
+    )
+  } catch {
+    return false
+  }
+}
 
 interface GeneralExpensesTabProps {
   ruleId: string
@@ -209,6 +248,17 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
       const expenseRule = result.ExpenseRule?.[0]
       const expenses = expenseRule?.expenseRuleGeneralExpense || []
 
+      if (shouldLogExpenseSettingsDateDebug() && expenses.length > 0) {
+        const first = expenses[0]
+        console.warn('[expense-settings][GeneralExpensesTab] loaded first record', {
+          code: first.code,
+          activeFromRaw: first.activeFrom,
+          activeFromDisplay: formatDate(first.activeFrom),
+          activeToRaw: first.activeTo,
+          activeToDisplay: first.activeTo ? formatDate(first.activeTo) : null
+        })
+      }
+
       setGeneralExpenses(expenses)
 
       // Load usage status for all expenses
@@ -366,7 +416,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
       const saveData: any = {
         ...(isUpdate && { id: editingItem.id, version: editingItem.version }),
         expenseRuleId: ruleId,
-        activeTo: formData.activeTo ? dayjs(formData.activeTo).endOf('day').toISOString() : null,
+        activeTo: formData.activeTo ? toISOEndOfDay(formData.activeTo) : null,
         additionalProperties: formData.additionalProperties
       }
 
@@ -377,8 +427,35 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
         saveData.reimbursable = formData.reimbursable
         saveData.taxCodeRef = formData.taxCodeRef
         saveData.taxValue = formData.taxValue
-        saveData.activeFrom = formData.activeFrom ? dayjs(formData.activeFrom).startOf('day').toISOString() : null
+        saveData.activeFrom = formData.activeFrom ? toISOStartOfDay(formData.activeFrom) : null
         saveData.expenseGroupRef = formData.expenseGroupRef
+      }
+
+      // Validate that detail dates fall within the rule's validity period
+      if (!isRestrictedEdit && formData.activeFrom) {
+        const dateErrors = validateDateRange({
+          entryFrom: formData.activeFrom,
+          entryTo: formData.activeTo,
+          ruleFrom: activeFrom,
+          ruleTo: activeTo
+        })
+
+        if (dateErrors.length > 0) {
+          // Show all date validation errors
+          dateErrors.forEach(err => {
+            toast.error(err.message)
+          })
+          return // Stop save operation
+        }
+      }
+
+      if (shouldLogExpenseSettingsDateDebug()) {
+        console.warn('[expense-settings][GeneralExpensesTab] saving', {
+          formActiveFrom: formData.activeFrom,
+          formActiveTo: formData.activeTo,
+          apiActiveFrom: saveData.activeFrom,
+          apiActiveTo: saveData.activeTo
+        })
       }
 
       await expenseSettingsClient.saveExpenseRuleGeneralExpense(saveData)

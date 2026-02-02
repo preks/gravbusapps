@@ -14,6 +14,7 @@ import {
 } from '@newwork/nw-design-system'
 import { PiTrash } from 'react-icons/pi'
 import { SmartColumnGroup, CatalogOption } from '../types'
+import { normalizeDateInputValue } from '../../../utils'
 
 interface RegionGroupCardProps {
   group: SmartColumnGroup
@@ -178,7 +179,8 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
             </Label>
             <DateInput
               value={group.activeFrom}
-              onChange={date => onUpdateField('activeFrom', date || '')}
+              onChange={date => onUpdateField('activeFrom', normalizeDateInputValue(date) || '')}
+              outputFormat="iso"
               data-testid={`travel-region-rule-group-valid-from-${groupIndex}`}
               disabled={isEditRestricted}
             />
@@ -187,7 +189,8 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
             <Label className="gba:text-xs gba:font-medium">Valid To</Label>
             <DateInput
               value={group.activeTo || ''}
-              onChange={date => onUpdateField('activeTo', date || '')}
+              onChange={date => onUpdateField('activeTo', normalizeDateInputValue(date) || '')}
+              outputFormat="iso"
               data-testid={`travel-region-rule-group-valid-to-${groupIndex}`}
               max="2099-12-31"
             />

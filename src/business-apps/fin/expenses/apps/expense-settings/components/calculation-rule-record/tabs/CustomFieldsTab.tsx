@@ -54,7 +54,7 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
-import { formatDateForInput, findOverlappingPeriods, formatDate } from '../../../utils'
+import { formatDateForInput, findOverlappingPeriods, formatDate, normalizeDateInputValue } from '../../../utils'
 import {
   validateDateRange,
   applyDateValidationErrors,
@@ -979,7 +979,8 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
                       <FormControl>
                         <DateInput
                           value={field.value || ''}
-                          onChange={date => field.onChange(date)}
+                          onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                          outputFormat="iso"
                           disabled={isRestrictedEdit}
                           data-testid="custom-field-valid-from-input"
                         />
@@ -998,7 +999,8 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
                       <FormControl>
                         <DateInput
                           value={field.value || ''}
-                          onChange={date => field.onChange(date)}
+                          onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                          outputFormat="iso"
                           data-testid="custom-field-valid-to-input"
                         />
                       </FormControl>

@@ -30,11 +30,49 @@ import { PiArrowLeft, PiWarning, PiCheckCircle, PiCalendar } from 'react-icons/p
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
-import { formatDateForInput } from '../../utils'
+import { formatDateForInput, normalizeDateInputValue, toISOStartOfDay, toISOEndOfDay } from '../../utils'
 
 // Register dayjs plugins
 dayjs.extend(weekday)
 dayjs.extend(localeData)
+
+const shouldLogExpenseSettingsDateDebug = (): boolean => {
+  try {
+    if (typeof window === 'undefined') return false
+    const isEnabledViaSearch = (w: Window): boolean => {
+      try {
+        const params = new URLSearchParams(w.location.search)
+        return params.get('debugExpenseSettingsDates') === '1'
+      } catch {
+        return false
+      }
+    }
+
+    if (
+      isEnabledViaSearch(window) ||
+      (window.parent !== window && isEnabledViaSearch(window.parent)) ||
+      (window.top ? window.top !== window && isEnabledViaSearch(window.top) : false)
+    ) {
+      return true
+    }
+
+    const isEnabledViaLocalStorage = (w: Window): boolean => {
+      try {
+        return w.localStorage?.getItem('debugExpenseSettingsDates') === '1'
+      } catch {
+        return false
+      }
+    }
+
+    return (
+      isEnabledViaLocalStorage(window) ||
+      (window.parent !== window && isEnabledViaLocalStorage(window.parent)) ||
+      (window.top ? window.top !== window && isEnabledViaLocalStorage(window.top) : false)
+    )
+  } catch {
+    return false
+  }
+}
 
 // Tab components (these would be separate modules in a full implementation)
 import GeneralExpensesTab from './tabs/GeneralExpensesTab'
@@ -128,6 +166,18 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
   accessToken,
   ...context
 }) => {
+  const hasLoggedDateDebugEnabledRef = React.useRef(false)
+
+  useEffect(() => {
+    if (hasLoggedDateDebugEnabledRef.current) return
+    if (!shouldLogExpenseSettingsDateDebug()) return
+    hasLoggedDateDebugEnabledRef.current = true
+    console.warn('[expense-settings] date debug enabled', {
+      origin: window.location.origin,
+      search: window.location.search
+    })
+  }, [])
+
   // Store loaded flags with their IDs for proper updates
   const [loadedFlags, setLoadedFlags] = React.useState<ExpenseRuleFlag[]>([])
   const [ruleDetails, setRuleDetails] = useState<CalculationRuleDetails | null>(null)
@@ -155,11 +205,6 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
     austrianAbroad: false
   })
 
-  const normalizeDateInputValue = (value: string | [string | null, string | null] | null | undefined): string => {
-    if (!value) return ''
-    if (Array.isArray(value)) return value[0] ?? ''
-    return value
-  }
   // Tab and sub-tab management with query parameters
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search)
@@ -315,6 +360,16 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
       }
 
       setFormData(initialValues)
+
+      if (shouldLogExpenseSettingsDateDebug()) {
+        console.warn('[expense-settings][CalculationRuleRecord] loaded rule dates', {
+          ruleId: ruleDetails.id,
+          activeFromRaw: ruleDetails.activeFrom,
+          activeFromForInput: initialValues.activeFrom,
+          activeToRaw: ruleDetails.activeTo,
+          activeToForInput: initialValues.activeTo
+        })
+      }
       setInitialFormData(initialValues)
     } catch (err) {
       console.error('❌ Error loading expense rule details:', err)
@@ -426,8 +481,8 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
           code: formData.code,
           name: formData.name,
           standard: formData.standard,
-          activeFrom: formData.activeFrom ? dayjs(formData.activeFrom).startOf('day').toISOString() : null,
-          activeTo: formData.activeTo ? dayjs(formData.activeTo).endOf('day').toISOString() : null,
+          activeFrom: formData.activeFrom ? toISOStartOfDay(formData.activeFrom) : null,
+          activeTo: formData.activeTo ? toISOEndOfDay(formData.activeTo) : null,
           calculationTypeRef: formData.calculationTypeRef || null,
           currencyRef: formData.currencyRef || null,
           countryRef: formData.countryRef || null,
@@ -439,6 +494,16 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
           useSingleCurrency: formData.useSingleCurrency
         },
         changeMode: 'UPDATE'
+      }
+
+      if (shouldLogExpenseSettingsDateDebug()) {
+        console.warn('[expense-settings][CalculationRuleRecord] saving rule dates', {
+          ruleId: ruleDetails?.id,
+          formActiveFrom: formData.activeFrom,
+          apiActiveFrom: expenseRulePayload.expenseRule.activeFrom,
+          formActiveTo: formData.activeTo,
+          apiActiveTo: expenseRulePayload.expenseRule.activeTo
+        })
       }
 
       // Save expense rule first
@@ -653,7 +718,8 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                       <DateInput
                         data-testid="rule-active-from-picker"
                         value={formData.activeFrom}
-                        onChange={date => setFormData({ ...formData, activeFrom: normalizeDateInputValue(date) })}
+                        onChange={date => setFormData({ ...formData, activeFrom: normalizeDateInputValue(date) ?? '' })}
+                        outputFormat="iso"
                       />
                     </div>
                     <div>
@@ -664,7 +730,8 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                       <DateInput
                         data-testid="rule-active-to-picker"
                         value={formData.activeTo}
-                        onChange={date => setFormData({ ...formData, activeTo: normalizeDateInputValue(date) })}
+                        onChange={date => setFormData({ ...formData, activeTo: normalizeDateInputValue(date) ?? '' })}
+                        outputFormat="iso"
                       />
                     </div>
                     <div>

@@ -5,7 +5,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFeature } from '@/common/hooks/useFeature'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient'
-import { formatDateForInput } from '../../utils'
+import { formatDateForInput, normalizeDateInputValue } from '../../utils'
 import { useGetExpenseRuleById } from '../../queries/ExpenseRuleQueries'
 import {
   Dialog,
@@ -482,7 +482,8 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                           <FormControl>
                             <DateInput
                               value={field.value || ''}
-                              onChange={date => field.onChange(date)}
+                              onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                              outputFormat="iso"
                               data-testid="calculation-rule-form-active-from"
                             />
                           </FormControl>
@@ -499,7 +500,8 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                           <FormControl>
                             <DateInput
                               value={field.value || ''}
-                              onChange={date => field.onChange(date)}
+                              onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                              outputFormat="iso"
                               data-testid="calculation-rule-form-active-to"
                             />
                           </FormControl>

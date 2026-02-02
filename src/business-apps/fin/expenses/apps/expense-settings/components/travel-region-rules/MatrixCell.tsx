@@ -12,7 +12,7 @@ import {
 import { PiFloppyDisk, PiX } from 'react-icons/pi'
 import dayjs from 'dayjs'
 import { EditableCell, CurrencyOption, UsageInfo } from './types'
-import { formatDateForInput } from '../../utils'
+import { formatDateForInput, normalizeDateInputValue } from '../../utils'
 
 interface MatrixCellProps {
   cell: EditableCell
@@ -99,9 +99,11 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
             <DateInput
               value={formatDateForInput(cell.activeFrom) || ''}
               onChange={date => {
-                const dateValue = date ? `${date}T00:00:00+00:00` : ''
+                const normalized = normalizeDateInputValue(date)
+                const dateValue = normalized ? `${normalized}T00:00:00+00:00` : ''
                 updateCellField(cell.id!, cell.validityPeriodId!, 'activeFrom', dateValue)
               }}
+              outputFormat="iso"
               disabled={isUsedInTransactions && !cell.isNew}
               data-testid={`${prefixDataTestId}-cell-active-from-${ruleId}-${regionId}`}
             />
@@ -113,9 +115,11 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
             <DateInput
               value={formatDateForInput(cell.activeTo) || ''}
               onChange={date => {
-                const dateValue = date ? `${date}T00:00:00+00:00` : undefined
+                const normalized = normalizeDateInputValue(date)
+                const dateValue = normalized ? `${normalized}T00:00:00+00:00` : undefined
                 updateCellField(cell.id!, cell.validityPeriodId!, 'activeTo', dateValue)
               }}
+              outputFormat="iso"
               data-testid={`${prefixDataTestId}-cell-active-to-${ruleId}-${regionId}`}
             />
           </div>

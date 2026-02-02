@@ -1,4 +1,8 @@
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import { toISOStartOfDay, toISOEndOfDay } from '../../../utils/dateUtils'
+
+dayjs.extend(utc)
 
 export interface SetupDateValidationError {
   message: string
@@ -49,8 +53,22 @@ export const validateAllowanceSetupDates = (
 
 /**
  * Formats date string to ISO format for backend (java.time.Instant)
+ * For activeFrom dates (start of day)
+ * Handles both YYYY-MM-DD and DD.MM.YYYY formats
+ *
+ * @deprecated Use toISOStartOfDay from utils/dateUtils instead
  */
 export const formatDateToISO = (dateStr: string | undefined): string | undefined => {
-  if (!dateStr) return undefined
-  return dayjs(dateStr).startOf('day').toISOString()
+  return toISOStartOfDay(dateStr)
+}
+
+/**
+ * Formats date string to ISO format for backend (java.time.Instant)
+ * For activeTo dates (end of day)
+ * Handles both YYYY-MM-DD and DD.MM.YYYY formats
+ *
+ * @deprecated Use toISOEndOfDay from utils/dateUtils instead
+ */
+export const formatDateToISOEndOfDay = (dateStr: string | undefined): string | undefined => {
+  return toISOEndOfDay(dateStr)
 }

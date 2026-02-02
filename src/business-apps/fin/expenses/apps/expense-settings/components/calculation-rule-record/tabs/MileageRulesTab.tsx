@@ -69,7 +69,14 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { EnhancedExpenseRuleMileage, MeasurementUnitWithTranslations } from '../../../types/ExpenseRuleTypes'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
-import { formatDateForInput, checkPeriodUniqueness, formatDate } from '../../../utils'
+import {
+  formatDateForInput,
+  checkPeriodUniqueness,
+  formatDate,
+  normalizeDateInputValue,
+  toISOStartOfDay,
+  toISOEndOfDay
+} from '../../../utils'
 import { validateDateRange, applyDateValidationErrors, getValidityDatesFromRule } from '../utils'
 import { useGetMileageRuleById } from '../../../queries/ExpenseRuleQueries'
 import { useTableSorting, createFieldMappings } from '../hooks'
@@ -585,7 +592,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
         ...(isUpdate && { id: editingItem.id, version: editingItem.version }),
         expenseRuleId: ruleId,
         // Convert to ISO format for API (java.time.Instant)
-        activeTo: formValues.activeTo ? dayjs(formValues.activeTo).endOf('day').toISOString() : null
+        activeTo: formValues.activeTo ? toISOEndOfDay(formValues.activeTo) : null
       }
 
       // Only include other fields if not in restricted edit mode
@@ -597,7 +604,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
         saveData.taxValue = formValues.taxValue
         saveData.unitPrice = formValues.unitPrice
         // Convert to ISO format for API (java.time.Instant)
-        saveData.activeFrom = formValues.activeFrom ? dayjs(formValues.activeFrom).startOf('day').toISOString() : null
+        saveData.activeFrom = formValues.activeFrom ? toISOStartOfDay(formValues.activeFrom) : null
         saveData.expenseGroupRef = 'ExpenseGroup:v1:OTHER_TRANSPORT'
         saveData.measurementUnitRef = formValues.measurementUnitRef
         saveData.mileageRuleId = formValues.mileageRuleId
@@ -1339,7 +1346,8 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                       <FormControl>
                         <DateInput
                           value={field.value || ''}
-                          onChange={date => field.onChange(date)}
+                          onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                          outputFormat="iso"
                           disabled={isRestrictedEdit}
                           data-testid="mileage-rule-active-from-input"
                         />
@@ -1358,7 +1366,8 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                       <FormControl>
                         <DateInput
                           value={field.value || ''}
-                          onChange={date => field.onChange(date)}
+                          onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                          outputFormat="iso"
                           data-testid="mileage-rule-active-to-input"
                         />
                       </FormControl>

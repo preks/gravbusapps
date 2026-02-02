@@ -1,4 +1,8 @@
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import { toISOStartOfDay, toISOEndOfDay } from '../../../utils/dateUtils'
+
+dayjs.extend(utc)
 
 export interface AllowanceCodeFormValues {
   code: string
@@ -45,14 +49,14 @@ export interface AllowanceCodeSaveData {
  * Helper to format active date
  */
 const formatActiveFrom = (date: string | undefined): string | null => {
-  return date ? dayjs(date).startOf('day').toISOString() : null
+  return date ? toISOStartOfDay(date) || null : null
 }
 
 /**
  * Helper to format active to date
  */
 const formatActiveTo = (date: string | undefined): string | null => {
-  return date ? dayjs(date).endOf('day').toISOString() : null
+  return date ? toISOEndOfDay(date) || null : null
 }
 
 /**

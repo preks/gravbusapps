@@ -40,7 +40,7 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import { useSensors, useSensor, PointerSensor, KeyboardSensor } from '@dnd-kit/core'
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient'
-import { formatDateForInput } from '../../utils'
+import { formatDateForInput, normalizeDateInputValue } from '../../utils'
 import { useGetMileageRuleStandaloneById } from '../../queries/ExpenseRuleQueries'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { mileageRuleFormSchema } from '../../schemas'
@@ -737,9 +737,11 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
                       <DateInput
                         value={field.value || ''}
                         onChange={date => {
-                          field.onChange(date)
-                          setFormData(prev => ({ ...prev, activeFrom: date || '' }))
+                          const normalized = normalizeDateInputValue(date) ?? ''
+                          field.onChange(normalized)
+                          setFormData(prev => ({ ...prev, activeFrom: normalized }))
                         }}
+                        outputFormat="iso"
                         data-testid="mileage-rule-form-active-from"
                       />
                     </FormControl>
@@ -757,9 +759,11 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
                       <DateInput
                         value={field.value || ''}
                         onChange={date => {
-                          field.onChange(date)
-                          setFormData(prev => ({ ...prev, activeTo: date || '' }))
+                          const normalized = normalizeDateInputValue(date) ?? ''
+                          field.onChange(normalized)
+                          setFormData(prev => ({ ...prev, activeTo: normalized }))
                         }}
+                        outputFormat="iso"
                         data-testid="mileage-rule-form-active-to"
                       />
                     </FormControl>
@@ -891,14 +895,18 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
                             <TableCell>
                               <DateInput
                                 value={detail.activeFrom || ''}
-                                onChange={date => updateDetail(index, 'activeFrom', date || '')}
+                                onChange={date =>
+                                  updateDetail(index, 'activeFrom', normalizeDateInputValue(date) || '')
+                                }
+                                outputFormat="iso"
                                 data-testid={`mileage-rule-form-detail-active-from-${stableId}`}
                               />
                             </TableCell>
                             <TableCell>
                               <DateInput
                                 value={detail.activeTo || ''}
-                                onChange={date => updateDetail(index, 'activeTo', date || '')}
+                                onChange={date => updateDetail(index, 'activeTo', normalizeDateInputValue(date) || '')}
+                                outputFormat="iso"
                                 data-testid={`mileage-rule-form-detail-active-to-${stableId}`}
                               />
                             </TableCell>

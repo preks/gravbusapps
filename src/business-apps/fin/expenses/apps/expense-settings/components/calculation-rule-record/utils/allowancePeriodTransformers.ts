@@ -1,4 +1,8 @@
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import { toISOStartOfDay, toISOEndOfDay } from '../../../utils/dateUtils'
+
+dayjs.extend(utc)
 
 export interface AllowancePeriodFormValues {
   code: string
@@ -61,8 +65,8 @@ export const transformAllowancePeriodForRestrictedUpdate = (
   expenseRuleId: ruleId,
   code: editingItem.code,
   name: editingItem.name,
-  activeFrom: editingItem.activeFrom ? dayjs(editingItem.activeFrom).startOf('day').toISOString() : null,
-  activeTo: formValues.activeTo ? dayjs(formValues.activeTo).endOf('day').toISOString() : null,
+  activeFrom: editingItem.activeFrom ? toISOStartOfDay(editingItem.activeFrom) : null,
+  activeTo: formValues.activeTo ? toISOEndOfDay(formValues.activeTo) : null,
   fromTime: editingItem.fromTime,
   toTime: editingItem.toTime,
   minHours: editingItem.minHours,
@@ -81,7 +85,7 @@ export const transformAllowancePeriodForSave = (
   ...(editingItem && { id: editingItem.id, version: editingItem.version }),
   expenseRuleId: ruleId,
   businessKey: undefined,
-  activeTo: formValues.activeTo ? dayjs(formValues.activeTo).endOf('day').toISOString() : null,
+  activeTo: formValues.activeTo ? toISOEndOfDay(formValues.activeTo) : null,
   additionalProperties: undefined,
   code: formValues.code,
   name: formValues.name,
@@ -92,6 +96,6 @@ export const transformAllowancePeriodForSave = (
   midnightRule: formValues.midnightRule,
   startAfter: formValues.startAfter,
   returnBefore: formValues.returnBefore,
-  activeFrom: formValues.activeFrom ? dayjs(formValues.activeFrom).startOf('day').toISOString() : null,
+  activeFrom: formValues.activeFrom ? toISOStartOfDay(formValues.activeFrom) : null,
   periodOrder: formValues.order
 })

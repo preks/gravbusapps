@@ -10,7 +10,7 @@ import {
   DateInput
 } from '@newwork/nw-design-system'
 import { EditableCell, CurrencyOption, EditableAllowanceRegionRule } from '../types'
-import { formatDateForInput } from '../../../utils'
+import { formatDateForInput, normalizeDateInputValue } from '../../../utils'
 
 interface MatrixCellEditModalContentProps {
   cell: EditableCell
@@ -48,9 +48,11 @@ const DateField: React.FC<{
       id={`${fieldName}-field`}
       value={formatDateForInput(value) || ''}
       onChange={date => {
-        const dateValue = date ? `${date}T00:00:00+00:00` : undefined
+        const normalized = normalizeDateInputValue(date)
+        const dateValue = normalized ? `${normalized}T00:00:00+00:00` : undefined
         onUpdate(fieldName, dateValue)
       }}
+      outputFormat="iso"
       disabled={disabled}
       data-testid={testId}
     />

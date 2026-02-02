@@ -31,7 +31,8 @@ export const transformAllowanceSetupForRestrictedUpdate = (
   formValues: AllowanceSetupFormValues,
   editingItem: any,
   ruleId: string,
-  formatDate: (dateStr: string | undefined) => string | undefined
+  formatDateFrom: (dateStr: string | undefined) => string | undefined,
+  formatDateTo: (dateStr: string | undefined) => string | undefined
 ): AllowanceSetupSaveData => {
   return {
     id: editingItem.id,
@@ -40,8 +41,8 @@ export const transformAllowanceSetupForRestrictedUpdate = (
     name: editingItem.name,
     issue: editingItem.issue,
     onlyTax: editingItem.onlyTax,
-    activeFrom: formatDate(editingItem.activeFrom),
-    activeTo: formatDate(formValues.activeTo),
+    activeFrom: formatDateFrom(editingItem.activeFrom),
+    activeTo: formatDateTo(formValues.activeTo),
     allowancePeriodId: editingItem.allowancePeriod.id,
     allowanceCodeId: editingItem.allowanceCode.id
   }
@@ -54,7 +55,8 @@ export const transformAllowanceSetupForSave = (
   formValues: AllowanceSetupFormValues,
   ruleId: string,
   editingItem: Record<string, unknown> | null,
-  formatDate: (dateStr: string | undefined) => string | undefined
+  formatDateFrom: (dateStr: string | undefined) => string | undefined,
+  formatDateTo: (dateStr: string | undefined) => string | undefined
 ): AllowanceSetupSaveData => {
   const isUpdate = !!editingItem
 
@@ -65,8 +67,8 @@ export const transformAllowanceSetupForSave = (
     name: formValues.name,
     issue: formValues.issue,
     onlyTax: formValues.onlyTax,
-    activeFrom: formatDate(formValues.activeFrom),
-    activeTo: formatDate(formValues.activeTo),
+    activeFrom: formatDateFrom(formValues.activeFrom),
+    activeTo: formatDateTo(formValues.activeTo),
     setupOrder: undefined,
     additionalProperties: undefined,
     allowancePeriodId: formValues.allowancePeriodId,

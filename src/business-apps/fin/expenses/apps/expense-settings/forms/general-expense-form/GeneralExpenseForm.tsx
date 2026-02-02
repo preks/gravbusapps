@@ -31,10 +31,48 @@ import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogMan
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
 import { createGeneralExpenseFormSchema, type GeneralExpenseFormSchema } from '../../schemas'
-import { formatDateForInput, checkPeriodUniqueness } from '../../utils'
+import { formatDateForInput, checkPeriodUniqueness, normalizeDateInputValue } from '../../utils'
 import { UsageInfo } from '../../types'
 
 export type GeneralExpenseFormData = GeneralExpenseFormSchema
+
+const shouldLogExpenseSettingsDateDebug = (): boolean => {
+  try {
+    if (typeof window === 'undefined') return false
+    const isEnabledViaSearch = (w: Window): boolean => {
+      try {
+        const params = new URLSearchParams(w.location.search)
+        return params.get('debugExpenseSettingsDates') === '1'
+      } catch {
+        return false
+      }
+    }
+
+    if (
+      isEnabledViaSearch(window) ||
+      (window.parent !== window && isEnabledViaSearch(window.parent)) ||
+      (window.top ? window.top !== window && isEnabledViaSearch(window.top) : false)
+    ) {
+      return true
+    }
+
+    const isEnabledViaLocalStorage = (w: Window): boolean => {
+      try {
+        return w.localStorage?.getItem('debugExpenseSettingsDates') === '1'
+      } catch {
+        return false
+      }
+    }
+
+    return (
+      isEnabledViaLocalStorage(window) ||
+      (window.parent !== window && isEnabledViaLocalStorage(window.parent)) ||
+      (window.top ? window.top !== window && isEnabledViaLocalStorage(window.top) : false)
+    )
+  } catch {
+    return false
+  }
+}
 
 // Re-export UsageInfo for backward compatibility
 export type { UsageInfo } from '../../types'
@@ -507,7 +545,17 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
                     <FormControl>
                       <DateInput
                         value={field.value || ''}
-                        onChange={date => field.onChange(date)}
+                        onChange={date => {
+                          const normalized = normalizeDateInputValue(date) ?? ''
+                          if (shouldLogExpenseSettingsDateDebug()) {
+                            console.warn('[expense-settings][GeneralExpenseForm] activeFrom change', {
+                              raw: date,
+                              normalized
+                            })
+                          }
+                          field.onChange(normalized)
+                        }}
+                        outputFormat="iso"
                         disabled={isRestrictedEdit}
                         data-testid="general-expense-active-from-input"
                       />
@@ -526,7 +574,17 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
                     <FormControl>
                       <DateInput
                         value={field.value || ''}
-                        onChange={date => field.onChange(date)}
+                        onChange={date => {
+                          const normalized = normalizeDateInputValue(date) ?? ''
+                          if (shouldLogExpenseSettingsDateDebug()) {
+                            console.warn('[expense-settings][GeneralExpenseForm] activeTo change', {
+                              raw: date,
+                              normalized
+                            })
+                          }
+                          field.onChange(normalized)
+                        }}
+                        outputFormat="iso"
                         data-testid="general-expense-active-to-input"
                       />
                     </FormControl>

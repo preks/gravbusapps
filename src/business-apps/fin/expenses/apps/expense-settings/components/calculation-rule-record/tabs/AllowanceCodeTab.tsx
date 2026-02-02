@@ -65,7 +65,7 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
-import { formatDateForInput, formatDate, checkPeriodUniqueness } from '../../../utils'
+import { formatDateForInput, formatDate, checkPeriodUniqueness, normalizeDateInputValue } from '../../../utils'
 import {
   validateAmountAndPercentage,
   validateAllowanceCodeDates,
@@ -1536,9 +1536,10 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                           <DateInput
                             value={field.value || ''}
                             onChange={date => {
-                              field.onChange(date)
+                              field.onChange(normalizeDateInputValue(date) ?? '')
                               form.clearErrors('activeFrom')
                             }}
+                            outputFormat="iso"
                             disabled={isRestrictedEdit}
                             data-testid="allowance-code-valid-from-input"
                           />
@@ -1559,9 +1560,10 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                           <DateInput
                             value={field.value || ''}
                             onChange={date => {
-                              field.onChange(date)
+                              field.onChange(normalizeDateInputValue(date) ?? '')
                               form.clearErrors('activeTo')
                             }}
+                            outputFormat="iso"
                             data-testid="allowance-code-valid-to-input"
                           />
                         </FormControl>

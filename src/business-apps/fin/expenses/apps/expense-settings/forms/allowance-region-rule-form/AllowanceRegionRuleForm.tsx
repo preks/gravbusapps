@@ -21,6 +21,7 @@ import {
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient'
+import { normalizeDateInputValue } from '../../utils'
 import dayjs from 'dayjs'
 import { allowanceRegionRuleFormSchema } from '../../schemas'
 
@@ -254,7 +255,8 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
                       <FormControl>
                         <DateInput
                           value={field.value || ''}
-                          onChange={date => field.onChange(date)}
+                          onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                          outputFormat="iso"
                           data-testid={`${prefixDataTestId}-active-from-input`}
                           disabled={isSubmitting}
                         />
@@ -275,7 +277,8 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
                       <FormControl>
                         <DateInput
                           value={field.value || ''}
-                          onChange={date => field.onChange(date)}
+                          onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                          outputFormat="iso"
                           data-testid={`${prefixDataTestId}-active-to-input`}
                           disabled={isSubmitting}
                         />

@@ -38,7 +38,7 @@ dayjs.extend(localeData)
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { SaveExpenseRuleAssignmentInput, ExpenseRule, ExpenseRuleAssignment } from '../../types/ExpenseRuleTypes'
 import { useGetExpenseRuleAssignmentById } from '../../queries/ExpenseRuleQueries'
-import { formatDateForInput } from '../../utils'
+import { formatDateForInput, normalizeDateInputValue } from '../../utils'
 import { assignmentFormSchema } from '../../schemas'
 
 export interface AssignmentFormData {
@@ -735,7 +735,8 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                           <FormControl>
                             <DateInput
                               value={field.value || ''}
-                              onChange={date => field.onChange(date)}
+                              onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                              outputFormat="iso"
                               data-testid="assignment-form-active-from"
                             />
                           </FormControl>
@@ -758,7 +759,8 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                           <FormControl>
                             <DateInput
                               value={field.value || ''}
-                              onChange={date => field.onChange(date)}
+                              onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                              outputFormat="iso"
                               data-testid="assignment-form-active-to"
                             />
                           </FormControl>

@@ -59,7 +59,7 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
-import { formatDateForInput, checkPeriodUniqueness, formatDate } from '../../../utils'
+import { formatDateForInput, checkPeriodUniqueness, formatDate, normalizeDateInputValue } from '../../../utils'
 import {
   validateDateRange,
   applyDateValidationErrors,
@@ -1201,7 +1201,8 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         <FormControl>
                           <DateInput
                             value={field.value || ''}
-                            onChange={date => field.onChange(date)}
+                            onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                            outputFormat="iso"
                             disabled={isRestrictedEdit}
                             data-testid="allowance-period-valid-from-input"
                           />
@@ -1221,7 +1222,8 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         <FormControl>
                           <DateInput
                             value={field.value || ''}
-                            onChange={date => field.onChange(date)}
+                            onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                            outputFormat="iso"
                             data-testid="allowance-period-valid-to-input"
                           />
                         </FormControl>

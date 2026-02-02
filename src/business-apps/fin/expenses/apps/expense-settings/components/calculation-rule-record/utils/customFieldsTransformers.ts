@@ -1,4 +1,8 @@
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import { toISOStartOfDay, toISOEndOfDay } from '../../../utils/dateUtils'
+
+dayjs.extend(utc)
 
 export interface CustomFieldFormValues {
   source: 'Expense' | 'Mileage'
@@ -57,8 +61,8 @@ export const transformCustomFieldForRestrictedUpdate = (
   source: mapSourceToApiEnum(editingItem.source),
   infoValue: formValues.infoValue,
   mandatory: editingItem.mandatory as unknown as boolean,
-  activeFrom: editingItem.activeFrom ? dayjs(editingItem.activeFrom).startOf('day').toISOString() : null,
-  activeTo: formValues.activeTo ? dayjs(formValues.activeTo).endOf('day').toISOString() : null,
+  activeFrom: editingItem.activeFrom ? toISOStartOfDay(editingItem.activeFrom) : null,
+  activeTo: formValues.activeTo ? toISOEndOfDay(formValues.activeTo) : null,
   ...buildRelatedIds(editingItem.source, editingItem.relatedId)
 })
 
@@ -74,11 +78,11 @@ export const transformCustomFieldForSave = (
   ...(editingItem && { id: editingItem.id, version: editingItem.version }),
   expenseRuleId: ruleId,
   businessKey: undefined,
-  activeTo: formValues.activeTo ? dayjs(formValues.activeTo).endOf('day').toISOString() : null,
+  activeTo: formValues.activeTo ? toISOEndOfDay(formValues.activeTo) : null,
   additionalProperties: undefined,
   source: mapSourceToApiEnum(formValues.source),
   infoValue: formValues.infoValue,
   mandatory: formValues.mandatory,
-  activeFrom: formValues.activeFrom ? dayjs(formValues.activeFrom).startOf('day').toISOString() : null,
+  activeFrom: formValues.activeFrom ? toISOStartOfDay(formValues.activeFrom) : null,
   ...buildRelatedIds(formValues.source, formValues.relatedId)
 })
