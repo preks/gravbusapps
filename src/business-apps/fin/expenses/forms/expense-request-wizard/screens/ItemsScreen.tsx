@@ -172,7 +172,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
           ...countVariables,
           limit: Number(apiNeeded),
           offset: Math.max(0, Number(apiOffset)),
-          titleSearch: searchQuery ? `%${searchQuery}%` : '%%'
+          titleSearch: searchQuery ? `%${searchQuery}%` : '%'
         }
         const response = await graphQLClient.request(fetchEmployeeExpenseItems, variables)
         items = response?.ExpenseItemEmployee || []
@@ -588,16 +588,13 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
         >
           <SearchBarWithLabel
             onSearch={handleSearch}
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:modify_expense_request.expense_header_title',
-              'My Expense Items'
-            )}
-            label={
+            placeholder={
               getTranslationFromI18nKeyAndLabel(
                 'lowcoder:modify_expense_request.search_module',
                 'Search In Expense Items List'
               ) + ` (${totalItems})`
             }
+            alwaysExpanded
             data-testid="expense-request-wizard-search-bar"
           />
         </div>
