@@ -120,6 +120,11 @@ const removeLeadingZeros = (value: string): string => {
   const sign = hasNegativeSign ? '-' : ''
   let core = hasNegativeSign ? value.substring(1) : value
 
+  // If core is empty (just typed "-"), keep it empty
+  if (core === '') {
+    return sign
+  }
+
   if (core.includes('.')) {
     core = core.replace(/^0+/, '')
     if (core === '' || core.startsWith('.')) {
@@ -157,7 +162,7 @@ const validateRange = (
     return {
       isValid: false,
       cleanedValue: value,
-      error: `Value cannot be less than ${minValue}`
+      error: `Cannot reduce by more than ${Math.abs(minValue).toLocaleString()}`
     }
   }
 
@@ -178,11 +183,21 @@ export const validateNumericInput = (
     minValue?: number
   } = {}
 ): ValidationResult => {
-  const { maxDecimals = 2, allowNegative = false, maxValue, minValue } = options
+  const { maxDecimals = 2, allowNegative = false } = options
 
   // Remove non-numeric characters (except decimal and minus)
   const pattern = allowNegative ? /[^\d.-]/g : /[^\d.]/g
   let cleanValue = value.replace(pattern, '')
+
+  // CRITICAL: Limit total digits to prevent absurd numbers (15 digits is JS safe integer limit)
+  const digitsOnly = cleanValue.replace(/[.-]/g, '')
+  if (digitsOnly.length > 15) {
+    return {
+      isValid: false,
+      cleanedValue: currentValue, // Keep current value instead of invalid input
+      error: 'Number is too large (max 15 digits)'
+    }
+  }
 
   // Apply normalization steps
   cleanValue = normalizeNegativeSign(cleanValue, currentValue, allowNegative)
@@ -190,11 +205,8 @@ export const validateNumericInput = (
   cleanValue = limitDecimalPlaces(cleanValue, maxDecimals)
   cleanValue = removeLeadingZeros(cleanValue)
 
-  // Validate range
-  const rangeError = validateRange(cleanValue, maxValue, minValue)
-  if (rangeError) {
-    return rangeError
-  }
+  // Note: Range validation (min/max) is handled in useNumericInput hook with clamping
+  // Here we only reject absurd digit counts to prevent JavaScript precision issues
 
   return {
     isValid: true,
