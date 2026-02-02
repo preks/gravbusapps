@@ -364,9 +364,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const titleInputRef = useRef<HTMLInputElement>(null)
     const editorRef = useRef<any>(null) // Store editor instance
 
-  useEffect(() => {
-    DocumentApiService.setAccessToken(accessTokenProp || null)
-  }, [accessTokenProp])
+    useEffect(() => {
+      DocumentApiService.setAccessToken(accessTokenProp || null)
+    }, [accessTokenProp])
 
     // Current user (used for Yjs awareness user info)
     const [currentUserId, setCurrentUserId] = useState<string | null>(null)
@@ -424,9 +424,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       apiService: DocumentApiService,
       autoSaveEnabled: !!document?.id && !isReadOnly,
       autoSaveInterval: 30000,
-      onVersionCreated: version => {
-        console.log('[PagedDocumentEditor] Version created:', version.version)
-      }
+      onVersionCreated: () => {}
     })
 
     const comments = useComments({
@@ -473,9 +471,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           if (!ed) {
             throw new Error('Editor not ready for bootstrap')
           }
-          console.log('[PagedDocumentEditor] Bootstrap: setting content:', html?.substring(0, 100))
-          console.log('[PagedDocumentEditor] Bootstrap: editor exists:', !!ed)
-          console.log('[PagedDocumentEditor] Bootstrap: editor isEditable BEFORE:', ed.isEditable)
 
           // Temporarily make editor editable for setContent to work with Collaboration extension
           const wasEditable = ed.isEditable
@@ -487,14 +482,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
           // Give TipTap time to propagate the change to Yjs
           await new Promise(resolve => setTimeout(resolve, 100))
-
-          // Debug: check what's in the Y.Doc now (TipTap uses 'default' fragment by default)
-          const defaultFragment = ydoc.getXmlFragment('default')
-          console.log('[PagedDocumentEditor] Bootstrap: Y.Doc default fragment length:', defaultFragment.length)
-          console.log('[PagedDocumentEditor] Bootstrap: Y.Doc default fragment:', defaultFragment.toJSON())
-          // Also check the editor's current content
-          console.log('[PagedDocumentEditor] Bootstrap: editor HTML after setContent:', ed.getHTML())
-          console.log('[PagedDocumentEditor] Bootstrap: editor isEditable AFTER:', ed.isEditable)
 
           // Note: Don't restore editable to false - the bootstrap process will mark sync as complete
           // which will trigger the setEditable effect to set the correct state
@@ -776,13 +763,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     // Update refs when values change
     useEffect(() => {
       editorRef.current = editor
-      // Debug: check if Collaboration extension is loaded
-      if (editor) {
-        const extensionNames = editor.extensionManager.extensions.map(e => e.name)
-        console.log('[PagedDocumentEditor] Loaded extensions:', extensionNames.join(', '))
-        const hasCollaboration = extensionNames.includes('collaboration')
-        console.log('[PagedDocumentEditor] Has Collaboration extension:', hasCollaboration)
-      }
     }, [editor])
 
     // Expose insertAtCursor for template "Insert field" panel
@@ -803,16 +783,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       // For new documents (no ID), always editable if not read-only
       // For existing documents, check Yjs sync and lock status
       const shouldBeEditable = !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit))
-      console.log('[PagedDocumentEditor] Editable state check:', {
-        isReadOnly,
-        hasDocId: !!document?.id,
-        isYjsSynced,
-        canEdit: fileLock.canEdit,
-        shouldBeEditable,
-        currentIsEditable: editor.isEditable
-      })
       if (editor.isEditable !== shouldBeEditable) {
-        console.log('[PagedDocumentEditor] Setting editor editable to:', shouldBeEditable)
         editor.setEditable(shouldBeEditable)
       }
     }, [editor, isReadOnly, document?.id, isYjsSynced, fileLock.canEdit])
@@ -1517,11 +1488,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             versions={versioning.versions}
             isLoading={versioning.isLoading}
             onRestore={async versionNumber => {
-              console.log('[PagedDocumentEditor] Restoring to version:', versionNumber)
-
               // Get the version data first
               const versionData = await DocumentApiService.getVersion(document.id, versionNumber)
-              console.log('[PagedDocumentEditor] Version data retrieved:', versionData)
 
               if (!versionData) {
                 console.error('[PagedDocumentEditor] Failed to get version data')
@@ -1530,16 +1498,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
               // Now restore on backend
               const success = await versioning.restoreVersion(versionNumber)
-              console.log('[PagedDocumentEditor] Backend restore result:', success)
 
               if (success && editor && versionData.content) {
-                // Update editor content directly
-                console.log('[PagedDocumentEditor] Updating editor with restored content...')
                 editor.commands.setContent(versionData.content)
                 setTitle(versionData.title)
                 setHasUnsavedChanges(false)
                 setLastSaved(new Date())
-                console.log('[PagedDocumentEditor] Editor content updated!')
 
                 // Reload versions to show the new "Restored" checkpoint
                 await versioning.loadVersions()
