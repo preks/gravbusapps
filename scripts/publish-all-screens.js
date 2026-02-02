@@ -3,47 +3,21 @@
  * Publish ALL screens to DEV
  * - Uses the existing single-screen dev publisher
  * - Does NOT rely on change detection; iterates every screen
- * - Non-interactive: passes --no-interaction to avoid prompts
+ * - Non-interactive: passes --ci to avoid prompts
  */
 
 import path from 'node:path'
 import fs from 'node:fs'
 import { execSync } from 'node:child_process'
-import { glob } from 'glob'
+import { getScreenDirectories } from './utils/screenDiscovery.js'
 
 async function findAllScreenDirectories() {
-  const appIndexFiles = await glob('src/business-apps/**/apps/*/index.ts', {
-    nodir: true,
-    dot: true
-  })
-  const formIndexFiles = await glob('src/business-apps/**/forms/*/index.ts', {
-    nodir: true,
-    dot: true
-  })
-  const popupIndexFiles = await glob('src/business-apps/**/popups/*/index.ts', {
-    nodir: true,
-    dot: true
-  })
-  const recordIndexFiles = await glob('src/business-apps/**/records/*/index.ts', {
-    nodir: true,
-    dot: true
-  })
-  const windowIndexFiles = await glob('src/business-apps/**/windows/*/index.ts', {
-    nodir: true,
-    dot: true
-  })
-
-  const allIndexFiles = [
-    ...appIndexFiles,
-    ...formIndexFiles,
-    ...popupIndexFiles,
-    ...recordIndexFiles,
-    ...windowIndexFiles
-  ]
   const uniqueDirs = new Set()
 
-  for (const filePath of allIndexFiles) {
-    const dir = path.dirname(filePath)
+  const projectRootDir = path.resolve(__dirname, '..')
+  const screenDirs = await getScreenDirectories({ cwd: projectRootDir })
+
+  for (const dir of screenDirs) {
     // strip prefix 'src/business-apps/' to get publish path
     const publishPath = dir.replace(/^src[\\/]+business-apps[\\/]+/, '').replace(/\\/g, '/')
     if (publishPath) uniqueDirs.add(publishPath)
@@ -78,7 +52,7 @@ async function main() {
 
     console.log(`Publishing: ${publishPath}`)
     try {
-      execSync(`npm run publish:screen -- "${publishPath}" --no-interaction`, {
+      execSync(`npm run publish:screen -- "${publishPath}" --ci`, {
         stdio: 'inherit'
       })
     } catch {

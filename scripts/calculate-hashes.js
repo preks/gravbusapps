@@ -18,8 +18,8 @@ import { execSync } from 'node:child_process'
 import path, { dirname } from 'node:path'
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { glob } from 'glob'
 import { calculateScreenHash, loadHashFile, saveHashFile, configureGit } from './utils/componentHashUtils.js'
+import { getScreenDirectories } from './utils/screenDiscovery.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -57,39 +57,11 @@ function parseArgs() {
  * Find all screen directories in the project
  */
 async function findAllScreenDirectories() {
-  const appIndexFiles = await glob('src/business-apps/**/apps/*/index.ts', { cwd: projectRoot, nodir: true, dot: true })
-  const formIndexFiles = await glob('src/business-apps/**/forms/*/index.ts', {
-    cwd: projectRoot,
-    nodir: true,
-    dot: true
-  })
-  const popupIndexFiles = await glob('src/business-apps/**/popups/*/index.ts', {
-    cwd: projectRoot,
-    nodir: true,
-    dot: true
-  })
-  const recordIndexFiles = await glob('src/business-apps/**/records/*/index.ts', {
-    cwd: projectRoot,
-    nodir: true,
-    dot: true
-  })
-  const windowIndexFiles = await glob('src/business-apps/**/windows/*/index.ts', {
-    cwd: projectRoot,
-    nodir: true,
-    dot: true
-  })
-
-  const allIndexFiles = [
-    ...appIndexFiles,
-    ...formIndexFiles,
-    ...popupIndexFiles,
-    ...recordIndexFiles,
-    ...windowIndexFiles
-  ]
   const uniqueDirs = new Set()
 
-  for (const filePath of allIndexFiles) {
-    const dir = path.dirname(filePath)
+  const screenDirs = await getScreenDirectories({ cwd: projectRoot })
+
+  for (const dir of screenDirs) {
     const publishPath = dir.replace(/^src[\\/]+business-apps[\\/]+/, '').replace(/\\/g, '/')
     if (publishPath) uniqueDirs.add(publishPath)
   }
