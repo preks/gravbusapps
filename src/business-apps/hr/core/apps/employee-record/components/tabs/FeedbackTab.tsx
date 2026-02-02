@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData'
 import { Card, Avatar } from '@newwork/gravity-ui-catalog'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { Empty, Spin, Input, Select, Rate, Pagination } from 'antd'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT } from './queries/EmployeeFeedbackRequestQueries'
@@ -13,6 +13,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { startProcess } from '@/common/utils/start-process'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
+import translations from '../../_i18n'
 import { CalendarOutlined, SearchOutlined, DownloadOutlined } from '@ant-design/icons'
 import { useFlowExecutionTasks } from '@/business-apps/fin/expenses/apps/manager-expenses/hooks/useFlowExecutionTasks'
 import { PiPencilSimple } from 'react-icons/pi'
@@ -113,6 +114,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   employeeFeedback = [],
   isSelfView = false // Default to false if not provided
 }) => {
+  const { t } = useTranslation(translations)
   // State variables for feedback and requests
   const [localFeedback, setLocalFeedback] = useState<ExtendedEmployeeFeedback[]>([])
   // No local state needed for approval tasks in this column
@@ -554,6 +556,9 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                         data-testid="received-requests-pagination"
                         showSizeChanger
                         pageSizeOptions={['3', '10', '20', '50']}
+                        locale={{
+                          items_per_page: t('feedback-pagination-per-page')
+                        }}
                       />
                     </div>
                   </>
@@ -567,69 +572,83 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                   {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.col_requested', 'Feedback you requested')}
                 </h4>
               </div>
-              {requestsLoadingApproval ? (
-                <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
-                  <Spin size="default" />
-                </div>
-              ) : requestsErrorApproval ? (
-                <div className="gba:text-red-500">{requestsErrorApproval}</div>
-              ) : requestedFeedback.length === 0 ? (
-                <Empty
-                  description={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:feedback_tab.no_approval_requests',
-                    'No approval requests'
-                  )}
-                />
-              ) : (
-                <>
-                  <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
-                    {requestedFeedback.map(request => {
-                      const dateLabel = request.requestedOn ? (formatDate(request.requestedOn, 'date.short') ?? '') : ''
-                      const fromName = request.creatorName || '-'
-                      return (
-                        <Card
-                          key={request.id}
-                          className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1"
-                          size="small"
-                          data-testid={`requested-request-item-${request.id}`}
-                        >
-                          <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
-                            <div className="gba:flex gba:flex-col">
-                              <div className="gba:font-medium" data-testid={`requested-request-line-${request.id}`}>
-                                {getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:feedback_tab.from_since_text',
-                                  `From ${fromName} since ${dateLabel}`,
-                                  {
-                                    employee: fromName,
-                                    date: dateLabel,
-                                    interpolation: {
-                                      escapeValue: false
+              {(() => {
+                if (requestsLoadingApproval) {
+                  return (
+                    <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
+                      <Spin size="default" />
+                    </div>
+                  )
+                }
+                if (requestsErrorApproval) {
+                  return <div className="gba:text-red-500">{requestsErrorApproval}</div>
+                }
+                if (requestedFeedback.length === 0) {
+                  return (
+                    <Empty
+                      description={getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:feedback_tab.no_approval_requests',
+                        'No approval requests'
+                      )}
+                    />
+                  )
+                }
+                return (
+                  <>
+                    <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
+                      {requestedFeedback.map(request => {
+                        const dateLabel = request.requestedOn
+                          ? (formatDate(request.requestedOn, 'date.short') ?? '')
+                          : ''
+                        const fromName = request.creatorName || '-'
+                        return (
+                          <Card
+                            key={request.id}
+                            className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1"
+                            size="small"
+                            data-testid={`requested-request-item-${request.id}`}
+                          >
+                            <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
+                              <div className="gba:flex gba:flex-col">
+                                <div className="gba:font-medium" data-testid={`requested-request-line-${request.id}`}>
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:feedback_tab.from_since_text',
+                                    `From ${fromName} since ${dateLabel}`,
+                                    {
+                                      employee: fromName,
+                                      date: dateLabel,
+                                      interpolation: {
+                                        escapeValue: false
+                                      }
                                     }
-                                  }
-                                )}
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </Card>
-                      )
-                    })}
-                  </div>
-                  <div className="gba:mt-4 gba:flex gba:justify-end">
-                    <Pagination
-                      current={requestedCurrentPage}
-                      pageSize={requestedPageSize}
-                      total={requestedTotalCount ?? 0}
-                      onChange={(page, pageSize) => {
-                        setRequestedCurrentPage(page)
-                        setRequestedPageSize(pageSize)
-                      }}
-                      data-testid="requested-requests-pagination"
-                      showSizeChanger
-                      pageSizeOptions={['3', '10', '20', '50']}
-                    />
-                  </div>
-                </>
-              )}
+                          </Card>
+                        )
+                      })}
+                    </div>
+                    <div className="gba:mt-4 gba:flex gba:justify-end">
+                      <Pagination
+                        current={requestedCurrentPage}
+                        pageSize={requestedPageSize}
+                        total={requestedTotalCount ?? 0}
+                        onChange={(page, pageSize) => {
+                          setRequestedCurrentPage(page)
+                          setRequestedPageSize(pageSize)
+                        }}
+                        data-testid="requested-requests-pagination"
+                        showSizeChanger
+                        pageSizeOptions={['3', '10', '20', '50']}
+                        locale={{
+                          items_per_page: t('feedback-pagination-per-page')
+                        }}
+                      />
+                    </div>
+                  </>
+                )
+              })()}
             </div>
           </div>
         </div>

@@ -1,19 +1,25 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { Monitor, Workflow, Bot, Code2, Database, LayoutTemplate } from 'lucide-react'
+import { Monitor, Workflow, Bot, Code2, Database, LayoutTemplate, Sparkles } from 'lucide-react'
+import { Button, cn } from '@newwork/nw-design-system'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import {
   HeroSection,
   ToolCard,
   AIQuickStart,
   NeuralBackground,
   ConnectionsVisualization,
-  ToolCardProps
+  ToolCardProps,
+  OrchestratorView
 } from './components'
 
 export interface NewworkCreateProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
+
+type ViewMode = 'landing' | 'orchestrator'
 
 /**
  * NEWWORK CREATE - Premium landing page for the creation suite
@@ -25,8 +31,20 @@ export interface NewworkCreateProps extends BusinessAppContextProps {
  * - Functions
  * - Data Models
  * - Templates
+ *
+ * Also includes AI Orchestrator for unified component building.
  */
-export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': testId = 'create-workspace' }) => {
+export const NewworkCreate: React.FC<NewworkCreateProps> = ({
+  accessToken,
+  'data-testid': testId = 'create-workspace'
+}) => {
+  // Feature flag for AI features
+  const isDevEnabled = useFeature<boolean>(Feature.Dev.Enabled.Key)
+
+  // View mode state - landing page or orchestrator
+  const [viewMode, setViewMode] = useState<ViewMode>('landing')
+  const [orchestratorPrompt, setOrchestratorPrompt] = useState('')
+
   // Tool definitions
   const tools: Array<Omit<ToolCardProps, 'data-testid'> & { id: string }> = [
     {
@@ -94,66 +112,23 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
     }
   ]
 
-  // Handle AI quick start submission
+  // Handle AI quick start submission - now launches orchestrator
   const handleAIQuickStart = useCallback((prompt: string) => {
-    // Analyze the prompt to determine the best tool
-    const lowerPrompt = prompt.toLowerCase()
+    // Launch the AI Orchestrator with the prompt
+    setOrchestratorPrompt(prompt)
+    setViewMode('orchestrator')
+  }, [])
 
-    // Keywords that suggest different tools
-    const screenKeywords = [
-      'screen',
-      'dashboard',
-      'form',
-      'ui',
-      'interface',
-      'page',
-      'view',
-      'layout',
-      'list',
-      'table',
-      'chart'
-    ]
-    const flowKeywords = ['workflow', 'flow', 'process', 'approval', 'automate', 'sequence', 'step', 'trigger']
-    const taskExpertKeywords = ['task expert', 'ai assistant', 'bot', 'automate task', 'help with', 'assist']
-    const functionKeywords = ['function', 'serverless', 'code', 'script', 'logic', 'api', 'endpoint', 'lambda']
-    const dataModelKeywords = ['data model', 'entity', 'schema', 'database', 'structure', 'field', 'relationship']
+  // Handle orchestrator back button
+  const handleOrchestratorBack = useCallback(() => {
+    setViewMode('landing')
+    setOrchestratorPrompt('')
+  }, [])
 
-    // Score each tool based on keyword matches
-    const scores = {
-      screenBuilder: screenKeywords.filter(k => lowerPrompt.includes(k)).length,
-      flowCreator: flowKeywords.filter(k => lowerPrompt.includes(k)).length,
-      taskExperts: taskExpertKeywords.filter(k => lowerPrompt.includes(k)).length,
-      functions: functionKeywords.filter(k => lowerPrompt.includes(k)).length,
-      dataModels: dataModelKeywords.filter(k => lowerPrompt.includes(k)).length
-    }
-
-    // Find the highest scoring tool
-    const maxScore = Math.max(...Object.values(scores))
-
-    // Store the prompt for the target app to use
-    try {
-      sessionStorage.setItem('newworkCreatePrompt', prompt)
-    } catch {
-      // Ignore storage errors
-    }
-
-    // Navigate to the appropriate tool based on keyword scoring
-    if (maxScore > 0) {
-      if (scores.flowCreator === maxScore) {
-        navigateTo(buildPlatformUrl('/platform/apps/flow/apps/creator') + '#create')
-        return
-      } else if (scores.taskExperts === maxScore) {
-        navigateTo(buildPlatformUrl('/platform/create/prompt-manager'))
-        return
-      } else if (scores.functions === maxScore) {
-        navigateTo(buildPlatformUrl('/platform/create/function-manager'))
-        return
-      }
-      // Data models coming soon, fall through to default
-    }
-
-    // Default to AI Builder for screen creation
-    navigateTo(buildPlatformUrl('/platform/ai-builder'))
+  // Handle orchestrator completion
+  const handleOrchestratorComplete = useCallback((success: boolean) => {
+    console.log('Orchestrator completed:', success ? 'success' : 'with errors')
+    // Could show a toast or notification here
   }, [])
 
   // Handle tool card click
@@ -161,6 +136,22 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
     navigateTo(href)
   }, [])
 
+  // Render Orchestrator View
+  if (viewMode === 'orchestrator') {
+    return (
+      <div className="gba:min-h-screen gba:bg-background" data-testid={`${testId}-orchestrator`}>
+        <OrchestratorView
+          accessToken={accessToken}
+          initialPrompt={orchestratorPrompt}
+          onBack={handleOrchestratorBack}
+          onComplete={handleOrchestratorComplete}
+          data-testid={`${testId}-orchestrator-view`}
+        />
+      </div>
+    )
+  }
+
+  // Render Landing Page
   return (
     <div className="gba:min-h-screen gba:bg-background gba:relative" data-testid={testId}>
       {/* Neural Network Background - Subtle AI atmosphere */}
@@ -173,8 +164,28 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
         {/* Hero Section */}
         <HeroSection data-testid={`${testId}-hero`} />
 
-        {/* AI Quick Start Section */}
-        <AIQuickStart onSubmit={handleAIQuickStart} data-testid={`${testId}-ai-quickstart`} />
+        {/* AI Quick Start Section - Now launches orchestrator */}
+        {/* Disabled when dev.enabled feature flag is false */}
+        <div
+          className={cn(!isDevEnabled && 'gba:opacity-50 gba:pointer-events-none gba:select-none')}
+          title={!isDevEnabled ? 'AI features are not enabled in this environment' : undefined}
+        >
+          <AIQuickStart onSubmit={handleAIQuickStart} data-testid={`${testId}-ai-quickstart`} />
+
+          {/* Direct Orchestrator Access Button */}
+          <div className="gba:flex gba:justify-center gba:py-4">
+            <Button
+              variant="outline"
+              onClick={() => setViewMode('orchestrator')}
+              className="gba:flex gba:items-center gba:gap-2"
+              disabled={!isDevEnabled}
+              data-testid={`${testId}-orchestrator-button`}
+            >
+              <Sparkles className="gba:w-4 gba:h-4" />
+              Open AI Orchestrator
+            </Button>
+          </div>
+        </div>
 
         {/* Tools Grid Section */}
         <section className="gba:py-6 gba:px-6 gba:relative" data-testid={`${testId}-tools-section`}>
@@ -185,10 +196,10 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': tes
             {/* Section header */}
             <div className="gba:text-center gba:mb-6">
               <h2 className="gba:text-2xl gba:sm:text-3xl gba:font-bold gba:text-foreground gba:mb-2">
-                Choose your creation tool
+                Or choose a specific tool
               </h2>
               <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">
-                Everything you need to build enterprise applications, from UI screens to automated flows
+                Build individual components directly with our specialized creation tools
               </p>
             </div>
 

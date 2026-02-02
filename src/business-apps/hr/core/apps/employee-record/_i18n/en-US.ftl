@@ -321,8 +321,51 @@ employee-record-video-cannot-self = Cannot video call yourself
 
 # Employee Record - Tab labels
 employee-record-tab-summary = Summary
-employee-record-tab-hr-admin = HR Admin
-employee-record-tab-hr-growth = HR Growth
+employee-record-tab-hr-admin = HR Administration
+employee-record-tab-hr-growth = HR Development
+hr-growth-skills = Skills
+hr-growth-feedback = Feedback
+hr-growth-performance = Performance
+
+# Skills Tab
+skills-title = Employee Skills
+skills-description = View and manage employee skills and competencies
+skills-edit-button = Edit Skills
+skills-empty = No skills found
+skills-total = Total Skills
+skills-highest = Highest Skills
+skills-none = None
+skills-level = Level
+skills-category = Category
+skills-added = Added
+skills-updated = Updated
+skills-na = N/A
+skills-level-0 = No level assigned
+skills-level-1 = Beginner - Basic understanding
+skills-level-2 = Novice - Limited experience
+skills-level-3 = Intermediate - Working knowledge
+skills-level-4 = Advanced - Proficient
+skills-level-5 = Expert - Master level
+
+# Performance Tab
+performance-title = Performance Goals
+performance-description = View and manage employee performance goals
+performance-edit-button = Set New Goal
+performance-empty = No goals available
+performance-progress = progress
+performance-start-date = Start Date
+performance-due-date = Due Date
+performance-completion-date = Completion Date
+performance-status-on-track = On Track
+performance-status-behind-target = Behind Target
+performance-status-at-risk = At Risk
+performance-status-achieved = Achieved
+performance-status-not-achieved = Not Achieved
+performance-error-load = Failed to load performance data
+
+# Feedback Tab - Pagination
+feedback-pagination-per-page = / page
+
 employee-record-tab-compensation = Compensation
 employee-record-tab-time-tracking = Time Tracking
 employee-record-tab-absences = Absences
@@ -339,7 +382,8 @@ profile-header-no-manager = No manager
 profile-header-job-position = Job Position
 profile-header-cost-center = Cost Center
 profile-header-hire-date = Hire Date
-profile-header-fixed-term-until = Fixed Term until
+profile-header-fixed-term-until = Fixed-Term End Date
+profile-header-fixed-term-reason = Reason for Fixed Term
 profile-header-na = N/A
 
 # Profile Header - Time units (tenure)
@@ -354,3 +398,207 @@ profile-header-capabilities = Capabilities
 profile-header-skills = Skills
 profile-header-no-capabilities = No capabilities assigned
 profile-header-no-skills = No skills assigned
+
+# Summary Tab
+summary-overview = Employee Overview
+summary-description = View and edit employee profile
+summary-organization-chart = Organization Chart
+summary-job-information = Job Information
+summary-availability-schedule = Availability & Schedule
+summary-job-profile = Job Profile
+summary-job-family = Job Family
+summary-job-function = Job Function
+summary-job-level = Job Level
+summary-sap-number = SAP Number
+summary-current-status = Current Status
+summary-available = Available
+summary-unavailable = Unavailable
+summary-timezone = Timezone
+summary-weekly-hours = Weekly Hours
+summary-hours-per-week = { $hours } hours/week
+summary-not-specified = Not specified
+summary-quick-actions = Quick Actions
+summary-clock-in = Clock In
+summary-clock-out = Clock Out
+summary-request-absence = Request Absence
+summary-next-planned-absence = Next Planned Absence
+summary-out-of-office = Out of office
+summary-days = days
+summary-loading-upcoming-absence = Loading upcoming absence...
+summary-view-profile = View { $name }'s profile
+summary-day-mon = Mon
+summary-day-tue = Tue
+summary-day-wed = Wed
+summary-day-thu = Thu
+summary-day-fri = Fri
+summary-day-sat = Sat
+summary-day-sun = Sun
+summary-day-mon-short = M
+summary-day-tue-short = T
+summary-day-wed-short = W
+summary-day-thu-short = T
+summary-day-fri-short = F
+summary-day-sat-short = S
+summary-day-sun-short = S
+
+# HR Admin Tab
+hr-admin-subtab-details = Details
+hr-admin-subtab-employment = Employment
+hr-admin-subtab-documents = Documents
+hr-admin-subtab-change-log = Change Log
+hr-admin-subtab-hr-notes = HR Notes
+
+# Details Tab
+details-overview = Employee Details
+details-description = View employee personal information
+details-personal-data = Personal Data
+details-address = Address
+details-bank-account = Bank Account
+details-private-communication = Private Communication
+details-emergency-contact = Emergency Contact
+details-additional-attributes = Additional Attributes
+details-no-emergency-contact = No emergency contact information available
+details-label-salutation = Salutation
+details-label-academic-titles = Academic Titles
+details-label-first-name = First Name
+details-label-last-name = Last Name
+details-label-preferred-name = Preferred Name
+details-label-birth-name = Birth Name
+details-label-date-of-birth = Date of Birth
+details-label-place-of-birth = Place of Birth
+details-label-nationality = Nationality
+details-label-gender = Gender
+details-label-marital-status = Marital Status
+details-label-postal-code = Postal Code
+details-label-city = City
+details-label-country = Country
+details-label-address-line = Address Line
+details-label-bank-name = Bank Name
+details-label-account-holder = Account Holder
+details-label-iban = IBAN
+details-label-private-phone = Private Phone
+details-label-private-mobile = Private Mobile
+details-label-private-email = Private Email
+details-label-contact-name = Contact Name
+details-label-phone-number = Phone Number
+
+# Employment Tab
+employment-overview = Employment Data
+employment-description = View employment information and working conditions
+employment-profile = Employment Profile
+employment-working-conditions = Working Conditions
+employment-working-hours = Working Hours
+employment-payroll = Payroll
+employment-tax-information = Tax Information
+employment-label-employee-id = Employee ID
+employment-label-company = Company
+employment-label-job-position = Job Position
+employment-label-location = Location
+employment-label-organizational-unit = Organizational Unit
+employment-label-workspace = Workspace
+employment-label-management-level = Management Level
+employment-label-cost-center = Cost Center
+employment-label-employment-type = Employment Type
+employment-label-hire-date = Hire Date
+employment-label-fixed-term-until = Fixed Term until
+employment-label-contract-type = Contract Type
+employment-label-probation-end-date = Probation End Date
+employment-label-remote = Remote
+employment-label-exit-date = Exit Date
+employment-label-region = Region
+employment-label-vacation-entitlement-days = Vacation Entitlement (Days)
+employment-label-weekly-hours = Weekly Hours
+employment-label-fte = FTE (Full-Time Equivalent)
+employment-label-days-per-week = Days per Week
+employment-label-salary-group = Salary Group
+employment-label-payment-method = Payment Method
+employment-label-bank-account = Bank Account
+employment-label-bank-name = Bank Name
+employment-label-account-holder = Account Holder
+employment-label-full-time-equivalent = Full-Time Equivalent
+employment-label-tax-number = Tax Number
+employment-label-tax-identification-number = Tax Identification Number
+employment-label-social-security-number = Social Security Number
+employment-label-tax-bracket = Tax Bracket
+employment-label-church-affiliation = Church Affiliation
+employment-label-child-tax-allowance = Child Tax Allowance
+employment-label-health-insurance = Health Insurance
+employment-label-type-of-health-insurance = Type Of Health Insurance
+common-loading = Loading...
+
+# Change Log Categories
+changelog-category-personal = Personal Data
+changelog-category-address = Address & Communication
+changelog-category-org = Org Assignment
+changelog-category-employment = Employment
+changelog-category-financial = Financial
+changelog-category-skills = Skills & Capabilities
+changelog-category-documents = Documents
+
+# Change Log Entry Details
+changelog-label-channel = Channel
+changelog-label-category = Category
+changelog-label-timestamp = Timestamp
+changelog-label-created-by = Created by
+changelog-label-flow = Flow
+
+# Assets Tab
+assets-category = Category
+assets-brand-model = Brand & Model
+assets-serial-number = Serial Number
+assets-assignment-period = Assignment Period
+assets-condition = Condition
+assets-status = Status
+assets-total-assets = Total Assets
+assets-in-use = In Use
+assets-status-in-repair = In Repair
+assets-handed-over = Handed Over
+assets-status-available = Available
+assets-status-allocated = Allocated
+assets-status-in-repair-label = In Repair
+assets-status-retired = Retired
+assets-status-handed-over = Handed Over
+assets-status-in-use = In Use
+assets-not-available = N/A
+assets-error-loading-assets = Error Loading Assets
+assets-no-assets-assigned = No Assets Assigned
+assets-no-equipment-assigned-self = You don't have any equipment assigned to you at the moment.
+assets-no-equipment-assigned-employee = This employee doesn't have any equipment assigned at the moment.
+assets-assigned-equipment = Asset Summary
+assets-request-new-asset = Request New Asset
+assets-asset-assignment-history = Asset Assignment History
+assets-unknown = Unknown
+assets-to = to
+assets-expected = Expected
+assets-currently-active = Currently Active
+assets-start = Start
+assets-end = End
+assets-assignment-notes = Assignment Notes
+
+# Service Requests Tab
+service-requests-title = Service Requests
+service-requests-desc-self = Your submitted service requests
+service-requests-desc-other = Service requests submitted by { $name }
+service-requests-create-new = Service Portal
+service-requests-total = Total
+service-requests-active = Active
+service-requests-completed = Completed
+service-requests-completion-rate = Completion Rate
+service-requests-error = Error Loading Service Requests
+service-requests-no-steps = No steps defined
+service-requests-next-step = Next
+service-requests-completed-step = Completed
+service-requests-no-service-requests = No Service Requests
+service-requests-no-service-requests-desc-self = You have not submitted any service requests yet.
+service-requests-no-service-requests-desc-other = This employee has not submitted any service requests yet.
+service-requests-column-request = Request
+service-requests-column-status = Status
+service-requests-column-progress = Progress
+service-requests-column-created = Created
+service-requests-column-steps = Steps
+
+# Service Request Status Values
+service-requests-status-open = Open
+service-requests-status-in-progress = In Progress
+service-requests-status-completed = Completed
+service-requests-status-canceled = Canceled

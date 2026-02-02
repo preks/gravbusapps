@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { Spinner, Button, RecordLayout, Badge, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
-import { UserIcon, FileTextIcon, StarIcon, TrendUpIcon, LightbulbIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
+import {
+  UserIcon,
+  FileTextIcon,
+  StarIcon,
+  TrendUpIcon,
+  LightbulbIcon,
+  CurrencyDollarIcon,
+  CalendarIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'

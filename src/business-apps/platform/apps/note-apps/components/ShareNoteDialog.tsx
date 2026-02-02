@@ -31,6 +31,7 @@ import { Share2, Users, X, Search, Trash2, Eye, Pencil, MessageSquare, Send, Che
 import { toast } from 'sonner'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { env } from '@/common/env/EnvUtils'
+import { getCanonicalContentUrl } from '@/common/utils/navigationUtils'
 import type { NotePermission } from '../types'
 import { useShareUsersEnrichment } from '../hooks/useShareUsersEnrichment'
 
@@ -119,8 +120,8 @@ const sendBlinkNotifications = async (
 
     const workflowIds: string[] = []
 
-    // Build the note URL
-    const noteUrl = `/platform/apps/note-apps?noteId=${payload.noteId}&view=editor`
+    // Build the note URL using canonical URL
+    const noteUrl = getCanonicalContentUrl('note', { noteId: payload.noteId, view: 'editor' })
 
     for (const userId of payload.assigneeUserIds) {
       const entityLink = {

@@ -2,10 +2,11 @@
  * SpreadsheetHeader Component
  *
  * Top navigation bar with breadcrumbs, status indicators, and actions.
+ * When canEdit and onRename are provided, the app name is editable (like document-apps title).
  */
 
-import React, { memo } from 'react'
-import { Button, Badge } from '@newwork/nw-design-system'
+import React, { memo, useState, useEffect, useCallback } from 'react'
+import { Button, Badge, Input } from '@newwork/nw-design-system'
 import { ChevronRight, Eye, Home, FileSpreadsheet, MessageSquare, Lock } from 'lucide-react'
 import { getIconByName } from '../utils/appIcons'
 import { StatusIndicators } from './StatusIndicators'
@@ -62,6 +63,9 @@ export interface SpreadsheetHeaderProps {
   onOpenAutomations: () => void
   onEdit?: () => void
 
+  /** When provided and canEdit, the app name is editable (rename). Same pattern as document-apps. */
+  onRename?: (newName: string) => void
+
   testId: string
 }
 
@@ -88,8 +92,32 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   onManageColumns,
   onOpenAutomations,
   onEdit,
+  onRename,
   testId
 }) {
+  const [localName, setLocalName] = useState(app.name)
+  useEffect(() => {
+    setLocalName(app.name)
+  }, [app.name])
+
+  const handleNameBlur = useCallback(() => {
+    const trimmed = localName.trim()
+    if (onRename && trimmed && trimmed !== app.name) {
+      onRename(trimmed)
+    } else if (!trimmed) {
+      setLocalName(app.name)
+    }
+  }, [localName, app.name, onRename])
+
+  const handleNameKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        ;(e.target as HTMLInputElement).blur()
+      }
+    },
+    []
+  )
+
   return (
     <div className="gba:px-4 gba:py-3 gba:border-b gba:border-border/50">
       <div className="gba:flex gba:items-center gba:justify-between gba:min-w-0 gba:w-full">
@@ -121,7 +149,19 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
               </div>
             </div>
             <div className="gba:min-w-0 gba:flex-1">
-              <h1 className="gba:text-base gba:font-semibold gba:text-foreground gba:truncate">{app.name}</h1>
+              {canEdit && onRename ? (
+                <Input
+                  value={localName}
+                  onChange={e => setLocalName(e.target.value)}
+                  onBlur={handleNameBlur}
+                  onKeyDown={handleNameKeyDown}
+                  placeholder="Spreadsheet name"
+                  className="gba:text-base gba:font-semibold gba:border-0 gba:px-0 gba:h-auto gba:bg-transparent focus-visible:gba:ring-0 focus-visible:gba:ring-offset-0 gba:rounded-none"
+                  data-testid={`${testId}-name-input`}
+                />
+              ) : (
+                <h1 className="gba:text-base gba:font-semibold gba:text-foreground gba:truncate">{app.name}</h1>
+              )}
               {app.description && (
                 <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[300px]">
                   {app.description}

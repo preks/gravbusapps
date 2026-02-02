@@ -10,7 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { Search, Plus, FileText, FileSpreadsheet, StickyNote, X, ArrowRight, Clock } from 'lucide-react'
+import { Search, Plus, FileText, FileSpreadsheet, StickyNote, Presentation, X, ArrowRight, Clock } from 'lucide-react'
 import type { ContentItem } from '../hooks/useDeskData'
 import { useDocumentPresence } from '../hooks/useDocumentPresence'
 
@@ -45,6 +45,12 @@ const typeConfig = {
     color: 'gba:text-amber-600',
     bg: 'gba:bg-amber-500/10',
     label: 'Note'
+  },
+  slide: {
+    icon: Presentation,
+    color: 'gba:text-info',
+    bg: 'gba:bg-info/10',
+    label: 'Presentation'
   }
 }
 
@@ -236,15 +242,17 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
 
   // Group results by type
   const groupedResults = useMemo(() => {
-    const groups: { type: 'document' | 'spreadsheet' | 'note'; items: ContentItem[] }[] = []
+    const groups: { type: 'document' | 'spreadsheet' | 'note' | 'slide'; items: ContentItem[] }[] = []
 
     const docs = limitedResults.filter(r => r.type === 'document')
     const sheets = limitedResults.filter(r => r.type === 'spreadsheet')
     const notesItems = limitedResults.filter(r => r.type === 'note')
+    const slidesItems = limitedResults.filter(r => r.type === 'slide')
 
     if (docs.length > 0) groups.push({ type: 'document', items: docs })
     if (sheets.length > 0) groups.push({ type: 'spreadsheet', items: sheets })
     if (notesItems.length > 0) groups.push({ type: 'note', items: notesItems })
+    if (slidesItems.length > 0) groups.push({ type: 'slide', items: slidesItems })
 
     return groups
   }, [limitedResults])

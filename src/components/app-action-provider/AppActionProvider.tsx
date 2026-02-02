@@ -129,7 +129,9 @@ export const AppActionProvider: React.FC<AppActionProviderProps> = props => {
             ...mergedPayload
           },
           builderType: first.builderType || 'NATIVE_SCREEN',
-          skipScreen: true
+          skipScreen: true,
+          targetDesktop: first.targetDesktop,
+          targetMobile: first.targetMobile
         } as any)
 
         // Wait for the process to complete

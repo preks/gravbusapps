@@ -30,16 +30,18 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   }
 
   return (
-    <div className="gba:flex gba:items-center gba:gap-2 gba:p-4 gba:border-t">
-      <Input
-        value={message}
-        onChange={e => setMessage(e.target.value)}
-        onKeyPress={handleKeyPress}
-        placeholder={placeholder}
-        disabled={disabled}
-        className="gba:flex-1"
-        data-testid="chat-input-field"
-      />
+    <div className="gba:flex gba:items-center gba:gap-2 gba:p-4 gba:border-t gba:border-border gba:bg-background/60 gba:backdrop-blur-md gba:w-full">
+      <div className="gba:flex-1 gba:w-full">
+        <Input
+          value={message}
+          onChange={e => setMessage(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder={placeholder}
+          disabled={disabled}
+          className="gba:w-full"
+          data-testid="chat-input-field"
+        />
+      </div>
       <Button onClick={handleSend} disabled={disabled || !message.trim()} size="default" data-testid="chat-send-button">
         <Send className="gba:h-4 gba:w-4" />
       </Button>

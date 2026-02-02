@@ -137,6 +137,7 @@ export const GET_EMPLOYEE_DETAILS = /*sql*/ `
           hireDate
           vacationDays
           exitDate
+          additionalProperties
         }
       }
     }
