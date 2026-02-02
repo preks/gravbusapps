@@ -6,6 +6,7 @@ import { Plus, Clock, FileCode, Search, Trash2, Folder, Settings } from 'lucide-
 import { DebouncedInput } from '@/components/debounced-input'
 import { SessionMetadata } from '../types/session'
 import { IndexingProgress } from './IndexingProgress'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface SessionListProps {
   sessions: SessionMetadata[]
@@ -55,13 +56,29 @@ export const SessionList: React.FC<SessionListProps> = ({
       const hours = Math.floor(diff / (1000 * 60 * 60))
       if (hours === 0) {
         const minutes = Math.floor(diff / (1000 * 60))
-        return minutes <= 1 ? 'Just now' : `${minutes} minutes ago`
+        return minutes <= 1
+          ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.just_now', 'Just now')
+          : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.minutes_ago', `${minutes} minutes ago`, {
+              count: minutes
+            })
       }
-      return hours === 1 ? '1 hour ago' : `${hours} hours ago`
+      return hours === 1
+        ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.hour_ago', '1 hour ago')
+        : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.hours_ago', `${hours} hours ago`, {
+            count: hours
+          })
     }
-    if (days === 1) return 'Yesterday'
-    if (days < 7) return `${days} days ago`
-    if (days < 30) return `${Math.floor(days / 7)} weeks ago`
+    if (days === 1) return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.yesterday', 'Yesterday')
+    if (days < 7)
+      return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.days_ago', `${days} days ago`, {
+        count: days
+      })
+    if (days < 30)
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:ai_builder.sessions.weeks_ago',
+        `${Math.floor(days / 7)} weeks ago`,
+        { count: Math.floor(days / 7) }
+      )
     return date.toLocaleDateString()
   }
 
@@ -95,9 +112,14 @@ export const SessionList: React.FC<SessionListProps> = ({
         {/* Header */}
         <div className="gba:flex gba:items-center gba:justify-between">
           <div>
-            <h1 className="gba:text-3xl gba:font-bold gba:text-foreground">AI Builder Sessions</h1>
+            <h1 className="gba:text-3xl gba:font-bold gba:text-foreground">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.title', 'AI Builder Sessions')}
+            </h1>
             <p className="gba:text-muted-foreground gba:mt-1">
-              Continue working on existing screens or start a new project
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:ai_builder.sessions.description',
+                'Continue working on existing screens or start a new project'
+              )}
             </p>
           </div>
           <div className="gba:flex gba:items-center gba:gap-3">
@@ -107,10 +129,15 @@ export const SessionList: React.FC<SessionListProps> = ({
                 variant="outline"
                 size="lg"
                 className="gba:gap-2 gba:shadow-sm"
-                title="Repository Settings"
+                title={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:ai_builder.sessions.repository_settings',
+                  'Repository Settings'
+                )}
               >
                 <Settings className="gba:w-5 gba:h-5" />
-                <span className="gba:hidden md:gba:inline">Settings</span>
+                <span className="gba:hidden md:gba:inline">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.settings', 'Settings')}
+                </span>
               </Button>
             )}
             <AiButton
@@ -118,10 +145,17 @@ export const SessionList: React.FC<SessionListProps> = ({
               size="lg"
               className="gba:gap-2 gba:shadow-lg"
               disabled={disabled}
-              title={disabled ? 'Configure a repository first' : undefined}
+              title={
+                disabled
+                  ? getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:ai_builder.sessions.configure_first',
+                      'Configure a repository first'
+                    )
+                  : undefined
+              }
             >
               <Plus className="gba:w-5 gba:h-5" />
-              New Session
+              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.new_session', 'New Session')}
             </AiButton>
           </div>
         </div>
@@ -130,10 +164,13 @@ export const SessionList: React.FC<SessionListProps> = ({
         <DebouncedInput
           value={searchTerm}
           onChange={setSearchTerm}
-          placeholder="Search sessions by screen path, user, or description..."
+          placeholder={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:ai_builder.sessions.search_placeholder',
+            'Search sessions by screen path, user, or description...'
+          )}
           icon={<Search className="gba:w-4 gba:h-4 gba:text-muted-foreground" />}
           className="gba:w-full gba:shadow-sm gba:border-border"
-          ariaLabel="Search sessions"
+          ariaLabel={getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.search_label', 'Search sessions')}
           data-testid="session-search-input"
           debounceDelay={300}
         />
@@ -151,26 +188,51 @@ export const SessionList: React.FC<SessionListProps> = ({
               </div>
               <div>
                 <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">
-                  {disabled ? 'Repository Not Configured' : searchTerm ? 'No sessions found' : 'No sessions yet'}
+                  {disabled
+                    ? getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:ai_builder.sessions.repo_not_configured',
+                        'Repository Not Configured'
+                      )
+                    : searchTerm
+                      ? getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:ai_builder.sessions.no_sessions_found',
+                          'No sessions found'
+                        )
+                      : getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:ai_builder.sessions.no_sessions_yet',
+                          'No sessions yet'
+                        )}
                 </h3>
                 <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
                   {disabled
-                    ? 'Please configure a repository in Settings to get started'
+                    ? getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:ai_builder.sessions.configure_repo_help',
+                        'Please configure a repository in Settings to get started'
+                      )
                     : searchTerm
-                      ? 'Try adjusting your search terms'
-                      : 'Create your first session to start building screens with AI'}
+                      ? getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:ai_builder.sessions.adjust_search',
+                          'Try adjusting your search terms'
+                        )
+                      : getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:ai_builder.sessions.create_first_help',
+                          'Create your first session to start building screens with AI'
+                        )}
                 </p>
               </div>
               {!searchTerm && !disabled && (
                 <AiButton onClick={onCreateSession} className="gba:gap-2">
                   <Plus className="gba:w-4 gba:h-4" />
-                  Create First Session
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:ai_builder.sessions.create_first',
+                    'Create First Session'
+                  )}
                 </AiButton>
               )}
               {disabled && onOpenSettings && (
                 <Button onClick={onOpenSettings} className="gba:gap-2">
                   <Settings className="gba:w-4 gba:h-4" />
-                  Open Settings
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.open_settings', 'Open Settings')}
                 </Button>
               )}
             </CardContent>
@@ -190,7 +252,11 @@ export const SessionList: React.FC<SessionListProps> = ({
                       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
                         <FileCode className="gba:w-4 gba:h-4 gba:text-primary gba:flex-shrink-0" />
                         <span className="gba:text-sm gba:font-mono gba:truncate gba:text-foreground">
-                          {session.screenPath || 'Untitled Screen'}
+                          {session.screenPath ||
+                            getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:ai_builder.sessions.untitled_screen',
+                              'Untitled Screen'
+                            )}
                         </span>
                       </div>
                       {session.resourceUrl && (
@@ -202,7 +268,14 @@ export const SessionList: React.FC<SessionListProps> = ({
                     <button
                       onClick={e => {
                         e.stopPropagation()
-                        if (confirm('Delete this session? This action cannot be undone.')) {
+                        if (
+                          confirm(
+                            getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:ai_builder.sessions.delete_confirm',
+                              'Delete this session? This action cannot be undone.'
+                            )
+                          )
+                        ) {
                           onDeleteSession(session.sessionId)
                         }
                       }}
@@ -266,10 +339,16 @@ export const SessionList: React.FC<SessionListProps> = ({
         {sessions.length > 0 && (
           <div className="gba:flex gba:items-center gba:justify-center gba:gap-6 gba:text-sm gba:text-muted-foreground">
             <span>
-              {sessions.length} {sessions.length === 1 ? 'session' : 'sessions'}
+              {sessions.length}{' '}
+              {sessions.length === 1
+                ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.session_singular', 'session')
+                : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.session_plural', 'sessions')}
             </span>
             {searchTerm && filteredSessions.length !== sessions.length && (
-              <span>• {filteredSessions.length} matching</span>
+              <span>
+                • {filteredSessions.length}{' '}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.matching', 'matching')}
+              </span>
             )}
           </div>
         )}

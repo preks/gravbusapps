@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { ChevronRight, ChevronDown, File, Folder, FolderOpen, RefreshCw, Search, X } from 'lucide-react'
 import { Button } from '@newwork/nw-design-system'
 import { ENV } from '../config/environment'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface TreeNode {
   type: 'file' | 'directory'
@@ -174,7 +175,9 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
       {/* Toolbar */}
       <div className="gba:p-4 gba:border-b gba:border-border">
         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
-          <h3 className="gba:text-sm gba:font-semibold gba:flex-1">Files</h3>
+          <h3 className="gba:text-sm gba:font-semibold gba:flex-1">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_explorer.files', 'Files')}
+          </h3>
           <Button size="sm" variant="ghost" onClick={loadTree} disabled={loading} className="gba:h-8 gba:w-8 gba:p-0">
             <RefreshCw size={16} className={loading ? 'gba:animate-spin' : ''} />
           </Button>
@@ -188,7 +191,10 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
           />
           <input
             type="text"
-            placeholder="Search files..."
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:ai_builder.file_explorer.search_placeholder',
+              'Search files...'
+            )}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="gba:w-full gba:pl-9 gba:pr-8 gba:py-2 gba:text-sm gba:bg-background gba:border gba:border-border gba:rounded-md gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-primary"
@@ -205,10 +211,10 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
         {/* Expand/Collapse buttons */}
         <div className="gba:flex gba:gap-2">
           <Button size="sm" variant="ghost" onClick={expandAll} className="gba:text-xs gba:h-7 gba:flex-1">
-            Expand All
+            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_explorer.expand_all', 'Expand All')}
           </Button>
           <Button size="sm" variant="ghost" onClick={collapseAll} className="gba:text-xs gba:h-7 gba:flex-1">
-            Collapse All
+            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_explorer.collapse_all', 'Collapse All')}
           </Button>
         </div>
       </div>
@@ -216,7 +222,9 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
       {/* Tree */}
       <div className="gba:flex-1 gba:overflow-auto gba:text-sm">
         {loading && !tree ? (
-          <div className="gba:p-4 gba:text-center gba:text-muted-foreground gba:text-sm">Loading files...</div>
+          <div className="gba:p-4 gba:text-center gba:text-muted-foreground gba:text-sm">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_explorer.loading', 'Loading files...')}
+          </div>
         ) : tree?.children ? (
           <div className="gba:p-2">
             {Object.values(tree.children)
@@ -228,14 +236,21 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
               .map(node => renderNode(node))}
           </div>
         ) : (
-          <div className="gba:p-4 gba:text-center gba:text-muted-foreground gba:text-sm">No files found</div>
+          <div className="gba:p-4 gba:text-center gba:text-muted-foreground gba:text-sm">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_explorer.no_files', 'No files found')}
+          </div>
         )}
       </div>
 
       {/* Legend */}
       <div className="gba:p-3 gba:border-t gba:border-border gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-2">
         <span className="gba:text-warning gba:font-bold">●</span>
-        <span>Modified in session</span>
+        <span>
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:ai_builder.file_explorer.modified_in_session',
+            'Modified in session'
+          )}
+        </span>
       </div>
     </div>
   )

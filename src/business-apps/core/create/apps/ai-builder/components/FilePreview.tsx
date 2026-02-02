@@ -3,6 +3,7 @@ import { X, Copy, Check, Search, ChevronUp, ChevronDown } from 'lucide-react'
 import { Button } from '@newwork/nw-design-system'
 import { Input } from '@newwork/nw-design-system'
 import { ENV } from '../config/environment'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface FilePreviewProps {
   filePath: string
@@ -37,10 +38,14 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
         })
       })
       const data = await response.json()
-      setContent(data.content || 'No content')
+      setContent(
+        data.content || getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_preview.no_content', 'No content')
+      )
       setSource(data.source || 'unknown')
     } catch {
-      setContent('Error loading file')
+      setContent(
+        getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_preview.error_loading', 'Error loading file')
+      )
     } finally {
       setLoading(false)
     }
@@ -184,9 +189,17 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
                       : 'gba:bg-muted gba:text-muted-foreground'
                   }`}
                 >
-                  {source === 'session' ? '● Modified in session' : source}
+                  {source === 'session'
+                    ? getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:ai_builder.file_preview.modified_in_session',
+                        '● Modified in session'
+                      )
+                    : source}
                 </span>
-                <span className="gba:text-xs gba:text-muted-foreground">{content.split('\n').length} lines</span>
+                <span className="gba:text-xs gba:text-muted-foreground">
+                  {content.split('\n').length}{' '}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_preview.lines', 'lines')}
+                </span>
               </div>
             </div>
 
@@ -195,7 +208,7 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
               variant="ghost"
               onClick={copyPath}
               className="gba:h-8 gba:w-8 gba:p-0"
-              title="Copy file path"
+              title={getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_preview.copy_path', 'Copy file path')}
             >
               {copied ? <Check size={16} className="gba:text-success" /> : <Copy size={16} />}
             </Button>
@@ -205,10 +218,15 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
               variant="ghost"
               onClick={copyContent}
               className="gba:h-8 gba:px-3"
-              title="Copy file content"
+              title={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:ai_builder.file_preview.copy_content',
+                'Copy file content'
+              )}
             >
               <Copy size={16} className="gba:mr-1.5" />
-              <span className="gba:text-xs">Copy</span>
+              <span className="gba:text-xs">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_preview.copy', 'Copy')}
+              </span>
             </Button>
 
             <Button size="sm" variant="ghost" onClick={onClose} className="gba:h-8 gba:w-8 gba:p-0">
@@ -222,7 +240,10 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
               <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Search in file..."
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:ai_builder.file_preview.search_placeholder',
+                  'Search in file...'
+                )}
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="gba:pl-9 gba:h-8 gba:text-sm"
@@ -239,7 +260,10 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
                     variant="ghost"
                     onClick={goToPrevMatch}
                     className="gba:h-8 gba:w-8 gba:p-0"
-                    title="Previous match (Shift+Enter)"
+                    title={getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:ai_builder.file_preview.previous_match',
+                      'Previous match (Shift+Enter)'
+                    )}
                   >
                     <ChevronUp size={16} />
                   </Button>
@@ -248,7 +272,10 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
                     variant="ghost"
                     onClick={goToNextMatch}
                     className="gba:h-8 gba:w-8 gba:p-0"
-                    title="Next match (Enter)"
+                    title={getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:ai_builder.file_preview.next_match',
+                      'Next match (Enter)'
+                    )}
                   >
                     <ChevronDown size={16} />
                   </Button>
@@ -262,7 +289,12 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
         <div className="gba:flex-1 gba:overflow-auto gba:bg-background">
           {loading ? (
             <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground">
-              <div className="gba:animate-pulse">Loading file content...</div>
+              <div className="gba:animate-pulse">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:ai_builder.file_preview.loading',
+                  'Loading file content...'
+                )}
+              </div>
             </div>
           ) : (
             <div className="gba:flex gba:font-mono gba:text-xs">

@@ -20,6 +20,7 @@ import {
   ArrowLeft,
   RefreshCw
 } from 'lucide-react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AutoInitConfig, CreateAutoInitConfigRequest, UpdateAutoInitConfigRequest } from '../types/admin'
 import {
   getAutoInitConfigs,
@@ -115,7 +116,14 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
       const data = await getAutoInitConfigs()
       setConfigs(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load configurations')
+      setError(
+        err instanceof Error
+          ? err.message
+          : getTranslationFromI18nKeyAndLabel(
+              'lowcoder:ai_builder.admin.load_configs_failed',
+              'Failed to load configurations'
+            )
+      )
     } finally {
       setLoading(false)
     }
@@ -132,7 +140,12 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
           .filter(Boolean)
       }
       await createAutoInitConfig(config)
-      setSuccess('Configuration created successfully')
+      setSuccess(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:ai_builder.admin.config_created',
+          'Configuration created successfully'
+        )
+      )
       setShowAddForm(false)
       setNewConfig({
         url: '',
@@ -160,7 +173,12 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
           .filter(Boolean)
       }
       await updateAutoInitConfig(id, update)
-      setSuccess('Configuration updated successfully')
+      setSuccess(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:ai_builder.admin.config_updated',
+          'Configuration updated successfully'
+        )
+      )
       setEditingId(null)
       setEditForm({})
       setEditBlockedBranches('')
@@ -172,17 +190,37 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
   }
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete the configuration for "${name}"?`)) {
+    if (
+      !confirm(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:ai_builder.admin.delete_confirm',
+          `Are you sure you want to delete the configuration for "${name}"?`,
+          { name }
+        )
+      )
+    ) {
       return
     }
     try {
       setError(null)
       await deleteAutoInitConfig(id)
-      setSuccess('Configuration deleted successfully')
+      setSuccess(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:ai_builder.admin.config_deleted',
+          'Configuration deleted successfully'
+        )
+      )
       await loadConfigs()
       setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete configuration')
+      setError(
+        err instanceof Error
+          ? err.message
+          : getTranslationFromI18nKeyAndLabel(
+              'lowcoder:ai_builder.admin.delete_config_failed',
+              'Failed to delete configuration'
+            )
+      )
     }
   }
 
@@ -219,7 +257,11 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
       setSuccess(result.message)
       setTimeout(() => setSuccess(null), 5000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to sync repository')
+      setError(
+        err instanceof Error
+          ? err.message
+          : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.sync_failed', 'Failed to sync repository')
+      )
     } finally {
       setSyncingId(null)
     }
@@ -229,17 +271,20 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
   const getStatusLabel = (status: string): string => {
     switch (status) {
       case 'scanning':
-        return 'Scanning files...'
+        return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.status_scanning', 'Scanning files...')
       case 'parsing':
-        return 'Parsing code...'
+        return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.status_parsing', 'Parsing code...')
       case 'embedding':
-        return 'Generating embeddings...'
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:ai_builder.admin.status_embedding',
+          'Generating embeddings...'
+        )
       case 'storing':
-        return 'Saving to database...'
+        return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.status_storing', 'Saving to database...')
       case 'completed':
-        return 'Completed'
+        return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.status_completed', 'Completed')
       case 'failed':
-        return 'Failed'
+        return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.status_failed', 'Failed')
       default:
         return status
     }
@@ -294,7 +339,11 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
           <span
             className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded-full ${statusColors[repoStatus] || 'gba:bg-muted gba:text-muted-foreground'}`}
           >
-            {repoStatus === 'indexed' ? 'Ready' : repoStatus === 'indexing' ? 'Indexing...' : repoStatus}
+            {repoStatus === 'indexed'
+              ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.status_ready', 'Ready')
+              : repoStatus === 'indexing'
+                ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.status_indexing', 'Indexing...')
+                : repoStatus}
           </span>
         </div>
       )
@@ -305,7 +354,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
       return (
         <div className="gba:mt-3 gba:pt-3 gba:border-t gba:border-border">
           <span className="gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:bg-amber-100 gba:text-amber-700 dark:gba:bg-amber-900/30 dark:gba:text-amber-400">
-            Not initialized
+            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.not_initialized', 'Not initialized')}
           </span>
         </div>
       )
@@ -340,7 +389,9 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
             {onClose && (
               <Button variant="ghost" size="sm" onClick={onClose} className="gba:gap-2">
                 <ArrowLeft className="gba:w-4 gba:h-4" />
-                <span className="gba:hidden md:gba:inline">Back</span>
+                <span className="gba:hidden md:gba:inline">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.back', 'Back')}
+                </span>
               </Button>
             )}
             <div>
@@ -348,10 +399,15 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                 <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:flex gba:items-center gba:justify-center gba:shadow-lg">
                   <Settings className="gba:w-5 gba:h-5 gba:text-primary-foreground" />
                 </div>
-                <h1 className="gba:text-3xl gba:font-bold gba:text-foreground">Repository Configuration</h1>
+                <h1 className="gba:text-3xl gba:font-bold gba:text-foreground">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.title', 'Repository Configuration')}
+                </h1>
               </div>
               <p className="gba:text-muted-foreground gba:mt-1 gba:ml-14">
-                Configure repositories for auto-initialization
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:ai_builder.admin.description',
+                  'Configure repositories for auto-initialization'
+                )}
               </p>
             </div>
           </div>
@@ -376,7 +432,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
         {!showAddForm && (
           <Button onClick={() => setShowAddForm(true)} className="gba:gap-2">
             <Plus className="gba:w-4 gba:h-4" />
-            Add Repository
+            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.add_repository', 'Add Repository')}
           </Button>
         )}
 
@@ -384,11 +440,18 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
         {showAddForm && (
           <Card className="gba:shadow-lg">
             <CardHeader>
-              <CardTitle className="gba:text-lg">Add New Repository</CardTitle>
+              <CardTitle className="gba:text-lg">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:ai_builder.admin.add_new_repository',
+                  'Add New Repository'
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent className="gba:space-y-4">
               <div className="gba:space-y-2">
-                <Label htmlFor="url">Repository URL</Label>
+                <Label htmlFor="url">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.repository_url', 'Repository URL')}
+                </Label>
                 <Input
                   id="url"
                   placeholder="https://github.com/owner/repo or https://bitbucket.org/owner/repo"
@@ -397,38 +460,58 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                 />
               </div>
               <div className="gba:space-y-2">
-                <Label htmlFor="branch">Branch</Label>
+                <Label htmlFor="branch">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.branch', 'Branch')}
+                </Label>
                 <Input
                   id="branch"
-                  placeholder="e.g. main, develop, feature/..."
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:ai_builder.admin.branch_placeholder',
+                    'e.g. main, develop, feature/...'
+                  )}
                   value={newConfig.branch}
                   onChange={e => setNewConfig({ ...newConfig, branch: e.target.value })}
                 />
               </div>
               <div className="gba:space-y-2">
-                <Label htmlFor="blockedBranches">Blocked Branches (comma-separated)</Label>
+                <Label htmlFor="blockedBranches">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:ai_builder.admin.blocked_branches',
+                    'Blocked Branches (comma-separated)'
+                  )}
+                </Label>
                 <Input
                   id="blockedBranches"
                   placeholder="production, master, main"
                   value={blockedBranchesInput}
                   onChange={e => setBlockedBranchesInput(e.target.value)}
                 />
-                <p className="gba:text-xs gba:text-muted-foreground">Branches that should not be cloned or modified</p>
+                <p className="gba:text-xs gba:text-muted-foreground">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:ai_builder.admin.blocked_branches_help',
+                    'Branches that should not be cloned or modified'
+                  )}
+                </p>
               </div>
               <div className="gba:flex gba:items-center gba:gap-3 gba:pt-2">
                 <Switch
                   checked={newConfig.autoInitOnStartup}
                   onCheckedChange={checked => setNewConfig({ ...newConfig, autoInitOnStartup: checked })}
                 />
-                <Label className="gba:cursor-pointer">Auto-initialize on startup</Label>
+                <Label className="gba:cursor-pointer">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:ai_builder.admin.auto_init_startup',
+                    'Auto-initialize on startup'
+                  )}
+                </Label>
               </div>
               <div className="gba:flex gba:gap-3 gba:pt-4">
                 <Button onClick={handleCreate} className="gba:gap-2">
                   <Save className="gba:w-4 gba:h-4" />
-                  Save
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.save', 'Save')}
                 </Button>
                 <Button variant="outline" onClick={() => setShowAddForm(false)}>
-                  Cancel
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.cancel', 'Cancel')}
                 </Button>
               </div>
             </CardContent>
@@ -447,9 +530,17 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                 <Settings className="gba:w-8 gba:h-8 gba:text-muted-foreground" />
               </div>
               <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">
-                No repository configurations found
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:ai_builder.admin.no_configs_found',
+                  'No repository configurations found'
+                )}
               </h3>
-              <p className="gba:text-sm gba:text-muted-foreground">Add a repository to get started with AI Builder</p>
+              <p className="gba:text-sm gba:text-muted-foreground">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:ai_builder.admin.no_configs_help',
+                  'Add a repository to get started with AI Builder'
+                )}
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -464,14 +555,19 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                     // Edit Mode
                     <div className="gba:space-y-4">
                       <div className="gba:space-y-2">
-                        <Label>Branch</Label>
+                        <Label>{getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.branch', 'Branch')}</Label>
                         <Input
                           value={editForm.branch || ''}
                           onChange={e => setEditForm({ ...editForm, branch: e.target.value })}
                         />
                       </div>
                       <div className="gba:space-y-2">
-                        <Label>Blocked Branches (comma-separated)</Label>
+                        <Label>
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:ai_builder.admin.blocked_branches',
+                            'Blocked Branches (comma-separated)'
+                          )}
+                        </Label>
                         <Input value={editBlockedBranches} onChange={e => setEditBlockedBranches(e.target.value)} />
                       </div>
                       <div className="gba:flex gba:items-center gba:gap-3">
@@ -479,15 +575,20 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                           checked={editForm.autoInitOnStartup ?? config.autoInitOnStartup}
                           onCheckedChange={checked => setEditForm({ ...editForm, autoInitOnStartup: checked })}
                         />
-                        <Label className="gba:cursor-pointer">Auto-initialize on startup</Label>
+                        <Label className="gba:cursor-pointer">
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:ai_builder.admin.auto_init_startup',
+                            'Auto-initialize on startup'
+                          )}
+                        </Label>
                       </div>
                       <div className="gba:flex gba:gap-3 gba:pt-2">
                         <Button size="sm" onClick={() => handleUpdate(config.id)} className="gba:gap-2">
                           <Save className="gba:w-4 gba:h-4" />
-                          Save
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.save', 'Save')}
                         </Button>
                         <Button size="sm" variant="outline" onClick={cancelEdit}>
-                          Cancel
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.cancel', 'Cancel')}
                         </Button>
                       </div>
                     </div>
@@ -502,9 +603,15 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                               {config.owner}/{config.name}
                             </span>
                             <Badge variant={config.enabled ? 'default' : 'secondary'}>
-                              {config.enabled ? 'Enabled' : 'Disabled'}
+                              {config.enabled
+                                ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.enabled', 'Enabled')
+                                : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.disabled', 'Disabled')}
                             </Badge>
-                            {config.autoInitOnStartup && <Badge variant="outline">Auto-init</Badge>}
+                            {config.autoInitOnStartup && (
+                              <Badge variant="outline">
+                                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.auto_init', 'Auto-init')}
+                              </Badge>
+                            )}
                           </div>
                           <div className="gba:flex gba:items-center gba:gap-1 gba:text-sm gba:text-muted-foreground">
                             <GitBranch className="gba:w-4 gba:h-4" />
@@ -512,7 +619,12 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                           </div>
                           {config.blockedBranches.length > 0 && (
                             <div className="gba:text-sm gba:text-muted-foreground">
-                              <span className="gba:text-destructive gba:font-medium">Blocked: </span>
+                              <span className="gba:text-destructive gba:font-medium">
+                                {getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:ai_builder.admin.blocked_label',
+                                  'Blocked:'
+                                )}{' '}
+                              </span>
                               {config.blockedBranches.join(', ')}
                             </div>
                           )}
@@ -524,13 +636,18 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                             variant="outline"
                             onClick={() => handleSync(config)}
                             disabled={syncingId === config.id}
-                            title="Sync repository"
+                            title={getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:ai_builder.admin.sync_repository',
+                              'Sync repository'
+                            )}
                             className="gba:gap-1"
                           >
                             <RefreshCw
                               className={`gba:w-4 gba:h-4 ${syncingId === config.id ? 'gba:animate-spin' : ''}`}
                             />
-                            <span className="gba:hidden sm:gba:inline">Sync</span>
+                            <span className="gba:hidden sm:gba:inline">
+                              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.sync', 'Sync')}
+                            </span>
                           </Button>
                           <Switch checked={config.enabled} onCheckedChange={() => toggleEnabled(config)} />
                           <Button size="sm" variant="ghost" onClick={() => startEdit(config)}>
@@ -560,7 +677,11 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
         {configs.length > 0 && (
           <div className="gba:flex gba:items-center gba:justify-center gba:text-sm gba:text-muted-foreground">
             <span>
-              {configs.length} {configs.length === 1 ? 'repository' : 'repositories'} configured
+              {configs.length}{' '}
+              {configs.length === 1
+                ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.repository_singular', 'repository')
+                : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.repository_plural', 'repositories')}{' '}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.configured', 'configured')}
             </span>
           </div>
         )}

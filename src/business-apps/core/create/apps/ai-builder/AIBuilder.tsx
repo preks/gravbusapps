@@ -27,6 +27,7 @@ import { Label } from '@newwork/nw-design-system'
 import { Alert, AlertDescription } from '@newwork/nw-design-system'
 import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Badge } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { SYSTEM_PROMPT } from './config/systemPrompt'
 import { FileExplorer } from './components/FileExplorer'
 import { FilePreview } from './components/FilePreview'
@@ -222,7 +223,7 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content: rawContent }
                 <button
                   onClick={() => copyToClipboard(part.content, currentBlockIndex)}
                   className="gba:p-1.5 gba:rounded gba:bg-muted/50 hover:gba:bg-muted gba:transition-colors"
-                  title="Copy code"
+                  title={getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.copy_code', 'Copy code')}
                 >
                   {isCopied ? (
                     <Check className="gba:w-3.5 gba:h-3.5 gba:text-success" />
@@ -695,7 +696,12 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
 
   const createNewSession = () => {
     if (!currentUser) {
-      alert('User information not loaded yet. Please wait a moment.')
+      alert(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:ai_builder.user_not_loaded',
+          'User information not loaded yet. Please wait a moment.'
+        )
+      )
       return
     }
 
@@ -711,7 +717,10 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
       lastModified: new Date().toISOString(),
       fileCount: 0,
       createdBy: currentUser,
-      description: 'New AI Builder session'
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:ai_builder.new_session_description',
+        'New AI Builder session'
+      )
     }
 
     const updatedSessions = [newSession, ...sessions]
@@ -758,7 +767,12 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
       // Also clean up session data from localStorage
       localStorage.removeItem(`ai-builder-session-${sid}`)
     } catch {
-      alert('Failed to delete session. Please try again.')
+      alert(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:ai_builder.delete_session_failed',
+          'Failed to delete session. Please try again.'
+        )
+      )
     }
   }
 
@@ -906,7 +920,12 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
   // Handle publish
   const handlePublish = async () => {
     if (!screenPath || !resourceUrl) {
-      alert('Please enter both screen path and resource URL')
+      alert(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:ai_builder.missing_publish_fields',
+          'Please enter both screen path and resource URL'
+        )
+      )
       return
     }
 
@@ -941,7 +960,11 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
         ...prev,
         {
           role: 'assistant',
-          content: `✅ **Screen published successfully!**\n\nYou can now access your screen at:\n${fullUrl}\n\nClick the link in the success banner to open it in a new tab.`
+          content: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:ai_builder.publish_success_message',
+            `✅ **Screen published successfully!**\n\nYou can now access your screen at:\n${fullUrl}\n\nClick the link in the success banner to open it in a new tab.`,
+            { url: fullUrl }
+          )
         }
       ])
 
@@ -978,7 +1001,10 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
 
       // Show notification
       alert(
-        `❌ Publishing failed! The error has been inserted into the chat input. Please review and send it to the AI to fix the issues.`
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:ai_builder.publish_failed_notification',
+          '❌ Publishing failed! The error has been inserted into the chat input. Please review and send it to the AI to fix the issues.'
+        )
       )
     } finally {
       setIsPublishing(false)
@@ -1178,7 +1204,11 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         ...prev,
         {
           role: 'assistant',
-          content: `Sorry, there was an error: ${error instanceof Error ? error.message : 'Unknown error'}`
+          content: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:ai_builder.error_message',
+            `Sorry, there was an error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            { error: error instanceof Error ? error.message : 'Unknown error' }
+          )
         }
       ])
     } finally {
@@ -1198,7 +1228,9 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:bg-background">
         <div className="gba:flex gba:flex-col gba:items-center gba:gap-4">
           <Loader2 className="gba:h-8 gba:w-8 gba:animate-spin gba:text-primary" />
-          <p className="gba:text-muted-foreground">Loading configuration...</p>
+          <p className="gba:text-muted-foreground">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.loading_configuration', 'Loading configuration...')}
+          </p>
         </div>
       </div>
     )
@@ -1237,7 +1269,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                 onClick={() => setShowAdminSettings(true)}
                 className="gba:text-sm gba:font-medium gba:text-amber-700 dark:gba:text-amber-300 hover:gba:underline"
               >
-                Open Settings
+                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.open_settings', 'Open Settings')}
               </button>
             </div>
           </div>
@@ -1302,7 +1334,10 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     <CheckCircle className="gba:w-5 gba:h-5 gba:text-success" />
                     <div>
                       <p className="gba:text-sm gba:font-medium gba:text-success-secondary-foreground">
-                        Screen published successfully!
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:ai_builder.publish_success',
+                          'Screen published successfully!'
+                        )}
                       </p>
                       <a
                         href={getSafeHref(publishSuccess)}
@@ -1310,7 +1345,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                         rel="noopener noreferrer"
                         className="gba:text-xs gba:text-success hover:gba:underline gba:flex gba:items-center gba:gap-1"
                       >
-                        Open screen: {publishSuccess}
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.open_screen', 'Open screen')}:{' '}
+                        {publishSuccess}
                         <svg className="gba:w-3 gba:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path
                             strokeLinecap="round"
@@ -1344,14 +1380,17 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                   <div>
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <h1 className="gba:text-xl gba:font-bold gba:bg-gradient-to-r gba:from-primary gba:to-accent gba:bg-clip-text gba:text-transparent">
-                        NEWWORK AI Builder
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.title', 'NEWWORK AI Builder')}
                       </h1>
                       <Badge variant="aiGenerated" className="gba:text-[10px] gba:px-1.5 gba:py-0">
-                        BETA
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.beta_badge', 'BETA')}
                       </Badge>
                     </div>
                     <p className="gba:text-xs gba:text-muted-foreground">
-                      Build screens with natural language • Powered by Claude 4.5 Sonnet
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:ai_builder.subtitle',
+                        'Build screens with natural language • Powered by Claude 4.5 Sonnet'
+                      )}
                       {sessionId && (
                         <span className="gba:ml-2 gba:px-2 gba:py-0.5 gba:bg-primary/10 gba:rounded gba:font-mono gba:text-[10px] gba:text-primary">
                           {sessionId.split('-').pop()}
@@ -1368,11 +1407,16 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     variant="ghost"
                     onClick={backToSessionList}
                     className="gba:gap-2"
-                    title="Back to session list"
+                    title={getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:ai_builder.back_to_sessions_title',
+                      'Back to session list'
+                    )}
                     data-testid="back-to-sessions-button"
                   >
                     <ArrowLeft className="gba:w-4 gba:h-4" />
-                    <span className="gba:hidden md:gba:inline">Sessions</span>
+                    <span className="gba:hidden md:gba:inline">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions_button', 'Sessions')}
+                    </span>
                   </Button>
 
                   {/* File Explorer Toggle (always visible when session exists) */}
@@ -1382,7 +1426,17 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                       variant="outline"
                       onClick={toggleFileExplorer}
                       className="gba:gap-2"
-                      title={showFileExplorer ? 'Hide file explorer' : 'Show file explorer'}
+                      title={
+                        showFileExplorer
+                          ? getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:ai_builder.hide_file_explorer',
+                              'Hide file explorer'
+                            )
+                          : getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:ai_builder.show_file_explorer',
+                              'Show file explorer'
+                            )
+                      }
                       data-testid="file-explorer-toggle-button"
                     >
                       {showFileExplorer ? (
@@ -1390,7 +1444,9 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                       ) : (
                         <PanelLeft className="gba:w-4 gba:h-4" />
                       )}
-                      <span className="gba:hidden md:gba:inline">Files</span>
+                      <span className="gba:hidden md:gba:inline">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.files_button', 'Files')}
+                      </span>
                     </Button>
                   )}
 
@@ -1405,7 +1461,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                   {/* Refresh changes button */}
                   <Button size="sm" variant="outline" onClick={checkForChanges} className="gba:gap-2">
                     <Download className="gba:w-4 gba:h-4" />
-                    Refresh Files
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.refresh_files', 'Refresh Files')}
                   </Button>
                 </div>
               </div>
@@ -1431,36 +1487,46 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                       </div>
                       <div className="gba:space-y-1">
                         <div className="gba:flex gba:items-center gba:gap-2">
-                          <h3 className="gba:font-semibold gba:text-foreground gba:text-sm">Ready to Publish</h3>
+                          <h3 className="gba:font-semibold gba:text-foreground gba:text-sm">
+                            {getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:ai_builder.ready_to_publish',
+                              'Ready to Publish'
+                            )}
+                          </h3>
                           <span className="gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:text-xs gba:font-medium">
                             {uniqueFileSummary.totalUniqueFiles}{' '}
-                            {uniqueFileSummary.totalUniqueFiles === 1 ? 'file' : 'files'}
+                            {uniqueFileSummary.totalUniqueFiles === 1
+                              ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_singular', 'file')
+                              : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_plural', 'files')}
                           </span>
                         </div>
                         <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
                           {uniqueFileSummary.created > 0 && (
                             <span className="gba:flex gba:items-center gba:gap-1">
                               <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-success" />
-                              {uniqueFileSummary.created} created
+                              {uniqueFileSummary.created}{' '}
+                              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.created', 'created')}
                             </span>
                           )}
                           {uniqueFileSummary.modified > 0 && (
                             <span className="gba:flex gba:items-center gba:gap-1">
                               <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-warning" />
-                              {uniqueFileSummary.modified} modified
+                              {uniqueFileSummary.modified}{' '}
+                              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.modified', 'modified')}
                             </span>
                           )}
                           {uniqueFileSummary.deleted > 0 && (
                             <span className="gba:flex gba:items-center gba:gap-1">
                               <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-destructive" />
-                              {uniqueFileSummary.deleted} deleted
+                              {uniqueFileSummary.deleted}{' '}
+                              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.deleted', 'deleted')}
                             </span>
                           )}
                         </div>
                         {/* File list */}
                         <details className="gba:mt-2 gba:text-xs">
                           <summary className="gba:cursor-pointer gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors">
-                            View files
+                            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.view_files', 'View files')}
                           </summary>
                           <div className="gba:mt-2 gba:space-y-1 gba:pl-4 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
                             {uniqueFileSummary.files.map((file, index) => (
@@ -1497,7 +1563,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                       className="gba:gap-2 gba:shadow-sm"
                     >
                       <Upload className="gba:w-4 gba:h-4" />
-                      Publish
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.publish_button', 'Publish')}
                     </Button>
                     <Button
                       size="sm"
@@ -1506,13 +1572,20 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                         try {
                           await downloadPatch(repositoryId, sessionId)
                         } catch (error) {
-                          alert(error instanceof Error ? error.message : 'Failed to download patch')
+                          alert(
+                            error instanceof Error
+                              ? error.message
+                              : getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:ai_builder.download_patch_failed',
+                                  'Failed to download patch'
+                                )
+                          )
                         }
                       }}
                       className="gba:gap-2"
                     >
                       <Download className="gba:w-4 gba:h-4" />
-                      Patch
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.patch_button', 'Patch')}
                     </Button>
                   </div>
                 </div>
@@ -1529,23 +1602,39 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     <Sparkles className="gba:w-10 gba:h-10 gba:text-primary-foreground" />
                   </div>
                   <div>
-                    <h2 className="gba:text-2xl gba:font-bold">Build Screens with AI</h2>
+                    <h2 className="gba:text-2xl gba:font-bold">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.welcome_title', 'Build Screens with AI')}
+                    </h2>
                     <p className="gba:text-muted-foreground gba:mt-2">
-                      Describe what you want to build and I'll create it following NEWWORK patterns
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:ai_builder.welcome_description',
+                        "Describe what you want to build and I'll create it following NEWWORK patterns"
+                      )}
                     </p>
                   </div>
                   <div className="gba:flex gba:flex-wrap gba:gap-2 gba:justify-center">
-                    {['Create a lead list screen', 'Build a customer dashboard', 'Generate a contact form'].map(
-                      (s, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setInput(s)}
-                          className="gba:px-4 gba:py-2 gba:text-sm gba:rounded-lg gba:bg-muted hover:gba:bg-muted/80 gba:border"
-                        >
-                          {s}
-                        </button>
+                    {[
+                      getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:ai_builder.example_prompt_1',
+                        'Create a lead list screen'
+                      ),
+                      getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:ai_builder.example_prompt_2',
+                        'Build a customer dashboard'
+                      ),
+                      getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:ai_builder.example_prompt_3',
+                        'Generate a contact form'
                       )
-                    )}
+                    ].map((s, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setInput(s)}
+                        className="gba:px-4 gba:py-2 gba:text-sm gba:rounded-lg gba:bg-muted hover:gba:bg-muted/80 gba:border"
+                      >
+                        {s}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -1554,7 +1643,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                 {thinking && (
                   <div className="gba:flex gba:items-center gba:gap-2 gba:text-muted-foreground gba:text-sm gba:py-2">
                     <Brain className="gba:w-4 gba:h-4 gba:animate-pulse gba:text-primary" />
-                    <span>Thinking...</span>
+                    <span>{getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.thinking', 'Thinking...')}</span>
                   </div>
                 )}
 
@@ -1594,9 +1683,12 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                                   <ChevronDown className="gba:w-3 gba:h-3" />
                                 )}
                                 <Brain className="gba:w-3 gba:h-3" />
-                                <span className="gba:font-medium">Thinking</span>
+                                <span className="gba:font-medium">
+                                  {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.thinking_label', 'Thinking')}
+                                </span>
                                 <span className="gba:text-muted-foreground/60">
-                                  ({Math.ceil(message.thinkingLog.length / 100)} steps)
+                                  ({Math.ceil(message.thinkingLog.length / 100)}{' '}
+                                  {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.steps', 'steps')})
                                 </span>
                               </button>
                               {!message.thinkingCollapsed && message.thinkingLog.trim() && (
@@ -1610,7 +1702,9 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                           <div className="gba:bg-card gba:border gba:rounded-lg gba:px-3 gba:py-2">
                             {message.cost && (
                               <div className="gba:flex gba:items-center gba:justify-between gba:mb-2 gba:pb-2 gba:border-b">
-                                <span className="gba:text-xs gba:font-medium gba:text-primary">AI Response</span>
+                                <span className="gba:text-xs gba:font-medium gba:text-primary">
+                                  {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.ai_response', 'AI Response')}
+                                </span>
                                 <span className="gba:text-xs gba:text-muted-foreground">
                                   ${message.cost.totalCost.toFixed(4)} ({message.cost.inputTokens.toLocaleString()}in /{' '}
                                   {message.cost.outputTokens.toLocaleString()}out)
@@ -1623,7 +1717,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                           {message.toolCalls && message.toolCalls.length > 0 && (
                             <div className="gba:bg-muted/50 gba:rounded-lg gba:p-2 gba:space-y-1">
                               <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">
-                                Tools ({message.toolCalls.length})
+                                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.tools', 'Tools')} (
+                                {message.toolCalls.length})
                               </span>
                               {message.toolCalls.map(tool => {
                                 // Extract file path from tool args
@@ -1637,13 +1732,25 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                                     const pathMatch = tool.args.match(/(?:filePath|path|target_file):\s*"([^"]+)"/)
                                     if (pathMatch) {
                                       filePath = pathMatch[1]
-                                      displayText = tool.tool === 'write_file' ? '✍️ Writing' : '📖 Reading'
+                                      displayText =
+                                        tool.tool === 'write_file'
+                                          ? getTranslationFromI18nKeyAndLabel(
+                                              'lowcoder:ai_builder.tool_writing',
+                                              '✍️ Writing'
+                                            )
+                                          : getTranslationFromI18nKeyAndLabel(
+                                              'lowcoder:ai_builder.tool_reading',
+                                              '📖 Reading'
+                                            )
                                     }
                                   } else if (tool.tool === 'propose_change') {
                                     const fileMatch = tool.args.match(/file_path:\s*"([^"]+)"/)
                                     if (fileMatch) {
                                       filePath = fileMatch[1]
-                                      displayText = '🔧 Editing'
+                                      displayText = getTranslationFromI18nKeyAndLabel(
+                                        'lowcoder:ai_builder.tool_editing',
+                                        '🔧 Editing'
+                                      )
                                     }
                                   }
                                 }
@@ -1682,7 +1789,9 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                           <AvatarImage
                             src={`data:image/jpeg;base64,${userPictureThumbnail}`}
                             alt={
-                              context.userInfo ? `${context.userInfo.givenName} ${context.userInfo.familyName}` : 'You'
+                              context.userInfo
+                                ? `${context.userInfo.givenName} ${context.userInfo.familyName}`
+                                : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.you', 'You')
                             }
                           />
                         ) : null}
@@ -1713,7 +1822,10 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                       handleSubmit(e as any)
                     }
                   }}
-                  placeholder="Describe the screen you want to build... (Press Enter to send, Shift+Enter for new line)"
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:ai_builder.input_placeholder',
+                    'Describe the screen you want to build... (Press Enter to send, Shift+Enter for new line)'
+                  )}
                   disabled={loading}
                   rows={3}
                   className="gba:resize-none gba:text-base gba:leading-relaxed gba:pr-32"
@@ -1730,12 +1842,12 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     {loading ? (
                       <>
                         <Loader2 className="gba:w-5 gba:h-5 gba:animate-spin" />
-                        Building...
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.building', 'Building...')}
                       </>
                     ) : (
                       <>
                         <Bot className="gba:w-5 gba:h-5" />
-                        Generate
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.generate', 'Generate')}
                       </>
                     )}
                   </AiButton>
@@ -1744,12 +1856,20 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
               {loading && (
                 <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:justify-center gba:gap-2">
                   <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
-                  <span>AI is analyzing your request and exploring the codebase...</span>
+                  <span>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:ai_builder.analyzing_request',
+                      'AI is analyzing your request and exploring the codebase...'
+                    )}
+                  </span>
                 </div>
               )}
               {!loading && input.trim() && (
                 <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
-                  💡 Tip: Be specific! Example: "Build a lead list screen with search, table, and pagination"
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:ai_builder.tip_message',
+                    '💡 Tip: Be specific! Example: "Build a lead list screen with search, table, and pagination"'
+                  )}
                 </p>
               )}
             </form>
@@ -1763,7 +1883,10 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                   <div className="gba:flex gba:items-center gba:justify-between">
                     <CardTitle className="gba:flex gba:items-center gba:gap-2">
                       <Upload className="gba:w-5 gba:h-5" />
-                      Publish to NEWWORK Platform
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:ai_builder.publish_dialog_title',
+                        'Publish to NEWWORK Platform'
+                      )}
                     </CardTitle>
                     <button
                       onClick={() => setShowPublishDialog(false)}
@@ -1778,26 +1901,30 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                   {/* Files Summary */}
                   <div>
                     <h4 className="gba:text-sm gba:font-medium gba:mb-2">
-                      Files to Publish ({uniqueFileSummary?.totalUniqueFiles || 0})
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.files_to_publish', 'Files to Publish')} (
+                      {uniqueFileSummary?.totalUniqueFiles || 0})
                     </h4>
                     <div className="gba:bg-muted gba:rounded-lg gba:p-3 gba:space-y-2">
                       <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
                         {uniqueFileSummary && uniqueFileSummary.created > 0 && (
                           <span className="gba:flex gba:items-center gba:gap-1">
                             <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-success" />
-                            {uniqueFileSummary.created} created
+                            {uniqueFileSummary.created}{' '}
+                            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.created', 'created')}
                           </span>
                         )}
                         {uniqueFileSummary && uniqueFileSummary.modified > 0 && (
                           <span className="gba:flex gba:items-center gba:gap-1">
                             <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-warning" />
-                            {uniqueFileSummary.modified} modified
+                            {uniqueFileSummary.modified}{' '}
+                            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.modified', 'modified')}
                           </span>
                         )}
                         {uniqueFileSummary && uniqueFileSummary.deleted > 0 && (
                           <span className="gba:flex gba:items-center gba:gap-1">
                             <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-destructive" />
-                            {uniqueFileSummary.deleted} deleted
+                            {uniqueFileSummary.deleted}{' '}
+                            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.deleted', 'deleted')}
                           </span>
                         )}
                       </div>
@@ -1832,19 +1959,37 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                       <AlertDescription>
                         <div className="gba:text-sm gba:space-y-2">
                           <div>
-                            <strong className="gba:text-success">✅ Ready to publish!</strong>
+                            <strong className="gba:text-success">
+                              {getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:ai_builder.ready_to_publish_status',
+                                '✅ Ready to publish!'
+                              )}
+                            </strong>
                             <p className="gba:text-xs gba:mt-1 gba:text-muted-foreground">
-                              Everything is configured automatically. Just click "Publish Screen" below!
+                              {getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:ai_builder.auto_configured_message',
+                                'Everything is configured automatically. Just click "Publish Screen" below!'
+                              )}
                             </p>
                           </div>
                           <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
-                            <span className="gba:text-muted-foreground">Screen path:</span>
+                            <span className="gba:text-muted-foreground">
+                              {getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:ai_builder.screen_path_label',
+                                'Screen path:'
+                              )}
+                            </span>
                             <code className="gba:bg-background gba:px-2 gba:py-1 gba:rounded">
                               {detectedScreenPath}
                             </code>
                           </div>
                           <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
-                            <span className="gba:text-muted-foreground">Resource URL:</span>
+                            <span className="gba:text-muted-foreground">
+                              {getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:ai_builder.resource_url_label',
+                                'Resource URL:'
+                              )}
+                            </span>
                             <code className="gba:bg-background gba:px-2 gba:py-1 gba:rounded">{resourceUrl}</code>
                           </div>
                         </div>
@@ -1854,9 +1999,17 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     <Alert>
                       <AlertCircle className="gba:w-4 gba:h-4" />
                       <AlertDescription className="gba:text-sm">
-                        <strong>Waiting for files...</strong>
+                        <strong>
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:ai_builder.waiting_for_files',
+                            'Waiting for files...'
+                          )}
+                        </strong>
                         <p className="gba:text-xs gba:mt-1">
-                          Ask the AI to create a screen and paths will be detected automatically.
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:ai_builder.waiting_for_files_description',
+                            'Ask the AI to create a screen and paths will be detected automatically.'
+                          )}
                         </p>
                       </AlertDescription>
                     </Alert>
@@ -1867,7 +2020,9 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     <>
                       {/* Screen Path */}
                       <div className="gba:space-y-2">
-                        <Label htmlFor="screen-path">Screen Path *</Label>
+                        <Label htmlFor="screen-path">
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.screen_path_field', 'Screen Path *')}
+                        </Label>
                         <Input
                           id="screen-path"
                           value={screenPath}
@@ -1875,13 +2030,21 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                           placeholder="platform/examples/apps/my-screen"
                         />
                         <p className="gba:text-xs gba:text-muted-foreground">
-                          Format: module/sub-module/apps/screen-name (e.g., crm/customers/apps/lead-list)
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:ai_builder.screen_path_format',
+                            'Format: module/sub-module/apps/screen-name (e.g., crm/customers/apps/lead-list)'
+                          )}
                         </p>
                       </div>
 
                       {/* Resource URL */}
                       <div className="gba:space-y-2">
-                        <Label htmlFor="resource-url">Resource URL *</Label>
+                        <Label htmlFor="resource-url">
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:ai_builder.resource_url_field',
+                            'Resource URL *'
+                          )}
+                        </Label>
                         <Input
                           id="resource-url"
                           value={resourceUrl}
@@ -1889,7 +2052,10 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                           placeholder="/my-screen"
                         />
                         <p className="gba:text-xs gba:text-muted-foreground">
-                          The URL path where the screen will be accessible (e.g., /lead-list)
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:ai_builder.resource_url_help',
+                            'The URL path where the screen will be accessible (e.g., /lead-list)'
+                          )}
                         </p>
                       </div>
                     </>
@@ -1899,15 +2065,17 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                   <Alert>
                     <AlertCircle className="gba:w-4 gba:h-4" />
                     <AlertDescription className="gba:text-xs">
-                      This will build the screen, upload to Azure, and automatically register it in the platform with
-                      the resource URL.
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:ai_builder.publish_info',
+                        'This will build the screen, upload to Azure, and automatically register it in the platform with the resource URL.'
+                      )}
                     </AlertDescription>
                   </Alert>
 
                   {/* Actions */}
                   <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4 gba:border-t">
                     <Button variant="outline" onClick={() => setShowPublishDialog(false)} disabled={isPublishing}>
-                      Cancel
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.cancel', 'Cancel')}
                     </Button>
                     <Button
                       onClick={handlePublish}
@@ -1917,12 +2085,12 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                       {isPublishing ? (
                         <>
                           <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
-                          Publishing...
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.publishing', 'Publishing...')}
                         </>
                       ) : (
                         <>
                           <Upload className="gba:w-4 gba:h-4" />
-                          Publish Screen
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.publish_screen', 'Publish Screen')}
                         </>
                       )}
                     </Button>

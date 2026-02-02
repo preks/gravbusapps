@@ -5,6 +5,7 @@ import { Label } from '@newwork/nw-design-system'
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { Alert, AlertDescription } from '@newwork/nw-design-system'
 import { Upload, Loader2, CheckCircle, AlertCircle, X } from 'lucide-react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface GeneratedFile {
   path: string
@@ -38,7 +39,12 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({ files, onClose, on
 
   const handlePublish = async () => {
     if (!screenPath || !resourceUrl) {
-      setError('Please fill in all required fields')
+      setError(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:ai_builder.publish_dialog.fill_required',
+          'Please fill in all required fields'
+        )
+      )
       return
     }
 
@@ -49,7 +55,14 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({ files, onClose, on
       await onPublish(screenPath, resourceUrl)
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to publish screen')
+      setError(
+        err instanceof Error
+          ? err.message
+          : getTranslationFromI18nKeyAndLabel(
+              'lowcoder:ai_builder.publish_dialog.publish_failed',
+              'Failed to publish screen'
+            )
+      )
     } finally {
       setPublishing(false)
     }
@@ -65,7 +78,10 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({ files, onClose, on
           <div className="gba:flex gba:items-center gba:justify-between">
             <CardTitle className="gba:flex gba:items-center gba:gap-2">
               <Upload className="gba:w-5 gba:h-5" />
-              Publish to NEWWORK Platform
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:ai_builder.publish_dialog.title',
+                'Publish to NEWWORK Platform'
+              )}
             </CardTitle>
             <button
               onClick={onClose}
@@ -81,7 +97,11 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({ files, onClose, on
           {/* Files Summary */}
           <div>
             <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-3">
-              Files to Publish ({files.length})
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:ai_builder.publish_dialog.files_to_publish',
+                'Files to Publish'
+              )}{' '}
+              ({files.length})
             </h4>
             <div className="gba:space-y-1 gba:max-h-40 gba:overflow-y-auto gba:bg-muted gba:rounded-lg gba:p-3">
               {files.map((file, idx) => (
@@ -95,7 +115,9 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({ files, onClose, on
 
           {/* Screen Path */}
           <div className="gba:space-y-2">
-            <Label htmlFor="screen-path">Screen Path *</Label>
+            <Label htmlFor="screen-path">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.publish_dialog.screen_path', 'Screen Path *')}
+            </Label>
             <Input
               id="screen-path"
               value={screenPath}
@@ -104,13 +126,18 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({ files, onClose, on
               data-testid="ai-builder-publish-screen-path"
             />
             <p className="gba:text-xs gba:text-muted-foreground">
-              Format: {'<module>/<sub-module>/apps/<screen-name>'}
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:ai_builder.publish_dialog.screen_path_format',
+                "Format: '<module>/<sub-module>/apps/<screen-name>'"
+              )}
             </p>
           </div>
 
           {/* Resource URL */}
           <div className="gba:space-y-2">
-            <Label htmlFor="resource-url">Resource URL *</Label>
+            <Label htmlFor="resource-url">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.publish_dialog.resource_url', 'Resource URL *')}
+            </Label>
             <Input
               id="resource-url"
               value={resourceUrl}
@@ -119,7 +146,10 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({ files, onClose, on
               data-testid="ai-builder-publish-resource-url"
             />
             <p className="gba:text-xs gba:text-muted-foreground">
-              The URL path where the screen will be accessible in the platform
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:ai_builder.publish_dialog.resource_url_help',
+                'The URL path where the screen will be accessible in the platform'
+              )}
             </p>
           </div>
 
@@ -127,8 +157,10 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({ files, onClose, on
           <Alert>
             <AlertCircle className="gba:w-4 gba:h-4" />
             <AlertDescription className="gba:text-xs">
-              This will build the screen, upload it to Azure, and register it in the NEWWORK platform. The screen will
-              be immediately available at the specified URL.
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:ai_builder.publish_dialog.info',
+                'This will build the screen, upload it to Azure, and register it in the NEWWORK platform. The screen will be immediately available at the specified URL.'
+              )}
             </AlertDescription>
           </Alert>
 
@@ -143,7 +175,7 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({ files, onClose, on
           {/* Actions */}
           <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4 gba:border-t">
             <Button variant="outline" onClick={onClose} disabled={publishing} data-testid="ai-builder-publish-cancel">
-              Cancel
+              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.publish_dialog.cancel', 'Cancel')}
             </Button>
             <Button
               onClick={handlePublish}
@@ -154,12 +186,15 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({ files, onClose, on
               {publishing ? (
                 <>
                   <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
-                  Publishing...
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.publish_dialog.publishing', 'Publishing...')}
                 </>
               ) : (
                 <>
                   <Upload className="gba:w-4 gba:h-4" />
-                  Publish Screen
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:ai_builder.publish_dialog.publish_screen',
+                    'Publish Screen'
+                  )}
                 </>
               )}
             </Button>

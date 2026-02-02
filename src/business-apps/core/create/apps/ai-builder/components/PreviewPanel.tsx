@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { Alert, AlertDescription } from '@newwork/nw-design-system'
 import { Eye, RefreshCw, ExternalLink, AlertCircle } from 'lucide-react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface GeneratedFile {
   path: string
@@ -39,8 +40,15 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ files }) => {
         <div className="gba:text-center gba:space-y-3">
           <Eye className="gba:w-12 gba:h-12 gba:mx-auto gba:text-muted-foreground" />
           <div>
-            <h3 className="gba:text-lg gba:font-medium gba:text-foreground">No Preview Available</h3>
-            <p className="gba:text-sm gba:text-muted-foreground">Generate files first to see a preview</p>
+            <h3 className="gba:text-lg gba:font-medium gba:text-foreground">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.preview.no_preview', 'No Preview Available')}
+            </h3>
+            <p className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:ai_builder.preview.generate_first',
+                'Generate files first to see a preview'
+              )}
+            </p>
           </div>
         </div>
       </div>
@@ -54,7 +62,9 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ files }) => {
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-2">
             <Eye className="gba:w-5 gba:h-5 gba:text-muted-foreground" />
-            <h3 className="gba:text-sm gba:font-medium gba:text-foreground">Preview Mode</h3>
+            <h3 className="gba:text-sm gba:font-medium gba:text-foreground">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.preview.mode', 'Preview Mode')}
+            </h3>
             {previewUrl && <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-success gba:animate-pulse" />}
           </div>
           <div className="gba:flex gba:items-center gba:gap-2">
@@ -68,7 +78,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ files }) => {
                   className="gba:gap-2"
                 >
                   <RefreshCw className="gba:w-4 gba:h-4" />
-                  Reload
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.preview.reload', 'Reload')}
                 </Button>
                 <Button
                   variant="outline"
@@ -77,7 +87,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ files }) => {
                   className="gba:gap-2"
                 >
                   <ExternalLink className="gba:w-4 gba:h-4" />
-                  Open in New Tab
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.preview.open_new_tab', 'Open in New Tab')}
                 </Button>
               </>
             )}
@@ -91,12 +101,12 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ files }) => {
                 {loading ? (
                   <>
                     <RefreshCw className="gba:w-4 gba:h-4 gba:animate-spin" />
-                    Starting...
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.preview.starting', 'Starting...')}
                   </>
                 ) : (
                   <>
                     <Eye className="gba:w-4 gba:h-4" />
-                    Start Preview
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.preview.start', 'Start Preview')}
                   </>
                 )}
               </Button>
@@ -118,7 +128,7 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ files }) => {
           <iframe
             src={previewUrl}
             className="gba:w-full gba:h-full gba:border-0"
-            title="Screen Preview"
+            title={getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.preview.iframe_title', 'Screen Preview')}
             sandbox="allow-scripts allow-same-origin"
           />
         ) : (
@@ -128,15 +138,23 @@ export const PreviewPanel: React.FC<PreviewPanelProps> = ({ files }) => {
                 <Eye className="gba:w-8 gba:h-8 gba:text-primary" />
               </div>
               <div>
-                <h3 className="gba:text-lg gba:font-medium gba:text-foreground">Ready to Preview</h3>
+                <h3 className="gba:text-lg gba:font-medium gba:text-foreground">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.preview.ready', 'Ready to Preview')}
+                </h3>
                 <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">
-                  Click "Start Preview" to see your generated screen in action
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:ai_builder.preview.click_start',
+                    'Click "Start Preview" to see your generated screen in action'
+                  )}
                 </p>
               </div>
               <Alert>
                 <AlertCircle className="gba:w-4 gba:h-4" />
                 <AlertDescription className="gba:text-xs">
-                  Preview will load the screen in a sandboxed environment
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:ai_builder.preview.sandbox_info',
+                    'Preview will load the screen in a sandboxed environment'
+                  )}
                 </AlertDescription>
               </Alert>
             </div>

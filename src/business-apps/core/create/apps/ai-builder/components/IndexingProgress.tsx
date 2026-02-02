@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Loader2, Database } from 'lucide-react'
 import { getAllIndexingStatus, IndexingStatus } from '../api/adminClient'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface IndexingProgressProps {
   /** Compact mode for inline display */
@@ -62,13 +63,13 @@ export const IndexingProgress: React.FC<IndexingProgressProps> = ({ compact = fa
   const getStatusLabel = (status: string): string => {
     switch (status) {
       case 'scanning':
-        return 'Scanning files'
+        return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.indexing.scanning', 'Scanning files')
       case 'parsing':
-        return 'Parsing code'
+        return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.indexing.parsing', 'Parsing code')
       case 'embedding':
-        return 'Generating embeddings'
+        return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.indexing.embedding', 'Generating embeddings')
       case 'storing':
-        return 'Saving to database'
+        return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.indexing.storing', 'Saving to database')
       default:
         return status
     }
@@ -90,7 +91,9 @@ export const IndexingProgress: React.FC<IndexingProgressProps> = ({ compact = fa
       return (
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
           <Database className="gba:w-3 gba:h-3" />
-          <span>{readyCount} indexed</span>
+          <span>
+            {readyCount} {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.indexing.indexed', 'indexed')}
+          </span>
         </div>
       )
     }
@@ -105,7 +108,9 @@ export const IndexingProgress: React.FC<IndexingProgressProps> = ({ compact = fa
 
   // Get the most relevant status message
   const primaryStatus = activeIndexing[0]
-  const statusText = primaryStatus.progress ? getStatusLabel(primaryStatus.progress.status) : 'Indexing'
+  const statusText = primaryStatus.progress
+    ? getStatusLabel(primaryStatus.progress.status)
+    : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.indexing.indexing', 'Indexing')
   const repoName = `${primaryStatus.owner}/${primaryStatus.name}`
 
   if (compact) {

@@ -1,5 +1,6 @@
 import React from 'react'
 import { DollarSign, Activity } from 'lucide-react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface UsageStatsProps {
   totalInputTokens: number
@@ -20,7 +21,9 @@ export const UsageStats: React.FC<UsageStatsProps> = ({ totalInputTokens, totalO
       <div className="gba:flex gba:items-center gba:gap-2">
         <Activity className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
         <div className="gba:text-xs">
-          <span className="gba:text-muted-foreground">Tokens:</span>
+          <span className="gba:text-muted-foreground">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.usage.tokens', 'Tokens:')}
+          </span>
           <span className="gba:font-mono gba:font-medium gba:text-foreground gba:ml-1">
             {(totalInputTokens / 1000).toFixed(1)}K
           </span>
@@ -36,7 +39,9 @@ export const UsageStats: React.FC<UsageStatsProps> = ({ totalInputTokens, totalO
       <div className="gba:flex gba:items-center gba:gap-2">
         <DollarSign className="gba:w-4 gba:h-4 gba:text-success" />
         <div className="gba:text-xs">
-          <span className="gba:text-muted-foreground">Cost:</span>
+          <span className="gba:text-muted-foreground">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.usage.cost', 'Cost:')}
+          </span>
           <span className="gba:font-mono gba:font-semibold gba:text-success gba:ml-1">${totalCost.toFixed(4)}</span>
         </div>
       </div>

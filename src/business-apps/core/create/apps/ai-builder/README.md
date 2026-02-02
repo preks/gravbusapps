@@ -5,6 +5,7 @@ An AI-powered screen builder that creates NEWWORK platform screens using natural
 ## 🎯 Purpose
 
 The AI Builder is your USP - it allows users to:
+
 - **Describe** what screen they want in natural language
 - **Generate** complete, production-ready screens following all gravity-business-apps patterns
 - **Preview** the generated screen before publishing
@@ -13,11 +14,13 @@ The AI Builder is your USP - it allows users to:
 ## ✨ Features
 
 ### 1. Natural Language Interface
+
 - Chat-based interface for describing screens
 - AI understands context: CRM, HR, Finance modules
 - Suggests common patterns and components
 
 ### 2. Pattern-Aware Generation
+
 - ✅ Uses only `@newwork/nw-design-system` components
 - ✅ Follows gravity-business-apps folder structure
 - ✅ Implements `BusinessAppContextProps` correctly
@@ -27,23 +30,27 @@ The AI Builder is your USP - it allows users to:
 - ✅ Integrates with `newwork-graphql-mcp` for data
 
 ### 3. File Management
+
 - View all generated files in a tree structure
 - See diffs (create/modify/delete)
 - Edit files before publishing
 - Download as a package
 
 ### 4. Preview Mode
+
 - Preview generated screens in isolated environment
 - Test functionality before publishing
 - See real-time updates
 
 ### 5. One-Click Publishing
+
 - Publishes to Azure blob storage
 - Registers in NEWWORK platform
 - Creates resource URLs automatically
 - No manual build/deploy steps needed
 
 ### 6. Cost Tracking
+
 - Real-time token usage monitoring
 - Cost breakdown per conversation
 - Budget awareness
@@ -75,6 +82,7 @@ ai-builder/
 ### Prerequisites
 
 1. **FORGE Backend** (from `/Users/denisprekrat/Documents/APPS/NEWWORK Apps/forge`)
+
    ```bash
    cd /Users/denisprekrat/Documents/APPS/NEWWORK Apps/forge
    npm install
@@ -83,6 +91,7 @@ ai-builder/
 
 2. **Indexed Repository**
    The `gravbusapps` repository must be indexed in FORGE:
+
    ```bash
    # In FORGE dashboard
    - Add repository: https://github.com/preks/gravbusapps
@@ -98,6 +107,7 @@ ai-builder/
 ### Environment Variables
 
 Create `.env` in project root:
+
 ```env
 # FORGE API (default: http://localhost:3000)
 FORGE_API_URL=http://localhost:3000
@@ -120,10 +130,11 @@ Navigate to `/apps/platform/ai-builder` in the NEWWORK platform.
 In the chat interface, describe what you want to build:
 
 **Examples:**
+
 ```
 "Create a lead management screen with a list view, filters, and detail panel"
 
-"Build a customer dashboard with statistics cards showing total customers, 
+"Build a customer dashboard with statistics cards showing total customers,
  active accounts, revenue this month, and a table of recent activities"
 
 "Generate a contact form with name, email, phone, company, and notes fields"
@@ -132,6 +143,7 @@ In the chat interface, describe what you want to build:
 ### 3. Review Generated Files
 
 Switch to the "Files" tab to see all generated files:
+
 - Component files (`.tsx`)
 - Index files (`.ts`)
 - Type definitions
@@ -141,6 +153,7 @@ Switch to the "Files" tab to see all generated files:
 ### 4. Preview the Screen
 
 Click "Preview" tab to see the screen in action:
+
 - Interact with the UI
 - Test functionality
 - Verify styling
@@ -149,6 +162,7 @@ Click "Preview" tab to see the screen in action:
 ### 5. Publish to Platform
 
 When satisfied:
+
 1. Click "Publish to Platform"
 2. Verify screen path: `crm/customers/apps/my-screen`
 3. Verify resource URL: `/apps/crm/my-screen`
@@ -159,6 +173,7 @@ Your screen is now live in the NEWWORK platform! 🎉
 ## 🎨 Example Prompts
 
 ### CRM Module
+
 ```
 "Create a lead list with columns for name, company, status, owner, and actions"
 "Build an opportunity pipeline with drag-and-drop between stages"
@@ -166,6 +181,7 @@ Your screen is now live in the NEWWORK platform! 🎉
 ```
 
 ### HR Module
+
 ```
 "Create an employee directory with search, filters, and org chart"
 "Build a leave request form with date picker and approval workflow"
@@ -173,6 +189,7 @@ Your screen is now live in the NEWWORK platform! 🎉
 ```
 
 ### Finance Module
+
 ```
 "Create an expense approval list with filters and bulk actions"
 "Build an invoice detail view with line items and payment history"
@@ -188,16 +205,16 @@ The AI Builder automatically integrates with GraphQL APIs using `newwork-graphql
 ```typescript
 // Generated hook example
 export const useLeadData = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchLeads = async (variables: LeadQueryVariables = {}) => {
-    const query = GET_LEADS_QUERY(variables);
-    const result = await graphqlClient.request<LeadsResponse>(query);
-    return result;
-  };
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { fetchLeads };
-};
+  const fetchLeads = async (variables: LeadQueryVariables = {}) => {
+    const query = GET_LEADS_QUERY(variables)
+    const result = await graphqlClient.request<LeadsResponse>(query)
+    return result
+  }
+
+  return { fetchLeads }
+}
 ```
 
 ### Component Patterns
@@ -233,6 +250,7 @@ export const MyScreen: React.FC<MyScreenProps> = (props) => {
 ## 🐛 Troubleshooting
 
 ### FORGE API Not Responding
+
 ```bash
 # Check if FORGE is running
 curl http://localhost:3000/api/health
@@ -242,6 +260,7 @@ curl http://localhost:3000/api/repos/gravbusapps-main/status
 ```
 
 ### Publish Service Not Running
+
 ```bash
 # Check if service is running
 curl http://localhost:3002/api/health
@@ -251,6 +270,7 @@ node src/business-apps/platform/apps/ai-builder/server/publishService.ts
 ```
 
 ### Generated Code Has Errors
+
 - Review the generated files in the Files tab
 - Check for missing imports
 - Verify component names match exports
@@ -259,6 +279,7 @@ node src/business-apps/platform/apps/ai-builder/server/publishService.ts
 ## 📊 Metrics
 
 The AI Builder tracks:
+
 - **Tokens Used**: Input/output token counts
 - **Cost**: Real-time cost calculation
 - **Success Rate**: Successful builds/publishes
@@ -292,4 +313,3 @@ Internal NEWWORK tool - Not for external distribution
 ---
 
 **Built with ❤️ for NEWWORK Platform**
-
