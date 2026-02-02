@@ -27,26 +27,26 @@ global.IntersectionObserver = class IntersectionObserver {
   readonly rootMargin: string = '0px'
   readonly thresholds: ReadonlyArray<number> = []
 
-  constructor() {}
-  disconnect() {}
-  observe() {}
+  constructor() {} // NOSONAR - Intentional empty constructor for test mock
+  disconnect() {} // NOSONAR - Intentional empty method for test mock
+  observe() {} // NOSONAR - Intentional empty method for test mock
   takeRecords(): IntersectionObserverEntry[] {
     return []
   }
-  unobserve() {}
+  unobserve() {} // NOSONAR - Intentional empty method for test mock
 } as any
 
 // Mock ResizeObserver
 global.ResizeObserver = class ResizeObserver {
-  constructor() {}
-  disconnect() {}
-  observe() {}
-  unobserve() {}
+  constructor() {} // NOSONAR - Intentional empty constructor for test mock
+  disconnect() {} // NOSONAR - Intentional empty method for test mock
+  observe() {} // NOSONAR - Intentional empty method for test mock
+  unobserve() {} // NOSONAR - Intentional empty method for test mock
 }
 
 // Mock ClipboardEvent and DataTransfer for paste tests
 class MockDataTransfer {
-  private data: Map<string, string> = new Map()
+  private readonly data: Map<string, string> = new Map()
 
   setData(format: string, data: string) {
     this.data.set(format, data)
