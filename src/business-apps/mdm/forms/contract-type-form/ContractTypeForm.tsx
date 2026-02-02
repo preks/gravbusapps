@@ -60,7 +60,7 @@ const ProbationPeriodFields: React.FC<{ dataTestId: string }> = ({ dataTestId })
                   onChange={e => {
                     const value = e.target.value
                     // Only allow digits, no leading zeros (except empty), max 4 digits
-                    if (value === '' || /^[1-9][0-9]{0,3}$/.test(value)) {
+                    if (value === '' || /^[1-9]\d{0,3}$/.test(value)) {
                       field.onChange(value)
                     }
                   }}
@@ -143,7 +143,7 @@ const contractTypeFormSchema = z
       .optional(),
     probationValue: z
       .string()
-      .refine(val => !val || /^[1-9][0-9]{0,3}$/.test(val), 'Must be a positive number with maximum 4 digits')
+      .refine(val => !val || /^[1-9]\d{0,3}$/.test(val), 'Must be a positive number with maximum 4 digits')
       .optional(),
     probationUnit: z.enum(['day', 'week', 'month', '']).optional()
   })
@@ -169,7 +169,7 @@ const createContractTypeFormSchema = z
       .optional(),
     probationValue: z
       .string()
-      .refine(val => !val || /^[1-9][0-9]{0,3}$/.test(val), 'Must be a positive number with maximum 4 digits')
+      .refine(val => !val || /^[1-9]\d{0,3}$/.test(val), 'Must be a positive number with maximum 4 digits')
       .optional(),
     probationUnit: z.enum(['day', 'week', 'month', '']).optional()
   })
