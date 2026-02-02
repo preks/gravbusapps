@@ -27,6 +27,7 @@ export interface ContentEntryQueryParams {
   categoryRefs?: string[]
   tagRefs?: string[]
   creatorEmployeeId?: string | null
+  createdBy?: string | null
   parentContentEntryId?: string | null
   activeFrom?: string
   activeTo?: string
@@ -74,6 +75,10 @@ const buildContentEntryWhereClause = (params: ContentEntryQueryParams): Record<s
 
   if (params.creatorEmployeeId) {
     conditions.creatorEmployeeId = { _eq: params.creatorEmployeeId }
+  }
+
+  if (params.createdBy) {
+    conditions.createdBy = { _eq: params.createdBy }
   }
 
   if (params.parentContentEntryId !== undefined && params.parentContentEntryId !== null) {
