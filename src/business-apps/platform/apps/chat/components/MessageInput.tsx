@@ -148,8 +148,8 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
           selection.addRange(range)
         }
       } else if (inputRef.current) {
-        inputRef.current.focus({ preventScroll: true })
         const cursorPosition = inputRef.current.value.length
+        inputRef.current.focus({ preventScroll: true })
         inputRef.current.setSelectionRange(cursorPosition, cursorPosition)
       }
     }, [])
@@ -498,12 +498,13 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
     }
 
     // Debug mount/unmount to detect remounts that could wipe state
-    useEffect(() => {
-      console.debug('[MessageInput] mount')
-      return () => {
-        console.debug('[MessageInput] unmount')
-      }
-    }, [])
+    // Track component lifecycle for debugging if needed
+    // useEffect(() => {
+    //   console.debug('[MessageInput] mount')
+    //   return () => {
+    //     console.debug('[MessageInput] unmount')
+    //   }
+    // }, [])
 
     // Reset selected index when entities change
     useEffect(() => {
@@ -906,10 +907,14 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
       [scheduleFocusRestoration]
     )
 
-    // Restore focus after re-renders if we had focus - run on every render
+    // Restore focus after ACTUAL remounts only (not every render)
+    // Track if this is the initial mount
+    const hasRestoredFocusRef = useRef(false)
+
     useLayoutEffect(() => {
-      // Restore focus if this input had focus before unmount
-      if ((shouldRestoreFocusRef.current || lastHadFocus) && inputRef.current) {
+      // Only restore focus once after the initial mount, not on every render
+      if ((shouldRestoreFocusRef.current || lastHadFocus) && inputRef.current && !hasRestoredFocusRef.current) {
+        hasRestoredFocusRef.current = true
         // Use requestAnimationFrame to ensure DOM is ready
         requestAnimationFrame(() => {
           if (inputRef.current && (shouldRestoreFocusRef.current || lastHadFocus)) {
@@ -918,7 +923,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
           }
         })
       }
-    }) // No dependencies - run on every render to catch remounts
+    }) // No dependencies - run on every render to catch remounts, but only restore once
 
     useEffect(() => {
       const activeElement = document.activeElement

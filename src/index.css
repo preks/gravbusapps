@@ -19,9 +19,14 @@
   utilities,
   all-newwork-tw-utilities;
 
+/* Funnel Display – loaded via CSS so it works when screen is published (host doesn't use our index.html) */
+@import url('https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600;700&display=swap');
+
 @import '@newwork/gravity-ui-catalog/dist/assets/style.css';
 
 @import '@newwork/nw-design-system/index.css';
+
+@import '@fortune-sheet/react/dist/index.css';
 
 @import 'react-quill/dist/quill.snow.css';
 
@@ -30,7 +35,7 @@
 @import '@newwork/nw-design-system/colors';
 @import '@newwork/nw-design-system/effects';
 @import '@newwork/nw-design-system/spacing';
-@import '@newwork/nw-design-system/high-contrast';
+/* @import '@newwork/nw-design-system/high-contrast'; */ /* Commented out - not available in current design system version */
 
 @import 'tailwindcss/theme' layer(gravity-business-apps-theme) prefix(gba);
 @import 'tailwindcss/preflight' layer(gravity-business-apps-base) prefix(gba);
@@ -38,6 +43,7 @@
 @import 'tw-animate-css';
 
 @import './business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css';
+@import './business-apps/platform/apps/spreadsheet-apps/components/FortuneSheetGrid.css';
 
 /* Tooltip styles for absence calendar segments */
 .ant-tooltip-inner {
@@ -87,6 +93,44 @@
   font-weight: 500;
 }
 
+/* Spaces hero/hub title font – Funnel Display (Google Fonts) */
+.gba\:font-funnel-display {
+  font-family: 'Funnel Display', sans-serif;
+}
+
+/* Override DS Button hover on dark hero so it stays light (DS ghost/default use dark hover) */
+.spaces-hero-ghost-btn:hover,
+.spaces-hero-ghost-btn:focus-visible {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  color: white !important;
+}
+.spaces-hero-cta-btn:hover,
+.spaces-hero-cta-btn:focus-visible {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Every Office (Desk) section titles – Funnel Display + product blue #001F4C */
+.desk-section-title {
+  font-family: 'Funnel Display', sans-serif;
+  color: #001f4c;
+}
+
+/* Every Office (Desk) app card icons – clearly blue glass */
+.desk-app-card-icon-glass {
+  position: relative;
+  background: linear-gradient(
+    145deg,
+    rgba(200, 220, 255, 0.7) 0%,
+    rgba(0, 60, 120, 0.25) 50%,
+    rgba(0, 31, 76, 0.4) 100%
+  );
+  border: 1px solid rgba(0, 60, 120, 0.4);
+  backdrop-filter: blur(8px);
+}
+.desk-app-card-icon-glass svg {
+  color: #002d5c;
+}
+
 @import './business-apps/hr/absences/apps/personal-absences/styles/absenceHub.css' layer(legacy-unlayered-override);
 @import './business-apps/hr/absences/apps/personal-absences/styles/absenceListCard.css' layer(legacy-unlayered-override);
 @import './business-apps/hr/absences/apps/personal-absences/styles/entitlementCard.css' layer(legacy-unlayered-override);
@@ -123,6 +167,9 @@
     --nw-ai-foreground: #ffffff; /* White text on AI backgrounds */
     --nw-ai-secondary: #fbbf24; /* Lighter orange for secondary elements */
     --nw-ai-secondary-foreground: #000000; /* Dark text on secondary AI backgrounds */
+
+    /* EveryAI hero background (deep navy) */
+    --nw-ai-hero-background: rgb(15, 23, 42);
   }
 }
 

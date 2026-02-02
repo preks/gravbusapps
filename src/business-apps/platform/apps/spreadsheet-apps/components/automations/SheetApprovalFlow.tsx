@@ -107,6 +107,7 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
 }) => {
   const isLineItemMode = approvalConfig.mode === 'line_item'
   const currentStep = approvalConfig.approvalSteps[currentStepIndex]
+  void _currentUserId
 
   // State
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(new Set())
@@ -172,25 +173,19 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
   }, [])
 
   // Handle row decision (line item mode)
-  const handleRowDecision = useCallback(
-    (rowId: string, decision: 'approved' | 'rejected', comments?: string) => {
-      setRowDecisions(prev => {
-        const next = new Map(prev)
-        next.set(rowId, { rowId, decision, comments })
-        return next
-      })
-    },
-    []
-  )
+  const handleRowDecision = useCallback((rowId: string, decision: 'approved' | 'rejected', comments?: string) => {
+    setRowDecisions(prev => {
+      const next = new Map(prev)
+      next.set(rowId, { rowId, decision, comments })
+      return next
+    })
+  }, [])
 
   // Handle start editing row
-  const handleStartEdit = useCallback(
-    (row: Record<string, unknown>) => {
-      setEditingRowId(row._id as string)
-      setEditValues({ ...row })
-    },
-    []
-  )
+  const handleStartEdit = useCallback((row: Record<string, unknown>) => {
+    setEditingRowId(row._id as string)
+    setEditValues({ ...row })
+  }, [])
 
   // Handle save edit
   const handleSaveEdit = useCallback(() => {
@@ -213,7 +208,7 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
     try {
       const rowIds = isLineItemMode
         ? Array.from(rowDecisions.entries())
-            .filter(([_, d]) => d.decision === 'approved')
+            .filter(([, d]) => d.decision === 'approved')
             .map(([id]) => id)
         : selectedRowIds.size > 0
           ? Array.from(selectedRowIds)
@@ -232,7 +227,7 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
     try {
       const rowIds = isLineItemMode
         ? Array.from(rowDecisions.entries())
-            .filter(([_, d]) => d.decision === 'rejected')
+            .filter(([, d]) => d.decision === 'rejected')
             .map(([id]) => id)
         : selectedRowIds.size > 0
           ? Array.from(selectedRowIds)
@@ -250,11 +245,11 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
     setIsSubmitting(true)
     try {
       const approvedIds = Array.from(rowDecisions.entries())
-        .filter(([_, d]) => d.decision === 'approved')
+        .filter(([, d]) => d.decision === 'approved')
         .map(([id]) => id)
 
       const rejectedIds = Array.from(rowDecisions.entries())
-        .filter(([_, d]) => d.decision === 'rejected')
+        .filter(([, d]) => d.decision === 'rejected')
         .map(([id]) => id)
 
       if (approvedIds.length > 0) {
@@ -319,12 +314,12 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
       <div className="gba:flex gba:items-center gba:gap-1">
         {isLineItemMode && currentStep?.canRejectRows && (
           <>
-                <Button
-                  size="sm"
-                  variant={decision?.decision === 'approved' ? 'default' : 'ghost'}
-                  className={decision?.decision === 'approved' ? 'gba:bg-success gba:text-success-foreground' : ''}
-                  onClick={() => handleRowDecision(row._id as string, 'approved')}
-                >
+            <Button
+              size="sm"
+              variant={decision?.decision === 'approved' ? 'default' : 'ghost'}
+              className={decision?.decision === 'approved' ? 'gba:bg-success gba:text-success-foreground' : ''}
+              onClick={() => handleRowDecision(row._id as string, 'approved')}
+            >
               <CheckCircle className="gba:w-4 gba:h-4" />
             </Button>
             <Button
@@ -343,16 +338,8 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
           </Button>
         )}
 
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => setExpandedRowId(isExpanded ? null : (row._id as string))}
-        >
-          {isExpanded ? (
-            <ChevronDown className="gba:w-4 gba:h-4" />
-          ) : (
-            <ChevronRight className="gba:w-4 gba:h-4" />
-          )}
+        <Button size="sm" variant="ghost" onClick={() => setExpandedRowId(isExpanded ? null : (row._id as string))}>
+          {isExpanded ? <ChevronDown className="gba:w-4 gba:h-4" /> : <ChevronRight className="gba:w-4 gba:h-4" />}
         </Button>
       </div>
     )
@@ -405,14 +392,10 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
                 >
                   {isCompleted ? <CheckCircle className="gba:w-4 gba:h-4" /> : index + 1}
                 </div>
-                <span
-                  className={`gba:text-sm ${isActive ? 'gba:font-medium' : 'gba:text-muted-foreground'}`}
-                >
+                <span className={`gba:text-sm ${isActive ? 'gba:font-medium' : 'gba:text-muted-foreground'}`}>
                   {step.title}
                 </span>
-                {index < approvalConfig.approvalSteps.length - 1 && (
-                  <div className="gba:w-8 gba:h-0.5 gba:bg-muted" />
-                )}
+                {index < approvalConfig.approvalSteps.length - 1 && <div className="gba:w-8 gba:h-0.5 gba:bg-muted" />}
               </div>
             )
           })}
@@ -458,15 +441,9 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
           {isLineItemMode ? (
             <Tabs value={activeTab} onValueChange={v => setActiveTab(v as typeof activeTab)}>
               <TabsList>
-                <TabsTrigger value="pending">
-                  Pending ({stats.pending})
-                </TabsTrigger>
-                <TabsTrigger value="approved">
-                  Approved ({stats.approved})
-                </TabsTrigger>
-                <TabsTrigger value="rejected">
-                  Rejected ({stats.rejected})
-                </TabsTrigger>
+                <TabsTrigger value="pending">Pending ({stats.pending})</TabsTrigger>
+                <TabsTrigger value="approved">Approved ({stats.approved})</TabsTrigger>
+                <TabsTrigger value="rejected">Rejected ({stats.rejected})</TabsTrigger>
               </TabsList>
 
               <TabsContent value="pending" className="gba:flex-1 gba:overflow-hidden">
@@ -638,10 +615,7 @@ export const SheetApprovalFlow: React.FC<SheetApprovalFlowProps> = ({
                 <TableHeader>
                   <TableRow>
                     <TableHead className="gba:w-12">
-                      <Checkbox
-                        checked={selectedRowIds.size === rows.length}
-                        onCheckedChange={handleSelectAll}
-                      />
+                      <Checkbox checked={selectedRowIds.size === rows.length} onCheckedChange={handleSelectAll} />
                     </TableHead>
                     {visibleColumns.map(column => (
                       <TableHead key={column.id}>{column.label}</TableHead>

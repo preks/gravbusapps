@@ -16,6 +16,7 @@ export const accountSchema = z.object({
   picture: z.string().nullable().optional(),
   pictureThumbnail: z.string().nullable().optional(),
   code: z.string().nullable().optional(),
+  prospective: z.boolean().default(true),
   id: z.string().optional(),
   version: z.number().optional(),
   communicationChannels: z

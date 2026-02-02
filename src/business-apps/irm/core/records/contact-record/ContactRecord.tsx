@@ -4,7 +4,6 @@ import {
   FileTextIcon,
   UserIcon,
   CurrencyDollarIcon,
-  RobotIcon,
   EnvelopeIcon,
   PhoneIcon,
   CakeIcon,
@@ -16,7 +15,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
+import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { getContactFullName } from './utils'
 import { useContactAiSummary } from './hooks/useContactAiSummary'
 import { useInvestmentContact } from '@/common/data/investment/hooks/useInvestmentContact'
@@ -235,32 +234,14 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
     [contactData]
   )
 
-  const headerActions = useMemo(() => {
-    const actions: AiAction[] = [
-      {
-        key: 'ai-summary',
-        label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-        icon: <RobotIcon size={16} />,
-        hook: aiSummaryHook,
-        config: {
-          entityType: 'contact',
-          loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.summary.loading', 'Generating AI Summary...'),
-          loadingSubtitle: getTranslationFromI18nKeyAndLabel(
-            'crm.ai.summary.contact.subtitle',
-            'Analyzing contact data and activities'
-          )
-        }
-      }
-    ]
-
-    return (
-      <AiActions
-        actions={actions}
-        dataTestId={`contact-update-button-${contactId}`}
-        buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')}
-      />
-    )
-  }, [aiSummaryHook, contactId])
+  const headerActions = (
+    <AiActions
+      entityType="investment-contact"
+      entityId={contactId}
+      features={['summary']}
+      hooks={{ summary: aiSummaryHook }}
+    />
+  )
 
   // Calculate fullName early for use in headerActionButton
   const fullName = getContactFullName(contactData, null)

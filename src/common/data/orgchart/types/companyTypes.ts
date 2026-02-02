@@ -6,6 +6,12 @@
 import { type BaseEntity, type CatalogEntry, BASE_ENTITY_DESCRIPTORS } from '@/common/network/graphql/commonTypes'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
 import type { Descriptor } from '@/common/network/graphql/queryHelpers'
+import {
+  type Document,
+  DocumentFields,
+  DocumentFormFields,
+  createDocumentDescriptors
+} from '@/common/data/relations/types/documentTypes'
 
 // ==========================================
 // COMPANY ADDRESS TYPE
@@ -13,12 +19,14 @@ import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
 export interface CompanyAddress extends BaseEntity {
   id: string
-  streetAddress?: string
+  addressLine?: Record<string, any> // jsonb field containing streetAddress, addressLine2, etc.
   locality?: string
   postalCode?: string
+  regionRef?: string
   region?: CatalogEntry
+  countryRef?: string
   country?: CatalogEntry
-  addressType?: CatalogEntry
+  addressType?: string
   companyId?: string
 }
 
@@ -28,13 +36,51 @@ export interface CompanyAddress extends BaseEntity {
 
 export interface CompanyRelationship extends BaseEntity {
   id: string
-  parentCompanyId?: string
-  childCompanyId?: string
-  relationshipType?: CatalogEntry
+  parentId?: string
+  childId?: string
   percentage?: number
+  structureId?: string
   parentCompany?: Company
   childCompany?: Company
 }
+
+// ==========================================
+// COMPANY DOCUMENT TYPE
+// ==========================================
+
+/**
+ * Company Document
+ * Extends base Document type with company-specific relations
+ */
+export interface CompanyDocument extends Document {
+  company?: Company
+  companyId?: string
+}
+
+/**
+ * Company Document Field Mapping
+ * Extends DocumentFields with company-specific fields
+ */
+export const CompanyDocumentFields = {
+  ...DocumentFields,
+  company: 'company',
+  companyId: 'companyId'
+} as const
+
+/**
+ * Company Document Form Fields
+ * Extends DocumentFormFields with company-specific fields
+ */
+export const CompanyDocumentFormFields = {
+  ...DocumentFormFields,
+  companyId: 'company'
+} as const
+
+/**
+ * Company Document Descriptors
+ * Uses createDocumentDescriptors with CompanyDocumentFields mapping
+ */
+export const COMPANY_DOCUMENT_DESCRIPTORS: Descriptor[] = [...createDocumentDescriptors(CompanyDocumentFields)]
 
 // ==========================================
 // COMPANY TYPE
@@ -42,34 +88,43 @@ export interface CompanyRelationship extends BaseEntity {
 
 /**
  * Company Type
- * Extends BaseEntity - includes future fields that are not yet in GraphQL schema
+ * Extends BaseEntity - all fields available in GraphQL schema
  */
 export interface Company extends BaseEntity {
   id: string
 
-  // Company Core Fields (currently available)
+  // Core Fields
   name: string
   code?: string
   description?: string
   structureId?: string
 
-  // Future Fields (defined but NOT queried yet)
+  // Legal/Tax Fields
   directorId?: string
   director?: Employee
   commercialRegistrationNumber?: string
   taxIdentificationNumber?: string
   taxNumber?: string
   valueAddedTaxNumber?: string
-  additionalProperties?: string | Record<string, any>
 
-  // Relationships (currently available)
+  // Financial Fields
+  currencyRef?: string
+  currency?: CatalogEntry
+
+  // Media Fields
+  picture?: Record<string, any>
+  pictureThumbnail?: string
+
+  // Additional Data
+  additionalProperties?: Record<string, any>
+
+  // Relationships
   companyEmployee?: CompanyEmployee[]
   organizationalUnits?: OrganizationalUnit[]
-
-  // Future Relationships (defined but NOT queried yet)
-  companyAddress?: CompanyAddress[]
-  parentCompanies?: CompanyRelationship[]
-  childCompanies?: CompanyRelationship[]
+  addresses?: CompanyAddress[]
+  parentRelationships?: CompanyRelationship[]
+  childRelationships?: CompanyRelationship[]
+  documents?: CompanyDocument[]
 }
 
 // ==========================================
@@ -101,16 +156,16 @@ export interface OrganizationalUnit extends BaseEntity {
 
 /**
  * Company Fields
- * ALL fields including future fields (BaseEntity fields NOT included - handled by BASE_ENTITY_DESCRIPTORS)
+ * ALL fields available in GraphQL schema (BaseEntity fields NOT included - handled by BASE_ENTITY_DESCRIPTORS)
  */
 export const CompanyFields = {
-  // Company Core Fields
+  // Core Fields
   code: 'code',
   name: 'name',
   description: 'description',
   structureId: 'structureId',
 
-  // Future Fields (not yet in GraphQL schema)
+  // Legal/Tax Fields
   directorId: 'directorId',
   director: 'director',
   commercialRegistrationNumber: 'commercialRegistrationNumber',
@@ -118,14 +173,24 @@ export const CompanyFields = {
   taxNumber: 'taxNumber',
   valueAddedTaxNumber: 'valueAddedTaxNumber',
 
+  // Financial Fields
+  currencyRef: 'currencyRef',
+  currency: 'currency',
+
+  // Media Fields
+  picture: 'picture',
+  pictureThumbnail: 'pictureThumbnail',
+
+  // Additional Data
+  additionalProperties: 'additionalProperties',
+
   // Relationships
   companyEmployee: 'companyEmployee',
   organizationalUnits: 'organizationalUnits',
-
-  // Future Relationships
-  companyAddress: 'companyAddress',
-  parentCompanies: 'parentCompanies',
-  childCompanies: 'childCompanies'
+  addresses: 'addresses',
+  parentRelationships: 'parentRelationships',
+  childRelationships: 'childRelationships',
+  documents: 'documents'
 } as const
 
 // ==========================================
@@ -150,18 +215,21 @@ export const CompanyFormFields = {
   version: 'version',
   additionalProperties: 'additionalProperties',
 
-  // Company Core Fields
+  // Core Fields
   code: 'code',
   name: 'name',
   description: 'description',
   structureId: 'structureId',
 
-  // Future Fields
+  // Legal/Tax Fields
   directorId: 'director',
   commercialRegistrationNumber: 'commercialRegistrationNumber',
   taxIdentificationNumber: 'taxIdentificationNumber',
   taxNumber: 'taxNumber',
-  valueAddedTaxNumber: 'valueAddedTaxNumber'
+  valueAddedTaxNumber: 'valueAddedTaxNumber',
+
+  // Financial Fields
+  currencyRef: 'currencyRef'
 } as const
 
 // ==========================================
@@ -177,13 +245,13 @@ export const createCompanyDescriptors = (
 ): Descriptor[] => [
   ...BASE_ENTITY_DESCRIPTORS,
 
-  // Company Core Fields
+  // Core Fields
   { key: 'code', searchPaths: [fields.code], sortPath: fields.code, type: 'text' },
   { key: 'name', searchPaths: [fields.name], sortPath: fields.name, type: 'text' },
   { key: 'description', searchPaths: [fields.description], sortPath: fields.description, type: 'text' },
   { key: 'structureId', searchPaths: [fields.structureId], sortPath: fields.structureId, type: 'text' },
 
-  // Future Fields (descriptors defined for when they become available)
+  // Legal/Tax Fields
   {
     key: 'commercialRegistrationNumber',
     searchPaths: [fields.commercialRegistrationNumber],
@@ -204,7 +272,7 @@ export const createCompanyDescriptors = (
     type: 'text'
   },
 
-  // Entity References (future)
+  // Entity References
   {
     key: 'director',
     searchPaths: [`${fields.director}.displayName`, `${fields.director}.firstName`, `${fields.director}.lastName`],
@@ -212,7 +280,7 @@ export const createCompanyDescriptors = (
     type: 'text'
   },
 
-  // Filter IDs (future)
+  // Filter IDs
   {
     key: 'directorIds',
     path: fields.directorId,

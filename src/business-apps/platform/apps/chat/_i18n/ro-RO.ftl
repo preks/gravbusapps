@@ -221,7 +221,10 @@ call-micOn = Microfon
 call-micOff = Microfon oprit
 call-cameraOn = Cameră
 call-cameraOff = Cameră oprită
+call-backgroundOn = Fundal
+call-backgroundOff = Fundal oprit
 call-startedBy = Pornit de
+call-activeParticipants = activ
 call-unmute = Activează sunet
 call-mute = Mut
 call-turnOnCamera = Pornește camera
@@ -270,6 +273,45 @@ groupCall-turnOffVideo = Oprește camera
 groupCall-endCall = Termină apelul
 groupCall-enableBackground = Activează fundal personalizat
 groupCall-disableBackground = Dezactivează fundal personalizat
+groupCall-chat = Chat
+
+# Participants Panel
+participants-close = Închide
+participants-in-this-call = În acest apel
+participants-available = Disponibili
+participants-pending-invites = Invitații în așteptare
+participants-invite = Invită
+participants-inviting = Se invită...
+participants-no-available = Nu există participanți disponibili pentru invitare
+participants-host = Gazdă
+participants-mute = Mut
+participants-kick = Elimină
+participants-no-hands-raised = Nimeni nu și-a ridicat mâna
+participants-hand-raised = Mână ridicată
+participants-screen-sharing = Partajare ecran
+participants-audio-only = Doar audio
+participants-speaking = Vorbește
+participants-more-options = Mai multe opțiuni
+participants-mute-participant = Mut {$name}
+participants-mute-all = Mut toți
+participants-no-results-found = Nu s-au găsit rezultate
+participants-try-different-search = Încearcă un alt termen de căutare sau răsfoiește toți participanții
+participants-clear-search = Șterge căutarea
+participants-everyones-here = Toată lumea e aici!
+participants-all-members-in-call = Toți membrii conversației sunt fie în apel, fie au fost invitați.
+participants-in-call = În apel
+participants-invited = Invitați
+participants-unknown = Necunoscut
+participants-you = Tu
+participants-declined-invite = Invitație refuzată
+participants-not-answered = Nu a răspuns
+participants-ringing = Sună...
+participants-available-to-invite = Disponibili pentru invitare
+
+# Video Grid
+videogrid-page-info = Pagina {$current} din {$total}
+videogrid-previous-page = Pagina anterioară
+videogrid-next-page = Pagina următoare
 
 # Notifications
 notifications-title = Notificări
