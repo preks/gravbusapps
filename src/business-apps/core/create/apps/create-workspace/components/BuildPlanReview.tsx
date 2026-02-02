@@ -9,31 +9,8 @@
  */
 
 import React, { useState, useCallback } from 'react'
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  Badge,
-  Button,
-  Input,
-  Label,
-  RadioGroup,
-  RadioGroupItem,
-  cn
-} from '@newwork/nw-design-system'
-import {
-  Monitor,
-  Bot,
-  Code2,
-  Workflow,
-  Database,
-  Sparkles,
-  AlertCircle,
-  CheckCircle2,
-  type LucideIcon
-} from 'lucide-react'
+import { Button, Input, Label, RadioGroup, RadioGroupItem, cn } from '@newwork/nw-design-system'
+import { Monitor, Bot, Code2, Workflow, Database, CheckCircle2, Edit2, type LucideIcon } from 'lucide-react'
 import type { BuildPlan, ComponentType, ClarifyingQuestion } from '../types/orchestrator'
 
 export interface BuildPlanReviewProps {
@@ -61,13 +38,6 @@ const typeLabels: Record<ComponentType, string> = {
   function: 'Function',
   flow: 'Flow',
   data_model: 'Data Model'
-}
-
-// Complexity badge variants
-const complexityVariants: Record<string, 'success' | 'warning' | 'destructive'> = {
-  simple: 'success',
-  moderate: 'warning',
-  complex: 'destructive'
 }
 
 /**
@@ -103,6 +73,11 @@ export const BuildPlanReview: React.FC<BuildPlanReviewProps> = ({
     })
   }, [])
 
+  const handleEditComponent = useCallback((componentId: string) => {
+    // TODO: Implement when backend supports plan editing
+    console.log('Edit component:', componentId)
+  }, [])
+
   const handleConfirm = useCallback(() => {
     onConfirm(Array.from(skippedComponents))
   }, [onConfirm, skippedComponents])
@@ -123,154 +98,182 @@ export const BuildPlanReview: React.FC<BuildPlanReviewProps> = ({
 
   return (
     <div className="gba:space-y-6" data-testid={testId}>
-      {/* Analysis Summary */}
-      <Card>
-        <CardHeader>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <Sparkles className="gba:w-5 gba:h-5 gba:text-info" />
-            <CardTitle>Build Plan Analysis</CardTitle>
-          </div>
-          <CardDescription>{plan.analysis.summary}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="gba:space-y-4">
-            {/* Intent and Complexity */}
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div>
-                <span className="gba:text-sm gba:text-muted-foreground">Goal:</span>
-                <p className="gba:text-foreground">{plan.analysis.intent}</p>
-              </div>
-              <Badge variant={complexityVariants[plan.analysis.complexity] || 'default'}>
-                {plan.analysis.complexity} complexity
-              </Badge>
-            </div>
+      {/* Summary Header - Compact single line */}
+      <div className="gba:flex gba:items-center gba:justify-between gba:pb-6 gba:border-b gba:border-border">
+        <div className="gba:flex gba:items-baseline gba:gap-4">
+          <h2 className="gba:text-xl gba:font-semibold gba:text-foreground">Build Plan</h2>
+          <span className="gba:text-sm gba:text-muted-foreground">
+            {plan.components.length} component{plan.components.length !== 1 ? 's' : ''}
+          </span>
+          <span className="gba:text-sm gba:text-muted-foreground">•</span>
+          <span className="gba:text-sm gba:text-muted-foreground">
+            ~{Math.ceil(plan.estimated_duration_seconds / 60)} min
+          </span>
+          <span className="gba:text-sm gba:text-muted-foreground">•</span>
+          <span className="gba:text-sm gba:text-muted-foreground">{plan.analysis.complexity}</span>
+        </div>
 
-            {/* Notes */}
-            {plan.analysis.notes && plan.analysis.notes.length > 0 && (
-              <div className="gba:p-3 gba:bg-muted gba:rounded-lg">
-                <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-2">Notes:</p>
-                <ul className="gba:list-disc gba:list-inside gba:space-y-1">
-                  {plan.analysis.notes.map((note, i) => (
-                    <li key={i} className="gba:text-sm gba:text-muted-foreground">
-                      {note}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+        {/* Edit Plan button - Coming soon */}
+        <Button variant="outline" size="sm" disabled title="Coming soon - Plan editing" className="gba:text-xs">
+          <Edit2 className="gba:w-3 gba:h-3 gba:mr-1.5" />
+          Edit Plan
+        </Button>
+      </div>
 
-            {/* Estimated time */}
-            <p className="gba:text-sm gba:text-muted-foreground">
-              Estimated build time: ~{Math.ceil(plan.estimated_duration_seconds / 60)} minute
-              {plan.estimated_duration_seconds > 60 ? 's' : ''}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Goal - Clean and minimal */}
+      <div className="gba:space-y-2">
+        <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">Goal</h3>
+        <p className="gba:text-base gba:text-foreground gba:leading-relaxed">{plan.analysis.intent}</p>
+      </div>
 
-      {/* Clarifying Questions */}
-      {hasQuestions && (
-        <Card>
-          <CardHeader>
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <AlertCircle className="gba:w-5 gba:h-5 gba:text-warning" />
-              <CardTitle>Clarifying Questions</CardTitle>
-            </div>
-            <CardDescription>Please answer these questions to refine the build plan</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="gba:space-y-6">
-              {plan.questions!.map(question => (
-                <QuestionField
-                  key={question.id}
-                  question={question}
-                  value={answers[question.id] || ''}
-                  onChange={value => handleAnswerChange(question.id, value)}
-                />
-              ))}
-
-              <Button onClick={handleReanalyze} disabled={!allQuestionsAnswered || isLoading}>
-                <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
-                Re-analyze with Answers
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Notes - Only if present */}
+      {plan.analysis.notes && plan.analysis.notes.length > 0 && (
+        <div className="gba:space-y-2">
+          <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+            Notes
+          </h3>
+          <ul className="gba:space-y-1">
+            {plan.analysis.notes.map((note, i) => (
+              <li key={i} className="gba:text-sm gba:text-muted-foreground gba:flex gba:gap-2">
+                <span className="gba:text-muted-foreground">•</span>
+                <span>{note}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
-      {/* Components to Build */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Components to Build ({plan.components.length})</CardTitle>
-          <CardDescription>Review and optionally skip components</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="gba:space-y-4">
-            {(Object.keys(componentsByType) as ComponentType[]).map(type => (
-              <div key={type}>
-                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                  {React.createElement(typeIcons[type], {
-                    className: 'gba:w-4 gba:h-4 gba:text-muted-foreground'
-                  })}
-                  <span className="gba:font-medium gba:text-foreground">{typeLabels[type]}s</span>
-                  <Badge variant="secondary">{componentsByType[type].length}</Badge>
-                </div>
-                <ul className="gba:space-y-2 gba:ml-6">
-                  {componentsByType[type].map(comp => (
-                    <li key={comp.id} className="gba:flex gba:items-center gba:justify-between">
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={cn('gba:h-6 gba:w-6 gba:p-0', skippedComponents.has(comp.id) && 'gba:opacity-50')}
-                          onClick={() => toggleComponentSkip(comp.id)}
-                        >
-                          <CheckCircle2
-                            className={cn(
-                              'gba:w-4 gba:h-4',
-                              skippedComponents.has(comp.id) ? 'gba:text-muted-foreground' : 'gba:text-success'
-                            )}
-                          />
-                        </Button>
-                        <span
-                          className={cn(
-                            'gba:text-foreground',
-                            skippedComponents.has(comp.id) && 'gba:line-through gba:text-muted-foreground'
-                          )}
-                        >
-                          {comp.name}
-                        </span>
-                      </div>
-                      <span className="gba:text-sm gba:text-muted-foreground gba:max-w-xs gba:truncate">
-                        {comp.description}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+      {/* Clarifying Questions - Minimal */}
+      {hasQuestions && (
+        <div className="gba:space-y-4 gba:py-6 gba:border-t gba:border-b gba:border-border">
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+              Clarifying Questions
+            </h3>
+            <span className="gba:text-xs gba:text-muted-foreground">Required before building</span>
           </div>
-        </CardContent>
-      </Card>
+          <div className="gba:space-y-4">
+            {plan.questions!.map(question => (
+              <QuestionField
+                key={question.id}
+                question={question}
+                value={answers[question.id] || ''}
+                onChange={value => handleAnswerChange(question.id, value)}
+              />
+            ))}
+            <Button onClick={handleReanalyze} disabled={!allQuestionsAnswered || isLoading} variant="outline">
+              Re-analyze with Answers
+            </Button>
+          </div>
+        </div>
+      )}
 
-      {/* Actions */}
-      <div className="gba:flex gba:items-center gba:justify-end gba:gap-3">
-        <Button variant="outline" onClick={onCancel} disabled={isLoading}>
-          Cancel
-        </Button>
-        <Button onClick={handleConfirm} disabled={isLoading || (hasQuestions && !allQuestionsAnswered)}>
-          {isLoading ? (
-            <>
-              <span className="gba:animate-spin gba:mr-2">...</span>
-              Building...
-            </>
-          ) : (
-            <>
-              <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
-              Start Build ({plan.components.length - skippedComponents.size} components)
-            </>
-          )}
-        </Button>
+      {/* Components - Flat list, more scannable */}
+      <div className="gba:space-y-6 gba:pt-2">
+        <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+          Components ({plan.components.length})
+        </h3>
+
+        <div className="gba:space-y-6">
+          {(Object.keys(componentsByType) as ComponentType[]).map(type => (
+            <div key={type} className="gba:space-y-3">
+              {/* Type header */}
+              <div className="gba:flex gba:items-center gba:gap-2">
+                {React.createElement(typeIcons[type], {
+                  className: 'gba:w-4 gba:h-4 gba:text-muted-foreground'
+                })}
+                <span className="gba:text-sm gba:font-medium gba:text-foreground">{typeLabels[type]}s</span>
+                <span className="gba:text-xs gba:text-muted-foreground">({componentsByType[type].length})</span>
+              </div>
+
+              {/* Components list - cleaner */}
+              <div className="gba:space-y-2 gba:pl-6">
+                {componentsByType[type].map(comp => (
+                  <div
+                    key={comp.id}
+                    className={cn(
+                      'gba:flex gba:items-start gba:gap-3 gba:py-2 gba:group gba:relative',
+                      skippedComponents.has(comp.id) && 'gba:opacity-40'
+                    )}
+                  >
+                    {/* Checkbox */}
+                    <div
+                      className="gba:mt-0.5 gba:shrink-0 gba:cursor-pointer"
+                      onClick={() => toggleComponentSkip(comp.id)}
+                    >
+                      <CheckCircle2
+                        className={cn(
+                          'gba:w-4 gba:h-4 gba:transition-colors',
+                          skippedComponents.has(comp.id)
+                            ? 'gba:text-muted-foreground'
+                            : 'gba:text-foreground group-hover:gba:text-foreground/70'
+                        )}
+                      />
+                    </div>
+
+                    {/* Content */}
+                    <div className="gba:flex-1 gba:min-w-0">
+                      <div
+                        className={cn(
+                          'gba:text-sm gba:font-medium gba:text-foreground gba:mb-0.5',
+                          skippedComponents.has(comp.id) && 'gba:line-through'
+                        )}
+                      >
+                        {comp.name}
+                      </div>
+                      <div className="gba:text-xs gba:text-muted-foreground gba:leading-relaxed">
+                        {comp.description}
+                      </div>
+                    </div>
+
+                    {/* Edit button - appears on hover */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gba:h-7 gba:px-2 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity"
+                      onClick={e => {
+                        e.stopPropagation()
+                        handleEditComponent(comp.id)
+                      }}
+                      disabled
+                      title="Coming soon - Plan editing"
+                    >
+                      <Edit2 className="gba:w-3 gba:h-3 gba:mr-1" />
+                      <span className="gba:text-xs">Edit</span>
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Actions - Sticky bottom bar */}
+      <div className="gba:sticky gba:bottom-0 gba:left-0 gba:right-0 gba:flex gba:items-center gba:justify-between gba:pt-6 gba:pb-2 gba:bg-background gba:border-t gba:border-border gba:mt-8">
+        <div className="gba:text-sm gba:text-muted-foreground">
+          {plan.components.length - skippedComponents.size} of {plan.components.length} components selected
+        </div>
+        <div className="gba:flex gba:items-center gba:gap-3">
+          <Button variant="ghost" onClick={onCancel} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button
+            size="lg"
+            onClick={handleConfirm}
+            disabled={isLoading || (hasQuestions && !allQuestionsAnswered)}
+            className="gba:min-w-[180px]"
+          >
+            {isLoading ? (
+              <>
+                <span className="gba:animate-spin gba:mr-2">...</span>
+                Building...
+              </>
+            ) : (
+              <>Start Build</>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   )
