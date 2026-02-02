@@ -9,7 +9,6 @@ interface DebugViewProps {
 
 export const DebugView: React.FC<DebugViewProps> = props => {
   const { componentName } = props
-
   // Get build info if available
   const buildInfo =
     typeof globalThis !== 'undefined' && globalThis.__APP_BUILD_INFO__ ? globalThis.__APP_BUILD_INFO__ : null

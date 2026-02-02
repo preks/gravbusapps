@@ -13,19 +13,24 @@ import { glob } from 'glob'
 
 async function findAllScreenDirectories() {
   const appIndexFiles = await glob('src/business-apps/**/apps/*/index.ts', {
-    nodir: true
+    nodir: true,
+    dot: true
   })
   const formIndexFiles = await glob('src/business-apps/**/forms/*/index.ts', {
-    nodir: true
+    nodir: true,
+    dot: true
   })
   const popupIndexFiles = await glob('src/business-apps/**/popups/*/index.ts', {
-    nodir: true
+    nodir: true,
+    dot: true
   })
   const recordIndexFiles = await glob('src/business-apps/**/records/*/index.ts', {
-    nodir: true
+    nodir: true,
+    dot: true
   })
   const windowIndexFiles = await glob('src/business-apps/**/windows/*/index.ts', {
-    nodir: true
+    nodir: true,
+    dot: true
   })
 
   const allIndexFiles = [
