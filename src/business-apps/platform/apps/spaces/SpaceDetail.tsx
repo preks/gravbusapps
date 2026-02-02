@@ -20,16 +20,25 @@ import {
 } from './components'
 import { InviteMemberDialog } from './components/InviteMemberDialog'
 import { MoveContentDialog } from './components/MoveContentDialog'
+import { SpaceSettingsDialog } from './components/SpaceSettingsDialog'
 
 // Hooks
 import { useSpace } from './hooks/useSpace'
 import { useSpaceContent } from './hooks/useSpaceContent'
 import { useSpaceActivity } from './hooks/useSpaceActivity'
 import { useSpaceUserLookup } from './hooks/useSpaceUserLookup'
-import type { SpaceContentItem, AddMemberInput, MoveContentInput, SpaceMemberRole } from './types/space.types'
+import type {
+    SpaceContentItem,
+    AddMemberInput,
+    MoveContentInput,
+    SpaceMemberRole,
+    UpdateSpaceInput
+  } from './types/space.types'
 
 export interface SpaceDetailProps extends BusinessAppContextProps {
   spaceId: string
+  /** When provided, Back button clears router state and navigates so the view updates immediately */
+  onNavigateToHub?: () => void
   'data-testid'?: string
 }
 
@@ -37,11 +46,13 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
   spaceId,
   accessToken,
   userInfo,
+  onNavigateToHub,
   'data-testid': testId = 'space-detail'
 }) => {
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
   const [moveDialogOpen, setMoveDialogOpen] = useState(false)
   const [addContentDialogOpen, setAddContentDialogOpen] = useState(false)
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
 
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
@@ -50,6 +61,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     space,
     isLoading: spaceLoading,
     refresh: refreshSpace,
+    updateSpace,
     addMember,
     updateMember,
     removeMember
@@ -58,6 +70,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     documents,
     notes,
     spreadsheets,
+    slides,
     allContent,
     isLoading: contentLoading,
     moveContent
@@ -115,6 +128,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
       documents: 0,
       notes: 0,
       spreadsheets: 0,
+      slides: 0,
       total: 0
     }
 
@@ -122,9 +136,10 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
       documents: contentCounts.documents || documents.length,
       notes: contentCounts.notes || notes.length,
       spreadsheets: contentCounts.spreadsheets || spreadsheets.length,
+      slides: contentCounts.slides ?? slides.length,
       recentActivity: activities.length
     }
-  }, [space, documents, notes, spreadsheets, activities])
+  }, [space, documents, notes, spreadsheets, slides, activities])
 
   // Get pinned items (from settings)
   const pinnedItems = useMemo(() => {
@@ -134,15 +149,23 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
 
   // Handlers
   const handleBack = useCallback(() => {
-    const isProduction = process.env.NODE_ENV === 'production'
-    const url = isProduction ? '/platform/spaces' : '/platform/apps/spaces'
-    navigateTo(buildPlatformUrl(url))
-  }, [])
+    if (onNavigateToHub) {
+      onNavigateToHub()
+    } else {
+      navigateTo(buildPlatformUrl('/platform/spaces'))
+    }
+  }, [onNavigateToHub])
 
   const handleSettings = useCallback(() => {
-    // TODO: Open settings dialog
-    console.log('Open settings')
+    setSettingsDialogOpen(true)
   }, [])
+
+  const handleSaveSettings = useCallback(
+    async (input: UpdateSpaceInput) => {
+      await updateSpace(input)
+    },
+    [updateSpace]
+  )
 
   const handleShare = useCallback(() => {
     setInviteDialogOpen(true)
@@ -189,6 +212,11 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
           ? `/platform/spreadsheets?appId=${item.id}&view=viewer`
           : `/platform/apps/spreadsheet-apps?appId=${item.id}&view=viewer`
         break
+      case 'slide':
+        url = isProduction
+          ? `/platform/slides?slideId=${item.id}&view=editor`
+          : `/platform/apps/slide-apps?slideId=${item.id}&view=editor`
+        break
     }
 
     navigateTo(buildPlatformUrl(url))
@@ -202,7 +230,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
   )
 
   const handleAddContent = useCallback(
-    async (items: { type: 'document' | 'note' | 'spreadsheet'; id: string }[]) => {
+    async (items: { type: 'document' | 'note' | 'spreadsheet' | 'slide'; id: string }[]) => {
       // Add each item to the space
       for (const item of items) {
         await moveContent({ contentType: item.type, entityId: item.id })
@@ -258,6 +286,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
           documents={stats.documents}
           spreadsheets={stats.spreadsheets}
           notes={stats.notes}
+          slides={stats.slides}
           recentActivity={stats.recentActivity}
           data-testid={`${testId}-stats`}
         />
@@ -334,6 +363,14 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
         onAddContent={handleAddContent}
         spaceId={spaceId}
         data-testid={`${testId}-add-content-dialog`}
+      />
+
+      <SpaceSettingsDialog
+        open={settingsDialogOpen}
+        onOpenChange={setSettingsDialogOpen}
+        space={space}
+        onSave={handleSaveSettings}
+        data-testid={`${testId}-settings-dialog`}
       />
     </div>
   )

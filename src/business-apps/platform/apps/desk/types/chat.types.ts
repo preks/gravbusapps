@@ -4,6 +4,11 @@ export interface ChatSession {
   title: string
   scope: 'all' | 'space'
   spaceId?: string
+  /**
+   * Optional hint for the backend LLM provider selection (e.g. 'openai', 'groq').
+   * The document-service is responsible for enforcing/validating this value.
+   */
+  llmProvider?: string
   contextConfig: Record<string, any>
   createdAt: string
   updatedAt: string
@@ -31,6 +36,11 @@ export interface CreateSessionDto {
   scope?: 'all' | 'space'
   spaceId?: string
   title?: string
+  /**
+   * Optional hint for the backend LLM provider selection (e.g. 'openai', 'groq').
+   * This must never be a secret and does not include any API keys.
+   */
+  llmProvider?: string
 }
 
 export interface SendMessageDto {

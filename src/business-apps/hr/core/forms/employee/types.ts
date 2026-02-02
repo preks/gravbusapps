@@ -9,6 +9,8 @@ export interface EmployeeFormValues {
   employmentTypeId: string
   contractTypeId: string
   hireDate: string
+  fixedTermUntil: string
+  fixedTermReason: string
 }
 
 export interface SelectOption {

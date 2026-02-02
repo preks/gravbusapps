@@ -1,11 +1,12 @@
+/**
+ * HeroSection - Premium hero for NEWWORK - THE ENTERPRISE AI
+ * Uses same title font as Every Office (desk): Funnel Display.
+ */
+
 import React from 'react'
 import { Hexagon } from 'lucide-react'
 
-interface HeroSectionProps {
-  'data-testid'?: string
-}
-
-// Keyframes styles for premium animations
+// Keyframes for premium animations
 const keyframesStyles = `
   @keyframes gradient-shift-enterprise {
     0% { background-position: 0% 50%; }
@@ -30,11 +31,13 @@ const keyframesStyles = `
   }
 `
 
-/**
- * HeroSection - Premium hero for NEWWORK - THE ENTERPRISE AI
- * Features dramatic typography and an animated AI core visual
- */
-export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId = 'newwork-main-hero' }) => {
+interface HeroSectionProps {
+  'data-testid'?: string
+}
+
+export const HeroSection: React.FC<HeroSectionProps> = ({
+  'data-testid': testId = 'newwork-main-hero'
+}) => {
   return (
     <>
       <style>{keyframesStyles}</style>
@@ -65,20 +68,19 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
 
         {/* Content */}
         <div className="gba:relative gba:max-w-6xl gba:mx-auto gba:text-center">
-          {/* NEWWORK branding */}
           <div className="gba:mb-6" style={{ animation: 'fadeInUp 0.8s ease-out' }} data-testid={`${testId}-branding`}>
             <span className="gba:text-base gba:font-semibold gba:tracking-[0.4em] gba:text-muted-foreground gba:uppercase">
               NEWWORK
             </span>
           </div>
 
-          {/* THE ENTERPRISE AI - Main title */}
+          {/* Main title – same font as desk (Funnel Display) */}
           <div
             className="gba:mb-8"
             style={{ animation: 'fadeInUp 0.8s ease-out 0.1s both' }}
             data-testid={`${testId}-title`}
           >
-            <h1 className="gba:text-6xl gba:sm:text-7xl gba:lg:text-8xl gba:font-black gba:tracking-tight gba:leading-none">
+            <h1 className="gba:font-funnel-display gba:text-5xl gba:sm:text-6xl gba:lg:text-7xl gba:font-semibold gba:tracking-tight gba:leading-none">
               <span
                 className="gba:bg-gradient-to-r gba:from-ai gba:via-primary gba:to-info gba:bg-clip-text gba:text-transparent"
                 style={{
@@ -98,29 +100,23 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
             data-testid={`${testId}-icon`}
           >
             <div className="gba:relative">
-              {/* Outer rotating ring */}
               <div
                 className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center"
                 style={{ animation: 'rotate-slow 30s linear infinite' }}
               >
                 <div className="gba:w-24 gba:h-24 gba:rounded-full gba:border gba:border-ai/30 gba:border-dashed" />
               </div>
-
-              {/* Middle pulsing ring */}
               <div
                 className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center"
                 style={{ animation: 'pulse-glow 3s ease-in-out infinite' }}
               >
                 <div className="gba:w-20 gba:h-20 gba:rounded-full gba:bg-gradient-to-br gba:from-ai/20 gba:to-primary/20 gba:blur-sm" />
               </div>
-
-              {/* Core hexagon icon */}
               <div
                 className="gba:relative gba:w-24 gba:h-24 gba:flex gba:items-center gba:justify-center"
                 style={{ animation: 'float-subtle 4s ease-in-out infinite' }}
               >
                 <Hexagon className="gba:w-12 gba:h-12 gba:text-ai" strokeWidth={1.5} />
-                {/* Inner dot */}
                 <div
                   className="gba:absolute gba:w-3 gba:h-3 gba:rounded-full gba:bg-ai"
                   style={{ animation: 'pulse-glow 2s ease-in-out infinite' }}
@@ -129,7 +125,6 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
             </div>
           </div>
 
-          {/* Tagline */}
           <h2
             className="gba:text-2xl gba:sm:text-3xl gba:font-semibold gba:tracking-tight gba:text-foreground gba:mb-4"
             style={{ animation: 'fadeInUp 0.8s ease-out 0.3s both' }}
@@ -138,14 +133,13 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
             Where AI meets enterprise
           </h2>
 
-          {/* Description */}
           <p
             className="gba:text-lg gba:sm:text-xl gba:text-muted-foreground gba:max-w-3xl gba:mx-auto gba:leading-relaxed"
             style={{ animation: 'fadeInUp 0.8s ease-out 0.4s both' }}
             data-testid={`${testId}-description`}
           >
-            Powering creation, productivity, and business operations. One unified platform with AI at its core, designed
-            to transform how enterprises work.
+            Powering creation, productivity, and business operations. One unified platform with AI at
+            its core, designed to transform how enterprises work.
           </p>
         </div>
       </section>

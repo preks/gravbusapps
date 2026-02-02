@@ -1,4 +1,4 @@
-import type { Activity, EntityOption } from './ActivitySegment'
+import type { EntityOption } from './ActivitySegment'
 
 export const mapEntityToOption = (entity: any, type: 'account' | 'contact' | 'opportunity' | 'lead'): EntityOption => {
   const getEntityName = () => {
@@ -41,24 +41,4 @@ export const mapEntityToOption = (entity: any, type: 'account' | 'contact' | 'op
     type,
     subtitle: getEntitySubtitle()
   }
-}
-
-export const validateActivityData = (data: Activity, options?: { requireEntity?: boolean }): string[] | null => {
-  const errors: string[] = []
-
-  if (!data.title) errors.push('Title is required')
-  if (!data.activityTypeRef) errors.push('Activity type is required')
-  if (!data.occurredAt) errors.push('Date is required')
-  if (!data.description) errors.push('Description is required')
-
-  const requireEntity = options?.requireEntity ?? true
-  const hasEntity = Boolean(
-    data.account || data.contact || data.opportunity || data.lead || (data as any)?.relatedEntityId
-  )
-
-  if (requireEntity && !hasEntity) {
-    errors.push('Please select a related entity')
-  }
-
-  return errors.length > 0 ? errors : null
 }
