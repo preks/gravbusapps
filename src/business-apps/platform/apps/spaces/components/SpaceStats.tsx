@@ -6,12 +6,13 @@
  */
 
 import React from 'react'
-import { FileText, Table2, StickyNote, Activity } from 'lucide-react'
+import { FileText, Table2, StickyNote, Presentation, Activity } from 'lucide-react'
 
 export interface SpaceStatsProps {
   documents: number
   spreadsheets: number
   notes: number
+  slides: number
   recentActivity: number
   'data-testid'?: string
 }
@@ -20,6 +21,7 @@ const stats = [
   { key: 'documents', label: 'Documents', icon: FileText },
   { key: 'spreadsheets', label: 'Spreadsheets', icon: Table2 },
   { key: 'notes', label: 'Notes', icon: StickyNote },
+  { key: 'slides', label: 'Presentations', icon: Presentation },
   { key: 'recentActivity', label: 'Recent Activity', icon: Activity }
 ]
 
@@ -27,13 +29,14 @@ export const SpaceStats: React.FC<SpaceStatsProps> = ({
   documents,
   spreadsheets,
   notes,
+  slides,
   recentActivity,
   'data-testid': testId = 'space-stats'
 }) => {
-  const values: Record<string, number> = { documents, spreadsheets, notes, recentActivity }
+  const values: Record<string, number> = { documents, spreadsheets, notes, slides, recentActivity }
 
   return (
-    <div className="gba:grid gba:grid-cols-2 gba:lg:grid-cols-4 gba:gap-4" data-testid={testId}>
+    <div className="gba:grid gba:grid-cols-2 gba:lg:grid-cols-5 gba:gap-4" data-testid={testId}>
       {stats.map(stat => (
         <div key={stat.key} className="gba:rounded-lg gba:bg-card gba:p-5" data-testid={`${testId}-${stat.key}`}>
           {/* Label with icon */}

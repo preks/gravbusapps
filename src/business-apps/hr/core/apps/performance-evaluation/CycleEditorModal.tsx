@@ -7,6 +7,7 @@ import {
   DialogDescription,
   Button,
   Input,
+  DateInput,
   Label,
   Checkbox,
   Combobox,
@@ -229,7 +230,12 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
             </div>
             <div className="gba:space-y-2">
               <Label>{t('field-start-date')} *</Label>
-              <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              <DateInput
+                type="date"
+                value={startDate}
+                onChange={(value: string | null) => setStartDate(value || '')}
+                outputFormat="iso"
+              />
             </div>
             <div className="gba:space-y-2">
               <Label>{t('field-frequency')} *</Label>
@@ -242,7 +248,12 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
             </div>
             <div className="gba:space-y-2">
               <Label>{t('field-end-date')} *</Label>
-              <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+              <DateInput
+                type="date"
+                value={endDate}
+                onChange={(value: string | null) => setEndDate(value || '')}
+                outputFormat="iso"
+              />
             </div>
           </div>
 

@@ -6,7 +6,7 @@
 
 import React from 'react'
 import { formatDistanceToNow } from 'date-fns'
-import { FileText, Table2, StickyNote, Pin, ExternalLink } from 'lucide-react'
+import { FileText, Table2, StickyNote, Presentation, Pin, ExternalLink } from 'lucide-react'
 import type { SpaceContentItem } from '../types/space.types'
 
 export interface SpacePinnedProps {
@@ -18,7 +18,8 @@ export interface SpacePinnedProps {
 const contentTypeConfig: Record<string, { icon: typeof FileText; color: string; bg: string; label: string }> = {
   document: { icon: FileText, color: 'gba:text-blue-600', bg: 'gba:bg-blue-500/20', label: 'Document' },
   spreadsheet: { icon: Table2, color: 'gba:text-emerald-600', bg: 'gba:bg-emerald-500/20', label: 'Spreadsheet' },
-  note: { icon: StickyNote, color: 'gba:text-amber-600', bg: 'gba:bg-amber-500/20', label: 'Note' }
+  note: { icon: StickyNote, color: 'gba:text-amber-600', bg: 'gba:bg-amber-500/20', label: 'Note' },
+  slide: { icon: Presentation, color: 'gba:text-info', bg: 'gba:bg-info/20', label: 'Presentation' }
 }
 
 export const SpacePinned: React.FC<SpacePinnedProps> = ({

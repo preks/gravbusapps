@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { SpacesHub } from './SpacesHub'
 import { SpaceDetail } from './SpaceDetail'
 
@@ -28,51 +29,56 @@ function getSpaceIdFromUrl(): string | null {
  * SpacesRouter renders either SpacesHub or SpaceDetail based on spaceId
  *
  * The spaceId can come from:
- * 1. Props (passed by the platform from URL params)
- * 2. URL query parameters (read directly)
- * 3. Updated via pushState (listened via popstate event)
+ * 1. Props (passed by the platform from URL params) - used only for initial state
+ * 2. URL query parameters (read directly) - used for initial state
+ * 3. pushState in SpacesHub + popstate - for in-app navigation hub <-> detail
+ *
+ * We do NOT sync from props/URL in an effect after first paint, so the detail view
+ * never unmounts/remounts (avoids "loads then reloads again").
  */
 export const SpacesRouter: React.FC<SpacesRouterProps> = props => {
   const { 'data-testid': testId = 'spaces', spaceId: propsSpaceId, ...contextProps } = props
 
-  // Track spaceId - check props first, then URL
+  // Initial state only; further updates only from popstate or onNavigateToHub
   const [spaceId, setSpaceId] = useState<string | null>(() => {
     if (propsSpaceId) return propsSpaceId
     return getSpaceIdFromUrl()
   })
 
-  // Update spaceId when URL changes (via popstate from pushState)
   const handlePopState = useCallback(() => {
-    const fromUrl = getSpaceIdFromUrl()
-    console.log('[SpacesRouter] popstate event - spaceId from URL:', fromUrl)
-    setSpaceId(fromUrl)
+    setSpaceId(getSpaceIdFromUrl())
   }, [])
 
-  // Listen for popstate events (triggered by pushState in SpacesHub)
   useEffect(() => {
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [handlePopState])
 
-  // Also check URL on mount and when props change
-  useEffect(() => {
-    const fromProps = propsSpaceId
-    const fromUrl = getSpaceIdFromUrl()
-    const newSpaceId = fromProps || fromUrl || null
-
-    console.log('[SpacesRouter] Checking spaceId - props:', fromProps, 'URL:', fromUrl, 'Final:', newSpaceId)
-    setSpaceId(newSpaceId)
-  }, [propsSpaceId])
-
-  console.log('[SpacesRouter] Current spaceId:', spaceId, '- Rendering:', spaceId ? 'SpaceDetail' : 'SpacesHub')
+  const handleNavigateToHub = useCallback(() => {
+    setSpaceId(null)
+    navigateTo(buildPlatformUrl('/platform/spaces'))
+  }, [])
 
   // If spaceId is present, show the detail view
   if (spaceId) {
-    return <SpaceDetail {...contextProps} spaceId={spaceId} data-testid={`${testId}-detail`} />
+    return (
+      <SpaceDetail
+        {...contextProps}
+        spaceId={spaceId}
+        onNavigateToHub={handleNavigateToHub}
+        data-testid={`${testId}-detail`}
+      />
+    )
   }
 
   // Otherwise show the hub (list view)
-  return <SpacesHub {...contextProps} data-testid={`${testId}-hub`} />
+  return (
+    <SpacesHub
+      {...contextProps}
+      onOpenSpace={nextSpaceId => setSpaceId(nextSpaceId)}
+      data-testid={`${testId}-hub`}
+    />
+  )
 }
 
 export default SpacesRouter

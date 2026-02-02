@@ -17,12 +17,20 @@ export type DocumentStatus = 'draft' | 'saved' | 'pending_approval' | 'approved'
 
 /**
  * Document file source information
+ * Extended with file service fields for PDF preview/download
  */
 export interface DocumentFileInfo {
   originalName: string
   fileSize: number
   mimeType: string
   uploadedAt: string
+  // File service fields for downloading/previewing stored files (PDFs, etc.)
+  path?: string
+  fileId?: string
+  accessScope?: string
+  appName?: string
+  folderPath?: string
+  pageCount?: number
 }
 
 /**
@@ -148,6 +156,8 @@ export interface DocumentSummary {
   isShared?: boolean // Whether this doc was shared with current user
   sharedBy?: string // User ID of person who shared (if shared)
   sharedByName?: string // Display name of person who shared (if shared)
+  sourceFile?: DocumentFileInfo // Source file info for PDFs
+  isPdf?: boolean // Shorthand for sourceFile?.mimeType === 'application/pdf'
 }
 
 /**
