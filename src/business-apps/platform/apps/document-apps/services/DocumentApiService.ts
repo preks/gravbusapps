@@ -45,42 +45,11 @@ const debugLog = (...args: unknown[]) => {
   }
 }
 
-// Get auth token - check multiple storage locations
-const getAuthToken = (): string | null => {
-  try {
-    // First check the IDE's storage key (Business App IDE)
-    const ideToken = localStorage.getItem('business-app-ide-access-token')
-    if (ideToken) return ideToken
-
-    // Check keycloak token format
-    const authData = localStorage.getItem('keycloak-token')
-    if (authData) {
-      try {
-        const parsed = JSON.parse(authData)
-        return parsed.token || parsed.access_token || null
-      } catch {
-        return authData // Return as-is if not JSON
-      }
-    }
-
-    // Check session storage
-    const sessionToken = sessionStorage.getItem('auth_token')
-    if (sessionToken) return sessionToken
-
-    // Check window global
-    if (typeof window !== 'undefined' && (window as unknown as { authToken?: string }).authToken) {
-      return (window as unknown as { authToken: string }).authToken
-    }
-
-    return null
-  } catch {
-    return null
-  }
-}
+let currentAccessToken: string | null = null
 
 // API request helper
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = getAuthToken()
+  const token = currentAccessToken
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -119,6 +88,23 @@ function mapApiDocumentToDocument(apiDoc: Record<string, unknown>): Document {
     permission = 'owner'
   }
 
+  // Map sourceFileInfo from backend to sourceFile
+  const sourceFileInfo = apiDoc.sourceFileInfo as Record<string, unknown> | undefined
+  const sourceFile = sourceFileInfo
+    ? {
+        originalName: sourceFileInfo.originalName as string,
+        fileSize: sourceFileInfo.fileSize as number,
+        mimeType: sourceFileInfo.mimeType as string,
+        uploadedAt: sourceFileInfo.uploadedAt as string,
+        path: sourceFileInfo.path as string | undefined,
+        fileId: sourceFileInfo.fileId as string | undefined,
+        accessScope: sourceFileInfo.accessScope as string | undefined,
+        appName: sourceFileInfo.appName as string | undefined,
+        folderPath: sourceFileInfo.folderPath as string | undefined,
+        pageCount: sourceFileInfo.pageCount as number | undefined
+      }
+    : undefined
+
   return {
     id: apiDoc.id as string,
     title: apiDoc.title as string,
@@ -139,7 +125,9 @@ function mapApiDocumentToDocument(apiDoc: Record<string, unknown>): Document {
     // Permission info from backend
     permission,
     isShared: apiDoc.isShared as boolean | undefined,
-    sharedBy: apiDoc.sharedBy as string | undefined
+    sharedBy: apiDoc.sharedBy as string | undefined,
+    // Source file info for PDFs
+    sourceFile
   }
 }
 
@@ -165,6 +153,9 @@ function mapApiTemplateToTemplate(apiTemplate: Record<string, unknown>): Documen
  * Document API Service
  */
 export const DocumentApiService = {
+  setAccessToken(token: string | null) {
+    currentAccessToken = token
+  },
   // ============ Documents ============
 
   /**
@@ -195,44 +186,55 @@ export const DocumentApiService = {
     debugLog('listDocuments', endpoint)
 
     const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
+    debugLog('listDocuments response items:', response.items.length)
 
-    console.log(
-      '[DocumentApiService] listDocuments raw response:',
-      response.items.map(d => ({
-        id: d.id,
-        title: d.title,
-        ownerId: d.ownerId,
-        isShared: d.isShared,
-        sharedBy: d.sharedBy,
-        permission: d.permission,
-        rawPermission: d.permission // Log the exact value
-      }))
-    )
+    return response.items.map(doc => {
+      // Map sourceFileInfo from backend to sourceFile
+      const sourceFileInfo = doc.sourceFileInfo as Record<string, unknown> | undefined
+      const sourceFile = sourceFileInfo
+        ? {
+            originalName: sourceFileInfo.originalName as string,
+            fileSize: sourceFileInfo.fileSize as number,
+            mimeType: sourceFileInfo.mimeType as string,
+            uploadedAt: sourceFileInfo.uploadedAt as string,
+            path: sourceFileInfo.path as string | undefined,
+            fileId: sourceFileInfo.fileId as string | undefined,
+            accessScope: sourceFileInfo.accessScope as string | undefined,
+            appName: sourceFileInfo.appName as string | undefined,
+            folderPath: sourceFileInfo.folderPath as string | undefined,
+            pageCount: sourceFileInfo.pageCount as number | undefined
+          }
+        : undefined
+      const isPdf = sourceFile?.mimeType === 'application/pdf'
 
-    return response.items.map(doc => ({
-      id: doc.id as string,
-      title: doc.title as string,
-      description: doc.description as string | undefined,
-      status: doc.status as DocumentStatus,
-      category: doc.category as string | undefined,
-      tags: doc.tags as string[] | undefined,
-      createdAt: doc.createdAt as string,
-      updatedAt: doc.updatedAt as string,
-      createdBy: doc.ownerId as string,
-      wordCount: (doc.wordCount as number) || 0,
-      approvalStatus: (doc.status === 'pending_approval'
-        ? 'pending'
-        : doc.status === 'approved'
-          ? 'approved'
-          : doc.status === 'rejected'
-            ? 'rejected'
-            : undefined) as DocumentSummary['approvalStatus'],
-      // Sharing information from backend
-      isShared: doc.isShared as boolean | undefined,
-      sharedBy: doc.sharedBy as string | undefined,
-      // Map backend 'admin' permission to frontend 'owner'
-      permission: (doc.permission === 'admin' ? 'owner' : doc.permission) as DocumentSummary['permission']
-    }))
+      return {
+        id: doc.id as string,
+        title: doc.title as string,
+        description: doc.description as string | undefined,
+        status: doc.status as DocumentStatus,
+        category: doc.category as string | undefined,
+        tags: doc.tags as string[] | undefined,
+        createdAt: doc.createdAt as string,
+        updatedAt: doc.updatedAt as string,
+        createdBy: doc.ownerId as string,
+        wordCount: (doc.wordCount as number) || 0,
+        approvalStatus: (doc.status === 'pending_approval'
+          ? 'pending'
+          : doc.status === 'approved'
+            ? 'approved'
+            : doc.status === 'rejected'
+              ? 'rejected'
+              : undefined) as DocumentSummary['approvalStatus'],
+        // Sharing information from backend
+        isShared: doc.isShared as boolean | undefined,
+        sharedBy: doc.sharedBy as string | undefined,
+        // Map backend 'admin' permission to frontend 'owner'
+        permission: (doc.permission === 'admin' ? 'owner' : doc.permission) as DocumentSummary['permission'],
+        // Source file info for PDFs
+        sourceFile,
+        isPdf
+      }
+    })
   },
 
   /**
@@ -271,6 +273,47 @@ export const DocumentApiService = {
       body: JSON.stringify(payload)
     })
 
+    return mapApiDocumentToDocument(created)
+  },
+
+  /**
+   * Import a PDF document
+   * Uploads the PDF to file service and creates a document record with extracted text
+   */
+  async importPdf(
+    file: File,
+    options?: {
+      title?: string
+      description?: string
+      category?: string
+      tags?: string[]
+    }
+  ): Promise<Document> {
+    debugLog('importPdf', file.name, options)
+
+    const formData = new FormData()
+    formData.append('file', file)
+    if (options?.title) formData.append('title', options.title)
+    if (options?.description) formData.append('description', options.description)
+    if (options?.category) formData.append('category', options.category)
+    if (options?.tags?.length) formData.append('tags', options.tags.join(','))
+
+    const token = currentAccessToken
+
+    const response = await fetch(`${API_URL}/documents/import/pdf`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: formData
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: response.statusText }))
+      throw new Error(error.message || `API Error: ${response.status}`)
+    }
+
+    const created = await response.json()
     return mapApiDocumentToDocument(created)
   },
 
@@ -375,7 +418,6 @@ export const DocumentApiService = {
           permission: s.permission
         }))
       }
-      console.log('[DocumentApiService] shareDocument payload:', JSON.stringify(payload, null, 2))
       debugLog('shareDocument', documentId, shares)
       await apiRequest('/sharing', {
         method: 'POST',
@@ -393,10 +435,8 @@ export const DocumentApiService = {
    */
   async getSharedUsers(documentId: string): Promise<Array<DocumentShare & { id: string }>> {
     try {
-      console.log('[DocumentApiService] getSharedUsers called for:', documentId)
       debugLog('getSharedUsers', documentId)
       const shares = await apiRequest<Array<Record<string, unknown>>>(`/sharing/document/${documentId}`)
-      console.log('[DocumentApiService] getSharedUsers raw response:', JSON.stringify(shares, null, 2))
       const mapped = (shares || []).map(s => ({
         id: s.id as string,
         userId: s.userId as string,
@@ -404,10 +444,6 @@ export const DocumentApiService = {
         sharedAt: s.createdAt as string,
         sharedBy: s.sharedBy as string
       }))
-      console.log(
-        '[DocumentApiService] getSharedUsers mapped:',
-        mapped.map(m => ({ userId: m.userId, permission: m.permission }))
-      )
       return mapped
     } catch (error) {
       console.error('[DocumentApiService] Failed to get shared users:', error)
@@ -802,14 +838,12 @@ export const DocumentApiService = {
    */
   async restoreVersion(documentId: string, versionNumber: number): Promise<boolean> {
     try {
-      console.log('[DocumentApiService] Restoring version:', documentId, versionNumber)
+      debugLog('restoreVersion', documentId, versionNumber)
 
       // Get the version content
       const versionData = await apiRequest<Record<string, unknown>>(`/versions/document/${documentId}/${versionNumber}`)
-      console.log('[DocumentApiService] Version data:', versionData)
 
       const snapshot = versionData.contentSnapshot as Record<string, unknown>
-      console.log('[DocumentApiService] Content snapshot:', snapshot)
 
       if (!snapshot) {
         console.error('[DocumentApiService] No snapshot found')
@@ -817,8 +851,7 @@ export const DocumentApiService = {
       }
 
       // Update the document with the old content and clear Yjs state
-      console.log('[DocumentApiService] Updating document with old content...')
-      const updated = await this.updateDocument(documentId, {
+      await this.updateDocument(documentId, {
         title: snapshot.title as string,
         content: snapshot.content as string,
         description: snapshot.description as string | undefined,
@@ -826,15 +859,12 @@ export const DocumentApiService = {
         category: snapshot.category as string | undefined,
         contentJson: {} // Clear Yjs state to force re-initialization with restored content
       })
-      console.log('[DocumentApiService] Document updated:', updated?.title)
 
       // Create a new version marking it as a restore
-      console.log('[DocumentApiService] Creating restore checkpoint...')
       await this.createVersion(documentId, {
         changeDescription: `Restored from version ${versionNumber}`,
         isCheckpoint: true
       })
-      console.log('[DocumentApiService] Restore complete!')
 
       return true
     } catch (error) {

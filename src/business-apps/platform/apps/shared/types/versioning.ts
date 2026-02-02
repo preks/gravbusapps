@@ -59,7 +59,7 @@ export type CommentType = 'document' | 'inline' | 'selection' | 'cell'
 export interface Comment {
   id: string
   entityId: string // documentId, noteId, or appId
-  entityType: 'document' | 'note' | 'spreadsheet_app'
+  entityType: 'document' | 'note' | 'spreadsheet_app' | 'slide'
   type: CommentType
   content: string
   createdBy: string
@@ -182,7 +182,7 @@ export interface PublishInput {
  */
 export interface VersionCreatedEvent {
   entityId: string
-  entityType: 'document' | 'note' | 'spreadsheet_app'
+  entityType: 'document' | 'note' | 'spreadsheet_app' | 'slide'
   version: Version
 }
 
@@ -191,7 +191,7 @@ export interface VersionCreatedEvent {
  */
 export interface CommentEvent {
   entityId: string
-  entityType: 'document' | 'note' | 'spreadsheet_app'
+  entityType: 'document' | 'note' | 'spreadsheet_app' | 'slide'
   comment: Comment
   action: 'created' | 'updated' | 'deleted' | 'resolved' | 'unresolved'
 }
@@ -201,7 +201,7 @@ export interface CommentEvent {
  */
 export interface LockEvent {
   entityId: string
-  entityType: 'document' | 'note' | 'spreadsheet_app'
+  entityType: 'document' | 'note' | 'spreadsheet_app' | 'slide'
   lock: FileLock
   action: 'acquired' | 'released'
 }
@@ -211,7 +211,7 @@ export interface LockEvent {
  */
 export interface PublishStatusEvent {
   entityId: string
-  entityType: 'document' | 'note' | 'spreadsheet_app'
+  entityType: 'document' | 'note' | 'spreadsheet_app' | 'slide'
   metadata: PublishMetadata
   previousStatus?: PublishStatus
 }
