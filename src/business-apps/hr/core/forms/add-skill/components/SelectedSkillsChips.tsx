@@ -7,6 +7,7 @@ interface SelectedSkill {
   id: string
   name: string
   isNew?: boolean
+  level?: number
 }
 
 interface SelectedSkillsChipsProps {
@@ -26,8 +27,11 @@ export const SelectedSkillsChips: React.FC<SelectedSkillsChipsProps> = ({ skills
           className="gba:flex gba:items-center gba:gap-2 gba:h-10 gba:py-0 gba:px-4 gba:text-sm gba:max-w-full"
           data-testid={`add-skill-selected-badge-${s.id}`}
         >
-          <span className="gba:flex-1 gba:min-w-0 gba:px-1 gba:truncate" title={s.name}>
-            {s.name}
+          <span
+            className="gba:flex-1 gba:min-w-0 gba:px-1 gba:truncate"
+            title={s.level ? `${s.name} - Level ${s.level}` : s.name}
+          >
+            {s.level ? `${s.name} - Level ${s.level}` : s.name}
           </span>
           {s.isNew && (
             <span

@@ -23,7 +23,9 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
   const [results, setResults] = useState<Array<any>>([])
   const [isSearching, setIsSearching] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [selectedSkills, setSelectedSkills] = useState<Array<{ id: string; name: string; isNew?: boolean }>>([])
+  const [selectedSkills, setSelectedSkills] = useState<
+    Array<{ id: string; name: string; isNew?: boolean; level?: number }>
+  >([])
   const [pendingSkills, setPendingSkills] = useState<Array<{ id: string; name: string; level: number }>>([])
   const [inputKey, setInputKey] = useState(0)
   const [addedNames, setAddedNames] = useState<string[]>([])
@@ -306,10 +308,10 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
   }
 
   const handleAddPendingSkillToEmployee = (pendingSkill: { id: string; name: string; level: number }) => {
-    // Add to employee skills
+    // Add to employee skills with level
     setSelectedSkills(prev => {
       if (prev.find(x => x.id === pendingSkill.id)) return prev
-      return [...prev, { id: pendingSkill.id, name: pendingSkill.name, isNew: false }]
+      return [...prev, { id: pendingSkill.id, name: pendingSkill.name, isNew: false, level: pendingSkill.level }]
     })
     // Remove from pending
     setPendingSkills(prev => prev.filter(s => s.id !== pendingSkill.id))
