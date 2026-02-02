@@ -8,6 +8,7 @@ export interface CatalogEntry {
   id: string | number
   value?: string
   translations?: CatalogTranslation[]
+  parentEntryId?: string | null
 }
 
 export interface EmployeeByPk {
@@ -59,6 +60,8 @@ export interface CatalogsDataResponse {
   maritalStatus?: CatalogEntry[]
   schoolQualification?: CatalogEntry[]
   academicTitle?: CatalogEntry[]
+  documentGroup?: CatalogEntry[]
+  documentType?: CatalogEntry[]
 }
 
 export interface ChangePersonalDataContextData {
@@ -85,6 +88,8 @@ export type PersonalDataFormValues = {
   academicTitleRefs?: string[]
   comment?: string
   employeeDocumentId?: string
+  documentGroupId?: string | null
+  documentTypeId?: string | null
 }
 
 export type TypedControl = Control<PersonalDataFormValues>
