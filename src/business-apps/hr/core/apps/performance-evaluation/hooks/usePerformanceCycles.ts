@@ -89,8 +89,11 @@ function mapApiCycleToUi(api: PerformanceCycleApi): PerformanceCycleFromApi {
         (PARTICIPANT_MAP[p.participantType] ?? PARTICIPANT_MAP[String(p.participantType).toUpperCase()])
     )
     .filter((p): p is ParticipantType => Boolean(p))
-  const active = api.active ?? true
+  const active = api.isActive ?? true
   const status = apiStatusToUiStatus(api.status, startDate, endDate, active)
+  const valueIds = (api.performanceCycleCompanyValue ?? [])
+    .map(pc => pc.companyValueId)
+    .filter((id): id is string => id != null && id !== '')
   return {
     id: api.id,
     version: api.version ?? 0,
@@ -103,7 +106,7 @@ function mapApiCycleToUi(api: PerformanceCycleApi): PerformanceCycleFromApi {
     status,
     deactivated: status === 'Inactive',
     ratingScaleId: api.ratingScaleId ?? undefined,
-    valueIds: [],
+    valueIds,
     fromApi: true
   }
 }

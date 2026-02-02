@@ -161,6 +161,8 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
 
   const handleSave = () => {
     if (!name.trim() || !startDate || !endDate) return
+    // Send only the currently selected value IDs (deduped) so backend receives exact selection
+    const valueIdsToSave = [...new Set(selectedValueIds)]
     onSave({
       id: initialValues?.id,
       version: initialValues?.version,
@@ -171,7 +173,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
       participants: selectedParticipants,
       stages: initialStages,
       ratingScaleId: selectedScaleId,
-      valueIds: selectedValueIds
+      valueIds: valueIdsToSave
     })
     onOpenChange(false)
   }
@@ -262,9 +264,13 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               <div className="gba:text-sm gba:text-muted-foreground">{t('placeholder-no-values')}</div>
             ) : (
               <Combobox
+                key={`cycle-values-${open ? (initialValues?.id ?? 'new') : 'closed'}`}
                 mode="multiple"
                 value={selectedValueIds}
-                onValueChange={(ids: string[]) => setSelectedValueIds(ids)}
+                onValueChange={(ids: string[] | string) => {
+                  const next = Array.isArray(ids) ? ids : ids ? [ids] : []
+                  setSelectedValueIds([...new Set(next)])
+                }}
                 options={availableValues.filter(v => v.active !== false).map(v => ({ label: v.title, value: v.id }))}
                 placeholder="Select values"
                 searchPlaceholder="Type to search values..."

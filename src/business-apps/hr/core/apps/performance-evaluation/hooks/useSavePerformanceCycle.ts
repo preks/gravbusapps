@@ -29,6 +29,7 @@ const UI_TO_API_PARTICIPANT: Record<string, string> = {
 }
 
 /** Build participants array: each type with enabled true if selected in form. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for future participants payload
 function buildParticipants(selectedParticipants: string[]): PerformanceCycleParticipantItem[] {
   const selectedSet = new Set(
     selectedParticipants.map(p => UI_TO_API_PARTICIPANT[String(p).toUpperCase()] ?? String(p).toUpperCase())
@@ -75,7 +76,7 @@ function buildSavePayload(values: CycleEditorValues): SavePerformanceCyclePayloa
       frequency: frequencyApi,
       ratingScale: values.ratingScaleId ?? null,
       // participants: buildParticipants(values.participants ?? []),
-      participants: buildParticipants([]),
+      // participants: buildParticipants([]),
       ...(changeMode === 'INSERT' ? { status: 'DRAFT_CYCLE' } : {}),
       ...(companyValues.length > 0 ? { companyValues } : {})
     }

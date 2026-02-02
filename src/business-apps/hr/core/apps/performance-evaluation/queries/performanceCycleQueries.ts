@@ -17,12 +17,19 @@ export const GET_PERFORMANCE_CYCLES = /* GraphQL */ `
       performanceCycleParticipant(where: { isDeleted: { _eq: false }, isEnabled: { _eq: true } }) {
         participantType
       }
+      performanceCycleCompanyValue(where: { isDeleted: { _eq: false } }) {
+        companyValueId
+      }
     }
   }
 `
 
 export interface PerformanceCycleParticipantApi {
   participantType: string | null
+}
+
+export interface PerformanceCycleCompanyValueApi {
+  companyValueId: string | null
 }
 
 export interface PerformanceCycleApi {
@@ -33,10 +40,10 @@ export interface PerformanceCycleApi {
   endDate: string | null
   frequency: string | null
   status: string | null
-  /** Table/API use "active"; GraphQL may expose as isActive, aliased above as active */
-  active: boolean | null
+  isActive: boolean | null
   ratingScaleId: string | null
   performanceCycleParticipant: PerformanceCycleParticipantApi[]
+  performanceCycleCompanyValue: PerformanceCycleCompanyValueApi[] | null
 }
 
 export interface GetPerformanceCyclesResponse {
