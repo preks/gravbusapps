@@ -11,10 +11,10 @@ import {
   CaseAnalytics,
   CaseActivity,
   CreateCaseRequest,
-  UpdateCaseRequest,
   AddFlowRequest,
   LinkedFlow,
-  SearchFlowResult
+  SearchFlowResult,
+  LinkedEntity
 } from '../types'
 
 // Get the cflow engine URL from env
@@ -151,15 +151,46 @@ export class CaseApiClient {
     const data = await this.handleResponse<{ success: boolean; caseId: string; state: any }>(response)
 
     // Transform API response to Case interface
+    // Merge backend metadata with parsed tags (backend metadata takes precedence)
+    const parsedMetadata = this.parseTagsToMetadata(data.state)
+    const backendMetadata = data.state?.metadata || {}
+
     return {
       caseId: data.caseId,
       state: {
         ...data.state,
-        metadata: this.parseTagsToMetadata(data.state)
+        metadata: {
+          ...parsedMetadata,
+          ...backendMetadata // Backend metadata (title, description) takes precedence
+        }
       },
       createdAt: data.state?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }
+  }
+
+  /**
+   * Update case metadata (title, description, priority, status, assignedTo)
+   */
+  async updateCase(
+    caseId: string,
+    updates: {
+      title?: string
+      description?: string
+      priority?: 'low' | 'medium' | 'high' | 'critical'
+      status?: 'open' | 'in_progress' | 'pending' | 'resolved' | 'closed'
+      assignedTo?: string
+    }
+  ): Promise<void> {
+    console.log('[CaseApiClient] Updating case:', { caseId, updates })
+
+    const response = await fetch(`${this.baseUrl}/${caseId}`, {
+      method: 'PATCH',
+      headers: this.getHeaders(),
+      body: JSON.stringify(updates)
+    })
+
+    await this.handleResponse<{ success: boolean; message: string }>(response)
   }
 
   /**
@@ -249,16 +280,6 @@ export class CaseApiClient {
   }
 
   /**
-   * Update case metadata
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async updateCase(caseId: string, data: UpdateCaseRequest): Promise<Case> {
-    // Note: API doesn't have update endpoint yet
-    console.warn('[CaseApiClient] Case update endpoint not implemented in backend yet')
-    throw new Error('Update case not implemented')
-  }
-
-  /**
    * Add flow to case
    *
    * Backend DTO expects: { templateId, initiator?, inputValues?, correlationIdOverride? }
@@ -290,6 +311,78 @@ export class CaseApiClient {
     console.log('[CaseApiClient] Removing flow from case:', { caseId, workflowId })
 
     const response = await fetch(`${this.baseUrl}/${caseId}/flows/${workflowId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders()
+    })
+
+    await this.handleResponse<{ success: boolean; message: string }>(response)
+  }
+
+  /**
+   * Get notes for a case
+   */
+  async getCaseNotes(caseId: string): Promise<
+    {
+      id: string
+      content: string
+      visibility: 'internal' | 'external'
+      createdBy: string
+      createdAt: string
+    }[]
+  > {
+    console.log('[CaseApiClient] Getting notes for case:', caseId)
+
+    const response = await fetch(`${this.baseUrl}/${caseId}/notes`, {
+      method: 'GET',
+      headers: this.getHeaders()
+    })
+
+    const data = await this.handleResponse<{
+      success: boolean
+      caseId: string
+      notes: Array<{
+        id: string
+        content: string
+        visibility: 'internal' | 'external'
+        createdBy: string
+        createdAt: string
+      }>
+      total: number
+    }>(response)
+
+    return data.notes
+  }
+
+  /**
+   * Add a note to a case
+   */
+  async addNoteToCase(
+    caseId: string,
+    note: {
+      content: string
+      visibility: 'internal' | 'external'
+      createdBy: string
+    }
+  ): Promise<{ noteId: string }> {
+    console.log('[CaseApiClient] Adding note to case:', { caseId, note })
+
+    const response = await fetch(`${this.baseUrl}/${caseId}/notes`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(note)
+    })
+
+    const data = await this.handleResponse<{ success: boolean; noteId: string; message: string }>(response)
+    return { noteId: data.noteId }
+  }
+
+  /**
+   * Delete a note from a case
+   */
+  async deleteNoteFromCase(caseId: string, noteId: string): Promise<void> {
+    console.log('[CaseApiClient] Deleting note from case:', { caseId, noteId })
+
+    const response = await fetch(`${this.baseUrl}/${caseId}/notes/${noteId}`, {
       method: 'DELETE',
       headers: this.getHeaders()
     })
@@ -472,5 +565,49 @@ export class CaseApiClient {
         }
       }
     }
+  }
+
+  /**
+   * Get linked entities for a case
+   */
+  async getLinkedEntities(caseId: string): Promise<LinkedEntity[]> {
+    const response = await fetch(`${this.baseUrl}/${caseId}/entities`, {
+      method: 'GET',
+      headers: this.getHeaders()
+    })
+
+    const result = await this.handleResponse<{ entities: LinkedEntity[] }>(response)
+    return result.entities || []
+  }
+
+  /**
+   * Link an entity to a case
+   */
+  async linkEntity(caseId: string, entity: LinkedEntity, linkedBy?: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/${caseId}/entities`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        type: entity.type,
+        id: entity.id,
+        name: entity.name,
+        metadata: entity.metadata,
+        linkedBy
+      })
+    })
+
+    await this.handleResponse<{ success: boolean }>(response)
+  }
+
+  /**
+   * Unlink an entity from a case
+   */
+  async unlinkEntity(caseId: string, entityId: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/${caseId}/entities/${entityId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders()
+    })
+
+    await this.handleResponse<{ success: boolean }>(response)
   }
 }

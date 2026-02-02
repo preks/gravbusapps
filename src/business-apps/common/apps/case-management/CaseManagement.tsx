@@ -159,15 +159,52 @@ export const CaseManagement: React.FC<CaseManagementProps> = ({
   }
 
   const handleAddNote = async (caseId: string, content: string, visibility: 'internal' | 'external') => {
-    console.log('Add note:', { caseId, content, visibility })
+    try {
+      await client.addNoteToCase(caseId, {
+        content,
+        visibility,
+        createdBy: context.userInfo?.id || 'system'
+      })
+    } catch (error) {
+      console.error('Failed to add note:', error)
+      throw error
+    }
   }
 
   const handleLinkEntity = async (caseId: string, entity: LinkedEntity) => {
-    console.log('Link entity:', { caseId, entity })
+    try {
+      await client.linkEntity(caseId, entity, context.userInfo?.id)
+    } catch (error) {
+      console.error('Failed to link entity:', error)
+      throw error
+    }
   }
 
   const handleUnlinkEntity = async (caseId: string, entityId: string) => {
-    console.log('Unlink entity:', { caseId, entityId })
+    try {
+      await client.unlinkEntity(caseId, entityId)
+    } catch (error) {
+      console.error('Failed to unlink entity:', error)
+      throw error
+    }
+  }
+
+  const handleUpdateCase = async (
+    caseId: string,
+    updates: {
+      title?: string
+      description?: string
+      priority?: 'low' | 'medium' | 'high' | 'critical'
+      assignedTo?: string
+    }
+  ) => {
+    try {
+      await client.updateCase(caseId, updates)
+      loadRecentCases()
+    } catch (error) {
+      console.error('Failed to update case:', error)
+      throw error
+    }
   }
 
   // Render case detail view
@@ -184,6 +221,7 @@ export const CaseManagement: React.FC<CaseManagementProps> = ({
         onAddNote={handleAddNote}
         onLinkEntity={handleLinkEntity}
         onUnlinkEntity={handleUnlinkEntity}
+        onUpdateCase={handleUpdateCase}
         allowEdit={allowEdit}
       />
     )
@@ -213,6 +251,7 @@ export const CaseManagement: React.FC<CaseManagementProps> = ({
           onSubmit={handleCreateCase}
           appTag={appTag}
           userId={context.userInfo?.id}
+          accessToken={context.accessToken}
         />
       </>
     )
@@ -242,6 +281,7 @@ export const CaseManagement: React.FC<CaseManagementProps> = ({
         onSubmit={handleCreateCase}
         appTag={appTag}
         userId={context.userInfo?.id}
+        accessToken={context.accessToken}
       />
     </>
   )

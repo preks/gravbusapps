@@ -4,9 +4,9 @@
  * Hook for managing entity linking (users, employees, org units)
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/business-apps/types'
-import { OrgDirectoryClient } from '@/common/network/org-directory/OrgDirectoryClient'
+import { OrgDirectoryClient, OrgUser } from '@/common/network/org-directory/OrgDirectoryClient'
 
 export interface EntityOption {
   id: string
@@ -20,6 +20,10 @@ export const useEntityLinking = (context: BusinessAppContextProps) => {
   const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
+  // Cache for users and org units to avoid repeated API calls
+  const usersCache = useRef<OrgUser[] | null>(null)
+  const orgUnitsCache = useRef<Array<{ id: string; name: string; type: string }> | null>(null)
+
   const orgClient = new OrgDirectoryClient(context.accessToken)
 
   /**
@@ -30,7 +34,7 @@ export const useEntityLinking = (context: BusinessAppContextProps) => {
       query: string,
       entityTypes: ('user' | 'employee' | 'organizationalUnit')[] = ['user', 'employee', 'organizationalUnit']
     ) => {
-      if (!query.trim()) {
+      if (!query.trim() || query.length < 2) {
         setSearchResults([])
         return
       }
@@ -40,39 +44,32 @@ export const useEntityLinking = (context: BusinessAppContextProps) => {
         setError(null)
 
         const results: EntityOption[] = []
+        const queryLower = query.toLowerCase()
 
-        // Search users
-        if (entityTypes.includes('user')) {
-          try {
-            const users = await orgClient.searchUsers(query)
-            results.push(
-              ...users.map(user => ({
-                id: user.id || user.userId,
-                name: user.displayName || user.email || 'Unknown User',
-                type: 'user' as const,
-                metadata: user
-              }))
-            )
-          } catch (err) {
-            console.warn('Failed to search users:', err)
-          }
-        }
-
-        // Search employees
+        // Search employees (primary entity type - users with employee records)
         if (entityTypes.includes('employee')) {
           try {
-            const employees = await orgClient.getEmployees()
-            const filteredEmployees = employees.filter(
-              emp =>
-                emp.displayName?.toLowerCase().includes(query.toLowerCase()) ||
-                emp.email?.toLowerCase().includes(query.toLowerCase())
-            )
+            // Use cache if available, otherwise fetch
+            if (!usersCache.current) {
+              usersCache.current = await orgClient.getAllUsers()
+            }
+
+            const filteredUsers = usersCache.current.filter(user => {
+              const name = user.name?.toLowerCase() || ''
+              const email = user.email?.toLowerCase() || ''
+              return name.includes(queryLower) || email.includes(queryLower)
+            })
+
             results.push(
-              ...filteredEmployees.map(emp => ({
-                id: emp.id || emp.employeeId,
-                name: emp.displayName || emp.email || 'Unknown Employee',
+              ...filteredUsers.slice(0, 10).map(user => ({
+                id: user.id,
+                name: user.name || user.email || 'Unknown Employee',
                 type: 'employee' as const,
-                metadata: emp
+                metadata: {
+                  email: user.email,
+                  avatarUrl: user.avatarUrl,
+                  organizationalUnits: user.organizationalUnits
+                }
               }))
             )
           } catch (err) {
@@ -83,14 +80,19 @@ export const useEntityLinking = (context: BusinessAppContextProps) => {
         // Search organizational units
         if (entityTypes.includes('organizationalUnit')) {
           try {
-            const orgUnits = await orgClient.getOrganizationalUnits()
-            const filteredOrgUnits = orgUnits.filter(ou => ou.name?.toLowerCase().includes(query.toLowerCase()))
+            // Use cache if available, otherwise fetch
+            if (!orgUnitsCache.current) {
+              orgUnitsCache.current = await orgClient.getOrganizationalUnits()
+            }
+
+            const filteredOrgUnits = orgUnitsCache.current.filter(ou => ou.name?.toLowerCase().includes(queryLower))
+
             results.push(
-              ...filteredOrgUnits.map(ou => ({
+              ...filteredOrgUnits.slice(0, 10).map(ou => ({
                 id: ou.id,
                 name: ou.name || 'Unknown Unit',
                 type: 'organizationalUnit' as const,
-                metadata: ou
+                metadata: { type: ou.type }
               }))
             )
           } catch (err) {
@@ -116,27 +118,15 @@ export const useEntityLinking = (context: BusinessAppContextProps) => {
     async (entityId: string, entityType: 'user' | 'employee' | 'organizationalUnit'): Promise<EntityOption | null> => {
       try {
         switch (entityType) {
-          case 'user': {
+          case 'user':
+          case 'employee': {
             const user = await orgClient.getUserById(entityId)
             if (user) {
               return {
-                id: user.id || user.userId,
-                name: user.displayName || user.email || 'Unknown User',
-                type: 'user',
+                id: user.id,
+                name: user.name || user.email || 'Unknown',
+                type: entityType,
                 metadata: user
-              }
-            }
-            break
-          }
-          case 'employee': {
-            const employees = await orgClient.getEmployees()
-            const employee = employees.find(e => e.id === entityId || e.employeeId === entityId)
-            if (employee) {
-              return {
-                id: employee.id || employee.employeeId,
-                name: employee.displayName || employee.email || 'Unknown Employee',
-                type: 'employee',
-                metadata: employee
               }
             }
             break
@@ -164,11 +154,20 @@ export const useEntityLinking = (context: BusinessAppContextProps) => {
     [context.accessToken]
   )
 
+  /**
+   * Clear the cache (useful when context changes)
+   */
+  const clearCache = useCallback(() => {
+    usersCache.current = null
+    orgUnitsCache.current = null
+  }, [])
+
   return {
     searchResults,
     isSearching,
     error,
     searchEntities,
-    getEntityById
+    getEntityById,
+    clearCache
   }
 }

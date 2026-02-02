@@ -4,7 +4,7 @@
  * Modal dialog for creating a new case
  */
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,8 @@ import {
 } from '@newwork/nw-design-system'
 import { Loader2 } from 'lucide-react'
 import { CreateCaseRequest, CasePriority } from '../types'
+import { EmployeeSelect, EmployeeOption } from '@/components/employee-select'
+import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 
 interface CreateCaseDialogProps {
   open: boolean
@@ -31,19 +33,39 @@ interface CreateCaseDialogProps {
   onSubmit: (data: CreateCaseRequest) => Promise<void>
   appTag: string
   userId?: string
+  accessToken?: string
 }
 
-export const CreateCaseDialog: React.FC<CreateCaseDialogProps> = ({ open, onOpenChange, onSubmit, appTag, userId }) => {
+export const CreateCaseDialog: React.FC<CreateCaseDialogProps> = ({
+  open,
+  onOpenChange,
+  onSubmit,
+  appTag,
+  userId,
+  accessToken
+}) => {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<CasePriority>('medium')
+  const [assignedTo, setAssignedTo] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Employee search for assignee selection
+  const { employees, loading: searchLoading, search, hasMore, loadMore } = useEmployeeSearch(accessToken)
+
+  // Initial search when dialog opens
+  useEffect(() => {
+    if (open && accessToken) {
+      search('')
+    }
+  }, [open, accessToken, search])
 
   const resetForm = () => {
     setTitle('')
     setDescription('')
     setPriority('medium')
+    setAssignedTo(null)
     setError(null)
   }
 
@@ -66,6 +88,10 @@ export const CreateCaseDialog: React.FC<CreateCaseDialogProps> = ({ open, onOpen
       setIsSubmitting(true)
       setError(null)
 
+      // Get userId from selected employee
+      const selectedEmployee = employees.find(emp => emp.id === assignedTo)
+      const assignedToUserId = selectedEmployee?.userId || assignedTo || undefined
+
       await onSubmit({
         initiator: userId || 'system',
         tags: { app: appTag },
@@ -73,7 +99,8 @@ export const CreateCaseDialog: React.FC<CreateCaseDialogProps> = ({ open, onOpen
           title: title.trim(),
           description: description.trim() || undefined,
           priority,
-          status: 'open'
+          status: 'open',
+          assignedTo: assignedToUserId
         }
       })
 
@@ -143,6 +170,25 @@ export const CreateCaseDialog: React.FC<CreateCaseDialogProps> = ({ open, onOpen
               </SelectContent>
             </Select>
           </div>
+
+          {/* Assign To */}
+          {accessToken && (
+            <div className="gba:space-y-2">
+              <Label>Assign To</Label>
+              <EmployeeSelect
+                value={assignedTo}
+                employees={employees as EmployeeOption[]}
+                onValueChange={setAssignedTo}
+                onSearch={search}
+                loading={searchLoading}
+                hasMore={hasMore}
+                onLoadMore={loadMore}
+                placeholder="Select assignee (optional)..."
+                searchPlaceholder="Search employees..."
+                disabled={isSubmitting}
+              />
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (

@@ -27,19 +27,38 @@ import {
   DialogFooter,
   Badge
 } from '@newwork/nw-design-system'
-import { RefreshCw, Check, AlertTriangle, Bot, Sparkles, X, Copy, CheckCheck, Users } from 'lucide-react'
+import {
+  RefreshCw,
+  Check,
+  AlertTriangle,
+  Bot,
+  Sparkles,
+  X,
+  Copy,
+  CheckCheck,
+  Users,
+  Pencil,
+  MessageSquare,
+  Clock,
+  ArrowRight,
+  UserCheck,
+  Activity,
+  CheckCircle2,
+  Loader2
+} from 'lucide-react'
 import { BusinessAppContextProps } from '@/business-apps/types'
-import { Case, AddFlowRequest, LinkedEntity, LinkedFlow } from '../types'
-import { formatDate, canCompleteCase, formatCaseId, isFlowTerminal } from '../utils'
+import { Case, AddFlowRequest, LinkedEntity, LinkedFlow, CasePriority } from '../types'
+import { formatDate, canCompleteCase, formatCaseId, isFlowTerminal, formatRelativeTime } from '../utils'
 import { CaseStatusBadge } from './CaseStatusBadge'
 import { FlowManagementPanel } from './FlowManagementPanel'
 import { CaseNotesPanel } from './CaseNotesPanel'
 import { EntityLinkingPanel } from './EntityLinkingPanel'
 import { CaseActivityFeed } from './CaseActivityFeed'
+import { EditCaseModal } from './EditCaseModal'
 import { useCaseData } from '../hooks'
 import { openEveryAI } from '@/common/utils/openEveryAI'
 import { useEmployeeNamesBatch } from '@/business-apps/ser/hooks/useEmployeeNamesBatch'
-import { Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
+import { Avatar, AvatarFallback, AvatarImage, Progress } from '@newwork/nw-design-system'
 
 /**
  * Builds a comprehensive AI prompt for case analysis with actual case data
@@ -111,6 +130,10 @@ interface CaseDetailsProps {
   onAddNote: (caseId: string, content: string, visibility: 'internal' | 'external') => Promise<void>
   onLinkEntity: (caseId: string, entity: LinkedEntity) => Promise<void>
   onUnlinkEntity: (caseId: string, entityId: string) => Promise<void>
+  onUpdateCase?: (
+    caseId: string,
+    updates: { title?: string; description?: string; priority?: CasePriority }
+  ) => Promise<void>
   allowEdit?: boolean
 }
 
@@ -125,6 +148,7 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
   onAddNote,
   onLinkEntity,
   onUnlinkEntity,
+  onUpdateCase,
   allowEdit = true
 }) => {
   const { caseData, linkedFlows, isLoading, refetch } = useCaseData(caseId, context)
@@ -133,15 +157,22 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
   const [showAiSummary, setShowAiSummary] = useState(false)
   const [aiPrompt, setAiPrompt] = useState('')
   const [promptCopied, setPromptCopied] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [isAssigningToMe, setIsAssigningToMe] = useState(false)
 
   // Calculate active flows and participants (must be before hook calls)
   const activeFlows = linkedFlows.filter(f => !f.removedAt)
+  const notes = caseData?.state?.metadata?.notes || []
+  const noteCreatorIds = notes.map((n: { createdBy: string }) => n.createdBy).filter(Boolean)
+  const assignedToId = caseData?.state?.metadata?.assignedTo
   const allParticipantIds = [
-    ...new Set(
-      activeFlows.flatMap(
+    ...new Set([
+      ...activeFlows.flatMap(
         f => [f.initiator, f.addedBy, f.currentAssignee, ...(f.participants || [])].filter(Boolean) as string[]
-      )
-    )
+      ),
+      ...noteCreatorIds,
+      ...(assignedToId ? [assignedToId] : [])
+    ])
   ]
 
   // Fetch employee data for all participants (hook must be called unconditionally)
@@ -186,6 +217,26 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
     }
   }
 
+  const handleAssignToMe = async () => {
+    if (!onUpdateCase || isAssigningToMe) return
+
+    const currentUserId = context.userInfo?.id
+    if (!currentUserId) return
+
+    try {
+      setIsAssigningToMe(true)
+      await onUpdateCase(caseId, { assignedTo: currentUserId })
+      await refetch()
+    } catch (error) {
+      console.error('Failed to assign case:', error)
+    } finally {
+      setIsAssigningToMe(false)
+    }
+  }
+
+  // Check if case is already assigned to current user
+  const isAssignedToMe = metadata?.assignedTo === context.userInfo?.id
+
   return (
     <div className="gba:flex gba:flex-col gba:gap-6 gba:p-6">
       {/* Header */}
@@ -196,6 +247,24 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
           onBack={onBack}
         />
         <div className="gba:flex gba:items-center gba:gap-2">
+          {/* Assign to me button - only show if not already assigned to current user */}
+          {allowEdit && onUpdateCase && !isAssignedToMe && (
+            <Button
+              variant="outline"
+              onClick={handleAssignToMe}
+              disabled={isAssigningToMe}
+              data-testid="case-assign-to-me-button"
+            >
+              <UserCheck className="gba:h-4 gba:w-4 gba:mr-2" />
+              {isAssigningToMe ? 'Assigning...' : 'Assign to me'}
+            </Button>
+          )}
+          {allowEdit && onUpdateCase && (
+            <Button variant="outline" onClick={() => setShowEditModal(true)} data-testid="case-edit-button">
+              <Pencil className="gba:h-4 gba:w-4 gba:mr-2" />
+              Edit
+            </Button>
+          )}
           <Button
             variant="ai"
             onClick={() => {
@@ -301,131 +370,382 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
           >
             {/* Left Column - Case Info */}
             <div className="gba:space-y-4">
-              <Card>
-                <CardHeader className="gba:pb-3">
-                  <CardTitle className="gba:text-base">Case Information</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <dl className="gba:grid gba:grid-cols-2 gba:gap-x-6 gba:gap-y-3">
-                    <div>
-                      <dt className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-                        Case ID
-                      </dt>
-                      <dd className="gba:mt-0.5 gba:text-sm gba:font-mono">{formatCaseId(caseId)}</dd>
-                    </div>
-                    <div>
-                      <dt className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-                        Status
-                      </dt>
-                      <dd className="gba:mt-0.5">
-                        {metadata?.status ? <CaseStatusBadge status={metadata.status} /> : 'N/A'}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-                        Priority
-                      </dt>
-                      <dd className="gba:mt-0.5 gba:text-sm gba:capitalize">{metadata?.priority || 'medium'}</dd>
-                    </div>
-                    <div>
-                      <dt className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-                        Assigned To
-                      </dt>
-                      <dd className="gba:mt-0.5 gba:text-sm">{metadata?.assignedTo || 'Unassigned'}</dd>
-                    </div>
-                    <div>
-                      <dt className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-                        Created At
-                      </dt>
-                      <dd className="gba:mt-0.5 gba:text-sm">{formatDate(caseData.createdAt)}</dd>
-                    </div>
-                    <div>
-                      <dt className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-                        Due Date
-                      </dt>
-                      <dd className="gba:mt-0.5 gba:text-sm">
-                        {metadata?.dueDate ? formatDate(metadata.dueDate) : 'Not set'}
-                      </dd>
-                    </div>
-                  </dl>
-                </CardContent>
-              </Card>
-
-              {metadata?.description && (
-                <Card>
+              {/* Case Information (left) + Flows Progress & Participants (right) */}
+              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+                {/* Case Information with Description */}
+                <Card className="gba:h-full">
                   <CardHeader className="gba:pb-3">
-                    <CardTitle className="gba:text-base">Description</CardTitle>
+                    <CardTitle className="gba:text-base">Case Information</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <p className="gba:text-sm gba:whitespace-pre-wrap">{metadata.description}</p>
+                  <CardContent className="gba:space-y-4">
+                    <dl className="gba:space-y-3">
+                      <div className="gba:grid gba:grid-cols-2 gba:gap-x-4 gba:gap-y-3">
+                        <div>
+                          <dt className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+                            Case ID
+                          </dt>
+                          <dd className="gba:mt-0.5 gba:text-sm gba:font-mono">{formatCaseId(caseId)}</dd>
+                        </div>
+                        <div>
+                          <dt className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+                            Status
+                          </dt>
+                          <dd className="gba:mt-0.5">
+                            {metadata?.status ? <CaseStatusBadge status={metadata.status} /> : 'N/A'}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+                            Priority
+                          </dt>
+                          <dd className="gba:mt-0.5 gba:text-sm gba:capitalize">{metadata?.priority || 'medium'}</dd>
+                        </div>
+                        <div>
+                          <dt className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+                            Created At
+                          </dt>
+                          <dd className="gba:mt-0.5 gba:text-sm">{formatDate(caseData.createdAt)}</dd>
+                        </div>
+                      </div>
+                      <div className="gba:grid gba:grid-cols-2 gba:gap-x-4 gba:gap-y-3">
+                        <div>
+                          <dt className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+                            Assigned To
+                          </dt>
+                          <dd className="gba:mt-0.5 gba:text-sm">
+                            {metadata?.assignedTo
+                              ? (() => {
+                                  const assigneeId = metadata.assignedTo
+                                  const assigneeName = userNames.get(assigneeId) || assigneeId.slice(0, 8) + '...'
+                                  const assigneeEmployee = userEmployees.get(assigneeId)
+                                  const assigneeInitials = assigneeName
+                                    .split(' ')
+                                    .map((n: string) => n[0])
+                                    .join('')
+                                    .toUpperCase()
+                                    .slice(0, 2)
+
+                                  return (
+                                    <div className="gba:flex gba:items-center gba:gap-2">
+                                      <Avatar className="gba:h-6 gba:w-6">
+                                        {assigneeEmployee?.pictureThumbnail && (
+                                          <AvatarImage
+                                            src={`data:image/png;base64,${assigneeEmployee.pictureThumbnail}`}
+                                            alt={assigneeName}
+                                          />
+                                        )}
+                                        <AvatarFallback className="gba:text-xs">{assigneeInitials}</AvatarFallback>
+                                      </Avatar>
+                                      <span>{assigneeName}</span>
+                                    </div>
+                                  )
+                                })()
+                              : 'Unassigned'}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+                            Due Date
+                          </dt>
+                          <dd className="gba:mt-0.5 gba:text-sm">
+                            {metadata?.dueDate ? formatDate(metadata.dueDate) : 'Not set'}
+                          </dd>
+                        </div>
+                      </div>
+                    </dl>
+
+                    {/* Description Section */}
+                    <div className="gba:pt-3 gba:border-t">
+                      <dt className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:mb-2">
+                        Description
+                      </dt>
+                      <dd className="gba:text-sm gba:whitespace-pre-wrap">
+                        {metadata?.description || (
+                          <span className="gba:text-muted-foreground">No description provided</span>
+                        )}
+                      </dd>
+                    </div>
                   </CardContent>
                 </Card>
-              )}
 
-              {/* Participants from linked flows */}
-              {allParticipantIds.length > 0 && (
-                <Card>
-                  <CardHeader className="gba:pb-3">
-                    <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
-                      <Users className="gba:h-4 gba:w-4" />
-                      Participants ({allParticipantIds.length})
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {isLoadingEmployees ? (
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <div className="gba:animate-spin gba:rounded-full gba:h-4 gba:w-4 gba:border-b-2 gba:border-primary" />
-                        <span className="gba:text-sm gba:text-muted-foreground">Loading participants...</span>
+                {/* Right Column: Flows Progress + Participants */}
+                <div className="gba:space-y-4">
+                  {/* Flows Progress */}
+                  <Card>
+                    <CardHeader className="gba:pb-3">
+                      <div className="gba:flex gba:items-center gba:justify-between">
+                        <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
+                          <Activity className="gba:h-4 gba:w-4" />
+                          Flows Progress
+                        </CardTitle>
+                        {activeFlows.length > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gba:text-xs gba:h-7"
+                            onClick={() => setActiveTab('flows')}
+                          >
+                            View all
+                            <ArrowRight className="gba:h-3 gba:w-3 gba:ml-1" />
+                          </Button>
+                        )}
                       </div>
-                    ) : (
-                      <div className="gba:flex gba:flex-wrap gba:gap-3">
-                        {allParticipantIds.map(userId => {
-                          const displayName = userNames.get(userId) || userId.slice(0, 8) + '...'
-                          const employee = userEmployees.get(userId)
+                    </CardHeader>
+                    <CardContent>
+                      {activeFlows.length > 0 ? (
+                        (() => {
+                          // Calculate overall step-level progress across all flows
+                          const totalStepsAll = activeFlows.reduce((sum, f) => sum + (f.totalSteps || 0), 0)
+                          const completedStepsAll = activeFlows.reduce((sum, f) => sum + (f.completedSteps || 0), 0)
+                          const overallPercentage =
+                            totalStepsAll > 0 ? Math.round((completedStepsAll / totalStepsAll) * 100) : 0
+
+                          return (
+                            <div className="gba:space-y-3">
+                              {/* Overall Progress Bar */}
+                              <div className="gba:space-y-1.5">
+                                <div className="gba:flex gba:items-center gba:justify-between gba:text-sm">
+                                  <span className="gba:text-muted-foreground">
+                                    {completedStepsAll}/{totalStepsAll} steps
+                                  </span>
+                                  <span className="gba:font-medium">{overallPercentage}%</span>
+                                </div>
+                                <Progress value={overallPercentage} className="gba:h-2" />
+                              </div>
+
+                              {/* Individual Flow Progress */}
+                              <div className="gba:space-y-2">
+                                {activeFlows.slice(0, 3).map((flow, index) => {
+                                  const flowName = flow.workflowName || flow.templateId || `Flow ${index + 1}`
+                                  const flowProgress = flow.progressPercentage || 0
+                                  const isCompleted = isFlowTerminal(flow)
+                                  const totalSteps = flow.totalSteps || 0
+                                  const completedSteps = flow.completedSteps || 0
+
+                                  return (
+                                    <TooltipProvider key={flow.workflowId || index}>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <button
+                                            className="gba:w-full gba:text-left gba:p-2 gba:rounded-lg gba:border gba:border-border hover:gba:bg-muted/50 gba:transition-colors"
+                                            onClick={() => setActiveTab('flows')}
+                                          >
+                                            <div className="gba:flex gba:items-center gba:justify-between gba:mb-1">
+                                              <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+                                                {isCompleted ? (
+                                                  <CheckCircle2 className="gba:h-3.5 gba:w-3.5 gba:text-green-500 gba:flex-shrink-0" />
+                                                ) : (
+                                                  <Loader2 className="gba:h-3.5 gba:w-3.5 gba:text-blue-500 gba:flex-shrink-0 gba:animate-spin" />
+                                                )}
+                                                <span className="gba:text-xs gba:font-medium gba:truncate">
+                                                  {flowName}
+                                                </span>
+                                              </div>
+                                              <span className="gba:text-xs gba:text-muted-foreground gba:flex-shrink-0 gba:ml-2">
+                                                {completedSteps}/{totalSteps}
+                                              </span>
+                                            </div>
+                                            <Progress value={flowProgress} className="gba:h-1" />
+                                          </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent side="bottom" className="gba:max-w-[250px]">
+                                          <p className="gba:font-medium">{flowName}</p>
+                                          <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                                            {isCompleted ? 'Completed' : `${flow.status || 'In Progress'}`}
+                                          </p>
+                                          <p className="gba:text-xs gba:mt-1">
+                                            {completedSteps} of {totalSteps} steps ({flowProgress}%)
+                                          </p>
+                                          {flow.currentStepName && !isCompleted && (
+                                            <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                                              Current: {flow.currentStepName}
+                                            </p>
+                                          )}
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )
+                                })}
+                                {activeFlows.length > 3 && (
+                                  <button
+                                    className="gba:w-full gba:text-center gba:text-xs gba:text-muted-foreground gba:py-1 hover:gba:text-foreground"
+                                    onClick={() => setActiveTab('flows')}
+                                  >
+                                    +{activeFlows.length - 3} more flows
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })()
+                      ) : (
+                        <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-4">
+                          No flows linked to this case
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Participants */}
+                  <Card>
+                    <CardHeader className="gba:pb-3">
+                      <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
+                        <Users className="gba:h-4 gba:w-4" />
+                        Participants {allParticipantIds.length > 0 && `(${allParticipantIds.length})`}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {allParticipantIds.length === 0 ? (
+                        <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-4">
+                          No participants yet
+                        </p>
+                      ) : isLoadingEmployees ? (
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <div className="gba:animate-spin gba:rounded-full gba:h-4 gba:w-4 gba:border-b-2 gba:border-primary" />
+                          <span className="gba:text-sm gba:text-muted-foreground">Loading...</span>
+                        </div>
+                      ) : (
+                        <div className="gba:flex gba:flex-wrap gba:gap-2">
+                          {allParticipantIds.slice(0, 8).map(userId => {
+                            const displayName = userNames.get(userId) || userId.slice(0, 8) + '...'
+                            const employee = userEmployees.get(userId)
+                            const initials = displayName
+                              .split(' ')
+                              .map(n => n[0])
+                              .join('')
+                              .toUpperCase()
+                              .slice(0, 2)
+
+                            return (
+                              <TooltipProvider key={userId}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      className="gba:flex gba:items-center gba:gap-2 gba:p-1.5 gba:rounded-lg gba:border gba:border-border gba:bg-card hover:gba:bg-accent gba:transition-colors gba:cursor-pointer"
+                                      onClick={() => {
+                                        window.open(`/platform/employee/profile/${userId}`, '_blank')
+                                      }}
+                                    >
+                                      <Avatar className="gba:h-6 gba:w-6">
+                                        {employee?.pictureThumbnail ? (
+                                          <AvatarImage
+                                            src={`data:image/png;base64,${employee.pictureThumbnail}`}
+                                            alt={displayName}
+                                          />
+                                        ) : null}
+                                        <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
+                                      </Avatar>
+                                      <span className="gba:text-xs gba:font-medium gba:max-w-[80px] gba:truncate">
+                                        {displayName}
+                                      </span>
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="bottom">
+                                    <p>{displayName}</p>
+                                    <p className="gba:text-xs gba:text-muted-foreground">Click to view profile</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )
+                          })}
+                          {allParticipantIds.length > 8 && (
+                            <span className="gba:text-xs gba:text-muted-foreground gba:self-center gba:ml-1">
+                              +{allParticipantIds.length - 8} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+
+              {/* Recent Notes */}
+              <Card>
+                <CardHeader className="gba:pb-3">
+                  <div className="gba:flex gba:items-center gba:justify-between">
+                    <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
+                      <MessageSquare className="gba:h-4 gba:w-4" />
+                      Recent Notes
+                    </CardTitle>
+                    {notes.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gba:text-xs gba:h-7"
+                        onClick={() => setActiveTab('notes')}
+                      >
+                        View all ({notes.length})
+                        <ArrowRight className="gba:h-3 gba:w-3 gba:ml-1" />
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {notes.length === 0 ? (
+                    <div className="gba:text-center gba:py-6 gba:text-muted-foreground">
+                      <MessageSquare className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2 gba:opacity-40" />
+                      <p className="gba:text-sm">No notes yet</p>
+                      {allowEdit && (
+                        <Button variant="link" size="sm" className="gba:mt-1" onClick={() => setActiveTab('notes')}>
+                          Add a note
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="gba:space-y-3">
+                      {notes.slice(0, 3).map(
+                        (
+                          note: {
+                            id: string
+                            content: string
+                            createdBy: string
+                            createdAt: string
+                            visibility: string
+                          },
+                          index: number
+                        ) => {
+                          const displayName = userNames.get(note.createdBy) || note.createdBy.slice(0, 8) + '...'
+                          const employee = userEmployees.get(note.createdBy)
                           const initials = displayName
                             .split(' ')
-                            .map(n => n[0])
+                            .map((n: string) => n[0])
                             .join('')
                             .toUpperCase()
                             .slice(0, 2)
 
                           return (
-                            <TooltipProvider key={userId}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <button
-                                    className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:rounded-lg gba:border gba:border-border gba:bg-card hover:gba:bg-accent gba:transition-colors gba:cursor-pointer"
-                                    onClick={() => {
-                                      window.open(`/platform/employee/profile/${userId}`, '_blank')
-                                    }}
-                                  >
-                                    <Avatar className="gba:h-8 gba:w-8">
-                                      {employee?.pictureThumbnail ? (
-                                        <AvatarImage
-                                          src={`data:image/png;base64,${employee.pictureThumbnail}`}
-                                          alt={displayName}
-                                        />
-                                      ) : null}
-                                      <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
-                                    </Avatar>
-                                    <span className="gba:text-sm gba:font-medium gba:max-w-[120px] gba:truncate">
-                                      {displayName}
-                                    </span>
-                                  </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="bottom">
-                                  <p>{displayName}</p>
-                                  <p className="gba:text-xs gba:text-muted-foreground">Click to view profile</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                            <div
+                              key={note.id || index}
+                              className="gba:flex gba:gap-3 gba:p-2 gba:rounded-lg gba:bg-muted/30"
+                            >
+                              <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
+                                {employee?.pictureThumbnail && (
+                                  <AvatarImage
+                                    src={`data:image/png;base64,${employee.pictureThumbnail}`}
+                                    alt={displayName}
+                                  />
+                                )}
+                                <AvatarFallback className="gba:text-xs">{initials}</AvatarFallback>
+                              </Avatar>
+                              <div className="gba:flex-1 gba:min-w-0">
+                                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-0.5">
+                                  <span className="gba:text-sm gba:font-medium gba:truncate">{displayName}</span>
+                                  <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
+                                    <Clock className="gba:h-3 gba:w-3" />
+                                    {formatRelativeTime(note.createdAt)}
+                                  </span>
+                                </div>
+                                <p className="gba:text-sm gba:text-muted-foreground gba:line-clamp-2">{note.content}</p>
+                              </div>
+                            </div>
                           )
-                        })}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+                        }
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
 
             {/* Right Column - Activity Log */}
@@ -458,9 +778,13 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
         <TabsContent value="notes" className="gba:mt-4">
           <CaseNotesPanel
             notes={metadata?.notes || []}
-            onAddNote={(content, visibility) => onAddNote(caseId, content, visibility)}
+            onAddNote={async (content, visibility) => {
+              await onAddNote(caseId, content, visibility)
+              await refetch() // Refresh to show new note
+            }}
             currentUserId={context.userInfo?.id || 'system'}
             readOnly={!allowEdit}
+            accessToken={context.accessToken}
           />
         </TabsContent>
 
@@ -468,8 +792,14 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
         <TabsContent value="links" className="gba:mt-4">
           <EntityLinkingPanel
             linkedEntities={metadata?.linkedEntities || []}
-            onLinkEntity={entity => onLinkEntity(caseId, entity)}
-            onUnlinkEntity={entityId => onUnlinkEntity(caseId, entityId)}
+            onLinkEntity={async entity => {
+              await onLinkEntity(caseId, entity)
+              await refetch() // Refresh to show linked entity
+            }}
+            onUnlinkEntity={async entityId => {
+              await onUnlinkEntity(caseId, entityId)
+              await refetch() // Refresh to remove from list
+            }}
             context={context}
             readOnly={!allowEdit}
           />
@@ -555,6 +885,20 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Case Modal */}
+      {onUpdateCase && (
+        <EditCaseModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          caseData={caseData}
+          accessToken={context.accessToken}
+          onSave={async updates => {
+            await onUpdateCase(caseId, updates)
+            await refetch()
+          }}
+        />
+      )}
     </div>
   )
 }

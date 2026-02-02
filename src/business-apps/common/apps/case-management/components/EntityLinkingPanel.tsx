@@ -5,8 +5,8 @@
  */
 
 import React, { useState } from 'react'
-import { Card, CardContent, Combobox, Button, Badge } from '@newwork/nw-design-system'
-import { Link2, X, Building, User as UserIcon, Users, Search } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle, Combobox, Button, Badge } from '@newwork/nw-design-system'
+import { Link2, X, Building, User as UserIcon, Users, Plus } from 'lucide-react'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import { LinkedEntity } from '../types'
 import { useEntityLinking } from '../hooks'
@@ -25,24 +25,36 @@ export const EntityLinkingPanel: React.FC<EntityLinkingPanelProps> = ({
   linkedEntities,
   onLinkEntity,
   onUnlinkEntity,
-  entityTypes = ['user', 'employee', 'organizationalUnit'],
+  entityTypes = ['employee', 'organizationalUnit'],
   context,
   readOnly = false
 }) => {
   const { searchResults, isSearching, searchEntities } = useEntityLinking(context)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedEntityId, setSelectedEntityId] = useState('')
   const [isLinking, setIsLinking] = useState(false)
 
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query)
-    if (query.length >= 2) {
-      await searchEntities(query, entityTypes)
-    }
+  // Handle search input change
+  const handleSearch = (query: string) => {
+    searchEntities(query, entityTypes)
   }
 
-  const handleLinkEntity = async (entityId: string) => {
-    const entity = searchResults.find(e => e.id === entityId)
+  // Handle entity selection from combobox
+  const handleSelectEntity = (entityId: string) => {
+    setSelectedEntityId(entityId)
+  }
+
+  // Handle link button click
+  const handleLinkEntity = async () => {
+    if (!selectedEntityId) return
+
+    const entity = searchResults.find(e => e.id === selectedEntityId)
     if (!entity) return
+
+    // Check if already linked
+    if (linkedEntities.some(e => e.id === entity.id)) {
+      setSelectedEntityId('')
+      return
+    }
 
     try {
       setIsLinking(true)
@@ -52,7 +64,7 @@ export const EntityLinkingPanel: React.FC<EntityLinkingPanelProps> = ({
         name: entity.name,
         metadata: entity.metadata
       })
-      setSearchQuery('')
+      setSelectedEntityId('')
     } catch (error) {
       console.error('Failed to link entity:', error)
     } finally {
@@ -94,28 +106,44 @@ export const EntityLinkingPanel: React.FC<EntityLinkingPanelProps> = ({
     }
   }
 
+  // Get options for combobox, excluding already linked entities
+  const comboboxOptions = searchResults
+    .filter(entity => !linkedEntities.some(linked => linked.id === entity.id))
+    .map(entity => ({
+      value: entity.id,
+      label: `${entity.name} (${entity.type === 'organizationalUnit' ? 'Org Unit' : 'Employee'})`
+    }))
+
   return (
     <div className="gba:space-y-4">
       {/* Search and Link Entity */}
       {!readOnly && (
         <Card>
-          <CardContent className="gba:p-4">
+          <CardHeader className="gba:pb-3">
+            <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
+              <Plus className="gba:h-4 gba:w-4" />
+              Link Entity
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="gba:pt-0">
             <div className="gba:flex gba:items-center gba:gap-3">
-              <Search className="gba:h-4 gba:w-4 gba:text-muted-foreground gba:shrink-0" />
               <div className="gba:flex-1">
                 <Combobox
-                  value={searchQuery}
-                  onValueChange={handleSearch}
-                  onSelect={handleLinkEntity}
-                  options={searchResults.map(entity => ({
-                    value: entity.id,
-                    label: entity.name
-                  }))}
-                  placeholder="Search users, employees, or org units..."
-                  emptyText={isSearching ? 'Searching...' : 'No results found'}
+                  value={selectedEntityId}
+                  onValueChange={handleSelectEntity}
+                  onSearch={handleSearch}
+                  options={comboboxOptions}
+                  placeholder="Search employees or org units..."
+                  searchPlaceholder="Type to search..."
+                  emptyText="No results found. Type at least 2 characters."
+                  loading={isSearching}
+                  loadingText="Searching..."
                   disabled={isLinking}
                 />
               </div>
+              <Button onClick={handleLinkEntity} disabled={!selectedEntityId || isLinking} size="sm">
+                {isLinking ? 'Linking...' : 'Link'}
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -123,12 +151,18 @@ export const EntityLinkingPanel: React.FC<EntityLinkingPanelProps> = ({
 
       {/* Linked Entities List */}
       <Card>
-        <CardContent className="gba:p-4">
+        <CardHeader className="gba:pb-3">
+          <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
+            <Link2 className="gba:h-4 gba:w-4" />
+            Linked Entities {linkedEntities.length > 0 && `(${linkedEntities.length})`}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="gba:pt-0">
           {linkedEntities.length === 0 ? (
-            <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
-              <Link2 className="gba:h-10 gba:w-10 gba:mx-auto gba:mb-3 gba:opacity-40" />
-              <p className="gba:font-medium">No entities linked</p>
-              {!readOnly && <p className="gba:text-sm gba:mt-1">Search and link users, employees, or org units</p>}
+            <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
+              <Link2 className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2 gba:opacity-40" />
+              <p className="gba:text-sm">No entities linked</p>
+              {!readOnly && <p className="gba:text-xs gba:mt-1">Use the search above to link employees or org units</p>}
             </div>
           ) : (
             <div className="gba:space-y-2">
@@ -148,14 +182,14 @@ export const EntityLinkingPanel: React.FC<EntityLinkingPanelProps> = ({
                   </div>
                   <div className="gba:flex gba:items-center gba:gap-2">
                     <Badge variant={getEntityBadgeVariant(entity.type)} className="gba:text-xs">
-                      {entity.type}
+                      {entity.type === 'organizationalUnit' ? 'Org Unit' : entity.type}
                     </Badge>
                     {!readOnly && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleUnlinkEntity(entity.id)}
-                        className="gba:h-8 gba:w-8 gba:p-0"
+                        className="gba:h-8 gba:w-8 gba:p-0 hover:gba:text-destructive"
                       >
                         <X className="gba:h-4 gba:w-4" />
                       </Button>
