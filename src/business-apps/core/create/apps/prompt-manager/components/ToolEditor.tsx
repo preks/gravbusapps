@@ -32,6 +32,7 @@ import type {
   SchemaConfig,
   ToolDetails
 } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import { useRuntimeInvoke } from '../hooks/useRuntimeInvoke'
 
 type ToolType = 'mcp' | 'function'
@@ -53,7 +54,7 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
   const [source, setSource] = useState('')
 
   const [mcpUrl, setMcpUrl] = useState('')
-  const [mcpTransport, setMcpTransport] = useState<'sse' | 'websocket'>('sse')
+  const [mcpTransport, setMcpTransport] = useState<'sse' | 'websocket' | 'http'>('sse')
 
   const [settings, setSettings] = useState<ToolSettings>({ config: {} })
   const [configKeys, setConfigKeys] = useState<Array<{ key: string; value: string }>>([{ key: '', value: '' }])
@@ -466,14 +467,31 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
                     onChange={e => setMcpUrl(e.target.value)}
                     placeholder="https://mcp-server.example.com/api"
                   />
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setMcpUrl(`${getFlowEngineApiBaseUrl()}/mcp`)
+                        setMcpTransport('http')
+                      }}
+                      data-testid="tool-editor-flow-engine-mcp-preset"
+                    >
+                      Use Flow Engine MCP
+                    </Button>
+                    <div className="gba:text-xs gba:text-muted-foreground">
+                      Default: <code className="gba:font-mono">{`${getFlowEngineApiBaseUrl()}/mcp`}</code>
+                    </div>
+                  </div>
                 </div>
                 <div className="gba:space-y-2">
                   <Label>Transport</Label>
-                  <Select value={mcpTransport} onValueChange={v => setMcpTransport(v as 'sse' | 'websocket')}>
+                  <Select value={mcpTransport} onValueChange={v => setMcpTransport(v as 'sse' | 'websocket' | 'http')}>
                     <SelectTrigger>
                       <SelectValue placeholder="sse" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="http">HTTP</SelectItem>
                       <SelectItem value="sse">SSE (Server-Sent Events)</SelectItem>
                       <SelectItem value="websocket">WebSocket</SelectItem>
                     </SelectContent>

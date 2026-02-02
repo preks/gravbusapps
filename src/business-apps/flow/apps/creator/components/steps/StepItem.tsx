@@ -14,6 +14,7 @@ import { LinksContent } from './LinksConfiguration'
 import { InputFieldsContent } from './InputFieldsConfiguration'
 import { FunctionConfiguration } from './FunctionConfiguration'
 import { AgentConfiguration } from './AgentConfiguration'
+import { EventSubscriptionsConfiguration } from './EventSubscriptionsConfiguration'
 
 interface StepItemProps {
   step: any
@@ -207,7 +208,39 @@ export const StepItem: React.FC<StepItemProps> = ({
                       : undefined,
                     badgeVariant: normalizedStep.assignment ? 'success' : undefined,
                     content: <AssignmentContent step={normalizedStep} testId={testId} onUpdateStep={handleUpdateStep} />
-                  }
+                  },
+                  // Event Subscriptions (for user task types: TASK, APPROVAL, INFORMATION, ACKNOWLEDGE)
+                  ...(normalizedStep.type === FlowStepType.TASK ||
+                  normalizedStep.type === FlowStepType.APPROVAL ||
+                  normalizedStep.type === FlowStepType.INFORMATION ||
+                  normalizedStep.type === FlowStepType.ACKNOWLEDGE
+                    ? [
+                        {
+                          id: 'event-subscriptions',
+                          title: getTranslationFromI18nKeyAndLabel(
+                            'flow.creator.eventSubscriptions',
+                            'Event Subscriptions'
+                          ),
+                          badgeText:
+                            normalizedStep.eventSubscriptions && normalizedStep.eventSubscriptions.length > 0
+                              ? `${normalizedStep.eventSubscriptions.length}`
+                              : undefined,
+                          content: accessToken ? (
+                            <EventSubscriptionsConfiguration
+                              subscriptions={normalizedStep.eventSubscriptions || []}
+                              onUpdate={subscriptions => handleUpdateStep({ eventSubscriptions: subscriptions })}
+                              stepIndex={stepIndex}
+                              testId={testId}
+                              accessToken={accessToken}
+                            />
+                          ) : (
+                            <div className="gba:text-center gba:text-muted-foreground gba:p-4">
+                              Access token required for event subscriptions
+                            </div>
+                          )
+                        }
+                      ]
+                    : [])
                 ]}
               />
             ) : (

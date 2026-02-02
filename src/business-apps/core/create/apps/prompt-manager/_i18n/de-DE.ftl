@@ -13,6 +13,10 @@ edit = Bearbeiten
 test = Testen
 internal-tools = Interne Tools
 
+# Tabs
+tab-task-experts = Task Experts
+tab-tools = Tools
+
 # Search
 search-placeholder = Task Experts suchen...
 

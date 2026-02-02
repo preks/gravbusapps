@@ -207,7 +207,7 @@ export interface AIModelPage {
 
 export interface MCPConfig {
   serverId?: string
-  transport: 'sse' | 'websocket'
+  transport: 'sse' | 'websocket' | 'http'
   url: string
   env?: Record<string, string>
 }
@@ -230,6 +230,8 @@ export interface SchemaConfig {
 
 export interface ToolODM {
   _id?: string
+  /** Stable tool identifier used in prompts (e.g. `mcp.flow-engine`) */
+  code?: string
   name: string
   created_at?: string
   description?: string
@@ -239,6 +241,8 @@ export interface ToolODM {
   schemaConfig?: SchemaConfig
   schema_config?: SchemaConfig // Backend returns snake_case
   active?: boolean
+  /** Internal tools are preconfigured and read-only */
+  internal?: boolean
 }
 
 export interface ToolPage {
