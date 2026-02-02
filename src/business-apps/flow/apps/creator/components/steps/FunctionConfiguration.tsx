@@ -19,6 +19,7 @@ interface FunctionConfigurationProps {
   onUpdateStep: (updates: any) => void
   showParametersOnly?: boolean
   template?: any
+  accessToken?: string
 }
 
 export const FunctionConfiguration: React.FC<FunctionConfigurationProps> = ({
@@ -27,7 +28,8 @@ export const FunctionConfiguration: React.FC<FunctionConfigurationProps> = ({
   testId,
   onUpdateStep,
   showParametersOnly = false,
-  template
+  template,
+  accessToken
 }) => {
   const [functions, setFunctions] = useState<LatestFunctionItem[]>([])
   const [isLoadingFunctions, setIsLoadingFunctions] = useState(false)
@@ -53,7 +55,7 @@ export const FunctionConfiguration: React.FC<FunctionConfigurationProps> = ({
       setIsLoadingVersions(true)
       setVersionsError(null)
       try {
-        const client = new FunctionsServiceClient()
+        const client = new FunctionsServiceClient(accessToken)
         const response: FunctionVersionsResponse = await client.getVersions(fnId)
         // Sort versions desc (high to low)
         const sorted = (response.versions || []).slice().sort((a, b) => (b.version || 0) - (a.version || 0))
@@ -126,7 +128,7 @@ export const FunctionConfiguration: React.FC<FunctionConfigurationProps> = ({
       setIsLoadingFunctions(true)
       setError(null)
       try {
-        const client = new FunctionsServiceClient()
+        const client = new FunctionsServiceClient(accessToken)
         const response = await client.listLatest({ workflowEnabled: true })
         setFunctions(response || [])
       } catch (err) {

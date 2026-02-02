@@ -353,6 +353,10 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
   const titleInputRef = useRef<HTMLInputElement>(null)
   const editorRef = useRef<any>(null) // Store editor instance
 
+  useEffect(() => {
+    DocumentApiService.setAccessToken(accessTokenProp || null)
+  }, [accessTokenProp])
+
   // Current user (used for Yjs awareness user info)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [currentUserName, setCurrentUserName] = useState<string | null>(null)

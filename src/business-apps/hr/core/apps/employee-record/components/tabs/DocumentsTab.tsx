@@ -184,13 +184,13 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
         const typeTranslatedValue =
           typeEntry?.translations && typeEntry.translations.length > 0
             ? typeEntry.translations[0].value
-            : typeEntry?.value || 'Other'
+            : typeEntry?.value || t('documents-group-other')
 
         return {
           id: doc.id,
           title: doc.name,
           name: doc.name,
-          type: doc.mimeType?.split('/')[1]?.toUpperCase() || 'Unknown',
+          type: doc.mimeType?.split('/')[1]?.toUpperCase() || t('documents-unknown'),
           typeRef: doc.type,
           typeValue: typeTranslatedValue,
           documentGroupKey: documentGroupKeyMap[doc.documentGroup] || 'Other',
@@ -216,7 +216,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
 
       setDocuments(sortedDocuments)
     } catch (err) {
-      setError('Failed to load documents')
+      setError(t('documents-error-load-failed'))
       console.error('Error fetching documents:', err)
     } finally {
       setLoading(false)
@@ -344,6 +344,36 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
     }
   }
 
+  // Helper function to get translated group name
+  const getTranslatedGroupName = (groupKey: string, documentGroup?: string): string => {
+    // First, check if documentGroup matches English values and translate them
+    if (documentGroup) {
+      const normalized = documentGroup.trim()
+      if (normalized === 'Salary') return t('documents-group-salary')
+      if (normalized === 'Expenses') return t('documents-group-expenses')
+      if (normalized === 'Development') return t('documents-group-development')
+      if (normalized === 'Personal') return t('documents-group-personal')
+      if (normalized === 'Other') return t('documents-group-other')
+    }
+
+    // Then translate by the key
+    switch (groupKey) {
+      case 'Salary':
+        return t('documents-group-salary')
+      case 'Expenses':
+        return t('documents-group-expenses')
+      case 'Development':
+        return t('documents-group-development')
+      case 'Personal':
+        return t('documents-group-personal')
+      case 'Other':
+        return t('documents-group-other')
+      default:
+        // If it's already translated or doesn't match, use documentGroup or groupKey
+        return documentGroup || groupKey
+    }
+  }
+
   const groupedDocuments = useMemo(() => {
     const groups: { [key: string]: Document[] } = {
       Salary: [],
@@ -426,6 +456,37 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
     return groups
   }, [filteredDocuments])
 
+  const loadDocumentBlob = async (fileId: string): Promise<Blob> => {
+    const blob = await fileClient.getFile(
+      {
+        accessScope: 'tenant',
+        fileId
+      },
+      {
+        appName: 'employee-profile',
+        folderPath: `/documents/${employee?.id}`
+      }
+    )
+
+    if (!blob || blob.size === 0) {
+      throw new Error(t('documents-error-load-document'))
+    }
+
+    return blob
+  }
+
+  const handleFileLoadFallback = (fileId: string) => {
+    try {
+      if (fileId) {
+        window.open(fileId, '_blank')
+      } else {
+        throw new Error(t('documents-error-no-file-id'))
+      }
+    } catch {
+      setError(t('documents-error-load-document'))
+    }
+  }
+
   const openDocumentViewer = async (document: Document) => {
     try {
       setError(null)
@@ -435,47 +496,26 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
       setIsViewerOpen(true)
       setDocumentLoading(true)
 
-      if (document.file) {
-        try {
-          setDocumentBlob(null)
-          setDocumentUrl(null)
+      if (!document.file) {
+        throw new Error(t('documents-error-no-file-info'))
+      }
 
-          const blob = await fileClient.getFile(
-            {
-              accessScope: 'tenant',
-              fileId: document.file
-            },
-            {
-              appName: 'employee-profile',
-              folderPath: `/documents/${employee?.id}`
-            }
-          )
+      try {
+        setDocumentBlob(null)
+        setDocumentUrl(null)
 
-          if (blob && blob.size > 0) {
-            if (blob.type && !document.mimeType) {
-              document.mimeType = blob.type
-            }
+        const blob = await loadDocumentBlob(document.file)
 
-            setDocumentBlob(blob)
-          } else {
-            throw new Error('Failed to retrieve document content or empty response')
-          }
-        } catch {
-          try {
-            if (document.file) {
-              window.open(document.file, '_blank')
-            } else {
-              throw new Error('No document file ID available')
-            }
-          } catch {
-            setError('Unable to display the document. Please try again later.')
-          }
+        if (blob.type && !document.mimeType) {
+          document.mimeType = blob.type
         }
-      } else {
-        throw new Error('No file information available')
+
+        setDocumentBlob(blob)
+      } catch {
+        handleFileLoadFallback(document.file)
       }
     } catch (err) {
-      setError(`Could not load document: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      setError(`${t('documents-error-load-document')}: ${err instanceof Error ? err.message : t('documents-unknown')}`)
     } finally {
       setDocumentLoading(false)
     }
@@ -493,7 +533,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
     if (documentBlob) {
       try {
         if (documentBlob.size === 0) {
-          throw new Error('Empty blob received')
+          throw new Error(t('documents-error-empty-blob'))
         }
 
         if (currentDocument && isPdfDocument(currentDocument)) {
@@ -594,7 +634,11 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
               {document.validTo && (
                 <div
                   className={`gba:px-2 gba:py-0.5 gba:rounded-md gba:text-xs gba:text-white gba:font-medium ${document.validTo < dayjs().format('YYYY-MM-DD') ? 'gba:bg-destructive' : 'gba:bg-success'}`}
-                  title={document.validTo < dayjs().format('YYYY-MM-DD') ? 'Document has expired' : 'Document is valid'}
+                  title={
+                    document.validTo < dayjs().format('YYYY-MM-DD')
+                      ? t('documents-expired-tooltip')
+                      : t('documents-valid-tooltip')
+                  }
                   data-testid={`document-validity-indicator-${document.id}`}
                 >
                   {document.validTo < dayjs().format('YYYY-MM-DD')
@@ -739,35 +783,86 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
         </div>
       )}
 
-      {loading ? (
-        <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-          <Spinner size="lg" />
-        </div>
-      ) : error ? (
-        <div className="gba:text-center gba:py-8 gba:text-destructive">{error}</div>
-      ) : searchQuery ? (
-        filteredDocuments.length === 0 ? (
-          <div className="gba:py-10 gba:text-center gba:text-muted-foreground">
-            <Search className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:opacity-50" />
-            <p>{t('documents-search-empty')}</p>
-          </div>
-        ) : (
+      {(() => {
+        if (loading) {
+          return (
+            <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
+              <Spinner size="lg" />
+            </div>
+          )
+        }
+
+        if (error) {
+          return <div className="gba:text-center gba:py-8 gba:text-destructive">{error}</div>
+        }
+
+        const getGroupBgClass = (group: string): string => {
+          if (group === 'Salary') return 'gba:bg-info-secondary'
+          if (group === 'Expenses') return 'gba:bg-success-secondary'
+          if (group === 'Development') return 'gba:bg-info-secondary'
+          if (group === 'Personal') return 'gba:bg-warning-secondary'
+          return 'gba:bg-decorative-secondary'
+        }
+
+        if (searchQuery) {
+          if (filteredDocuments.length === 0) {
+            return (
+              <div className="gba:py-10 gba:text-center gba:text-muted-foreground">
+                <Search className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-4 gba:opacity-50" />
+                <p>{t('documents-search-empty')}</p>
+              </div>
+            )
+          }
+
+          return (
+            <div className="gba:space-y-2" data-testid="documents-accordion">
+              {Object.entries(filteredGroupedDocuments).map(([group, docs]) => {
+                if (docs.length === 0) return null
+
+                const bgClass = getGroupBgClass(group)
+
+                const displayGroupName = getTranslatedGroupName(
+                  docs[0]?.documentGroupKey || group,
+                  docs[0]?.documentGroup
+                )
+
+                return (
+                  <Collapsible
+                    key={group}
+                    defaultOpen
+                    className={`gba:rounded-md gba:overflow-hidden ${bgClass}`}
+                    data-testid={`document-group-${group.toLowerCase()}`}
+                  >
+                    <CollapsibleTrigger className="gba:flex gba:items-center gba:justify-between gba:w-full gba:px-4 gba:py-3 gba:cursor-pointer gba:hover:opacity-80 gba:transition-opacity [&[data-state=open]>svg]:gba:rotate-180">
+                      <span className="gba:font-medium">{displayGroupName}</span>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <span className="gba:text-sm gba:text-muted-foreground">
+                          {docs.length} {docs.length === 1 ? t('documents-count-one') : t('documents-count-other')}
+                        </span>
+                        <ChevronDown className="gba:w-4 gba:h-4 gba:transition-transform gba:duration-200" />
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent data-testid={`document-list-${group.toLowerCase()}`}>
+                      <div className="gba:bg-background">{docs.map(renderDocumentListItem)}</div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )
+              })}
+            </div>
+          )
+        }
+
+        return (
           <div className="gba:space-y-2" data-testid="documents-accordion">
-            {Object.entries(filteredGroupedDocuments).map(([group, docs]) => {
+            {Object.entries(groupedDocuments).map(([group, docs]) => {
               if (docs.length === 0) return null
 
-              const bgClass =
-                group === 'Salary'
-                  ? 'gba:bg-info-secondary'
-                  : group === 'Expenses'
-                    ? 'gba:bg-success-secondary'
-                    : group === 'Development'
-                      ? 'gba:bg-info-secondary'
-                      : group === 'Personal'
-                        ? 'gba:bg-warning-secondary'
-                        : 'gba:bg-decorative-secondary'
+              const bgClass = getGroupBgClass(group)
 
-              const displayGroupName = docs[0]?.documentGroup || group
+              const displayGroupName = getTranslatedGroupName(
+                docs[0]?.documentGroupKey || group,
+                docs[0]?.documentGroup
+              )
 
               return (
                 <Collapsible
@@ -793,54 +888,9 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
             })}
           </div>
         )
-      ) : (
-        <div className="gba:space-y-2" data-testid="documents-accordion">
-          {Object.entries(groupedDocuments).map(([group, docs]) => {
-            if (docs.length === 0) return null
+      })()}
 
-            const bgClass =
-              group === 'Salary'
-                ? 'gba:bg-info-secondary'
-                : group === 'Expenses'
-                  ? 'gba:bg-success-secondary'
-                  : group === 'Development'
-                    ? 'gba:bg-info-secondary'
-                    : group === 'Personal'
-                      ? 'gba:bg-warning-secondary'
-                      : 'gba:bg-decorative-secondary'
-
-            const displayGroupName = docs[0]?.documentGroup || group
-
-            return (
-              <Collapsible
-                key={group}
-                defaultOpen
-                className={`gba:rounded-md gba:overflow-hidden ${bgClass}`}
-                data-testid={`document-group-${group.toLowerCase()}`}
-              >
-                <CollapsibleTrigger className="gba:flex gba:items-center gba:justify-between gba:w-full gba:px-4 gba:py-3 gba:cursor-pointer gba:hover:opacity-80 gba:transition-opacity [&[data-state=open]>svg]:gba:rotate-180">
-                  <span className="gba:font-medium">{displayGroupName}</span>
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <span className="gba:text-sm gba:text-muted-foreground">
-                      {docs.length} {docs.length === 1 ? t('documents-count-one') : t('documents-count-other')}
-                    </span>
-                    <ChevronDown className="gba:w-4 gba:h-4 gba:transition-transform gba:duration-200" />
-                  </div>
-                </CollapsibleTrigger>
-                <CollapsibleContent data-testid={`document-list-${group.toLowerCase()}`}>
-                  <div className="gba:bg-background">{docs.map(renderDocumentListItem)}</div>
-                </CollapsibleContent>
-              </Collapsible>
-            )
-          })}
-        </div>
-      )}
-
-      <Sheet
-        open={isViewerOpen}
-        onOpenChange={open => !open && closeDocumentViewer()}
-        title={currentDocument?.title || 'Document Viewer'}
-      >
+      <Sheet open={isViewerOpen} onOpenChange={open => !open && closeDocumentViewer()}>
         <SheetContent
           side="right"
           className="gba:w-[680px] gba:max-w-[680px] gba:sm:max-w-[680px] gba:p-0 gba:flex gba:flex-col"
@@ -850,22 +900,33 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
             <SheetTitle>{currentDocument?.title || ''}</SheetTitle>
           </SheetHeader>
           <div className="gba:flex-1 gba:overflow-auto">
-            {documentLoading ? (
-              <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-                <div className="gba:text-center">
-                  <Spinner size="lg" />
-                  <div className="gba:mt-2">{t('documents-loading')}</div>
-                </div>
-              </div>
-            ) : error ? (
-              <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-destructive">
-                <p>{error}</p>
-              </div>
-            ) : documentUrl ? (
-              <div className="gba:flex gba:flex-col gba:w-full">
-                {/* Document viewer - top */}
-                <div className="gba:w-full gba:min-h-[400px] gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-6">
-                  {isPdfDocument(currentDocument) ? (
+            {(() => {
+              if (documentLoading) {
+                return (
+                  <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
+                    <div className="gba:text-center">
+                      <Spinner size="lg" />
+                      <div className="gba:mt-2">{t('documents-loading')}</div>
+                    </div>
+                  </div>
+                )
+              }
+
+              if (error) {
+                return (
+                  <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-destructive">
+                    <p>{error}</p>
+                  </div>
+                )
+              }
+
+              if (!documentUrl) {
+                return null
+              }
+
+              const renderDocumentViewer = () => {
+                if (isPdfDocument(currentDocument)) {
+                  return (
                     <div className="gba:w-full gba:overflow-hidden gba:rounded-md gba:shadow-sm">
                       <object
                         data={documentUrl}
@@ -947,16 +1008,20 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                         </div>
                       </object>
                     </div>
-                  ) : isImageDocument(currentDocument) ? (
+                  )
+                }
+
+                if (isImageDocument(currentDocument)) {
+                  return (
                     <>
                       <div className="gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-md gba:shadow-sm gba:p-4 gba:w-full">
                         <img
                           src={documentUrl}
-                          alt={currentDocument?.title || 'Document'}
+                          alt={currentDocument?.title || t('documents-count-one')}
                           className="gba:max-w-full gba:object-contain gba:rounded-md"
                           style={{ maxWidth: '100%', maxHeight: '500px' }}
                           onError={() => {
-                            setError('The image could not be displayed. It may be in an unsupported format.')
+                            setError(t('documents-error-image-display'))
                           }}
                           data-testid="image-viewer"
                         />
@@ -979,135 +1044,142 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                         {t('documents-download-image')}
                       </Button>
                     </>
-                  ) : (
-                    <>
-                      <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-muted gba:rounded-md gba:shadow-sm gba:min-h-[300px] gba:w-full">
-                        <div className="gba:mb-6">
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="gba:h-24 gba:w-24 gba:text-muted-foreground"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <rect x="2" y="2" width="20" height="20" rx="2" ry="2"></rect>
-                            <path d="M7 2v20"></path>
-                            <path d="M17 2v20"></path>
-                            <path d="M2 12h20"></path>
-                            <path d="M2 7h5"></path>
-                            <path d="M2 17h5"></path>
-                            <path d="M17 17h5"></path>
-                            <path d="M17 7h5"></path>
-                          </svg>
+                  )
+                }
+
+                return (
+                  <>
+                    <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-muted gba:rounded-md gba:shadow-sm gba:min-h-[300px] gba:w-full">
+                      <div className="gba:mb-6">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="gba:h-24 gba:w-24 gba:text-muted-foreground"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <rect x="2" y="2" width="20" height="20" rx="2" ry="2"></rect>
+                          <path d="M7 2v20"></path>
+                          <path d="M17 2v20"></path>
+                          <path d="M2 12h20"></path>
+                          <path d="M2 7h5"></path>
+                          <path d="M2 17h5"></path>
+                          <path d="M17 17h5"></path>
+                          <path d="M17 7h5"></path>
+                        </svg>
+                      </div>
+                      <p className="gba:mb-4 gba:text-center gba:text-muted-foreground gba:text-base">
+                        {t('documents-preview-not-available')}
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => {
+                        if (documentUrl) {
+                          const a = document.createElement('a')
+                          a.href = documentUrl
+                          a.download = currentDocument?.title || 'document'
+                          a.click()
+                        }
+                      }}
+                      className="gba:mt-4 gba:flex gba:items-center gba:gap-2"
+                      data-testid="document-download-button"
+                      variant="default"
+                      size="sm"
+                    >
+                      <Download className="gba:h-4 gba:w-4" />
+                      {t('documents-download')}
+                    </Button>
+                  </>
+                )
+              }
+
+              return (
+                <div className="gba:flex gba:flex-col gba:w-full">
+                  {/* Document viewer - top */}
+                  <div className="gba:w-full gba:min-h-[400px] gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-6">
+                    {renderDocumentViewer()}
+                  </div>
+
+                  <div className="gba:w-full gba:p-6 gba:bg-muted gba:border-t gba:border-border gba:mt-2">
+                    <div className="gba:grid gba:grid-cols-2 gba:gap-x-4 gba:gap-y-5">
+                      <div>
+                        <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
+                          {t('documents-detail-name')}
                         </div>
-                        <p className="gba:mb-4 gba:text-center gba:text-muted-foreground gba:text-base">
-                          {t('documents-preview-not-available')}
-                        </p>
+                        <div className="gba:mt-1 gba:text-sm">{currentDocument?.title || t('documents-detail-na')}</div>
                       </div>
-                      <Button
-                        onClick={() => {
-                          if (documentUrl) {
-                            const a = document.createElement('a')
-                            a.href = documentUrl
-                            a.download = currentDocument?.title || 'document'
-                            a.click()
-                          }
-                        }}
-                        className="gba:mt-4 gba:flex gba:items-center gba:gap-2"
-                        data-testid="document-download-button"
-                        variant="default"
-                        size="sm"
-                      >
-                        <Download className="gba:h-4 gba:w-4" />
-                        {t('documents-download')}
-                      </Button>
-                    </>
-                  )}
-                </div>
 
-                <div className="gba:w-full gba:p-6 gba:bg-muted gba:border-t gba:border-border gba:mt-2">
-                  <div className="gba:grid gba:grid-cols-2 gba:gap-x-4 gba:gap-y-5">
-                    <div>
-                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
-                        {t('documents-detail-name')}
+                      <div>
+                        <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
+                          {t('documents-detail-group')}
+                        </div>
+                        <div className="gba:mt-1 gba:text-sm">
+                          {currentDocument?.documentGroup || t('documents-detail-na')}
+                        </div>
                       </div>
-                      <div className="gba:mt-1 gba:text-sm">{currentDocument?.title || t('documents-detail-na')}</div>
-                    </div>
 
-                    <div>
-                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
-                        {t('documents-detail-group')}
+                      <div>
+                        <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
+                          {t('documents-detail-type')}
+                        </div>
+                        <div className="gba:mt-1 gba:text-sm">{currentDocument?.type || t('documents-detail-na')}</div>
                       </div>
-                      <div className="gba:mt-1 gba:text-sm">
-                        {currentDocument?.documentGroup || t('documents-detail-na')}
-                      </div>
-                    </div>
 
-                    <div>
-                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
-                        {t('documents-detail-type')}
+                      <div>
+                        <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
+                          {t('documents-detail-upload-date')}
+                        </div>
+                        <div className="gba:mt-1 gba:text-sm">
+                          {currentDocument?.createdAt
+                            ? dayjs(currentDocument.createdAt).format('MMM D, YYYY')
+                            : currentDocument?.uploadDate
+                              ? dayjs(currentDocument.uploadDate).format('MMM D, YYYY')
+                              : t('documents-detail-na')}
+                        </div>
                       </div>
-                      <div className="gba:mt-1 gba:text-sm">{currentDocument?.type || t('documents-detail-na')}</div>
-                    </div>
 
-                    <div>
-                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
-                        {t('documents-detail-upload-date')}
+                      <div>
+                        <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
+                          {t('documents-detail-uploaded-by')}
+                        </div>
+                        <div className="gba:mt-1 gba:text-sm">
+                          {currentDocument?.createdBy || t('documents-detail-na')}
+                        </div>
                       </div>
-                      <div className="gba:mt-1 gba:text-sm">
-                        {currentDocument?.createdAt
-                          ? dayjs(currentDocument.createdAt).format('MMM D, YYYY')
-                          : currentDocument?.uploadDate
-                            ? dayjs(currentDocument.uploadDate).format('MMM D, YYYY')
-                            : t('documents-detail-na')}
+
+                      <div>
+                        <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
+                          {t('documents-detail-expiration-date')}
+                        </div>
+                        <div className="gba:mt-1 gba:text-sm">
+                          {currentDocument?.validTo ? (
+                            <span
+                              className={`gba:px-2 gba:py-1 gba:rounded-full gba:text-xs ${currentDocument.validTo < dayjs().format('YYYY-MM-DD') ? 'gba:bg-warning-secondary gba:text-warning' : 'gba:bg-green-100 gba:text-success'}`}
+                            >
+                              {dayjs(currentDocument.validTo).format('MMM D, YYYY')}
+                            </span>
+                          ) : (
+                            t('documents-detail-na')
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    <div>
+                    <div className="gba:mt-6">
                       <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
-                        {t('documents-detail-uploaded-by')}
+                        {t('documents-detail-description')}
                       </div>
-                      <div className="gba:mt-1 gba:text-sm">
-                        {currentDocument?.createdBy || t('documents-detail-na')}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
-                        {t('documents-detail-expiration-date')}
-                      </div>
-                      <div className="gba:mt-1 gba:text-sm">
-                        {currentDocument?.validTo ? (
-                          <span
-                            className={`gba:px-2 gba:py-1 gba:rounded-full gba:text-xs ${currentDocument.validTo < dayjs().format('YYYY-MM-DD') ? 'gba:bg-warning-secondary gba:text-warning' : 'gba:bg-green-100 gba:text-success'}`}
-                          >
-                            {dayjs(currentDocument.validTo).format('MMM D, YYYY')}
-                          </span>
-                        ) : (
-                          t('documents-detail-na')
-                        )}
+                      <div className="gba:mt-1 gba:text-sm gba:bg-primary-foreground gba:p-3 gba:rounded gba:border gba:border-border">
+                        {currentDocument?.description || t('documents-detail-no-description')}
                       </div>
                     </div>
                   </div>
-
-                  <div className="gba:mt-6">
-                    <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">
-                      {t('documents-detail-description')}
-                    </div>
-                    <div className="gba:mt-1 gba:text-sm gba:bg-primary-foreground gba:p-3 gba:rounded gba:border gba:border-border">
-                      {currentDocument?.description || t('documents-detail-no-description')}
-                    </div>
-                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-                <p>{t('documents-no-content')}</p>
-              </div>
-            )}
+              )
+            })()}
           </div>
           {canEditDocuments && currentDocument && (
             <SheetFooter className="gba:px-6 gba:py-4 gba:border-t gba:border-border">

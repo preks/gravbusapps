@@ -64,6 +64,7 @@ export function mapLeadToAccount(leadData: Lead | Record<string, unknown> | null
     companySizeRef: (leadData.companySizeRef as string) || '',
     accountAnnualRevenueBandRef: (leadData.accountAnnualRevenueBandRef as string) || '',
     notesSummary: (leadData.description as string) || '',
+    prospective: true, // Lead conversions default to prospect status
     addresses: addresses as Address[] | undefined,
     communicationChannels: communicationChannels.length > 0 ? (communicationChannels as CommunicationChannel[]) : []
   }

@@ -51,7 +51,7 @@ export const useRealtimeKitMedia = ({
   meeting,
   callType,
   initialVideoQuality = 'low',
-  initialBackgroundEnabled = true,
+  initialBackgroundEnabled = false, // Disabled by default to prevent feedback loop
   onMediaStateChange,
   callStatus = 'idle'
 }: UseRealtimeKitMediaOptions): UseRealtimeKitMediaReturn => {
@@ -62,30 +62,114 @@ export const useRealtimeKitMedia = ({
   const [backgroundEnabled, setBackgroundEnabled] = useState(initialBackgroundEnabled)
 
   const virtualBackgroundRef = useRef<RTKVirtualBackground | null>(null)
+  const hasJustJoinedRef = useRef(false)
+  const hasAppliedInitialBackgroundRef = useRef(false)
+  const previousCallTypeRef = useRef<'audio' | 'video'>(callType)
 
-  // CRITICAL: React to callType changes (e.g., when accepting an invite with different callType)
+  // CRITICAL: React to callType changes (e.g., when upgrading from audio to video mid-call)
+  // BUT: Skip forcing video during initial join - trust SDK state from user preferences
+  // AND: Don't fight against manual user toggles - only react to actual callType changes
   useEffect(() => {
     const shouldEnableVideo = callType === 'video'
+    const isInitialJoin = callStatus === 'joining' || callStatus === 'idle'
+    const isConnected = callStatus === 'connected'
+    const sdkVideoEnabled = meeting?.self?.videoEnabled ?? false
+    const callTypeChanged = previousCallTypeRef.current !== callType
+
     rtkDebug.log('[RTK Media] callType changed, updating video state:', {
       callType,
+      previousCallType: previousCallTypeRef.current,
+      callTypeChanged,
       currentIsVideoEnabled: isVideoEnabled,
       willSetVideoEnabled: shouldEnableVideo,
       hasMeeting: !!meeting,
       hasSelf: !!meeting?.self,
-      sdkVideoEnabled: meeting?.self?.videoEnabled
+      sdkVideoEnabled,
+      callStatus,
+      isInitialJoin,
+      isConnected,
+      hasJustJoined: hasJustJoinedRef.current
     })
 
-    // Update state
+    // Update the ref for next comparison
+    previousCallTypeRef.current = callType
+
+    // CRITICAL: During initial join OR right after connecting, trust SDK state over callType
+    // User may have disabled video in pre-join dialog even for video calls
+    if (isInitialJoin && meeting?.self) {
+      // Mark that we've just joined - flag persists until user manually changes settings
+      hasJustJoinedRef.current = true
+
+      // Sync React state from SDK during initial join - ignore callType entirely
+      if (isVideoEnabled !== sdkVideoEnabled) {
+        rtkDebug.log('[RTK Media] Initial join - syncing from SDK state instead of callType:', {
+          sdkVideoEnabled,
+          callType,
+          isVideoEnabled
+        })
+        setIsVideoEnabled(sdkVideoEnabled)
+      }
+      return
+    }
+
+    // CRITICAL: Right after connecting, respect SDK state for a brief period
+    // This prevents overriding user preferences when transitioning from joining to connected
+    if (hasJustJoinedRef.current && isConnected) {
+      // Sync from SDK one more time after connecting
+      if (isVideoEnabled !== sdkVideoEnabled) {
+        rtkDebug.log('[RTK Media] Post-join sync - keeping SDK state instead of forcing callType:', {
+          sdkVideoEnabled,
+          callType,
+          isVideoEnabled
+        })
+        setIsVideoEnabled(sdkVideoEnabled)
+      }
+
+      // Clear the flag after a short delay to allow normal mid-call upgrades later
+      setTimeout(() => {
+        rtkDebug.log('[RTK Media] Clearing hasJustJoined flag - mid-call upgrades now allowed')
+        hasJustJoinedRef.current = false
+      }, 2000)
+      return
+    }
+
+    // CRITICAL: Only modify SDK during active call (not during join/leave/cleanup)
+    // This prevents "Unsupported concurrent calls" errors during cleanup
+    if (!isConnected || !meeting?.self) {
+      rtkDebug.log('[RTK Media] Skipping callType sync - not in connected state:', {
+        callStatus,
+        hasMeeting: !!meeting,
+        hasSelf: !!meeting?.self
+      })
+      return
+    }
+
+    // CRITICAL: Only take action when callType ACTUALLY CHANGES (audio→video upgrade)
+    // Do NOT fight against manual user toggles when callType hasn't changed
+    if (!callTypeChanged) {
+      rtkDebug.log('[RTK Media] Skipping video enforcement - callType unchanged, respecting manual toggle')
+      return
+    }
+
+    // Mid-call: Update state based on callType (only when callType actually changes)
     if (isVideoEnabled !== shouldEnableVideo) {
+      rtkDebug.log('[RTK Media] callType changed, updating video to match:', {
+        from: isVideoEnabled,
+        to: shouldEnableVideo
+      })
       setIsVideoEnabled(shouldEnableVideo)
 
-      // CRITICAL: If meeting is already initialized and we need to enable video, do it!
-      if (meeting?.self && shouldEnableVideo && !meeting.self.videoEnabled) {
-        rtkDebug.log('[RTK Media] Enabling video in SDK due to callType change')
-        meeting.self.enableVideo()
+      // Enable/disable video in SDK to match new callType
+      if (shouldEnableVideo && !sdkVideoEnabled) {
+        try {
+          rtkDebug.log('[RTK Media] Enabling video in SDK due to callType change (mid-call upgrade)')
+          meeting.self.enableVideo()
+        } catch (error) {
+          rtkDebug.warn('[RTK Media] Failed to enable video - SDK may be cleaning up:', error)
+        }
       }
     }
-  }, [callType, meeting])
+  }, [callType, meeting, callStatus, isVideoEnabled])
 
   /**
    * Toggle audio mute/unmute
@@ -326,41 +410,55 @@ export const useRealtimeKitMedia = ({
   }, [meeting])
 
   /**
-   * Auto-apply background effect on call connect if enabled
+   * ONE-TIME background application when call first connects
+   * Only applies if backgroundEnabled is true initially (e.g., for call initiator)
+   * Does NOT re-apply on track changes (which would cause infinite loop)
    */
   useEffect(() => {
+    // Only run when call transitions to connected for the first time
     if (
       callStatus !== 'connected' ||
       !isVideoEnabled ||
       !backgroundEnabled ||
       !meeting?.self?.videoTrack ||
-      virtualBackgroundRef.current !== null
+      hasAppliedInitialBackgroundRef.current
     ) {
       return
     }
 
-    rtkDebug.log('[RTK] 🎨 Auto-applying background effect (enabled by default or user preference)')
+    // Mark as applied to prevent re-running
+    hasAppliedInitialBackgroundRef.current = true
 
-    const applyBackground = async () => {
+    const applyInitialBackground = async () => {
       try {
         if (!virtualBackgroundRef.current) {
           virtualBackgroundRef.current = new RTKVirtualBackground()
         }
         await virtualBackgroundRef.current.initialize(meeting)
         await virtualBackgroundRef.current.enableBackground(meeting)
-        rtkDebug.log('[RTK] ✅ Background effect auto-applied successfully')
+
+        rtkDebug.log('[RTK] ✅ Initial background applied on connection')
       } catch (error) {
-        rtkDebug.error('[RTK] ❌ Failed to auto-apply background effect:', error)
+        rtkDebug.error('[RTK] ❌ Failed to apply initial background:', error)
         setBackgroundEnabled(false)
       }
     }
 
-    applyBackground()
+    applyInitialBackground()
   }, [callStatus, isVideoEnabled, backgroundEnabled, meeting])
 
   /**
-   * Recreate local stream from SDK tracks
-   * Updates whenever SDK audio/video tracks change
+   * Reset background application flag when call ends
+   */
+  useEffect(() => {
+    if (callStatus === 'idle' || callStatus === 'ended') {
+      hasAppliedInitialBackgroundRef.current = false
+    }
+  }, [callStatus])
+
+  /**
+   * Manage local stream with optimized track updates
+   * Updates tracks dynamically instead of recreating stream to prevent video flashing
    */
   useEffect(() => {
     if (!meeting?.self) {
@@ -368,27 +466,96 @@ export const useRealtimeKitMedia = ({
       return
     }
 
-    const stream = new MediaStream()
+    const currentAudioTrack = meeting.self.audioTrack
+    const currentVideoTrack = meeting.self.videoTrack
 
-    // Add audio track if available
-    if (meeting.self.audioTrack) {
-      stream.addTrack(meeting.self.audioTrack)
-      rtkDebug.log('[RTK] Added local audio track to stream')
-    }
+    // Update existing stream if we have one, otherwise create new
+    setLocalStream(prevStream => {
+      // If no tracks available, clear stream
+      if (!currentAudioTrack && !currentVideoTrack) {
+        rtkDebug.log('[RTK Media] No tracks available, clearing local stream')
+        return null
+      }
 
-    // Add video track if available
-    if (meeting.self.videoTrack) {
-      stream.addTrack(meeting.self.videoTrack)
-      rtkDebug.log('[RTK] Added local video track to stream')
-    }
+      // If we don't have a stream yet, create one
+      if (!prevStream) {
+        const newStream = new MediaStream()
+        if (currentVideoTrack) {
+          newStream.addTrack(currentVideoTrack)
+          rtkDebug.log('[RTK Media] Added local video track to new stream')
+        }
+        if (currentAudioTrack) {
+          newStream.addTrack(currentAudioTrack)
+          rtkDebug.log('[RTK Media] Added local audio track to new stream')
+        }
+        rtkDebug.log('[RTK Media] Created new local stream with', newStream.getTracks().length, 'tracks')
+        return newStream
+      }
 
-    if (stream.getTracks().length > 0) {
-      setLocalStream(stream)
-      rtkDebug.log('[RTK] Local stream updated with', stream.getTracks().length, 'tracks')
-    } else {
-      setLocalStream(null)
-    }
+      // We have an existing stream - update tracks dynamically to prevent flashing
+      const existingVideoTrack = prevStream.getVideoTracks()[0]
+      const existingAudioTrack = prevStream.getAudioTracks()[0]
+
+      let streamUpdated = false
+
+      // Update video track if changed
+      if (existingVideoTrack?.id !== currentVideoTrack?.id) {
+        // Remove old video track
+        if (existingVideoTrack) {
+          prevStream.removeTrack(existingVideoTrack)
+          rtkDebug.log('[RTK Media] Removed old video track:', existingVideoTrack.id)
+        }
+
+        // Add new video track
+        if (currentVideoTrack) {
+          prevStream.addTrack(currentVideoTrack)
+          rtkDebug.log('[RTK Media] Added new video track:', currentVideoTrack.id)
+        }
+
+        streamUpdated = true
+      }
+
+      // Update audio track if changed
+      if (existingAudioTrack?.id !== currentAudioTrack?.id) {
+        // Remove old audio track
+        if (existingAudioTrack) {
+          prevStream.removeTrack(existingAudioTrack)
+          rtkDebug.log('[RTK Media] Removed old audio track:', existingAudioTrack.id)
+        }
+
+        // Add new audio track
+        if (currentAudioTrack) {
+          prevStream.addTrack(currentAudioTrack)
+          rtkDebug.log('[RTK Media] Added new audio track:', currentAudioTrack.id)
+        }
+
+        streamUpdated = true
+      }
+
+      if (streamUpdated) {
+        rtkDebug.log('[RTK Media] Local stream tracks updated dynamically', {
+          videoTracks: prevStream.getVideoTracks().length,
+          audioTracks: prevStream.getAudioTracks().length
+        })
+      }
+
+      // Return the same stream reference (updated in place) to prevent unnecessary re-renders
+      return prevStream
+    })
   }, [meeting?.self?.audioTrack, meeting?.self?.videoTrack])
+
+  /**
+   * Cleanup virtual background resources on unmount or when call ends
+   */
+  useEffect(() => {
+    return () => {
+      if (virtualBackgroundRef.current && meeting) {
+        virtualBackgroundRef.current.destroy(meeting)
+        virtualBackgroundRef.current = null
+        rtkDebug.log('[RTK Virtual Background] Cleaned up on unmount')
+      }
+    }
+  }, [meeting])
 
   return {
     localStream,

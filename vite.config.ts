@@ -454,7 +454,7 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
           const relativePath = path.relative(projectRootDir, entryPath).replace(/\\/g, '/')
           // Use a unique variable name for each import based on entryKey
           const cleanEntryKey = entryKey.replace(/[^a-zA-Z0-9]/g, '_')
-          const shouldSkipWrap = entryKey === '.debug/DebugView' || entryKey.includes('/.debug/DebugView')
+          const shouldSkipWrap = entryKey === '.debug/apps/debug-view' || entryKey.includes('/.debug/apps/debug-view')
           code += `import ${cleanEntryKey}Original from './${relativePath}';
 `
           if (shouldSkipWrap) {
@@ -876,7 +876,7 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
         entryKey.includes('/services') ||
         entryKey.endsWith('/services')
 
-      const isDebugViewEntry = entryKey === '.debug/DebugView' || entryKey.includes('/.debug/DebugView')
+      const isDebugViewEntry = entryKey === '.debug/apps/debug-view' || entryKey.includes('/.debug/apps/debug-view')
       let wrapperContent: string
       if (isNamedExportsOnlyEntry) {
         wrapperContent = `// Auto-generated wrapper file for types/queries/hooks/tabs/components/utils/views/pages/services - re-export all named exports

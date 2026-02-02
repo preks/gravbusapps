@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
+import { Tabs, TabsList, TabsTrigger, TabsContent, useTranslation } from '@newwork/nw-design-system'
 import { Spin } from 'antd'
 import { PiIdentificationCard, PiBriefcase, PiFiles, PiClockCounterClockwise, PiNotebook } from 'react-icons/pi'
 import DetailsTab from './DetailsTab'
@@ -11,9 +11,9 @@ import DocumentsTab from './DocumentsTab'
 import HrNotesTab from './HrNotesTab'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Employee } from '../../hooks/useEmployeeData'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ScopePermissionCheckResult, useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
 import { useEmployeePermissions } from '../../hooks/useEmployeePermissions'
+import translations from '../../_i18n'
 
 interface HrAdminTabProps extends BusinessAppContextProps {
   employee: Employee
@@ -56,6 +56,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
   additionalData,
   employeeRecordHrBackoffice
 }) => {
+  const { t } = useTranslation(translations)
   const [activeSubView, setActiveSubView] = useState<HrAdminSubView>(getInitialHrAdminSubView())
 
   const { loading: permissionsLoading } = useEmployeePermissions(employeeId, accessToken)
@@ -196,9 +197,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
             <TabsTrigger value="details" data-testid="hr-admin-details-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                 <PiIdentificationCard />
-                <span>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employee_tabs.details', 'Details')}
-                </span>
+                <span>{t('hr-admin-subtab-details')}</span>
               </div>
             </TabsTrigger>
           )}
@@ -209,12 +208,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
             <TabsTrigger value="employment" data-testid="hr-admin-employment-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                 <PiBriefcase />
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_profile.employee_tabs.employment',
-                    'Employment'
-                  )}
-                </span>
+                <span>{t('hr-admin-subtab-employment')}</span>
               </div>
             </TabsTrigger>
           )}
@@ -225,9 +219,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
             <TabsTrigger value="documents" data-testid="hr-admin-documents-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                 <PiFiles />
-                <span>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employee_tabs.documents', 'Documents')}
-                </span>
+                <span>{t('hr-admin-subtab-documents')}</span>
               </div>
             </TabsTrigger>
           )}
@@ -239,7 +231,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
             <TabsTrigger value="changeLog" data-testid="hr-admin-changelog-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                 <PiClockCounterClockwise />
-                <span>{getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.title', 'Change Log')}</span>
+                <span>{t('hr-admin-subtab-change-log')}</span>
               </div>
             </TabsTrigger>
           )}
@@ -247,7 +239,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
             <TabsTrigger value="hrNotes" data-testid="hr-admin-hrnotes-subtab" className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
                 <PiNotebook />
-                <span>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.tab_name', 'HR Notes')}</span>
+                <span>{t('hr-admin-subtab-hr-notes')}</span>
               </div>
             </TabsTrigger>
           )}
@@ -319,7 +311,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
           <TabsContent value="changeLog" data-testid="hr-admin-changelog-content" className="gba:mt-4">
             <ChangeLogTab
               employeeId={employeeId}
-              employeeName={employee?.displayName || 'Employee'}
+              employeeName={employee?.displayName || t('employee-record-not-assigned')}
               userRole={'employee'}
               accessToken={accessToken}
               userInfo={userInfo}
@@ -333,7 +325,7 @@ const HrAdminTab: React.FC<HrAdminTabProps> = ({
             <HrNotesTab
               accessToken={accessToken}
               employeeId={employeeId}
-              employeeName={employee?.displayName || 'Employee'}
+              employeeName={employee?.displayName || t('employee-record-not-assigned')}
               userInfo={userInfo}
               additionalData={additionalData}
             />

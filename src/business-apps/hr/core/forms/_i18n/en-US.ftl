@@ -318,13 +318,16 @@ employee-form-email = Email
 employee-form-organizational-unit = Organizational Unit
 employee-form-job-position = Job Position
 employee-form-hire-date = Hire Date
-employee-form-fixed-term-until = Fixed Term until
+employee-form-fixed-term-end-date = Fixed-Term End Date
+employee-form-fixed-term-reason = Exit Reason
 employee-form-preferred-name = Preferred Name
 employee-form-employment-type = Employment Type
 employee-form-contract-type = Contract Type
 
 # Validation Messages
 employee-form-email-invalid = Please enter a valid email address
+employee-form-hire-date-required = Hire Date is required when Fixed-Term End Date is specified
+employee-form-fixed-term-before-hire = Fixed-Term End Date must be on or after Hire Date
 
 # Empty States
 employee-form-no-results = No results found

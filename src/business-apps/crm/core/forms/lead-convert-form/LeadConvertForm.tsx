@@ -481,6 +481,7 @@ export const LeadConvertForm = ({ accessToken, userInfo, additionalData, onSucce
               accountInformationCustomFields={createCampaignSelectField(accountForm.control, 'salesCampaignId')}
               avatarFileRef={accountAvatarFileRef}
               isActive={isActive}
+              accountContext="crm"
             />
           </CatalogSelect.Provider>
         ))

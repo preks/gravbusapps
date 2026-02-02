@@ -12,6 +12,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { execSync } from 'node:child_process'
 import { glob } from 'glob'
+import {
+  getScreenDirectories as getScreenDirectoriesFromHelper,
+  isScreenSpecificFile as isScreenSpecificFileFromHelper
+} from './utils/screenDiscovery.js'
 
 const projectRoot = process.cwd()
 
@@ -19,24 +23,12 @@ const projectRoot = process.cwd()
  * Find all screen directories
  */
 async function findAllScreens() {
-  const patterns = [
-    'src/business-apps/**/apps/*/index.ts',
-    'src/business-apps/**/forms/*/index.ts',
-    'src/business-apps/**/popups/*/index.ts',
-    'src/business-apps/**/records/*/index.ts',
-    'src/business-apps/**/windows/*/index.ts',
-    'src/business-apps/**/debug/*/index.ts'
-  ]
-
+  const screenDirs = await getScreenDirectoriesFromHelper({ cwd: projectRoot })
   const screens = new Set()
 
-  for (const pattern of patterns) {
-    const files = await glob(pattern, { cwd: projectRoot, nodir: true })
-    for (const file of files) {
-      const dir = path.dirname(file)
-      const screenPath = dir.replace(/^src[\\/]+business-apps[\\/]+/, '').replace(/\\/g, '/')
-      screens.add(screenPath)
-    }
+  for (const dir of screenDirs) {
+    const screenPath = dir.replace(/^src[\\/]+business-apps[\\/]+/, '').replace(/\\/g, '/')
+    screens.add(screenPath)
   }
 
   return Array.from(screens).sort()
@@ -165,27 +157,8 @@ async function getScreenDirectories() {
     return screenDirectoriesCache
   }
 
-  const patterns = [
-    'src/business-apps/**/apps/*/index.ts',
-    'src/business-apps/**/forms/*/index.ts',
-    'src/business-apps/**/popups/*/index.ts',
-    'src/business-apps/**/records/*/index.ts',
-    'src/business-apps/**/windows/*/index.ts'
-  ]
-
-  const screenDirs = new Set()
-
-  for (const pattern of patterns) {
-    const files = await glob(pattern, { cwd: projectRoot, nodir: true })
-    for (const file of files) {
-      // Get the directory containing the index.ts
-      const dir = path.dirname(file)
-      screenDirs.add(dir)
-    }
-  }
-
-  screenDirectoriesCache = screenDirs
-  return screenDirs
+  screenDirectoriesCache = await getScreenDirectoriesFromHelper({ cwd: projectRoot })
+  return screenDirectoriesCache
 }
 
 /**
@@ -193,24 +166,8 @@ async function getScreenDirectories() {
  * A screen is defined as a folder in apps/forms/popups/records that has an index.ts file
  */
 async function isScreenSpecificFile(filePath) {
-  // Must be in a potential screen location (apps/forms/popups/records)
-  if (!/\/(apps|forms|popups|records)\//.test(filePath)) {
-    return false
-  }
-
-  // Get all known screen directories
   const screenDirs = await getScreenDirectories()
-
-  // Check if this file is inside any screen directory
-  for (const screenDir of screenDirs) {
-    if (filePath.startsWith(screenDir + '/') || filePath === screenDir) {
-      return true
-    }
-  }
-
-  // File is in apps/forms/popups/records but NOT in a folder with index.ts
-  // This means it's shared code (e.g., forms/components/)
-  return false
+  return isScreenSpecificFileFromHelper(filePath, { cwd: projectRoot, screenDirs })
 }
 
 /**

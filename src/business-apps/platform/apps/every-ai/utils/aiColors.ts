@@ -1,15 +1,15 @@
 /**
  * AI Color Tokens for EveryAI
- * Dedicated orange color scheme for AI-related UI elements
+ * Premium blue color scheme for AI-related UI elements
  * Uses CSS custom properties that can be themed
  */
 
 export const AI_COLORS = {
-  // Main AI color (orange)
-  ai: 'var(--nw-ai, #f59e0b)', // Orange - fallback to warning color
+  // Main AI color (blue)
+  ai: 'var(--nw-ai, #3b82f6)', // Royal blue
   aiForeground: 'var(--nw-ai-foreground, #ffffff)', // White text on AI backgrounds
-  aiSecondary: 'var(--nw-ai-secondary, #fbbf24)', // Lighter orange for secondary elements
-  aiSecondaryForeground: 'var(--nw-ai-secondary-foreground, #000000)' // Dark text on secondary AI backgrounds
+  aiSecondary: 'var(--nw-ai-secondary, #60a5fa)', // Light blue for secondary elements
+  aiSecondaryForeground: 'var(--nw-ai-secondary-foreground, #ffffff)' // White text on secondary AI backgrounds
 } as const
 
 /**

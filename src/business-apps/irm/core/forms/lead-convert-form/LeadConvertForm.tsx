@@ -642,6 +642,7 @@ export const ConvertInvestmentLeadForm = ({
               }}
               loading={loading}
               avatarFileRef={accountAvatarFileRef}
+              accountContext="irm"
             />
           </CatalogSelect.Provider>
         )

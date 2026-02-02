@@ -195,6 +195,7 @@ const AccountForm: React.FC<AccountFormProps> = ({ accessToken, userInfo, additi
           accountPriorityCatalogIdentifier={ACCOUNT_PRIORITY}
           useContacts={useContacts}
           avatarFileRef={avatarFileRef}
+          accountContext="crm"
           loading={loading && !!accountId}
         />
       </AppActionForm>

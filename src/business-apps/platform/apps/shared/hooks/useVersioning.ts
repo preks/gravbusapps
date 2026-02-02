@@ -34,7 +34,7 @@ async function deleteOldAutoSaveVersionsIfNeeded(params: {
 
 export interface UseVersioningOptions {
   entityId: string
-  entityType: 'document' | 'note' | 'spreadsheet_app'
+  entityType: 'document' | 'note' | 'spreadsheet_app' | 'slide'
   apiService: {
     createVersion: (
       id: string,

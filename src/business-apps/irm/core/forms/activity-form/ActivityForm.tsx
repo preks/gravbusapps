@@ -4,7 +4,6 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ActivityLayout, activitySchema } from '@/common/components/common-relations/form-layouts/activity-layout'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { ActivitySchema } from '@/common/components/common-relations/form-layouts/activity-layout'
-import { validateActivityData } from '@/common/components/common-relations/form-segments/activity-segment/utils'
 import {
   type InvestmentActivity,
   buildInvestmentActivityPayload
@@ -203,12 +202,13 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
   )
 
   useEffect(() => {
-    if (!accountId && !contactId && !opportunityId && !leadId) return
+    if (!accountId && !contactId && !opportunityId && !leadId && !investmentId) return
     const hasEntity = Boolean(
       form.getValues('accountId') ||
         form.getValues('contactId') ||
         form.getValues('opportunityId') ||
-        form.getValues('leadId')
+        form.getValues('leadId') ||
+        form.getValues('investmentId')
     )
     if (hasEntity) return
 
@@ -229,8 +229,12 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
       form.setValue('leadId', leadId)
       form.setValue('relatedEntityId', leadId)
       hydrateEntityById('lead', leadId)
+    } else if (investmentId) {
+      form.setValue('investmentId', investmentId)
+      form.setValue('relatedEntityId', investmentId)
+      hydrateEntityById('investment', investmentId)
     }
-  }, [accountId, contactId, opportunityId, leadId, form, hydrateEntityById])
+  }, [accountId, contactId, opportunityId, leadId, investmentId, form, hydrateEntityById])
 
   const handleAdditionalEntityChange = useCallback(
     (type: string, entityId: string | null) => {
@@ -257,14 +261,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
     }
   }, [relatedEntityIds.investmentId, form, handleAdditionalEntityChange])
 
-  const validateForm = useCallback(
-    (data: any): string[] | null => {
-      // For investment context, we don't require entity selection since investment context is sufficient
-      return validateActivityData(data, { requireEntity: shouldShowEntitySelection })
-    },
-    [shouldShowEntitySelection]
-  )
-
   const errors: Array<{ error?: string | Error; type?: 'accessToken'; context?: string }> = []
   if (!accessToken) {
     errors.push({ type: 'accessToken' })
@@ -290,7 +286,6 @@ export const ActivityForm: React.FC<ActivityFormProps> = ({
         formData={form.getValues()}
         form={form}
         schema={activitySchema}
-        validateForm={validateForm}
         submitButtonText={getTranslationFromI18nKeyAndLabel('crm:common.submit', 'Submit')}
         cancelButtonText={getTranslationFromI18nKeyAndLabel('crm:common.cancel', 'Cancel')}
         data-testid={formatDataTestId('investment-activity-form', 'Form')}

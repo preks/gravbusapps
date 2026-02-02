@@ -1,51 +1,29 @@
 #!/usr/bin/env node
 /**
- * Publish ALL screens (apps and forms) to PRODUCTION
+ * Publish ALL screens (apps and forms) to PRODUCTION via RC promotion
  * - Discovers all screens in src/business-apps/
- * - Generates a list and passes it to the existing production publisher
- * - Uses the same comprehensive sync and production publishing logic
+ * - Generates a list and passes it to the RC promotion publisher
+ * - Uses the same comprehensive sync and production registration logic
  * - ⚠️  WARNING: This will publish EVERY screen in the repository!
  */
 
 import path, { dirname } from 'node:path'
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { glob } from 'glob'
 import { execSync } from 'node:child_process'
+import { getScreenDirectories } from './utils/screenDiscovery.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 async function findAllScreenDirectories() {
   console.log('🔍 Discovering all screens in repository...')
-
-  const appIndexFiles = await glob('src/business-apps/**/apps/*/index.ts', {
-    nodir: true
-  })
-  const formIndexFiles = await glob('src/business-apps/**/forms/*/index.ts', {
-    nodir: true
-  })
-  const popupIndexFiles = await glob('src/business-apps/**/popups/*/index.ts', {
-    nodir: true
-  })
-  const recordIndexFiles = await glob('src/business-apps/**/records/*/index.ts', {
-    nodir: true
-  })
-  const windowIndexFiles = await glob('src/business-apps/**/windows/*/index.ts', {
-    nodir: true
-  })
-
-  const allIndexFiles = [
-    ...appIndexFiles,
-    ...formIndexFiles,
-    ...popupIndexFiles,
-    ...recordIndexFiles,
-    ...windowIndexFiles
-  ]
   const uniqueDirs = new Set()
 
-  for (const filePath of allIndexFiles) {
-    const dir = path.dirname(filePath)
+  const projectRootDir = path.resolve(__dirname, '..')
+  const screenDirs = await getScreenDirectories({ cwd: projectRootDir })
+
+  for (const dir of screenDirs) {
     // strip prefix 'src/business-apps/' to get publish path
     const publishPath = dir.replace(/^src[\\/]+business-apps[\\/]+/, '').replace(/\\/g, '/')
     if (publishPath) uniqueDirs.add(publishPath)
@@ -127,9 +105,9 @@ async function main() {
 
   try {
     // Use the existing publish-prod-screens.js script which handles:
+    // - RC promotion (no local build)
     // - Comprehensive screen synchronization
     // - Resource URL synchronization
-    // - Building and uploading to Azure
     // - Screen management registration
     execSync(`node scripts/publish-prod-screens.js ${allScreensFile}`, {
       stdio: 'inherit',

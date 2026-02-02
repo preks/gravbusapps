@@ -353,6 +353,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         onManageColumns={() => columnsState.setIsManageColumnsDialogOpen(true)}
         onOpenAutomations={() => setIsAutomationsOpen(true)}
         onEdit={onEdit}
+        onRename={
+          onAppUpdate
+            ? newName => {
+                const trimmed = newName.trim()
+                if (trimmed && trimmed !== app.name) {
+                  onAppUpdate({ ...app, name: trimmed })
+                }
+              }
+            : undefined
+        }
         testId={testId}
       />
 

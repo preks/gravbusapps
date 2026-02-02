@@ -253,11 +253,18 @@ export interface CompMeta {
 }
 
 const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
-  const { domain, processName, processInstanceId, startProcessBody } = event
+  const { domain, processName, processInstanceId, startProcessBody, builderType, skipScreen } = event
+  const parts = [
+    `Domain: ${domain}`,
+    `Process: ${processName}`,
+    processInstanceId ? `ID: ${processInstanceId}` : null,
+    builderType ? `Builder: ${builderType}` : null,
+    skipScreen === undefined ? null : `Skip Screen: ${skipScreen}`,
+    `Process body: ${startProcessBody ? JSON.stringify(startProcessBody) : 'No process body'}`
+  ].filter(Boolean)
+
   toast.success('Process Start Event Detected', {
-    description: `Domain: ${domain}, \nProcess: ${processName}${
-      processInstanceId ? `, ID: ${processInstanceId}` : ''
-    }\nProcess body: ${startProcessBody ? JSON.stringify(startProcessBody) : 'No process body'}`,
+    description: parts.join('\n'),
     position: 'top-right'
   })
 }
@@ -953,7 +960,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                   />
                   <SidebarInset>
                     {/* Header inside inset, responsive to collapsed state */}
-                    <header className="gba:flex gba:h-12 gba:shrink-0 gba:items-center gba:gap-2 gba:transition-[width,height] gba:ease-linear gba:bg-white gba:border-b gba:border-gray-200">
+                    <header className="gba:flex gba:h-12 gba:shrink-0 gba:items-center gba:gap-2 gba:transition-[width,height] gba:ease-linear gba:bg-header gba:text-header-foreground gba:border-b gba:border-border">
                       <div className="gba:flex gba:items-center gba:gap-2 gba:px-4">
                         <SidebarTrigger className="gba:-ml-1" />
                         <Separator orientation="vertical" className="gba:mr-2" />
