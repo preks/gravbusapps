@@ -27,7 +27,7 @@ function buildUpdatePayload(values: ValueEditorValues): UpdateCompanyValuePayloa
   return {
     companyValue: {
       id: values.id!,
-      ...(values.version != null ? { version: values.version } : {}),
+      ...(values.version == null ? {} : { version: values.version }),
       title: values.title.trim(),
       description: values.description.trim(),
       active: values.active

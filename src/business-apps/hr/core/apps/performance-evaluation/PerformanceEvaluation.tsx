@@ -303,7 +303,6 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
         toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
         throw err
       }
-      return
     }
   }
 
@@ -318,7 +317,6 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
         const message = err instanceof Error ? err.message : 'Failed to delete company value'
         toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
       }
-      return
     }
   }
 
@@ -349,7 +347,6 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
         const message = err instanceof Error ? err.message : 'Failed to deactivate value'
         toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
       }
-      return
     }
   }
 

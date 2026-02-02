@@ -53,7 +53,7 @@ export const CompanyValues: React.FC<CompanyValuesProps> = ({
 
   const handleSaveFromModal = async (values: ValueEditorValues) => {
     try {
-      await onSaveFromValuesModal(values)
+      await Promise.resolve(onSaveFromValuesModal(values))
       setEditingValue(null)
       setIsValuesModalOpen(false)
     } catch {
@@ -110,20 +110,26 @@ export const CompanyValues: React.FC<CompanyValuesProps> = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {valuesLoading && valuesStore.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="gba:py-8 gba:text-center">
-                      <Spinner className="gba:mx-auto gba:h-8 gba:w-8" />
-                    </TableCell>
-                  </TableRow>
-                ) : valuesStore.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="gba:text-center gba:text-muted-foreground">
-                      {t('empty-no-values')}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  valuesStore.map((v, i) => (
+                {(() => {
+                  if (valuesLoading && valuesStore.length === 0) {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={5} className="gba:py-8 gba:text-center">
+                          <Spinner className="gba:mx-auto gba:h-8 gba:w-8" />
+                        </TableCell>
+                      </TableRow>
+                    )
+                  }
+                  if (valuesStore.length === 0) {
+                    return (
+                      <TableRow>
+                        <TableCell colSpan={5} className="gba:text-center gba:text-muted-foreground">
+                          {t('empty-no-values')}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  }
+                  return valuesStore.map((v, i) => (
                     <TableRow key={v.id}>
                       <TableCell>{i + 1}</TableCell>
                       <TableCell className="gba:font-medium">{v.title}</TableCell>
@@ -175,7 +181,7 @@ export const CompanyValues: React.FC<CompanyValuesProps> = ({
                       </TableCell>
                     </TableRow>
                   ))
-                )}
+                })()}
               </TableBody>
             </Table>
           </div>

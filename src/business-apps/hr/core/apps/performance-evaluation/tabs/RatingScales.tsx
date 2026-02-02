@@ -14,7 +14,7 @@ import {
   useTranslation,
   Spinner
 } from '@newwork/nw-design-system'
-import { Plus } from '@phosphor-icons/react'
+import { PlusIcon } from '@phosphor-icons/react'
 import type { RatingScale } from '../types'
 import RatingScaleEditorModal, { RatingScaleValues } from '../RatingScaleEditorModal'
 import translations from '../_i18n'
@@ -34,7 +34,8 @@ export interface RatingScalesProps {
   ratingScales: RatingScale[]
   ratingScalesLoading: boolean
   ratingScalesError: string | null
-  refetchRatingScales: () => Promise<void>
+  /** Optional; kept for parent API compatibility. */
+  refetchRatingScales?: () => Promise<void>
   onSaveFromScaleModal: (values: RatingScaleValues) => Promise<void>
   onDeleteScale: (scale: RatingScale) => Promise<void>
 }
@@ -72,7 +73,7 @@ export const RatingScales: React.FC<RatingScalesProps> = ({
                 <Spinner className="gba:h-5 gba:w-5" data-testid="performance-rating-scales-loading" />
               )}
               <Button variant="default" onClick={handleAdd} data-testid="performance-rating-scales-add-button">
-                <Plus className="gba:mr-2" size={16} />
+                <PlusIcon className="gba:mr-2" size={16} />
                 {t('button-add')}
               </Button>
             </div>
