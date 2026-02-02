@@ -19,12 +19,12 @@ const calculateHourlyAdjustment = (
   let newHourlySalary: number | null = null
   let adjustmentValue = 0
   const adjustmentType: 'amount' | 'percentage' =
-    values.amountIncrease && values.amountIncrease > 0 ? 'amount' : 'percentage'
+    values.amountIncrease && values.amountIncrease !== 0 ? 'amount' : 'percentage'
 
-  if (values.amountIncrease && values.amountIncrease > 0) {
+  if (values.amountIncrease && values.amountIncrease !== 0) {
     adjustmentValue = values.amountIncrease
     newHourlySalary = currentSalaryHourly + values.amountIncrease
-  } else if (values.percentageIncrease && values.percentageIncrease > 0) {
+  } else if (values.percentageIncrease && values.percentageIncrease !== 0) {
     adjustmentValue = values.percentageIncrease
     const increaseAmount = calculateAmountFromPercentage(currentSalaryHourly, values.percentageIncrease)
     newHourlySalary = currentSalaryHourly + increaseAmount
@@ -51,19 +51,19 @@ const calculateAnnualMonthlyAdjustment = (
   let newMonthlySalary: number | null = null
   let adjustmentValue = 0
   const adjustmentType: 'amount' | 'percentage' =
-    values.amountIncrease && values.amountIncrease > 0 ? 'amount' : 'percentage'
+    values.amountIncrease && values.amountIncrease !== 0 ? 'amount' : 'percentage'
 
   const currentSalaryInFrequency =
     values.adjustmentFrequency === 'monthly' ? (currentSalaryMonthly ?? currentSalaryAnnual / 12) : currentSalaryAnnual
 
-  if (values.amountIncrease && values.amountIncrease > 0) {
+  if (values.amountIncrease && values.amountIncrease !== 0) {
     adjustmentValue = values.amountIncrease
     const adjustmentAnnual = calculateAdjustmentInAnnual(values.amountIncrease, values.adjustmentFrequency)
     if (adjustmentAnnual != null) {
       newAnnualSalary = currentSalaryAnnual + adjustmentAnnual
       newMonthlySalary = newAnnualSalary / 12
     }
-  } else if (values.percentageIncrease && values.percentageIncrease > 0) {
+  } else if (values.percentageIncrease && values.percentageIncrease !== 0) {
     adjustmentValue = values.percentageIncrease
     const increaseAmount = calculateAmountFromPercentage(currentSalaryInFrequency, values.percentageIncrease)
     const adjustmentAnnual = calculateAdjustmentInAnnual(increaseAmount, values.adjustmentFrequency)
@@ -71,6 +71,12 @@ const calculateAnnualMonthlyAdjustment = (
       newAnnualSalary = currentSalaryAnnual + adjustmentAnnual
       newMonthlySalary = newAnnualSalary / 12
     }
+  }
+
+  // If no adjustment was made, return current salary unchanged
+  if (newAnnualSalary === null) {
+    newAnnualSalary = currentSalaryAnnual
+    newMonthlySalary = currentSalaryAnnual / 12
   }
 
   return {

@@ -44,12 +44,11 @@ export const useNumericInput = (
   const { maxDecimals, allowNegative, maxValue, minValue, onValidationError } = options
 
   const [displayValue, setDisplayValue] = useState(() => {
-    // Explicitly handle undefined/null as empty state (no value entered yet)
-    if (initialValue === null || initialValue === undefined) {
+    // Explicitly handle undefined/null/0 as empty state (no value entered yet)
+    if (initialValue === null || initialValue === undefined || initialValue === 0) {
       return ''
     }
     // Format positive numbers or negative numbers when allowNegative is true
-    // Treat 0 as empty for display
     if (initialValue > 0 || (allowNegative && initialValue < 0)) {
       return initialValue.toFixed(maxDecimals || 2)
     }
@@ -103,17 +102,41 @@ export const useNumericInput = (
         minValue
       })
 
-      if (!validation.isValid) {
-        reportError(validation.error || 'Invalid input')
+      clearError()
+
+      // Handle empty or partial negative input (just "-")
+      if (validation.cleanedValue === '' || validation.cleanedValue === '-') {
+        setDisplayValue(validation.cleanedValue) // Keep "-" visible if typed
+        onChange(null)
         return
       }
 
-      clearError()
+      // Set display value for valid numeric input
       setDisplayValue(validation.cleanedValue)
 
-      // Pass undefined for empty string to distinguish from user entering 0
-      const parsedValue = validation.cleanedValue === '' ? undefined : Number.parseFloat(validation.cleanedValue) || 0
-      onChange(parsedValue)
+      // Parse the value
+      let numericValue = Number.parseFloat(validation.cleanedValue)
+
+      // If parsing fails (NaN), pass null instead of 0
+      if (Number.isNaN(numericValue)) {
+        onChange(null)
+        return
+      }
+
+      // Clamp value to min/max range if provided
+      if (maxValue !== undefined && numericValue > maxValue) {
+        numericValue = maxValue
+        setDisplayValue(maxValue.toString())
+        reportError(`Value exceeds maximum of ${maxValue}`)
+      }
+
+      if (minValue !== undefined && numericValue < minValue) {
+        numericValue = minValue
+        setDisplayValue(minValue.toString())
+        reportError(`Value is below minimum of ${Math.abs(minValue)}`)
+      }
+
+      onChange(numericValue)
     },
     [displayValue, maxDecimals, allowNegative, maxValue, minValue, onChange, clearError, reportError]
   )
@@ -162,8 +185,8 @@ export const useNumericInput = (
 
   const setValue = useCallback(
     (value: number) => {
-      // Only clear when value is not a finite number or when value is negative and allowNegative is false
-      if (!Number.isFinite(value) || (value < 0 && !allowNegative)) {
+      // Clear display for invalid values, negatives (when not allowed), or zero
+      if (!Number.isFinite(value) || (value < 0 && !allowNegative) || value === 0) {
         setDisplayValue('')
         clearError()
         onChange(null)
