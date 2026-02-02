@@ -11,9 +11,9 @@ import {
   AIQuickStart,
   NeuralBackground,
   ConnectionsVisualization,
-  ToolCardProps,
-  OrchestratorView
+  ToolCardProps
 } from './components'
+import { OrchestratorViewEnhanced } from './components/OrchestratorViewEnhanced'
 
 export interface NewworkCreateProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -140,7 +140,7 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({
   if (viewMode === 'orchestrator') {
     return (
       <div className="gba:min-h-screen gba:bg-background" data-testid={`${testId}-orchestrator`}>
-        <OrchestratorView
+        <OrchestratorViewEnhanced
           accessToken={accessToken}
           initialPrompt={orchestratorPrompt}
           onBack={handleOrchestratorBack}
