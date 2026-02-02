@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   CalendarOutlined,
   UserOutlined,
@@ -20,13 +20,20 @@ import {
   TableCell,
   Avatar,
   AvatarImage,
-  AvatarFallback
+  AvatarFallback,
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
 } from '@newwork/nw-design-system'
+import { MoreHorizontal, FileText } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { format, addDays, isWithinInterval, parseISO, differenceInYears } from 'date-fns'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { GenerateDocumentDialog } from '@/business-apps/platform/apps/document-apps/components/GenerateDocumentDialog'
 
 interface EmployeeInsight {
   id: string
@@ -40,6 +47,7 @@ interface EmployeeInsight {
   pictureThumbnail?: string
   jobPositionName?: string
   organizationalUnitName?: string
+  companyName?: string
 }
 
 const GET_EMPLOYEE_INSIGHTS = `
@@ -78,7 +86,7 @@ query GetEmployeeInsights($asOf: timestamp!) {
         contractStatus
       }
     }
-    organizationalUnit { name }
+    organizationalUnit { name, companyId, company { id, name } }
     jobPosition { name }
   }
 }
@@ -92,8 +100,39 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
   const [newHires, setNewHires] = useState<EmployeeInsight[]>([])
   const [probationEnds, setProbationEnds] = useState<EmployeeInsight[]>([])
   const [terminations, setTerminations] = useState<EmployeeInsight[]>([])
+  const [generateDocEmployee, setGenerateDocEmployee] = useState<EmployeeInsight | null>(null)
+  const [generateDocOpen, setGenerateDocOpen] = useState(false)
 
   const client = useGraphqlClient(accessToken)
+
+  const entityDataMapForDoc = useMemo(() => {
+    if (!generateDocEmployee) return {}
+    return {
+      employee: {
+        id: generateDocEmployee.id,
+        firstName: generateDocEmployee.firstName,
+        lastName: generateDocEmployee.lastName,
+        fullName: generateDocEmployee.fullName,
+        jobPositionName: generateDocEmployee.jobPositionName,
+        organizationalUnitName: generateDocEmployee.organizationalUnitName,
+        birthDate: generateDocEmployee.birthDate,
+        hireDate: generateDocEmployee.hireDate,
+        probationEnd: generateDocEmployee.probationEnd,
+        exitDate: generateDocEmployee.exitDate
+      },
+      employment: {
+        startDate: generateDocEmployee.hireDate,
+        endDate: generateDocEmployee.exitDate
+      },
+      job: {
+        position: generateDocEmployee.jobPositionName,
+        name: generateDocEmployee.jobPositionName
+      },
+      company: {
+        name: generateDocEmployee.companyName
+      }
+    }
+  }, [generateDocEmployee])
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -115,7 +154,8 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
           probationEnd: ep.employee?.workingCondition?.[0]?.probationEnd,
           exitDate: ep.employee?.workingCondition?.[0]?.exitDate,
           jobPositionName: ep.jobPosition?.name,
-          organizationalUnitName: ep.organizationalUnit?.name
+          organizationalUnitName: ep.organizationalUnit?.name,
+          companyName: ep.organizationalUnit?.company?.name
         }))
         // Active-as-of safeguard (server already filters positions)
         .filter((emp: any) => {
@@ -322,6 +362,11 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
       )
     }
 
+    const handleGenerateDocument = (record: EmployeeInsight) => {
+      setGenerateDocEmployee(record)
+      setGenerateDocOpen(true)
+    }
+
     return (
       <Table>
         <TableHeader>
@@ -329,6 +374,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.employee', 'Employee')}</TableHead>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.department', 'Department')}</TableHead>
             <TableHead>{dateLabel}</TableHead>
+            <TableHead className="gba:w-12" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -387,6 +433,32 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
                     getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.not_available', 'N/A')}
                 </TableCell>
                 <TableCell>{renderedDate}</TableCell>
+                <TableCell className="gba:text-right">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="gba:h-8 gba:w-8"
+                        data-testid="hr-insights-row-menu"
+                      >
+                        <MoreHorizontal className="gba:h-4 gba:w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => handleGenerateDocument(record)}
+                        data-testid="hr-insights-row-generate-document"
+                      >
+                        <FileText className="gba:mr-2 gba:h-4 gba:w-4" />
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:hr_insights.generate_document',
+                          'Generate document'
+                        )}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
               </TableRow>
             )
           })}
@@ -477,6 +549,21 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
           )}
         </TabsContent>
       </Tabs>
+
+      <GenerateDocumentDialog
+        open={generateDocOpen}
+        onOpenChange={open => {
+          setGenerateDocOpen(open)
+          if (!open) setGenerateDocEmployee(null)
+        }}
+        entityDataMap={entityDataMapForDoc}
+        defaultTitle={generateDocEmployee?.fullName ?? 'Employee'}
+        onSuccess={documentId => {
+          const url = buildPlatformUrl('/platform/apps/document-apps', { docId: documentId, view: 'editor' })
+          navigateTo(url)
+        }}
+        data-testid="hr-insights-generate-document-dialog"
+      />
     </div>
   )
 }
