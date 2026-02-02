@@ -85,7 +85,8 @@ const AmountInput: React.FC<AmountInputProps> = ({
       disabled={disabled}
       required={required}
       data-testid={dataTestId}
-      className="gba:w-full gba:h-10 gba:border-none gba:bg-gray-100"
+      className="gba:w-full gba:h-10 gba:bg-gray-100 gba:border-0 gba:rounded-b-md gba:rounded-t-none gba:outline-none focus:gba:border-0 focus:gba:ring-0 focus-visible:gba:ring-0"
+      style={{ border: 'none', boxShadow: 'none', outline: 'none', backgroundColor: 'var(--gray-100, #f3f4f6)' }}
       inputMode="decimal"
     />
   )
