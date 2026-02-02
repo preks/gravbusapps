@@ -146,6 +146,7 @@ definitions:
         services:
           - docker
         script:
+          - export RC_UPLOAD="true"
           - bash scripts/detect-and-publish-changed-screens.sh
         artifacts:
           - changed-tsx.txt
@@ -210,6 +211,7 @@ definitions:
         services:
           - docker
         script:
+          - export RC_UPLOAD="true"
           - |
             if [ "$PUBLISH_ALL_SCREENS" = "true" ]; then
               echo "🌍 PUBLISH_ALL_SCREENS=true: Publishing ALL screens to development"

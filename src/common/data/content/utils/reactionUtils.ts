@@ -7,8 +7,8 @@ type EntryWithReactions = {
 }
 
 /**
- * Builds ReactionSummary from contentEntryReactionCounts and user reactions
- * Uses counts from contentEntryReactionCounts (from GraphQL view) and user reaction info for userReacted flag
+ * Builds ReactionSummary from contentEntryReactionCounts and user reactions.
+ * currentUserId: used to match contentEntryReactions.createdBy (who reacted; user may not be employee).
  */
 export const buildReactionSummaryFromCounts = (entry: EntryWithReactions, currentUserId?: string): ReactionSummary => {
   const summary: ReactionSummary = {}
@@ -17,10 +17,9 @@ export const buildReactionSummaryFromCounts = (entry: EntryWithReactions, curren
     return summary
   }
 
-  // Find user's reaction if currentUserId is provided
   const userReaction =
     currentUserId && entry.contentEntryReactions
-      ? entry.contentEntryReactions.find(reaction => reaction.createdBy === currentUserId && !reaction.isDeleted)
+      ? entry.contentEntryReactions.find(r => r.createdBy === currentUserId && !r.isDeleted)
       : undefined
 
   entry.contentEntryReactionCounts.forEach(countItem => {
