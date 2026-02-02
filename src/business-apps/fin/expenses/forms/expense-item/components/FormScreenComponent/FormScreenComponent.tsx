@@ -83,6 +83,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   const selectedExpenseRequestId = Form.useWatch('expenseRequestId', form)
   const hadBackendRequestRef = useRef(false)
   const prevPositionsLengthRef = useRef(positions.length)
+  const lastPositionCardRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     if (hadBackendRequestRef.current || !isEditMode) {
@@ -95,22 +96,18 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
     }
   }, [form, isEditMode, selectedExpenseRequestId])
 
-  // When a new position is added in multi-position mode, scroll to it and focus first field
+  // When a new position is added in multi-position mode, scroll to it and focus the card (ref-based, no DOM query)
   useEffect(() => {
     if (!multiPosition || positions.length <= prevPositionsLengthRef.current) {
       prevPositionsLengthRef.current = positions.length
       return
     }
     prevPositionsLengthRef.current = positions.length
-    const lastIndex = positions.length - 1
-    const timer = setTimeout(() => {
-      const card = document.querySelector<HTMLElement>(`[data-testid="position-card-${lastIndex}"]`)
-      if (card) {
-        card.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        card.focus()
-      }
-    }, 100)
-    return () => clearTimeout(timer)
+    const frameId = requestAnimationFrame(() => {
+      lastPositionCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      lastPositionCardRef.current?.focus()
+    })
+    return () => cancelAnimationFrame(frameId)
   }, [multiPosition, positions.length])
 
   const expenseRequestOptions = useMemo(() => {
@@ -366,6 +363,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           handleExpenseGroupChange={handleExpenseGroupChange}
           handleExpenseTypeChange={handleExpenseTypeChange}
           handleRemovePosition={handleRemovePosition}
+          lastPositionCardRef={lastPositionCardRef}
         />
       )}
 

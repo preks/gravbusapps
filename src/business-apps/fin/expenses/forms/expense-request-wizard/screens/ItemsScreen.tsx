@@ -40,9 +40,10 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
     payloadItemsLoaded,
     setPayloadItemsLoaded,
     payloadItemIds,
-    setPayloadItemIds
+    setPayloadItemIds,
+    showSelectItems,
+    setShowSelectItems
   } = useExpenseRequestWizardContext()
-  const [showSelectItems, setShowSelectItems] = useState<boolean>(false)
   const [selectItemsList, setSelectItemsList] = useState<any[]>([])
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [isLoading, setIsLoading] = useState<boolean>(false)
@@ -452,7 +453,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
         if (newItemIds.length === 0) return
 
         // Determine currency and fetch items
-        const itemCurrency = determineItemCurrency(currentCurrency ?? '', expenseRequestData, additionalData) ?? ''
+        const itemCurrency = determineItemCurrency(currentCurrency ?? '', expenseRequestData, additionalData)
         await fetchAndAddPayloadItems(newItemIds, itemCurrency)
       } catch {
         showToast(
