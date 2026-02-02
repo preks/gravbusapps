@@ -67,7 +67,7 @@ scale-preview = Previzualizare
 participant-self = Auto
 participant-peer = Coleg
 participant-manager = Manager
-participant-team = Echipa
+participant-hr-team = Echipa HR
 
 # Frecvență
 frequency-annual = Anual
