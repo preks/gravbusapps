@@ -514,12 +514,9 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
         code += '      console.log(`[Dynamic Screen Loader] Loading screen: ${screenKey} from ${importPath}`);\n'
         code += '      \n'
         code += '      const module = await import(/* @vite-ignore */ importPath);\n'
-        code += '      \n'
         code += '      const component = module.default;\n'
         code += '      \n'
         code += '      if (!component) {\n'
-        code += '        console.error(`❌ [Dynamic Screen Loader] No default export found for ${screenKey}`);\n'
-        code += '        console.error(`Available exports:`, Object.keys(module));\n'
         code += '        throw new Error(`Screen "${screenKey}" does not have a default export`);\n'
         code += '      }\n'
         code += '      \n'
@@ -1020,11 +1017,16 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
             'react-i18next': 'reactI18next',
             'react-icons': 'reactIcons',
             'react-icons/pi': 'reactIconsPi',
+            clsx: 'clsx',
+            'tailwind-merge': 'tailwindMerge',
             '@dnd-kit/core': 'DNDKitCore',
             '@dnd-kit/sortable': 'DNDKitSortable',
             '@dnd-kit/utilities': 'DNDKitUtilities',
             zustand: 'zustand',
+            '@newwork/gravity-ui-catalog': 'GravityUICatalog',
             '@remixicon/react': 'remixIconReact',
+            'class-variance-authority': 'classVarianceAuthority',
+            'lucide-react': 'lucideReact',
             'react-router-dom': 'reactRouterDom'
           },
           // entryFileNames will now always output a predictable name;
@@ -1040,7 +1042,7 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
           // For non-entry chunks and assets, use Vite's hashing only for deployment builds.
           chunkFileNames: shouldHashFilesForDeployment ? `_chunks/[name]-[hash].js` : `_chunks/[name].js`,
           assetFileNames: shouldHashFilesForDeployment ? `assets/[name]-[hash][extname]` : `assets/[name][extname]`,
-          exports: 'auto' // Allow both default and named exports - required for component registration
+          exports: 'named' // Address mixed export warnings
         }
       }
     },
