@@ -62,7 +62,17 @@ export class ChatApiClient {
       | PaginatedResponse<Conversation>
       | { conversations: Conversation[]; total: number; page: number; limit: number; totalPages: number }
     >('/conversations', {
-      params: { page, limit }
+      params: {
+        page,
+        limit,
+        // Cache-busting: Ensure we always get fresh data for ordering
+        _t: Date.now()
+      },
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        Pragma: 'no-cache',
+        Expires: '0'
+      }
     })
     // Backend returns { conversations: [...] } but we expect { data: [...] }
     if ('conversations' in response.data) {

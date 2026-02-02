@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
-import type { PresenceUpdate } from '../types'
+import type { UserStatus, UserStatusChangeEvent } from '../types'
 
 interface UsePresenceOptions {
   wsClient: ChatWebSocketClient | null
@@ -12,16 +12,14 @@ export type PresenceState = 'online' | 'away' | 'offline'
 export interface PresenceData {
   state: PresenceState
   lastSeen?: string // ISO timestamp
+  userStatus?: UserStatus // Extended status information
 }
 
 // Backward compatibility alias for V1 components
-export type UserPresence = {
-  status: PresenceState
-  lastSeen?: Date | string
-}
+export type UserPresence = PresenceData
 
 // Global presence cache (shared across all components)
-// Now stores full presence data including lastSeen timestamp
+// Now stores full presence data including lastSeen timestamp and user status
 const presenceCache = new Map<string, PresenceData>()
 
 /**
@@ -67,30 +65,40 @@ export function usePresence(options: UsePresenceOptions) {
   /**
    * Update user presence
    */
-  const updatePresence = useCallback((userId: string, state: PresenceState, lastSeen?: string) => {
-    const oldData = presenceCache.get(userId)
+  const updatePresence = useCallback(
+    (userId: string, state: PresenceState, lastSeen?: string, userStatus?: UserStatus) => {
+      const oldData = presenceCache.get(userId)
 
-    // Skip update if state hasn't changed (optimization to prevent unnecessary re-renders)
-    if (oldData?.state === state && oldData?.lastSeen === lastSeen) {
-      return
-    }
+      // Preserve existing userStatus if not provided (backward compatibility)
+      const finalUserStatus = userStatus !== undefined ? userStatus : oldData?.userStatus
 
-    const presenceData: PresenceData = {
-      state,
-      lastSeen: state === 'offline' ? lastSeen : undefined // Only store lastSeen for offline users
-    }
+      // Skip update if nothing has changed
+      if (oldData?.state === state && oldData?.lastSeen === lastSeen && oldData?.userStatus === finalUserStatus) {
+        return
+      }
 
-    presenceCache.set(userId, presenceData)
-    setPresenceVersion(v => v + 1)
+      const presenceData: PresenceData = {
+        state,
+        lastSeen: state === 'offline' ? lastSeen : undefined, // Only store lastSeen for offline users
+        userStatus: finalUserStatus // Use preserved value if not provided
+      }
 
-    if (isMountedRef.current) {
-      forceUpdate({})
-    }
+      presenceCache.set(userId, presenceData)
+      console.log(`[usePresence] ✅ Updated presence cache for user ${userId}:`, presenceData)
+      console.log(`[usePresence] Cache size:`, presenceCache.size)
 
-    if (process.env.NODE_ENV === 'development') {
-      // Presence updated
-    }
-  }, [])
+      setPresenceVersion(v => v + 1)
+
+      if (isMountedRef.current) {
+        forceUpdate({})
+      }
+
+      if (process.env.NODE_ENV === 'development') {
+        // Presence updated
+      }
+    },
+    []
+  )
 
   /**
    * Batch update multiple users
@@ -130,62 +138,100 @@ export function usePresence(options: UsePresenceOptions) {
   }, [])
 
   /**
-   * Handle presence update from WebSocket
-   */
-  const handlePresenceUpdate = useCallback(
-    (update: PresenceUpdate) => {
-      // Ignore own presence updates (handled separately)
-      if (update.userId === currentUserId) {
-        if (process.env.NODE_ENV === 'development') {
-          // Ignoring own presence update
-        }
-        return
-      }
-
-      if (process.env.NODE_ENV === 'development') {
-        // Received presence update
-      }
-
-      // Convert timestamp to string if it's a Date object
-      const timestampString = update.timestamp instanceof Date ? update.timestamp.toISOString() : update.timestamp
-
-      updatePresence(update.userId, update.state as PresenceState, timestampString)
-    },
-    [currentUserId, updatePresence]
-  )
-
-  /**
    * Subscribe to presence updates
-   * Backend sends: { userId, isOnline, timestamp }
-   * We convert to: { userId, state, timestamp }
+   * Backend sends enhanced format: { userId, status, isSystemStatus, isOnline, timestamp }
    */
   useEffect(() => {
     if (!wsClient) return
 
-    // Bridge backend format to V2 format
-    const handleBackendPresence = (data: any) => {
-      // TRACK BACKEND DATA
-      const update: PresenceUpdate = {
+    // Handle enhanced user status change events (primary handler)
+    const handleUserStatusChange = (data: UserStatusChangeEvent) => {
+      console.log('[usePresence] 📥 Received user_status_change event:', {
         userId: data.userId,
-        state: data.isOnline ? 'online' : 'offline',
-        timestamp: data.timestamp || new Date().toISOString()
+        status: data.status,
+        isSystemStatus: data.isSystemStatus,
+        isOnline: data.isOnline,
+        timestamp: data.timestamp,
+        fullData: data
+      })
+
+      // Check if this is the new format (has 'status' field) or old format (only 'isOnline')
+      if ('status' in data && data.status) {
+        // NEW FORMAT with full status details
+        const state = data.isOnline ? 'online' : 'offline'
+        const timestampString =
+          data.timestamp instanceof Date ? data.timestamp.toISOString() : (data.timestamp as string)
+
+        console.log('[usePresence] 🔄 Processing NEW FORMAT:', {
+          userId: data.userId,
+          determinedState: state,
+          isOnlineFromData: data.isOnline,
+          status: data.status,
+          timestamp: timestampString
+        })
+
+        const userStatus: UserStatus = {
+          status: data.status,
+          isSystemStatus: data.isSystemStatus,
+          statusMessage: data.statusMessage,
+          isOnline: data.isOnline
+        }
+
+        updatePresence(data.userId, state, timestampString, userStatus)
+        console.log(
+          '[usePresence] ✅ Updated presence cache for user:',
+          data.userId,
+          'state:',
+          state,
+          'status:',
+          data.status
+        )
+      } else {
+        // OLD FORMAT - just online/offline
+        const anyData = data as any
+        const state = anyData.isOnline ? 'online' : 'offline'
+        const timestampString =
+          anyData.timestamp instanceof Date ? anyData.timestamp.toISOString() : (anyData.timestamp as string)
+
+        console.log('[usePresence] 🔄 Processing OLD FORMAT:', {
+          userId: anyData.userId,
+          determinedState: state,
+          isOnline: anyData.isOnline,
+          timestamp: timestampString
+        })
+
+        updatePresence(anyData.userId, state, timestampString, undefined)
+        console.log('[usePresence] ✅ Updated presence cache (OLD FORMAT) for user:', anyData.userId, 'state:', state)
       }
-      handlePresenceUpdate(update)
     }
 
-    wsClient.onPresence(handleBackendPresence)
+    const unsubStatusChange = wsClient.onUserStatusChange(handleUserStatusChange)
 
     if (process.env.NODE_ENV === 'development') {
-      // Subscribed to presence updates
+      console.log('[usePresence] ✅ Listener registered - now requesting initial status for all online users')
+    }
+
+    // Request initial status for all online users AFTER listener is ready
+    // This catches any users who connected before our listener was set up
+    if (currentUserId) {
+      wsClient
+        .requestAllStatuses()
+        .then(response => {
+          console.log('[usePresence] ✅ Successfully requested initial status for', response.userCount, 'users')
+        })
+        .catch(error => {
+          console.error('[usePresence] ❌ Failed to request initial statuses:', error)
+        })
     }
 
     return () => {
+      unsubStatusChange()
       // Cleanup: remove the listener
       if (process.env.NODE_ENV === 'development') {
         // Unsubscribed from presence updates
       }
     }
-  }, [wsClient, handlePresenceUpdate])
+  }, [wsClient, updatePresence, currentUserId])
 
   /**
    * Cleanup on unmount

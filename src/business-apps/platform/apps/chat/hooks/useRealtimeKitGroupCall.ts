@@ -125,6 +125,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
   // Refs for synchronous checks in WebSocket handlers
   const meetingIdRef = useRef<string | null>(null)
+  const sessionIdRef = useRef<string | null>(null) // Track sessionId for leaveCall
   const callStateRoomIdRef = useRef<string | null>(null)
   const startTimeRef = useRef<number | null>(null)
   const durationTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -570,6 +571,12 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
                 const { sessionId } = await options.calendarApiClient.resolveAndLinkSession(calendarMeetingId)
 
                 if (sessionId) {
+                  // ✅ CRITICAL: Store the sessionId in BOTH callState AND ref so it's available when leaving!
+                  sessionIdRef.current = sessionId
+                  setCallState(prev => ({
+                    ...prev,
+                    sessionId: sessionId
+                  }))
                   rtkDebug.log('[RTK] ✅ [BACKUP] Successfully resolved and stored Session ID via HTTP:', sessionId)
                   return true
                 }
@@ -618,6 +625,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         // Store conversationId and calendarMeetingId for tracking
         conversationIdRef.current = conversationId
         calendarMeetingIdRef.current = calendarMeetingId || null
+        sessionIdRef.current = sessionId // CRITICAL: Store sessionId in ref for leaveCall
 
         // Update state
         // Start duration timer
@@ -727,6 +735,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
             conversationId,
             meetingId,
             sessionId, // Pass database session ID
+            isMeeting: !!calendarMeetingId, // True if scheduled meeting, false for ad-hoc call
             participant: {
               id: currentUser.id,
               odId: currentUser.id,
@@ -736,7 +745,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
               isVideoEnabled: shouldEnableVideo
             }
           })
-          rtkDebug.log('[RTK] Emitted rtk-group-call:joined event with sessionId')
+          rtkDebug.log('[RTK] Emitted rtk-group-call:joined event with sessionId and isMeeting:', !!calendarMeetingId)
         }
 
         onCallStarted?.(conversationId, participants)
@@ -987,6 +996,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
             conversationId: roomId,
             meetingId: finalMeetingId,
             sessionId: callState.sessionId, // Pass sessionId from state
+            isMeeting: !!callState.calendarMeetingId, // True if scheduled meeting, false for ad-hoc call
             participant: {
               id: currentUser.id,
               odId: currentUser.id,
@@ -996,7 +1006,10 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
               isVideoEnabled: shouldEnableVideo
             }
           })
-          rtkDebug.log('[RTK] Emitted rtk-group-call:joined event (joining existing call) with sessionId')
+          rtkDebug.log(
+            '[RTK] Emitted rtk-group-call:joined event (joining existing call) with sessionId and isMeeting:',
+            !!callState.calendarMeetingId
+          )
         }
       } catch (error) {
         rtkDebug.error('[RTK] Failed to join call:', error)
@@ -1160,6 +1173,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       conversationIdRef.current = null
       callStateRoomIdRef.current = null
       meetingIdRef.current = null // CRITICAL: Clear meeting ID ref to allow re-invites
+      sessionIdRef.current = null // Clear sessionId ref
       wasIdleRef.current = true // Mark as idle for next call
 
       // Calculate duration
@@ -1198,18 +1212,21 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       // Emit WebSocket leave event to notify backend and other participants (use refs)
       const user = currentUserRef.current
       const socket = wsClientRef.current?.getSocket()
-      const sessionId = callState.sessionId
+      const sessionId = sessionIdRef.current // ✅ Use ref instead of callState to avoid stale closure
+      const isMeeting = !!calendarMeetingIdRef.current // ✅ Use ref instead of callState to avoid stale closure
       if (user && socket) {
         socket.emit('rtk-group-call:left', {
           conversationId: roomId,
           meetingId: meetingId,
           sessionId: sessionId, // Pass sessionId
+          isMeeting: isMeeting, // True if scheduled meeting, false for ad-hoc call
           participantId: user.id
         })
-        rtkDebug.log('[RTK] 📤 Emitted rtk-group-call:left event with sessionId', {
+        rtkDebug.log('[RTK] 📤 Emitted rtk-group-call:left event with sessionId and isMeeting', {
           conversationId: roomId,
           meetingId: meetingId,
           sessionId: sessionId,
+          isMeeting: isMeeting,
           participantId: user.id
         })
       }

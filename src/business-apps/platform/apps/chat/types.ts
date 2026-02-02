@@ -32,6 +32,10 @@ export interface User {
   language?: string
   createdAt: Date | string
   updatedAt: Date | string
+  // User status fields
+  currentStatus?: CombinedPresenceStatus
+  isSystemStatus?: boolean
+  userStatus?: UserStatus // Computed status object
 }
 
 export interface ActiveCall {
@@ -57,6 +61,7 @@ export interface Conversation {
   updatedAt: Date | string
   participants?: ConversationParticipant[]
   lastMessage?: Message
+  lastMessageAt?: Date | string // Timestamp of the last message (from backend)
   unreadCount?: number
   activeCall?: ActiveCall | null
   activeExperts?: string[] // Array of Every Expert prompt IDs
@@ -131,6 +136,47 @@ export interface PresenceStatus {
   userId: string
   isOnline: boolean
   timestamp?: Date | string
+}
+
+// User Presence Status Types
+export enum UserPresenceStatus {
+  AVAILABLE = 'available',
+  BUSY = 'busy',
+  DO_NOT_DISTURB = 'do_not_disturb',
+  BE_RIGHT_BACK = 'be_right_back',
+  APPEAR_AWAY = 'appear_away',
+  APPEAR_OFFLINE = 'appear_offline'
+}
+
+export enum SystemPresenceStatus {
+  IN_MEETING = 'in_meeting',
+  IN_CALL = 'in_call',
+  PRESENTING = 'presenting',
+  OFFLINE = 'offline'
+}
+
+export type CombinedPresenceStatus = UserPresenceStatus | SystemPresenceStatus
+
+export interface UserStatus {
+  status: CombinedPresenceStatus
+  isSystemStatus: boolean
+  statusMessage?: string
+  isOnline: boolean
+}
+
+export interface UserStatusChangeEvent {
+  userId: string
+  status: CombinedPresenceStatus
+  isSystemStatus: boolean
+  statusMessage?: string
+  isOnline: boolean
+  timestamp: Date | string
+}
+
+export interface SetUserStatusPayload {
+  status: UserPresenceStatus
+  statusMessage?: string
+  expiresAt?: string
 }
 
 // Entity Reference Types for @ mentions

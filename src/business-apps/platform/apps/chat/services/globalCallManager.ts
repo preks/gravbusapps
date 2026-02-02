@@ -45,6 +45,7 @@ interface StoredCallData {
   participants: GroupCallParticipant[]
   currentUser: CallParticipant | null
   durationInterval: NodeJS.Timeout | null
+  leaveCall: (() => Promise<void>) | null // NEW: Store the proper leave function
 }
 
 const initialCallState: GlobalCallState = {
@@ -72,7 +73,8 @@ class GlobalCallManager {
     remoteStreams: new Map(),
     participants: [],
     currentUser: null,
-    durationInterval: null
+    durationInterval: null,
+    leaveCall: null // NEW: Initialize leave function
   }
   private listeners: Set<() => void> = new Set()
 
@@ -109,11 +111,13 @@ class GlobalCallManager {
     remoteStreams: Map<string, MediaStream>
     participants: GroupCallParticipant[]
     currentUser: CallParticipant | null
+    leaveCall?: () => Promise<void> // NEW: Optional leave function
   }) {
     console.debug('GlobalCallManager: Storing call data')
     this.callData = {
       ...data,
-      durationInterval: this.callData.durationInterval
+      durationInterval: this.callData.durationInterval,
+      leaveCall: data.leaveCall || null // NEW: Store the leave function
     }
 
     // Start duration tracking if not already started
@@ -164,7 +168,8 @@ class GlobalCallManager {
       remoteStreams: new Map(),
       participants: [],
       currentUser: null,
-      durationInterval: null
+      durationInterval: null,
+      leaveCall: null // NEW: Clear the leave function
     }
 
     // Immediately clear the vanilla DOM UI container

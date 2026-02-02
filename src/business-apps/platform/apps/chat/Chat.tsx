@@ -196,7 +196,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       presenceMap,
       presenceVersion,
       getUserPresence,
-      updatePresenceFromUser,
+      updatePresence,
       sendMessage,
       createDirectConversation,
       createContextConversation,
@@ -752,7 +752,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Only initialize each user once from API data, then rely on WebSocket updates
     useEffect(() => {
       try {
-        if (!conversations || conversations.length === 0 || !updatePresenceFromUser) return
+        if (!conversations || conversations.length === 0 || !updatePresence) return
 
         // Extract all users from conversations and initialize their presence
         conversations.forEach(conv => {
@@ -765,24 +765,34 @@ const ChatInner: React.FC<ChatProps> = memo(
               if (!presenceInitializedUsersRef.current.has(userId)) {
                 presenceInitializedUsersRef.current.add(userId)
 
-                // The API returns isOnline (boolean) and lastSeen on user object
+                // Extract presence data from API response
                 const lastSeen = p.user.lastSeen || p.user.lastSeenAt
+                const isOnline = typeof p.user.isOnline === 'boolean' ? p.user.isOnline : p.user.isActive
+                const state = isOnline ? 'online' : 'offline'
+                const lastSeenString = lastSeen instanceof Date ? lastSeen.toISOString() : lastSeen
 
-                // If we have isOnline directly from API, use it
-                if (typeof p.user.isOnline === 'boolean') {
-                  updatePresenceFromUser(userId, lastSeen, p.user.isOnline)
-                } else {
-                  // Fallback to calculating from lastSeen/lastSeenAt
-                  updatePresenceFromUser(userId, lastSeen, p.user.isActive)
-                }
+                // Extract detailed user status from API response
+                const userStatus = p.user.currentStatus
+                  ? {
+                      status: p.user.currentStatus,
+                      isSystemStatus: p.user.isSystemStatus || false,
+                      statusMessage: p.user.statusMessage,
+                      isOnline: isOnline || false
+                    }
+                  : undefined
+
+                // Initialize presence with full status details
+                updatePresence(userId, { state, lastSeen: lastSeenString, userStatus })
+
+                console.log('[Chat] Initialized presence from API for user:', userId, { state, userStatus })
               }
             }
           })
         })
-      } catch {
-        // Error initializing presence
+      } catch (error) {
+        console.error('[Chat] Error initializing presence:', error)
       }
-    }, [conversations, currentUser?.id, updatePresenceFromUser])
+    }, [conversations, currentUser?.id, updatePresence])
 
     // Wrap sendMessage to match the expected signature (Promise<void> instead of Promise<Message>)
     const sendMessageVoid = useCallback(
@@ -1763,6 +1773,8 @@ const ChatInner: React.FC<ChatProps> = memo(
                 presenceMap={presenceMap}
                 presenceVersion={presenceVersion}
                 conversationExpertCounts={conversationExpertCounts}
+                wsClient={wsClient}
+                isConnected={isConnected}
               />
             </div>
           )}
