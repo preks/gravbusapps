@@ -442,6 +442,56 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     onClose()
   }
 
+  // Helper: Claim task action
+  const handleClaimTask = async (flowEngineApi: string) => {
+    const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/claim`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ userId })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+      throw new Error(errorData.error || 'Failed to claim task')
+    }
+
+    message.success({
+      content: t('task-details-task-claimed'),
+      duration: 3
+    })
+
+    onTaskUpdated()
+    onClose()
+  }
+
+  // Helper: Unclaim task action
+  const handleUnclaimTask = async (flowEngineApi: string) => {
+    const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/unclaim`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ userId })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+      throw new Error(errorData.error || 'Failed to unclaim task')
+    }
+
+    message.success({
+      content: t('task-details-task-unclaimed'),
+      duration: 3
+    })
+
+    onTaskUpdated()
+    onClose()
+  }
+
   // Unified handler for all task actions
   const handleTaskAction = async (action: string, data?: any) => {
     if (!task.id || !userId) {
@@ -455,7 +505,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     try {
       switch (action) {
         case 'claim':
-          message.info(t('task-details-claim-coming'))
+          await handleClaimTask(flowEngineApi)
           break
         case 'complete':
           await handleCompleteTask(flowEngineApi)
@@ -467,7 +517,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           message.info(t('task-details-reassign-coming'))
           break
         case 'unclaim':
-          message.info(t('task-details-unclaim-coming'))
+          await handleUnclaimTask(flowEngineApi)
           break
         default:
           message.warning(t('task-details-unknown-action', { action }))
@@ -559,7 +609,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   // For Blink tasks, use the simple view from every-box
   if (isBlinkTask) {
     return (
-      <div className="gba:flex gba:flex-col gba:h-full gba:px-6" data-testid="universal-cflow-task-details">
+      <div className="gba:flex gba:flex-col gba:h-full" data-testid="universal-cflow-task-details">
         {/* Task Header */}
         <TaskDetailHeader
           title={taskTitle}
@@ -581,7 +631,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
         />
 
         {/* Scrollable Content - Simple Blink Task View */}
-        <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0">
+        <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0 gba:px-6">
           {/* Completion Details - Only show for completed tasks */}
           {isCompleted && (
             <Card className="gba:border-success/50 gba:bg-success/5">
@@ -744,7 +794,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
   // For non-Blink cFlow tasks, use the full form view
   return (
-    <div className="gba:flex gba:flex-col gba:h-full gba:px-6" data-testid="universal-cflow-task-details">
+    <div className="gba:flex gba:flex-col gba:h-full" data-testid="universal-cflow-task-details">
       {/* Task Header - Using shared TaskDetailHeader component */}
       <TaskDetailHeader
         title={taskTitle}
@@ -765,7 +815,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
         onClose={onClose}
       />
 
-      <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0">
+      <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0 gba:px-6">
         {/* Completion Details - Only show for completed tasks */}
         {isCompleted && (
           <Card className="gba:border-success/50 gba:bg-success/5">

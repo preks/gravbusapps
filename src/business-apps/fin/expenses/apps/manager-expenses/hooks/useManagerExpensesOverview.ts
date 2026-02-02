@@ -26,6 +26,20 @@ export interface UseManagerExpensesOverviewParams {
   requestsStatus?: string[]
   plansStatus?: string[]
   paymentsStatus?: string[]
+  // Date range filters for plans
+  plansEffectiveDateRange?: { from?: string | null; to?: string | null } | null
+  plansStartDateRange?: { from?: string | null; to?: string | null } | null
+  plansEndDateRange?: { from?: string | null; to?: string | null } | null
+  plansPlanDateRange?: { from?: string | null; to?: string | null } | null
+  // Plan type filter (EXPENSES, TRIP)
+  plansTypeFilter?: string[]
+  // Date range filters for requests
+  requestsEffectiveDateRange?: { from?: string | null; to?: string | null } | null
+  requestsRequestDateRange?: { from?: string | null; to?: string | null } | null
+  requestsStartDateRange?: { from?: string | null; to?: string | null } | null
+  requestsEndDateRange?: { from?: string | null; to?: string | null } | null
+  // Request type filter (EXPENSES, TRIP)
+  requestsTypeFilter?: string[]
 }
 
 export interface ManagerExpensesOverviewState {
@@ -80,8 +94,192 @@ export interface UseManagerExpensesOverviewReturn {
 
 // Default orders to keep current UX parity
 const DEFAULT_REQ_ORDER: any[] = [{ createdAt: 'DESC' }]
-const DEFAULT_PLAN_ORDER: any[] = [{ planDate: 'DESC' }]
+const DEFAULT_PLAN_ORDER: any[] = [{ createdAt: 'DESC' }]
 const DEFAULT_PAY_ORDER: any[] = [{ createdAt: 'DESC' }]
+
+type DateRangeInput = { from?: string | null; to?: string | null } | null | undefined
+
+type GqlBoolExp = Record<string, unknown>
+
+function buildSearchPattern(searchTerm?: string | null): string {
+  const trimmedSearch = (searchTerm ?? '').toString().trim()
+  return trimmedSearch.length > 0 ? `%${trimmedSearch}%` : '%%'
+}
+
+function buildDateRangeCondition(from?: string | null, to?: string | null): GqlBoolExp | null {
+  if (!from && !to) return null
+  const condition: Record<string, string> = {}
+  if (from) condition._gte = from
+  if (to) condition._lte = to
+  return Object.keys(condition).length > 0 ? (condition as unknown as GqlBoolExp) : null
+}
+
+function wrapFieldCondition(field: string, condition: GqlBoolExp | null): GqlBoolExp | null {
+  return condition ? ({ [field]: condition } as unknown as GqlBoolExp) : null
+}
+
+function buildPlanEffectiveDateFilter(range: DateRangeInput): GqlBoolExp | null {
+  if (!range?.from && !range?.to) return null
+
+  const tripAnd: GqlBoolExp[] = []
+  const expenseAnd: GqlBoolExp[] = []
+
+  if (range.from) {
+    tripAnd.push({ startDate: { _gte: range.from } })
+    expenseAnd.push({ expensePlanItem: { expenseDate: { _gte: range.from } } })
+  }
+  if (range.to) {
+    tripAnd.push({ startDate: { _lte: range.to } })
+    expenseAnd.push({ expensePlanItem: { expenseDate: { _lte: range.to } } })
+  }
+
+  if (tripAnd.length === 0 && expenseAnd.length === 0) return null
+
+  return {
+    _or: [
+      { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd] },
+      { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd] }
+    ]
+  } as unknown as GqlBoolExp
+}
+
+function buildRequestEffectiveDateFilter(range: DateRangeInput): GqlBoolExp | null {
+  if (!range?.from && !range?.to) return null
+
+  const tripAnd: GqlBoolExp[] = []
+  const expenseAnd: GqlBoolExp[] = []
+
+  if (range.from) {
+    tripAnd.push({ startDate: { _gte: range.from } })
+    expenseAnd.push({ expenseItem: { expenseDate: { _gte: range.from } } })
+  }
+  if (range.to) {
+    tripAnd.push({ startDate: { _lte: range.to } })
+    expenseAnd.push({ expenseItem: { expenseDate: { _lte: range.to } } })
+  }
+
+  if (tripAnd.length === 0 && expenseAnd.length === 0) return null
+
+  return {
+    _or: [
+      { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:TRIP' } }, ...tripAnd] },
+      { _and: [{ requestTypeRef: { _eq: 'ExpenseRequestType:v1:EXPENSES' } }, ...expenseAnd] }
+    ]
+  } as unknown as GqlBoolExp
+}
+
+function buildPlanTypeFilter(typeFilters?: string[]): GqlBoolExp | null {
+  if (!typeFilters || typeFilters.length === 0) return null
+
+  const planTypeTokens = typeFilters.filter(f => f.startsWith('planType:'))
+  if (planTypeTokens.length === 0) return null
+
+  const allowedTypes = planTypeTokens.map(t => t.replace('planType:', '')).filter(t => t === 'EXPENSES' || t === 'TRIP')
+  if (allowedTypes.length === 0) return null
+
+  const typeOr = allowedTypes.map(t => ({ requestTypeRef: { _eq: `ExpenseRequestType:v1:${t}` } }))
+  return { _or: typeOr } as unknown as GqlBoolExp
+}
+
+function buildRequestTypeFilter(typeFilters?: string[]): GqlBoolExp | null {
+  if (!typeFilters || typeFilters.length === 0) return null
+
+  const requestTypeTokens = typeFilters.filter(f => f.startsWith('ExpenseRequestType:'))
+  if (requestTypeTokens.length === 0) return null
+
+  const allowedTypes = requestTypeTokens
+    .map(t => t.replace('ExpenseRequestType:v1:', ''))
+    .filter(t => t === 'EXPENSES' || t === 'TRIP')
+  if (allowedTypes.length === 0) return null
+
+  const typeOr = allowedTypes.map(t => ({ requestTypeRef: { _eq: `ExpenseRequestType:v1:${t}` } }))
+  return { _or: typeOr } as unknown as GqlBoolExp
+}
+
+function buildStatusWhere(statuses?: string[]): GqlBoolExp {
+  if (Array.isArray(statuses) && statuses.length > 0) {
+    return { status: { _in: statuses } } as unknown as GqlBoolExp
+  }
+  // Exclude CREATED status by default when no specific filter is provided
+  return { status: { _neq: 'CREATED' } } as unknown as GqlBoolExp
+}
+
+function buildPlanDateWhereClause(params: UseManagerExpensesOverviewParams): GqlBoolExp {
+  const conditions = [
+    buildPlanEffectiveDateFilter(params.plansEffectiveDateRange),
+    wrapFieldCondition(
+      'startDate',
+      buildDateRangeCondition(params.plansStartDateRange?.from, params.plansStartDateRange?.to)
+    ),
+    wrapFieldCondition(
+      'endDate',
+      buildDateRangeCondition(params.plansEndDateRange?.from, params.plansEndDateRange?.to)
+    ),
+    wrapFieldCondition(
+      'planDate',
+      buildDateRangeCondition(params.plansPlanDateRange?.from, params.plansPlanDateRange?.to)
+    ),
+    buildPlanTypeFilter(params.plansTypeFilter)
+  ].filter(Boolean)
+
+  return (conditions.length > 0 ? { _and: conditions } : {}) as unknown as GqlBoolExp
+}
+
+function buildRequestDateWhereClause(params: UseManagerExpensesOverviewParams): GqlBoolExp {
+  const conditions = [
+    buildRequestEffectiveDateFilter(params.requestsEffectiveDateRange),
+    wrapFieldCondition(
+      'requestDate',
+      buildDateRangeCondition(params.requestsRequestDateRange?.from, params.requestsRequestDateRange?.to)
+    ),
+    wrapFieldCondition(
+      'startDate',
+      buildDateRangeCondition(params.requestsStartDateRange?.from, params.requestsStartDateRange?.to)
+    ),
+    wrapFieldCondition(
+      'endDate',
+      buildDateRangeCondition(params.requestsEndDateRange?.from, params.requestsEndDateRange?.to)
+    ),
+    buildRequestTypeFilter(params.requestsTypeFilter)
+  ].filter(Boolean)
+
+  return (conditions.length > 0 ? { _and: conditions } : {}) as unknown as GqlBoolExp
+}
+
+function buildOverviewVariables(params: UseManagerExpensesOverviewParams): Record<string, unknown> {
+  const currencyRef = params.currencyRef || null
+  const searchTerm = buildSearchPattern(params.searchTerm)
+
+  const reqCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+  const planCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+  const payCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
+
+  return {
+    managerId: params.managerId,
+    currencyRef,
+    searchTerm,
+    reqLimit: params.requests?.limit ?? 20,
+    reqOffset: params.requests?.offset ?? 0,
+    reqOrderBy: params.requests?.orderBy ?? DEFAULT_REQ_ORDER,
+    planLimit: params.plans?.limit ?? 20,
+    planOffset: params.plans?.offset ?? 0,
+    planOrderBy: params.plans?.orderBy ?? DEFAULT_PLAN_ORDER,
+    payLimit: params.payments?.limit ?? 20,
+    payOffset: params.payments?.offset ?? 0,
+    payOrderBy: params.payments?.orderBy ?? DEFAULT_PAY_ORDER,
+    monthStart: params.monthStart ?? undefined,
+    monthEnd: params.monthEnd ?? undefined,
+    yearStart: params.yearStart ?? undefined,
+    reqCurrencyWhere,
+    planCurrencyWhere,
+    payCurrencyWhere,
+    planDateWhere: buildPlanDateWhereClause(params),
+    reqDateWhere: buildRequestDateWhereClause(params),
+    reqStatusWhere: buildStatusWhere(params.requestsStatus),
+    planStatusWhere: buildStatusWhere(params.plansStatus),
+    payStatusWhere: buildStatusWhere(params.paymentsStatus)
+  }
+}
 
 // Global in-flight request cache to deduplicate concurrent identical calls across components
 const inFlightBySignature: Map<string, Promise<any>> = new Map()
@@ -237,50 +435,7 @@ export const useManagerExpensesOverview = (
 
   // Normalize/prepare variables
   const variables = useMemo(() => {
-    const trimmedSearch = (params.searchTerm ?? '').toString().trim()
-    const searchPattern = trimmedSearch.length > 0 ? `%${trimmedSearch}%` : '%%'
-
-    // Build currency filter boolean expressions conditionally
-    const currencyRef = params.currencyRef || null
-    const reqCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
-    const planCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
-    const payCurrencyWhere = currencyRef ? { currencyRef: { _eq: currencyRef } } : {}
-
-    const v: any = {
-      managerId: params.managerId,
-      currencyRef,
-      searchTerm: searchPattern,
-      reqLimit: params.requests?.limit ?? 20,
-      reqOffset: params.requests?.offset ?? 0,
-      reqOrderBy: params.requests?.orderBy ?? DEFAULT_REQ_ORDER,
-      planLimit: params.plans?.limit ?? 20,
-      planOffset: params.plans?.offset ?? 0,
-      planOrderBy: params.plans?.orderBy ?? DEFAULT_PLAN_ORDER,
-      payLimit: params.payments?.limit ?? 20,
-      payOffset: params.payments?.offset ?? 0,
-      payOrderBy: params.payments?.orderBy ?? DEFAULT_PAY_ORDER,
-      monthStart: params.monthStart ?? undefined,
-      monthEnd: params.monthEnd ?? undefined,
-      yearStart: params.yearStart ?? undefined,
-      reqCurrencyWhere,
-      planCurrencyWhere,
-      payCurrencyWhere
-    }
-
-    // Build status filter boolean expressions conditionally
-    // Only add status filter if we have a non-empty array
-    if (Array.isArray(params.requestsStatus) && params.requestsStatus.length > 0) {
-      v.reqStatusWhere = { status: { _in: params.requestsStatus } }
-    }
-    if (Array.isArray(params.plansStatus) && params.plansStatus.length > 0) {
-      v.planStatusWhere = { status: { _in: params.plansStatus } }
-    }
-    if (Array.isArray(params.paymentsStatus) && params.paymentsStatus.length > 0) {
-      v.payStatusWhere = { status: { _in: params.paymentsStatus } }
-    }
-    // If not provided, GraphQL will use defaults (empty objects that match everything)
-
-    return v
+    return buildOverviewVariables(params)
   }, [
     params.managerId,
     params.currencyRef,
@@ -300,7 +455,29 @@ export const useManagerExpensesOverview = (
     // Serialize status arrays for dependency comparison
     JSON.stringify(params.requestsStatus || []),
     JSON.stringify(params.plansStatus || []),
-    JSON.stringify(params.paymentsStatus || [])
+    JSON.stringify(params.paymentsStatus || []),
+    // Date range filters
+    params.plansEffectiveDateRange?.from,
+    params.plansEffectiveDateRange?.to,
+    params.plansStartDateRange?.from,
+    params.plansStartDateRange?.to,
+    params.plansEndDateRange?.from,
+    params.plansEndDateRange?.to,
+    params.plansPlanDateRange?.from,
+    params.plansPlanDateRange?.to,
+    // Plan type filter
+    JSON.stringify(params.plansTypeFilter || []),
+    // Request date range filters
+    params.requestsEffectiveDateRange?.from,
+    params.requestsEffectiveDateRange?.to,
+    params.requestsRequestDateRange?.from,
+    params.requestsRequestDateRange?.to,
+    params.requestsStartDateRange?.from,
+    params.requestsStartDateRange?.to,
+    params.requestsEndDateRange?.from,
+    params.requestsEndDateRange?.to,
+    // Request type filter
+    JSON.stringify(params.requestsTypeFilter || [])
   ])
 
   const run = useCallback(async () => {

@@ -18,13 +18,20 @@ export * from './IncomingGroupCallDialog'
 export * from './MeetingCard'
 export * from './MessageAttachments'
 export * from './MessageInput'
-export * from './MessageItem'
-export * from './MessageList'
-export * from './TypingIndicator'
 export * from './UserSearch'
 export * from './UserSelector'
+
+// Call Components (RealtimeKit)
+export * from './call'
 
 // Every Experts
 export * from './ExpertSelectorPanel'
 export * from './ActiveExpertsBar'
 export * from './ExpertResponseRenderer'
+
+// Core implementations (optimized for performance)
+export * from './MessageList'
+export * from './MessageItem'
+export * from './ChatMessages'
+export * from './PerformanceMonitor'
+export * from './TypingIndicator'

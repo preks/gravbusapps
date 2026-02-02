@@ -7,6 +7,15 @@ account-name-label = Nume cont
 account-name-required = Nume cont este obligatoriu
 account-name-placeholder = Vă rugăm să introduceți...
 account-picture-label = Imagine cont
+account-information-segment-prospective = Prospect
+account-type-label = Categoria contului
+prospect-label = Prospect
+customer-label = Client
+portfolio-company-label = Companie de portofoliu
+prospect-description-crm = Client potențial cu angajament ridicat
+prospect-description-irm = Intrare potențială în portofoliu
+customer-description = Client activ cu relație de afaceri stabilită
+portfolio-description = Companie de portofoliu activă cu participații
 
 # Company Information
 legal-form-label = Formă juridică

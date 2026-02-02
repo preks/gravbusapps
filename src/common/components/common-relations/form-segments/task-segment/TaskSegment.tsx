@@ -1,7 +1,8 @@
 import React from 'react'
 import { EmployeeSelect } from '@/components/employee-select'
+import { MultiEmployeeSelect } from '@/components/multi-employee-select'
 import { EntitySelect } from '../../selects/reference-select'
-import { CatalogSelect } from '@/components/catalog-select'
+import { CatalogSelect, type CatalogSelectConfig } from '@/components/catalog-select'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   FormField,
@@ -41,6 +42,10 @@ export interface TaskSegmentProps {
   // Assigned employee from task entity (to display without extra request)
   assignedEmployee?: Employee | null
 
+  // Multi-assignee support (enabled by default)
+  multiAssigneeMode?: boolean
+  assignedEmployees?: Employee[]
+
   // Entity ID to determine if new entity (for auto-select)
   entityId?: string
 
@@ -52,6 +57,10 @@ export interface TaskSegmentProps {
   // Type selection control
   initialTypeRef?: string | null
   hideTypeSelection?: boolean
+  catalogSelectConfig?: CatalogSelectConfig // Configuration for catalog filtering
+
+  // Assignee selection control
+  hideAssigneeSelection?: boolean
 
   // Entity selection (still needs entities array until EntitySelect is refactored)
   showEntitySelection?: boolean
@@ -93,12 +102,16 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   accessToken,
   businessAppContext,
   assignedEmployee,
+  multiAssigneeMode = true, // Multi-assignee support is now the default
+  assignedEmployees = [],
   entityId,
   typeCatalog,
   priorityCatalog,
-  statusCatalog,
+  // statusCatalog kept in props for backwards compatibility, backend now computes status
   initialTypeRef,
   hideTypeSelection = false,
+  catalogSelectConfig,
+  hideAssigneeSelection = false,
   showEntitySelection = false,
   entities = [],
   entitiesLoading = false,
@@ -326,8 +339,10 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
                 <FormControl>
                   <CatalogSelect
                     catalogIdentifier={typeCatalog}
+                    prefetch={true}
                     value={field.value || ''}
                     onValueChange={field.onChange}
+                    config={catalogSelectConfig}
                     data-testid={`${dataTestId}-type`}
                   />
                 </FormControl>
@@ -359,63 +374,74 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
         )}
       </div>
 
-      {/* Status */}
-      {statusCatalog && (
-        <FormField
-          control={form.control as any}
-          name="taskStatusRef"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{t('task-status-label')}</FormLabel>
-              <FormControl>
-                <CatalogSelect
-                  catalogIdentifier={statusCatalog}
-                  value={field.value || ''}
-                  onValueChange={field.onChange}
-                  data-testid={`${dataTestId}-status`}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      )}
+      {/* Status - Backend computed, no manual selection needed */}
 
-      {/* Assigned To */}
-      <FormField
-        control={form.control as any}
-        name="assignedEmployeeId"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>{t('task-assignee-label')}</FormLabel>
-            <FormControl>
-              <EmployeeSelect
-                accessToken={accessToken}
-                businessAppContext={businessAppContext}
-                initialEmployee={assignedEmployee}
-                autoSelect={isNewEntity ? 'current-user' : undefined}
-                value={field.value || ''}
-                onValueChange={(v: string | null) => {
-                  field.onChange(v || '')
-                }}
-                onEmployeeChange={(employee: any) => {
-                  // Set both assignedEmployeeId and assignedEmployee
-                  form.setValue('assignedEmployeeId', employee?.id || '')
-                  form.setValue('assignedEmployee', employee)
-                  // Also set assignedUserId directly when employee changes
-                  if (employee?.userId) {
-                    form.setValue('assignedUserId', employee.userId)
-                  } else {
-                    form.setValue('assignedUserId', undefined)
-                  }
-                }}
-                data-testid={`${dataTestId}-assignee`}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      {/* Assigned To - Single or Multiple
+          Note: assignedEmployeeIds is always an array, even in single-select mode.
+          - Multi-select mode: array with multiple elements
+          - Single-select mode: array with max 1 element (enforced by Zod validation)
+          This unified approach matches the backend's taskAssignees array structure.
+          Hidden in update mode as tasks cannot be reassigned.
+      */}
+      {!hideAssigneeSelection &&
+        (multiAssigneeMode ? (
+          <FormField
+            control={form.control as any}
+            name="assignedEmployeeIds"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Assignees</FormLabel>
+                <FormControl>
+                  <MultiEmployeeSelect
+                    accessToken={accessToken}
+                    initialEmployees={assignedEmployees as any}
+                    value={field.value || []}
+                    onValueChange={employeeIds => {
+                      field.onChange(employeeIds)
+                    }}
+                    onEmployeesChange={employees => {
+                      form.setValue('assignedEmployees', employees)
+                    }}
+                    placeholder="Add assignees..."
+                    searchPlaceholder="Search employees..."
+                    data-testid={`${dataTestId}-assignees`}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ) : (
+          <FormField
+            control={form.control as any}
+            name="assignedEmployeeIds"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('task-assignee-label')}</FormLabel>
+                <FormControl>
+                  <EmployeeSelect
+                    accessToken={accessToken}
+                    businessAppContext={businessAppContext}
+                    initialEmployee={assignedEmployee}
+                    autoSelect={isNewEntity ? 'current-user' : undefined}
+                    value={field.value?.[0] || ''} // Extract single value from array
+                    onValueChange={(v: string | null) => {
+                      // Convert single value to array format (backend expects array)
+                      const newValue = v ? [v] : []
+                      field.onChange(newValue)
+                    }}
+                    onEmployeeChange={(employee: any) => {
+                      // Set assignedEmployees as array with single employee
+                      form.setValue('assignedEmployees', employee ? [employee] : [])
+                    }}
+                    data-testid={`${dataTestId}-assignee`}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ))}
 
       {/* Related Entity */}
       {showEntitySelection && (
@@ -513,23 +539,51 @@ const buildTaskSegmentSchema = (options?: {
   requireAssignee?: boolean
   requireEntity?: boolean
   requireType?: boolean
+  multiAssigneeMode?: boolean
 }) => {
   const requireAssignee = options?.requireAssignee !== false
   const requireEntity = options?.requireEntity !== false
   const requireType = options?.requireType !== false
-  return z.object({
+  const multiAssigneeMode = options?.multiAssigneeMode !== false // Multi-assignee is now the default
+
+  const baseSchema = {
     name: z.string().min(1, 'Name is required'),
     taskTiming: z.enum(['DEADLINE', 'SCHEDULED']).refine(v => !!v, {
       message: 'Timing is required'
     }),
     taskTypeRef: requireType ? z.string().min(1, 'Type is required') : z.string().optional(),
     taskPriorityRef: z.string().min(1, 'Priority is required'),
-    taskStatusRef: z.string().min(1, 'Status is required'),
-    assignedEmployeeId: requireAssignee ? z.string().min(1, 'Assigned employee is required') : z.string().optional(),
+    taskStatusRef: z.string().optional(), // Backend computed, not required from user
     relatedEntityId: requireEntity ? z.string().min(1, 'Related entity is required') : z.string().optional(),
     description: z.string().optional(),
     dueDate: z.preprocess(val => (val == null ? '' : val), z.string().min(1, 'Deadline is required')),
     files: z.any().optional()
+  }
+
+  // Build assignee validation with independent constraints
+  // Note: assignedEmployeeIds is always an array (even for single-select mode)
+  // This unified structure matches the backend's taskAssignees array format
+  let assigneeValidation: any = z.array(z.string())
+
+  // Add min constraint if required
+  if (requireAssignee) {
+    assigneeValidation = assigneeValidation.min(1, 'At least one assignee is required')
+  }
+
+  // Add max constraint for single-select mode (array with max 1 element)
+  if (!multiAssigneeMode) {
+    assigneeValidation = assigneeValidation.max(1, 'Only one assignee allowed')
+  }
+
+  // Make optional if not required
+  if (!requireAssignee) {
+    assigneeValidation = assigneeValidation.optional()
+  }
+
+  return z.object({
+    ...baseSchema,
+    assignedEmployeeIds: assigneeValidation,
+    assignedEmployees: z.array(z.any()).optional()
   })
 }
 
@@ -542,4 +596,5 @@ export const createTaskSegmentResolver = (options?: {
   requireAssignee?: boolean
   requireEntity?: boolean
   requireType?: boolean
+  multiAssigneeMode?: boolean
 }) => zodResolver(buildTaskSegmentSchema(options))

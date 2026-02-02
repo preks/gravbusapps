@@ -4,14 +4,22 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { useForm } from 'react-hook-form'
-import { FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea } from '@newwork/nw-design-system'
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+  Textarea,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
-import {} from '@/common/utils/processEventUtils'
 import { ChangeBankAccountProvider, useChangeBankAccount } from './ChangeBankAccountContext'
 import DefaultFields from './components/DefaultFields'
 import UsFields from './components/UsFields'
 import NonUsFields from './components/NonUsFields'
 import { buildBankAccountPayload, isUnchangedExistingBankAccount } from './utils'
+import appTranslations from '../../apps/employee-record/_i18n'
 
 interface BankAccountFormValues {
   countryId?: string | null
@@ -19,20 +27,18 @@ interface BankAccountFormValues {
   bankName?: string
   accountType?: 'CHECKINGS' | 'SAVINGS' | ''
   accountHolder?: string
-  // Non-US fields
   iban?: string
   swift?: string
-  // US-specific fields
   routingNumberTypeId?: string | null
   accountNumber?: string
   routingNumber?: string
   employeeAddressId?: string | null
-  // Common
   comment?: string
 }
 
 const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo, additionalData }) => {
   const { data } = useChangeBankAccount()
+  const { t: tApp } = useTranslation(appTranslations)
 
   const employee = useMemo(() => (data?.employee as any)?.Employee?.[0], [data])
   const employeePosition = useMemo(() => (data?.employee as any)?.EmployeePosition?.[0], [data])
@@ -104,7 +110,6 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
     return employeeAddresses.find((a: any) => a?.type === 'PRIMARY') || employeeAddresses[0] || null
   }, [employeeAddresses])
 
-  // Apply initial preselects once when data is ready
   const defaultsAppliedRef = useRef(false)
   useEffect(() => {
     if (defaultsAppliedRef.current) return
@@ -143,7 +148,6 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
     defaultsAppliedRef.current = true
   }, [catalogCountries, existingAccount, primaryAddress, data?.employee, form])
 
-  // When country changes, preselect currency from country.objectValue only if user hasn't touched currency yet
   useEffect(() => {
     if (!selectedCountryId) return
     const dirtyCurrency = Boolean((form.formState as any)?.dirtyFields?.currencyId)
@@ -159,24 +163,25 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
     } catch {}
   }, [selectedCountryId, catalogCountries, form])
 
-  // Compute unchanged state vs existing account
   const watchedValues = form.watch()
   const isUnchangedExisting = useMemo(
     () => isUnchangedExistingBankAccount(form, existingAccount),
     [existingAccount, watchedValues, form]
   )
 
-  // Combine disabled states for explicit button control
-  // Recompute on any render so validation changes are immediately reflected
   const hasValidationErrors = Object.keys((form.formState as any)?.errors ?? {}).length > 0
   const isSubmitDisabledFinal = useMemo(() => {
     const disabled = isUSAndNoAddress || hasValidationErrors || isUnchangedExisting
     return disabled
   }, [isUSAndNoAddress, hasValidationErrors, isUnchangedExisting])
 
+  if (!data) {
+    return null
+  }
+
   return (
     <div
-      className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
+      className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:max-w-[800px]"
       data-testid="change-bank-account-form-container"
     >
       <FormHeader
@@ -195,7 +200,7 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
       />
 
       <div
-        className="gba:flex gba:flex-col gba:[&>div[data-testid='change-bank-account']]:!pt-0"
+        className="gba:flex gba:flex-col gba:[&>div[data-testid='change-bank-account']]:pt-0!"
         data-testid="change-bank-account-form-content"
       >
         <AppActionForm
@@ -220,7 +225,13 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
               ''
             const existing = (data?.employee?.EmployeeBankAccount || [])?.[0] || null
             const payload = buildBankAccountPayload({ values, existingAccount: existing, employeeId })
-            return payload as any
+            return {
+              ...(payload as any),
+              completeNotification: {
+                type: 'success',
+                message: tApp('notification-bank-account-updated-success')
+              }
+            }
           }}
           data-testid="change-bank-account"
         >
@@ -272,8 +283,6 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo,
               )}
             />
           </div>
-
-          {/* Navigation buttons are provided by AppActionForm; no manual buttons here */}
         </AppActionForm>
       </div>
     </div>

@@ -44,6 +44,10 @@ all_articles = All Articles
 categories = Categories
 recent_articles = Recent Articles
 more_articles = More Articles
+recent_news_articles = Recent News Articles
+recent_knowledge_articles = Recent Knowledge Articles
+recently_uploaded_documents = Recently Uploaded Documents
+unanswered_questions = Unanswered Questions
 
 # Buttons
 create_article = Create Article
@@ -104,6 +108,10 @@ current = Current
 points = points
 error = Error
 retry = Retry
+my-content = My Content
+show-my-content-description = View all content entries you have created
+no-my-content-found = You have not created any content yet.
+other = Other
 
 # Glossary
 glossary-subtitle = A shared language for terms, acronyms, and how we work
@@ -123,6 +131,7 @@ viewing-as = Viewing as
 all = All
 search = Search
 loading = Loading...
+loading_more = Loading more...
 refresh = Refresh
 edit = Edit
 cancel = Cancel

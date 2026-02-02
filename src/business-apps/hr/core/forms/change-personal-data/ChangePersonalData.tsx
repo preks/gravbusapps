@@ -6,7 +6,16 @@ import {
   getCurrentActiveUserLocale
 } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
-import { FileUpload, FormField, FormItem, LocalizationProvider } from '@newwork/nw-design-system'
+import {
+  FileUpload,
+  FormField,
+  FormItem,
+  LocalizationProvider,
+  useTranslation,
+  FormLabel,
+  FormControl,
+  Combobox
+} from '@newwork/nw-design-system'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { ChangePersonalDataProvider, useChangePersonalData } from './ChangePersonalDataContext'
 import { useForm } from 'react-hook-form'
@@ -18,31 +27,62 @@ import QualificationFields from './components/QualificationFields'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { env } from '@/common/env/EnvUtils'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
-
-// form values type moved to types.ts
+import translations from '../../apps/employee-record/_i18n'
 
 const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData }) => {
-  const [fileList, setFileList] = useState<any[]>([])
-  const { data } = useChangePersonalData()
+  const { data, isLoading } = useChangePersonalData()
 
-  const employee = useMemo(() => data?.employee?.EmployeeByPk, [data])
-  const employeePosition = useMemo(() => data?.employee?.EmployeePosition?.[0], [data])
-  const catalogSalutation: CatalogEntry[] = useMemo(() => data?.catalogs?.salutation || [], [data])
-  const catalogs = useMemo(
-    () => ({
-      gender: data?.catalogs?.gender || [],
-      nationality: data?.catalogs?.nationality || [],
-      language: data?.catalogs?.language || [],
-      maritalStatus: data?.catalogs?.maritalStatus || [],
-      schoolQualification: data?.catalogs?.schoolQualification || [],
-      academicTitle: data?.catalogs?.academicTitle || []
-    }),
-    [data]
+  if (isLoading || !data?.employee?.EmployeeByPk || !data?.catalogs?.salutation) {
+    return (
+      <div
+        className="gba:flex gba:items-center gba:justify-center gba:min-h-[400px]"
+        data-testid="change-personal-data-loading"
+      >
+        <div className="gba:text-center">
+          <div className="gba:text-muted-foreground">Loading personal data...</div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <ChangePersonalDataForm
+      key={data.employee.EmployeeByPk.id}
+      accessToken={accessToken}
+      additionalData={additionalData}
+      data={data}
+    />
   )
+}
+
+interface ChangePersonalDataFormProps extends BusinessAppContextProps {
+  data: any
+}
+
+const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessToken, additionalData, data }) => {
+  const [fileList, setFileList] = useState<any[]>([])
+  const { t } = useTranslation(translations)
+
+  const getCatalogValue = useCallback((entry: CatalogEntry): string => {
+    return entry?.translations?.[0]?.value || entry?.value || ''
+  }, [])
+
+  const employee = data?.employee?.EmployeeByPk
+  const employeePosition = data?.employee?.EmployeePosition?.[0]
+  const catalogSalutation: CatalogEntry[] = data?.catalogs?.salutation || []
+  const catalogs = {
+    gender: data?.catalogs?.gender || [],
+    nationality: data?.catalogs?.nationality || [],
+    language: data?.catalogs?.language || [],
+    maritalStatus: data?.catalogs?.maritalStatus || [],
+    schoolQualification: data?.catalogs?.schoolQualification || [],
+    academicTitle: data?.catalogs?.academicTitle || [],
+    documentGroup: data?.catalogs?.documentGroup || [],
+    documentType: data?.catalogs?.documentType || []
+  }
 
   const normalizeDate = (value?: string | null): string => {
     if (!value) return ''
-    // Expect incoming values like 'YYYY-MM-DD' or ISO strings
     return String(value).slice(0, 10)
   }
 
@@ -57,45 +97,40 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
     return parts.filter(Boolean).join(' ').trim()
   }
 
-  const defaultValues: PersonalDataFormValues = useMemo(
-    () => ({
-      salutationRef: employee?.salutationRef ?? null,
-      title: employee?.title ?? '',
-      firstName: employee?.firstName ?? '',
-      lastName: employee?.lastName ?? '',
-      // Note: Labels requested are intentionally swapped by specification
-      displayName: computeDisplayName(employee) ?? '',
-      preferredName: employee?.preferredName ?? '',
-      birthName: employee?.birthName ?? '',
-      birthDate: normalizeDate(employee?.birthDate ?? ''),
-      birthPlace: employee?.birthPlace ?? '',
-      genderRef: employee?.genderRef ?? null,
-      nationalityRef: employee?.nationalityRef ?? null,
-      languageRef: employee?.languageRef ?? null,
-      maritalStatusRef: employee?.maritalStatusRef ?? null,
-      severelyDisabilityDegree: employee?.severelyDisabilityDegree ?? '',
-      schoolQualificationRef: employee?.schoolQualificationRef ?? null,
-      academicTitleRefs: Array.isArray(employee?.academicTitleRef)
-        ? employee.academicTitleRef
-        : employee?.academicTitleRef
-          ? [employee.academicTitleRef]
-          : [],
-      comment: employee?.notes ?? ''
-    }),
-    [employee]
-  )
-
-  const form = useForm<PersonalDataFormValues>({
-    defaultValues,
-    mode: 'onChange'
-  })
+  const defaultValues: PersonalDataFormValues = {
+    salutationRef: employee?.salutation?.id ? String(employee.salutation.id) : (employee?.salutationRef ?? null),
+    title: employee?.title ?? '',
+    firstName: employee?.firstName ?? '',
+    lastName: employee?.lastName ?? '',
+    displayName: computeDisplayName(employee) ?? '',
+    preferredName: employee?.preferredName ?? '',
+    birthName: employee?.birthName ?? '',
+    birthDate: normalizeDate(employee?.birthDate ?? ''),
+    birthPlace: employee?.birthPlace ?? '',
+    genderRef: employee?.gender?.id ? String(employee.gender.id) : (employee?.genderRef ?? null),
+    nationalityRef: employee?.nationality?.id ? String(employee.nationality.id) : (employee?.nationalityRef ?? null),
+    languageRef: employee?.language?.id ? String(employee.language.id) : (employee?.languageRef ?? null),
+    maritalStatusRef: employee?.maritalStatus?.id
+      ? String(employee.maritalStatus.id)
+      : (employee?.maritalStatusRef ?? null),
+    severelyDisabilityDegree: employee?.severelyDisabilityDegree ?? '',
+    schoolQualificationRef: employee?.schoolQualification?.id
+      ? String(employee.schoolQualification.id)
+      : (employee?.schoolQualificationRef ?? null),
+    academicTitleRefs: Array.isArray(employee?.academicTitleRef)
+      ? employee.academicTitleRef.map(String)
+      : employee?.academicTitleRef
+        ? [String(employee.academicTitleRef)]
+        : [],
+    comment: employee?.notes ?? '',
+    documentGroupId: null,
+    documentTypeId: null
+  }
 
   const fileClient = useFileClient({ accessToken } as any)
 
-  // Accepted file types aligned with previous UploadComponent
   const acceptedFileTypes = 'application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png,.PDF,.JPG,.JPEG,.PNG'
 
-  // Map FileUpload files to the legacy fileList shape used by submit logic
   const handleDesignSystemFilesChange = useCallback((files: Array<{ file: File | { name: string }; id: string }>) => {
     const mapped = files
       .filter(f => f.file instanceof File)
@@ -105,77 +140,118 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
         status: 'done',
         originFileObj: f.file as File
       }))
-    // Defer to avoid setState during child render
     setTimeout(() => setFileList(mapped), 0)
   }, [])
 
-  // Normalize default values to match Select option value types (string ids)
-  const normalizedDefaults: PersonalDataFormValues = useMemo(() => {
-    const toIdString = (val: any) => (val === null || val === undefined || val === '' ? null : String(val))
-    const findId = (list: CatalogEntry[] | undefined, current: any) => {
-      if (!list || current === null || current === undefined || current === '') return null
-      const currentStr = String(current)
-      const match = list.find(
-        e =>
-          String(e?.id) === currentStr ||
-          String(e?.value) === currentStr ||
-          String(e?.translations?.[0]?.value) === currentStr
-      )
-      return match ? String(match.id) : toIdString(current)
-    }
+  const extractIdFromRef = (ref: string): string => {
+    if (!ref) return ref
+    const parts = ref.split(':')
+    if (parts.length >= 3) return parts[parts.length - 1]
+    return ref
+  }
 
-    return {
-      ...defaultValues,
-      salutationRef: findId(catalogSalutation, defaultValues.salutationRef),
-      genderRef: findId(catalogs.gender, defaultValues.genderRef),
-      nationalityRef: findId(catalogs.nationality, defaultValues.nationalityRef),
-      languageRef: findId(catalogs.language, defaultValues.languageRef),
-      maritalStatusRef: findId(catalogs.maritalStatus, defaultValues.maritalStatusRef),
-      schoolQualificationRef: findId(catalogs.schoolQualification, defaultValues.schoolQualificationRef),
-      academicTitleRefs: Array.isArray(defaultValues.academicTitleRefs)
-        ? (defaultValues.academicTitleRefs.map(v => findId(catalogs.academicTitle, v)).filter(Boolean) as string[])
-        : []
-    } as PersonalDataFormValues
-  }, [defaultValues, catalogSalutation, catalogs])
+  const findId = (list: CatalogEntry[] | undefined, current: any) => {
+    if (!list || current === null || current === undefined || current === '') return null
+    const currentStr = String(current)
+    const extractedId = extractIdFromRef(currentStr)
 
-  // Reset to normalized defaults whenever employee/catalogs change
-  useEffect(() => {
-    form.reset(normalizedDefaults)
-  }, [normalizedDefaults])
+    const match = list.find(
+      e =>
+        String(e?.id) === currentStr ||
+        String(e?.id) === extractedId ||
+        String(e?.value) === currentStr ||
+        String(e?.translations?.[0]?.value) === currentStr
+    )
 
-  // Track initial values for change detection
-  const initialRef = useRef<PersonalDataFormValues>(normalizedDefaults)
-  useEffect(() => {
-    initialRef.current = normalizedDefaults
-  }, [normalizedDefaults])
+    if (match) return String(match.id)
+    if (current) return String(current)
+    return null
+  }
 
-  const normalizeForCompare = (v: PersonalDataFormValues) => ({
-    salutationRef: v.salutationRef || null,
-    title: v.title || '',
-    firstName: v.firstName || '',
-    lastName: v.lastName || '',
-    displayName: v.displayName || '',
-    preferredName: v.preferredName || '',
-    birthName: v.birthName || '',
-    birthDate: v.birthDate || '',
-    birthPlace: v.birthPlace || '',
-    genderRef: v.genderRef || null,
-    nationalityRef: v.nationalityRef || null,
-    languageRef: v.languageRef || null,
-    maritalStatusRef: v.maritalStatusRef || null,
-    severelyDisabilityDegree: v.severelyDisabilityDegree === '' ? '' : v.severelyDisabilityDegree,
-    schoolQualificationRef: v.schoolQualificationRef || null,
-    academicTitleRefs: Array.isArray(v.academicTitleRefs) ? v.academicTitleRefs : [],
-    comment: v.comment || ''
+  const normalizedDefaults: PersonalDataFormValues = {
+    ...defaultValues,
+    salutationRef: findId(catalogSalutation, defaultValues.salutationRef),
+    genderRef: findId(catalogs.gender, defaultValues.genderRef),
+    nationalityRef: findId(catalogs.nationality, defaultValues.nationalityRef),
+    languageRef: findId(catalogs.language, defaultValues.languageRef),
+    maritalStatusRef: findId(catalogs.maritalStatus, defaultValues.maritalStatusRef),
+    schoolQualificationRef: findId(catalogs.schoolQualification, defaultValues.schoolQualificationRef),
+    academicTitleRefs: Array.isArray(defaultValues.academicTitleRefs)
+      ? (defaultValues.academicTitleRefs.map(v => findId(catalogs.academicTitle, v)).filter(Boolean) as string[])
+      : []
+  }
+
+  const form = useForm<PersonalDataFormValues>({
+    defaultValues: normalizedDefaults,
+    mode: 'onChange'
   })
 
+  const initialRef = useRef<PersonalDataFormValues>(normalizedDefaults)
+  const hasUserInteractedRef = useRef(false)
+
+  const normalizeForCompare = (v: PersonalDataFormValues) => {
+    const sortedAcademicTitles = Array.isArray(v.academicTitleRefs)
+      ? [...v.academicTitleRefs].sort((a, b) => String(a).localeCompare(String(b)))
+      : []
+
+    return {
+      salutationRef: v.salutationRef || null,
+      title: v.title || '',
+      firstName: v.firstName || '',
+      lastName: v.lastName || '',
+      displayName: v.displayName || '',
+      preferredName: v.preferredName || '',
+      birthName: v.birthName || '',
+      birthDate: v.birthDate || '',
+      birthPlace: v.birthPlace || '',
+      genderRef: v.genderRef || null,
+      nationalityRef: v.nationalityRef || null,
+      languageRef: v.languageRef || null,
+      maritalStatusRef: v.maritalStatusRef || null,
+      severelyDisabilityDegree: v.severelyDisabilityDegree === '' ? '' : v.severelyDisabilityDegree,
+      schoolQualificationRef: v.schoolQualificationRef || null,
+      academicTitleRefs: sortedAcademicTitles,
+      comment: v.comment || '',
+      documentGroupId: v.documentGroupId || null,
+      documentTypeId: v.documentTypeId || null
+    }
+  }
+
   const watchedValues = form.watch()
+  const selectedDocumentGroupId = form.watch('documentGroupId')
+
+  // Filter document types based on selected document group
+  const filteredDocumentTypes = useMemo(
+    () =>
+      (catalogs.documentType || []).filter(
+        t => !selectedDocumentGroupId || t.parentEntryId === selectedDocumentGroupId
+      ),
+    [catalogs.documentType, selectedDocumentGroupId]
+  )
+
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name) {
+        hasUserInteractedRef.current = true
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [form])
+
   const isUnchangedNow = useMemo(() => {
+    if (!initialRef.current) return true
     return (
       JSON.stringify(normalizeForCompare(watchedValues as any)) ===
       JSON.stringify(normalizeForCompare(initialRef.current))
     )
   }, [watchedValues])
+
+  const isDocumentInfoMissing = useMemo(() => {
+    const hasFile = fileList && fileList.length > 0
+    if (!hasFile) return false
+    const values = form.getValues()
+    return !values.documentGroupId || !values.documentTypeId
+  }, [fileList, form])
 
   const title = useMemo(
     () =>
@@ -210,8 +286,6 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
         className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-personal-data']]:!pt-0"
         data-testid="change-personal-data-form-content"
       >
-        {/* moved upload below comment - removed from here */}
-
         <AppActionForm
           processType="update"
           form={form as any}
@@ -223,7 +297,10 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
             'Cancel'
           )}
           submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
-          isSubmitDisabled={!form.formState.isValid || isUnchangedNow}
+          isSubmitDisabled={!form.formState.isValid || isUnchangedNow || isDocumentInfoMissing}
+          onSuccess={() => {
+            hasUserInteractedRef.current = false
+          }}
           handlePreSubmit={async values => {
             let uploadedEmployeeDocumentId: string | undefined
             try {
@@ -253,8 +330,8 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                 const body = {
                   employeeDocument: {
                     employeeId: employeeId,
-                    documentGroup: 'DocumentGroup:v1:PERSONAL',
-                    type: 'DocumentType:v1:17',
+                    documentGroup: values.documentGroupId || null,
+                    type: values.documentTypeId || null,
                     description: '',
                     name: uploadResp?.fileInfo?.fileMetadata?.originalFileName,
                     file: uploadResp?.fileInfo?.fileId,
@@ -280,9 +357,7 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                     uploadedEmployeeDocumentId = undefined
                   })
               }
-            } catch {
-              uploadedEmployeeDocumentId = undefined
-            }
+            } catch {}
 
             return { ...(values as any), employeeDocumentId: uploadedEmployeeDocumentId } as PersonalDataFormValues
           }}
@@ -291,6 +366,7 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
             const firstName = values.firstName || ''
             const lastName = values.lastName || ''
             const fullName = [firstName, lastName].filter(Boolean).join(' ')
+
             const payload = {
               event: 'pse_submit',
               employeeDocument: null,
@@ -298,7 +374,7 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                 id: employee?.id || '',
                 notes: values.comment || '',
                 title: values.title || '',
-                personalDocument: uploadedEmployeeDocumentId || null, //uploadedEmployeeDocumentId ||
+                personalDocument: uploadedEmployeeDocumentId || null,
                 version: employee?.version ?? 0,
                 academicTitleRef: values.academicTitleRefs || [],
                 salutationRef: values.salutationRef || '',
@@ -341,18 +417,24 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                 title: employee?.title || ''
               }
             }
-            return payload
+
+            const result = {
+              ...payload,
+              completeNotification: {
+                type: 'success',
+                message: t('notification-personal-data-updated-success')
+              }
+            }
+
+            return result
           }}
           data-testid="change-personal-data"
         >
           <div className="gba:flex-1 gba:space-y-4" data-testid="change-personal-data-groups">
-            {/* Group 1: Names */}
             <NamesGroup control={form.control} catalogs={{ salutation: catalogSalutation }} setValue={form.setValue} />
 
-            {/* Group 2: Birth and Gender (includes DOB & Place) */}
             <BirthAndGenderGroup control={form.control} catalogs={{ gender: catalogs.gender }} />
 
-            {/* Group 3: Nationality, Language, Marital Status, Disability */}
             <NationalityLanguageStatusGroup
               control={form.control}
               catalogs={{
@@ -362,30 +444,114 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
               }}
             />
 
-            {/* Qualification fields (school + academic titles) */}
             <QualificationFields
               control={form.control}
               catalogs={{ schoolQualification: catalogs.schoolQualification, academicTitle: catalogs.academicTitle }}
             />
 
-            {/* Upload (nw-design-system)  */}
-            <FormField
-              name={'fileUpload'}
-              render={() => (
-                <FormItem>
-                  <div data-testid="flw_changePersonalData_uploadFile">
-                    <FileUpload
-                      multiple={false}
-                      maxFiles={1}
-                      accept={acceptedFileTypes}
-                      layout="list"
-                      preview="icon"
-                      onFilesChange={handleDesignSystemFilesChange as any}
-                    />
-                  </div>
-                </FormItem>
+            {/* Document Upload Section */}
+            <div className="gba:space-y-4 gba:pt-4 gba:border-t">
+              <div className="gba:text-sm gba:font-medium gba:text-foreground">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:change_personal_data.supporting_documents',
+                  'Supporting Documents'
+                )}
+              </div>
+
+              <FormField
+                name={'fileUpload'}
+                render={() => (
+                  <FormItem>
+                    <FormLabel>
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:change_personal_data.upload_document',
+                        'Upload Document'
+                      )}
+                    </FormLabel>
+                    <div data-testid="flw_changePersonalData_uploadFile">
+                      <FileUpload
+                        multiple={false}
+                        maxFiles={1}
+                        accept={acceptedFileTypes}
+                        layout="list"
+                        preview="icon"
+                        onFilesChange={handleDesignSystemFilesChange as any}
+                      />
+                    </div>
+                  </FormItem>
+                )}
+              ></FormField>
+
+              {fileList && fileList.length > 0 && (
+                <>
+                  <FormField
+                    control={form.control as any}
+                    name="documentGroupId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:change_personal_data.document_group',
+                            'Document Category'
+                          )}
+                        </FormLabel>
+                        <FormControl>
+                          <Combobox
+                            className="gba:w-full"
+                            options={(catalogs.documentGroup || []).map(g => ({
+                              value: String(g.id),
+                              label: getCatalogValue(g)
+                            }))}
+                            value={field.value || ''}
+                            onValueChange={v => {
+                              field.onChange(v)
+                              form.setValue('documentTypeId', null as any, { shouldValidate: true } as any)
+                            }}
+                            placeholder={getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:change_personal_data.select_document_group',
+                              'Select Document Category'
+                            )}
+                            data-testid="flw_changePersonalData_fld_documentGroup"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control as any}
+                    name="documentTypeId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:change_personal_data.document_type',
+                            'Document Type'
+                          )}
+                        </FormLabel>
+                        <FormControl>
+                          <Combobox
+                            className="gba:w-full"
+                            options={(filteredDocumentTypes || []).map(t => ({
+                              value: String(t.id),
+                              label: getCatalogValue(t)
+                            }))}
+                            value={field.value || ''}
+                            onValueChange={v => field.onChange(v)}
+                            placeholder={getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:change_personal_data.select_document_type',
+                              'Select Document Type'
+                            )}
+                            data-testid="flw_changePersonalData_fld_documentType"
+                            disabled={!selectedDocumentGroupId}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </>
               )}
-            ></FormField>
+            </div>
           </div>
         </AppActionForm>
       </div>

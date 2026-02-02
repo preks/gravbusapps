@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useTranslation } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
+import { X } from 'lucide-react'
 import translations from '../_i18n'
 
 interface LowcoderScreenLoaderProps extends BusinessAppContextProps {
@@ -108,7 +109,7 @@ export const LowcoderScreenLoader: React.FC<LowcoderScreenLoaderProps> = ({
       globalThis.removeEventListener('message', handleMessage)
       clearTimeout(loadingTimeout)
     }
-  }, [loading, onClose, onTaskCompleted, onTaskUpdated])
+  }, [loading, onClose, onTaskCompleted, onTaskUpdated, t])
 
   const handleIframeLoad = () => {
     setLoading(false)
@@ -122,6 +123,18 @@ export const LowcoderScreenLoader: React.FC<LowcoderScreenLoaderProps> = ({
 
   return (
     <div className="gba:relative gba:w-full gba:h-full gba:min-h-[600px]">
+      {/* Floating close button - Always visible for Lowcoder screens */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onClose}
+        className="gba:absolute gba:top-2 gba:right-2 gba:z-50 gba:rounded-full gba:hover:bg-muted gba:bg-card/80 gba:backdrop-blur-sm gba:shadow-md"
+        data-testid="lowcoder-screen-close-button"
+        title={t('task-dialog-close', { defaultValue: 'Close' })}
+      >
+        <X className="gba:h-5 gba:w-5" />
+      </Button>
+
       {errorMessage ? (
         <div className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full gba:min-h-[600px] gba:p-6">
           <div className="gba:text-center gba:max-w-md">

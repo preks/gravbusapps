@@ -96,11 +96,12 @@ export const AbsenceDisplay: React.FC<AbsenceDisplayProps> = ({
 
   const handleTitleClick = () => {
     if (!absenceId) return
-    const url = buildPlatformUrl('/platform/hr/absences/manager-absences', {
+    const url = buildPlatformUrl('/platform/hr/absences/personal-absences', {
       absenceId,
       source: 'every-ai'
     })
-    navigateTo(url)
+    // Force window refresh to ensure updated absence content is shown (SPA navigation, not full page reload)
+    navigateTo(url, { forceReload: true })
   }
 
   const content = textHuman || ''

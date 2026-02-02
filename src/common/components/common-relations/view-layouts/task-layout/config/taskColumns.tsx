@@ -14,18 +14,33 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 import { getCatalogEntryValue } from '@/common/data/catalog/utils/catalogTranslationUtils'
 import type { Task } from '@/common/data/relations/types/taskTypes'
 import { TaskPriority, TaskStatus } from '@/common/data/relations/constants/taskConstants'
+import { getEmployeeName } from '@/common/components/common-relations/record-sections/opportunity-pipeline-section/utils'
 import dayjs from 'dayjs'
 
 const formatDate = (dateString: string) => dayjs(dateString).format('MM/DD/YYYY')
 
-// Helper function to get employee display name
-const getEmployeeName = (employee: Task['assignedEmployee']): string => {
-  if (!employee) return '-'
-  if (employee.displayName) return employee.displayName
-  if (employee.firstName || employee.lastName) {
-    return `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
+// Helper function to get employee display name from taskAssignees
+const getAssigneeDisplay = (taskAssignees?: Task['taskAssignees']): { name: string; employee?: any; count: number } => {
+  if (!taskAssignees || taskAssignees.length === 0) {
+    return { name: '-', count: 0 }
   }
-  return '-'
+
+  if (taskAssignees.length === 1) {
+    const employee = taskAssignees[0].assignedEmployee
+    if (!employee) return { name: '-', count: 0 }
+
+    let name = '-'
+    if (employee.displayName) {
+      name = employee.displayName
+    } else if (employee.firstName || employee.lastName) {
+      name = `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
+    }
+
+    return { name, employee, count: 1 }
+  }
+
+  // Multiple assignees
+  return { name: 'Multiple', count: taskAssignees.length }
 }
 
 // Badge variant helpers - use CODE for logic, not value
@@ -111,29 +126,52 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
     header: 'Task',
     size: 250,
     cell: ({ row }) => (
-      <div className="gba:font-medium gba:text-sm" data-testid={`task-name-${row.original.id}`}>
+      <div
+        className="gba:font-medium gba:text-sm gba:truncate gba:max-w-[250px]"
+        data-testid={`task-name-${row.original.id}`}
+        title={row.original.name}
+      >
         {row.original.name}
       </div>
     )
   },
   {
     id: 'assignedTo',
-    accessorFn: row => getEmployeeName(row.assignedEmployee),
+    accessorFn: row => getAssigneeDisplay(row.taskAssignees).name,
     header: 'Assigned To',
     size: 180,
     cell: ({ row }) => {
-      if (!row.original.assignedEmployee) {
+      const assigneeInfo = getAssigneeDisplay(row.original.taskAssignees)
+
+      if (assigneeInfo.count === 0) {
         return <span className="gba:text-sm gba:text-muted-foreground">No assignee</span>
       }
 
-      const assigneeName = getEmployeeName(row.original.assignedEmployee)
+      // Multiple assignees - show count badge
+      if (assigneeInfo.count > 1) {
+        return (
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Badge variant="secondary" className="gba:text-xs">
+              {assigneeInfo.count} assignees
+            </Badge>
+          </div>
+        )
+      }
+
+      // Single assignee - show with avatar
+      const employee = assigneeInfo.employee
+      if (!employee) {
+        return <span className="gba:text-sm gba:text-muted-foreground">No assignee</span>
+      }
+
+      const assigneeName = assigneeInfo.name
 
       return (
         <button
           type="button"
           onClick={e => {
             e.stopPropagation()
-            const empId = row.original.assignedEmployee?.id
+            const empId = employee.id
             if (empId) {
               navigateTo(`/platform/employee-record?employeeId=${empId}`)
             }
@@ -142,11 +180,8 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
           data-testid={`task-assigned-to-link-${row.original.id}`}
         >
           <Avatar className="gba:w-8 gba:h-8 gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:transition-all">
-            {row.original.assignedEmployee.pictureThumbnail && (
-              <AvatarImage
-                src={`data:image/gif;base64,${row.original.assignedEmployee.pictureThumbnail}`}
-                alt={assigneeName}
-              />
+            {employee.pictureThumbnail && (
+              <AvatarImage src={`data:image/gif;base64,${employee.pictureThumbnail}`} alt={assigneeName} />
             )}
             <AvatarFallback>
               {(() => {
@@ -349,7 +384,8 @@ export const defaultTaskColumnMapping: Record<string, string> = {
   status: 'taskStatus.value',
 
   // Employee fields (sort by displayName)
-  assignedTo: 'assignedEmployee.displayName',
+  // Note: assignedTo now uses taskAssignees array - sorting may need adjustment at query level
+  assignedTo: 'taskAssignees.assignedEmployee.displayName',
   createdBy: 'creatorEmployee.displayName'
 }
 

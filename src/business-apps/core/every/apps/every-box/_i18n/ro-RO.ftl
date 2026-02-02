@@ -6,6 +6,19 @@ every-box-blink-button = Blink
 every-box-tab-inflows = Intrări
 every-box-tab-outflows = Ieșiri
 every-box-blink-description = Creați și atribuiți rapid o sarcină
+every-box-search-placeholder = Căutare...
+
+# Filters Dropdown
+filters-dropdown-label = Filtre
+filters-all = Toate
+filters-blinks = Blinks
+filters-approvals = Aprobări
+filters-completed = Finalizate
+filters-active-count = { $count } active
+
+# Detail Panel
+detail-panel-empty = Selectați o sarcină pentru a vedea detaliile
+detail-panel-empty-flow = Selectați un flux de lucru pentru a vedea detaliile
 
 # Inbox View
 inbox-search-placeholder = Căutare sarcini...
@@ -100,6 +113,8 @@ task-completion-outcome-acknowledged = Confirmat
 task-footer-reject = Respinge
 task-footer-reassign = Reatribuie
 task-footer-unclaim = Eliberează
+task-details-task-claimed = Sarcina a fost preluată cu succes!
+task-details-task-unclaimed = Sarcina a fost eliberată cu succes!
 
 # FlowDetailDialog Component
 flow-detail-loading = Se încarcă...

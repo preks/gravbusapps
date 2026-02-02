@@ -8,7 +8,7 @@ import { useCustomerOpportunity } from '@/common/data/customer/hooks/useCustomer
 import type { CustomerOpportunity } from '@/common/data/customer/types/customerOpportunityTypes'
 import {
   OpportunityLayout,
-  opportunitySchema
+  opportunitySchemaBase
 } from '@/common/components/common-relations/form-layouts/opportunity-layout'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -22,15 +22,32 @@ import {
   OPPORTUNITY_PIPELINE,
   OPPORTUNITY_PIPELINE_STAGE,
   OPPORTUNITY_STATUS,
-  OPPORTUNITY_FORECAST
+  OPPORTUNITY_FORECAST,
+  CUSTOMER_ACCOUNT_TYPE
 } from '@/common/data/customer/constants/customerCatalogs'
 import { ErrorAlert } from '@/components/error-alert'
 
-// CRM-specific schema extension (adds salesCampaignId and winningChance)
-export const customerOpportunitySchema = opportunitySchema.extend({
-  salesCampaignId: z.string().nullable().optional(),
-  winningChance: z.coerce.number().min(0).max(100).nullable().optional()
-})
+// CRM-specific i18n keys for validation
+const CRM_VALIDATION_ERRORS = {
+  PIPELINE_REQUIRED: 'opportunity.validation.pipelineRequired',
+  STAGE_REQUIRED: 'opportunity.validation.stageRequired'
+}
+
+// CRM-specific schema: Pipeline and Stage are REQUIRED (not optional like IRM)
+export const customerOpportunitySchema = opportunitySchemaBase
+  .omit({
+    opportunityPipelineRef: true,
+    opportunityPipelineStageRef: true
+  })
+  .extend({
+    // Override: Pipeline is REQUIRED in CRM
+    opportunityPipelineRef: z.string().min(1, CRM_VALIDATION_ERRORS.PIPELINE_REQUIRED),
+    // Override: Stage is REQUIRED in CRM
+    opportunityPipelineStageRef: z.string().min(1, CRM_VALIDATION_ERRORS.STAGE_REQUIRED),
+    // CRM-specific fields
+    salesCampaignId: z.string().nullable().optional(),
+    winningChance: z.coerce.number().min(0).max(100).nullable().optional()
+  })
 
 type OpportunityFormProps = BusinessAppContextProps
 
@@ -216,7 +233,7 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({ accessToken, userInfo
           businessAppContext={{ accessToken, userInfo, additionalData }}
           ownerEmployee={opportunity?.ownerEmployee}
           entityId={opportunity?.id || opportunityId}
-          account={opportunity?.account || undefined}
+          opportunityAccounts={opportunity?.opportunityAccounts || []}
           useAccounts={useAccounts}
           opportunityContacts={opportunity?.opportunityContacts}
           useContacts={useContacts}
@@ -224,8 +241,10 @@ const OpportunityForm: React.FC<OpportunityFormProps> = ({ accessToken, userInfo
           stageCatalogIdentifier={OPPORTUNITY_PIPELINE_STAGE}
           opportunityStatusCatalogIdentifier={OPPORTUNITY_STATUS}
           opportunityForecastCatalogIdentifier={OPPORTUNITY_FORECAST}
+          accountTypeCatalogIdentifier={CUSTOMER_ACCOUNT_TYPE}
           opportunityInformationCustomFields={crmCustomFields}
           loading={loading && !!opportunityId}
+          showDynamicStageRequired={false}
         />
       </AppActionForm>
     </CatalogSelect.Provider>

@@ -18,7 +18,6 @@ import { ArrowLeft, DotsThreeVertical, SignOut, X, Info, Users } from '@phosphor
 import { UserIcon, Phone, Video, PhoneCall, UserPlus, Bell } from 'lucide-react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
 export interface ActiveCallInfo {
@@ -45,7 +44,9 @@ interface ConversationHeaderProps {
   otherUserPresence?: UserPresence
   isCallEnabled?: boolean
   isInCall?: boolean
+  isStartingCall?: boolean
   activeCall?: ActiveCallInfo | null
+  t: (key: string, params?: Record<string, any>) => string
 }
 
 const getOtherParticipant = (conversation: Conversation, currentUserId?: string | null) => {
@@ -61,7 +62,11 @@ const getOtherParticipant = (conversation: Conversation, currentUserId?: string 
   return otherParticipants[0] || null
 }
 
-const getConversationName = (conversation: Conversation, currentUserId?: string | null): string => {
+const getConversationName = (
+  conversation: Conversation,
+  currentUserId?: string | null,
+  t?: (key: string) => string
+): string => {
   if (conversation.name) {
     return conversation.name
   }
@@ -69,12 +74,10 @@ const getConversationName = (conversation: Conversation, currentUserId?: string 
   const otherParticipant = getOtherParticipant(conversation, currentUserId)
   if (otherParticipant?.user) {
     const name = `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim()
-    return (
-      name || otherParticipant.user.username || getTranslationFromI18nKeyAndLabel('chat.unknownUser', 'Unknown User')
-    )
+    return name || otherParticipant.user.username || (t ? t('chat-unknownUser') : 'Unknown User')
   }
 
-  return getTranslationFromI18nKeyAndLabel('chat.directMessage', 'Direct Message')
+  return t ? t('chat-directMessage') : 'Direct Message'
 }
 
 const getConversationAvatarUrl = (conversation: Conversation, currentUserId?: string | null): string | undefined => {
@@ -86,19 +89,30 @@ const getConversationAvatarUrl = (conversation: Conversation, currentUserId?: st
   return otherParticipant?.user?.avatarUrl
 }
 
-// Presence status indicator component - only shows for online, not offline
-const PresenceIndicator: React.FC<{ status: 'online' | 'offline'; size?: 'sm' | 'md' }> = ({ status, size = 'md' }) => {
-  // Don't show indicator for offline status
-  if (status === 'offline') return null
+// Presence status indicator component - only shows for online, not offline/away
+const PresenceIndicator: React.FC<{
+  status: 'online' | 'away' | 'offline'
+  size?: 'sm' | 'md'
+  t?: (key: string) => string
+}> = ({ status, size = 'md', t }) => {
+  // Don't show indicator for offline or away status
+  if (status === 'offline' || status === 'away') return null
 
   const statusColors = {
     online: 'gba:bg-success',
+    away: 'gba:bg-warning',
     offline: 'gba:bg-muted-foreground'
   }
 
-  const statusTitles = {
-    online: 'Online',
-    offline: 'Offline'
+  const getStatusTitle = (status: 'online' | 'away' | 'offline'): string => {
+    if (!t) {
+      if (status === 'online') return 'Online'
+      if (status === 'away') return 'Away'
+      return 'Offline'
+    }
+    if (status === 'online') return t('chat-statusOnline')
+    if (status === 'away') return t('chat-statusAway')
+    return t('chat-statusOffline')
   }
 
   const sizeClasses = size === 'sm' ? 'gba:w-2.5 gba:h-2.5' : 'gba:w-3 gba:h-3'
@@ -106,16 +120,17 @@ const PresenceIndicator: React.FC<{ status: 'online' | 'offline'; size?: 'sm' | 
   return (
     <span
       className={`gba:absolute gba:bottom-0 gba:right-0 gba:rounded-full gba:border-2 gba:border-background ${statusColors[status]} ${sizeClasses}`}
-      title={statusTitles[status]}
+      title={getStatusTitle(status)}
     />
   )
 }
 
 // Get presence status text for display
-const getPresenceStatusText = (presence?: UserPresence): string | null => {
-  if (!presence) return null
+const getPresenceStatusText = (presence?: UserPresence, t?: (key: string, params?: any) => string): string | null => {
+  if (!presence || !t) return null
 
-  if (presence.status === 'online') return getTranslationFromI18nKeyAndLabel('chat.statusOnline', 'Online')
+  if (presence.status === 'online') return t('chat-statusOnline')
+  if (presence.status === 'away') return t('chat-statusAway')
 
   // For offline status, show last seen if available
   if (presence.status === 'offline' && presence.lastSeen) {
@@ -139,22 +154,13 @@ const getPresenceStatusText = (presence?: UserPresence): string | null => {
       const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
       if (diffMinutes < 60) {
-        return getTranslationFromI18nKeyAndLabel('chat.lastSeenMinutes', `Last seen ${diffMinutes}m ago`).replace(
-          '{minutes}',
-          diffMinutes.toString()
-        )
+        return t('chat-lastSeenMinutes', { minutes: diffMinutes })
       } else if (diffHours < 24) {
-        return getTranslationFromI18nKeyAndLabel('chat.lastSeenHours', `Last seen ${diffHours}h ago`).replace(
-          '{hours}',
-          diffHours.toString()
-        )
+        return t('chat-lastSeenHours', { hours: diffHours })
       } else if (diffDays < 7) {
-        return getTranslationFromI18nKeyAndLabel('chat.lastSeenDays', `Last seen ${diffDays}d ago`).replace(
-          '{days}',
-          diffDays.toString()
-        )
+        return t('chat-lastSeenDays', { days: diffDays })
       } else {
-        return getTranslationFromI18nKeyAndLabel('chat.lastSeenLongAgo', 'Last seen a while ago')
+        return t('chat-lastSeenLongAgo')
       }
     } catch (error) {
       console.error('Error calculating last seen time:', error)
@@ -182,9 +188,11 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   otherUserPresence,
   isCallEnabled = true,
   isInCall = false,
-  activeCall = null
+  isStartingCall = false,
+  activeCall = null,
+  t
 }) => {
-  const name = getConversationName(conversation, currentUserId)
+  const name = getConversationName(conversation, currentUserId, t)
   const avatarUrl = getConversationAvatarUrl(conversation, currentUserId)
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
   const isGroupChat = conversation.type === 'group'
@@ -199,7 +207,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
     }
   }
   const presenceStatus = otherUserPresence?.status || 'offline'
-  const presenceStatusText = isDirectChat ? getPresenceStatusText(otherUserPresence) : null
+  const presenceStatusText = isDirectChat ? getPresenceStatusText(otherUserPresence, t) : null
   // Check for active call from prop (for group chats from useGroupCall) or conversation object
   const hasActiveCall = isGroupChat && (!!activeCall || !!conversation.activeCall)
 
@@ -237,11 +245,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
         <div
           className={`gba:relative gba:flex-shrink-0 ${isDirectChat && otherEmployeeId ? 'gba:cursor-pointer hover:gba:opacity-80 gba:transition-opacity' : ''}`}
           onClick={isDirectChat && otherEmployeeId ? handleAvatarClick : undefined}
-          title={
-            isDirectChat && otherEmployeeId
-              ? getTranslationFromI18nKeyAndLabel('chat.viewProfile', 'View profile')
-              : undefined
-          }
+          title={isDirectChat && otherEmployeeId ? t('chat-viewProfile') : undefined}
         >
           {avatarUrl ? (
             <Avatar className={avatarSize}>
@@ -250,7 +254,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
           ) : (
             <IconAvatar className={avatarSize} label={name} icon={isGroupChat ? Users : UserIcon} />
           )}
-          {isDirectChat && <PresenceIndicator status={presenceStatus} size={compact ? 'sm' : 'md'} />}
+          {isDirectChat && <PresenceIndicator status={presenceStatus} size={compact ? 'sm' : 'md'} t={t} />}
         </div>
 
         <div className="gba:flex-1 gba:min-w-0">
@@ -260,29 +264,23 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
             {name}
           </h2>
           {/* Show presence status for direct chats */}
-          {isDirectChat && !compact && presenceStatusText && (
-            <p
-              className={`gba:text-xs ${
-                presenceStatus === 'online' ? 'gba:text-success' : 'gba:text-muted-foreground'
-              }`}
-            >
-              {presenceStatusText}
-            </p>
-          )}
+          {isDirectChat &&
+            !compact &&
+            presenceStatusText &&
+            (() => {
+              let statusColorClass = 'gba:text-muted-foreground'
+              if (presenceStatus === 'online') statusColorClass = 'gba:text-success'
+              else if (presenceStatus === 'away') statusColorClass = 'gba:text-warning'
+
+              return <p className={`gba:text-xs ${statusColorClass}`}>{presenceStatusText}</p>
+            })()}
           {/* Show participant count for group chats */}
           {isGroupChat && conversation.participants && !compact && (
             <p className="gba:text-xs gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('chat.participantsCount', '{count} participants').replace(
-                '{count}',
-                conversation.participants.length.toString()
-              )}
+              {t('chat-participantsCount', { count: conversation.participants.length.toString() })}
             </p>
           )}
-          {hasActiveCall && !compact && (
-            <p className="gba:text-xs gba:text-success">
-              {getTranslationFromI18nKeyAndLabel('chat.activeCallInGroup', 'Active call in this group')}
-            </p>
-          )}
+          {hasActiveCall && !compact && <p className="gba:text-xs gba:text-success">{t('chat-activeCallInGroup')}</p>}
         </div>
 
         <div className="gba:flex gba:items-center gba:gap-1">
@@ -294,7 +292,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
               onClick={onNudge}
               className="gba:h-8 gba:w-8 gba:flex-shrink-0"
               data-testid="conversation-nudge-button"
-              title={getTranslationFromI18nKeyAndLabel('chat.sendNudge', 'Send nudge')}
+              title={t('chat-sendNudge')}
             >
               <Bell className="gba:w-4 gba:h-4" />
             </Button>
@@ -310,7 +308,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                   onClick={onJoinCall}
                   className="gba:h-8 gba:w-8 gba:flex-shrink-0 gba:text-success gba:hover:text-success gba:hover:bg-success/10"
                   data-testid="conversation-join-call-button"
-                  title={getTranslationFromI18nKeyAndLabel('chat.joinCall', 'Join call')}
+                  title={t('chat-joinCall')}
                 >
                   <PhoneCall className="gba:w-4 gba:h-4" />
                 </Button>
@@ -321,9 +319,10 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                       variant="ghost"
                       size="icon"
                       onClick={onAudioCall}
+                      disabled={isStartingCall}
                       className="gba:h-8 gba:w-8 gba:flex-shrink-0"
                       data-testid="conversation-audio-call-button"
-                      title={getTranslationFromI18nKeyAndLabel('chat.startAudioCall', 'Start audio call')}
+                      title={t('chat-startAudioCall')}
                     >
                       <Phone className="gba:w-4 gba:h-4" />
                     </Button>
@@ -333,9 +332,10 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                       variant="ghost"
                       size="icon"
                       onClick={onVideoCall}
+                      disabled={isStartingCall}
                       className="gba:h-8 gba:w-8 gba:flex-shrink-0"
                       data-testid="conversation-video-call-button"
-                      title={getTranslationFromI18nKeyAndLabel('chat.startVideoCall', 'Start video call')}
+                      title={t('chat-startVideoCall')}
                     >
                       <Video className="gba:w-4 gba:h-4" />
                     </Button>
@@ -352,7 +352,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
               onClick={onClose}
               className="gba:h-8 gba:w-8 gba:flex-shrink-0"
               data-testid="conversation-close-button"
-              title={getTranslationFromI18nKeyAndLabel('chat.closeConversation', 'Close conversation')}
+              title={t('chat-closeConversation')}
             >
               <X className="gba:w-4 gba:h-4" />
             </Button>
@@ -374,21 +374,19 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                 {isGroupChat && onAddExpert && (
                   <DropdownMenuItem onClick={onAddExpert} data-testid="conversation-add-expert-button">
                     <UserPlus className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {getTranslationFromI18nKeyAndLabel('chat.addExpert', 'Add Expert')}
+                    {t('chat-addExpert')}
                   </DropdownMenuItem>
                 )}
                 {isGroupChat && onGroupSettings && (
                   <DropdownMenuItem onClick={onGroupSettings} data-testid="conversation-group-settings-button">
                     <Info className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {getTranslationFromI18nKeyAndLabel('chat.groupSettings', 'Group Settings')}
+                    {t('chat-groupSettings')}
                   </DropdownMenuItem>
                 )}
                 {onRemove && (
                   <DropdownMenuItem onClick={handleRemoveClick} data-testid="conversation-remove-button">
                     <SignOut className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {isGroupChat
-                      ? getTranslationFromI18nKeyAndLabel('chat.leaveConversation', 'Leave conversation')
-                      : getTranslationFromI18nKeyAndLabel('chat.removeConversation', 'Remove conversation')}
+                    {isGroupChat ? t('chat-leaveConversation') : t('chat-removeConversation')}
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -401,30 +399,20 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {conversation.type === 'group'
-                ? getTranslationFromI18nKeyAndLabel('chat.leaveConversationTitle', 'Leave conversation?')
-                : getTranslationFromI18nKeyAndLabel('chat.removeConversationTitle', 'Remove conversation?')}
+              {conversation.type === 'group' ? t('chat-leaveConversationTitle') : t('chat-removeConversationTitle')}
             </DialogTitle>
             <DialogDescription>
               {conversation.type === 'group'
-                ? getTranslationFromI18nKeyAndLabel(
-                    'chat.leaveConversationDescription',
-                    'You will no longer receive messages from this conversation. You can be added back by other participants.'
-                  )
-                : getTranslationFromI18nKeyAndLabel(
-                    'chat.removeConversationDescription',
-                    'This will remove the conversation from your list. You can always start a new conversation.'
-                  )}
+                ? t('chat-leaveConversationDescription')
+                : t('chat-removeConversationDescription')}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setShowRemoveDialog(false)} data-testid="conversation-remove-cancel">
-              {getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
+              {t('common-cancel')}
             </Button>
             <Button variant="destructive" onClick={handleConfirmRemove} data-testid="conversation-remove-confirm">
-              {conversation.type === 'group'
-                ? getTranslationFromI18nKeyAndLabel('chat.leave', 'Leave')
-                : getTranslationFromI18nKeyAndLabel('chat.remove', 'Remove')}
+              {conversation.type === 'group' ? t('chat-leave') : t('chat-remove')}
             </Button>
           </DialogFooter>
         </DialogContent>

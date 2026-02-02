@@ -4,9 +4,10 @@ import React from 'react'
 import dayjs from 'dayjs'
 import { Card } from '@newwork/gravity-ui-catalog'
 import { Employee } from '../../hooks/useEmployeeData'
-import { formatPhoneNumber, formatPhoneNumberWithCountryCode, getTranslatedValue } from '../../utils/formatters'
-import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils'
+import { formatPhoneNumberWithCountryCode, getTranslatedValue } from '../../utils/formatters'
 import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { ScopePermissionCheckResult } from '@/common/hooks/useScopePermissionCheck'
@@ -30,6 +31,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
   isSelfView,
   employeeRecordHrBackoffice
 }) => {
+  const { t } = useTranslation(translations)
   // Remove debug log
   // Use employee ID from props or fallback to employee data
   const employeeIdForPermissions = employeeId || employee?.id
@@ -39,52 +41,52 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
 
   const personalData = [
     {
-      label: 'Salutation',
+      label: t('details-label-salutation'),
       value: employee.salutation?.translations?.[0]?.value || employee.salutation?.value || ''
     },
     {
-      label: 'Academic Titles',
+      label: t('details-label-academic-titles'),
       value: employee.academicTitleRef || ''
     },
     {
-      label: 'First Name',
+      label: t('details-label-first-name'),
       value: employee.firstName || ''
     },
     {
-      label: 'Last Name',
+      label: t('details-label-last-name'),
       value: employee.lastName || ''
     },
     {
-      label: 'Preferred Name',
+      label: t('details-label-preferred-name'),
       value: employee.preferredName || ''
     },
     {
-      label: 'Birth Name',
+      label: t('details-label-birth-name'),
       value: employee.birthName || '',
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
-      label: 'Date of Birth',
+      label: t('details-label-date-of-birth'),
       value: employee.birthDate ? dayjs(employee.birthDate).format('MMM D, YYYY') : '',
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
-      label: 'Place of Birth',
+      label: t('details-label-place-of-birth'),
       value: employee.birthPlace || '',
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
-      label: 'Nationality',
+      label: t('details-label-nationality'),
       value: getTranslatedValue(employee.nationality),
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
-      label: 'Gender',
+      label: t('details-label-gender'),
       value: getTranslatedValue(employee.gender),
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
-      label: 'Marital Status',
+      label: t('details-label-marital-status'),
       value: getTranslatedValue(employee.maritalStatus),
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     }
@@ -96,19 +98,19 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
 
     return [
       {
-        label: 'Postal Code',
+        label: t('details-label-postal-code'),
         value: primaryAddress?.postalCode || ''
       },
       {
-        label: 'City',
+        label: t('details-label-city'),
         value: primaryAddress?.locality || ''
       },
       {
-        label: 'Country',
+        label: t('details-label-country'),
         value: primaryAddress?.country?.value || ''
       },
       {
-        label: 'Address Line',
+        label: t('details-label-address-line'),
         value: primaryAddress?.addressLine?.filter(line => line?.trim())?.join(', ') || ''
       }
     ]
@@ -122,15 +124,15 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
 
     return [
       {
-        label: 'Bank Name',
+        label: t('details-label-bank-name'),
         value: primaryBankAccount?.bankName || ''
       },
       {
-        label: 'Account Holder',
+        label: t('details-label-account-holder'),
         value: primaryBankAccount?.accountHolder || ''
       },
       {
-        label: 'IBAN',
+        label: t('details-label-iban'),
         value: primaryBankAccount?.iban || ''
       }
     ]
@@ -166,17 +168,17 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
 
     return [
       {
-        label: 'Private Phone',
+        label: t('details-label-private-phone'),
         value: primaryPhone?.value ? formatPhoneNumberWithCountryCode(primaryPhone.value) : '',
         secondary: secondaryPhone?.value ? formatPhoneNumberWithCountryCode(secondaryPhone.value) : undefined
       },
       {
-        label: 'Private Mobile',
+        label: t('details-label-private-mobile'),
         value: primaryMobile?.value ? formatPhoneNumberWithCountryCode(primaryMobile.value) : '',
         secondary: secondaryMobile?.value ? formatPhoneNumberWithCountryCode(secondaryMobile.value) : undefined
       },
       {
-        label: 'Private Email',
+        label: t('details-label-private-email'),
         value: formatOrEmpty(primaryEmail?.value),
         secondary: formatOrEmpty(secondaryEmail?.value) || undefined
       }
@@ -188,16 +190,16 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
   // Prepare emergency contact data
 
   const getEmergencyContact = () => {
-    const emergencyContacts = employee.relationship?.filter(rel => rel.isEmergencyContact)
+    const emergencyContacts = employee.relationship?.filter(rel => rel.isEmergencyContact) || []
 
     return emergencyContacts.map(contact => [
       {
-        label: 'Contact Name',
-        value: emergencyContacts ? `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || '' : ''
+        label: t('details-label-contact-name'),
+        value: `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || ''
       },
       {
-        label: 'Phone Number',
-        value: contact?.phoneNumber ? formatPhoneNumber(contact.phoneNumber) : ''
+        label: t('details-label-phone-number'),
+        value: contact?.phoneNumber ? formatPhoneNumberWithCountryCode(contact.phoneNumber) : ''
       }
     ])
   }
@@ -266,13 +268,10 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
       {/* Details Overview Headline */}
       <div className="gba:details-header" data-testid="details-header">
         <div className="gba:font-bold gba:text-2xl" data-testid="details-title">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.details_overview', 'Employee Details')}
+          {t('details-overview')}
         </div>
         <div className="gba:text-muted-foreground gba:text-lg gba:mb-4" data-testid="details-description">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:hr_employee.details_description',
-            'View employee personal information'
-          )}
+          {t('details-description')}
         </div>
       </div>
 
@@ -284,7 +283,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
           data-testid="details-section-personal"
         >
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Personal Data</h3>
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('details-personal-data')}</h3>
             <AppAction
               variant="update-secondary"
               data-testid="personal-data-action-button"
@@ -307,7 +306,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
           data-testid="details-section-address"
         >
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Address</h3>
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('details-address')}</h3>
             <AppAction
               variant="update-secondary"
               data-testid="employee-address-action-button"
@@ -327,7 +326,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
           data-testid="details-section-bank"
         >
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Bank Account</h3>
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('details-bank-account')}</h3>
             <AppAction
               variant="update-secondary"
               data-testid="bank-account-action-button"
@@ -349,7 +348,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
           data-testid="details-section-communication"
         >
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Private Communication</h3>
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('details-private-communication')}</h3>
             <AppAction
               variant="update-secondary"
               data-testid="private-communication-action-button"
@@ -372,15 +371,29 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
           className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-emergency"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Emergency Contact</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('details-emergency-contact')}</h3>
+            <AppAction
+              variant="update-secondary"
+              data-testid="emergency-contact-action-button"
+              contexts={[
+                { context: FlowContextName.updateEmployeeRelationship, contextData: { employeeId: employee?.id } }
+              ]}
+              prefixDataTestId="emergency-contact-action"
+              accessToken={accessToken}
+              autoExecute={true}
+            />
           </div>
           <div className="gba:flex gba:flex-col gba:gap-2">
-            {emergencyContactData.map((items, idx) => (
-              <div key={`emergency-contact-${idx}`}>
-                {renderDataItems(items.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships })))}
-              </div>
-            ))}
+            {emergencyContactData && emergencyContactData.length > 0 ? (
+              emergencyContactData.map((items, idx) => (
+                <div key={`emergency-contact-${idx}`}>
+                  {renderDataItems(items.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships })))}
+                </div>
+              ))
+            ) : (
+              <div className="gba:text-muted-foreground gba:text-sm gba:py-4">{t('details-no-emergency-contact')}</div>
+            )}
           </div>
         </Card>
 
@@ -401,7 +414,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
               data-testid="details-section-additional-attributes"
             >
               <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-                <h3 className="gba:text-xl gba:font-semibold gba:text-info">Additional Attributes</h3>
+                <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('details-additional-attributes')}</h3>
                 <AppAction
                   variant="update-secondary"
                   data-testid="additional-attributes-action-button"

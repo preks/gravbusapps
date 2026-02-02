@@ -6,8 +6,8 @@
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Company } from '@/common/data/orgchart/types/companyTypes'
 
-// Re-export CompanyDocument from hooks for convenience
-export type { CompanyDocument } from '@/common/data/orgchart/hooks/useCompanyDocuments'
+// Re-export CompanyDocument from types for convenience
+export type { CompanyDocument } from '@/common/data/orgchart/types/companyTypes'
 
 /**
  * Props for the main CompanyRecord component

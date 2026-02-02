@@ -14,7 +14,7 @@ export interface IncrementTypeVersionDetailResponse {
     sumTime: string
     timeTypeId: string
     incrementCalculationType: string
-    fixedValue: string | null
+    fixedValue: number | null
     includeExcludeOption: string
     alternativeIncrementTypeVersionDetailId: string | null
     checkStartBefore: boolean
@@ -35,7 +35,7 @@ export interface TransformedIncrementTypeVersionDetail {
   sumTime: string
   timeTypeId: string
   incrementCalculationType: string
-  fixedValue: string | null
+  fixedValue: number | null
   includeExcludeOption: string
   alternativeIncrementTypeVersionDetailId: string | null
   checkStartBefore: boolean

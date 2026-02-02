@@ -1,6 +1,6 @@
 import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { PiUsers, PiTarget, PiTrendUp, PiTrendDown, PiChartLine } from 'react-icons/pi'
+import { UsersIcon, TargetIcon, TrendUpIcon, TrendDownIcon, ChartLineIcon } from '@phosphor-icons/react'
 import { ActivitiesStatisticsProps } from '../../types/activitiesTypes'
 import { useEmployeeActivitiesStatistics } from '../../hooks/useEmployeeActivitiesStatistics'
 import { useEmployeeActivitiesTrendData } from '../../hooks/useEmployeeActivitiesTrendData'
@@ -37,11 +37,11 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
   const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
     switch (trend) {
       case 'up':
-        return <PiTrendUp />
+        return <TrendUpIcon />
       case 'down':
-        return <PiTrendDown />
+        return <TrendDownIcon />
       default:
-        return <PiChartLine />
+        return <ChartLineIcon />
     }
   }
 
@@ -105,7 +105,7 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
           title: 'Most Common Activity',
           value:
             trends.mostCommonActivityType.current.count === 0 ? 'No data' : trends.mostCommonActivityType.current.type,
-          prefix: <PiUsers />,
+          prefix: <UsersIcon />,
           color: '#722ed1',
           valueIsString: true,
           description:
@@ -128,7 +128,7 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
             trends.mostWorkedEntityType.current.count === 0
               ? 'No data'
               : trends.mostWorkedEntityType.current.entityType,
-          prefix: <PiTarget />,
+          prefix: <TargetIcon />,
           color: '#52c41a',
           valueIsString: true,
           description:

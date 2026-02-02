@@ -1,19 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Button,
-  Badge,
-  Spinner,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Spinner } from '@newwork/nw-design-system'
 import { Calendar, Clock, RefreshCw, CheckCircle, Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -21,6 +7,7 @@ import { TaskDetailHeader } from '@/business-apps/core/every/apps/every-box/comp
 import { TaskDetailFooter } from '@/business-apps/core/every/apps/every-box/components/TaskDetailFooter'
 import { TaskFormLayout } from '@/business-apps/core/every/apps/every-box/components/TaskFormLayout'
 import { MarkdownRenderer } from './components/MarkdownRenderer'
+import { UnifiedTableRenderer } from '@/common/components/markdown'
 
 /**
  * Parse TableData from Python repr string format
@@ -99,82 +86,26 @@ function parseTableDataFromMessage(
 
 /**
  * Render TableData as a beautiful table component with proper handling of long content
+ * Now uses unified table renderer with chip support
  */
-function renderTableData(tableData: {
-  columnsTitles: string[]
-  rowsContents: string[][]
-  title?: string
-  description?: string
-}) {
+function renderTableData(
+  tableData: {
+    columnsTitles: string[]
+    rowsContents: string[][]
+    title?: string
+    description?: string
+  },
+  accessToken: string
+) {
   return (
-    <div className="gba:space-y-3">
-      {tableData.title && (
-        <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">{tableData.title}</h3>
-      )}
-      {tableData.description && (
-        <p className="gba:text-sm gba:text-muted-foreground gba:mb-3">{tableData.description}</p>
-      )}
-      <div className="gba:overflow-x-auto gba:rounded-lg gba:border gba:border-border gba:shadow-sm">
-        <Table className="gba:w-full">
-          <TableHeader>
-            <TableRow>
-              {tableData.columnsTitles.map((column, idx) => (
-                <TableHead
-                  key={idx}
-                  className="gba:bg-muted/50 gba:font-semibold gba:text-muted-foreground gba:py-3 gba:px-4 gba:whitespace-nowrap gba:align-top gba:min-w-[120px]"
-                >
-                  {column}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {tableData.rowsContents.map((row, rowIdx) => (
-              <TableRow key={rowIdx} className="gba:hover:bg-muted/30">
-                {row.map((cell, cellIdx) => {
-                  const cellContent = String(cell || '').trim()
-                  const isEmpty = !cellContent || cellContent === ''
-                  const isLong = cellContent.length > 200
-
-                  return (
-                    <TableCell
-                      key={cellIdx}
-                      className={`gba:py-3 gba:px-4 gba:align-top gba:min-w-[120px] ${
-                        isEmpty ? 'gba:text-muted-foreground/50 gba:italic' : 'gba:text-foreground'
-                      }`}
-                      style={{
-                        wordBreak: 'break-word',
-                        overflowWrap: 'break-word',
-                        whiteSpace: 'normal',
-                        maxWidth: '400px'
-                      }}
-                      title={isLong ? cellContent : undefined}
-                    >
-                      {isEmpty ? (
-                        <span className="gba:text-xs">—</span>
-                      ) : isLong ? (
-                        <div
-                          style={{
-                            wordBreak: 'break-word',
-                            overflowWrap: 'break-word',
-                            maxHeight: '128px',
-                            overflowY: 'auto'
-                          }}
-                        >
-                          {cellContent}
-                        </div>
-                      ) : (
-                        <div style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>{cellContent}</div>
-                      )}
-                    </TableCell>
-                  )
-                })}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+    <UnifiedTableRenderer
+      columnsTitles={tableData.columnsTitles}
+      rowsContents={tableData.rowsContents}
+      title={tableData.title}
+      description={tableData.description}
+      accessToken={accessToken}
+      showCard={false}
+    />
   )
 }
 
@@ -258,7 +189,7 @@ const ScheduledTaskResultContent: React.FC<ScheduledTaskResultProps> = ({
     setIsCompleting(true)
     try {
       // Dispatch process continue event to mark the task as complete
-      dispatchProcessContinueEvent(new CustomEvent('process-continue'), {
+      dispatchProcessContinueEvent('process-continue', {
         acknowledged: true,
         completedAt: new Date().toISOString()
       })
@@ -270,21 +201,36 @@ const ScheduledTaskResultContent: React.FC<ScheduledTaskResultProps> = ({
   }
 
   return (
-    <TaskFormLayout>
-      {/* Header */}
-      <TaskDetailHeader
-        title={title}
-        subtitle={
-          <div className="gba:flex gba:items-center gba:gap-2 gba:text-muted-foreground">
-            <Bot className="gba:h-4 gba:w-4" />
-            <span>Automated report from EveryAI</span>
-          </div>
-        }
-        badge={<Badge variant={isTaskCompleted ? 'success' : 'info'}>{isTaskCompleted ? 'Completed' : 'New'}</Badge>}
-      />
+    <TaskFormLayout
+      header={<TaskDetailHeader title={title} />}
+      footer={
+        !isTaskCompleted ? (
+          <TaskDetailFooter>
+            <Button variant="default" onClick={handleComplete} disabled={isCompleting} className="gba:gap-2">
+              {isCompleting ? <Spinner className="gba:h-4 gba:w-4" /> : <CheckCircle className="gba:h-4 gba:w-4" />}
+              {isCompleting ? 'Acknowledging...' : 'Acknowledge'}
+            </Button>
+          </TaskDetailFooter>
+        ) : undefined
+      }
+    >
+      {/* Status Badge */}
+      {isTaskCompleted && (
+        <div className="gba:mb-4">
+          <Badge variant="default" className="gba:bg-success gba:text-success-foreground">
+            Completed
+          </Badge>
+        </div>
+      )}
+
+      {/* Automated Report Info */}
+      <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:mb-6 gba:pb-4 gba:border-b">
+        <Bot className="gba:h-4 gba:w-4" />
+        <span>Automated report from EveryAI</span>
+      </div>
 
       {/* Main Content */}
-      <div className="gba:flex-1 gba:overflow-auto gba:p-6 gba:space-y-6">
+      <div className="gba:space-y-6">
         {/* Task Metadata Card */}
         <Card>
           <CardHeader className="gba:pb-3">
@@ -323,8 +269,8 @@ const ScheduledTaskResultContent: React.FC<ScheduledTaskResultProps> = ({
                 const tableData = parseTableDataFromMessage(message)
 
                 if (tableData && tableData.columnsTitles.length > 0 && tableData.rowsContents.length > 0) {
-                  // Render as a beautiful table
-                  return renderTableData(tableData)
+                  // Render as a beautiful table with chip support
+                  return renderTableData(tableData, accessToken)
                 } else {
                   // Check if message is already a markdown table or contains markdown
                   // Clean up any JSON wrapping if present
@@ -356,16 +302,6 @@ const ScheduledTaskResultContent: React.FC<ScheduledTaskResultProps> = ({
           </CardContent>
         </Card>
       </div>
-
-      {/* Footer with actions */}
-      {!isTaskCompleted && (
-        <TaskDetailFooter>
-          <Button variant="default" onClick={handleComplete} disabled={isCompleting} className="gba:gap-2">
-            {isCompleting ? <Spinner className="gba:h-4 gba:w-4" /> : <CheckCircle className="gba:h-4 gba:w-4" />}
-            {isCompleting ? 'Acknowledging...' : 'Acknowledge'}
-          </Button>
-        </TaskDetailFooter>
-      )}
     </TaskFormLayout>
   )
 }

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo } from '@/common/utils/navigationUtils'
 import { useFlowBot } from './hooks/useFlowBot'
 import { useVoiceInput } from './hooks/useVoiceInput'
 import { useVoiceSynthesis } from './hooks/useVoiceSynthesis'
@@ -7,16 +8,16 @@ import { ChatInput } from './components/ChatInput'
 import { FormSubmissionProvider } from './components/FormSubmissionContext'
 import { ConversationRenderer } from './components/ConversationRenderer'
 import { useCurrentUserPicture } from './hooks/useCurrentUserPicture'
-import { RemindersPanel } from './components/RemindersPanel'
-import { ErrorBoundary } from './components/ErrorBoundary'
 import { VoiceOverlay } from './components/voice/VoiceOverlay'
-import { Button } from '@newwork/nw-design-system'
-import { Bell, Sparkle } from '@phosphor-icons/react'
 import type { OutputItem, AnswerOutput, NavigationData } from './types/models'
 import { VoiceFormProvider, useVoiceForm } from './context/VoiceFormContext'
+import { HeroSection, DeepBlueNeuralBackground } from './components/HeroSection'
 
 export interface EveryAIProps extends BusinessAppContextProps {
   className?: string
+  isActive?: boolean
+  /** When true (e.g. in sidebar), show fewer suggestions so they fit in one row */
+  compactSuggestions?: boolean
 }
 
 /**
@@ -36,9 +37,8 @@ export const EveryAI: React.FC<EveryAIProps> = props => {
  * Inner component that uses the VoiceFormContext
  */
 const EveryAIInner: React.FC<EveryAIProps> = props => {
-  const { accessToken, className, userInfo } = props
+  const { accessToken, className, userInfo, isActive = true, compactSuggestions = false } = props
   const scrollRef = useRef<HTMLDivElement>(null)
-  const [showRemindersPanel, setShowRemindersPanel] = useState(false)
   const [isSpeechMode, setIsSpeechMode] = useState(false)
   const isSpeechModeRef = useRef(false) // Ref for use in callbacks
   const lastSpokenTurnIndexRef = useRef<number>(-1)
@@ -47,8 +47,20 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
   // Voice form context for form interactions in voice mode
   const voiceForm = useVoiceForm()
 
-  const { conversation, isLoading, sendMessage, clearConversation, nextStepProposals, isPrechatLoading } =
-    useFlowBot(accessToken)
+  const {
+    conversation,
+    isLoading,
+    sendMessage,
+    editMessage,
+    clearConversation,
+    nextStepProposals,
+    isPrechatLoading,
+    sessionId,
+    attachFiles,
+    cancelGeneration,
+    cancelledMessageText,
+    clearCancelledMessage
+  } = useFlowBot(accessToken, { isActive })
 
   // Fetch current user's picture
   const { pictureThumbnail } = useCurrentUserPicture(userInfo?.employeeDetails?.employeeId, accessToken)
@@ -430,6 +442,69 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     }
   }, [extendedConversation.length])
 
+  // Track if we've already processed a prompt from sessionStorage to avoid duplicates
+  const promptProcessedRef = useRef<string | null>(null)
+  const lastCheckTimeRef = useRef<number>(0)
+
+  // Check for initial prompt when Every AI component is ready
+  // This handles: component mount, conversation becomes empty, or sidebar opens
+  const checkAndSendInitialPrompt = useCallback(() => {
+    // Throttle checks to avoid excessive sessionStorage reads
+    const now = Date.now()
+    if (now - lastCheckTimeRef.current < 200) {
+      return
+    }
+    lastCheckTimeRef.current = now
+
+    if (isLoading) {
+      return // Don't check while loading
+    }
+
+    try {
+      const initialPrompt = sessionStorage.getItem('everyAIInitialPrompt')
+      if (initialPrompt && initialPrompt !== promptProcessedRef.current) {
+        console.log('[EveryAI] Found initial prompt in sessionStorage:', initialPrompt)
+        // Mark this prompt as processed
+        promptProcessedRef.current = initialPrompt
+        // Clear the prompt from storage immediately to prevent duplicate sends
+        sessionStorage.removeItem('everyAIInitialPrompt')
+        // Send the prompt after a short delay to ensure component is fully ready
+        setTimeout(() => {
+          console.log('[EveryAI] Sending initial prompt:', initialPrompt)
+          sendMessage(initialPrompt, [], false, false, undefined)
+        }, 300)
+      }
+    } catch (error) {
+      console.warn('Failed to read Every AI initial prompt:', error)
+    }
+  }, [isLoading, sendMessage])
+
+  // Check for prompt when component is ready and conversation is empty
+  useEffect(() => {
+    if (!isLoading && conversation.length === 0) {
+      checkAndSendInitialPrompt()
+    }
+  }, [isLoading, conversation.length, checkAndSendInitialPrompt])
+
+  // Listen for custom event when sidebar opens (handles case when component is already mounted)
+  useEffect(() => {
+    const handleSidebarOpen = () => {
+      console.log('[EveryAI] Sidebar opened event received')
+      // Reset processed prompt when sidebar opens fresh
+      promptProcessedRef.current = null
+      // Check for prompt after a short delay to ensure component is ready
+      setTimeout(() => {
+        checkAndSendInitialPrompt()
+      }, 500)
+    }
+
+    // Listen for when Every AI sidebar becomes active
+    window.addEventListener('everyAISidebarOpened', handleSidebarOpen)
+    return () => {
+      window.removeEventListener('everyAISidebarOpened', handleSidebarOpen)
+    }
+  }, [checkAndSendInitialPrompt])
+
   const handleSend = (
     text: string,
     files: File[],
@@ -437,14 +512,33 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     isSearching: boolean,
     mentions?: Array<{ id: string; typeKey: string; display: string; raw?: any; start?: number; end?: number }>
   ) => {
+    // Keep passing files for backwards compatibility.
+    // useFlowBot.sendMessage will decide whether to use /add_files or direct upload.
     sendMessage(text, files, isThinking, isSearching, mentions)
   }
 
+  const isEmptyState = conversation.length === 0 && !isLoading
+
   return (
     <div
-      className={`gba:h-full gba:flex gba:flex-col gba:bg-background gba:relative gba:overflow-hidden ${className || ''}`}
+      className={`gba:h-full gba:flex gba:flex-col gba:relative gba:overflow-hidden ${className || ''}`}
+      style={
+        {
+          backgroundColor: isEmptyState ? 'var(--nw-ai-hero-background)' : 'var(--nw-background)',
+          // Override AI colors to match decorative theme (blue)
+          '--nw-ai': 'var(--nw-decorative)',
+          '--nw-ai-secondary': 'var(--nw-decorative-secondary)'
+        } as React.CSSProperties
+      }
       data-testid="every-ai-app"
     >
+      {/* Full-page animated background for empty state */}
+      {isEmptyState && (
+        <div className="gba:absolute gba:inset-0 gba:z-0">
+          <DeepBlueNeuralBackground />
+        </div>
+      )}
+
       {/* Voice Mode Overlay */}
       <VoiceOverlay
         isVisible={isSpeechMode}
@@ -492,192 +586,110 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         onSendTranscript={handleVoiceSend}
       />
 
-      {/* Top Right - Reminders button (hidden in speech mode) */}
-      {!isSpeechMode && (
-        <div className="gba:absolute gba:top-4 gba:right-4 gba:z-50">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowRemindersPanel(!showRemindersPanel)}
-            className="gba:relative gba:p-2 gba:rounded-full gba:bg-card/80 gba:backdrop-blur-sm gba:border gba:border-border hover:gba:bg-accent gba:transition-all hover:gba:shadow-lg gba:group"
-            data-testid="reminders-bell-button"
-            title={showRemindersPanel ? 'Back to Chat' : 'My Reminders'}
-          >
-            {showRemindersPanel ? (
-              <Sparkle
-                className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-ai gba:transition-colors"
-                weight="regular"
-                aria-hidden="true"
-              />
-            ) : (
-              <Bell
-                className="gba:h-5 gba:w-5 gba:text-muted-foreground group-hover:gba:text-ai gba:transition-colors"
-                weight="regular"
-                aria-hidden="true"
-              />
-            )}
-          </Button>
-        </div>
-      )}
-
-      {/* Reminders Panel - Always mounted to check for due reminders */}
-      <div
-        className={`gba:absolute gba:inset-0 gba:z-40 gba:bg-background gba:flex gba:flex-col ${showRemindersPanel ? '' : 'gba:hidden'}`}
-        data-testid="reminders-panel-overlay"
-      >
-        <ErrorBoundary
-          fallback={
-            <div className="gba:bg-card gba:p-4 gba:rounded-lg gba:shadow-lg gba:border gba:border-border gba:m-4">
-              <p className="gba:text-destructive gba:font-semibold">Failed to load reminders</p>
-              <button
-                onClick={() => setShowRemindersPanel(false)}
-                className="gba:mt-2 gba:text-sm gba:text-muted-foreground hover:gba:text-foreground"
-              >
-                Close
-              </button>
-            </div>
-          }
-        >
-          <RemindersPanel
-            accessToken={accessToken}
-            userInfo={userInfo}
-            onClose={() => setShowRemindersPanel(false)}
-            onReminderDue={() => setShowRemindersPanel(true)}
-          />
-        </ErrorBoundary>
-      </div>
-
       <FormSubmissionProvider>
         {/* Conversation Area with subtle gradient */}
         <div
           ref={scrollRef}
-          className="gba:flex-1 gba:overflow-y-auto gba:p-6 gba:relative gba:z-10"
+          className="gba:flex-1 gba:overflow-y-auto gba:relative gba:z-10 gba:flex gba:flex-col"
           data-testid="conversation-area"
         >
           {conversation.length === 0 && !isLoading ? (
-            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:text-center">
-              {/* Professional welcome screen */}
-              <div className="gba:relative gba:mb-8">
-                <div className="gba:h-20 gba:w-20 gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:rounded-full gba:flex gba:items-center gba:justify-center gba:relative gba:shadow-lg">
-                  <Sparkle className="gba:h-10 gba:w-10 gba:text-ai-foreground" weight="fill" />
-                </div>
-              </div>
-
-              <h2 className="gba:text-3xl gba:font-bold gba:text-foreground gba:mb-3">Welcome to EveryAI</h2>
-              <p className="gba:text-muted-foreground gba:max-w-md gba:text-base gba:mb-10">
-                Your intelligent companion for managing tasks, analyzing data, and automating workflows across the
-                entire platform.
-              </p>
-
-              {/* Feature highlights with icons */}
-              <div className="gba:grid gba:grid-cols-4 gba:gap-4 gba:max-w-3xl gba:mb-8">
-                {[
-                  {
-                    icon: (
-                      <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M13 10V3L4 14h7v7l9-11h-7z"
-                        />
-                      </svg>
-                    ),
-                    label: 'Instant Answers'
-                  },
-                  {
-                    icon: (
-                      <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                        />
-                      </svg>
-                    ),
-                    label: 'Data Insights'
-                  },
-                  {
-                    icon: (
-                      <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-                        />
-                      </svg>
-                    ),
-                    label: 'Voice Mode'
-                  },
-                  {
-                    icon: (
-                      <svg className="gba:h-5 gba:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                      </svg>
-                    ),
-                    label: 'Automation'
-                  }
-                ].map((feature, idx) => (
-                  <div
-                    key={idx}
-                    className="gba:flex gba:flex-col gba:items-center gba:gap-2.5 gba:p-4 gba:rounded-lg gba:bg-card gba:border gba:border-border hover:gba:border-ai/50 gba:transition-colors"
-                  >
-                    <div className="gba:h-10 gba:w-10 gba:rounded-lg gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-muted-foreground">
-                      {feature.icon}
-                    </div>
-                    <span className="gba:text-sm gba:font-medium gba:text-foreground">{feature.label}</span>
-                  </div>
-                ))}
-              </div>
-
-              <p className="gba:text-sm gba:text-muted-foreground">
-                Type a message, click a suggestion, or use{' '}
-                <span className="gba:font-medium gba:text-foreground">Voice Mode</span> to speak
-              </p>
+            <div className="gba:flex-1 gba:flex gba:flex-col gba:relative gba:min-h-full">
+              <HeroSection data-testid="every-ai-hero" />
             </div>
           ) : (
-            <ConversationRenderer
-              turns={extendedConversation}
-              accessToken={accessToken}
-              sendMessage={sendMessage}
-              userInfo={userInfo}
-              pictureThumbnail={pictureThumbnail}
-              isVoiceMode={isSpeechMode}
-            />
+            <div className="gba:p-6">
+              <ConversationRenderer
+                turns={extendedConversation}
+                accessToken={accessToken}
+                sendMessage={sendMessage}
+                editMessage={editMessage}
+                userInfo={userInfo}
+                pictureThumbnail={pictureThumbnail}
+                isVoiceMode={isSpeechMode}
+                sessionId={sessionId ?? undefined}
+                onCancelGeneration={cancelGeneration}
+                isAgentGenerating={isLoading}
+              />
+            </div>
           )}
         </div>
 
-        {/* Input Area with premium styling */}
-        <div className="gba:flex-shrink-0 gba:border-t gba:border-border gba:bg-card/50 gba:backdrop-blur-md gba:p-6 gba:relative gba:z-10">
-          <ChatInput
-            onSend={handleSend}
-            onClear={clearConversation}
-            disabled={isLoading}
-            suggestions={nextStepProposals}
-            isPrechatLoading={isPrechatLoading}
-            placeholder="Ask EveryAI anything..."
-            // Voice mode props
-            isSpeechMode={isSpeechMode}
-            isListening={voiceInput.isListening}
-            isSpeaking={voiceSynthesis.isSpeaking}
-            isVoiceLoading={voiceSynthesis.isLoading}
-            voiceVolume={voiceInput.volume}
-            onToggleVoiceMode={toggleSpeechMode}
-            onStopSpeaking={voiceSynthesis.stop}
-          />
+        {/* Input Area - fully transparent, content behind shows through */}
+        <div
+          className={`gba:flex-shrink-0 gba:relative gba:z-20 ${
+            isEmptyState
+              ? 'gba:absolute gba:bottom-6 gba:left-1/2 gba:-translate-x-1/2 gba:w-full gba:max-w-2xl gba:px-4'
+              : 'gba:pt-2 gba:px-6 gba:pb-6'
+          }`}
+        >
+          {/* Animated circling border for empty state */}
+          {isEmptyState && (
+            <style>{`
+              @keyframes rotateBorder {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
+          )}
+          <div className={isEmptyState ? 'gba:relative gba:rounded-2xl gba:p-[1.5px]' : ''}>
+            {/* Rotating border gradient - masked to only show on border */}
+            {isEmptyState && (
+              <>
+                <div className="gba:absolute gba:inset-0 gba:rounded-2xl gba:overflow-hidden gba:pointer-events-none">
+                  <div
+                    className="gba:absolute"
+                    style={{
+                      width: '150%',
+                      height: '150%',
+                      top: '-25%',
+                      left: '-25%',
+                      background:
+                        'conic-gradient(from 0deg, transparent 0deg, color-mix(in srgb, var(--nw-ai-secondary) 90%, transparent) 45deg, color-mix(in srgb, var(--nw-ai) 70%, transparent) 90deg, transparent 135deg, transparent 360deg)',
+                      animation: 'rotateBorder 3s linear infinite'
+                    }}
+                  />
+                </div>
+                {/* Inner mask to cut out the center, leaving only the border visible */}
+                <div
+                  className="gba:absolute gba:rounded-[14px] gba:pointer-events-none"
+                  style={{
+                    inset: '1.5px',
+                    backgroundColor: 'var(--nw-ai-hero-background)'
+                  }}
+                />
+              </>
+            )}
+            {/* Inner container - fully transparent, no blur so content behind shows through */}
+            <div
+              className={isEmptyState ? 'gba:relative gba:rounded-[14px]' : ''}
+              style={isEmptyState ? { backgroundColor: 'transparent' } : undefined}
+            >
+              <ChatInput
+                onSend={handleSend}
+                onClear={clearConversation}
+                disabled={isLoading}
+                suggestions={nextStepProposals}
+                isPrechatLoading={isPrechatLoading}
+                placeholder="Ask EveryAI anything..."
+                // Voice mode props
+                isSpeechMode={isSpeechMode}
+                isListening={voiceInput.isListening}
+                isSpeaking={voiceSynthesis.isSpeaking}
+                isVoiceLoading={voiceSynthesis.isLoading}
+                voiceVolume={voiceInput.volume}
+                onToggleVoiceMode={toggleSpeechMode}
+                onStopSpeaking={voiceSynthesis.stop}
+                // Pre-upload files as soon as they are attached for faster first answers.
+                onFilesAttached={files => attachFiles(files)}
+                // Cancel restoration props
+                cancelledMessageText={cancelledMessageText}
+                onClearCancelledMessage={clearCancelledMessage}
+                darkMode={isEmptyState}
+                compactSuggestions={compactSuggestions}
+              />
+            </div>
+          </div>
         </div>
       </FormSubmissionProvider>
     </div>

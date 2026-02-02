@@ -1,15 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button, Card, CardContent, Input, Spinner, DataTable, Icon, Badge, toast } from '@newwork/nw-design-system'
-import {
-  EyeIcon,
-  ArrowsDownUpIcon,
-  PlusIcon,
-  PencilSimpleLineIcon,
-  FileCodeIcon,
-  TagIcon,
-  InfoIcon
-} from '@phosphor-icons/react'
+import { EyeIcon, PlusIcon, PencilSimpleLineIcon, FileCodeIcon, TagIcon, InfoIcon } from '@phosphor-icons/react'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
@@ -44,6 +36,7 @@ export interface ContractTypeTable {
   code: string
   value: string
   description: string | undefined
+  probationPeriod?: string // JSON string: {value: number, unit: string}
 }
 
 export interface ContractTypesTabProps extends BusinessAppContextProps {
@@ -119,6 +112,18 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
     setIsDrawerVisible(true)
   }
 
+  const formatProbationPeriod = (additionalValue2?: string): string => {
+    if (!additionalValue2) return '-'
+    try {
+      const parsed = JSON.parse(additionalValue2)
+      if (!parsed.value || !parsed.unit) return '-'
+      const unitLabel = parsed.unit === 'day' ? 'Day(s)' : parsed.unit === 'week' ? 'Week(s)' : 'Month(s)'
+      return `${parsed.value} ${unitLabel}`
+    } catch {
+      return '-'
+    }
+  }
+
   const drawerItems = useMemo(() => {
     if (!selectedType) return []
     const items = [
@@ -137,6 +142,10 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
           {
             label: 'Description',
             value: selectedType.additionalValue1 ?? '-'
+          },
+          {
+            label: 'Probation Period',
+            value: formatProbationPeriod(selectedType.additionalValue2)
           }
         ],
         verticalTable: true
@@ -150,21 +159,12 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
     const columns: ColumnDef<ContractTypeTable>[] = [
       {
         accessorKey: 'code',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Code
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
+        header: 'Code',
         enableSorting: true,
         cell: ({ getValue }) => {
           const code = getValue()
           return (
-            <div className="gba:flex gba:items-center">
+            <div className="gba:flex gba:items-center gba:w-[80px]">
               <Badge variant="info">{(code as string) ?? 'N/A'}</Badge>
             </div>
           )
@@ -172,46 +172,41 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
       },
       {
         accessorKey: 'value',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Name
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
+        header: 'Name',
         enableSorting: true,
         cell: ({ getValue }) => {
           const name = getValue()
           return (
-            <div className="gba:flex gba:items-center">
-              <div className="gba:font-semibold">{name as string}</div>
+            <div className="gba:flex gba:items-center gba:w-[150px] gba:md:w-[250px] gba:lg:w-[350px] gba:xl:w-[450px] gba:2xl:w-[500px]">
+              <div className="gba:w-full gba:truncate gba:font-semibold">{name as string}</div>
             </div>
           )
         }
       },
       {
         accessorKey: 'description',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Description
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
+        header: 'Description',
         enableSorting: true,
         cell: ({ getValue }) => {
           const description = getValue()
           return (
-            <div className="gba:flex gba:items-center">
-              <div className="gba:max-w-[300px] gba:truncate" title={description as string}>
+            <div className="gba:flex gba:items-center gba:w-[100px] gba:md:w-[150px] gba:lg:w-[200px] gba:xl:w-[260px] gba:2xl:w-[300px]">
+              <div className="gba:w-full gba:truncate" title={description as string}>
                 {(description as string) ?? '-'}
               </div>
+            </div>
+          )
+        }
+      },
+      {
+        accessorKey: 'probationPeriod',
+        header: 'Probation Period',
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const probationPeriod = getValue() as string | undefined
+          return (
+            <div className="gba:flex gba:items-center">
+              <span>{formatProbationPeriod(probationPeriod)}</span>
             </div>
           )
         }
@@ -246,7 +241,10 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
               refetch={loadContractTypes}
               accessToken={accessToken}
               prefixDataTestId={prefixDataTestId}
-              contractType={row.original}
+              contractType={{
+                ...row.original,
+                probationPeriod: row.original.probationPeriod
+              }}
             />
             <DeleteButton
               onDelete={() => handleDelete(row.original)}
@@ -262,7 +260,8 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
       id: contractType.id,
       code: contractType.code,
       value: contractType.value,
-      description: contractType.additionalValue1
+      description: contractType.additionalValue1,
+      probationPeriod: contractType.additionalValue2
     }))
 
     return (
@@ -338,7 +337,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
             drawerItems={drawerItems}
             extraContent={
               <div className="gba:text-xs gba:text-gray-500 gba:flex gba:items-center gba:justify-center gba:gap-2">
-                <Icon icon={TagIcon} className="gba:!w-4 gba:!h-4" />
+                <Icon icon={TagIcon} className="gba:w-4! gba:h-4!" />
                 This contract type can be used to classify employees and job positions.
               </div>
             }
@@ -360,7 +359,8 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
                   id: selectedType.id,
                   code: selectedType.code,
                   value: selectedType.value,
-                  description: selectedType.additionalValue1
+                  description: selectedType.additionalValue1,
+                  probationPeriod: selectedType.additionalValue2
                 }}
                 isDrawerActive={true}
                 key={selectedType.id}

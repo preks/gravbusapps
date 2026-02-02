@@ -10,7 +10,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useInvestmentOpportunityFilters } from '@/business-apps/irm/core/apps/investment-relations/views/opportunity-view/hooks/useInvestmentOpportunityFilters'
 import { ExitOpportunityStatistics } from './components/ExitOpportunityStatistics'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
-import { TrendingDown } from 'lucide-react'
+import { TrendDownIcon } from '@phosphor-icons/react'
 import { Avatar, AvatarFallback } from '@newwork/nw-design-system'
 import type { ColumnDef } from '@tanstack/react-table'
 
@@ -84,11 +84,11 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
     // Override createColumns to add divestment column
     return {
       ...baseConfig,
-      createColumns: (buildAccountUrl: (id: string) => string) => {
-        const baseColumns = createOpportunityColumns(buildAccountUrl)
+      createColumns: () => {
+        const baseColumns = createOpportunityColumns()
 
-        // Add divestment column after account column
-        const accountColumnIndex = baseColumns.findIndex(col => col.id === 'account')
+        // Add divestment column after closeDate column
+        const closeDateColumnIndex = baseColumns.findIndex(col => col.id === 'closeDate')
         const divestmentColumn = {
           id: 'divestment',
           accessorFn: (row: any) => (row.divestment?.name || '') as string,
@@ -119,7 +119,7 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
               >
                 <Avatar className="gba:w-8 gba:h-8 gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:transition-all">
                   <AvatarFallback>
-                    <TrendingDown className="gba:h-4 gba:w-4" />
+                    <TrendDownIcon className="gba:h-4 gba:w-4" />
                   </AvatarFallback>
                 </Avatar>
                 <div className="gba:min-w-0 gba:flex-1">
@@ -132,12 +132,12 @@ export const ExitOpportunitiesTab: React.FC<ExitOpportunitiesTabProps> = context
           }
         } as ColumnDef<InvestmentOpportunity & { id: string }>
 
-        // Insert divestment column after account column, or at the end if account column not found
-        if (accountColumnIndex >= 0) {
+        // Insert divestment column after closeDate column, or at the end if closeDate column not found
+        if (closeDateColumnIndex >= 0) {
           return [
-            ...baseColumns.slice(0, accountColumnIndex + 1),
+            ...baseColumns.slice(0, closeDateColumnIndex + 1),
             divestmentColumn,
-            ...baseColumns.slice(accountColumnIndex + 1)
+            ...baseColumns.slice(closeDateColumnIndex + 1)
           ]
         }
         return [...baseColumns, divestmentColumn]

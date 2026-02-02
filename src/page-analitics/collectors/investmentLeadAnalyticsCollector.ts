@@ -14,7 +14,6 @@ const GET_INVESTMENT_LEAD_ANALYTICS = `
   query GetInvestmentLeadAnalytics($id: uuid!) {
     InvestmentLead(where: { id: { _eq: $id }, isDeleted: { _eq: false } }) {
       id
-      name
       version
       firstName
       lastName
@@ -68,19 +67,12 @@ const GET_INVESTMENT_LEAD_ANALYTICS = `
       addresses {
         addressLine
         postalCode
-        city
         country {
           value
         }
         region {
           value
         }
-      }
-      numberOfEmployees {
-        value
-      }
-      annualRevenue {
-        value
       }
       convertedOpportunityId
       sensitive
@@ -139,11 +131,13 @@ const GET_INVESTMENT_LEAD_TASKS = `
       priority {
         value
       }
-      assignedEmployee {
-        id
-        firstName
-        lastName
-        displayName
+      taskAssignees(where: { isDeleted: { _eq: false } }) {
+        assignedEmployee {
+          id
+          firstName
+          lastName
+          displayName
+        }
       }
       creatorEmployee {
         id
@@ -203,9 +197,7 @@ function buildInvestmentLeadSummary(lead: LeadRecord): AnalyticsSummary {
           industry: lead.industryClass?.value,
           website: lead.companyWebsite,
           email: normalizeEmail(lead.companyEmail),
-          phone: normalizePhone(lead.companyPhone),
-          numberOfEmployees: lead.numberOfEmployees?.value,
-          annualRevenue: lead.annualRevenue?.value
+          phone: normalizePhone(lead.companyPhone)
         })
       : undefined,
     primaryCommunicationChannel: primaryChannel
@@ -340,14 +332,17 @@ function buildInvestmentLeadActivities(params: { activities: any[]; tasks: any[]
       type: normalizedType,
       title: task.name || 'Task',
       occurredAt: task.dueDate || task.createdAt || undefined,
-      relationId: task.assignedEmployee?.id || undefined,
+      relationId: task.taskAssignees?.[0]?.assignedEmployee?.id || undefined,
       meta: compactRecord({
         statusRef: task.statusRef,
         timingType: task.timingType,
         priority: task.priority?.value || task.priorityRef,
         assignedEmployee:
-          task.assignedEmployee?.displayName ||
-          [task.assignedEmployee?.firstName, task.assignedEmployee?.lastName].filter(Boolean).join(' ').trim() ||
+          task.taskAssignees?.[0]?.assignedEmployee?.displayName ||
+          [task.taskAssignees?.[0]?.assignedEmployee?.firstName, task.taskAssignees?.[0]?.assignedEmployee?.lastName]
+            .filter(Boolean)
+            .join(' ')
+            .trim() ||
           undefined,
         createdBy:
           task.creatorEmployee?.displayName ||
@@ -426,7 +421,6 @@ function buildInvestmentLeadRaw(lead: LeadRecord, associates: AnalyticsContact[]
                   compactRecord({
                     addressLine: address.addressLine,
                     postalCode: address.postalCode,
-                    city: address.city,
                     country: address.country?.value,
                     region: address.region?.value
                   })

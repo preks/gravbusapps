@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { PageLayout, Button } from '@newwork/nw-design-system'
-import { TrendingDown, DollarSign, BarChart3, LayoutDashboard } from 'lucide-react'
+import { TrendDownIcon, CurrencyDollarIcon, ChartBarIcon, SquaresFourIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -19,28 +19,28 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = context
   const viewOptions = [
     {
       key: 'dashboard',
-      icon: <LayoutDashboard />,
+      icon: <SquaresFourIcon />,
       label: getTranslationFromI18nKeyAndLabel('portfolio', 'Portfolio')
     },
     {
       key: 'investments',
-      icon: <DollarSign />,
+      icon: <CurrencyDollarIcon />,
       label: getTranslationFromI18nKeyAndLabel('investments', 'Investments')
     },
     {
       key: 'reports',
-      icon: <TrendingDown />,
+      icon: <TrendDownIcon />,
       label: getTranslationFromI18nKeyAndLabel('reports', 'Reports')
     },
 
     {
       key: 'divestments',
-      icon: <TrendingDown />,
+      icon: <TrendDownIcon />,
       label: getTranslationFromI18nKeyAndLabel('divestments', 'Divestments')
     },
     {
       key: 'analytics',
-      icon: <BarChart3 />,
+      icon: <ChartBarIcon />,
       label: getTranslationFromI18nKeyAndLabel('analytics', 'Analytics')
     }
   ]
@@ -206,7 +206,7 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = context
   return (
     <div data-testid="investment-management-app">
       <PageLayout
-        headerIcon={BarChart3}
+        headerIcon={ChartBarIcon}
         headerTitle={getTranslationFromI18nKeyAndLabel('investment_management', 'Investment Management')}
         headerDescription={getTranslationFromI18nKeyAndLabel(
           'investment_management_description',

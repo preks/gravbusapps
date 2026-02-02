@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useDebounce } from '@/common/hooks/useDebounce'
 import {
   Table,
   TableHeader,
@@ -8,11 +9,8 @@ import {
   TableCell,
   Card,
   CardContent,
-  Button,
   Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle
+  SheetContent
 } from '@newwork/nw-design-system'
 import { Badge } from '@newwork/nw-design-system'
 import { message } from 'antd'
@@ -29,6 +27,8 @@ import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
+import TablePagination, { PaginationChangeParams } from '../../../../../components/TablePagination'
 
 const DATA_TEST_ID_PREFIX = 'AdvancePaymentsTable'
 const DEFAULT_STATUS_FILTER = ['PREPARED', 'PENDING']
@@ -50,7 +50,6 @@ export interface AdvancePaymentsTableProps extends BusinessAppContextProps {
 }
 
 const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTableProps>((props, ref) => {
-  // Extract only the necessary props to prevent unnecessary re-renders
   const contextProps = useMemo(
     () => ({
       accessToken: props.accessToken,
@@ -70,22 +69,27 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   const [selectedExpensePlan, setSelectedExpensePlan] = useState<any>(null)
   const [selectedExpenseRequest, setSelectedExpenseRequest] = useState<any>(null)
 
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
-  // Preserve the page before search to restore after clearing
   const savedPageBeforeSearchRef = useRef<number | null>(null)
+  const currentPageRef = useRef<number>(1)
+  // Deterministic scroll target for pagination (top of table)
+  const tableTopRef = useRef<HTMLDivElement | null>(null)
 
-  // Server-side sorting state - managed by parent component
   const [sortField, setSortField] = useState<string>('createdAt')
   const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend')
 
-  // Use filter props from parent with stable references
   const currentStatusFilter = useMemo(() => props.activeFilter || [], [props.activeFilter])
   const currentAmountRange = useMemo(() => props.amountRange || null, [props.amountRange])
   const currentAdvanceRange = useMemo(() => props.advanceRange || null, [props.advanceRange])
   const filterGroups = useMemo(() => props.filterGroups || [], [props.filterGroups])
   const filterLabelMap = useMemo(() => props.filterLabelMap || {}, [props.filterLabelMap])
+
+  // Add debounced versions for filter debouncing (200ms debounce for responsive feel)
+  const debouncedStatusFilter = useDebounce(currentStatusFilter, 200)
+  const debouncedAmountRange = useDebounce(currentAmountRange, 200)
+  const debouncedAdvanceRange = useDebounce(currentAdvanceRange, 200)
+  const debouncedSearchText = useDebounce(searchText, 200)
   const currencyLabelMap = useMemo(() => {
     const map: Record<string, string> = {}
     currencyStats.forEach(cs => {
@@ -94,29 +98,25 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     return map
   }, [currencyStats])
 
-  // Track previous filter signature so we can reset pagination when filters change.
   const prevFilterSignatureRef = useRef<string | null>(null)
 
-  // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
-    const hasSearch = (searchText || '').trim() !== ''
+    const hasSearch = (debouncedSearchText || '').trim() !== ''
     const hasAmountRange =
-      currentAmountRange && (currentAmountRange.min !== undefined || currentAmountRange.max !== undefined)
+      debouncedAmountRange && (debouncedAmountRange.min !== undefined || debouncedAmountRange.max !== undefined)
     const hasAdvanceRange =
-      currentAdvanceRange && (currentAdvanceRange.min !== undefined || currentAdvanceRange.max !== undefined)
+      debouncedAdvanceRange && (debouncedAdvanceRange.min !== undefined || debouncedAdvanceRange.max !== undefined)
 
-    // Treat the initial default status filter (PREPARED + PENDING) as "no active filters"
     const hasNonDefaultStatusFilter = (() => {
-      const statuses = currentStatusFilter || []
+      const statuses = debouncedStatusFilter || []
       if (statuses.length === 0) return false
       if (statuses.length !== DEFAULT_STATUS_FILTER.length) return true
       return !DEFAULT_STATUS_FILTER.every(status => statuses.includes(status))
     })()
 
     return hasSearch || hasNonDefaultStatusFilter || !!hasAmountRange || !!hasAdvanceRange
-  }, [searchText, currentStatusFilter, currentAmountRange, currentAdvanceRange])
+  }, [debouncedSearchText, debouncedStatusFilter, debouncedAmountRange, debouncedAdvanceRange])
 
-  // Reset to first page when filters change (status, amount, advance, or DataContainer filter chips).
   useEffect(() => {
     const signature = JSON.stringify({
       status: currentStatusFilter,
@@ -133,58 +133,78 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     prevFilterSignatureRef.current = signature
   }, [currentStatusFilter, currentAmountRange, currentAdvanceRange, props.selectedFilters])
 
-  // Build fetch parameters
+  useEffect(() => {
+    currentPageRef.current = currentPage
+  }, [currentPage])
+
+  const prevDebouncedSearchRef = useRef<string>('')
+
+  useEffect(() => {
+    const trimmedDebounced = (debouncedSearchText || '').trim()
+    const trimmedPrev = (prevDebouncedSearchRef.current || '').trim()
+
+    if (trimmedPrev === trimmedDebounced) {
+      prevDebouncedSearchRef.current = debouncedSearchText
+      return
+    }
+
+    if (trimmedPrev === '' && trimmedDebounced !== '') {
+      savedPageBeforeSearchRef.current ??= currentPageRef.current
+      setCurrentPage(1)
+    } else if (trimmedPrev !== '' && trimmedDebounced === '') {
+      setCurrentPage(savedPageBeforeSearchRef.current || 1)
+      savedPageBeforeSearchRef.current = null
+    } else if (trimmedDebounced !== '' && trimmedPrev !== trimmedDebounced) {
+      setCurrentPage(1)
+    }
+
+    prevDebouncedSearchRef.current = debouncedSearchText
+  }, [debouncedSearchText])
+
   const fetchParams = useMemo(
     () => ({
-      searchText,
+      searchText: debouncedSearchText,
       currentPage,
       pageSize,
-      currentStatusFilter,
-      currentAmountRange,
-      currentAdvanceRange,
+      currentStatusFilter: debouncedStatusFilter,
+      currentAmountRange: debouncedAmountRange,
+      currentAdvanceRange: debouncedAdvanceRange,
       sortField,
       sortOrder,
       selectedCurrencyRef
     }),
     [
-      searchText,
+      debouncedSearchText,
       currentPage,
       pageSize,
-      currentStatusFilter,
-      currentAmountRange,
-      currentAdvanceRange,
+      debouncedStatusFilter,
+      debouncedAmountRange,
+      debouncedAdvanceRange,
       sortField,
       sortOrder,
       selectedCurrencyRef
     ]
   )
 
-  // Sync search with parent prop
   useEffect(() => {
     if (props.search !== undefined && props.search !== searchText) {
       setSearchText(props.search)
     }
   }, [props.search, searchText])
 
-  // Trigger fetch when dependencies change
   useEffect(() => {
-    if (
-      contextProps.accessToken &&
-      contextProps.userInfo?.employeeDetails?.employeeId &&
-      // wait until currency preselection settled to avoid double fetch with/without currencyRef
-      isCurrencyReady
-    ) {
-      fetchItems(
-        fetchParams.searchText,
-        fetchParams.currentPage,
-        fetchParams.pageSize,
-        fetchParams.currentStatusFilter,
-        fetchParams.currentAmountRange,
-        fetchParams.currentAdvanceRange,
-        fetchParams.sortField,
-        fetchParams.sortOrder,
-        fetchParams.selectedCurrencyRef
-      )
+    if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId && isCurrencyReady) {
+      fetchItems({
+        searchTerm: fetchParams.searchText,
+        page: fetchParams.currentPage,
+        pageSize: fetchParams.pageSize,
+        statusFilter: fetchParams.currentStatusFilter,
+        amountRange: fetchParams.currentAmountRange,
+        advanceRange: fetchParams.currentAdvanceRange,
+        sortField: fetchParams.sortField,
+        sortOrder: fetchParams.sortOrder,
+        currencyRef: fetchParams.selectedCurrencyRef
+      })
     } else {
       console.warn('Cannot fetch advance payments: Missing accessToken or employeeId')
     }
@@ -196,22 +216,21 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     isCurrencyReady
   ])
 
-  // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
   useEffect(() => {
     if (props.tableRefreshTrigger && props.tableRefreshTrigger > 0) {
-      // Trigger a refresh by calling fetchItems with current parameters
       if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
-        fetchItems(
-          fetchParams.searchText,
-          fetchParams.currentPage,
-          fetchParams.pageSize,
-          fetchParams.currentStatusFilter,
-          fetchParams.currentAmountRange,
-          fetchParams.currentAdvanceRange,
-          fetchParams.sortField,
-          fetchParams.sortOrder,
-          fetchParams.selectedCurrencyRef
-        )
+        fetchItems({
+          searchTerm: fetchParams.searchText,
+          page: fetchParams.currentPage,
+          pageSize: fetchParams.pageSize,
+          statusFilter: fetchParams.currentStatusFilter,
+          amountRange: fetchParams.currentAmountRange,
+          advanceRange: fetchParams.currentAdvanceRange,
+          sortField: fetchParams.sortField,
+          sortOrder: fetchParams.sortOrder,
+          currencyRef: fetchParams.selectedCurrencyRef,
+          force: true // Force refresh to bypass cache
+        })
       }
     }
   }, [
@@ -223,31 +242,17 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   ])
 
   // Create a memoized setSearch function to prevent re-renders
+  // Note: Pagination reset is handled by the debounced search effect to prevent race conditions
   const handleSearchChange = useCallback(
     (value: string) => {
-      const trimmedNext = (value || '').trim()
-      const trimmedPrev = (searchText || '').trim()
       setSearchText(value)
-
-      if (trimmedPrev === '' && trimmedNext !== '') {
-        // starting search → save current page and go to 1
-        savedPageBeforeSearchRef.current = currentPage
-        setCurrentPage(1)
-      } else if (trimmedPrev !== '' && trimmedNext === '') {
-        // clearing search → restore saved page
-        setCurrentPage(savedPageBeforeSearchRef.current || 1)
-        savedPageBeforeSearchRef.current = null
-      } else if (trimmedNext !== '') {
-        // stay on page 1 while refining search
-        setCurrentPage(1)
-      }
 
       // Notify parent component of search change
       if (props.onSearchChange) {
         props.onSearchChange(value)
       }
     },
-    [props.onSearchChange, searchText, currentPage]
+    [props.onSearchChange]
   )
 
   // Handle adding a new advance payment
@@ -274,14 +279,9 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     setSelectedItem(item)
   }, [])
 
-  // Pagination handlers
-  const handlePageChange = useCallback((newPage: number) => {
-    setCurrentPage(newPage)
-  }, [])
-
-  const handlePageSizeChange = useCallback((newPageSize: number) => {
-    setPageSize(newPageSize)
-    setCurrentPage(1) // Reset to first page when page size changes
+  const handlePaginationChange = useCallback((pagination: PaginationChangeParams) => {
+    setCurrentPage(pagination.current)
+    setPageSize(pagination.pageSize)
   }, [])
 
   // Handle closing the details panel
@@ -348,7 +348,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   // Render the data body with memoization
   const renderDataBody = useCallback(() => {
     return (
-      <div>
+      <div ref={tableTopRef} data-testid={`${DATA_TEST_ID_PREFIX}-scroll-anchor`}>
         <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
           <CardContent className="gba:p-0">
             <div className="gba:overflow-x-auto">
@@ -615,118 +615,22 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
             </div>
 
             {/* Pagination */}
-            {totalCount > pageSize ? (
-              <div
-                className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
-                data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}
-              >
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')}{' '}
-                  {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`}{' '}
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount}{' '}
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:personal_expenses.advance_payments',
-                    getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:backoffice_expense_landing_page.advance_title',
-                      'Advance Payments'
-                    )
-                  )}
-                </div>
-                <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <p className="gba:text-sm gba:font-medium">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                    </p>
-                    <select
-                      value={pageSize}
-                      onChange={e => {
-                        const newPageSize = Number(e.target.value)
-                        handlePageSizeChange(newPageSize)
-                      }}
-                      className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                      data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
-                    >
-                      <option value={10}>10</option>
-                      <option value={20}>20</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
-                  </div>
-                  <div className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
-                    {Math.ceil(totalCount / pageSize)}
-                  </div>
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handlePageChange(1)}
-                      disabled={currentPage === 1}
-                      data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
-                    >
-                      <span className="gba:sr-only">Go to first page</span>⟪
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handlePageChange(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
-                    >
-                      <span className="gba:sr-only">Go to previous page</span>⟨
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handlePageChange(currentPage + 1)}
-                      disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                      data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
-                    >
-                      <span className="gba:sr-only">Go to next page</span>⟩
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gba:h-8 gba:w-8 gba:p-0"
-                      onClick={() => handlePageChange(Math.ceil(totalCount / pageSize))}
-                      disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                      data-testid={`${DATA_TEST_ID_PREFIX}-last-page-button`}
-                    >
-                      <span className="gba:sr-only">Go to last page</span>
-                      ⟩⟩
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : totalCount > 0 ? (
-              <div
-                className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
-                data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}
-              >
-                <div className="gba:text-sm gba:text-muted-foreground">
-                  {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments')}`}
-                </div>
-                <div className="gba:flex gba:items-center gba:space-x-2">
-                  <p className="gba:text-sm gba:font-medium">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                  </p>
-                  <select
-                    value={pageSize}
-                    onChange={e => {
-                      const newPageSize = Number(e.target.value)
-                      handlePageSizeChange(newPageSize)
-                    }}
-                    className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                    data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select-single`}
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                </div>
-              </div>
-            ) : null}
+            <TablePagination
+              currentPage={currentPage}
+              pageSize={pageSize}
+              totalItems={totalCount}
+              onPageChange={handlePaginationChange}
+              entityNamePlural={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_expenses.advance_payments',
+                getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:backoffice_expense_landing_page.advance_title',
+                  'Advance Payments'
+                )
+              )}
+              dataTestIdPrefix={DATA_TEST_ID_PREFIX}
+              scrollTargetRef={tableTopRef}
+              showBorder={false}
+            />
           </CardContent>
         </Card>
       </div>
@@ -740,8 +644,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     totalCount,
     pageSize,
     currentPage,
-    handlePageChange,
-    handlePageSizeChange,
+    handlePaginationChange,
     sortField,
     sortOrder,
     handleSort,
@@ -835,59 +738,37 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       />
 
       {/* Advance Payment Details Sheet */}
-      <Sheet
-        open={!!selectedItem}
-        onOpenChange={open => !open && handleCloseDetails()}
-        title={
-          selectedItem?.expensePlan?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:personal_expenses.advance_payment_details',
-            'Advance Payment Details'
-          )
-        }
-      >
+      <Sheet open={!!selectedItem} onOpenChange={open => !open && handleCloseDetails()}>
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedItem?.expensePlan?.title ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:personal_expenses.advance_payment_details',
-                  'Advance Payment Details'
-                )}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-            {selectedItem && (
-              <AdvancePaymentDetails payment={selectedItem} onClose={handleCloseDetails} {...contextProps} />
-            )}
-          </div>
+          <ExpenseDetailsShell
+            title={
+              selectedItem?.expensePlan?.title ||
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_expenses.advance_payment_details',
+                'Advance Payment Details'
+              )
+            }
+            onClose={handleCloseDetails}
+          >
+            {selectedItem ? <AdvancePaymentDetails payment={selectedItem} {...contextProps} /> : null}
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
 
       {/* Expense Plan Details Sheet */}
-      <Sheet
-        open={!!selectedExpensePlan}
-        onOpenChange={open => !open && handleCloseDetails()}
-        title={
-          selectedExpensePlan?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:approve_expense_plan.expense_subtitle_details',
-            'Expense Plan Details'
-          )
-        }
-      >
+      <Sheet open={!!selectedExpensePlan} onOpenChange={open => !open && handleCloseDetails()}>
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedExpensePlan?.title ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:approve_expense_plan.expense_subtitle_details',
-                  'Expense Plan Details'
-                )}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-            {selectedExpensePlan && (
+          <ExpenseDetailsShell
+            title={
+              selectedExpensePlan?.title ||
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:approve_expense_plan.expense_subtitle_details',
+                'Expense Plan Details'
+              )
+            }
+            onClose={handleCloseDetails}
+          >
+            {selectedExpensePlan ? (
               <ExpensePlanDetails
                 selectedItem={selectedExpensePlan}
                 onClose={handleCloseDetails}
@@ -903,43 +784,33 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                       : undefined)
                 }
               />
-            )}
-          </div>
+            ) : null}
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
 
       {/* Expense Request Details Sheet */}
-      <Sheet
-        open={!!selectedExpenseRequest}
-        onOpenChange={open => !open && handleCloseDetails()}
-        title={
-          selectedExpenseRequest?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
-            'Expense Request Details'
-          )
-        }
-      >
+      <Sheet open={!!selectedExpenseRequest} onOpenChange={open => !open && handleCloseDetails()}>
         <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedExpenseRequest?.title ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
-                  'Expense Request Details'
-                )}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-            {selectedExpenseRequest && (
+          <ExpenseDetailsShell
+            title={
+              selectedExpenseRequest?.title ||
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
+                'Expense Request Details'
+              )
+            }
+            onClose={handleCloseDetails}
+          >
+            {selectedExpenseRequest ? (
               <ExpenseRequestDetails
                 selectedItem={selectedExpenseRequest}
                 onClose={handleCloseDetails}
                 accessToken={props.accessToken}
                 userInfo={props.userInfo}
               />
-            )}
-          </div>
+            ) : null}
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
     </div>

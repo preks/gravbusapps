@@ -7,6 +7,7 @@ import PlanDateRangeFilter from '../components/tabs/expense-plans-tab/PlanDateRa
 import dayjs from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import EffectiveDateRangeFilter from '../components/tabs/expense-plans-tab/EffectiveDateRangeFilter'
+import { useDebounce } from '@/common/hooks/useDebounce'
 
 export enum DataFilterType {
   CHECKBOX_GROUP = 'checkbox-group',
@@ -16,6 +17,7 @@ export enum DataFilterType {
 
 export const useExpensePlanFilters = () => {
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 200) // Reduced from 300ms for faster search response
   const [selectedFilters, setSelectedFilters] = useState<string[]>([])
   const [startDateRange, setStartDateRange] = useState<[Date | null, Date | null] | null>(null)
   const [endDateRange, setEndDateRange] = useState<[Date | null, Date | null] | null>(null)
@@ -163,34 +165,36 @@ export const useExpensePlanFilters = () => {
     [selectedFilters, startDateRange, endDateRange, planDateRange, effectiveDateRange]
   )
 
-  /**
-   * Returns the current filters as an object for API queries (GraphQL/REST)
-   */
-  const getFilters = useCallback(() => {
-    const conditions: any[] = []
+  // Helper function to format date for start of range (beginning of day)
+  const formatStartDate = useCallback((date: Date): string => {
+    return dayjs(date).startOf('day').format('YYYY-MM-DD HH:mm:ss')
+  }, [])
 
-    // Helper function to format date for start of range (beginning of day)
-    const formatStartDate = (date: Date): string => {
-      return dayjs(date).startOf('day').format('YYYY-MM-DD HH:mm:ss')
+  // Helper function to format date for end of range (end of day)
+  const formatEndDate = useCallback((date: Date): string => {
+    return dayjs(date).endOf('day').format('YYYY-MM-DD HH:mm:ss')
+  }, [])
+
+  // Helper function to add search filter conditions
+  const addSearchConditions = useCallback((conditions: any[], searchTerm: string): void => {
+    if (searchTerm) {
+      conditions.push({
+        _or: [{ code: { _ilike: `%${searchTerm}%` } }, { title: { _ilike: `%${searchTerm}%` } }]
+      })
     }
+  }, [])
 
-    // Helper function to format date for end of range (end of day)
-    const formatEndDate = (date: Date): string => {
-      return dayjs(date).endOf('day').format('YYYY-MM-DD HH:mm:ss')
-    }
-
-    if (search) {
-      conditions.push({ _or: [{ code: { _ilike: `%${search}%` } }, { title: { _ilike: `%${search}%` } }] })
-    }
-
-    // Process status filters: include ONLY known status values; ignore currency and other tokens
-    const statusFilters = selectedFilters.filter(f => (Object.values(ExpenseStatus) as string[]).includes(f))
+  // Helper function to add status filter conditions
+  const addStatusConditions = useCallback((conditions: any[], filters: string[]): void => {
+    const statusFilters = filters.filter(f => (Object.values(ExpenseStatus) as string[]).includes(f))
     if (statusFilters.length > 0) {
       conditions.push({ status: { _in: statusFilters } })
     }
+  }, [])
 
-    // Plan type filters (EXPENSES or TRIP) map to requestTypeRef
-    const planTypeTokens = selectedFilters.filter(f => f.startsWith('planType:'))
+  // Helper function to add plan type filter conditions
+  const addPlanTypeConditions = useCallback((conditions: any[], filters: string[]): void => {
+    const planTypeTokens = filters.filter(f => f.startsWith('planType:'))
     if (planTypeTokens.length > 0) {
       const allowedTypes = planTypeTokens.map(t => t.split(':')[1]).filter(t => t === 'EXPENSES' || t === 'TRIP')
 
@@ -199,40 +203,37 @@ export const useExpensePlanFilters = () => {
         conditions.push({ _or: typeOr })
       }
     }
+  }, [])
 
-    // Process top destination filter - just ensure we don't show discarded plans
-    if (selectedFilters.includes('top-destination')) {
-      // The actual destination filtering is handled by the widget logic
-      // We just ensure we don't show discarded plans
-      conditions.push({ status: { _neq: 'DISCARDED' } })
-    }
+  // Helper function to add date range conditions
+  const addDateRangeConditions = useCallback(
+    (
+      conditions: any[],
+      dateRange: [Date | null, Date | null] | null,
+      fieldName: 'planDate' | 'startDate' | 'endDate'
+    ): void => {
+      if (dateRange?.[0]) {
+        conditions.push({ [fieldName]: { _gte: formatStartDate(dateRange[0]) } })
+      }
+      if (dateRange?.[1]) {
+        conditions.push({ [fieldName]: { _lte: formatEndDate(dateRange[1]) } })
+      }
+    },
+    [formatStartDate, formatEndDate]
+  )
 
-    // Process all date ranges independently with proper formatting
-    if (planDateRange?.[0]) {
-      conditions.push({ planDate: { _gte: formatStartDate(planDateRange[0]) } })
-    }
-    if (planDateRange?.[1]) {
-      conditions.push({ planDate: { _lte: formatEndDate(planDateRange[1]) } })
-    }
-    if (startDateRange?.[0]) {
-      conditions.push({ startDate: { _gte: formatStartDate(startDateRange[0]) } })
-    }
-    if (startDateRange?.[1]) {
-      conditions.push({ startDate: { _lte: formatEndDate(startDateRange[1]) } })
-    }
-    if (endDateRange?.[0]) {
-      conditions.push({ endDate: { _gte: formatStartDate(endDateRange[0]) } })
-    }
-    if (endDateRange?.[1]) {
-      conditions.push({ endDate: { _lte: formatEndDate(endDateRange[1]) } })
-    }
+  // Helper function to add effective date range conditions
+  const addEffectiveDateConditions = useCallback(
+    (conditions: any[], effectiveDateRange: [Date | null, Date | null] | null): void => {
+      if (!effectiveDateRange?.[0] && !effectiveDateRange?.[1]) {
+        return
+      }
 
-    // Effective Date filter: EXPENSES -> expensePlanItem.expenseDate, TRIP -> startDate
-    if (effectiveDateRange?.[0] || effectiveDateRange?.[1]) {
       const start = effectiveDateRange?.[0] ? formatStartDate(effectiveDateRange[0]) : undefined
       const end = effectiveDateRange?.[1] ? formatEndDate(effectiveDateRange[1]) : undefined
       const tripAnd = [] as any[]
       const expenseAnd = [] as any[]
+
       if (start) {
         tripAnd.push({ startDate: { _gte: start } })
         expenseAnd.push({ expensePlanItem: { expenseDate: { _gte: start } } })
@@ -241,6 +242,7 @@ export const useExpensePlanFilters = () => {
         tripAnd.push({ startDate: { _lte: end } })
         expenseAnd.push({ expensePlanItem: { expenseDate: { _lte: end } } })
       }
+
       if (tripAnd.length > 0 || expenseAnd.length > 0) {
         conditions.push({
           _or: [
@@ -249,12 +251,42 @@ export const useExpensePlanFilters = () => {
           ]
         })
       }
+    },
+    [formatStartDate, formatEndDate]
+  )
+  const getFilters = useCallback(() => {
+    const conditions: any[] = []
+
+    addSearchConditions(conditions, debouncedSearch)
+    addStatusConditions(conditions, selectedFilters)
+    addPlanTypeConditions(conditions, selectedFilters)
+
+    if (selectedFilters.includes('top-destination')) {
+      conditions.push({ status: { _neq: 'DISCARDED' } })
     }
+
+    // Process all date ranges independently with proper formatting
+    addDateRangeConditions(conditions, planDateRange, 'planDate')
+    addDateRangeConditions(conditions, startDateRange, 'startDate')
+    addDateRangeConditions(conditions, endDateRange, 'endDate')
+    addEffectiveDateConditions(conditions, effectiveDateRange)
 
     // Always exclude DISCARDED plans at backend level for correct pagination
     conditions.push({ status: { _neq: ExpenseStatus.DISCARDED } })
     return { _and: conditions.length > 0 ? conditions : [{}] }
-  }, [search, selectedFilters, planDateRange, startDateRange, endDateRange, effectiveDateRange])
+  }, [
+    debouncedSearch,
+    selectedFilters,
+    planDateRange,
+    startDateRange,
+    endDateRange,
+    effectiveDateRange,
+    addSearchConditions,
+    addStatusConditions,
+    addPlanTypeConditions,
+    addDateRangeConditions,
+    addEffectiveDateConditions
+  ])
 
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
     setSelectedFilters(prev => (selected ? [...prev, filterId] : prev.filter(id => id !== filterId)))
@@ -406,6 +438,7 @@ export const useExpensePlanFilters = () => {
   return {
     search,
     setSearch,
+    debouncedSearch,
     selectedFilters: getAllSelectedFilters, // Return the enhanced list including date ranges
     setFilters, // Use the enhanced setFilters function
     filterGroups,

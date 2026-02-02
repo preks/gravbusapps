@@ -1,5 +1,5 @@
 // Customer Task hooks - list and search operations for customer tasks
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -50,7 +50,33 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
     async (variables: CustomerTaskQueryVariables = {}): Promise<CustomerTaskListData> => {
       const query = buildCustomerTaskQuery()
 
-      const whereCondition = buildCustomerTaskWhereCondition(variables)
+      // Handle reference type filtering - add as custom conditions
+      const customConditions: Record<string, any>[] = []
+
+      if (variables.referenceTypes && variables.referenceTypes.length > 0) {
+        const referenceConditions = variables.referenceTypes
+          .map(type => {
+            switch (type) {
+              case 'opportunity':
+                return { opportunity: { id: { _neq: null } } }
+              case 'account':
+                return { account: { id: { _neq: null } } }
+              case 'lead':
+                return { lead: { id: { _neq: null } } }
+              case 'contact':
+                return { contact: { id: { _neq: null } } }
+              default:
+                return null
+            }
+          })
+          .filter(c => c !== null)
+
+        if (referenceConditions.length > 0) {
+          customConditions.push({ _or: referenceConditions })
+        }
+      }
+
+      const whereCondition = buildCustomerTaskWhereCondition(variables, [], customConditions)
 
       const orderBy = buildCustomerTaskOrderBy(variables.orderBy || [])
       if (orderBy.length === 0) {
@@ -74,20 +100,29 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
         throw error
       }
     },
-    [graphqlClient]
+    [context.accessToken]
   )
 
   const fetchCustomerTasksByAccountId = useCallback(
-    async (accountId: string): Promise<CustomerTask[]> => {
+    async (accountId: string, limit?: number, offset?: number): Promise<CustomerTask[]> => {
       const query = buildCustomerTaskByAccountIdQuery()
       const whereCondition = buildCustomerTaskWhereCondition({}, [], [{ account: { id: { _eq: accountId } } }])
       const orderBy = buildCustomerTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
+      const graphQLVariables: Record<string, any> = {
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      if (limit !== undefined) {
+        graphQLVariables.limit = limit
+      }
+      if (offset !== undefined) {
+        graphQLVariables.offset = offset
+      }
+
       try {
-        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, {
-          where: whereCondition,
-          orderBy: orderBy
-        })
+        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, graphQLVariables)
         return result.SalesTask.map(toCustomerTask)
       } catch (error) {
         console.error('Error fetching customer tasks by account ID:', error)
@@ -98,16 +133,25 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
   )
 
   const fetchCustomerTasksByContactId = useCallback(
-    async (contactId: string): Promise<CustomerTask[]> => {
+    async (contactId: string, limit?: number, offset?: number): Promise<CustomerTask[]> => {
       const query = buildCustomerTaskByContactIdQuery()
       const whereCondition = buildCustomerTaskWhereCondition({}, [], [{ contact: { id: { _eq: contactId } } }])
       const orderBy = buildCustomerTaskOrderBy([{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }])
 
+      const graphQLVariables: Record<string, any> = {
+        where: whereCondition,
+        orderBy: orderBy
+      }
+
+      if (limit !== undefined) {
+        graphQLVariables.limit = limit
+      }
+      if (offset !== undefined) {
+        graphQLVariables.offset = offset
+      }
+
       try {
-        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, {
-          where: whereCondition,
-          orderBy: orderBy
-        })
+        const result = await graphqlClient.request<CustomerTaskByEntityQueryResponse>(query, graphQLVariables)
         return result.SalesTask.map(toCustomerTask)
       } catch (error) {
         console.error('Error fetching customer tasks by contact ID:', error)
@@ -173,12 +217,23 @@ export const useCustomerTasks = (context: BusinessAppContextProps) => {
     [graphqlClient]
   )
 
-  return {
-    fetchCustomerTasks,
-    fetchCustomerTasksByAccountId,
-    fetchCustomerTasksByContactId,
-    fetchCustomerTasksByLeadId,
-    fetchCustomerTasksByOpportunityId,
-    fetchCustomerTaskById
-  }
+  // Memoize return object to provide stable reference for consumers
+  return useMemo(
+    () => ({
+      fetchCustomerTasks,
+      fetchCustomerTasksByAccountId,
+      fetchCustomerTasksByContactId,
+      fetchCustomerTasksByLeadId,
+      fetchCustomerTasksByOpportunityId,
+      fetchCustomerTaskById
+    }),
+    [
+      fetchCustomerTasks,
+      fetchCustomerTasksByAccountId,
+      fetchCustomerTasksByContactId,
+      fetchCustomerTasksByLeadId,
+      fetchCustomerTasksByOpportunityId,
+      fetchCustomerTaskById
+    ]
+  )
 }

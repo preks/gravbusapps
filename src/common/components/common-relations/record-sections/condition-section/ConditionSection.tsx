@@ -230,40 +230,38 @@ const ConditionSection: React.FC<ConditionSectionProps> = memo(
 
     return (
       <TooltipProvider>
-        <div className="gba:w-full gba:h-full">
-          <div className="gba:space-y-3">
-            <div className="gba:flex gba:justify-center gba:p-3 gba:bg-gray-50 gba:rounded-lg gba:border">
-              <Badge variant={getSalesPipelineStageBadgeVariant(opportunity?.opportunityPipelineStage)}>
-                {opportunity?.opportunityPipelineStage?.value || 'No Stage'}
-              </Badge>
-            </div>
+        <div className="gba:w-full gba:space-y-3">
+          <div className="gba:flex gba:justify-center gba:p-3 gba:bg-gray-50 gba:rounded-lg gba:border">
+            <Badge variant={getSalesPipelineStageBadgeVariant(opportunity?.opportunityPipelineStage)}>
+              {opportunity?.opportunityPipelineStage?.value || 'No Stage'}
+            </Badge>
+          </div>
 
-            <div className="gba:space-y-3">
-              {sortedStageConditions.length > 0 ? (
-                sortedStageConditions.map(condition => (
-                  <ConditionCard
-                    key={condition.stageConditionStatusId}
-                    condition={condition}
-                    isHovered={hoveredConditionId === condition.stageConditionStatusId}
-                    onMouseEnter={() => handleConditionMouseEnter(condition.stageConditionStatusId)}
-                    onMouseLeave={handleConditionMouseLeave}
-                    accessToken={accessToken}
-                    contextsArray={conditionContextsArray}
-                    externalContextData={{ stageConditionStatusId: condition.stageConditionStatusId }}
-                  />
-                ))
-              ) : (
-                <div className="gba:text-center gba:py-8 gba:text-gray-500">
-                  <div className="gba:flex gba:justify-center gba:mb-3">
-                    <QuestionIcon size={48} weight="regular" />
-                  </div>
-                  <p className="gba:text-sm gba:font-medium">No stage conditions configured</p>
-                  <p className="gba:text-xs gba:mt-1.5 gba:text-gray-400">
-                    Stage conditions will appear here when configured for the current pipeline stage
-                  </p>
+          <div className="gba:space-y-3">
+            {sortedStageConditions.length > 0 ? (
+              sortedStageConditions.map(condition => (
+                <ConditionCard
+                  key={condition.stageConditionStatusId}
+                  condition={condition}
+                  isHovered={hoveredConditionId === condition.stageConditionStatusId}
+                  onMouseEnter={() => handleConditionMouseEnter(condition.stageConditionStatusId)}
+                  onMouseLeave={handleConditionMouseLeave}
+                  accessToken={accessToken}
+                  contextsArray={conditionContextsArray}
+                  externalContextData={{ stageConditionStatusId: condition.stageConditionStatusId }}
+                />
+              ))
+            ) : (
+              <div className="gba:text-center gba:py-8 gba:text-gray-500">
+                <div className="gba:flex gba:justify-center gba:mb-3">
+                  <QuestionIcon size={48} weight="regular" />
                 </div>
-              )}
-            </div>
+                <p className="gba:text-sm gba:font-medium">No stage conditions configured</p>
+                <p className="gba:text-xs gba:mt-1.5 gba:text-gray-400">
+                  Stage conditions will appear here when configured for the current pipeline stage
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </TooltipProvider>

@@ -534,3 +534,4 @@ const CompaniesTab: React.FC<CompaniesTabProps> = context => {
 }
 
 export default CompaniesTab
+export { CompaniesTab }

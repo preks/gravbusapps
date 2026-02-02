@@ -7,7 +7,6 @@ import flowSmall from '@/assets/icons/flowSmall.svg'
 import { useGetEmployeePicture } from './queries/ChangeProfilePictureQueries'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import FormHeader from '../components/FormHeader'
 
 const prefixDataTestId = 'ChangeProfilePictureScreen'
@@ -131,6 +130,7 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
       // window.dispatchEvent(new Event('com.newwork.user.profilePicture.updated'));
 
       return {
+        event: 'pse_submit',
         employeeId,
         employeePictureChange
       }
@@ -144,8 +144,8 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
       processType="update"
       formData={{}}
       onSubmit={data => data}
-      submitEventType={undefined as any}
-      cancelEventType={undefined as any}
+      submitEventType="pse_submit"
+      cancelEventType="pse_abort"
       businessAppContext={{ accessToken, userInfo, additionalData }}
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
@@ -155,19 +155,6 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
       submitButtonTestId="flw_changePicture_btnSubmit"
       cancelButtonTestId="flw_changePicture_btnCancel"
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
-      onCancel={() => {
-        dispatchProcessContinueEvent('pse_abort', {
-          event: 'pse_abort',
-          pso_exitStrategy: 'abort',
-          pso_completeNotification: {
-            type: 'error',
-            messageKey: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:absence_module.toast_notification_cancel_create_absence',
-              'The action has been canceled.'
-            )
-          }
-        })
-      }}
     >
       <div className="gba:bg-white gba:w-full gba:max-w-xl gba:max-h-[90vh] gba:overflow-hidden">
         <FormHeader

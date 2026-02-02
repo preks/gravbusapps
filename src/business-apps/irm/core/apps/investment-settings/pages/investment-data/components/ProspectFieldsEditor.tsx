@@ -9,8 +9,8 @@ import {
   DragEndEvent
 } from '@dnd-kit/core'
 import { arrayMove, SortableContext, verticalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
-import { Button, Card, Alert, AlertDescription, cn } from '@newwork/nw-design-system'
-import { PiPlus } from 'react-icons/pi'
+import { Button, Card, Alert, AlertDescription, cn, EmptyState } from '@newwork/nw-design-system'
+import { PlusIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ProspectField } from '../types'
 import { SortableProspectItem } from './SortableProspectItem'
@@ -103,12 +103,13 @@ export const ProspectFieldsEditor: React.FC<ProspectFieldsEditorProps> = ({
   }
 
   return (
-    <div className="gba:space-y-4" data-testid={prefixDataTestId}>
+    <div className="gba:space-y-6" data-testid={prefixDataTestId}>
       <Card className="gba:p-6" data-testid={`${prefixDataTestId}-container`}>
-        <div className="gba:flex gba:items-center gba:justify-between gba:mb-4">
+        <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
           <h3 className="gba:text-lg gba:font-semibold gba:m-0">Prospect Detail Fields</h3>
           <Button onClick={handleAddField} data-testid={`${prefixDataTestId}-add-button`}>
-            <PiPlus /> Add Field
+            <PlusIcon className="gba:w-4 gba:h-4 gba:mr-2" />
+            Add Field
           </Button>
         </div>
 
@@ -125,11 +126,16 @@ export const ProspectFieldsEditor: React.FC<ProspectFieldsEditorProps> = ({
         )}
 
         {normalizedProspectFields.length === 0 ? (
-          <Alert data-testid={`${prefixDataTestId}-no-fields`}>
-            {isInherited
-              ? 'No prospect fields configured in the parent group.'
-              : 'No prospect fields configured. Click "Add Field" to create one.'}
-          </Alert>
+          <div data-testid={`${prefixDataTestId}-no-fields`}>
+            <EmptyState
+              title={isInherited ? 'No prospect fields in parent group' : 'No prospect fields configured yet'}
+              description={
+                isInherited
+                  ? 'The parent group has no prospect fields configured'
+                  : 'Click "Add Field" to create your first prospect field'
+              }
+            />
+          </div>
         ) : (
           <DndContext
             sensors={sensors}

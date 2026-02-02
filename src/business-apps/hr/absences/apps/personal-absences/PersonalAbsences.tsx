@@ -345,6 +345,8 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
               employeeAbsenceEntitlement={absenceEntitlements}
               accessToken={accessToken || ''}
               shownTab={activeTab}
+              userInfo={userInfo}
+              isSelfView={true}
             />
           )
         }

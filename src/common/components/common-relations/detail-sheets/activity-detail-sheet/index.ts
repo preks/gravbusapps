@@ -1,3 +1,8 @@
 export { ActivityDetailSheet } from './ActivityDetailSheet'
-export type { Activity, ActivityDocument, ActivityEmployee, ActivityReference } from './types'
-export { getActivityEntityName, getActivityElementType, getActivityTypeColor } from './utils'
+export type { Activity, ActivityDocument, ActivityReference } from './types'
+export {
+  getActivityTypeBadgeVariant,
+  getReferenceTypeBadgeVariant,
+  getActivityReferenceType,
+  getActivityReferenceName
+} from './utils'

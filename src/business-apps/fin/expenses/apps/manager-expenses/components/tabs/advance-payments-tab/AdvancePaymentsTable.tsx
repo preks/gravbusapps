@@ -1,6 +1,5 @@
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useRef } from 'react'
 import {
-  Button,
   Table,
   TableBody,
   TableCell,
@@ -13,24 +12,10 @@ import {
   AvatarFallback,
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle
+  Badge
 } from '@newwork/nw-design-system'
+import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 
-// Status type → Tailwind classes mapping (matching Plans table)
-const ADV_STATUS_CLASSES: Record<string, string> = {
-  success: 'gba:bg-success gba:text-success-foreground',
-  warning: 'gba:bg-warning gba:text-warning-foreground',
-  info: 'gba:bg-info gba:text-info-foreground',
-  destructive: 'gba:bg-destructive gba:text-destructive-foreground',
-  offline: 'gba:bg-offline gba:text-offline-foreground',
-  draft: 'gba:bg-muted gba:text-muted-foreground',
-  completed: 'gba:bg-success gba:text-success-foreground',
-  waiting: 'gba:bg-info gba:text-info-foreground',
-  task: 'gba:bg-warning gba:text-warning-foreground',
-  error: 'gba:bg-destructive gba:text-destructive-foreground',
-  preparing: 'gba:bg-muted gba:text-muted-foreground'
-}
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -41,6 +26,7 @@ import { ensureShortDateFormat } from '../../../utils/dateUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { AdvancePayment as AdvancePaymentItem } from '../../../hooks/useMainViewAdvancePayments'
 import AdvancePaymentDetails from './AdvancePaymentDetails'
+import { TablePagination } from '../../../../../components'
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string
@@ -71,6 +57,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     }),
     [props.accessToken, props.userInfo]
   )
+
+  // Deterministic scroll target for pagination (top of table)
+  const tableTopRef = useRef<HTMLDivElement | null>(null)
 
   // Use data from props if provided (from parent Tab), otherwise fall back to local hook
   const payments = props.advancePayments
@@ -132,6 +121,15 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     [setPageSize, setCurrentPage]
   )
 
+  // Adapter for TablePagination component
+  const handleTablePaginationChange = useCallback(
+    (pagination: { current: number; pageSize: number }) => {
+      setCurrentPage(pagination.current)
+      setPageSize(pagination.pageSize)
+    },
+    [setCurrentPage, setPageSize]
+  )
+
   // Small helpers to reduce cognitive complexity of render function
   const renderErrorAlert = useCallback(() => {
     return (
@@ -152,7 +150,11 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
   const renderTableContent = useCallback(() => {
     return (
-      <div className="gba:border gba:border-border gba:rounded-md">
+      <div
+        className="gba:border gba:border-border gba:rounded-md"
+        ref={tableTopRef}
+        data-testid="advance-payments-scroll-anchor"
+      >
         {/* Table with horizontal scrolling */}
         <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-border">
           <Table data-testid="advance-payments-table" className="gba:w-full">
@@ -407,9 +409,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                                 ? `data:image/gif;base64,${record.expensePlan.employee.pictureThumbnail}`
                                 : undefined
                             }
-                            alt={record.expensePlan?.employee?.fullName}
+                            alt={record.expensePlan?.employee?.fullName || record.expensePlan?.employee?.displayName}
                           />
-                          <AvatarFallback>{record.expensePlan?.employee?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                          <AvatarFallback>
+                            {record.expensePlan?.employee?.displayName?.charAt(0) ||
+                              record.expensePlan?.employee?.fullName?.charAt(0) ||
+                              'U'}
+                          </AvatarFallback>
                         </Avatar>
                         <span className="gba:font-medium gba:text-sm">
                           {(() => {
@@ -444,16 +450,14 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                     </TableCell>
                     <TableCell className="gba:pr-6 gba:w-[20%]">
                       {(() => {
-                        const status = getAdvancePaymentStatusDisplay(record.status)
+                        const statusConfig = getAdvancePaymentStatusDisplay(record.status)
                         return (
-                          <span
-                            className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
-                              ADV_STATUS_CLASSES[String(status.type).toLowerCase()] || ADV_STATUS_CLASSES.draft
-                            }`}
-                            data-testid={`status-pill-${String(status.type).toLowerCase()}`}
+                          <Badge
+                            variant={statusConfig.badgeVariant}
+                            data-testid={`status-pill-${record.status.toLowerCase()}`}
                           >
-                            {status.label}
-                          </span>
+                            {statusConfig.label}
+                          </Badge>
                         )
                       })()}
                     </TableCell>
@@ -465,117 +469,19 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
         </div>
 
         {/* Pagination */}
-        {totalCount > pageSize ? (
-          <div
-            className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
-            data-testid="advance-payments-pagination"
-          >
-            <div className="gba:text-sm gba:text-muted-foreground" data-testid="advance-payments-pagination-info">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')}{' '}
-              {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`}{' '}
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount}{' '}
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:personal_expenses.advance_payments',
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:backoffice_expense_landing_page.advance_title',
-                  'Advance Payments'
-                )
-              )}
-            </div>
-            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                </p>
-                <select
-                  value={pageSize}
-                  onChange={e => handlePageSizeChange(Number(e.target.value))}
-                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                  data-testid="advance-payments-page-size-select"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-              <div
-                className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
-                data-testid="advance-payments-page-info"
-              >
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
-                {Math.ceil(totalCount / pageSize)}
-              </div>
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                  data-testid="advance-payments-first-page-button"
-                >
-                  <span className="gba:sr-only">Go to first page</span>⟪
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  data-testid="advance-payments-previous-page-button"
-                >
-                  <span className="gba:sr-only">Go to previous page</span>⟨
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                  data-testid="advance-payments-next-page-button"
-                >
-                  <span className="gba:sr-only">Go to next page</span>⟩
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => setCurrentPage(Math.ceil(totalCount / pageSize))}
-                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                  data-testid="advance-payments-last-page-button"
-                >
-                  <span className="gba:sr-only">Go to last page</span>⟫
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : totalCount > 0 ? (
-          <div
-            className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
-            data-testid="advance-payments-pagination-info-single-page"
-          >
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {`${totalCount} ${getTranslationFromI18nKeyAndLabel(
-                'lowcoder:backoffice_expense_landing_page.advance_title',
-                'Advance Payments'
-              )}`}
-            </div>
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <p className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-              </p>
-              <select
-                value={pageSize}
-                onChange={e => handlePageSizeChange(Number(e.target.value))}
-                className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                data-testid="advance-payments-page-size-select-single"
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
-          </div>
-        ) : null}
+        <TablePagination
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={totalCount}
+          onPageChange={handleTablePaginationChange}
+          scrollTargetRef={tableTopRef}
+          entityNamePlural={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:backoffice_expense_landing_page.advance_title',
+            'Advance Payments'
+          )}
+          dataTestIdPrefix="advance-payments"
+          showBorder={false}
+        />
       </div>
     )
   }, [
@@ -601,10 +507,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       {renderDataBody()}
 
       {/* Advance Payment Details Sheet */}
-      {/* IMPORTANT: The 'title' prop is REQUIRED by @newwork/nw-design-system Sheet interface (line 20).
-          Removing it causes TypeScript error: "Property 'title' is missing but required in type 'SheetProps'".
-          SonarCloud incorrectly flags it as unsupported. Verified in Sheet.d.ts - title: string (required).
-          The component renders the title internally. DO NOT REMOVE. */}
       <Sheet
         open={!!selectedPayment}
         onOpenChange={open => !open && setSelectedPayment(null)}
@@ -614,16 +516,17 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.title', 'Advance Payment Details')
         }
       >
-        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-foreground">
-              {selectedPayment?.expensePlan?.title ||
-                getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.title', 'Advance Payment Details')}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+        <SheetContent side="right" className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
+          <ExpenseDetailsShell
+            title={
+              selectedPayment?.expensePlan?.title ||
+              getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_details.title', 'Advance Payment Details')
+            }
+            onClose={() => setSelectedPayment(null)}
+            dataTestIdPrefix="advance-payment-details"
+          >
             {selectedPayment && <AdvancePaymentDetails payment={selectedPayment} {...contextProps} />}
-          </div>
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
     </>

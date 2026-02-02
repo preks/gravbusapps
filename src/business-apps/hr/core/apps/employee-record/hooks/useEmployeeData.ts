@@ -101,6 +101,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
       workspace
       version
       externalId
+      hrReferenceCode
       pictureThumbnail
       userId
       additionalProperties
@@ -214,6 +215,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         hireDate
         vacationDays
         exitDate
+        additionalProperties
       }
       workingHours {
         id
@@ -462,6 +464,7 @@ export interface Employee {
   workspace: string
   version: number
   externalId?: string | null
+  hrReferenceCode?: string | null
   pictureThumbnail: string
   userId?: string
   skills: EmployeeSkill[]
@@ -649,6 +652,9 @@ interface WorkingCondition {
   hireDate: string
   vacationDays: number
   exitDate: string
+  additionalProperties?: {
+    fixedTermReason?: string
+  }
 }
 
 interface WorkingHours {

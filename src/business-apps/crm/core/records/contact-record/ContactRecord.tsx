@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Button, Spinner, RecordLayout } from '@newwork/nw-design-system'
-import { Users, FileText, User, DollarSign } from 'lucide-react'
+import { Button, Spinner, RecordLayout, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
+import {
+  FileTextIcon,
+  UserIcon,
+  CurrencyDollarIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  CakeIcon,
+  GlobeIcon
+} from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -11,6 +19,8 @@ import { useCustomerNotes } from '@/common/data/customer/hooks/useCustomerNotes'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
+import { useContactAiSummary } from './hooks/useContactAiSummary'
 import { HomeView } from './views/home-view/HomeView'
 import { OpportunityView } from './views/opportunity-view/OpportunityView'
 import { DocumentView } from './views/document-view/DocumentView'
@@ -36,6 +46,9 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     error,
     refetch: refetchContactData
   } = useCustomerContact(props.accessToken, contactId)
+
+  // AI Summary hook - must be called before any conditional returns
+  const aiSummaryHook = useContactAiSummary(contactId, props.accessToken)
 
   // Data fetching hooks for sections - using central hooks
   const { fetchCustomerActivitiesByContactId } = useCustomerActivities(props)
@@ -174,26 +187,26 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
             value:
               getEmailChannel(contactData?.communicationChannels)?.value ||
               getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: Users
+            icon: EnvelopeIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.phone', 'Phone'),
             value:
               getPhoneChannel(contactData?.communicationChannels)?.value ||
               getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: Users
+            icon: PhoneIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.birthday', 'Birthday'),
             value: contactData?.birthDate
               ? new Date(contactData.birthDate).toLocaleDateString('en-GB')
               : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: Users
+            icon: CakeIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.language', 'Language'),
             value: contactData?.language?.value || getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
-            icon: Users
+            icon: GlobeIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
@@ -202,7 +215,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
               (contactData?.ownerEmployee?.firstName && contactData?.ownerEmployee?.lastName
                 ? `${contactData.ownerEmployee.firstName} ${contactData.ownerEmployee.lastName}`.trim()
                 : getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned')),
-            icon: User
+            icon: UserIcon
           }
         ]
       }
@@ -210,10 +223,14 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     [contactData]
   )
 
-  const headerActions = useMemo(() => {
-    // For now, we can add AI Summary later if needed
-    return null
-  }, [contactId])
+  const headerActions = (
+    <AiActions
+      entityType="contact"
+      entityId={contactId}
+      features={['summary', 'meeting-planner']}
+      hooks={{ summary: aiSummaryHook, meetingPlanner: aiSummaryHook }}
+    />
+  )
 
   // Calculate fullName early for use in headerActionButton
   const fullName =
@@ -299,7 +316,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         {
           value: 'overview',
           label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
-          icon: <User className="gba:mr-2" />,
+          icon: <UserIcon className="gba:mr-2" />,
           content: (
             <HomeView
               contactId={contactId}
@@ -322,7 +339,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         {
           value: 'opportunities',
           label: getTranslationFromI18nKeyAndLabel('crm.common.opportunities', 'Opportunities'),
-          icon: <DollarSign className="gba:mr-2" />,
+          icon: <CurrencyDollarIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <OpportunityView contactId={contactId} {...props} />
@@ -332,7 +349,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
         {
           value: 'documents',
           label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-          icon: <FileText className="gba:mr-2" />,
+          icon: <FileTextIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <DocumentView contactId={contactId} {...props} />
@@ -396,14 +413,16 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
     <div data-testid="customer-contact-detail">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={User}
-        headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.contact', 'CONTACT')}
+        headerAvatar={<IconAvatar icon={UserIcon} variant="decorative" size="xl" />}
+        headerOverline={getTranslationFromI18nKeyAndLabel('crm.common.contact', 'CONTACT')}
         onBack={onBack}
         headerTitle={headerTitle}
-        headerDetailGroups={headerDetailGroups}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
-        subViews={subViewsConfig}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

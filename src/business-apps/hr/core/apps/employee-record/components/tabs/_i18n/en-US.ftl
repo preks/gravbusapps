@@ -67,3 +67,14 @@ documents-detail-description = Description
 documents-detail-no-description = No description provided
 documents-detail-na = N/A
 
+# Additional Document Strings
+documents-unknown = Unknown
+documents-error-load-failed = Failed to load documents
+documents-viewer-title = Document Viewer
+documents-expired-tooltip = Document has expired
+documents-valid-tooltip = Document is valid
+documents-error-load-document = Could not load document
+documents-error-empty-blob = Empty blob received
+documents-error-no-file-id = No document file ID available
+documents-error-no-file-info = No file information available
+documents-error-image-display = The image could not be displayed. It may be in an unsupported format.

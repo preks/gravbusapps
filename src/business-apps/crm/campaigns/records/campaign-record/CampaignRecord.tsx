@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { RecordLayout, Badge, Spinner } from '@newwork/nw-design-system'
-import { Megaphone, Calendar, Tag } from 'lucide-react'
+import { RecordLayout, Badge, Spinner, IconAvatar, HeaderSlot } from '@newwork/nw-design-system'
+import { MegaphoneIcon, CalendarIcon, TagIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCampaignRecord, useCampaignKPIs, useCampaignAnalytics } from './hooks'
 import { CampaignKPIs, CampaignChart, CampaignEntitiesSection } from './components'
@@ -129,17 +129,17 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
             {
               items: [
                 {
-                  icon: Tag,
+                  icon: TagIcon,
                   label: getTranslationFromI18nKeyAndLabel('campaign.type', 'Type'),
                   value: campaign.type?.value || 'Unknown Type'
                 },
                 {
-                  icon: Calendar,
+                  icon: CalendarIcon,
                   label: getTranslationFromI18nKeyAndLabel('campaign.duration', 'Duration'),
                   value: calculateDuration(campaign.startDate, campaign.endDate)
                 },
                 {
-                  icon: Calendar,
+                  icon: CalendarIcon,
                   label: getTranslationFromI18nKeyAndLabel('campaign.dateRange', 'Date Range'),
                   value: formatDateRange(campaign.startDate, campaign.endDate)
                 }
@@ -193,7 +193,7 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
         {
           value: 'overview',
           label: getTranslationFromI18nKeyAndLabel('campaign.tabs.overview', 'Overview'),
-          icon: <Megaphone className="gba:mr-2" />,
+          icon: <MegaphoneIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12 gba:space-y-6" data-testid="campaign-overview-container">
               {/* KPIs - Full width */}
@@ -222,7 +222,7 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
         {
           value: 'analytics',
           label: getTranslationFromI18nKeyAndLabel('campaign.tabs.analytics', 'Analytics'),
-          icon: <Calendar className="gba:mr-2" />,
+          icon: <CalendarIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12 gba:space-y-6" data-testid="campaign-analytics-container">
               {/* Analytics Statistics - Full width */}
@@ -312,14 +312,16 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
     <div data-testid="campaign-record">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={Megaphone}
-        headerCategory={getTranslationFromI18nKeyAndLabel('campaigns.header.category', 'CAMPAIGN')}
+        headerAvatar={<IconAvatar icon={MegaphoneIcon} variant="decorative" size="xl" />}
+        headerOverline={getTranslationFromI18nKeyAndLabel('campaigns.header.category', 'CAMPAIGN')}
         onBack={handleBackNavigation}
         headerTitle={campaign.name}
-        headerDetailGroups={headerDetailGroups}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
-        subViews={subViewsConfig}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

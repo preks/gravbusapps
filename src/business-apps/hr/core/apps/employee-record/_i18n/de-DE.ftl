@@ -60,9 +60,7 @@ rewards-package-description = Ihr Gesamtvergütungspaket umfasst Grundgehalt, Bo
 
 # Benefits & Perks
 benefits-catalog-title = Zusatzleistungs-Katalog
-benefits-active-count = { $count } aktiv
-benefits-available-count = { $count } verfügbar
-benefits-total-count = { $count } gesamt
+benefits-catalog-no-results = Keine Ergebnisse
 benefits-search-placeholder = Zusatzleistungen suchen...
 benefits-loading = Zusatzleistungs-Katalog wird geladen...
 benefits-error-title = Fehler beim Laden der Zusatzleistungen
@@ -74,23 +72,36 @@ benefits-catalog-no-results-title = Keine Zusatzleistungen gefunden
 benefits-catalog-no-results-description = Keine Zusatzleistungen entsprechen Ihren Suchkriterien.
 benefits-catalog-clear-search = Suche löschen
 benefits-active-section-title = Aktive Zusatzleistungen ({ $count })
+benefits-scheduled-section-title = Geplante Zusatzleistungen ({ $count })
 benefits-available-section-title = Verfügbare Zusatzleistungen ({ $count })
 
 # Benefit Card
 benefit-status-active = Aktiv
+benefit-status-scheduled = Geplant
 benefit-status-pending = Ausstehend
 benefit-status-available = Verfügbar
 benefit-request-button = Anfordern
+benefit-pending-request-info = Sie haben diese Zusatzleistung bereits angefordert. Sie können nur eine aktive Anfrage gleichzeitig haben. Die Anfrage wartet auf Genehmigung.
+benefit-pending-request-notice = Eine Anfrage für diese Zusatzleistung wartet derzeit auf Genehmigung
+benefit-request-employee-id-missing = Mitarbeiter-ID nicht verfügbar. Kann Leistungsanfrage nicht initiieren.
+benefit-already-scheduled = Geplant
 benefit-deactivate-button = Deaktivieren
+benefit-deactivated-button = Deaktiviert
 benefit-view-details = Details anzeigen
 benefit-provider = Anbieter
 benefit-value-yearly = Jahreswert
 benefit-no-provider = Kein Anbieter angegeben
 benefit-since = Seit
+benefit-starts-in = Beginnt im
+benefit-starts-on = Beginnt am
+benefit-scheduled-badge = Geplant
+benefit-ends = Endet
 
 # Benefit Details Modal
 benefit-details-type-info = Informationen zum Leistungstyp
+benefit-details-benefit-information = Leistungsinformationen
 benefit-details-code = Code
+benefit-details-type = Typ
 benefit-details-category = Kategorie
 benefit-details-provider-info = Anbieterinformationen
 benefit-details-provider = Anbieter
@@ -102,6 +113,9 @@ benefit-details-start-date = Startdatum
 benefit-details-end-date = Enddatum
 benefit-details-notes = Notizen
 benefit-details-available-providers = Verfügbare Anbieter
+benefit-details-additional-info = Zusätzliche Informationen
+benefit-details-value = Wert
+benefit-details-no-value-info = Detaillierte Wertinformationen werden nach Beantragung dieser Leistung festgelegt.
 benefit-details-description = Leistungsdetails
 common-close = Schließen
 
@@ -126,6 +140,7 @@ payslip-download-failed = Fehler beim Herunterladen der Gehaltsabrechnung. Bitte
 
 # Request Benefit Modal
 modal-request-title = Zusatzleistung anfordern
+modal-request-loading = Lade Zusatzleistungsinformationen...
 modal-request-description = Füllen Sie das untenstehende Formular aus, um diese Zusatzleistung anzufordern
 modal-request-provider-label = Zusatzleistungsanbieter
 modal-request-provider-placeholder = Anbieter auswählen
@@ -135,8 +150,8 @@ modal-request-period-label = Leistungszeitraum
 modal-request-period-placeholder = Geschätzten Zeitraum eingeben
 modal-request-value-help = Optional: Geschätzter jährlicher Wert dieser Zusatzleistung
 modal-request-start-date-label = Startdatum
-modal-request-justification-label = Begründung
-modal-request-justification-placeholder = Erklären Sie, warum Sie diese Zusatzleistung benötigen...
+modal-request-justification-label = Erzählen Sie uns mehr
+modal-request-justification-placeholder = Wir würden gerne erfahren, warum Ihnen das wichtig ist.
 modal-request-justification-help = Mindestens { $min } Zeichen, maximal { $max } Zeichen
 modal-request-submit-button = Anfrage einreichen
 modal-request-cancel-button = Abbrechen
@@ -237,11 +252,7 @@ action-enter-placeholder = Bitte eingeben
 
 # Benefits Catalog Section
 benefit-per-year = /Jahr
-benefits-catalog-summary = {$active} aktiv · {$available} verfügbar · {$total} gesamt
-benefits-catalog-search-placeholder = Zusatzleistungen suchen...
-benefits-catalog-loading = Zusatzleistungs-Katalog wird geladen...
-benefits-catalog-error-title = Fehler beim Laden der Zusatzleistungen
-benefits-catalog-retry = Wiederholen
+benefit-per-month = /Monat
 
 # Payslip Section
 payslip-no-data = Keine Gehaltsabrechnungen verfügbar
@@ -259,7 +270,328 @@ modal-request-benefit-type-label = Leistungsart
 modal-character-count = {$current} / {$max} Zeichen
 modal-character-minimum = (mindestens {$min} Zeichen)
 
+# Period translations
+period-monthly = Monatlich
+period-yearly = Jährlich
+period-daily = Täglich
+
 # Form Validation Errors
 error-end-date-required = Enddatum ist erforderlich
 error-end-date-today-or-later = Enddatum muss heute oder später sein
 error-end-date-after-start-date = Enddatum muss am oder nach dem Startdatum der Leistung liegen
+
+# Employee Record - Notifications
+notification-address-updated-success = Adressänderungen zur Genehmigung an die Personalabteilung gesendet.
+notification-bank-account-updated-success = Änderungen der Bankverbindung zur Genehmigung an die Personalabteilung gesendet.
+notification-personal-data-updated-success = Änderungen an den persönlichen Daten zur Genehmigung an die Personalabteilung gesendet.
+notification-communication-updated-success = Änderungen an den Kommunikationsdaten zur Genehmigung an die Personalabteilung gesendet.
+notification-profile-picture-updated-success = Änderungen am Profilbild zur Genehmigung an die Personalabteilung gesendet.
+notification-relationship-updated-success = Änderungen des Beziehungsstatus zur Genehmigung an die Personalabteilung gesendet.
+notification-expense-created-success = Spesen erfolgreich erstellt
+notification-sick-leave-reported-success = Krankmeldung erfolgreich erfasst
+notification-special-leave-requested-success = Sonderurlaub erfolgreich beantragt
+notification-vacation-requested-success = Urlaub erfolgreich beantragt
+notification-working-hours-updated-success = Aktualisierungen der Arbeitszeiten zur Genehmigung an die Personalabteilung gesendet
+
+# Employee Record - Errors and states
+employee-record-error-title = Fehler
+employee-record-error-loading-data = Fehler beim Laden der Mitarbeiterdaten.
+employee-record-not-found-title = Nicht gefunden
+employee-record-not-found-message = Mitarbeiter nicht gefunden.
+employee-record-not-assigned = Nicht zugewiesen
+employee-record-edit-picture = Bild bearbeiten
+
+# Employee Record - Chat / communication
+employee-record-chat-button = Chat
+employee-record-chat-tooltip = Chat
+employee-record-chat-cannot-self = Sie können nicht mit sich selbst chatten
+employee-record-audio-call-button = Anruf
+employee-record-audio-tooltip = Anruf
+employee-record-audio-cannot-self = Sie können sich nicht selbst anrufen
+employee-record-video-call-button = Videoanruf
+employee-record-video-tooltip = Videoanruf
+employee-record-video-cannot-self = Sie können sich nicht selbst per Video anrufen
+
+# Employee Record - Tab labels
+employee-record-tab-summary = Übersicht
+employee-record-tab-hr-admin = HR-Administration
+employee-record-tab-hr-growth = Personalentwicklung
+hr-growth-skills = Fähigkeiten
+hr-growth-feedback = Feedback
+hr-growth-performance = Leistung
+
+# Skills Tab
+skills-title = Mitarbeiterfähigkeiten
+skills-description = Mitarbeiterfähigkeiten und Kompetenzen anzeigen und verwalten
+skills-edit-button = Fähigkeiten bearbeiten
+skills-empty = Keine Fähigkeiten gefunden
+skills-total = Gesamte Fähigkeiten
+skills-highest = Höchste Fähigkeiten
+skills-none = Keine
+skills-level = Stufe
+skills-category = Kategorie
+skills-added = Hinzugefügt
+skills-updated = Aktualisiert
+skills-na = K.A.
+skills-level-0 = Keine Stufe zugewiesen
+skills-level-1 = Anfänger - Grundlegendes Verständnis
+skills-level-2 = Anfänger - Begrenzte Erfahrung
+skills-level-3 = Mittelstufe - Arbeitswissen
+skills-level-4 = Fortgeschritten - Kompetent
+skills-level-5 = Experte - Meisterniveau
+
+# Performance Tab
+performance-title = Leistungsziele
+performance-description = Mitarbeiterleistungsziele anzeigen und verwalten
+performance-edit-button = Neues Ziel setzen
+performance-empty = Keine Ziele verfügbar
+performance-progress = Fortschritt
+performance-start-date = Startdatum
+performance-due-date = Fälligkeitsdatum
+performance-completion-date = Abschlussdatum
+performance-status-on-track = Im Plan
+performance-status-behind-target = Hinter dem Ziel
+performance-status-at-risk = Gefährdet
+performance-status-achieved = Erreicht
+performance-status-not-achieved = Nicht erreicht
+performance-error-load = Leistungsdaten konnten nicht geladen werden
+
+# Feedback Tab - Pagination
+feedback-pagination-per-page = / Seite
+
+employee-record-tab-compensation = Vergütung
+employee-record-tab-time-tracking = Zeiterfassung
+employee-record-tab-absences = Abwesenheiten
+employee-record-tab-assets = Sachmittel
+employee-record-tab-service-requests = Serviceanfragen
+
+# Profile Header - Detail labels
+profile-header-work-email = Arbeit-E-Mail
+profile-header-work-phone = Diensttelefon
+profile-header-organization = Organisation
+profile-header-location = Standort
+profile-header-manager = Vorgesetzte/r
+profile-header-no-manager = Kein Vorgesetzter
+profile-header-job-position = Position
+profile-header-cost-center = Kostenstelle
+profile-header-hire-date = Eintrittsdatum
+profile-header-fixed-term-until = Befristungsende
+profile-header-fixed-term-reason = Grund für Befristung
+profile-header-na = k. A.
+
+# Profile Header - Time units (tenure)
+profile-header-year = Jahr
+profile-header-years = Jahre
+profile-header-month = Monat
+profile-header-months = Monate
+
+# Profile Header - Sections
+profile-header-teams = Teams
+profile-header-capabilities = Fähigkeiten
+profile-header-skills = Kompetenzen
+profile-header-no-capabilities = Keine Fähigkeiten zugewiesen
+profile-header-no-skills = Keine Kompetenzen zugewiesen
+
+# Summary Tab
+summary-overview = Mitarbeiterübersicht
+summary-description = Mitarbeiterprofil anzeigen und bearbeiten
+summary-organization-chart = Organigramm
+summary-job-information = Stelleninformationen
+summary-availability-schedule = Verfügbarkeit & Zeitplan
+summary-job-profile = Stellenprofil
+summary-job-family = Stellenfamilie
+summary-job-function = Stellenfunktion
+summary-job-level = Stellenebene
+summary-sap-number = SAP-Nummer
+summary-current-status = Aktueller Status
+summary-available = Verfügbar
+summary-unavailable = Nicht verfügbar
+summary-timezone = Zeitzone
+summary-weekly-hours = Wochenstunden
+summary-hours-per-week = { $hours } Stunden/Woche
+summary-not-specified = Nicht angegeben
+summary-quick-actions = Schnellaktionen
+summary-clock-in = Einstempeln
+summary-clock-out = Ausstempeln
+summary-request-absence = Abwesenheit beantragen
+summary-next-planned-absence = Nächste geplante Abwesenheit
+summary-out-of-office = Nicht im Büro
+summary-days = Tage
+summary-loading-upcoming-absence = Lade bevorstehende Abwesenheit...
+summary-view-profile = Profil von { $name } anzeigen
+summary-day-mon = Mo
+summary-day-tue = Di
+summary-day-wed = Mi
+summary-day-thu = Do
+summary-day-fri = Fr
+summary-day-sat = Sa
+summary-day-sun = So
+summary-day-mon-short = M
+summary-day-tue-short = D
+summary-day-wed-short = M
+summary-day-thu-short = D
+summary-day-fri-short = F
+summary-day-sat-short = S
+summary-day-sun-short = S
+
+# HR Admin Tab
+hr-admin-subtab-details = Details
+hr-admin-subtab-employment = Beschäftigung
+hr-admin-subtab-documents = Dokumente
+hr-admin-subtab-change-log = Änderungsprotokoll
+hr-admin-subtab-hr-notes = HR-Notizen
+
+# Details Tab
+details-overview = Mitarbeiterdetails
+details-description = Mitarbeiterpersönliche Informationen anzeigen
+details-personal-data = Persönliche Daten
+details-address = Adresse
+details-bank-account = Bankkonto
+details-private-communication = Private Kommunikation
+details-emergency-contact = Notfallkontakt
+details-additional-attributes = Zusätzliche Attribute
+details-no-emergency-contact = Keine Notfallkontaktinformationen verfügbar
+details-label-salutation = Anrede
+details-label-academic-titles = Akademische Titel
+details-label-first-name = Vorname
+details-label-last-name = Nachname
+details-label-preferred-name = Bevorzugter Name
+details-label-birth-name = Geburtsname
+details-label-date-of-birth = Geburtsdatum
+details-label-place-of-birth = Geburtsort
+details-label-nationality = Nationalität
+details-label-gender = Geschlecht
+details-label-marital-status = Familienstand
+details-label-postal-code = Postleitzahl
+details-label-city = Stadt
+details-label-country = Land
+details-label-address-line = Adresszeile
+details-label-bank-name = Bankname
+details-label-account-holder = Kontoinhaber
+details-label-iban = IBAN
+details-label-private-phone = Private Telefonnummer
+details-label-private-mobile = Private Mobilnummer
+details-label-private-email = Private E-Mail
+details-label-contact-name = Kontaktname
+details-label-phone-number = Telefonnummer
+
+# Employment Tab
+employment-overview = Beschäftigungsdaten
+employment-description = Beschäftigungsinformationen und Arbeitsbedingungen anzeigen
+employment-profile = Beschäftigungsprofil
+employment-working-conditions = Arbeitsbedingungen
+employment-working-hours = Arbeitszeiten
+employment-payroll = Gehaltsabrechnung
+employment-tax-information = Steuerinformationen
+employment-label-employee-id = Mitarbeiter-ID
+employment-label-company = Unternehmen
+employment-label-job-position = Position
+employment-label-location = Standort
+employment-label-organizational-unit = Organisationseinheit
+employment-label-workspace = Arbeitsplatz
+employment-label-management-level = Führungsebene
+employment-label-cost-center = Kostenstelle
+employment-label-employment-type = Beschäftigungstyp
+employment-label-hire-date = Einstellungsdatum
+employment-label-fixed-term-until = Befristet bis
+employment-label-contract-type = Vertragstyp
+employment-label-probation-end-date = Probezeitende
+employment-label-remote = Remote
+employment-label-exit-date = Austrittsdatum
+employment-label-region = Region
+employment-label-vacation-entitlement-days = Urlaubsanspruch (Tage)
+employment-label-weekly-hours = Wochenstunden
+employment-label-fte = VZÄ (Vollzeitäquivalent)
+employment-label-days-per-week = Tage pro Woche
+employment-label-salary-group = Gehaltsgruppe
+employment-label-payment-method = Zahlungsmethode
+employment-label-bank-account = Bankkonto
+employment-label-bank-name = Bankname
+employment-label-account-holder = Kontoinhaber
+employment-label-full-time-equivalent = Vollzeitäquivalent
+employment-label-tax-number = Steuernummer
+employment-label-tax-identification-number = Steueridentifikationsnummer
+employment-label-social-security-number = Sozialversicherungsnummer
+employment-label-tax-bracket = Steuerklasse
+employment-label-church-affiliation = Kirchenzugehörigkeit
+employment-label-child-tax-allowance = Kinderfreibetrag
+employment-label-health-insurance = Krankenversicherung
+employment-label-type-of-health-insurance = Art der Krankenversicherung
+common-loading = Wird geladen...
+
+# Change Log Categories
+changelog-category-personal = Persönliche Daten
+changelog-category-address = Adresse & Kommunikation
+changelog-category-org = Organisationszuordnung
+changelog-category-employment = Beschäftigung
+changelog-category-financial = Finanziell
+changelog-category-skills = Fähigkeiten & Kompetenzen
+changelog-category-documents = Dokumente
+
+# Change Log Entry Details
+changelog-label-channel = Kanal
+changelog-label-category = Kategorie
+changelog-label-timestamp = Zeitstempel
+changelog-label-created-by = Erstellt von
+changelog-label-flow = Ablauf
+
+# Assets Tab
+assets-category = Kategorie
+assets-brand-model = Marke & Modell
+assets-serial-number = Seriennummer
+assets-assignment-period = Zuweisungszeitraum
+assets-condition = Zustand
+assets-status = Status
+assets-total-assets = Gesamt Assets
+assets-in-use = In Verwendung
+assets-status-in-repair = In Reparatur
+assets-handed-over = Übergeben
+assets-status-available = Verfügbar
+assets-status-allocated = Zugewiesen
+assets-status-in-repair-label = In Reparatur
+assets-status-retired = Ausgemustert
+assets-status-handed-over = Übergeben
+assets-status-in-use = In Verwendung
+assets-not-available = N/V
+assets-error-loading-assets = Fehler beim Laden der Assets
+assets-no-assets-assigned = Keine Assets zugewiesen
+assets-no-equipment-assigned-self = Ihnen sind derzeit keine Geräte zugewiesen.
+assets-no-equipment-assigned-employee = Diesem Mitarbeiter sind derzeit keine Geräte zugewiesen.
+assets-assigned-equipment = Asset-Zusammenfassung
+assets-request-new-asset = Neues Asset anfordern
+assets-asset-assignment-history = Asset-Zuweisungsverlauf
+assets-unknown = Unbekannt
+assets-to = bis
+assets-expected = Erwartet
+assets-currently-active = Derzeit aktiv
+assets-start = Start
+assets-end = Ende
+assets-assignment-notes = Zuweisungsnotizen
+
+# Service Requests Tab
+service-requests-title = Service-Anfragen
+service-requests-desc-self = Ihre eingereichten Service-Anfragen
+service-requests-desc-other = Service-Anfragen, die von { $name } eingereicht wurden
+service-requests-create-new = Service-Portal
+service-requests-total = Gesamt
+service-requests-active = Aktiv
+service-requests-completed = Abgeschlossen
+service-requests-completion-rate = Abschlussrate
+service-requests-error = Fehler beim Laden der Service-Anfragen
+service-requests-no-steps = Keine Schritte definiert
+service-requests-next-step = Nächster
+service-requests-completed-step = Abgeschlossen
+service-requests-no-service-requests = Keine Service-Anfragen
+service-requests-no-service-requests-desc-self = Sie haben noch keine Service-Anfragen eingereicht.
+service-requests-no-service-requests-desc-other = Dieser Mitarbeiter hat noch keine Service-Anfragen eingereicht.
+service-requests-column-request = Anfrage
+service-requests-column-status = Status
+service-requests-column-progress = Fortschritt
+service-requests-column-created = Erstellt
+service-requests-column-steps = Schritte
+
+# Service Request Status Values
+service-requests-status-open = Offen
+service-requests-status-in-progress = In Bearbeitung
+service-requests-status-completed = Abgeschlossen
+service-requests-status-canceled = Abgebrochen

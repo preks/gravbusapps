@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useRef } from 'react'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
 import {
@@ -8,7 +8,6 @@ import {
   TableRow,
   TableCell,
   TableHead,
-  Button,
   Avatar,
   AvatarImage,
   AvatarFallback,
@@ -16,31 +15,29 @@ import {
   Alert,
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  Badge
 } from '@newwork/nw-design-system'
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 
 // Enable localized date formatting
 dayjs.extend(localizedFormat)
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
+import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildDeduplicatedFilters } from '../../../utils/filterUtils'
 import { ExpenseRequest, SortField } from '../../../hooks/useGetExpenseRequests'
 import { getExpenseRequestStatusDisplay } from '../../../utils'
-import { pillTypeClassMap } from '../../../components/StatusLegend'
 import ExpenseRequestDetails from './ExpenseRequestDetails'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
-import { useExpensePlanFileService } from '../../../../personal-expenses/utils/expensePlanFileService'
+import { useExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-
-// Use shared pill classes from StatusLegend to avoid duplication
+import { TablePagination } from '../../../../../components'
 
 interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   expenseRequests: ExpenseRequest[]
@@ -66,7 +63,14 @@ interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   removeFilter: (filter: string) => void
   handleDataFilterChange: (filterId: string, selected: boolean) => void
   primaryCurrency: string | null
+  // Date range filter props for active filter detection
+  effectiveDateRange?: [Date | null, Date | null] | null
+  requestDateRange?: [Date | null, Date | null] | null
+  startDateRange?: [Date | null, Date | null] | null
+  endDateRange?: [Date | null, Date | null] | null
 }
+
+const DATA_TEST_ID_PREFIX = 'expense-requests'
 
 const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   const contextProps = useMemo(
@@ -83,15 +87,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   const [printModalOpen, setPrintModalOpen] = useState<boolean>(false)
   const [printPdfUrl, setPrintPdfUrl] = useState<string>('')
   const [printLoading, setPrintLoading] = useState<boolean>(false)
+  // Deterministic scroll target for pagination (top of table)
+  const tableTopRef = useRef<HTMLDivElement | null>(null)
 
   const [sorting, setSorting] = useState<{
     field: SortField | null
     order: 'ASC' | 'DESC' | null
     lastField: SortField | null
   }>({
-    field: null,
-    order: null,
-    lastField: null
+    field: 'requestDate',
+    order: 'DESC',
+    lastField: 'requestDate'
   })
 
   const {
@@ -111,12 +117,29 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     primaryCurrency
   } = props
 
+  // Helper to check if a date range is active
+  const isDateRangeActive = useCallback((range: [Date | null, Date | null] | null | undefined) => {
+    return !!(range && (range[0] || range[1]))
+  }, [])
+
   const hasActiveFilters = useMemo(() => {
     const hasSearch = (searchTerm || '').trim() !== ''
     const hasFilters = (selectedFilters || []).length > 0
-
-    return hasSearch || hasFilters
-  }, [searchTerm, selectedFilters])
+    const hasDateRangeFilters =
+      isDateRangeActive(props.effectiveDateRange) ||
+      isDateRangeActive(props.requestDateRange) ||
+      isDateRangeActive(props.startDateRange) ||
+      isDateRangeActive(props.endDateRange)
+    return hasSearch || hasFilters || hasDateRangeFilters
+  }, [
+    searchTerm,
+    selectedFilters,
+    props.effectiveDateRange,
+    props.requestDateRange,
+    props.startDateRange,
+    props.endDateRange,
+    isDateRangeActive
+  ])
 
   const handleSearchChange = useCallback(
     (value: string) => {
@@ -126,40 +149,64 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     [setSearchTerm]
   )
 
+  // Adapter for TablePagination component
+  const handleTablePaginationChange = useCallback(
+    (pagination: { current: number; pageSize: number }) => {
+      setCurrentPage(pagination.current)
+      setPageSize(pagination.pageSize)
+      fetchRequests(
+        searchTerm,
+        pagination.current,
+        pagination.pageSize,
+        sorting.field ? `${sorting.field}:${sorting.order?.toLowerCase()}` : 'requestDate:desc',
+        selectedFilters,
+        undefined,
+        primaryCurrency
+      )
+    },
+    [searchTerm, sorting, selectedFilters, primaryCurrency, fetchRequests]
+  )
+
+  // Helper to calculate next sort state
+  const calculateNextSortState = useCallback((field: SortField, currentSorting: typeof sorting) => {
+    if (currentSorting.lastField !== field) {
+      return { field, order: 'ASC' as const, lastField: field }
+    }
+
+    if (currentSorting.order === 'ASC') {
+      return { field, order: 'DESC' as const, lastField: field }
+    }
+
+    if (currentSorting.order === 'DESC') {
+      return { field: null, order: null, lastField: null }
+    }
+
+    return { field, order: 'ASC' as const, lastField: field }
+  }, [])
+
   const handleSort = useCallback(
     (field: SortField) => {
-      let newSorting: {
-        field: SortField | null
-        order: 'ASC' | 'DESC' | null
-        lastField: SortField | null
-      }
-
-      if (sorting.lastField === field) {
-        if (sorting.order === 'ASC') {
-          newSorting = { field, order: 'DESC', lastField: field }
-        } else if (sorting.order === 'DESC') {
-          newSorting = { field: null, order: null, lastField: null }
-        } else {
-          newSorting = { field, order: 'ASC', lastField: field }
-        }
-      } else {
-        newSorting = { field, order: 'ASC', lastField: field }
-      }
-
+      const newSorting = calculateNextSortState(field, sorting)
       setSorting(newSorting)
       setCurrentPage(1)
 
-      if (newSorting.field && newSorting.order) {
-        const sortByParam = `${newSorting.field}:${newSorting.order.toLowerCase()}`
-        fetchRequests(searchTerm, 1, pageSize, sortByParam, selectedFilters, undefined, primaryCurrency)
-      } else {
-        fetchRequests(searchTerm, 1, pageSize, 'none', selectedFilters, undefined, primaryCurrency)
-      }
+      const sortByParam =
+        newSorting.field && newSorting.order ? `${newSorting.field}:${newSorting.order.toLowerCase()}` : 'none'
+      fetchRequests(searchTerm, 1, pageSize, sortByParam, selectedFilters, undefined, primaryCurrency)
     },
-    [setCurrentPage, sorting, fetchRequests, searchTerm, pageSize, selectedFilters, primaryCurrency]
+    [
+      calculateNextSortState,
+      sorting,
+      setCurrentPage,
+      fetchRequests,
+      searchTerm,
+      pageSize,
+      selectedFilters,
+      primaryCurrency
+    ]
   )
 
-  const { printExpensePlan, isMounted } = useExpensePlanFileService(contextProps)
+  const { printExpenseRequest, isMounted } = useExpenseRequestFileService(contextProps)
 
   const handlePrintRequest = useCallback(
     async (request: ExpenseRequest) => {
@@ -167,72 +214,22 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       setPrintModalOpen(true)
 
       try {
-        // Map expense request to expense plan format for printing
-        const mappedPlan = {
-          id: request.id,
-          code: request.code || '',
-          title:
-            request.title || getTranslationFromI18nKeyAndLabel('lowcoder:common.untitled_request', 'Untitled Request'),
-          description: request.description || '',
-          status: request.status,
-          startDate: request.startDate || '',
-          endDate: request.endDate || '',
-          planDate: request.requestDate || '',
-          totalAmount: request.totalAmount || 0,
-          currency: { value: request.currency || 'EUR', label: request.currency || 'EUR' } as any,
-          createdAt: request.createdAt || '',
-          updatedAt: request.updatedAt || '',
-          employeeDocument: request.employeeDocument || null,
-          employee: {
-            id: request.employee?.id || '',
-            code: request.employee?.id || '',
-            firstName: request.employee?.displayName?.split(' ')[0] || request.employee?.fullName?.split(' ')[0] || '',
-            lastName:
-              request.employee?.displayName?.split(' ').slice(1).join(' ') ||
-              request.employee?.fullName?.split(' ').slice(1).join(' ') ||
-              '',
-            employeePosition: {
-              organizationalUnit: {
-                id: request.employee?.employeePosition?.organizationalUnit?.id || '',
-                name: request.employee?.employeePosition?.organizationalUnit?.name || ''
-              },
-              siteLocation: {
-                id: request.employee?.employeePosition?.siteLocation?.id || '',
-                name: request.employee?.employeePosition?.siteLocation?.name || ''
-              }
-            }
-          },
-
-          reimbursableAmount: request.totalAmount || 0,
-          decisionDate: null,
-          requestTypeRef: null,
-          employeeDocumentId: request.employeeDocument?.id || null,
-          advancePaymentPaidAmount: 0,
-          advancePaymentInTransitAmount: 0,
-          requestType: null,
-          expensePlanItem: [],
-          advancePayment: null,
-          expenseRequestTrip: null,
-          currencyRef: `Currency:v1:${request.currency || 'EUR'}`,
-          expenseRequest: []
-        }
-
-        const result = await printExpensePlan(mappedPlan)
+        const result = await printExpenseRequest(request as any)
 
         if (result.success && result.pdfUrl && isMounted.current) {
           setPrintPdfUrl(result.pdfUrl)
         } else if (!result.success) {
           console.error('Error printing request:', result.error)
         }
-      } catch {
-        console.error('Error fetching print PDF:', error)
+      } catch (error) {
+        console.error('Error fetching print PDF:', error instanceof Error ? error.message : 'Unknown error')
       } finally {
         if (isMounted.current) {
           setPrintLoading(false)
         }
       }
     },
-    [printExpensePlan, isMounted]
+    [printExpenseRequest, isMounted]
   )
 
   const handleViewRequestDetails = useCallback((request: ExpenseRequest) => {
@@ -245,14 +242,14 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   const renderSortIndicator = useCallback(
     (field: SortField) => {
-      if (sorting.lastField === field && sorting.order !== null) {
-        if (sorting.order === 'ASC') {
-          return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
-        } else if (sorting.order === 'DESC') {
-          return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
-        }
+      if (sorting.lastField !== field || sorting.order === null) {
+        return null
       }
-      return null
+      return sorting.order === 'ASC' ? (
+        <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+      ) : (
+        <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+      )
     },
     [sorting]
   )
@@ -349,7 +346,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     }
 
     return (
-      <div>
+      <div ref={tableTopRef} data-testid={`${DATA_TEST_ID_PREFIX}-scroll-anchor`}>
         <div className="gba:overflow-x-auto gba:pr-4 gba:border gba:border-border gba:rounded-md gba:relative">
           {isLoading && requests.length > 0 && (
             <div
@@ -426,8 +423,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                   <div className="gba:flex gba:items-center">
                     <span>
                       {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:manager_expense_request_list.expense_table.creation_date',
-                        'Creation Date'
+                        'lowcoder:confirm_transfer_advance_payment.request_date_label',
+                        'Request Date'
                       )}
                     </span>
                     {renderSortIndicator('requestDate')}
@@ -481,7 +478,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                 </TableRow>
               ) : (
                 requests.map(record => {
-                  const { type, label } = getExpenseRequestStatusDisplay(record.status)
+                  const statusConfig = getExpenseRequestStatusDisplay(record.status)
                   return (
                     <TableRow
                       key={record.id}
@@ -547,14 +544,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                               {record.employee?.displayName?.charAt(0) || record.employee?.fullName?.charAt(0) || 'U'}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                            <div className="gba:font-medium gba:text-sm">
-                              {record.employee?.displayName || record.employee?.fullName}
-                            </div>
-                            <div className="gba:text-xs gba:text-muted-foreground">
-                              {record.employee?.department ||
-                                getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
-                            </div>
+                          <div className="gba:font-medium gba:text-sm">
+                            {record.employee?.displayName || record.employee?.fullName}
                           </div>
                         </div>
                       </TableCell>
@@ -573,15 +564,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                           : formatCurrencyDisplay(0, record.currency || 'EUR')}
                       </TableCell>
                       <TableCell className="gba:pr-6 gba:w-[20%]">
-                        <span
-                          className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
-                            pillTypeClassMap[String(type).toLowerCase() as keyof typeof pillTypeClassMap] ||
-                            pillTypeClassMap.draft
-                          }`}
+                        <Badge
+                          variant={(statusConfig as any).badgeVariant || 'outline'}
                           data-testid={`status-pill-${record.status?.toLowerCase()}`}
                         >
-                          {label}
-                        </span>
+                          {statusConfig.label}
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   )
@@ -591,187 +579,18 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           </Table>
         </div>
 
-        {totalCount > pageSize ? (
-          <div
-            className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t"
-            data-testid="expense-requests-pagination"
-          >
-            <div className="gba:text-sm gba:text-muted-foreground" data-testid="expense-requests-pagination-info">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')}{' '}
-              {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`}{' '}
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount}{' '}
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_list.flows_button.expense_requests',
-                'Expense Requests'
-              )}
-            </div>
-            <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <p className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-                </p>
-                <select
-                  value={pageSize}
-                  onChange={e => {
-                    const newPageSize = Number(e.target.value)
-                    setPageSize(newPageSize)
-                    setCurrentPage(1)
-                    fetchRequests(
-                      searchTerm,
-                      1,
-                      newPageSize,
-                      sorting.field ? `${sorting.field}:${sorting.order?.toLowerCase()}` : 'requestDate:desc',
-                      selectedFilters,
-                      undefined,
-                      primaryCurrency
-                    )
-                  }}
-                  className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                  data-testid="expense-requests-page-size-select"
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-              <div
-                className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
-                data-testid="expense-requests-page-info"
-              >
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')}{' '}
-                {Math.ceil(totalCount / pageSize)}
-              </div>
-              <div className="gba:flex gba:items-center gba:space-x-2">
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => {
-                    setCurrentPage(1)
-                    fetchRequests(
-                      searchTerm,
-                      1,
-                      pageSize,
-                      sorting.field ? `${sorting.field}:${sorting.order?.toLowerCase()}` : 'requestDate:desc',
-                      selectedFilters,
-                      undefined,
-                      primaryCurrency
-                    )
-                  }}
-                  disabled={currentPage === 1}
-                  data-testid="expense-requests-first-page-button"
-                >
-                  <span className="gba:sr-only">Go to first page</span>⟪
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => {
-                    const newPage = currentPage - 1
-                    setCurrentPage(newPage)
-                    fetchRequests(
-                      searchTerm,
-                      newPage,
-                      pageSize,
-                      sorting.field ? `${sorting.field}:${sorting.order?.toLowerCase()}` : 'requestDate:desc',
-                      selectedFilters,
-                      undefined,
-                      primaryCurrency
-                    )
-                  }}
-                  disabled={currentPage === 1}
-                  data-testid="expense-requests-previous-page-button"
-                >
-                  <span className="gba:sr-only">Go to previous page</span>⟨
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => {
-                    const newPage = currentPage + 1
-                    setCurrentPage(newPage)
-                    fetchRequests(
-                      searchTerm,
-                      newPage,
-                      pageSize,
-                      sorting.field ? `${sorting.field}:${sorting.order?.toLowerCase()}` : 'requestDate:desc',
-                      selectedFilters,
-                      undefined,
-                      primaryCurrency
-                    )
-                  }}
-                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                  data-testid="expense-requests-next-page-button"
-                >
-                  <span className="gba:sr-only">Go to next page</span>⟩
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gba:h-8 gba:w-8 gba:p-0"
-                  onClick={() => {
-                    const lastPage = Math.ceil(totalCount / pageSize)
-                    setCurrentPage(lastPage)
-                    fetchRequests(
-                      searchTerm,
-                      lastPage,
-                      pageSize,
-                      sorting.field ? `${sorting.field}:${sorting.order?.toLowerCase()}` : 'requestDate:desc',
-                      selectedFilters,
-                      undefined,
-                      primaryCurrency
-                    )
-                  }}
-                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                  data-testid="expense-requests-last-page-button"
-                >
-                  <span className="gba:sr-only">Go to last page</span>⟫
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : totalCount > 0 ? (
-          <div
-            className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4 gba:border-t"
-            data-testid="expense-requests-pagination-info-single-page"
-          >
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {`${totalCount} ${getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_list.flows_button.expense_requests',
-                'Expense Requests'
-              )}`}
-            </div>
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <p className="gba:text-sm gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
-              </p>
-              <select
-                value={pageSize}
-                onChange={e => {
-                  const newPageSize = Number(e.target.value)
-                  setPageSize(newPageSize)
-                  setCurrentPage(1)
-                  fetchRequests(
-                    searchTerm,
-                    1,
-                    newPageSize,
-                    sorting.field ? `${sorting.field}:${sorting.order?.toLowerCase()}` : 'requestDate:desc',
-                    selectedFilters,
-                    undefined,
-                    primaryCurrency
-                  )
-                }}
-                className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                data-testid="expense-requests-page-size-select-single"
-              >
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-              </select>
-            </div>
-          </div>
-        ) : null}
+        <TablePagination
+          currentPage={currentPage}
+          pageSize={pageSize}
+          totalItems={totalCount}
+          onPageChange={handleTablePaginationChange}
+          scrollTargetRef={tableTopRef}
+          entityNamePlural={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:employee_list.flows_button.expense_requests',
+            'Expense Requests'
+          )}
+          dataTestIdPrefix={DATA_TEST_ID_PREFIX}
+        />
       </div>
     )
   }, [requests, isLoading, error, totalCount, pageSize, currentPage, hasActiveFilters])
@@ -787,32 +606,47 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           // Always keep applied filters visible, even when the current result set is empty
           filter: buildDeduplicatedFilters(selectedFilters, primaryCurrency),
           setFilter: (newFilters: string[]): void => {
-            // Separate currency and status filters
-            const currencyFilters = newFilters.filter(f => f.startsWith('currency:'))
-            const statusFilters = newFilters.filter(f => !f.startsWith('currency:'))
+            // Constants for filter type identification
+            const DATE_RANGE_FILTERS = new Set([
+              'effectiveDateRange',
+              'requestDateRange',
+              'startDateRange',
+              'endDateRange'
+            ])
+            const isCurrencyFilter = (f: string) => f.startsWith('currency:')
+            const isRequestTypeFilter = (f: string) => f.startsWith('ExpenseRequestType:')
+            const isDateRangeFilter = (f: string) => DATE_RANGE_FILTERS.has(f)
+            const isStatusFilter = (f: string) =>
+              !isCurrencyFilter(f) && !isRequestTypeFilter(f) && !isDateRangeFilter(f)
+
+            // Separate filters by type
+            const currencyFilters = newFilters.filter(isCurrencyFilter)
+            const requestTypeFilters = newFilters.filter(isRequestTypeFilter)
+            const statusFilters = newFilters.filter(isStatusFilter)
 
             // Handle status filter changes
-            const statusToRemove = selectedFilters.filter(f => !statusFilters.includes(f))
+            const statusToRemove = selectedFilters.filter(f => isStatusFilter(f) && !statusFilters.includes(f))
             const statusToAdd = statusFilters.filter(f => !selectedFilters.includes(f))
+            statusToRemove.forEach(f => removeFilter(f))
+            statusToAdd.forEach(f => addFilter(f))
 
-            for (const f of statusToRemove) {
-              removeFilter(f)
-            }
-            for (const f of statusToAdd) {
-              addFilter(f)
-            }
+            // Handle date range filter removal
+            const dateRangesToRemove = selectedFilters.filter(f => isDateRangeFilter(f) && !newFilters.includes(f))
+            dateRangesToRemove.forEach(f => removeFilter(f))
+
+            // Handle request type filter changes
+            const requestTypesToRemove = selectedFilters.filter(
+              f => isRequestTypeFilter(f) && !requestTypeFilters.includes(f)
+            )
+            const requestTypesToAdd = requestTypeFilters.filter(f => !selectedFilters.includes(f))
+            requestTypesToRemove.forEach(f => removeFilter(f))
+            requestTypesToAdd.forEach(f => addFilter(f))
 
             // Handle currency filter changes
-            // Note: Currency filter should remain even when "Clear all filters" is clicked
-            const hasCurrency = currencyFilters.length > 0
-
-            // Only process currency change if user explicitly selected a different one
-            if (hasCurrency && currencyFilters[0] !== `currency:${primaryCurrency}`) {
-              // User selected a different currency
+            if (currencyFilters.length > 0 && currencyFilters[0] !== `currency:${primaryCurrency}`) {
               const newCurrencyCode = currencyFilters[0].replace('currency:', '')
               addFilter(`currency:${newCurrencyCode}`)
             }
-            // Don't clear currency when clearing all filters - currency always stays selected
 
             setCurrentPage(1)
           },
@@ -844,23 +678,21 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         data-testid="expense-requests-container"
       />
 
-      {/* Expense Request Details Sheet - title is required by DS Sheet props */}
+      {/* Expense Request Details Sheet */}
       <Sheet
         open={!!selectedRequest}
         onOpenChange={open => !open && setSelectedRequest(null)}
-        title={
-          selectedRequest?.title ||
-          getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.title', 'Expense Request Details')
-        }
+        data-testid="expense-request-details-sheet"
       >
-        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedRequest?.title ||
-                getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.title', 'Expense Request Details')}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+        <SheetContent side="right" className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
+          <ExpenseDetailsShell
+            title={
+              selectedRequest?.title ||
+              getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.title', 'Expense Request Details')
+            }
+            onClose={() => setSelectedRequest(null)}
+            dataTestIdPrefix="expense-request-details"
+          >
             {selectedRequest && (
               <ExpenseRequestDetails
                 request={selectedRequest}
@@ -869,7 +701,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                 {...contextProps}
               />
             )}
-          </div>
+          </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
 

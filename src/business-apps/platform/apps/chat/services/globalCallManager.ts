@@ -4,7 +4,7 @@
  *
  * This allows calls to continue even when the Chat component unmounts
  * (e.g., when closing chat from the platform header while minimized).
- * 
+ *
  * Uses window object to ensure true persistence across module reloads.
  */
 
@@ -24,6 +24,7 @@ export interface GlobalCallState {
   status: 'idle' | 'joining' | 'connected'
   roomId: string | null
   callType: CallType
+  callImplementation: 'mesh' | 'realtime-kit' | '1-on-1' // Track which implementation is used
   hostId: string | null
   isMuted: boolean
   isVideoEnabled: boolean
@@ -50,6 +51,7 @@ const initialCallState: GlobalCallState = {
   status: 'idle',
   roomId: null,
   callType: 'audio',
+  callImplementation: 'mesh',
   hostId: null,
   isMuted: false,
   isVideoEnabled: true,
@@ -90,10 +92,7 @@ class GlobalCallManager {
 
   // Check if there's an active call that should persist
   hasActiveCall(): boolean {
-    return (
-      this.callData.callState.status !== 'idle' &&
-      this.callData.webrtcClient !== null
-    )
+    return this.callData.callState.status !== 'idle' && this.callData.webrtcClient !== null
   }
 
   // Check if call is minimized (should persist across unmounts)
@@ -152,7 +151,7 @@ class GlobalCallManager {
   // Clear call data
   clearCall() {
     console.debug('GlobalCallManager: Clearing call data')
-    
+
     if (this.callData.durationInterval) {
       clearInterval(this.callData.durationInterval)
     }
@@ -167,13 +166,13 @@ class GlobalCallManager {
       currentUser: null,
       durationInterval: null
     }
-    
+
     // Immediately clear the vanilla DOM UI container
     const container = window.__GLOBAL_CALL_UI_CONTAINER__
     if (container) {
       container.innerHTML = ''
     }
-    
+
     this.notifyListeners()
   }
 
@@ -201,7 +200,14 @@ class GlobalCallManager {
   }
 
   private notifyListeners() {
-    console.debug('GlobalCallManager: Notifying', this.listeners.size, 'listeners, status:', this.callData.callState.status, 'isMinimized:', this.callData.callState.isMinimized)
+    console.debug(
+      'GlobalCallManager: Notifying',
+      this.listeners.size,
+      'listeners, status:',
+      this.callData.callState.status,
+      'isMinimized:',
+      this.callData.callState.isMinimized
+    )
     this.listeners.forEach(listener => listener())
   }
 }

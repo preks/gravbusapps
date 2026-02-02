@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Alert, Badge } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Alert, Badge, Button } from '@newwork/nw-design-system'
 import { TrendingUp, Target, Clock, Award, Workflow, Calendar, AlertCircle, GitBranch, CheckCircle } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
@@ -62,6 +62,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   const [timeframe, setTimeframe] = useState<'wtd' | 'mtd' | 'qtd' | 'ytd'>('mtd')
   const [flowsSearch, setFlowsSearch] = useState('')
   const [flowsStatus, setFlowsStatus] = useState<string>('')
+  const [flowsPage, setFlowsPage] = useState(0)
+  const [flowsPageSize] = useState(10)
   const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null)
 
   const {
@@ -83,8 +85,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   } = useFlowsList({
     search: flowsSearch,
     status: flowsStatus || undefined,
-    limit: 10,
-    offset: 0,
+    limit: flowsPageSize,
+    offset: flowsPage * flowsPageSize,
     orderBy: 'updated_time',
     orderDirection: 'DESC',
     accessToken
@@ -93,6 +95,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   const businessKpis = analytics?.businessKpis
 
   const error = analyticsError || flowsError
+
+  // Reset paging when filters change
+  React.useEffect(() => {
+    setFlowsPage(0)
+  }, [flowsSearch, flowsStatus])
 
   // If a flow is selected, show the detail view
   if (selectedFlowId) {
@@ -260,9 +267,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               data-testid={`${prefixDataTestId}-flows-status-filter`}
             >
               <option value="">All Status</option>
-              <option value="IN_PROGRESS">In Progress</option>
+              <option value="RUNNING">In Progress</option>
               <option value="COMPLETED">Completed</option>
-              <option value="SCHEDULED">Scheduled</option>
+              <option value="TIMED_OUT">Timed out</option>
               <option value="FAILED">Failed</option>
             </select>
           </div>
@@ -318,35 +325,34 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                       <h4 className="gba:font-semibold gba:text-base gba:truncate gba:text-gray-900">
                         {flow.flowName || `Flow ${flow.flowId.slice(-8)}`}
                       </h4>
-                      <Badge
-                        variant="outline"
-                        className="gba:text-xs gba:font-medium gba:px-3 gba:py-1 gba:border-0"
-                        style={{
-                          backgroundColor:
-                            flow.status === 'COMPLETED'
-                              ? '#10b981'
-                              : flow.status === 'IN_PROGRESS'
-                                ? '#3b82f6'
-                                : flow.status === 'RUNNING'
-                                  ? '#3b82f6'
-                                  : flow.status === 'SCHEDULED'
-                                    ? '#8b5cf6'
-                                    : flow.status === 'TIMED_OUT'
-                                      ? '#f59e0b'
-                                      : flow.status === 'FAILED'
-                                        ? '#ef4444'
-                                        : '#6b7280',
-                          color: 'white'
-                        }}
-                      >
-                        {flow.status === 'COMPLETED'
-                          ? 'COMPLETED'
-                          : flow.status === 'IN_PROGRESS'
-                            ? 'IN PROGRESS'
-                            : flow.status === 'TIMED_OUT'
-                              ? 'TIMED OUT'
-                              : flow.status}
-                      </Badge>
+                      {(() => {
+                        const status = flow.status
+                        const statusClassName =
+                          status === 'COMPLETED'
+                            ? 'gba:bg-success gba:text-success-foreground'
+                            : status === 'RUNNING' || status === 'IN_PROGRESS'
+                              ? 'gba:bg-info gba:text-info-foreground'
+                              : status === 'TIMED_OUT'
+                                ? 'gba:bg-warning gba:text-warning-foreground'
+                                : status === 'FAILED'
+                                  ? 'gba:bg-destructive gba:text-destructive-foreground'
+                                  : 'gba:bg-muted gba:text-muted-foreground'
+
+                        return (
+                          <Badge
+                            variant="outline"
+                            className={`gba:text-xs gba:font-medium gba:px-3 gba:py-1 gba:border-0 ${statusClassName}`}
+                          >
+                            {flow.status === 'COMPLETED'
+                              ? 'COMPLETED'
+                              : flow.status === 'RUNNING' || flow.status === 'IN_PROGRESS'
+                                ? 'IN PROGRESS'
+                                : flow.status === 'TIMED_OUT'
+                                  ? 'TIMED OUT'
+                                  : flow.status}
+                          </Badge>
+                        )
+                      })()}
                     </div>
                     {/* Unified Progress and Status Line */}
                     <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-gray-500 gba:mb-2">
@@ -421,11 +427,39 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                 </div>
               ))}
 
-              {flowsList.hasMore && (
-                <div className="gba:text-center gba:pt-3 gba:border-t">
-                  <p className="gba:text-sm gba:text-gray-500">
-                    Showing {flowsList.flows.length} of {flowsList.totalCount} flows
+              {/* Pagination */}
+              {flowsList.totalCount > flowsPageSize && (
+                <div className="gba:flex gba:items-center gba:justify-between gba:pt-4 gba:border-t">
+                  <p
+                    className="gba:text-sm gba:text-gray-500"
+                    data-testid={`${prefixDataTestId}-flows-pagination-text`}
+                  >
+                    Showing {flowsPage * flowsPageSize + 1}-
+                    {Math.min((flowsPage + 1) * flowsPageSize, flowsList.totalCount)} of {flowsList.totalCount} flows
                   </p>
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFlowsPage(Math.max(0, flowsPage - 1))}
+                      disabled={flowsPage === 0}
+                      data-testid={`${prefixDataTestId}-flows-prev-page`}
+                    >
+                      Previous
+                    </Button>
+                    <span className="gba:text-sm gba:text-gray-600" data-testid={`${prefixDataTestId}-flows-page`}>
+                      Page {flowsPage + 1} of {Math.ceil(flowsList.totalCount / flowsPageSize)}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFlowsPage(flowsPage + 1)}
+                      disabled={!flowsList.hasMore}
+                      data-testid={`${prefixDataTestId}-flows-next-page`}
+                    >
+                      Next
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>

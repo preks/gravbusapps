@@ -112,8 +112,7 @@ export const useExpenseGroupCatalog = (accessToken: string): UseExpenseGroupCata
 
           setExpenseGroups(groupsMap)
         }
-      } catch (err) {
-        console.error('Error fetching expense group catalog:', err)
+      } catch {
         setError('Failed to fetch expense categories')
       } finally {
         setIsLoading(false)

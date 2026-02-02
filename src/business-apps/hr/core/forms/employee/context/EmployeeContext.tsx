@@ -33,6 +33,8 @@ export const EmployeeProvider: React.FC<{
     employmentTypeId: '',
     contractTypeId: '',
     hireDate: '',
+    fixedTermUntil: '',
+    fixedTermReason: '',
     ...initialValues
   })
 
@@ -65,7 +67,8 @@ export const EmployeeProvider: React.FC<{
     error: jobPositionsError,
     hasMore: hasMoreJobPositions,
     loadMore: loadMoreJobPositions,
-    searchPositions: searchJobPositionsInternal
+    searchPositions: searchJobPositionsInternal,
+    refetch: refetchJobPositions
   } = useJobPositions({
     accessToken,
     structureId,
@@ -301,6 +304,7 @@ export const EmployeeProvider: React.FC<{
         // Job position specific methods
         searchJobPositions,
         loadMoreJobPositions,
+        refetchJobPositions,
         hasMoreJobPositions,
         jobPositionsError,
         jobPositionsLoading,

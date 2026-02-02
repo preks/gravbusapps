@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Button, Alert } from '@newwork/nw-design-system'
-import { FileText } from 'lucide-react'
+import { FileTextIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -108,7 +108,7 @@ export const DirectApiGenerateButton: React.FC<DirectApiGenerateButtonProps> = (
         disabled={isGenerating}
         data-testid="generate-investment-one-pager-button"
       >
-        <FileText style={{ height: '1rem', width: '1rem' }} />
+        <FileTextIcon style={{ height: '1rem', width: '1rem' }} />
         {isGenerating
           ? getTranslationFromI18nKeyAndLabel('investment.reports.generating', 'Generating...')
           : getTranslationFromI18nKeyAndLabel('investment.reports.generateOnePager', 'Generate One-Pager')}

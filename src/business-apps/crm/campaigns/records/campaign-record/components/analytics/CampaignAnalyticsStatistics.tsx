@@ -1,6 +1,6 @@
 import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { UserOutlined, DollarOutlined, TrophyOutlined, BankOutlined } from '@ant-design/icons'
+import { UserIcon, CurrencyDollarIcon, TrophyIcon, BankIcon } from '@phosphor-icons/react'
 import { CampaignAnalyticsMetrics } from '../../queries/CampaignAnalyticsQueries'
 import { formatCurrencyCompact, formatPercentage } from '@/common/utils/numberFormatter'
 
@@ -49,7 +49,7 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
       key: 'leads-performance',
       title: 'Total Leads',
       value: totalLeads,
-      prefix: <UserOutlined />,
+      prefix: <UserIcon />,
       color: '#1890ff',
       description: createCombinedDescription(
         'Leads generated from campaign',
@@ -62,7 +62,7 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
       key: 'opportunities-performance',
       title: 'Total Opportunities',
       value: totalOpportunities,
-      prefix: <TrophyOutlined />,
+      prefix: <TrophyIcon />,
       color: '#722ed1',
       description: createCombinedDescription(
         'Opportunities created from campaign',
@@ -75,7 +75,7 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
       key: 'revenue-performance',
       title: 'Won Revenue',
       value: formatCurrencyCompact(wonRevenue),
-      prefix: <DollarOutlined />,
+      prefix: <CurrencyDollarIcon />,
       color: '#52c41a',
       valueIsString: true,
       description: createCombinedDescription(
@@ -89,7 +89,7 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
       key: 'accounts-contacts',
       title: 'Total Accounts',
       value: totalAccounts,
-      prefix: <BankOutlined />,
+      prefix: <BankIcon />,
       color: '#fa8c16',
       description: createCombinedDescription('Accounts associated with campaign', `${totalContacts} contacts linked`)
     }

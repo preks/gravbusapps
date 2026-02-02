@@ -16,7 +16,9 @@ export const MANAGER_EXPENSES_OVERVIEW = `
     $payCurrencyWhere: AdvancePaymentBoolExp = {},
     $reqStatusWhere: ExpenseRequestBoolExp = {},
     $planStatusWhere: ExpensePlanBoolExp = {},
-    $payStatusWhere: AdvancePaymentBoolExp = {}
+    $payStatusWhere: AdvancePaymentBoolExp = {},
+    $planDateWhere: ExpensePlanBoolExp = {},
+    $reqDateWhere: ExpenseRequestBoolExp = {}
   ) {
     # Distinct currencies fallback (collect from sources and dedupe client-side)
     DistinctCurrenciesFromItems: ExpenseItem(
@@ -272,7 +274,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
           { title: { _ilike: $searchTerm } },
           { employee: { fullName: { _ilike: $searchTerm } } }
         ],
-        _and: [ $reqCurrencyWhere, $reqStatusWhere ]
+        _and: [ $reqCurrencyWhere, $reqStatusWhere, $reqDateWhere ]
       }
     ) { aggregate { count } }
 
@@ -288,16 +290,34 @@ export const MANAGER_EXPENSES_OVERVIEW = `
         ],
         _and: [ 
           $reqCurrencyWhere,
-          $reqStatusWhere
+          $reqStatusWhere,
+          $reqDateWhere
         ]
       }
     ) {
       id code title requestDate startDate endDate description
       totalAmount currencyRef status createdAt updatedAt
-      expensePlan { code }
+      requestType {
+        value
+        translations {
+          value
+          localeCode
+        }
+      }
+      expensePlan { 
+        code
+        requestType {
+          value
+          translations {
+            value
+            localeCode
+          }
+        }
+      }
       employeeDocument { file name }
       employee {
-        id displayName firstName lastName fullName pictureThumbnail
+        id code displayName firstName lastName fullName pictureThumbnail
+        additionalProperties
         employeePosition { organizationalUnit { id name } siteLocation { id name } }
       }
     }
@@ -311,7 +331,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
           { title: { _ilike: $searchTerm } },
           { employee: { fullName: { _ilike: $searchTerm } } }
         ],
-        _and: [ $planCurrencyWhere, $planStatusWhere ]
+        _and: [ $planCurrencyWhere, $planStatusWhere, $planDateWhere ]
       }
     ) { aggregate { count } }
 
@@ -327,19 +347,35 @@ export const MANAGER_EXPENSES_OVERVIEW = `
         ],
         _and: [ 
           $planCurrencyWhere,
-          $planStatusWhere
+          $planStatusWhere,
+          $planDateWhere
         ]
       }
     ) {
       id code title startDate endDate status
       activeFrom activeTo totalAmount currencyRef createdAt updatedAt decisionDate planDate
+      requestType {
+        value
+        translations {
+          value
+          localeCode
+        }
+      }
       employeeDocument { id file fileSize name mimeType description type }
       employee {
-        id displayName firstName lastName fullName pictureThumbnail
+        id code displayName firstName lastName fullName pictureThumbnail
+        additionalProperties
         employeePosition { organizationalUnit { id name } siteLocation { id name } }
       }
       expenseRequest(where: { isDeleted: { _eq: false } }) {
         id code
+        requestType {
+          value
+          translations {
+            value
+            localeCode
+          }
+        }
       }
       advancePayment(where: { isDeleted: { _eq: false } }) {
         id code amount status transactionDate currencyRef createdAt paymentMethod
@@ -380,9 +416,23 @@ export const MANAGER_EXPENSES_OVERVIEW = `
         ]
       }
     ) {
-      id code amount status createdAt paymentMethod currencyRef
+      id code amount status createdAt paymentMethod currencyRef decisionDate transactionDate
       costCenter { id name code }
-      expensePlan { id code title startDate endDate employee { id fullName } }
+      project { id name }
+      expensePlan { 
+        id code title startDate endDate totalAmount currencyRef
+        costCenter { id name code }
+        project { id name }
+        employee { 
+          id code fullName displayName pictureThumbnail
+          additionalProperties
+          employeePosition { 
+            organizationalUnit { id name }
+            costCenter { id name code }
+            supervisor { id fullName }
+          }
+        }
+      }
     }
 
     # Advance payments statistics (total and pending) - currency filtered

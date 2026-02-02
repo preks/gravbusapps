@@ -21,7 +21,33 @@ type Variant = 'combobox' | 'select'
 export interface CatalogSelectOption {
   value: string
   label: string
+  code?: string // Stable identifier for filtering
+  type?: string // Type classification for filtering
   icon?: string
+}
+
+/**
+ * Filter mode for catalog entries (discriminated union)
+ */
+export type ListFilter<T extends string = string> =
+  | { mode: 'all' } // Show everything (no filter)
+  | { mode: 'only'; values: T[] } // Whitelist: show only these
+  | { mode: 'omit'; values: T[] } // Blacklist: hide these
+  | { mode: 'none' } // Show nothing
+
+/**
+ * Configuration for catalog filtering and behavior
+ */
+export interface CatalogSelectConfig {
+  /** Filter by catalog entry code */
+  code?: ListFilter<string>
+  /** Filter by catalog entry type */
+  type?: ListFilter<string>
+  /** Custom sort order (defaults to displayOrder ASC_NULLS_LAST, value ASC) */
+  orderBy?: Array<{
+    field: string
+    direction: 'ASC' | 'DESC' | 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST' | 'ASC_NULLS_FIRST' | 'DESC_NULLS_FIRST'
+  }>
 }
 
 export interface CatalogSelectProps {
@@ -51,6 +77,9 @@ export interface CatalogSelectProps {
 
   // Pre-selected option data (from account query) - ensures immediate display without loading
   selectedOption?: CatalogSelectOption
+
+  // Business logic configuration
+  config?: CatalogSelectConfig
 }
 
 import { useCatalogSelectController, CatalogSelectContext } from './CatalogSelectProvider'
@@ -121,6 +150,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   allowClear = true,
   autoSelectFirst = false,
   multiple,
+  config,
   ...props
 }) => {
   // Get registration API from context
@@ -162,7 +192,11 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
         parentField,
         childField,
         requireSourceForEnable,
-        filterField: parsedFilterField
+        filterField: parsedFilterField,
+        // Include business logic filtering config
+        codeFilter: config?.code,
+        typeFilter: config?.type,
+        orderBy: config?.orderBy
       })
       registeredFieldNameRef.current = fieldName
     }
@@ -174,7 +208,10 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     parentField,
     childField,
     requireSourceForEnable,
-    parsedFilterField
+    parsedFilterField,
+    config?.code,
+    config?.type,
+    config?.orderBy
     // NOTE: context NOT in deps to avoid infinite loops
   ])
 
@@ -273,6 +310,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
 
   // For options list: Use wiredOptions (filtered by dependencies)
   // In multiple mode, we need to INCLUDE selected options so Combobox can display their labels
+  // Note: Filtering by config (excludeCodes, includeCodes, etc.) is now handled at query level
   const mergedOptions = React.useMemo(() => {
     return mode !== 'default' ? buildMultipleModeOptions() : buildSingleModeOptions()
   }, [mode, buildMultipleModeOptions, buildSingleModeOptions])
@@ -514,7 +552,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     // Extract key and businessAppContext from props before spreading
     // key must be passed directly to JSX, not through spread
     // businessAppContext should not be passed to DOM elements
-    const restProps = props ? { ...props } : {}
+    const restProps: any = props ? { ...props } : {}
     delete restProps.key
     delete restProps.businessAppContext
 
@@ -564,7 +602,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
       }
 
       return (
-        <div className="gba:w-full gba:max-w-full gba:overflow-hidden">
+        <div className={`gba:w-full gba:max-w-full gba:overflow-hidden ${className || ''}`}>
           <Combobox
             key={stableKey}
             {...baseProps}
@@ -580,7 +618,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     if (mode === 'multiple') {
       const multipleValue: string[] = Array.isArray(effectiveValue) ? effectiveValue : []
       return (
-        <div className="gba:w-full gba:max-w-full gba:overflow-hidden">
+        <div className={`gba:w-full gba:max-w-full gba:overflow-hidden ${className || ''}`}>
           <Combobox
             key={stableKey}
             {...baseProps}
@@ -594,7 +632,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
 
     const defaultValue: string = Array.isArray(effectiveValue) ? effectiveValue[0] || '' : effectiveValue || ''
     return (
-      <div className="gba:w-full gba:max-w-full gba:overflow-hidden">
+      <div className={`gba:w-full gba:max-w-full gba:overflow-hidden ${className || ''}`}>
         <Combobox
           key={stableKey}
           {...baseProps}
@@ -617,7 +655,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
       disabled={wiredDisabled}
       allowClear={allowClear}
     >
-      <SelectTrigger className={className ?? 'gba:w-full gba:max-w-full'} data-testid={testId} {...props}>
+      <SelectTrigger className={`gba:w-full gba:max-w-full ${className || ''}`} data-testid={testId} {...props}>
         <SelectValue placeholder="Select..." className="gba:max-w-full gba:overflow-hidden">
           {renderSelectValueContent()}
         </SelectValue>

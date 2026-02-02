@@ -10,6 +10,7 @@ import { Button } from '@newwork/nw-design-system'
 import { X } from 'lucide-react'
 import type { ActiveExpert } from '../hooks/useConversationExperts'
 import { getExpertColorStyles } from '../utils/expertColorUtils'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface ActiveExpertsBarProps {
   experts: ActiveExpert[]
@@ -22,12 +23,14 @@ export const ActiveExpertsBar: React.FC<ActiveExpertsBarProps> = ({
   onRemoveExpert,
   'data-testid': testId = 'active-experts-bar'
 }) => {
+  const t = useChatTranslation()
+
   if (experts.length === 0) return null
 
   return (
     <div className="gba:px-4 gba:py-2 gba:border-b gba:border-border gba:bg-muted/20" data-testid={testId}>
       <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-        <span className="gba:text-xs gba:text-muted-foreground gba:font-medium">Active Experts:</span>
+        <span className="gba:text-xs gba:text-muted-foreground gba:font-medium">{t('chat-activeExperts')}</span>
         {experts.map(expert => (
           <div
             key={expert.expertId}

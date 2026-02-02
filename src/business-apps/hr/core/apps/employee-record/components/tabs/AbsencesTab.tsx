@@ -30,6 +30,8 @@ import { PiPlus } from 'react-icons/pi'
 import UpdateEmployeeEntitlements from '../../../../forms/update-employee-entitlements'
 import { env } from '@/common/env/EnvUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { fetchHolidayDates } from './utils/fetchHolidayDates'
 
 const AbsencesTab: React.FC<AbsencesTabProps> = ({
   employee,
@@ -51,6 +53,16 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   const [isEntitlementsModalOpen, setIsEntitlementsModalOpen] = useState(false)
   const [hasHrBackoffice, setHasHrBackoffice] = useState<boolean>(false)
   const [isFetchingGroups, setIsFetchingGroups] = useState<boolean>(true)
+  const [holidayDates, setHolidayDates] = useState<string[]>([])
+  const graphqlClient = useGraphQLClient(accessToken)
+
+  const startDateFormatted = selectedStartDate?.format('YYYY-MM-DD') ?? ''
+  const endDateFormatted = selectedEndDate?.format('YYYY-MM-DD') ?? ''
+  const baseRequestText = getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_absence', 'Request Absence')
+  const requestAbsenceLabel =
+    startDateFormatted && endDateFormatted
+      ? `${baseRequestText} (${startDateFormatted} - ${endDateFormatted})`
+      : baseRequestText
 
   const { absenceList, entitlements, loading, error, refetch } = useAbsenceData(
     employee?.id,
@@ -159,6 +171,10 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             setSelectedStartDate={setSelectedStartDate}
             selectedEndDate={selectedEndDate}
             setSelectedEndDate={setSelectedEndDate}
+            holidayDates={holidayDates}
+            employeeAbsenceEntitlement={employeeAbsenceEntitlement}
+            employee={employee}
+            accessToken={accessToken}
           />
         </div>
       )
@@ -201,6 +217,17 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     }
   ].filter(item => (shownTab ? item.key === shownTab : true))
 
+  // Fetch holiday dates for the month of currentDate
+  useEffect(() => {
+    const loadHolidays = async () => {
+      if (!employee?.id || !accessToken) return
+      const locale = getCurrentActiveUserLocale()
+      const dates = await fetchHolidayDates(graphqlClient, employee.id, currentDate.year(), currentDate.month(), locale)
+      setHolidayDates(dates)
+    }
+    loadHolidays()
+  }, [employee?.id, accessToken, graphqlClient, currentDate])
+
   return (
     <div className="gba:absences-tab gba:space-y-8">
       {!shownTab && (
@@ -218,26 +245,34 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
           </div>
 
           <div className="gba:flex gba:gap-4 gba:items-center gba:self-center">
-            <AppAction
-              variant="update-primary"
-              data-testid="employee-absence-request-button"
-              contexts={[
-                {
-                  context: FlowContextName.employeeAbsenceRecord,
-                  contextData: {
-                    employeeId: employee.id,
-                    absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
-                    flowType: 'vacation',
-                    startDate: selectedStartDate?.format('YYYY-MM-DD'),
-                    endDate: selectedEndDate?.format('YYYY-MM-DD')
-                  }
-                }
-              ]}
-              prefixDataTestId="employee-absence-request"
-              accessToken={accessToken}
-            >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_absence', 'Request Absence')}
-            </AppAction>
+            {(() => {
+              return (
+                <AppAction
+                  variant="update-primary"
+                  key={`primary-${startDateFormatted}-${endDateFormatted}`}
+                  data-testid="employee-absence-request-button"
+                  lazyLoad
+                  emptyState="enable"
+                  contexts={[
+                    {
+                      context: FlowContextName.employeeAbsenceRecord,
+                      contextData: {
+                        employeeId: employee.id,
+                        absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type
+                          ?.id,
+                        flowType: 'vacation',
+                        startDate: startDateFormatted,
+                        endDate: endDateFormatted
+                      }
+                    }
+                  ]}
+                  prefixDataTestId="employee-absence-request"
+                  accessToken={accessToken}
+                >
+                  {requestAbsenceLabel}
+                </AppAction>
+              )
+            })()}
 
             {!isFetchingGroups && hasHrBackoffice && !isSelfView && (
               <div
@@ -273,7 +308,10 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
         <div className="gba:flex gba:justify-end gba:mt-4" data-testid="absencehub-inline-action">
           <AppAction
             variant="update-primary"
+            key={`inline-${startDateFormatted}-${endDateFormatted}`}
             data-testid="employee-absence-request-inline-button"
+            lazyLoad
+            emptyState="enable"
             contexts={[
               {
                 context: FlowContextName.employeeAbsenceRecord,
@@ -281,15 +319,15 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
                   employeeId: employee.id,
                   absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
                   flowType: 'vacation',
-                  startDate: selectedStartDate?.format('YYYY-MM-DD'),
-                  endDate: selectedEndDate?.format('YYYY-MM-DD')
+                  startDate: startDateFormatted,
+                  endDate: endDateFormatted
                 }
               }
             ]}
             prefixDataTestId="employee-absence-request-inline"
             accessToken={accessToken}
           >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_absence', 'Request Absence')}
+            {requestAbsenceLabel}
           </AppAction>
         </div>
       )}

@@ -296,6 +296,9 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
       const payload =
         isUpdateMode && existingSickLeave
           ? {
+              employeeId: employeeId,
+              absenceType: formData.selectedType,
+              event: 'pse_submit',
               employeeAbsence: {
                 ...baseAbsenceData,
                 id: existingSickLeave.id,
@@ -304,6 +307,9 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
               ...(employeeDocuments.length > 0 && { employeeDocuments })
             }
           : {
+              employeeId: employeeId,
+              absenceType: formData.selectedType,
+              event: 'pse_submit',
               employeeAbsence: baseAbsenceData,
               ...(employeeDocuments.length > 0 && { employeeDocuments })
             }
@@ -376,6 +382,8 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
             : getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')
         }
         isSubmitDisabled={!isFormValid || isValidating}
+        submitEventType="pse_submit"
+        cancelEventType="pse_abort"
         data-testid="create-new-absence-form"
       >
         <div className="gba:flex-1 gba:space-y-4" data-testid="create-new-absence-form-content">

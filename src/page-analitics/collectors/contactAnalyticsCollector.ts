@@ -17,7 +17,6 @@ const GET_CONTACT_ANALYTICS = `
       firstName
       lastName
       fullName
-      displayName
       email
       phone
       jobTitle
@@ -149,11 +148,13 @@ const GET_CONTACT_TASKS = `
       priority {
         value
       }
-      assignedEmployee {
-        id
-        firstName
-        lastName
-        displayName
+      taskAssignees(where: { isDeleted: { _eq: false } }) {
+        assignedEmployee {
+          id
+          firstName
+          lastName
+          displayName
+        }
       }
       creatorEmployee {
         id
@@ -378,20 +379,21 @@ function buildContactActivities(params: { activities: any[]; tasks: any[]; notes
   const mappedTasks = limitArray(tasks, 5).map(task => {
     const typeValue = task.type?.value || task.typeRef || ''
     const normalizedType = typeValue.toLowerCase() === 'approval' ? 'approval' : 'task'
+    const primaryAssignee = task.taskAssignees?.[0]?.assignedEmployee
 
     return {
       id: task.id,
       type: normalizedType,
       title: task.name || 'Task',
       occurredAt: task.dueDate || task.createdAt || undefined,
-      relationId: task.assignedEmployee?.id || undefined,
+      relationId: primaryAssignee?.id || undefined,
       meta: compactRecord({
         statusRef: task.statusRef,
         timingType: task.timingType,
         priority: task.priority?.value || task.priorityRef,
         assignedEmployee:
-          task.assignedEmployee?.displayName ||
-          [task.assignedEmployee?.firstName, task.assignedEmployee?.lastName].filter(Boolean).join(' ').trim() ||
+          primaryAssignee?.displayName ||
+          [primaryAssignee?.firstName, primaryAssignee?.lastName].filter(Boolean).join(' ').trim() ||
           undefined,
         createdBy:
           task.creatorEmployee?.displayName ||

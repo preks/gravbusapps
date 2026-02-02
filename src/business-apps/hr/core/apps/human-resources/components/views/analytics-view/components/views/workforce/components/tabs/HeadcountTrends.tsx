@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import {
   Card,
   CardContent,
@@ -35,6 +35,7 @@ interface TableData {
 const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
   const [selectedChart, setSelectedChart] = useState<string | null>(null)
   const [exportingTable, setExportingTable] = useState<string | null>(null)
+  const tableRef = useRef<HTMLDivElement>(null)
   const { t } = useTranslation(hrTranslations)
 
   const {
@@ -101,6 +102,17 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
 
   const handleChartClick = (chartId: string) => {
     setSelectedChart(selectedChart === chartId ? null : chartId)
+
+    // Smooth scroll to table after a brief delay to allow state update
+    if (selectedChart !== chartId && tableRef.current) {
+      setTimeout(() => {
+        tableRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+          inline: 'nearest'
+        })
+      }, 100)
+    }
   }
 
   // Chart configurations
@@ -272,106 +284,108 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
       </div>
 
       {/* Interactive Data Table */}
-      {selectedConfig && (
-        <Card data-testid={`${selectedConfig.testId}-table`} className="gba:mt-6">
-          <CardHeader>
-            <div className="gba:flex gba:justify-between gba:items-center">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <CardTitle className="gba:text-xl">
-                  {t('hr-analytics-data-table', { title: selectedConfig.title })}
-                </CardTitle>
-                <Badge variant="outline" className="gba:bg-success-secondary gba:text-success-secondary/50">
-                  {t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
-                </Badge>
-              </div>
-              <div className="gba:flex gba:gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={exportingTable === `${selectedConfig.testId}-excel`}
-                  onClick={e => {
-                    e.stopPropagation()
-                    handleExport('excel', selectedConfig.testId, selectedConfig.tableData)
-                  }}
-                  className="gba:flex gba:items-center gba:gap-1"
-                >
-                  <PiFileText className="gba:w-3 gba:h-3" />
-                  {t('common-export-excel')}
-                </Button>
+      <div ref={tableRef}>
+        {selectedConfig && (
+          <Card data-testid={`${selectedConfig.testId}-table`} className="gba:mt-6">
+            <CardHeader>
+              <div className="gba:flex gba:justify-between gba:items-center">
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <CardTitle className="gba:text-xl">
+                    {t('hr-analytics-data-table', { title: selectedConfig.title })}
+                  </CardTitle>
+                  <Badge variant="outline" className="gba:bg-success-secondary gba:text-success-secondary/50">
+                    {t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
+                  </Badge>
+                </div>
+                <div className="gba:flex gba:gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={exportingTable === `${selectedConfig.testId}-excel`}
+                    onClick={e => {
+                      e.stopPropagation()
+                      handleExport('excel', selectedConfig.testId, selectedConfig.tableData)
+                    }}
+                    className="gba:flex gba:items-center gba:gap-1"
+                  >
+                    <PiFileText className="gba:w-3 gba:h-3" />
+                    {t('common-export-excel')}
+                  </Button>
 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={exportingTable === `${selectedConfig.testId}-pdf`}
-                  onClick={e => {
-                    e.stopPropagation()
-                    handleExport('pdf', selectedConfig.testId, selectedConfig.tableData)
-                  }}
-                  className="gba:flex gba:items-center gba:gap-1"
-                >
-                  <PiFilePdf className="gba:w-3 gba:h-3" />
-                  {t('common-export-pdf')}
-                </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={exportingTable === `${selectedConfig.testId}-pdf`}
+                    onClick={e => {
+                      e.stopPropagation()
+                      handleExport('pdf', selectedConfig.testId, selectedConfig.tableData)
+                    }}
+                    className="gba:flex gba:items-center gba:gap-1"
+                  >
+                    <PiFilePdf className="gba:w-3 gba:h-3" />
+                    {t('common-export-pdf')}
+                  </Button>
+                </div>
               </div>
-            </div>
-            <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">{selectedConfig.description}</p>
-          </CardHeader>
+              <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">{selectedConfig.description}</p>
+            </CardHeader>
 
-          <CardContent>
-            <div className="gba:max-h-96 gba:overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="gba:w-2/5">{t('hr-analytics-period')}</TableHead>
-                    <TableHead className="gba:w-1/5">{t('hr-analytics-value')}</TableHead>
-                    <TableHead className="gba:w-2/5">{t('hr-analytics-change')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selectedConfig.tableData.map((item, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="gba:font-medium">{item.period}</TableCell>
-                      <TableCell>{item.value.toLocaleString()}</TableCell>
-                      <TableCell>
-                        {item.change !== undefined && (
-                          <Badge
-                            variant="outline"
-                            className={`${
-                              item.change > 0
-                                ? 'gba:bg-success-secondary/50 gba:text-success-secondary-foreground'
-                                : item.change < 0
-                                  ? 'gba:bg-destructive-secondary/50 gba:text-destructive-secondary-foreground'
-                                  : 'gba:bg-muted gba:text-muted-foreground'
-                            }`}
-                          >
-                            {item.change > 0 ? '+' : ''}
-                            {item.change.toLocaleString()}
-                          </Badge>
-                        )}
-                      </TableCell>
+            <CardContent>
+              <div className="gba:max-h-96 gba:overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="gba:w-2/5">{t('hr-analytics-period')}</TableHead>
+                      <TableHead className="gba:w-1/5">{t('hr-analytics-value')}</TableHead>
+                      <TableHead className="gba:w-2/5">{t('hr-analytics-change')}</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedConfig.tableData.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="gba:font-medium">{item.period}</TableCell>
+                        <TableCell>{item.value.toLocaleString()}</TableCell>
+                        <TableCell>
+                          {item.change !== undefined && (
+                            <Badge
+                              variant="outline"
+                              className={`${
+                                item.change > 0
+                                  ? 'gba:bg-success-secondary/50 gba:text-success-secondary-foreground'
+                                  : item.change < 0
+                                    ? 'gba:bg-destructive-secondary/50 gba:text-destructive-secondary-foreground'
+                                    : 'gba:bg-muted gba:text-muted-foreground'
+                              }`}
+                            >
+                              {item.change > 0 ? '+' : ''}
+                              {item.change.toLocaleString()}
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
-            {/* Summary */}
-            <div className="gba:mt-4 gba:p-3 gba:bg-muted gba:rounded-md gba:flex gba:justify-between gba:items-center">
-              <span className="gba:font-medium gba:text-sm">
-                {t('hr-analytics-total-data-points', { count: selectedConfig.tableData.length })}
-              </span>
-              <span className="gba:text-sm gba:text-muted-foreground">{selectedConfig.title}</span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              {/* Summary */}
+              <div className="gba:mt-4 gba:p-3 gba:bg-muted gba:rounded-md gba:flex gba:justify-between gba:items-center">
+                <span className="gba:font-medium gba:text-sm">
+                  {t('hr-analytics-total-data-points', { count: selectedConfig.tableData.length })}
+                </span>
+                <span className="gba:text-sm gba:text-muted-foreground">{selectedConfig.title}</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-      {/* Help Text */}
-      {!selectedConfig && (
-        <div className="gba:text-center gba:py-8">
-          <p className="gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</p>
-        </div>
-      )}
+        {/* Help Text */}
+        {!selectedConfig && (
+          <div className="gba:text-center gba:py-8">
+            <p className="gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

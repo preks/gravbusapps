@@ -1,5 +1,12 @@
 import { CrmArea, QuickAction } from '../types'
-import { UserPlus, Target, Building, AddressBook, FileText, ChartBar, Upload } from '@phosphor-icons/react'
+import {
+  UserPlusIcon,
+  TargetIcon,
+  BuildingIcon,
+  AddressBookIcon,
+  MegaphoneIcon,
+  ChartBarIcon
+} from '@phosphor-icons/react'
 
 export const crmAreas: CrmArea[] = [
   // Sales Management
@@ -7,7 +14,7 @@ export const crmAreas: CrmArea[] = [
     id: 'leads',
     title: 'Leads',
     description: 'Manage prospects and potential customers in your sales pipeline',
-    icon: UserPlus,
+    icon: UserPlusIcon,
     category: 'sales',
     path: '/crm/leads'
   },
@@ -15,7 +22,7 @@ export const crmAreas: CrmArea[] = [
     id: 'opportunities',
     title: 'Opportunities',
     description: 'Track and manage sales opportunities through your pipeline',
-    icon: Target,
+    icon: TargetIcon,
     category: 'sales',
     path: '/crm/opportunities'
   },
@@ -25,7 +32,7 @@ export const crmAreas: CrmArea[] = [
     id: 'accounts',
     title: 'Accounts',
     description: 'Manage company and organization records and relationships',
-    icon: Building,
+    icon: BuildingIcon,
     category: 'customer',
     path: '/crm/accounts'
   },
@@ -33,25 +40,27 @@ export const crmAreas: CrmArea[] = [
     id: 'contacts',
     title: 'Contacts',
     description: 'Maintain individual person records and contact information',
-    icon: AddressBook,
+    icon: AddressBookIcon,
     category: 'customer',
     path: '/crm/contacts'
   },
 
-  // Business Intelligence
+  // Marketing & Campaigns
   {
-    id: 'reports',
-    title: 'Reports',
-    description: 'Generate and view detailed reports on CRM data and activities',
-    icon: FileText,
-    category: 'intelligence',
-    path: '/crm/reports'
+    id: 'campaigns',
+    title: 'Campaigns',
+    description: 'Create and manage marketing campaigns and track performance',
+    icon: MegaphoneIcon,
+    category: 'marketing',
+    path: '/crm/campaigns'
   },
+
+  // Business Intelligence
   {
     id: 'analytics',
     title: 'Analytics',
     description: 'Analyze performance metrics and gain insights from your data',
-    icon: ChartBar,
+    icon: ChartBarIcon,
     category: 'intelligence',
     path: '/crm/analytics'
   }
@@ -61,44 +70,33 @@ export const quickActions: QuickAction[] = [
   {
     id: 'add-lead',
     label: 'Add New Lead',
-    icon: UserPlus,
+    icon: UserPlusIcon,
     action: 'create-lead'
   },
   {
     id: 'create-opportunity',
     label: 'Create Opportunity',
-    icon: Target,
+    icon: TargetIcon,
     action: 'save-opportunity'
   },
   {
     id: 'add-contact',
     label: 'Add Contact',
-    icon: AddressBook,
+    icon: AddressBookIcon,
     action: 'save-contact'
   },
   {
     id: 'add-account',
     label: 'Add Account',
-    icon: Building,
+    icon: BuildingIcon,
     action: 'create-account'
-  },
-  {
-    id: 'import-data',
-    label: 'Import Data',
-    icon: Upload,
-    action: 'import-data'
-  },
-  {
-    id: 'generate-report',
-    label: 'Generate Report',
-    icon: FileText,
-    action: 'generate-report'
   }
 ]
 
 export const categoryLabels = {
   sales: 'Sales Management',
   customer: 'Customer Management',
+  marketing: 'Marketing & Campaigns',
   intelligence: 'Business Intelligence'
 }
 

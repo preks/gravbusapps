@@ -221,7 +221,18 @@ export const CONTENT_ENTRY_DESCRIPTORS: Descriptor[] = [
   { key: 'updaterEmployeeId', searchPaths: ['updaterEmployeeId'], sortPath: 'updaterEmployeeId', type: 'text' },
   { key: 'acceptorEmployeeId', searchPaths: ['acceptorEmployeeId'], sortPath: 'acceptorEmployeeId', type: 'text' },
   { key: 'contentGroupRef', searchPaths: ['contentGroupRef'], sortPath: 'contentGroupRef', type: 'text' },
-  { key: 'contentTypeRef', searchPaths: ['contentTypeRef'], sortPath: 'contentTypeRef', type: 'text' },
+  {
+    key: 'contentTypeRef',
+    path: ContentEntryFields.contentTypeRef,
+    filterLabel: 'Content Type',
+    searchPaths: ['contentTypeRef', 'contentType.value'],
+    sortPath: 'contentTypeRef',
+    type: 'text',
+    optionSelectPaths: [`${ContentEntryFields.contentTypeRef}`, `${ContentEntryFields.contentType}.value`],
+    optionSearchPaths: [`${ContentEntryFields.contentType}.value`, `${ContentEntryFields.contentType}.code`],
+    optionDistinctOn: [ContentEntryFields.contentTypeRef],
+    kind: 'inIds'
+  },
   { key: 'languageRef', searchPaths: ['languageRef'], sortPath: 'languageRef', type: 'text' },
   { key: 'title', searchPaths: ['title'], sortPath: 'title', type: 'text' },
   { key: 'preview', searchPaths: ['preview'], sortPath: 'preview', type: 'text' },
@@ -278,6 +289,24 @@ export const CONTENT_ENTRY_DESCRIPTORS: Descriptor[] = [
     searchPaths: ['contentEntryCategories.contentCategory.value'],
     sortPath: 'contentEntryCategories.contentCategory.value',
     type: 'text'
+  },
+  {
+    key: 'contentCategoryRefs',
+    path: 'contentEntryCategories.contentCategoryRef',
+    filterLabel: 'Category',
+    searchPaths: ['contentEntryCategories.contentCategory.value'],
+    sortPath: 'contentEntryCategories.contentCategory.value',
+    type: 'text',
+    optionSelectPaths: [
+      `${ContentEntryFields.contentEntryCategories}.contentCategoryRef`,
+      `${ContentEntryFields.contentEntryCategories}.contentCategory.value`
+    ],
+    optionSearchPaths: [
+      `${ContentEntryFields.contentEntryCategories}.contentCategory.value`,
+      `${ContentEntryFields.contentEntryCategories}.contentCategory.code`
+    ],
+    optionDistinctOn: [], // Nested array - distinctOn doesn't work, will be handled client-side
+    kind: 'inIds'
   },
   {
     key: 'tagNames',

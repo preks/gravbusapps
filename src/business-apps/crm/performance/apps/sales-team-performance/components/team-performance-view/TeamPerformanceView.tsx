@@ -13,15 +13,15 @@ import {
   RecordLayout
 } from '@newwork/nw-design-system'
 import {
-  PiUsers,
-  PiTrendUp,
-  PiCurrencyDollar,
-  PiTarget,
-  PiCalendar,
-  PiListChecks,
-  PiChartLine,
-  PiUsersThree
-} from 'react-icons/pi'
+  UsersIcon,
+  UsersThree,
+  TrendUpIcon,
+  CurrencyDollarIcon,
+  TargetIcon,
+  CalendarIcon,
+  ListChecksIcon,
+  ChartLineIcon
+} from '@phosphor-icons/react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { SalesTeamMembersList } from '../sales-members-list'
@@ -306,7 +306,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
         key: 'team-revenue',
         title: 'Team Revenue',
         value: formatCurrency(teamKPIs.totalRevenue, selectedCurrency),
-        prefix: <PiCurrencyDollar />,
+        prefix: <CurrencyDollarIcon />,
         color: 'hsl(var(--success))',
         description: `${kpis?.memberCount || teamKPIs.memberCount} team members`,
         valueIsString: true,
@@ -320,7 +320,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
         key: 'team-activity',
         title: 'Team Activity Score',
         value: teamKPIs.avgActivityScore,
-        prefix: <PiTarget />,
+        prefix: <TargetIcon />,
         color: '#1677ff',
         description: `Avg per member: ${Math.round(teamKPIs.avgActivityScore)}`,
         precision: 1,
@@ -335,7 +335,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
         key: 'team-size',
         title: 'Team Members',
         value: teamKPIs.memberCount,
-        prefix: <PiUsers />,
+        prefix: <UsersIcon />,
         color: '#722ed1',
         description: 'Active team members',
         precision: 0,
@@ -352,7 +352,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
         key: 'avg-per-member',
         title: 'Avg Revenue per Member',
         value: formatCurrency(teamKPIs.totalRevenue / teamKPIs.memberCount, selectedCurrency),
-        prefix: <PiTrendUp />,
+        prefix: <TrendUpIcon />,
         color: 'hsl(var(--warning))',
         description: 'Average revenue contribution',
         valueIsString: true,
@@ -392,7 +392,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
         {
           value: 'overview',
           label: getTranslationFromI18nKeyAndLabel('crm.performance.overview', 'Overview'),
-          icon: <PiChartLine className="gba:mr-2" />,
+          icon: <ChartLineIcon className="gba:mr-2" />,
           contentClassName: wideContentClassName,
           content: (
             <div data-testid={`${DATA_TEST_ID_PREFIX}-overview-content`} className="gba:space-y-6">
@@ -482,7 +482,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
         {
           value: 'activities',
           label: getTranslationFromI18nKeyAndLabel('crm.performance.activities', 'Activities'),
-          icon: <PiListChecks className="gba:mr-2" />,
+          icon: <ListChecksIcon className="gba:mr-2" />,
           contentClassName: wideContentClassName,
           content: (
             <div data-testid={`${DATA_TEST_ID_PREFIX}-activities-content`} className="gba:space-y-6">
@@ -511,7 +511,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
         {
           value: 'calendar',
           label: getTranslationFromI18nKeyAndLabel('crm.performance.calendar', 'Calendar'),
-          icon: <PiCalendar className="gba:mr-2" />,
+          icon: <CalendarIcon className="gba:mr-2" />,
           contentClassName: wideContentClassName,
           content: (
             <div data-testid={`${DATA_TEST_ID_PREFIX}-calendar-content`}>
@@ -623,7 +623,7 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
       </style>
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={PiUsersThree}
+        headerIcon={UsersThree}
         headerCategory={getTranslationFromI18nKeyAndLabel('crm.performance.team', 'TEAM OVERVIEW')}
         onBack={onBack}
         headerTitle={teamName}

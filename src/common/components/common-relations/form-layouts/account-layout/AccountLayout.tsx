@@ -50,8 +50,12 @@ interface AccountLayoutProps {
   // Ref to store current file and thumbnail (for handlePreSubmit in form component)
   avatarFileRef?: React.MutableRefObject<{ file: File; thumbnail: string } | null>
 
+  // Context for prospective field label (determines non-prospective label)
+  accountContext?: 'crm' | 'irm'
+
   // Loading state - shows skeletons while data is being fetched
   loading?: boolean
+  isStepActive?: boolean
 }
 
 const AccountLayout: React.FC<AccountLayoutProps> = ({
@@ -68,7 +72,9 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
   communicationCustomFields,
   customSegments = [],
   avatarFileRef,
-  loading = false
+  accountContext = 'crm',
+  loading = false,
+  isStepActive = true
 }) => {
   const { t } = useTranslation(translations)
 
@@ -112,6 +118,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
         customFields={accountInformationCustomFields}
         avatarFileRef={avatarFileRef}
         accountPriorityCatalogIdentifier={accountPriorityCatalogIdentifier}
+        accountContext={accountContext}
       />
 
       {/* Other Segments */}
@@ -119,7 +126,11 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
         <CommunicationSegment customFields={communicationCustomFields} defaultChannelCodes={DEFAULT_ACCOUNT_CHANNELS} />
       </FormSection>
       <FormSection title={t('address-title')} value="address-information">
-        <AddressSegment customFields={addressCustomFields} />
+        <AddressSegment
+          businessAppContext={businessAppContext}
+          customFields={addressCustomFields}
+          isActive={isStepActive}
+        />
       </FormSection>
       <FormSection title={t('financial-title')} value="financial-information">
         <AccountDetailsSegment

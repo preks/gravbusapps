@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { Button, Alert } from '@newwork/nw-design-system'
-import { ArrowLeftIcon, PlusIcon } from '@phosphor-icons/react'
+import { Button, Alert, PageLayout } from '@newwork/nw-design-system'
+import { FileHtmlIcon } from '@phosphor-icons/react'
+import { Plus } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { DocumentTemplate, DocumentTemplateFormData } from './types'
@@ -144,38 +145,25 @@ const TemplateDataPage: React.FC<TemplateDataPageProps> = ({ accessToken, onBack
   }
 
   return (
-    <div className="gba:p-6 gba:space-y-6" data-testid={`${prefixDataTestId}-${DATA_TEST_ID}`}>
-      {/* Header */}
-      <div className="gba:flex gba:items-center gba:justify-between">
-        <div className="gba:flex gba:items-center gba:gap-4">
-          {onBack && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onBack}
-              data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-back-button`}
-            >
-              <ArrowLeftIcon size={20} />
-            </Button>
-          )}
-          <div>
-            <h1 className="gba:text-2xl gba:font-bold gba:m-0">Document Templates</h1>
-            <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-              Create and manage HTML templates for investment documents
-            </p>
-          </div>
-        </div>
-
-        {activeView === 'list' && (
+    <PageLayout
+      headerIcon={FileHtmlIcon}
+      headerTitle="Document Templates"
+      headerDescription="Create and manage HTML templates for investment documents"
+      onBack={onBack}
+      data-testid={`${prefixDataTestId}-${DATA_TEST_ID}`}
+    >
+      {/* Create Button */}
+      {activeView === 'list' && (
+        <div className="gba:flex gba:justify-end gba:mb-6">
           <Button
             onClick={() => setActiveView('create')}
             data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-create-button`}
           >
-            <PlusIcon />
+            <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
             Create Template
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {error && activeView === 'list' && (
         <Alert variant="destructive" data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-error`}>
@@ -214,7 +202,7 @@ const TemplateDataPage: React.FC<TemplateDataPageProps> = ({ accessToken, onBack
         onClose={() => setPreviewTemplate(null)}
         prefixDataTestId={`${prefixDataTestId}-${DATA_TEST_ID}-preview`}
       />
-    </div>
+    </PageLayout>
   )
 }
 

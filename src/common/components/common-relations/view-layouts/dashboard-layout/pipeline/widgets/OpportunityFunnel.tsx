@@ -1,7 +1,7 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Progress } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Progress, EmptyState, Spinner } from '@newwork/nw-design-system'
 import { TrendingDown, BarChart3 } from 'lucide-react'
-import EmptyState from '@/components/empty-state/EmptyState'
+import { formatCurrency, formatPercentage } from '@/common/utils/numberFormatter'
 
 export interface OpportunityStage {
   id: string
@@ -18,30 +18,42 @@ export interface OpportunityFunnelData {
   percentage: number
 }
 
-const formatCurrency = (amount: number, currencyCode: string = 'EUR'): string => {
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currencyCode,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  } catch {
-    return `${currencyCode} ${amount.toLocaleString()}`
-  }
-}
-
-const formatPercentage = (value: number, decimals: number = 1): string => {
-  return `${value.toFixed(decimals)}%`
-}
-
 export interface OpportunityFunnelProps {
   funnelData: OpportunityFunnelData[]
   pipelineId: string
   currency?: string
+  isLoading?: boolean
 }
 
-export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({ funnelData, pipelineId, currency = 'EUR' }) => {
+export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({
+  funnelData,
+  pipelineId,
+  currency = 'EUR',
+  isLoading = false
+}) => {
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <div className="gba:p-2 gba:bg-blue-100 gba:rounded-lg">
+              <BarChart3 className="gba:h-5 gba:w-5 gba:text-blue-600" />
+            </div>
+            <CardTitle>Opportunity Funnel</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="gba:flex gba:items-center gba:justify-center gba:h-40">
+            <div className="gba:text-center">
+              <Spinner size="sm" />
+              <div className="gba:mt-2 gba:text-sm gba:text-gray-600">Loading funnel...</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   if (!funnelData || funnelData.length === 0) {
     return (
       <Card>
@@ -54,7 +66,12 @@ export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({ funnelData
           </div>
         </CardHeader>
         <CardContent>
-          <EmptyState title="No Funnel Data" description="No opportunities found for this pipeline" />
+          <EmptyState
+            type="no-data"
+            title="No Funnel Data"
+            description="No opportunities found for this pipeline"
+            data-testid="opportunity-funnel-empty-state"
+          />
         </CardContent>
       </Card>
     )
@@ -129,7 +146,7 @@ export const OpportunityFunnel: React.FC<OpportunityFunnelProps> = ({ funnelData
         </div>
 
         {/* Funnel Summary */}
-        <div className="gba:mt-6 gba:bg-gradient-to-r gba:from-gray-50 gba:to-blue-50 gba:rounded-xl gba:p-5 gba:border gba:border-gray-200">
+        <div className="gba:mt-6 gba:bg-linear-to-r gba:from-gray-50 gba:to-blue-50 gba:rounded-xl gba:p-5 gba:border gba:border-gray-200">
           <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
             <span className="gba:text-gray-700 gba:font-semibold gba:text-base">Funnel Summary</span>
             <div className="gba:p-1 gba:bg-blue-100 gba:rounded-md">

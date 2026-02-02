@@ -1,26 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { employeeCountQuery } from '../queries/getEmployeeCount'
-import { formatDate } from '@/common/utils/windowUtils'
+import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
+import dayjs from 'dayjs'
 
 /**
  * GraphQL response type for employee count query
  */
-interface EmployeeCountResponse {
-  thisYear: {
-    aggregate: {
-      count: number
-    }
-  }
-  lastYear: {
-    aggregate: {
-      count: number
-    }
-  }
+type TimeseriesRow = {
+  category?: string
+  date_category?: string
+  dateCategory?: string
+  value?: number
+  [key: string]: any
 }
 
 // Module-level in-flight cache to dedupe concurrent/duplicate requests (per token and date range)
-const employeeCountRequestCache = new Map<string, Promise<EmployeeCountResponse>>()
+const employeeCountRequestCache = new Map<string, Promise<TimeseriesRow[]>>()
 
 /**
  * Hook to fetch employee count from the GraphQL API
@@ -36,11 +30,12 @@ export const useEmployeeCount = (accessToken: string) => {
   const [error, setError] = useState<Error | null>(null)
   const isMounted = useRef<boolean>(true)
 
-  // Get GraphQL client using the project's pattern
-  const graphQLClient = useGraphqlClient(accessToken)
+  // Dataset client (EMPLOYEE service)
+  const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
 
   /**
-   * Fetch employee count from GraphQL API
+   * Fetch employee counts using dataset timeseries 'employeesPerYear' and derive
+   * current year and last year counts from the response.
    */
   const fetchEmployeeCount = useCallback(async () => {
     if (!accessToken) {
@@ -51,35 +46,41 @@ export const useEmployeeCount = (accessToken: string) => {
       return
     }
 
+    const cacheKey = `${accessToken}|employeesPerYear|5`
+
     try {
       if (isMounted.current) {
         setLoading(true)
         setError(null)
       }
 
-      // Use end-of-today for current year to keep a stable key across calls in the same day,
-      // and Dec 31 (23:59:59.999) for last year
-      const now = new Date()
-      const thisYearEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
-      const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999)
-
-      const thisYearEndIso = formatDate(thisYearEnd, 'fullDateTime.ISO') as string
-      const lastYearEndIso = formatDate(lastYearEnd, 'fullDateTime.ISO') as string
-      const cacheKey = `${accessToken}|${thisYearEndIso}|${lastYearEndIso}`
-
       let promise = employeeCountRequestCache.get(cacheKey)
       if (!promise) {
-        promise = graphQLClient.request<EmployeeCountResponse>(employeeCountQuery, {
-          thisYearEnd: thisYearEndIso,
-          lastYearEnd: lastYearEndIso
-        })
+        promise = (async () => {
+          const result = await datasetClient.executeQuery('employeesPerYear', QueryType.TIMESERIES, { years: 5 })
+          return (result?.data ?? []) as TimeseriesRow[]
+        })()
         employeeCountRequestCache.set(cacheKey, promise)
       }
 
-      const combinedResponse = await promise
+      const rows = await promise
 
-      const thisYearCount = Number(combinedResponse?.thisYear?.aggregate?.count ?? 0)
-      const prevYearCount = Number(combinedResponse?.lastYear?.aggregate?.count ?? 0)
+      // Build year -> value map
+      const byYear = new Map<number, number>()
+      rows.forEach(r => {
+        const dateStr = r.date_category ?? r.dateCategory
+        if (dateStr != null) {
+          const y = dayjs(dateStr).year()
+          const v = Number(r.value ?? 0)
+          if (Number.isFinite(y) && Number.isFinite(v)) {
+            byYear.set(y, v)
+          }
+        }
+      })
+
+      const currentYear = dayjs().year()
+      const thisYearCount = Number(byYear.get(currentYear) ?? 0)
+      const prevYearCount = Number(byYear.get(currentYear - 1) ?? 0)
 
       if (isNaN(thisYearCount) || isNaN(prevYearCount)) {
         throw new Error('Employee count is not a valid number')
@@ -98,11 +99,13 @@ export const useEmployeeCount = (accessToken: string) => {
         setError(err instanceof Error ? err : new Error('Failed to fetch employee count'))
       }
     } finally {
+      // Clear in-flight cache entry so future mounts/refetches get fresh data
+      employeeCountRequestCache.delete(cacheKey)
       if (isMounted.current) {
         setLoading(false)
       }
     }
-  }, [accessToken, graphQLClient])
+  }, [accessToken, datasetClient])
 
   // Set up effect to fetch data and handle cleanup
   useEffect(() => {

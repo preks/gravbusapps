@@ -110,7 +110,8 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
 
   // Get the tab parameter to know which tab to return to and determine count type
   const fromTab = useMemo(() => {
-    return new URLSearchParams(window.location.search).get('tab') || 'intranet'
+    const tab = new URLSearchParams(window.location.search).get('tab') || 'home'
+    return tab === 'intranet' ? 'home' : tab
   }, [])
 
   const queryOptions = useMemo(
@@ -124,7 +125,8 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
   const {
     entry: item,
     isLoading,
-    error
+    error,
+    refetch
   } = useContentEntry(contentId, {
     accessToken: context.accessToken,
     queryOptions
@@ -246,6 +248,7 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
         isTranslating={isTranslating}
         isDetecting={isDetecting}
         onTranslateComments={translateComments}
+        onReactionSuccess={refetch}
       />
     </div>
   )

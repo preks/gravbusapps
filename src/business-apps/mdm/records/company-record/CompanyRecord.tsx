@@ -3,8 +3,26 @@
  * Main record view for Company entities following the LeadRecord pattern
  */
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
-import { Spinner, RecordLayout, Button, useTranslation } from '@newwork/nw-design-system'
-import { Buildings, FileText, House, Users, TreeStructure } from '@phosphor-icons/react'
+import {
+  Spinner,
+  RecordLayout,
+  Button,
+  useTranslation,
+  IconAvatar,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  HeaderSlot
+} from '@newwork/nw-design-system'
+import {
+  BuildingsIcon,
+  FileTextIcon,
+  HouseIcon,
+  UsersIcon,
+  TreeStructureIcon,
+  CurrencyDollarIcon,
+  UserIcon
+} from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useCompany } from '@/common/data/orgchart/hooks/useCompany'
 import { HomeView } from './views/home-view/HomeView'
@@ -62,8 +80,8 @@ const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({ companyId, 
         if (response?.detail?.resolution === 'success' || response?.company) {
           await refetch()
         }
-      } catch (err) {
-        console.error('Error handling process completion in CompanyRecord:', err)
+      } catch {
+        // Error is already caught and handled
       }
     }
 
@@ -100,7 +118,21 @@ const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({ companyId, 
           {
             label: t('company-code'),
             value: company?.code || t('not-available'),
-            icon: Buildings
+            icon: BuildingsIcon
+          },
+          {
+            label: t('director'),
+            value: company?.director
+              ? company.director.displayName ||
+                `${company.director.firstName || ''} ${company.director.lastName || ''}`.trim() ||
+                t('not-available')
+              : t('not-available'),
+            icon: UserIcon
+          },
+          {
+            label: t('currency'),
+            value: company?.currency?.value || company?.currencyRef || t('not-available'),
+            icon: CurrencyDollarIcon
           }
         ]
       }
@@ -111,6 +143,35 @@ const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({ companyId, 
   // Company name for header
   const companyName = company?.name || t('company-unnamed')
 
+  // Helper function to get company avatar source
+  const getCompanyAvatarSource = (): string | undefined => {
+    if (company?.pictureThumbnail && typeof company.pictureThumbnail === 'string') {
+      return `data:image/jpeg;base64,${company.pictureThumbnail}`
+    }
+    if (company?.picture && typeof company.picture === 'string') {
+      return `data:image/jpeg;base64,${company.picture}`
+    }
+    return undefined
+  }
+
+  // Company avatar - use picture/thumbnail if available, otherwise icon
+  const companyAvatar = useMemo(() => {
+    const avatarSrc = getCompanyAvatarSource()
+
+    if (avatarSrc) {
+      return (
+        <Avatar className="gba:w-16 gba:h-16">
+          <AvatarImage src={avatarSrc} alt={companyName} />
+          <AvatarFallback className="gba:text-xl gba:font-semibold">
+            {companyName.substring(0, 2).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+      )
+    }
+
+    return <IconAvatar icon={BuildingsIcon} variant="decorative" size="xl" />
+  }, [company?.picture, company?.pictureThumbnail, companyName])
+
   // Sub views configuration (tabs)
   const subViewsConfig = useMemo(
     () => ({
@@ -120,13 +181,13 @@ const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({ companyId, 
         {
           value: 'overview',
           label: t('overview'),
-          icon: <House className="gba:mr-2" />,
+          icon: <HouseIcon className="gba:mr-2" />,
           content: <HomeView companyId={companyId} company={company} {...props} />
         },
         {
           value: 'employees',
           label: t('employees'),
-          icon: <Users className="gba:mr-2" />,
+          icon: <UsersIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <EmployeeView companyId={companyId} {...props} />
@@ -136,7 +197,7 @@ const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({ companyId, 
         {
           value: 'organization',
           label: t('organization'),
-          icon: <TreeStructure className="gba:mr-2" />,
+          icon: <TreeStructureIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <OrganizationalUnitView companyId={companyId} {...props} />
@@ -146,7 +207,7 @@ const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({ companyId, 
         {
           value: 'documents',
           label: t('documents'),
-          icon: <FileText className="gba:mr-2" />,
+          icon: <FileTextIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <DocumentView companyId={companyId} {...props} />
@@ -183,12 +244,15 @@ const CompanyRecordContent: React.FC<CompanyRecordContentProps> = ({ companyId, 
     <div data-testid="company-record">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={Buildings}
-        headerCategory={t('company-category')}
+        headerAvatar={companyAvatar}
+        headerOverline={t('company-category')}
         onBack={onBack}
         headerTitle={companyName}
-        headerDetailGroups={headerDetailGroups}
-        subViews={subViewsConfig}
+        headerSubtitle={company?.description}
+        headerSlotMain={<HeaderSlot headerSlotItemGroups={headerDetailGroups} orientation="horizontal" />}
+        views={subViewsConfig.items}
+        defaultView={subViewsConfig.defaultValue}
+        onViewChange={subViewsConfig.onValueChange}
       />
     </div>
   )

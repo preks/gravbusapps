@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 import {
   DataDisplay,
   Select,
@@ -6,8 +7,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Label
+  Label,
+  Avatar,
+  AvatarFallback
 } from '@newwork/nw-design-system'
+import { TrendDownIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
@@ -48,8 +52,11 @@ export const ExitsTab: React.FC<ExitsTabProps> = context => {
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'opportunity',
     'amount',
-    'account',
-    'status',
+    'divestment',
+    'opportunityStatus',
+    'opportunityPipeline',
+    'opportunityPipelineStage',
+    'opportunityForecast',
     'closeDate',
     'owner',
     'created'
@@ -63,15 +70,9 @@ export const ExitsTab: React.FC<ExitsTabProps> = context => {
       ? (filterData.amountRange as { min: number; max: number })
       : { min: 0, max: 1000000 }
 
-  // Identify WON status IDs for server-side filtering
+  // Identify WON status IDs by catalog entry type field
   const wonStatusIds = useMemo(() => {
-    return statuses
-      .filter(status => {
-        const label = status.label?.toUpperCase() || ''
-        const wonVariations = ['WON', 'CLOSED WON', 'SOLD', 'SUCCESS', 'COMPLETED']
-        return wonVariations.some(variation => label.includes(variation) || label === variation)
-      })
-      .map(status => status.id)
+    return statuses.filter(status => status.type?.toUpperCase() === 'WON').map(status => status.id)
   }, [statuses])
 
   // Helper to update filter options
@@ -151,9 +152,14 @@ export const ExitsTab: React.FC<ExitsTabProps> = context => {
     const mapping: Record<string, string> = {
       opportunity: 'name',
       amount: 'estimatedAmount',
+      opportunityStatus: 'opportunityStatus',
       status: 'opportunityStatus',
+      opportunityPipeline: 'opportunityPipeline',
+      opportunityPipelineStage: 'opportunityPipelineStage',
+      opportunityForecast: 'opportunityForecast',
       closeDate: 'closeDate',
       account: 'accountId',
+      divestment: 'divestmentId',
       owner: 'ownerEmployeeId',
       created: 'createdAt'
     }
@@ -182,7 +188,7 @@ export const ExitsTab: React.FC<ExitsTabProps> = context => {
         search: searchTerm.trim() || undefined,
         dealType: 'DIVESTMENT_DEAL',
         currencyCode: selectedCurrency || undefined,
-        // Server-side filtering for WON opportunities
+        // Server-side filtering for WON opportunities (filtered by catalog entry type field)
         statusIds: wonStatusIds
       }
 
@@ -204,7 +210,7 @@ export const ExitsTab: React.FC<ExitsTabProps> = context => {
       const result = await fetchInvestmentOpportunities(variables)
 
       setOpportunities(result.InvestmentOpportunity || [])
-      setTotalCount(result.totalCount || 0)
+      setTotalCount(result.InvestmentOpportunityAggregate?.aggregate?.count || 0)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load exit opportunities')
       setOpportunities([])
@@ -278,15 +284,75 @@ export const ExitsTab: React.FC<ExitsTabProps> = context => {
     []
   )
 
-  // Columns
-  const columns = useMemo(() => createOpportunityColumns(buildAccountUrl), [buildAccountUrl])
+  // Columns - add divestment column
+  const columns = useMemo(() => {
+    const baseColumns = createOpportunityColumns()
+
+    // Define divestment column
+    const divestmentColumn: ColumnDef<InvestmentOpportunity> = {
+      id: 'divestment',
+      accessorFn: (row: any) => (row.divestment?.name || '') as string,
+      header: 'Divestment',
+      size: 200,
+      minSize: 180,
+      maxSize: 280,
+      cell: ({ row }: any) => {
+        const opportunity = row.original as InvestmentOpportunity
+        if (!opportunity.divestment) {
+          return <span className="gba:text-sm gba:text-muted-foreground">No divestment</span>
+        }
+
+        const divestment = opportunity.divestment
+        const investmentRecordUrl = buildPlatformUrl('/platform/irm/investment-record', {
+          investmentId: divestment.id
+        })
+
+        return (
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation()
+              navigateTo(investmentRecordUrl)
+            }}
+            className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:group gba:bg-transparent gba:border-0 gba:p-0 gba:w-full gba:text-left"
+            data-testid={`opportunity-divestment-link-${opportunity.id}`}
+          >
+            <Avatar className="gba:w-8 gba:h-8 gba:outline gba:outline-2 gba:outline-offset-2 gba:outline-transparent gba:group-hover:[outline-color:var(--nw-color-primary-500)] gba:transition-all">
+              <AvatarFallback>
+                <TrendDownIcon className="gba:h-4 gba:w-4" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="gba:min-w-0 gba:flex-1">
+              <div className="gba:font-medium gba:truncate gba:text-sm gba:group-hover:gba:text-primary gba:transition-colors">
+                {divestment.name}
+              </div>
+            </div>
+          </button>
+        )
+      }
+    }
+
+    // Insert divestment column after account column
+    const accountColumnIndex = baseColumns.findIndex(col => col.id === 'account')
+    if (accountColumnIndex >= 0) {
+      return [
+        ...baseColumns.slice(0, accountColumnIndex + 1),
+        divestmentColumn,
+        ...baseColumns.slice(accountColumnIndex + 1)
+      ]
+    }
+    return [...baseColumns, divestmentColumn]
+  }, [buildAccountUrl])
 
   const availableColumns = useMemo(
     () => [
       { id: 'opportunity', label: 'Opportunity' },
       { id: 'amount', label: 'Exit Amount' },
-      { id: 'account', label: 'Account' },
-      { id: 'status', label: 'Status' },
+      { id: 'divestment', label: 'Divestment' },
+      { id: 'opportunityStatus', label: 'Status' },
+      { id: 'opportunityPipeline', label: 'Pipeline' },
+      { id: 'opportunityPipelineStage', label: 'Stage' },
+      { id: 'opportunityForecast', label: 'Forecast' },
       { id: 'closeDate', label: 'Close Date' },
       { id: 'owner', label: 'Owner' },
       { id: 'created', label: 'Created' }
@@ -294,7 +360,11 @@ export const ExitsTab: React.FC<ExitsTabProps> = context => {
     []
   )
 
-  const sortableColumns = useMemo(() => createOpportunitySortableColumns(), [])
+  const sortableColumns = useMemo(() => {
+    const baseSortable = createOpportunitySortableColumns()
+    // Add divestment to sortable columns
+    return [...baseSortable, { id: 'divestment', label: 'Divestment' }]
+  }, [])
 
   // Fetch available currencies efficiently using distinctOn
   const { currencies: availableCurrencies } = useAvailableCurrencies(context, {

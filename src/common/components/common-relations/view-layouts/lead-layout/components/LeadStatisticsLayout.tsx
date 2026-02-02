@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { UserOutlined, FireOutlined, ShopOutlined, TrophyOutlined } from '@ant-design/icons'
+import { UserOutlined, FireOutlined, RocketOutlined, TrophyOutlined } from '@ant-design/icons'
 
 export interface LeadStatisticsData {
   recentLeads: {
@@ -20,7 +20,11 @@ export interface LeadStatisticsData {
     changePercent: number
     isPositive: boolean
   }
-  topSource: string
+  convertedLeads: {
+    current: number
+    changePercent: number
+    isPositive: boolean
+  }
   isLoading: boolean
   error: Error | null
   refetch: () => void
@@ -40,7 +44,7 @@ export const LeadStatisticsLayout: React.FC<LeadStatisticsLayoutProps> = ({
   statistics,
   'data-testid': dataTestId = 'lead-statistics'
 }) => {
-  const { recentLeads, hotLeads, conversionRate, topSource, isLoading, error, refetch } = statistics
+  const { recentLeads, hotLeads, conversionRate, convertedLeads, isLoading, error, refetch } = statistics
 
   // Get current year for display
   const currentYear = useMemo(() => new Date().getFullYear(), [])
@@ -83,13 +87,18 @@ export const LeadStatisticsLayout: React.FC<LeadStatisticsLayoutProps> = ({
         }
       },
       {
-        key: 'top-lead-source',
-        title: 'Top Lead Source',
-        value: topSource,
-        prefix: <ShopOutlined />,
+        key: 'converted-leads',
+        title: 'Converted',
+        value: convertedLeads.current,
+        prefix: <RocketOutlined />,
         color: '#52c41a',
         span: { xs: 24, sm: 12, md: 8, lg: 5, xl: 5 },
-        description: 'Most common in recent leads'
+        description: 'Successfully converted leads',
+        trend: {
+          value: formatTrendPercent(convertedLeads.changePercent),
+          positive: convertedLeads.isPositive,
+          description: 'vs last quarter'
+        }
       },
       {
         key: 'conversion-rate',
@@ -108,7 +117,7 @@ export const LeadStatisticsLayout: React.FC<LeadStatisticsLayoutProps> = ({
         }
       }
     ],
-    [recentLeads, hotLeads, conversionRate, topSource, currentYear]
+    [recentLeads, hotLeads, conversionRate, convertedLeads, currentYear]
   )
 
   return (

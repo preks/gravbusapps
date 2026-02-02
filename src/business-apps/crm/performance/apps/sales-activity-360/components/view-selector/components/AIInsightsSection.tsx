@@ -1,14 +1,14 @@
 import React, { useState } from 'react'
 import { Card, CardContent, Spinner, Button } from '@newwork/nw-design-system'
 import {
-  PiSparkle,
-  PiTrendUp,
-  PiTrendDown,
-  PiCheckCircle,
-  PiCalendarBlank,
-  PiAirplaneTilt,
-  PiCaretRight
-} from 'react-icons/pi'
+  SparkleIcon,
+  TrendUpIcon,
+  TrendDownIcon,
+  CheckCircleIcon,
+  CalendarBlankIcon,
+  AirplaneTiltIcon,
+  CaretRightIcon
+} from '@phosphor-icons/react'
 import { AIInsightsSectionProps, EmployeePerformance } from '../types/ViewSelectorTypes'
 import { EmployeeCard } from './EmployeeCard'
 import { NeedsAttentionDrawer } from './NeedsAttentionDrawer'
@@ -30,7 +30,7 @@ export const AIInsightsSection: React.FC<AIInsightsSectionProps> = ({
     return (
       <div className="gba:space-y-4">
         <div className="gba:flex gba:items-center gba:gap-2">
-          <PiSparkle className="gba:w-5 gba:h-5 gba:text-primary" />
+          <SparkleIcon className="gba:w-5 gba:h-5 gba:text-primary" />
           <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">AI Insights</h2>
           <span className="gba:text-xs gba:text-muted-foreground">• Rolling 14-day analysis (absence-adjusted)</span>
         </div>
@@ -48,7 +48,7 @@ export const AIInsightsSection: React.FC<AIInsightsSectionProps> = ({
     <>
       <div className="gba:space-y-4" data-testid={`${DATA_TEST_ID_PREFIX}-insights`}>
         <div className="gba:flex gba:items-center gba:gap-2">
-          <PiSparkle className="gba:w-5 gba:h-5 gba:text-primary" />
+          <SparkleIcon className="gba:w-5 gba:h-5 gba:text-primary" />
           <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">AI Insights</h2>
           <span className="gba:text-xs gba:text-muted-foreground">• Rolling 14-day analysis (absence-adjusted)</span>
         </div>
@@ -112,9 +112,9 @@ const TeamMomentumCard: React.FC<TeamMomentumCardProps> = ({ stats }) => {
             }`}
           >
             {isPositive ? (
-              <PiTrendUp className="gba:w-5 gba:h-5 gba:text-success" />
+              <TrendUpIcon className="gba:w-5 gba:h-5 gba:text-success" />
             ) : (
-              <PiTrendDown className="gba:w-5 gba:h-5 gba:text-warning" />
+              <TrendDownIcon className="gba:w-5 gba:h-5 gba:text-warning" />
             )}
           </div>
           <div>
@@ -153,7 +153,7 @@ const TopPerformersCard: React.FC<EmployeeListCardProps> = ({ employees, onEmplo
     <CardContent className="gba:p-4 gba:h-full gba:flex gba:flex-col">
       <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3">
         <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-lg gba:bg-success/10">
-          <PiTrendUp className="gba:w-5 gba:h-5 gba:text-success" />
+          <TrendUpIcon className="gba:w-5 gba:h-5 gba:text-success" />
         </div>
         <div>
           <h3 className="gba:font-semibold gba:text-foreground">Top Performers</h3>
@@ -195,7 +195,7 @@ const NeedsAttentionCard: React.FC<NeedsAttentionCardProps> = ({ employees, onEm
       <CardContent className="gba:p-4 gba:h-full gba:flex gba:flex-col">
         <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3">
           <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-lg gba:bg-warning/10">
-            <PiTrendDown className="gba:w-5 gba:h-5 gba:text-warning" />
+            <TrendDownIcon className="gba:w-5 gba:h-5 gba:text-warning" />
           </div>
           <div>
             <h3 className="gba:font-semibold gba:text-foreground">Needs Attention</h3>
@@ -205,7 +205,7 @@ const NeedsAttentionCard: React.FC<NeedsAttentionCardProps> = ({ employees, onEm
         <div className="gba:space-y-1 gba:flex-1">
           {employees.length === 0 ? (
             <div className="gba:flex gba:items-center gba:gap-2 gba:py-4 gba:justify-center">
-              <PiCheckCircle className="gba:w-5 gba:h-5 gba:text-success" />
+              <CheckCircleIcon className="gba:w-5 gba:h-5 gba:text-success" />
               <p className="gba:text-sm gba:text-muted-foreground">Everyone on track!</p>
             </div>
           ) : (
@@ -222,7 +222,7 @@ const NeedsAttentionCard: React.FC<NeedsAttentionCardProps> = ({ employees, onEm
             className="gba:w-full gba:text-xs gba:text-warning hover:gba:text-warning hover:gba:bg-warning/10 gba:mt-auto gba:h-7"
           >
             View all ({employees.length})
-            <PiCaretRight className="gba:w-4 gba:h-4 gba:ml-1" />
+            <CaretRightIcon className="gba:w-4 gba:h-4 gba:ml-1" />
           </Button>
         )}
       </CardContent>
@@ -235,7 +235,7 @@ const OnLeaveCard: React.FC<EmployeeListCardProps> = ({ employees, onEmployeeCli
     <CardContent className="gba:p-4 gba:h-full gba:flex gba:flex-col">
       <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3">
         <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-lg gba:bg-info/10">
-          <PiAirplaneTilt className="gba:w-5 gba:h-5 gba:text-info" />
+          <AirplaneTiltIcon className="gba:w-5 gba:h-5 gba:text-info" />
         </div>
         <div>
           <h3 className="gba:font-semibold gba:text-foreground">Currently On Leave</h3>
@@ -245,7 +245,7 @@ const OnLeaveCard: React.FC<EmployeeListCardProps> = ({ employees, onEmployeeCli
       <div className="gba:space-y-1 gba:flex-1">
         {employees.length === 0 ? (
           <div className="gba:flex gba:items-center gba:gap-2 gba:py-4 gba:justify-center">
-            <PiCalendarBlank className="gba:w-5 gba:h-5 gba:text-muted-foreground" />
+            <CalendarBlankIcon className="gba:w-5 gba:h-5 gba:text-muted-foreground" />
             <p className="gba:text-sm gba:text-muted-foreground">Full team available</p>
           </div>
         ) : (

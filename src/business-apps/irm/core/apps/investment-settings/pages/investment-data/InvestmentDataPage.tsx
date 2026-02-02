@@ -1,11 +1,12 @@
 import React, { useCallback } from 'react'
-import { Alert, Spinner } from '@newwork/nw-design-system'
+import { Alert, Spinner, PageLayout, Button, EmptyState } from '@newwork/nw-design-system'
+import { DatabaseIcon, FloppyDiskIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   useGetInvestmentCatalogData,
   InvestmentCatalogData
 } from '@/common/data/investment/hooks/useInvestmentCatalogs'
-import { InvestmentDataHeader, GroupTypeSelector, ConfigurationNav, ConfigurationContent } from './components'
+import { GroupTypeSelector, ConfigurationNav, ConfigurationContent } from './components'
 import { CatalogEntryWithConfig, FieldGroup, ProspectField, TileField } from './types'
 import { useInvestmentConfiguration, useInvestmentDataSave, mapCatalogEntryToTyped } from '../../hooks'
 import { useInvestmentDataPageState, useCatalogDataLoader } from './hooks'
@@ -34,18 +35,22 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
     setSelectedGroup,
     selectedType,
     setSelectedType,
+    selectedLiquidFundType,
+    setSelectedLiquidFundType,
     selectedEntry,
     setSelectedEntry,
     catalogData,
     setCatalogData,
     configSection,
     setConfigSection,
-    getTypesForGroup
+    getTypesForGroup,
+    getLiquidFundTypesForType
   } = useInvestmentDataPageState()
 
   const { configuration, isInherited, setConfiguration, setIsInherited } = useInvestmentConfiguration({
     selectedEntry,
     selectedGroup,
+    selectedType,
     targetLevel
   })
 
@@ -123,6 +128,7 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
     const groupEntry = mapCatalogEntryToTyped(group)
     setSelectedGroup(groupEntry)
     setSelectedType(null)
+    setSelectedLiquidFundType(null)
     setTargetLevel('group')
     setSelectedEntry(groupEntry)
   }
@@ -130,39 +136,65 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
   const handleTypeSelect = (type: any) => {
     const typeEntry = mapCatalogEntryToTyped(type)
     setSelectedType(typeEntry)
+    setSelectedLiquidFundType(null)
     setTargetLevel('type')
     setSelectedEntry(typeEntry)
+  }
+
+  const handleLiquidFundTypeSelect = (liquidFundType: any) => {
+    const liquidFundTypeEntry = mapCatalogEntryToTyped(liquidFundType)
+    setSelectedLiquidFundType(liquidFundTypeEntry)
+    setTargetLevel('liquidFundType')
+    setSelectedEntry(liquidFundTypeEntry)
   }
 
   const handleGeneralSelect = () => {
     setTargetLevel('group')
     setSelectedType(null)
+    setSelectedLiquidFundType(null)
     setSelectedEntry(selectedGroup)
   }
 
   const currentTypes = selectedGroup ? getTypesForGroup(selectedGroup.id) : []
+  const currentLiquidFundTypes = selectedType ? getLiquidFundTypesForType(selectedType.id) : []
 
   if (isLoading) {
     return (
-      <div
-        className="gba:flex gba:items-center gba:justify-center gba:min-h-screen"
-        data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-loading`}
+      <PageLayout
+        headerIcon={DatabaseIcon}
+        headerTitle="Investment Data Configuration"
+        headerDescription="Configure form fields, prospect fields, and tile fields for investment groups and types"
+        onBack={onBack}
+        data-testid={`${prefixDataTestId}-${DATA_TEST_ID}`}
       >
-        <Spinner size="lg" />
-      </div>
+        <div
+          className="gba:flex gba:items-center gba:justify-center gba:min-h-96"
+          data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-loading`}
+        >
+          <Spinner size="lg" />
+        </div>
+      </PageLayout>
     )
   }
 
   return (
-    <div className="gba:p-6 gba:space-y-6" data-testid={`${prefixDataTestId}-${DATA_TEST_ID}`}>
-      <InvestmentDataHeader
-        onBack={onBack}
-        onSave={handleSave}
-        selectedEntry={selectedEntry}
-        isSaving={isSaving}
-        prefixDataTestId={`${prefixDataTestId}-${DATA_TEST_ID}`}
-      />
-
+    <PageLayout
+      headerIcon={DatabaseIcon}
+      headerTitle="Investment Data Configuration"
+      headerDescription="Configure form fields, prospect fields, and tile fields for investment groups and types"
+      headerContent={
+        <Button
+          onClick={handleSave}
+          disabled={!selectedEntry || isSaving}
+          data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-save-button`}
+        >
+          {isSaving ? <Spinner size="sm" /> : <FloppyDiskIcon className="gba:w-4 gba:h-4 gba:mr-2" />}
+          {isSaving ? 'Saving...' : 'Save Configuration'}
+        </Button>
+      }
+      onBack={onBack}
+      data-testid={`${prefixDataTestId}-${DATA_TEST_ID}`}
+    >
       {(loadError || error) && (
         <Alert variant="destructive" data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-error`}>
           {loadError || error}
@@ -173,14 +205,17 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
         catalogData={catalogData}
         selectedGroup={selectedGroup}
         selectedType={selectedType}
+        selectedLiquidFundType={selectedLiquidFundType}
         currentTypes={currentTypes}
+        currentLiquidFundTypes={currentLiquidFundTypes}
         onGroupSelect={handleGroupSelect}
         onTypeSelect={handleTypeSelect}
+        onLiquidFundTypeSelect={handleLiquidFundTypeSelect}
         onGeneralSelect={handleGeneralSelect}
         prefixDataTestId={`${prefixDataTestId}-${DATA_TEST_ID}`}
       />
 
-      {selectedEntry && (
+      {selectedEntry ? (
         <div className="gba:flex gba:gap-6" data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-config-section`}>
           <ConfigurationNav
             accessToken={accessToken}
@@ -212,7 +247,9 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
             isTileInherited={isInherited.tileFields}
             inheritedFrom={
               isInherited.formFields || isInherited.prospectFields || isInherited.tileFields
-                ? selectedGroup?.value
+                ? targetLevel === 'liquidFundType'
+                  ? selectedType?.value
+                  : selectedGroup?.value
                 : undefined
             }
             onClearFormInheritance={() => {
@@ -230,8 +267,15 @@ const InvestmentDataPage: React.FC<InvestmentDataPageProps> = ({
             prefixDataTestId={`${prefixDataTestId}-${DATA_TEST_ID}`}
           />
         </div>
+      ) : (
+        <div className="gba:py-12" data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-no-selection`}>
+          <EmptyState
+            title="Select an investment type"
+            description="Choose an investment group and type above to configure its fields"
+          />
+        </div>
       )}
-    </div>
+    </PageLayout>
   )
 }
 

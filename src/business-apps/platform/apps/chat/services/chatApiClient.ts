@@ -182,7 +182,7 @@ export class ChatApiClient {
   }
 
   // Message endpoints
-  async getMessages(conversationId: string, page: number = 1, limit: number = 50) {
+  async getMessages(conversationId: string, page: number = 1, limit: number = 100) {
     const response = await this.client.get<
       | PaginatedResponse<Message>
       | { messages: Message[]; total: number; page: number; limit: number; totalPages: number }
@@ -302,6 +302,48 @@ export class ChatApiClient {
     const response = await this.client.get<string[]>(`/conversations/${conversationId}/experts`)
     return response.data
   }
+
+  // ==================== ANALYTICS ENDPOINTS ====================
+
+  /**
+   * Get user overview statistics (messages sent/received, conversations, call minutes)
+   */
+  async getUserOverview(): Promise<UserOverviewResponse> {
+    const response = await this.client.get<UserOverviewResponse>('/analytics/user/overview')
+    return response.data
+  }
+
+  /**
+   * Get user contacts - most contacted and reach out suggestions
+   */
+  async getUserContacts(): Promise<UserContactsResponse> {
+    const response = await this.client.get<UserContactsResponse>('/analytics/user/contacts')
+    return response.data
+  }
+
+  /**
+   * Get user activity - daily message counts and patterns
+   */
+  async getUserActivity(): Promise<UserActivityResponse> {
+    const response = await this.client.get<UserActivityResponse>('/analytics/user/activity')
+    return response.data
+  }
+
+  /**
+   * Get user reactions statistics
+   */
+  async getUserReactions(): Promise<UserReactionsResponse> {
+    const response = await this.client.get<UserReactionsResponse>('/analytics/user/reactions')
+    return response.data
+  }
+
+  /**
+   * Get global platform statistics
+   */
+  async getGlobalStats(): Promise<GlobalStatsResponse> {
+    const response = await this.client.get<GlobalStatsResponse>('/analytics/global')
+    return response.data
+  }
 }
 
 export interface UploadedAttachment {
@@ -318,4 +360,69 @@ export interface IceServersResponse {
     username?: string
     credential?: string
   }>
+}
+
+// ==================== ANALYTICS TYPES ====================
+
+export interface UserOverviewResponse {
+  totalMessagesSent: number
+  totalMessagesReceived: number
+  totalConversations: number
+  activeConversations: number
+  totalCallMinutes: number
+  averageMessagesPerDay: number
+  memberSince: string
+}
+
+export interface ContactInfo {
+  userId: string
+  displayName: string
+  avatarUrl?: string
+  messageCount: number
+  lastContact: string
+}
+
+export interface ReachOutSuggestion {
+  userId: string
+  displayName: string
+  avatarUrl?: string
+  daysSinceContact: number
+  reason: string
+}
+
+export interface UserContactsResponse {
+  mostContacted: ContactInfo[]
+  reachOutSuggestions: ReachOutSuggestion[]
+}
+
+export interface DailyMessageCount {
+  date: string
+  sent: number
+  received: number
+}
+
+export interface UserActivityResponse {
+  dailyMessages: DailyMessageCount[]
+  peakHour: number
+  mostActiveDay: string
+}
+
+export interface EmojiCount {
+  emoji: string
+  count: number
+}
+
+export interface UserReactionsResponse {
+  mostUsed: EmojiCount[]
+  mostReceived: EmojiCount[]
+}
+
+export interface GlobalStatsResponse {
+  totalMessages: number
+  totalUsers: number
+  totalConversations: number
+  totalCallMinutes: number
+  messagesLast24h: number
+  activeUsersNow: number
+  topReactions: EmojiCount[]
 }

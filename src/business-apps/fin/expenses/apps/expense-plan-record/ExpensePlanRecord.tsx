@@ -477,7 +477,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
             <Card className="gba:w-3/4">
               <div className="gba:mt-2" data-testid="expense-plan-record-tabs">
                 <Tabs value={activeTab} onValueChange={handleTabChange}>
-                  <TabsList className="gba:grid gba:grid-cols-5 gba:w-full gba:ml-6 gba:mr-6">
+                  <TabsList className="gba:inline-flex gba:w-auto gba:mx-6">
                     {tabItems.map(t => (
                       <TabsTrigger key={t.key} value={t.key}>
                         {t.label}
@@ -485,7 +485,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
                     ))}
                   </TabsList>
                   {tabItems.map(t => (
-                    <TabsContent key={t.key} value={t.key} className="gba:mt-4">
+                    <TabsContent key={t.key} value={t.key} className="gba:mt-4 gba:mx-6">
                       <div className="gba:overflow-y-auto gba:overflow-x-hidden" style={{ maxHeight: 600 }}>
                         {t.children}
                       </div>

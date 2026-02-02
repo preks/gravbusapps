@@ -4,6 +4,8 @@
 company-code = Code
 company-unnamed = Unbenanntes Unternehmen
 company-category = UNTERNEHMEN
+director = Direktor
+currency = Währung
 
 # Navigation
 overview = Übersicht
@@ -22,6 +24,7 @@ name = Name
 retry = Wiederholen
 
 # Home View
+description = Beschreibung
 addresses = Adressen
 address-type = Adresstyp
 address-line = Adresszeile
@@ -39,8 +42,10 @@ vat-number = Umsatzsteuer-ID
 no-tax-information = Keine Steuerinformationen verfügbar
 
 additional-properties = Zusätzliche Eigenschaften
+no-additional-properties = Keine zusätzlichen Eigenschaften verfügbar
 
 organizational-units = Organisationseinheiten
+no-organizational-units = Keine Organisationseinheiten verfügbar
 
 # Employee View
 search-employees = Mitarbeiter suchen...
@@ -55,3 +60,14 @@ no-organizational-units-found = Keine Organisationseinheiten gefunden.
 # Document View
 documents-not-available = Die Dokumentenverwaltung für Unternehmen ist noch nicht verfügbar. Das Dokumentenverwaltungssystem für Unternehmen wird in einem zukünftigen Update aktiviert.
 
+# Document Upload
+document-upload-title = Dokument hochladen
+document-upload-name = Dokumentname
+document-upload-description = Beschreibung
+document-upload-file = Datei auswählen
+document-upload-group = Dokumentgruppe
+document-upload-type = Dokumenttyp
+document-upload-parent = Übergeordneter Ordner
+document-upload-expiration = Ablaufdatum
+document-upload-error = Fehler beim Hochladen des Dokuments
+document-upload-success = Dokument erfolgreich hochgeladen
