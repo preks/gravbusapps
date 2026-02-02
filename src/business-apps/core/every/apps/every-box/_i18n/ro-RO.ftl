@@ -134,7 +134,6 @@ flow-detail-flow-steps = Pași flux de lucru
 flow-detail-step = Pasul {$number}: {$title}
 flow-detail-assigned-to = Atribuit către: {$name}
 flow-detail-completed-by = Finalizat de: {$name}
-flow-detail-id = ID: {$id}
 
 # TaskDetailDialog Component
 task-dialog-completed-success = ✓ Sarcină finalizată cu succes!
@@ -159,6 +158,8 @@ completed-load-more = Încarcă mai multe
 task-details-related-to = Legat de
 task-details-attachments = Atașamente ({$count})
 task-details-form = Formular
+task-due-date-label = Scadență
+task-start-date-label = Începe
 task-details-read-only = Doar citire
 task-details-form-loading = Se încarcă...
 task-details-add-comment = Adaugă comentariu

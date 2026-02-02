@@ -139,7 +139,6 @@ flow-detail-flow-steps = Flow Steps
 flow-detail-step = Step {$number}: {$title}
 flow-detail-assigned-to = Assigned to: {$name}
 flow-detail-completed-by = Completed by: {$name}
-flow-detail-id = ID: {$id}
 
 # TaskDetailDialog Component
 task-dialog-completed-success = ✓ Task completed successfully!
@@ -164,6 +163,8 @@ completed-load-more = Load More
 task-details-related-to = Related To
 task-details-attachments = Attachments ({$count})
 task-details-form = Form
+task-due-date-label = Due
+task-start-date-label = Starts
 task-details-read-only = Read-only
 task-details-form-loading = Loading...
 task-details-add-comment = Add Comment
