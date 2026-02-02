@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton, Card } from '@newwork/nw-design-system'
 import { Home as HomeIcon, Newspaper, BookOpen, FileText, MessageCircleQuestion } from 'lucide-react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
@@ -15,7 +15,7 @@ import { useInfiniteScroll } from '@/common/hooks/useInfiniteScroll'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import translations from '../../_i18n'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 
 interface HomeViewProps extends BusinessAppContextProps {
   hideBanner?: boolean
@@ -39,7 +39,7 @@ const HomeView: React.FC<HomeViewProps> = ({
   onTranslate
 }) => {
   const { t } = useTranslation(translations)
-  const [loadedCount, setLoadedCount] = useState(PAGE_SIZE)
+  const [offset, setOffset] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
 
   // Featured content (independent of search) - filter by NEWS and KNOWLEDGE
@@ -61,12 +61,12 @@ const HomeView: React.FC<HomeViewProps> = ({
       role: ContentRole.ROOT,
       contentGroupRefs: [ContentGroup.NEWS, ContentGroup.KNOWLEDGE],
       search: searchQuery,
-      limit: loadedCount,
-      offset: 0,
+      limit: PAGE_SIZE,
+      offset: offset,
       sortBy: 'createdAt' as const,
       sortOrder: 'DESC' as const
     }),
-    [searchQuery, loadedCount]
+    [searchQuery, offset]
   )
 
   // Query for open questions (questions without accepted answers) - still needed for the detailed view
@@ -103,7 +103,44 @@ const HomeView: React.FC<HomeViewProps> = ({
   const { entries: featuredEntries, refetch: refetchFeatured } = useContentEntries(featuredQueryParams, accessToken)
 
   // Main content entries - affected by search
-  const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken)
+  const { entries: fetchedEntries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken)
+
+  // Accumulate entries for infinite scroll
+  // Track the query key to detect when search changes (which should reset)
+  const queryKey = useMemo(() => searchQuery, [searchQuery])
+  const lastQueryKeyRef = useRef(queryKey)
+  const [allLoadedEntries, setAllLoadedEntries] = useState<typeof fetchedEntries>([])
+
+  // Reset when search changes
+  useEffect(() => {
+    if (queryKey !== lastQueryKeyRef.current) {
+      lastQueryKeyRef.current = queryKey
+      setOffset(0)
+      setAllLoadedEntries([])
+    }
+  }, [queryKey])
+
+  // Accumulate entries based on offset
+  useEffect(() => {
+    if (offset === 0) {
+      // First page - replace all entries
+      setAllLoadedEntries(fetchedEntries)
+    } else {
+      // Subsequent pages - append new entries (avoid duplicates)
+      setAllLoadedEntries(prev => {
+        const existingIds = new Set(prev.map(e => e.id))
+        const newEntries = fetchedEntries.filter(e => e.id && !existingIds.has(e.id))
+        return [...prev, ...newEntries]
+      })
+    }
+  }, [fetchedEntries, offset])
+
+  // Use accumulated entries
+  const entries = allLoadedEntries
+
+  // Keep loading state until we have data on initial load
+  const isInitialDataLoad = offset === 0 && allLoadedEntries.length === 0
+  const showLoading = isLoading || isInitialDataLoad
 
   // Open questions query - still needed for detailed view
   const { refetch: refetchOpenQuestions } = useContentEntries(
@@ -119,6 +156,7 @@ const HomeView: React.FC<HomeViewProps> = ({
       refetch()
       refetchOpenQuestions()
       refetchStatistics()
+      // Don't reset offset - let user continue scrolling from where they were
     }
   })
 
@@ -149,7 +187,7 @@ const HomeView: React.FC<HomeViewProps> = ({
   const topArticles = useMemo(() => featuredData.slice(0, 5), [featuredData])
   const remainingArticles = useMemo(() => data.slice(5), [data])
 
-  const hasMore = entries.length > 0 && entries.length < totalCount
+  const hasMore = allLoadedEntries.length > 0 && allLoadedEntries.length < totalCount
 
   // Collect all items for translation (remove duplicates)
   const allItems = useMemo(() => {
@@ -160,8 +198,8 @@ const HomeView: React.FC<HomeViewProps> = ({
 
   // Memoize item IDs to prevent unnecessary re-renders (sorted for consistency)
   const allItemsIds = useMemo(() => {
-    const ids = allItems.map(item => item.id).filter(Boolean)
-    const sortedIds = ids.toSorted((a, b) => {
+    const ids = allItems.map(item => item.id).filter(Boolean) as string[]
+    const sortedIds = [...ids].sort((a: string, b: string) => {
       if (!a || !b) return 0
       return a.localeCompare(b)
     })
@@ -181,9 +219,11 @@ const HomeView: React.FC<HomeViewProps> = ({
 
   // Infinite scroll
   const sentinelRef = useInfiniteScroll({
-    onLoadMore: () => setLoadedCount(prev => prev + PAGE_SIZE),
+    onLoadMore: () => {
+      setOffset(prev => prev + PAGE_SIZE)
+    },
     hasMore,
-    isLoading
+    isLoading: showLoading
   })
 
   const formattedDate = useMemo(() => {
@@ -206,7 +246,7 @@ const HomeView: React.FC<HomeViewProps> = ({
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    setLoadedCount(PAGE_SIZE)
+    // Offset will be reset by the queryKey effect
   }
 
   if (error) {
@@ -331,7 +371,7 @@ const HomeView: React.FC<HomeViewProps> = ({
         </div>
 
         {/* Header with Search */}
-        {isLoading ? (
+        {showLoading ? (
           <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
             <div className="gba:flex gba:items-center gba:gap-3">
               <Skeleton className="gba:h-8 gba:w-8 gba:rounded-md" />
@@ -351,7 +391,7 @@ const HomeView: React.FC<HomeViewProps> = ({
 
         {/* Featured Section - Always visible, not affected by search */}
         {(() => {
-          if (isLoading) {
+          if (showLoading) {
             return (
               <div className="gba:mb-8">
                 <Card className="gba:p-6 gba:h-80">
@@ -388,7 +428,7 @@ const HomeView: React.FC<HomeViewProps> = ({
           <h2 className="gba:text-2xl gba:md:text-3xl gba:text-foreground gba:font-semibold">{t('recent_content')}</h2>
         </div>
 
-        {isLoading ? (
+        {showLoading ? (
           <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-8">
             <ContentCardSkeleton count={6} />
           </div>
@@ -425,7 +465,14 @@ const HomeView: React.FC<HomeViewProps> = ({
         {/* Infinite scroll sentinel */}
         {hasMore && <div ref={sentinelRef} className="gba:h-4" />}
 
-        {!isLoading && data.length === 0 && (
+        {/* Show loading more text when loading additional items */}
+        {isLoading && offset > 0 && (
+          <div className="gba:text-center gba:py-4">
+            <p className="gba:text-sm gba:text-muted-foreground">{t('loading_more') || 'Loading more...'}</p>
+          </div>
+        )}
+
+        {!showLoading && offset === 0 && data.length === 0 && fetchedEntries.length === 0 && (
           <div className="gba:text-center gba:py-12">
             <p className="gba:text-muted-foreground">{t('no_intranet_found')}</p>
           </div>

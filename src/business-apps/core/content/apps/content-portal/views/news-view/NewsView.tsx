@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton } from '@newwork/nw-design-system'
 import { Newspaper } from 'lucide-react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
@@ -11,15 +11,14 @@ import Banner, { BannerVariant } from '../../components/shared/Banner'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useContentTypes } from '../../hooks/useContentTypes'
-import { useCatalogEntries } from '@/common/data/catalog'
+import { useContentFilterGroups } from '@/common/data/content/hooks/useContentFilterGroups'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useInfiniteScroll } from '@/common/hooks/useInfiniteScroll'
 import translations from '../../_i18n'
 
 // Local constants
 const ALL_TAG = 'All'
-const PAGE_SIZE = 20
+const PAGE_SIZE = 10
 
 interface NewsViewProps extends BusinessAppContextProps {
   hideBanner?: boolean
@@ -43,47 +42,25 @@ const NewsView: React.FC<NewsViewProps> = ({
   onTranslate
 }) => {
   const { t } = useTranslation(translations)
-  const [loadedCount, setLoadedCount] = useState(PAGE_SIZE)
+  const [offset, setOffset] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedContentTypeRef, setSelectedContentTypeRef] = useState<string | null>(null)
 
-  // Fetch ContentGroup NEWS entry to get its ID
-  const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken })
-  const [newsGroupId, setNewsGroupId] = useState<string | null>(null)
+  // Fetch filter options (ContentTypes) from distinct ContentEntry queries (scoped to NEWS)
+  const { getFilterOptions } = useContentFilterGroups({ accessToken, userInfo }, ContentGroup.NEWS)
 
-  // Load NEWS ContentGroup ID
-  React.useEffect(() => {
-    const loadNewsGroupId = async () => {
-      try {
-        const result = await fetchCatalogEntriesByIdentifier('ContentGroup', {
-          limit: 1,
-          offset: 0
-        })
-        const newsEntry = result.entries.find(entry => entry.code === 'NEWS')
-        if (newsEntry) {
-          setNewsGroupId(newsEntry.id)
-        }
-      } catch (err) {
-        console.error('Error loading NEWS group ID:', err)
-      }
-    }
-    if (accessToken) {
-      loadNewsGroupId()
-    }
-  }, [accessToken, fetchCatalogEntriesByIdentifier])
+  // Get ContentType filter options
+  const contentTypeOptions = getFilterOptions('contentTypeRef')
 
-  // Load ContentTypes for NEWS
-  const { types: contentTypes } = useContentTypes({ accessToken }, newsGroupId)
-
-  // Build categories from ContentTypes
+  // Build categories from filter options
   const categories = useMemo(() => {
     const allTag = { label: ALL_TAG, checked: selectedContentTypeRef === null }
-    const typeTags = contentTypes.map(type => ({
-      label: type.value || 'Unnamed',
-      checked: selectedContentTypeRef === type.id
+    const typeTags = contentTypeOptions.map(option => ({
+      label: option.label || 'Unnamed',
+      checked: selectedContentTypeRef === option.id
     }))
     return [allTag, ...typeTags]
-  }, [contentTypes, selectedContentTypeRef])
+  }, [contentTypeOptions, selectedContentTypeRef])
 
   // Featured content (independent of search) - always shows latest
   const featuredQueryParams = useMemo(
@@ -99,41 +76,75 @@ const NewsView: React.FC<NewsViewProps> = ({
   )
 
   // Search/browsing content
-  const queryParams = useMemo(
-    () => ({
+  const queryParams = useMemo(() => {
+    return {
       role: ContentRole.ROOT,
       contentGroupRef: ContentGroup.NEWS,
       contentTypeRef: selectedContentTypeRef || undefined,
       search: searchQuery,
-      limit: loadedCount,
-      offset: 0,
+      limit: PAGE_SIZE,
+      offset: offset,
       sortBy: 'createdAt' as const,
       sortOrder: 'DESC' as const
-    }),
-    [searchQuery, loadedCount, selectedContentTypeRef]
-  )
+    }
+  }, [searchQuery, offset, selectedContentTypeRef])
 
   // Featured entries - not affected by search
   const { entries: featuredEntries, refetch: refetchFeatured } = useContentEntries(featuredQueryParams, accessToken)
 
   // Main content entries - affected by search
-  const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken)
+  const { entries: fetchedEntries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken)
+
+  // Accumulate entries for infinite scroll
+  // Track the query key to detect when search/category changes (which should reset)
+  const queryKey = useMemo(() => `${searchQuery}-${selectedContentTypeRef}`, [searchQuery, selectedContentTypeRef])
+  const lastQueryKeyRef = useRef(queryKey)
+  const [allLoadedEntries, setAllLoadedEntries] = useState<typeof fetchedEntries>([])
+
+  // Reset when search/category changes
+  useEffect(() => {
+    if (queryKey !== lastQueryKeyRef.current) {
+      lastQueryKeyRef.current = queryKey
+      setOffset(0)
+      setAllLoadedEntries([])
+    }
+  }, [queryKey])
+
+  // Accumulate entries based on offset
+  useEffect(() => {
+    if (offset === 0) {
+      // First page - replace all entries
+      setAllLoadedEntries(fetchedEntries)
+    } else {
+      // Subsequent pages - append new entries (avoid duplicates)
+      setAllLoadedEntries(prev => {
+        const existingIds = new Set(prev.map(e => e.id))
+        const newEntries = fetchedEntries.filter(e => e.id && !existingIds.has(e.id))
+        return [...prev, ...newEntries]
+      })
+    }
+  }, [fetchedEntries, offset])
 
   // Listen for process completion to refresh data
   useProcessCompletion({
     onSuccess: () => {
       refetchFeatured()
       refetch()
+      // Don't reset offset - let user continue scrolling from where they were
     }
   })
 
-  // Use entries directly (no conversion needed)
-  const data = entries
+  // Use accumulated entries
+  const data = allLoadedEntries
   const featuredData = featuredEntries
   const featuredArticles = useMemo(() => featuredData.slice(0, 2), [featuredData])
   const otherArticles = useMemo(() => data, [data])
 
-  const hasMore = entries.length > 0 && entries.length < totalCount
+  // Keep loading state until we have data on initial load
+  const isInitialLoad = offset === 0 && allLoadedEntries.length === 0
+  const showLoading = isLoading || isInitialLoad
+
+  const hasMore = allLoadedEntries.length > 0 && allLoadedEntries.length < totalCount
 
   // Collect all items for translation (remove duplicates)
   const allItems = useMemo(() => {
@@ -144,8 +155,8 @@ const NewsView: React.FC<NewsViewProps> = ({
 
   // Memoize item IDs to prevent unnecessary re-renders (sorted for consistency)
   const allItemsIds = useMemo(() => {
-    const ids = allItems.map(item => item.id).filter(Boolean)
-    const sortedIds = ids.toSorted((a, b) => {
+    const ids = allItems.map(item => item.id).filter(Boolean) as string[]
+    const sortedIds = [...ids].sort((a: string, b: string) => {
       if (!a || !b) return 0
       return a.localeCompare(b)
     })
@@ -165,24 +176,26 @@ const NewsView: React.FC<NewsViewProps> = ({
 
   // Infinite scroll
   const sentinelRef = useInfiniteScroll({
-    onLoadMore: () => setLoadedCount(prev => prev + PAGE_SIZE),
+    onLoadMore: () => {
+      setOffset(prev => prev + PAGE_SIZE)
+    },
     hasMore,
-    isLoading
+    isLoading: showLoading
   })
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    setLoadedCount(PAGE_SIZE)
+    // Offset will be reset by the queryKey effect
   }
 
   const handleCategoryClick = (label: string) => {
     if (label === ALL_TAG) {
       setSelectedContentTypeRef(null)
     } else {
-      const selectedType = contentTypes.find(type => type.value === label)
+      const selectedType = contentTypeOptions.find(option => option.label === label)
       setSelectedContentTypeRef(selectedType?.id || null)
     }
-    setLoadedCount(PAGE_SIZE)
+    // Offset will be reset by the queryKey effect
   }
 
   if (error) {
@@ -299,7 +312,7 @@ const NewsView: React.FC<NewsViewProps> = ({
         </div>
 
         <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:mb-6">
-          {isLoading ? (
+          {showLoading ? (
             <ContentCardSkeleton variant="horizontal" count={5} />
           ) : (
             otherArticles.map((item, index) => {
@@ -327,7 +340,14 @@ const NewsView: React.FC<NewsViewProps> = ({
         {/* Infinite scroll sentinel */}
         {hasMore && <div ref={sentinelRef} className="gba:h-4" />}
 
-        {!isLoading && data.length === 0 && (
+        {/* Show loading more text when loading additional items */}
+        {isLoading && offset > 0 && (
+          <div className="gba:text-center gba:py-4">
+            <p className="gba:text-sm gba:text-muted-foreground">{t('loading_more') || 'Loading more...'}</p>
+          </div>
+        )}
+
+        {!showLoading && offset === 0 && data.length === 0 && fetchedEntries.length === 0 && (
           <div className="gba:text-center gba:py-12">
             <p className="gba:text-muted-foreground">{t('no_news_found')}</p>
           </div>
