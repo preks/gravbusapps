@@ -65,8 +65,14 @@ export const CaseActivityFeed: React.FC<CaseActivityFeedProps> = ({ caseId, cont
 
     try {
       const client = new CaseApiClient(undefined, context.accessToken)
+      console.log('[CaseActivityFeed] Fetching activities for caseId:', caseId)
       const result = await client.getCaseAuditLog(caseId, { limit: maxItems })
-      setActivities(result.activities)
+      console.log('[CaseActivityFeed] Received activities:', result)
+      console.log(
+        '[CaseActivityFeed] Activity types:',
+        result.activities?.map(a => a.type)
+      )
+      setActivities(result.activities || [])
     } catch (err) {
       console.error('[CaseActivityFeed] Failed to fetch activities:', err)
       setError('Failed to load activity history')
