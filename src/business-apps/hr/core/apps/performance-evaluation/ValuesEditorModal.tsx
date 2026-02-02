@@ -15,6 +15,7 @@ import translations from './_i18n'
 
 export interface ValueEditorValues {
   id?: string
+  version?: number
   title: string
   description: string
   active: boolean
@@ -44,6 +45,7 @@ const ValuesEditorModal: React.FC<ValuesEditorModalProps> = ({ open, onOpenChang
     if (!title.trim()) return
     onSave({
       id: initialValues?.id,
+      version: initialValues?.version,
       title: title.trim(),
       description: description.trim(),
       active

@@ -26,6 +26,7 @@ export interface EvaluationStage {
 
 export interface CycleEditorValues {
   id?: string
+  version?: number
   name: string
   startDate: string
   endDate: string
@@ -44,26 +45,47 @@ const participantOptions: ParticipantType[] = ['Self', 'Peer', 'Manager', 'Team'
 // (no-op helper previously used for stages removed)
 import translations from './_i18n'
 
+/** Value option for the cycle editor (from API; id, title, active). */
+export interface CycleEditorValueOption {
+  id: string
+  title: string
+  active?: boolean
+}
+
 interface CycleEditorModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSave: (values: CycleEditorValues) => void
   initialValues?: CycleEditorValues
+  /** Values for the Valori dropdown (from DB). When provided, localStorage is not used. */
+  availableValues?: CycleEditorValueOption[]
 }
 
-export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpenChange, onSave, initialValues }) => {
-  const { t } = useTranslation(translations)
-  const [name, setName] = useState(initialValues?.name || '')
-  const [startDate, setStartDate] = useState(initialValues?.startDate || '')
-  const [endDate, setEndDate] = useState(initialValues?.endDate || '')
-  const [frequency, setFrequency] = useState<FrequencyType>(initialValues?.frequency || 'Annual')
-  const [participantsState, setParticipantsState] = useState<Record<ParticipantType, boolean>>({
+function defaultParticipantsState(initialValues?: CycleEditorValues): Record<ParticipantType, boolean> {
+  return {
     Self: initialValues?.participants?.includes('Self') ?? true,
     Peer: initialValues?.participants?.includes('Peer') ?? true,
     Manager: initialValues?.participants?.includes('Manager') ?? true,
     Calibration: false,
     Team: initialValues?.participants?.includes('Team') ?? true
-  })
+  }
+}
+
+export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
+  open,
+  onOpenChange,
+  onSave,
+  initialValues,
+  availableValues: availableValuesProp = []
+}) => {
+  const { t } = useTranslation(translations)
+  const [name, setName] = useState(initialValues?.name || '')
+  const [startDate, setStartDate] = useState(initialValues?.startDate || '')
+  const [endDate, setEndDate] = useState(initialValues?.endDate || '')
+  const [frequency, setFrequency] = useState<FrequencyType>(initialValues?.frequency || 'Annual')
+  const [participantsState, setParticipantsState] = useState<Record<ParticipantType, boolean>>(() =>
+    defaultParticipantsState(initialValues)
+  )
   const initialStages: EvaluationStage[] = initialValues?.stages ?? []
 
   // Rating scales (managed in Rating Scales tab)
@@ -72,11 +94,31 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
   const [availableScales, setAvailableScales] = useState<RatingScale[]>([])
   const [selectedScaleId, setSelectedScaleId] = useState<string | undefined>(initialValues?.ratingScaleId)
 
-  // Values (managed in Values tab)
-  const VALUES_STORAGE_KEY = 'hr.performance.values.v1'
-  type LocalValue = { id: string; title: string; description: string; active: boolean }
-  const [availableValues, setAvailableValues] = useState<LocalValue[]>([])
+  // Values: from prop (real data from DB via parent's valuesStore)
   const [selectedValueIds, setSelectedValueIds] = useState<string[]>(initialValues?.valueIds ?? [])
+  const availableValues = availableValuesProp
+
+  // Populate form when modal opens: from initialValues (edit) or empty (create)
+  useEffect(() => {
+    if (!open) return
+    if (initialValues) {
+      setName(initialValues.name || '')
+      setStartDate(initialValues.startDate || '')
+      setEndDate(initialValues.endDate || '')
+      setFrequency(initialValues.frequency || 'Annual')
+      setParticipantsState(defaultParticipantsState(initialValues))
+      setSelectedScaleId(initialValues.ratingScaleId)
+      setSelectedValueIds(initialValues.valueIds ?? [])
+    } else {
+      setName('')
+      setStartDate('')
+      setEndDate('')
+      setFrequency('Annual')
+      setParticipantsState(defaultParticipantsState())
+      setSelectedScaleId(undefined)
+      setSelectedValueIds([])
+    }
+  }, [open])
 
   // Auto-calc end date based on start date and selected frequency (Annual = +12 months, Quarterly = +3 months).
   useEffect(() => {
@@ -116,24 +158,15 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
     }
   }, [open])
 
-  // Load available values when modal opens
-  useEffect(() => {
-    if (!open) return
-    try {
-      const rawValues = localStorage.getItem(VALUES_STORAGE_KEY)
-      const parsedValues = rawValues ? (JSON.parse(rawValues) as LocalValue[]) : []
-      setAvailableValues(Array.isArray(parsedValues) ? parsedValues : [])
-    } catch {
-      setAvailableValues([])
-    }
-  }, [open])
-
   const selectedParticipants = useMemo(() => participantOptions.filter(p => participantsState[p]), [participantsState])
 
   const handleSave = () => {
     if (!name.trim() || !startDate || !endDate) return
+    // Send only the currently selected value IDs (deduped) so backend receives exact selection
+    const valueIdsToSave = [...new Set(selectedValueIds)]
     onSave({
       id: initialValues?.id,
+      version: initialValues?.version,
       name: name.trim(),
       startDate,
       endDate,
@@ -141,7 +174,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
       participants: selectedParticipants,
       stages: initialStages,
       ratingScaleId: selectedScaleId,
-      valueIds: selectedValueIds
+      valueIds: valueIdsToSave
     })
     onOpenChange(false)
   }
@@ -238,19 +271,28 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
 
           <div className="gba:space-y-2">
             <Label>{t('field-values')}</Label>
-            {availableValues.filter(v => v.active).length === 0 ? (
-              <div className="gba:text-sm gba:text-muted-foreground">{t('placeholder-no-values')}</div>
-            ) : (
-              <Combobox
-                mode="multiple"
-                value={selectedValueIds}
-                onValueChange={(ids: string[]) => setSelectedValueIds(ids)}
-                options={availableValues.filter(v => v.active).map(v => ({ label: v.title, value: v.id }))}
-                placeholder="Select values"
-                searchPlaceholder="Type to search values..."
-                emptyText="No results"
-              />
-            )}
+            {(() => {
+              const hasValues = availableValues.filter(v => v.active !== false).length > 0
+              const cycleValuesKey = open ? (initialValues?.id ?? 'new') : 'closed'
+              if (!hasValues) {
+                return <div className="gba:text-sm gba:text-muted-foreground">{t('placeholder-no-values')}</div>
+              }
+              return (
+                <Combobox
+                  key={`cycle-values-${cycleValuesKey}`}
+                  mode="multiple"
+                  value={selectedValueIds}
+                  onValueChange={(ids: string[] | string) => {
+                    const next = Array.isArray(ids) ? ids : ids ? [ids] : []
+                    setSelectedValueIds([...new Set(next)])
+                  }}
+                  options={availableValues.filter(v => v.active !== false).map(v => ({ label: v.title, value: v.id }))}
+                  placeholder="Select values"
+                  searchPlaceholder="Type to search values..."
+                  emptyText="No results"
+                />
+              )
+            })()}
           </div>
 
           <div className="gba:space-y-3">
