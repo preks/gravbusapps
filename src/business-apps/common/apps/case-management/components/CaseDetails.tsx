@@ -165,13 +165,19 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
   const notes = caseData?.state?.metadata?.notes || []
   const noteCreatorIds = notes.map((n: { createdBy: string }) => n.createdBy).filter(Boolean)
   const assignedToId = caseData?.state?.metadata?.assignedTo
+  // Include linked entities (employees and users) in participants
+  const linkedEntitiesForParticipants = caseData?.state?.metadata?.linkedEntities || []
+  const linkedEntityIds = linkedEntitiesForParticipants
+    .filter((e: LinkedEntity) => e.type === 'employee' || e.type === 'user')
+    .map((e: LinkedEntity) => e.id)
   const allParticipantIds = [
     ...new Set([
       ...activeFlows.flatMap(
         f => [f.initiator, f.addedBy, f.currentAssignee, ...(f.participants || [])].filter(Boolean) as string[]
       ),
       ...noteCreatorIds,
-      ...(assignedToId ? [assignedToId] : [])
+      ...(assignedToId ? [assignedToId] : []),
+      ...linkedEntityIds
     ])
   ]
 
@@ -329,26 +335,32 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
       <div className="gba:grid gba:grid-cols-4 gba:gap-4">
         <Card>
           <CardContent className="gba:pt-4">
-            <div className="gba:text-sm gba:text-muted-foreground">Status</div>
-            <div className="gba:mt-1">{metadata?.status ? <CaseStatusBadge status={metadata.status} /> : 'N/A'}</div>
+            <div className="gba:text-xs gba:text-muted-foreground gba:uppercase gba:tracking-wide">Status</div>
+            <div className="gba:mt-1">
+              {metadata?.status ? (
+                <CaseStatusBadge status={metadata.status} />
+              ) : (
+                <span className="gba:text-sm">N/A</span>
+              )}
+            </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="gba:pt-4">
-            <div className="gba:text-sm gba:text-muted-foreground">Flows</div>
-            <div className="gba:text-2xl gba:font-bold">{linkedFlows.filter(f => !f.removedAt).length}</div>
+            <div className="gba:text-xs gba:text-muted-foreground gba:uppercase gba:tracking-wide">Flows</div>
+            <div className="gba:text-2xl gba:font-semibold">{linkedFlows.filter(f => !f.removedAt).length}</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="gba:pt-4">
-            <div className="gba:text-sm gba:text-muted-foreground">Created</div>
-            <div className="gba:text-sm">{formatDate(caseData.createdAt)}</div>
+            <div className="gba:text-xs gba:text-muted-foreground gba:uppercase gba:tracking-wide">Created</div>
+            <div className="gba:text-sm gba:mt-1">{formatDate(caseData.createdAt)}</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="gba:pt-4">
-            <div className="gba:text-sm gba:text-muted-foreground">Priority</div>
-            <div className="gba:text-sm gba:capitalize">{metadata?.priority || 'medium'}</div>
+            <div className="gba:text-xs gba:text-muted-foreground gba:uppercase gba:tracking-wide">Priority</div>
+            <div className="gba:text-sm gba:mt-1 gba:capitalize">{metadata?.priority || 'medium'}</div>
           </CardContent>
         </Card>
       </div>
@@ -413,34 +425,36 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
                             Assigned To
                           </dt>
                           <dd className="gba:mt-0.5 gba:text-sm">
-                            {metadata?.assignedTo
-                              ? (() => {
-                                  const assigneeId = metadata.assignedTo
-                                  const assigneeName = userNames.get(assigneeId) || assigneeId.slice(0, 8) + '...'
-                                  const assigneeEmployee = userEmployees.get(assigneeId)
-                                  const assigneeInitials = assigneeName
-                                    .split(' ')
-                                    .map((n: string) => n[0])
-                                    .join('')
-                                    .toUpperCase()
-                                    .slice(0, 2)
+                            {metadata?.assignedTo ? (
+                              (() => {
+                                const assigneeId = metadata.assignedTo
+                                const assigneeName = userNames.get(assigneeId) || assigneeId.slice(0, 8) + '...'
+                                const assigneeEmployee = userEmployees.get(assigneeId)
+                                const assigneeInitials = assigneeName
+                                  .split(' ')
+                                  .map((n: string) => n[0])
+                                  .join('')
+                                  .toUpperCase()
+                                  .slice(0, 2)
 
-                                  return (
-                                    <div className="gba:flex gba:items-center gba:gap-2">
-                                      <Avatar className="gba:h-6 gba:w-6">
-                                        {assigneeEmployee?.pictureThumbnail && (
-                                          <AvatarImage
-                                            src={`data:image/png;base64,${assigneeEmployee.pictureThumbnail}`}
-                                            alt={assigneeName}
-                                          />
-                                        )}
-                                        <AvatarFallback className="gba:text-xs">{assigneeInitials}</AvatarFallback>
-                                      </Avatar>
-                                      <span>{assigneeName}</span>
-                                    </div>
-                                  )
-                                })()
-                              : 'Unassigned'}
+                                return (
+                                  <div className="gba:flex gba:items-center gba:gap-2">
+                                    <Avatar className="gba:h-6 gba:w-6">
+                                      {assigneeEmployee?.pictureThumbnail && (
+                                        <AvatarImage
+                                          src={`data:image/png;base64,${assigneeEmployee.pictureThumbnail}`}
+                                          alt={assigneeName}
+                                        />
+                                      )}
+                                      <AvatarFallback className="gba:text-xs">{assigneeInitials}</AvatarFallback>
+                                    </Avatar>
+                                    <span className="gba:text-sm">{assigneeName}</span>
+                                  </div>
+                                )
+                              })()
+                            ) : (
+                              <span className="gba:text-muted-foreground">Unassigned</span>
+                            )}
                           </dd>
                         </div>
                         <div>
