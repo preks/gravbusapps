@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import type { Message, ConversationParticipant } from '../types'
+import type { ChatApiClient } from '../services/chatApiClient'
 import {
   Avatar,
   AvatarImage,
@@ -8,8 +9,12 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  TooltipProvider
+  TooltipProvider,
+  Spinner,
+  Alert,
+  AlertDescription
 } from '@newwork/nw-design-system'
+import { useCreateMeetingMinutes } from '../hooks/useCreateMeetingMinutes'
 import { ArrowBendUpLeft } from '@phosphor-icons/react'
 import { VideoCamera } from '@phosphor-icons/react'
 import { renderContentWithReferences } from './EntityReferenceBadge'
@@ -34,6 +39,7 @@ interface MessageItemProps {
   timestampRefreshKey?: number // Triggers timestamp recalculation when changed
   aiInitiatedByCurrentUser?: boolean // Explicitly computed by MessageList for backward compatibility
   compact?: boolean // Compact mode for in-call chat (Teams-style density)
+  apiClient?: ChatApiClient | null // For transcript/meeting minutes functionality
 }
 
 /**
@@ -89,7 +95,8 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
     previewLabel = 'Open preview',
     timestampRefreshKey = 0,
     aiInitiatedByCurrentUser,
-    compact = false
+    compact = false,
+    apiClient = null
   }) => {
     const isAIResponse = message.metadata?.isAIResponse === true
     const isExpertResponse = message.metadata?.isEveryExpertResponse === true
@@ -216,12 +223,19 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
       }
     })()
 
-    // Phase 1 MVP: Transcript ready system message with download link
-    // TODO Phase 2: Remove this when full document-service integration is ready
-    // CHECK FIRST before generic system message rendering
+    // Transcript ready system message with download link and meeting minutes creation
     if (message.type === 'system' && message.metadata?.transcriptReady) {
       const downloadUrl = message.metadata.downloadUrl
       const sessionName = message.metadata.sessionName
+      const sessionId = message.metadata.sessionId
+      const transcriptionStatus = message.metadata.transcriptionStatus
+
+      // For old messages without transcriptionStatus, default to 'READY'
+      // This ensures old transcript messages can still create meeting minutes
+      const effectiveStatus = transcriptionStatus || 'READY'
+
+      // Initialize meeting minutes hook
+      const { createMeetingMinutes, isCreating, error } = useCreateMeetingMinutes(apiClient)
 
       return (
         <div className="gba:flex gba:justify-center gba:py-2" data-testid={`message-transcript-${message.id}`}>
@@ -233,18 +247,114 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
             <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
               The call transcript is now available for download
             </p>
+
+            <div className="gba:flex gba:flex-col gba:gap-2 gba:w-full">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => {
+                  if (downloadUrl) {
+                    window.open(downloadUrl, '_blank', 'noopener,noreferrer')
+                  }
+                }}
+                data-testid={`transcript-download-btn-${message.id}`}
+              >
+                Download Transcript (CSV)
+              </Button>
+
+              {effectiveStatus === 'READY' && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    if (sessionId) {
+                      createMeetingMinutes(sessionId)
+                    }
+                  }}
+                  disabled={isCreating || !sessionId}
+                  data-testid={`transcript-create-minutes-btn-${message.id}`}
+                >
+                  {isCreating ? (
+                    <>
+                      <Spinner className="gba:mr-2 gba:h-4 gba:w-4" />
+                      Generating Meeting Minutes...
+                    </>
+                  ) : (
+                    'Create Meeting Minutes'
+                  )}
+                </Button>
+              )}
+
+              {effectiveStatus === 'PROCESSING' && !isCreating && (
+                <div className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-2">
+                  <Spinner className="gba:inline gba:mr-2 gba:h-4 gba:w-4" />
+                  Generating meeting minutes...
+                </div>
+              )}
+
+              {effectiveStatus === 'FAILED' && (
+                <>
+                  <Alert variant="destructive" data-testid={`transcript-error-${message.id}`}>
+                    <AlertDescription className="gba:text-xs">Failed to create meeting minutes</AlertDescription>
+                  </Alert>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => {
+                      if (sessionId) {
+                        createMeetingMinutes(sessionId)
+                      }
+                    }}
+                    disabled={isCreating || !sessionId}
+                    data-testid={`transcript-retry-btn-${message.id}`}
+                  >
+                    Retry
+                  </Button>
+                </>
+              )}
+
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription className="gba:text-xs">{error}</AlertDescription>
+                </Alert>
+              )}
+            </div>
+
+            <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>
+          </div>
+        </div>
+      )
+    }
+
+    // Meeting minutes ready system message
+    if (message.type === 'system' && message.metadata?.type === 'meeting_minutes_ready') {
+      const noteId = message.metadata.noteId
+      const sessionName = message.metadata.sessionName
+
+      return (
+        <div className="gba:flex gba:justify-center gba:py-2" data-testid={`message-minutes-ready-${message.id}`}>
+          <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:bg-success-secondary/20 gba:border gba:border-success gba:px-4 gba:py-3 gba:rounded-lg gba:max-w-md">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span className="gba:text-lg">📋</span>
+              <span className="gba:text-sm gba:font-medium gba:text-foreground">
+                Meeting Minutes Ready: {sessionName}
+              </span>
+            </div>
+            <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
+              AI-generated meeting minutes have been created and shared with all participants
+            </p>
             <Button
               variant="default"
               size="sm"
               onClick={() => {
-                if (downloadUrl) {
-                  window.open(downloadUrl, '_blank', 'noopener,noreferrer')
+                if (noteId) {
+                  window.open(`/note-apps?noteId=${noteId}`, '_blank', 'noopener,noreferrer')
                 }
               }}
               className="gba:mt-1"
-              data-testid={`transcript-download-btn-${message.id}`}
+              data-testid={`meeting-minutes-view-btn-${message.id}`}
             >
-              Download Transcript (CSV)
+              View Meeting Note
             </Button>
             <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>
           </div>

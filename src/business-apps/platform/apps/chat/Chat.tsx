@@ -1836,6 +1836,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                     accessToken={accessToken}
                     onSendMessage={handleAISendMessage}
                     participants={stableActiveConversation.participants}
+                    apiClient={apiClient}
                   />
 
                   {/* V1 - Old implementation (commented for testing)
