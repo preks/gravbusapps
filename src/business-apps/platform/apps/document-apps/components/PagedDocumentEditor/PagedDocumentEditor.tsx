@@ -62,17 +62,15 @@ import {
   Upload
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { Document, DocumentApprovalRequest } from '../../types'
+import { useDocumentEditorAvatars, useYjsDocumentSync, useDocumentEditorShortcuts } from '../../hooks'
 import { PageBreak } from './extensions/PageBreak'
 import { createYjsCursorExtension } from './extensions/YjsCursor'
 import { EditorToolbar } from './EditorToolbar'
 import { exportToWord, exportToPDF, printHtmlDocument } from '../../utils/exportUtils'
 import { DocumentApiService } from '../../services/DocumentApiService'
 import { useCollaboration } from '../../../shared/hooks/useCollaboration'
-import type { DocumentParticipant } from '../../../shared/services/CollaborationClient'
 import { PresenceIndicator } from '../../../shared/components/PresenceIndicator'
-import { SocketIoYjsProvider } from '../../../shared/services/SocketIoYjsProvider'
 import { useVersioning } from '../../../shared/hooks/useVersioning'
 import { useFileLock } from '../../../shared/hooks/useFileLock'
 import { useComments } from '../../../shared/hooks/useComments'
@@ -368,11 +366,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       DocumentApiService.setAccessToken(accessTokenProp || null)
     }, [accessTokenProp])
 
-    // Current user (used for Yjs awareness user info)
-    const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-    const [currentUserName, setCurrentUserName] = useState<string | null>(null)
-    const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(null)
-
     // Versioning UI state
     const [showVersionHistory, setShowVersionHistory] = useState(false)
     const [showCheckpointDialog, setShowCheckpointDialog] = useState(false)
@@ -382,12 +375,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
     const [pendingSelection, setPendingSelection] = useState<{ from: number; to: number; text: string } | null>(null)
 
-    // Yjs CRDT state for true concurrent co-editing
-    const [isYjsSynced, setIsYjsSynced] = useState(false)
     const ydoc = React.useMemo(() => new Y.Doc(), [document?.id])
     const awareness = React.useMemo(() => new Awareness(ydoc), [ydoc])
-    const yjsProviderRef = useRef<SocketIoYjsProvider | null>(null)
-    const scheduleSnapshotSaveRef = useRef<(editor: any) => void>(() => {})
 
     const collaborationExtension = React.useMemo(
       () => (document?.id ? Collaboration.configure({ document: ydoc }) : null),
@@ -414,8 +403,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       onError: onErrorCallback
     })
 
-    // Enriched participants with avatars (populated by useEffect after graphqlClient is initialized)
-    const [participants, setParticipants] = useState<DocumentParticipant[]>(rawParticipants)
+    const { participants, currentUserId, currentUserName, currentUserAvatar } = useDocumentEditorAvatars({
+      accessToken,
+      rawParticipants
+    })
 
     // Versioning, Comments, Locking, Publishing hooks
     const versioning = useVersioning({
@@ -447,61 +438,17 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       apiService: DocumentApiService
     })
 
-    // Drive Yjs sync + awareness over our existing Socket.IO connection.
-    useEffect(() => {
-      if (!document?.id) return
-      if (!collaborationSocket) return
-
-      // Build provider (and keep it stable while the socket/doc changes).
-      const provider = new SocketIoYjsProvider({
-        socket: collaborationSocket,
-        documentId: document.id,
-        ydoc,
-        awareness,
-        onSyncedChange: setIsYjsSynced,
-        onBootstrapRequired: async (html: string) => {
-          // Initializer: seed Yjs from legacy HTML (best-effort).
-          // We keep it simple: set the editor content once TipTap is ready.
-          // The collaboration extension will translate this into Yjs state.
-          const start = Date.now()
-          while (!editorRef.current && Date.now() - start < 5000) {
-            await new Promise(resolve => setTimeout(resolve, 25))
-          }
-          const ed = editorRef.current
-          if (!ed) {
-            throw new Error('Editor not ready for bootstrap')
-          }
-
-          // Temporarily make editor editable for setContent to work with Collaboration extension
-          const wasEditable = ed.isEditable
-          if (!wasEditable) {
-            ed.setEditable(true)
-          }
-
-          ed.commands.setContent(html || '<p></p>', true)
-
-          // Give TipTap time to propagate the change to Yjs
-          await new Promise(resolve => setTimeout(resolve, 100))
-
-          // Note: Don't restore editable to false - the bootstrap process will mark sync as complete
-          // which will trigger the setEditable effect to set the correct state
-        },
-        onLocalDocumentChange: () => {
-          const ed = editorRef.current
-          if (!ed) return
-          scheduleSnapshotSaveRef.current(ed)
-        }
-      })
-
-      yjsProviderRef.current = provider
-      provider.start()
-
-      return () => {
-        provider.destroy()
-        yjsProviderRef.current = null
-        setIsYjsSynced(false)
-      }
-    }, [document?.id, collaborationSocket, ydoc, awareness])
+    const { isYjsSynced } = useYjsDocumentSync({
+      documentId: document?.id,
+      collaborationSocket,
+      ydoc,
+      awareness,
+      editorRef,
+      isReadOnly,
+      title,
+      setLastSaved,
+      setHasUnsavedChanges
+    })
 
     // Set local awareness state (user meta shown in cursors/selections)
     useEffect(() => {
@@ -517,142 +464,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         avatar: currentUserAvatar // Include avatar URL for cursor rendering
       })
     }, [document?.id, awareness, currentUserId, currentUserName, currentUserAvatar, participants, isYjsSynced])
-
-    // Debounced snapshot save for exports/search. This does NOT drive collaboration.
-    const scheduleSnapshotSave = useCallback(
-      (currentEditor: any) => {
-        if (!document?.id || isReadOnly) return
-        if (!isYjsSynced) return
-
-        setHasUnsavedChanges(true)
-        if (autoSaveTimeoutRef.current) {
-          clearTimeout(autoSaveTimeoutRef.current)
-        }
-
-        autoSaveTimeoutRef.current = setTimeout(() => {
-          const html = currentEditor?.getHTML?.() || ''
-          // Persist HTML snapshot without version churn (CRDT updates are the source of truth).
-          DocumentApiService.updateDocument(
-            document.id,
-            {
-              title,
-              content: html
-            },
-            { createVersion: false }
-          )
-            .then(() => {
-              setLastSaved(new Date())
-              setHasUnsavedChanges(false)
-            })
-            .catch(error => {
-              console.error('[PagedDocumentEditor] Snapshot save failed:', error)
-            })
-        }, 2000)
-      },
-      [document?.id, isReadOnly, isYjsSynced, title]
-    )
-
-    useEffect(() => {
-      scheduleSnapshotSaveRef.current = scheduleSnapshotSave
-    }, [scheduleSnapshotSave])
-
-    const graphqlClient = useGraphQLClient(accessToken)
-
-    // Fetch avatars for participants when they change
-    useEffect(() => {
-      const fetchParticipantAvatars = async () => {
-        if (!rawParticipants.length || !accessToken) {
-          setParticipants(rawParticipants)
-          return
-        }
-
-        const userIds = rawParticipants.map(p => p.userId).filter(Boolean)
-        if (userIds.length === 0) {
-          setParticipants(rawParticipants)
-          return
-        }
-
-        try {
-          const query = `
-          query GetEmployeeAvatars($userIds: [String!]) {
-            Employee(where: {userId: {_in: $userIds}}) {
-              userId
-              pictureThumbnail
-            }
-          }
-        `
-          const result = await graphqlClient.request<{
-            Employee: Array<{ userId: string; pictureThumbnail: string | null }>
-          }>(query, { userIds })
-
-          const avatarMap = new Map<string, string>()
-          result?.Employee?.forEach(emp => {
-            if (emp.pictureThumbnail) {
-              const avatarUrl = emp.pictureThumbnail.startsWith('data:')
-                ? emp.pictureThumbnail
-                : `data:image/png;base64,${emp.pictureThumbnail}`
-              avatarMap.set(emp.userId, avatarUrl)
-            }
-          })
-
-          // Enrich participants with avatar URLs
-          const enrichedParticipants = rawParticipants.map(p => ({
-            ...p,
-            avatarUrl: avatarMap.get(p.userId) || undefined
-          }))
-          setParticipants(enrichedParticipants)
-        } catch (error) {
-          console.error('[PagedDocumentEditor] Failed to fetch participant avatars:', error)
-          setParticipants(rawParticipants)
-        }
-      }
-
-      fetchParticipantAvatars()
-    }, [rawParticipants, accessToken, graphqlClient])
-
-    // Get current user ID
-    useEffect(() => {
-      try {
-        // Prefer accessToken prop (published screens may not have token in localStorage)
-        const token = accessToken || localStorage.getItem('business-app-ide-access-token')
-        if (token) {
-          const payload = JSON.parse(atob(token.split('.')[1]))
-          setCurrentUserId(payload.sub || payload.userId || null)
-          setCurrentUserName(payload.name || payload.preferred_username || payload.username || null)
-        }
-      } catch {}
-    }, [accessToken])
-
-    // Fetch current user's avatar from Employee table
-    useEffect(() => {
-      if (!currentUserId || !accessToken) return
-
-      const fetchAvatar = async () => {
-        try {
-          const query = `
-          query GetEmployeeAvatar($userId: String!) {
-            Employee(where: {userId: {_eq: $userId}}, limit: 1) {
-              pictureThumbnail
-            }
-          }
-        `
-          const result = await graphqlClient.request<{ Employee: Array<{ pictureThumbnail: string | null }> }>(query, {
-            userId: currentUserId
-          })
-
-          if (result?.Employee?.[0]?.pictureThumbnail) {
-            const thumbnail = result.Employee[0].pictureThumbnail
-            // Convert to data URL if it's raw base64
-            const avatarUrl = thumbnail.startsWith('data:') ? thumbnail : `data:image/png;base64,${thumbnail}`
-            setCurrentUserAvatar(avatarUrl)
-          }
-        } catch (error) {
-          console.error('[PagedDocumentEditor] Failed to fetch user avatar:', error)
-        }
-      }
-
-      fetchAvatar()
-    }, [currentUserId, accessToken, graphqlClient])
 
     // Initialize TipTap editor
     const editor = useEditor(
@@ -704,11 +515,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           PageBreak,
           InlineCommentExtension.configure({
             onCommentClick: commentId => {
-              // Open comment panel
               setShowComments(true)
-              // Scroll to the specific comment after panel opens
               setTimeout(() => {
-                const commentElement = document.querySelector(`[data-testid="comment-thread-${commentId}"]`)
+                const commentElement = window.document.querySelector(`[data-testid="comment-thread-${commentId}"]`)
                 commentElement?.scrollIntoView({ behavior: 'smooth', block: 'center' })
               }, 300)
             }
@@ -872,45 +681,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       }
     }, [title, editor, onSave, isReadOnly, isSaving])
 
-    // Keyboard shortcuts
-    useEffect(() => {
-      const handleKeyDown = (e: KeyboardEvent) => {
-        // Cmd/Ctrl+S - Save
-        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-          e.preventDefault()
-          handleSave()
-        }
-
-        // Cmd/Ctrl+Shift+M - Add inline comment
-        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'm') {
-          e.preventDefault()
-          handleAddInlineComment()
-        }
-      }
-
-      window.addEventListener('keydown', handleKeyDown)
-      return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [handleSave, handleAddInlineComment])
-
-    // Context menu for inline comments
-    useEffect(() => {
-      const handleContextMenu = (e: MouseEvent) => {
-        // Only show if text is selected
-        if (!editor) return
-
-        const { from, to } = editor.state.selection
-        if (from === to) return // No selection
-
-        e.preventDefault()
-        handleAddInlineComment()
-      }
-
-      const editorElement = editorContainerRef.current?.querySelector('.ProseMirror')
-      if (editorElement) {
-        editorElement.addEventListener('contextmenu', handleContextMenu)
-        return () => editorElement.removeEventListener('contextmenu', handleContextMenu)
-      }
-    }, [editor, handleAddInlineComment])
+    useDocumentEditorShortcuts({
+      onSave: handleSave,
+      onAddInlineComment: handleAddInlineComment,
+      editor,
+      editorContainerRef
+    })
 
     // Export to Word
     const handleExportWord = useCallback(async () => {
