@@ -56,6 +56,7 @@ import { CaseStatusBadge } from './CaseStatusBadge'
 import { FlowManagementPanel } from './FlowManagementPanel'
 import { CaseNotesPanel } from './CaseNotesPanel'
 import { EntityLinkingPanel } from './EntityLinkingPanel'
+import { RelatedCasesPanel } from './RelatedCasesPanel'
 import { CaseActivityFeed } from './CaseActivityFeed'
 import { EditCaseModal } from './EditCaseModal'
 import { useCaseData } from '../hooks'
@@ -133,6 +134,9 @@ interface CaseDetailsProps {
   onAddNote: (caseId: string, content: string, visibility: 'internal' | 'external') => Promise<void>
   onLinkEntity: (caseId: string, entity: LinkedEntity) => Promise<void>
   onUnlinkEntity: (caseId: string, entityId: string) => Promise<void>
+  onLinkCase?: (caseId: string, targetCaseId: string, relationship: 'parent' | 'child' | 'related') => Promise<void>
+  onUnlinkCase?: (caseId: string, targetCaseId: string) => Promise<void>
+  onNavigateToCase?: (caseId: string) => void
   onUpdateCase?: (
     caseId: string,
     updates: { title?: string; description?: string; priority?: CasePriority }
@@ -151,6 +155,9 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
   onAddNote,
   onLinkEntity,
   onUnlinkEntity,
+  onLinkCase,
+  onUnlinkCase,
+  onNavigateToCase,
   onUpdateCase,
   allowEdit = true
 }) => {
@@ -459,6 +466,7 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="flows">Flows ({linkedFlows.filter(f => !f.removedAt).length})</TabsTrigger>
           <TabsTrigger value="notes">Notes ({metadata?.notes?.length || 0})</TabsTrigger>
+          <TabsTrigger value="related-cases">Related Cases ({metadata?.linkedCases?.length || 0})</TabsTrigger>
           <TabsTrigger value="links">Links ({metadata?.linkedEntities?.length || 0})</TabsTrigger>
         </TabsList>
 
@@ -917,6 +925,35 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
             currentUserId={context.userInfo?.id || 'system'}
             readOnly={!allowEdit}
             accessToken={context.accessToken}
+          />
+        </TabsContent>
+
+        {/* Related Cases Tab */}
+        <TabsContent value="related-cases" className="gba:mt-4">
+          <RelatedCasesPanel
+            caseId={caseId}
+            linkedCases={metadata?.linkedCases || []}
+            parentCaseId={metadata?.parentCaseId}
+            onLinkCase={async (targetCaseId, relationship) => {
+              if (onLinkCase) {
+                await onLinkCase(caseId, targetCaseId, relationship)
+                await refetch() // Refresh to show linked case
+              }
+            }}
+            onUnlinkCase={async targetCaseId => {
+              if (onUnlinkCase) {
+                await onUnlinkCase(caseId, targetCaseId)
+                await refetch() // Refresh to remove from list
+              }
+            }}
+            onNavigateToCase={navigateCaseId => {
+              if (onNavigateToCase) {
+                onNavigateToCase(navigateCaseId)
+              }
+            }}
+            context={context}
+            tags={appTag ? { app: appTag } : undefined}
+            readOnly={!allowEdit || !onLinkCase}
           />
         </TabsContent>
 

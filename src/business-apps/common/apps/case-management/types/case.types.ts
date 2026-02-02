@@ -61,6 +61,8 @@ export interface CaseMetadata {
   assignedTo?: string
   dueDate?: string
   linkedEntities?: LinkedEntity[]
+  linkedCases?: LinkedCase[]
+  parentCaseId?: string | null
   notes?: CaseNote[]
 }
 
@@ -69,6 +71,18 @@ export interface LinkedEntity {
   id: string
   name: string
   metadata?: any
+}
+
+/**
+ * Linked case record for parent/child hierarchy and peer relationships
+ */
+export interface LinkedCase {
+  caseId: string
+  title: string
+  status: string
+  relationship: 'parent' | 'child' | 'related'
+  linkedAt: string
+  linkedBy: string
 }
 
 export interface CaseNote {
@@ -108,6 +122,8 @@ export type CaseActivityType =
   | 'note_added'
   | 'entity_linked'
   | 'entity_unlinked'
+  | 'case_linked'
+  | 'case_unlinked'
   | 'status_changed'
   | 'priority_changed'
   | 'due_date_changed'
@@ -131,6 +147,11 @@ export interface CaseActivity {
     status?: string
     title?: string
     priority?: string
+    // Linked case fields
+    linkedCaseId?: string
+    linkedCaseTitle?: string
+    linkedCaseStatus?: string
+    relationship?: 'parent' | 'child' | 'related'
   }
 }
 

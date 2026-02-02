@@ -14,7 +14,8 @@ import {
   AddFlowRequest,
   LinkedFlow,
   SearchFlowResult,
-  LinkedEntity
+  LinkedEntity,
+  LinkedCase
 } from '../types'
 
 // Get the cflow engine URL from env
@@ -615,5 +616,110 @@ export class CaseApiClient {
     })
 
     await this.handleResponse<{ success: boolean }>(response)
+  }
+
+  // ============================================
+  // LINKED CASES
+  // ============================================
+
+  /**
+   * Get linked cases (parent, children, related)
+   */
+  async getLinkedCases(caseId: string): Promise<LinkedCase[]> {
+    const response = await fetch(`${this.baseUrl}/${caseId}/linked-cases`, {
+      method: 'GET',
+      headers: this.getHeaders()
+    })
+
+    const data = await this.handleResponse<{ linkedCases: LinkedCase[] }>(response)
+    return data.linkedCases || []
+  }
+
+  /**
+   * Link a case to another case
+   * @param caseId Source case ID
+   * @param targetCaseId Target case ID to link
+   * @param relationship Relationship type: 'parent', 'child', or 'related'
+   * @param linkedBy User ID performing the link
+   */
+  async linkCase(
+    caseId: string,
+    targetCaseId: string,
+    relationship: 'parent' | 'child' | 'related',
+    linkedBy?: string
+  ): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/${caseId}/linked-cases`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        targetCaseId,
+        relationship,
+        linkedBy
+      })
+    })
+
+    await this.handleResponse<{ success: boolean }>(response)
+  }
+
+  /**
+   * Unlink a case from another case (bidirectional removal)
+   */
+  async unlinkCase(caseId: string, targetCaseId: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/${caseId}/linked-cases/${targetCaseId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders()
+    })
+
+    await this.handleResponse<{ success: boolean }>(response)
+  }
+
+  /**
+   * Search cases for linking (exclude current case and already linked cases)
+   * @param excludeCaseId Case ID to exclude from results
+   * @param excludeLinkedCaseIds Array of case IDs already linked to exclude
+   * @param query Search query for title
+   * @param tags Optional tag filter
+   */
+  async searchCasesForLinking(
+    excludeCaseId: string,
+    excludeLinkedCaseIds: string[],
+    query?: string,
+    tags?: Record<string, string>
+  ): Promise<Case[]> {
+    // Build query params
+    const params = new URLSearchParams()
+    if (tags && Object.keys(tags).length > 0) {
+      params.set(
+        'tags',
+        Object.entries(tags)
+          .map(([k, v]) => `${k}:${v}`)
+          .join(',')
+      )
+    }
+    params.set('limit', '50')
+
+    const url = `${this.baseUrl}?${params.toString()}`
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getHeaders()
+    })
+
+    const data = await this.handleResponse<{ cases: Case[] }>(response)
+    const allCases = data.cases || []
+
+    // Filter out current case and already linked cases
+    const excludeIds = new Set([excludeCaseId, ...excludeLinkedCaseIds])
+    let filteredCases = allCases.filter(c => !excludeIds.has(c.caseId))
+
+    // If query provided, filter by title
+    if (query && query.trim()) {
+      const searchLower = query.toLowerCase()
+      filteredCases = filteredCases.filter(
+        c =>
+          c.state?.metadata?.title?.toLowerCase().includes(searchLower) || c.caseId.toLowerCase().includes(searchLower)
+      )
+    }
+
+    return filteredCases
   }
 }

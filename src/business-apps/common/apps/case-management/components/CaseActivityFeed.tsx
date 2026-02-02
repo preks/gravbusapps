@@ -24,7 +24,8 @@ import {
   Pencil,
   Calendar,
   Flag,
-  ArrowUpDown
+  ArrowUpDown,
+  GitBranch
 } from 'lucide-react'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
@@ -108,6 +109,10 @@ export const CaseActivityFeed: React.FC<CaseActivityFeedProps> = ({ caseId, cont
         return <UserPlus className="gba:h-4 gba:w-4 gba:text-purple-500" />
       case 'entity_unlinked':
         return <Link2Off className="gba:h-4 gba:w-4 gba:text-orange-500" />
+      case 'case_linked':
+        return <GitBranch className="gba:h-4 gba:w-4 gba:text-teal-500" />
+      case 'case_unlinked':
+        return <Link2Off className="gba:h-4 gba:w-4 gba:text-red-500" />
       case 'status_changed':
         return <ArrowUpDown className="gba:h-4 gba:w-4 gba:text-purple-500" />
       case 'priority_changed':

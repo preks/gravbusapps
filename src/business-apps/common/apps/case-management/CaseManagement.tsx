@@ -189,6 +189,29 @@ export const CaseManagement: React.FC<CaseManagementProps> = ({
     }
   }
 
+  const handleLinkCase = async (caseId: string, targetCaseId: string, relationship: 'parent' | 'child' | 'related') => {
+    try {
+      await client.linkCase(caseId, targetCaseId, relationship, context.userInfo?.id)
+    } catch (error) {
+      console.error('Failed to link case:', error)
+      throw error
+    }
+  }
+
+  const handleUnlinkCase = async (caseId: string, targetCaseId: string) => {
+    try {
+      await client.unlinkCase(caseId, targetCaseId)
+    } catch (error) {
+      console.error('Failed to unlink case:', error)
+      throw error
+    }
+  }
+
+  const handleNavigateToCase = (navigateCaseId: string) => {
+    setSelectedCaseId(navigateCaseId)
+    setActiveView('detail')
+  }
+
   const handleUpdateCase = async (
     caseId: string,
     updates: {
@@ -221,6 +244,9 @@ export const CaseManagement: React.FC<CaseManagementProps> = ({
         onAddNote={handleAddNote}
         onLinkEntity={handleLinkEntity}
         onUnlinkEntity={handleUnlinkEntity}
+        onLinkCase={handleLinkCase}
+        onUnlinkCase={handleUnlinkCase}
+        onNavigateToCase={handleNavigateToCase}
         onUpdateCase={handleUpdateCase}
         allowEdit={allowEdit}
       />

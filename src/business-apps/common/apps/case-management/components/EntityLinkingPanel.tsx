@@ -4,13 +4,25 @@
  * Panel for linking entities (users, employees, org units) to cases
  */
 
-import React, { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Combobox, Button, Badge } from '@newwork/nw-design-system'
-import { Link2, X, Building, User as UserIcon, Users, Plus } from 'lucide-react'
+import React, { useState, useMemo } from 'react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Combobox,
+  Button,
+  Badge,
+  Avatar,
+  AvatarFallback,
+  AvatarImage
+} from '@newwork/nw-design-system'
+import { Link2, X, Building, Plus } from 'lucide-react'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import { LinkedEntity } from '../types'
 import { useEntityLinking } from '../hooks'
 import { ENTITY_TYPE_LABELS } from '../utils'
+import { useEmployeeNamesBatch } from '@/business-apps/ser/hooks/useEmployeeNamesBatch'
 
 interface EntityLinkingPanelProps {
   linkedEntities: LinkedEntity[]
@@ -32,6 +44,18 @@ export const EntityLinkingPanel: React.FC<EntityLinkingPanelProps> = ({
   const { searchResults, isSearching, searchEntities } = useEntityLinking(context)
   const [selectedEntityId, setSelectedEntityId] = useState('')
   const [isLinking, setIsLinking] = useState(false)
+
+  // Extract employee/user IDs for avatar fetching
+  const employeeIds = useMemo(() => {
+    return linkedEntities.filter(e => e.type === 'employee' || e.type === 'user').map(e => e.id)
+  }, [linkedEntities])
+
+  // Fetch employee data for avatars
+  const { employees: employeeData } = useEmployeeNamesBatch({
+    userIds: employeeIds,
+    accessToken: context.accessToken,
+    enabled: employeeIds.length > 0
+  })
 
   // Handle search input change
   const handleSearch = (query: string) => {
@@ -80,17 +104,23 @@ export const EntityLinkingPanel: React.FC<EntityLinkingPanelProps> = ({
     }
   }
 
-  const getEntityIcon = (type: string) => {
-    switch (type) {
-      case 'user':
-        return <UserIcon className="gba:h-4 gba:w-4" />
-      case 'employee':
-        return <Users className="gba:h-4 gba:w-4" />
-      case 'organizationalUnit':
-        return <Building className="gba:h-4 gba:w-4" />
-      default:
-        return <Link2 className="gba:h-4 gba:w-4" />
+  // Get initials from entity name
+  const getInitials = (name: string): string => {
+    if (!name) return '?'
+    const parts = name.trim().split(' ')
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
     }
+    return name.slice(0, 2).toUpperCase()
+  }
+
+  // Get avatar image source from employee data (base64 thumbnail)
+  const getAvatarSrc = (entity: LinkedEntity): string | undefined => {
+    const employee = employeeData.get(entity.id)
+    if (employee?.pictureThumbnail) {
+      return `data:image/png;base64,${employee.pictureThumbnail}`
+    }
+    return undefined
   }
 
   const getEntityBadgeVariant = (type: string): 'default' | 'secondary' | 'outline' => {
@@ -172,9 +202,18 @@ export const EntityLinkingPanel: React.FC<EntityLinkingPanelProps> = ({
                   className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:rounded-lg gba:bg-muted/30 hover:gba:bg-muted/50 gba:transition-colors"
                 >
                   <div className="gba:flex gba:items-center gba:gap-3">
-                    <div className="gba:flex gba:items-center gba:justify-center gba:w-9 gba:h-9 gba:rounded-full gba:bg-background gba:border gba:shadow-sm">
-                      {getEntityIcon(entity.type)}
-                    </div>
+                    {entity.type === 'organizationalUnit' ? (
+                      <div className="gba:flex gba:items-center gba:justify-center gba:w-9 gba:h-9 gba:rounded-full gba:bg-background gba:border gba:shadow-sm">
+                        <Building className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                      </div>
+                    ) : (
+                      <Avatar className="gba:h-9 gba:w-9">
+                        {getAvatarSrc(entity) ? <AvatarImage src={getAvatarSrc(entity)} alt={entity.name} /> : null}
+                        <AvatarFallback className="gba:text-xs gba:font-medium">
+                          {getInitials(entity.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
                     <div>
                       <p className="gba:font-medium gba:text-sm">{entity.name}</p>
                       <p className="gba:text-xs gba:text-muted-foreground">{ENTITY_TYPE_LABELS[entity.type]}</p>
