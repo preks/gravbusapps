@@ -738,7 +738,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       const targetUserId = targetPeer?.customParticipantId || participantId
 
       try {
-        console.log('[MUTE] Sending mute request via WebSocket:', {
+        rtkDebug.log('[MUTE] Sending mute request via WebSocket:', {
           participantRtkId: participantId,
           targetUserId,
           targetParticipantName: participantName,
@@ -786,7 +786,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     const participantCount = stableRemotePeers.length
 
     try {
-      console.log('[MUTE ALL] Sending mute-all request via backend:', {
+      rtkDebug.log('[MUTE ALL] Sending mute-all request via backend:', {
         conversationId: callState.roomId, // roomId is actually the conversationId
         totalParticipantCount: allParticipants,
         remoteParticipantCount: participantCount,
@@ -2266,7 +2266,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           audio.srcObject = stream
           audio
             .play()
-            .then(() => console.log('[Minimized] Audio playing for:', peerName))
+            .then(() => rtkDebug.log('[Minimized] Audio playing for:', peerName))
             .catch(err => console.error('[Minimized] Audio play error for', peerName, ':', err))
           pipAudioRefs.current.set(peer.id, audio)
         } else {
@@ -2276,7 +2276,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           const newTrackId = stream.getAudioTracks()[0]?.id
 
           if (oldTrackId !== newTrackId) {
-            console.log('[Minimized] Updating audio stream for peer:', peerName, {
+            rtkDebug.log('[Minimized] Updating audio stream for peer:', peerName, {
               oldTrackId,
               newTrackId
             })
@@ -2286,7 +2286,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         }
       } else if (pipAudioRefs.current.has(peer.id)) {
         // Peer has no audio tracks, remove the audio element
-        console.log('[Minimized] Removing audio for peer (no tracks):', peerName)
+        rtkDebug.log('[Minimized] Removing audio for peer (no tracks):', peerName)
         const audio = pipAudioRefs.current.get(peer.id)!
         audio.pause()
         audio.srcObject = null
@@ -2298,7 +2298,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     const currentPeerIds = new Set(stableRemotePeers.map(p => p.id))
     pipAudioRefs.current.forEach((audio, peerId) => {
       if (!currentPeerIds.has(peerId)) {
-        console.log('[Minimized] Removing audio for peer (left call):', peerId)
+        rtkDebug.log('[Minimized] Removing audio for peer (left call):', peerId)
         audio.pause()
         audio.srcObject = null
         pipAudioRefs.current.delete(peerId)

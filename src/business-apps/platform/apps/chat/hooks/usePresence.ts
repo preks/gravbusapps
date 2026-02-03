@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import type { UserStatus, UserStatusChangeEvent } from '../types'
+import { rtkDebug } from '../utils/rtkDebug'
 
 interface UsePresenceOptions {
   wsClient: ChatWebSocketClient | null
@@ -84,8 +85,8 @@ export function usePresence(options: UsePresenceOptions) {
       }
 
       presenceCache.set(userId, presenceData)
-      console.log(`[usePresence] ✅ Updated presence cache for user ${userId}:`, presenceData)
-      console.log(`[usePresence] Cache size:`, presenceCache.size)
+      rtkDebug.log(`[usePresence] ✅ Updated presence cache for user ${userId}:`, presenceData)
+      rtkDebug.log(`[usePresence] Cache size:`, presenceCache.size)
 
       setPresenceVersion(v => v + 1)
 
@@ -146,7 +147,7 @@ export function usePresence(options: UsePresenceOptions) {
 
     // Handle enhanced user status change events (primary handler)
     const handleUserStatusChange = (data: UserStatusChangeEvent) => {
-      console.log('[usePresence] 📥 Received user_status_change event:', {
+      rtkDebug.log('[usePresence] 📥 Received user_status_change event:', {
         userId: data.userId,
         status: data.status,
         isSystemStatus: data.isSystemStatus,
@@ -162,7 +163,7 @@ export function usePresence(options: UsePresenceOptions) {
         const timestampString =
           data.timestamp instanceof Date ? data.timestamp.toISOString() : (data.timestamp as string)
 
-        console.log('[usePresence] 🔄 Processing NEW FORMAT:', {
+        rtkDebug.log('[usePresence] 🔄 Processing NEW FORMAT:', {
           userId: data.userId,
           determinedState: state,
           isOnlineFromData: data.isOnline,
@@ -178,7 +179,7 @@ export function usePresence(options: UsePresenceOptions) {
         }
 
         updatePresence(data.userId, state, timestampString, userStatus)
-        console.log(
+        rtkDebug.log(
           '[usePresence] ✅ Updated presence cache for user:',
           data.userId,
           'state:',
@@ -193,7 +194,7 @@ export function usePresence(options: UsePresenceOptions) {
         const timestampString =
           anyData.timestamp instanceof Date ? anyData.timestamp.toISOString() : (anyData.timestamp as string)
 
-        console.log('[usePresence] 🔄 Processing OLD FORMAT:', {
+        rtkDebug.log('[usePresence] 🔄 Processing OLD FORMAT:', {
           userId: anyData.userId,
           determinedState: state,
           isOnline: anyData.isOnline,
@@ -201,14 +202,14 @@ export function usePresence(options: UsePresenceOptions) {
         })
 
         updatePresence(anyData.userId, state, timestampString, undefined)
-        console.log('[usePresence] ✅ Updated presence cache (OLD FORMAT) for user:', anyData.userId, 'state:', state)
+        rtkDebug.log('[usePresence] ✅ Updated presence cache (OLD FORMAT) for user:', anyData.userId, 'state:', state)
       }
     }
 
     const unsubStatusChange = wsClient.onUserStatusChange(handleUserStatusChange)
 
     if (process.env.NODE_ENV === 'development') {
-      console.log('[usePresence] ✅ Listener registered - now requesting initial status for all online users')
+      rtkDebug.log('[usePresence] ✅ Listener registered - now requesting initial status for all online users')
     }
 
     // Request initial status for all online users AFTER listener is ready
@@ -217,10 +218,10 @@ export function usePresence(options: UsePresenceOptions) {
       wsClient
         .requestAllStatuses()
         .then(response => {
-          console.log('[usePresence] ✅ Successfully requested initial status for', response.userCount, 'users')
+          rtkDebug.log('[usePresence] ✅ Successfully requested initial status for', response.userCount, 'users')
         })
         .catch(error => {
-          console.error('[usePresence] ❌ Failed to request initial statuses:', error)
+          rtkDebug.error('[usePresence] ❌ Failed to request initial statuses:', error)
         })
     }
 
