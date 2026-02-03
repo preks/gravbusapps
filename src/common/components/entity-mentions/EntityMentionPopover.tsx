@@ -15,13 +15,13 @@ import {
   FileText,
   Sparkles
 } from 'lucide-react'
-import type { EntityReference, EntityType } from '../types'
+import type { EntityReference, EntityType } from '@/common/hooks/useEntityMentions'
 
 interface EntityMentionPopoverProps {
   entities: EntityReference[]
   isLoading: boolean
   onSelect: (entity: EntityReference) => void
-  onClose: () => void // Used by parent for Escape key handling
+  onClose: () => void
   selectedIndex: number
   onSelectedIndexChange: (index: number) => void
 }
@@ -104,6 +104,10 @@ const ENTITY_LABELS: Record<EntityType, string> = {
   expense_request: 'Expense'
 }
 
+/**
+ * EntityMentionPopover - Shared component for displaying entity search results
+ * Used by both Chat and Every-AI apps for @ mention functionality
+ */
 export const EntityMentionPopover: React.FC<EntityMentionPopoverProps> = ({
   entities,
   isLoading,
@@ -124,7 +128,7 @@ export const EntityMentionPopover: React.FC<EntityMentionPopoverProps> = ({
     }
   }, [selectedIndex])
 
-  // Note: Keyboard navigation is handled by MessageInput component
+  // Note: Keyboard navigation is handled by parent component (MessageInput or ChatInput)
   // to prevent double-handling of events
 
   if (isLoading && entities.length === 0) {
@@ -165,8 +169,8 @@ export const EntityMentionPopover: React.FC<EntityMentionPopoverProps> = ({
           Reference an entity
         </div>
         {entities.map((entity, index) => {
-          const Icon = ENTITY_ICONS[entity.type]
-          const colorClass = ENTITY_COLORS[entity.type]
+          const Icon = ENTITY_ICONS[entity.type as EntityType] || User
+          const colorClass = ENTITY_COLORS[entity.type as EntityType] || 'gba:bg-muted gba:text-muted-foreground'
           const isSelected = index === selectedIndex
 
           return (
@@ -200,7 +204,7 @@ export const EntityMentionPopover: React.FC<EntityMentionPopoverProps> = ({
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <span className="gba:text-sm gba:font-medium gba:truncate">{entity.name}</span>
                   <Badge variant="outline" className="gba:text-[10px] gba:px-1.5 gba:py-0">
-                    {ENTITY_LABELS[entity.type]}
+                    {ENTITY_LABELS[entity.type as EntityType] || entity.type}
                   </Badge>
                 </div>
                 {entity.subtitle && (

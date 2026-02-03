@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, memo } from 'react'
 import { Button, Input } from '@newwork/nw-design-system'
 import { PaperPlaneTilt, Paperclip, At, X, File } from '@phosphor-icons/react'
-import { useEntityMentions } from '../hooks/useEntityMentions'
-import { EntityMentionPopover } from './EntityMentionPopover'
-import type { EntityReference, MessageEntityReference } from '../types'
+import { useEntityMentions, type EntityReference, type MessageEntityReference } from '@/common/hooks/useEntityMentions'
+import { EntityMentionPopover } from '@/common/components/entity-mentions'
 import type { ActiveExpert } from '../hooks/useConversationExperts'
 
 // Persist focus state across unmounts caused by parent re-renders
@@ -81,7 +80,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
       removeMention: removeMentionFromHook,
       closeMention,
       registerMentionEntity
-    } = useEntityMentions(accessToken, activeExperts)
+    } = useEntityMentions(accessToken, { activeExperts })
 
     // Helper to update value (works for both controlled and uncontrolled)
     const setValue = useCallback(
