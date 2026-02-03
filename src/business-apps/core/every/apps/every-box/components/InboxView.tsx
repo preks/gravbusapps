@@ -372,6 +372,14 @@ export const InboxView: React.FC<InboxViewProps> = ({
     if (!selectedTask) return
     if (!context.accessToken) return
 
+    // If an auto-mark-as-read is pending for this task, cancel it so "mark unread" sticks on first click.
+    const key = `${selectedTask.source}:${selectedTask.id}`
+    lastAutoReadKeyRef.current = key
+    if (autoReadTimeoutRef.current) {
+      globalThis.clearTimeout(autoReadTimeoutRef.current)
+      autoReadTimeoutRef.current = null
+    }
+
     updateTaskUserStateLocally({ id: selectedTask.id, source: selectedTask.source }, { isRead: false, readAt: null })
     try {
       await markTaskUnread(context.accessToken, { source: selectedTask.source, taskId: selectedTask.id })
@@ -762,13 +770,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
                   {selectedTask.userState?.isPinned ? t('task-meta-unpin') : t('task-meta-pin')}
                 </Button>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleMarkUnread}
-                  disabled={!selectedTask.userState?.isRead}
-                  data-testid="task-meta-mark-unread"
-                >
+                <Button variant="outline" size="sm" onClick={handleMarkUnread} data-testid="task-meta-mark-unread">
                   <Mail className="gba:h-4 gba:w-4 gba:mr-2" />
                   {t('task-meta-mark-unread')}
                 </Button>
