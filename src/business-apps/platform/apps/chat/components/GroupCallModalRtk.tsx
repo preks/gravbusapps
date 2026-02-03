@@ -2399,6 +2399,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         firstRemoteStream={firstRemoteStream}
         remotePeerCount={stableRemotePeers.length}
         callStartTime={callState.startTime}
+        callType={callState.callType}
         isMuted={callState.isMuted}
         isVideoEnabled={callState.isVideoEnabled}
         isHandRaised={isFirstPeerHandRaised}

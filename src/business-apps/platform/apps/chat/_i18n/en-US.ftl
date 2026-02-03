@@ -244,6 +244,7 @@ call-readyToStart = Ready to start
 call-starting = Starting...
 call-start = Start
 call-cancel = Cancel
+call-backgroundWillBeApplied = Background will be applied in call
 call-ended = Call ended
 call-failed = Call failed
 call-disconnected = Disconnected

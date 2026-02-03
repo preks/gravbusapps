@@ -244,6 +244,7 @@ call-readyToStart = Gata de pornire
 call-starting = Se pornește...
 call-start = Pornește
 call-cancel = Anulează
+call-backgroundWillBeApplied = Fundalul va fi aplicat în apel
 call-ended = Apel încheiat
 call-failed = Apel eșuat
 call-disconnected = Deconectat

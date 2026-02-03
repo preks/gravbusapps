@@ -244,6 +244,7 @@ call-readyToStart = Bereit zum Starten
 call-starting = Wird gestartet...
 call-start = Starten
 call-cancel = Abbrechen
+call-backgroundWillBeApplied = Hintergrund wird im Anruf angewendet
 call-ended = Anruf beendet
 call-failed = Anruf fehlgeschlagen
 call-disconnected = Getrennt

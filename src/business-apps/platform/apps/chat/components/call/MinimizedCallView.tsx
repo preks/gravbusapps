@@ -43,6 +43,8 @@ export interface MinimizedCallViewProps {
   remotePeerCount: number
   /** Call start timestamp (Unix ms) - used to calculate live duration */
   callStartTime: number | null
+  /** Call type: 'audio' or 'video' */
+  callType?: 'audio' | 'video'
   /** Whether local mic is muted */
   isMuted: boolean
   /** Whether local video is enabled */
@@ -75,6 +77,7 @@ export const MinimizedCallView: React.FC<MinimizedCallViewProps> = React.memo(
     firstRemoteStream,
     remotePeerCount,
     callStartTime,
+    callType = 'video',
     isMuted,
     isVideoEnabled,
     isHandRaised = false,
@@ -351,24 +354,26 @@ export const MinimizedCallView: React.FC<MinimizedCallViewProps> = React.memo(
               )}
             </button>
 
-            {/* Video button */}
-            <button
-              onClick={onToggleVideo}
-              onMouseDown={e => e.stopPropagation()}
-              className={`gba:p-2 gba:rounded-full gba:transition-all ${
-                !isVideoEnabled
-                  ? 'gba:bg-destructive gba:text-destructive-foreground'
-                  : 'gba:bg-secondary gba:text-secondary-foreground hover:gba:bg-accent'
-              }`}
-              title={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
-              data-testid={`${prefixDataTestId}-minimized-video-btn`}
-            >
-              {isVideoEnabled ? (
-                <VideoCameraIcon className="gba:h-4 gba:w-4" weight="fill" />
-              ) : (
-                <VideoCameraSlashIcon className="gba:h-4 gba:w-4" weight="fill" />
-              )}
-            </button>
+            {/* Video button - only show for video calls */}
+            {callType === 'video' && (
+              <button
+                onClick={onToggleVideo}
+                onMouseDown={e => e.stopPropagation()}
+                className={`gba:p-2 gba:rounded-full gba:transition-all ${
+                  !isVideoEnabled
+                    ? 'gba:bg-destructive gba:text-destructive-foreground'
+                    : 'gba:bg-secondary gba:text-secondary-foreground hover:gba:bg-accent'
+                }`}
+                title={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
+                data-testid={`${prefixDataTestId}-minimized-video-btn`}
+              >
+                {isVideoEnabled ? (
+                  <VideoCameraIcon className="gba:h-4 gba:w-4" weight="fill" />
+                ) : (
+                  <VideoCameraSlashIcon className="gba:h-4 gba:w-4" weight="fill" />
+                )}
+              </button>
+            )}
           </div>
 
           {/* Right side - expand & end call */}

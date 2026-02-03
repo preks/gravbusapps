@@ -249,7 +249,9 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
                         {backgroundEnabled && (
                           <div className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded gba:bg-primary/90 gba:shadow-lg">
                             <MagicWandIcon className="gba:w-3.5 gba:h-3.5 gba:text-primary-foreground" weight="fill" />
-                            <span className="gba:text-xs gba:text-primary-foreground">Preview</span>
+                            <span className="gba:text-xs gba:text-primary-foreground">
+                              {t('call-backgroundWillBeApplied') || 'Background will be applied in call'}
+                            </span>
                           </div>
                         )}
                       </div>
