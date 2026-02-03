@@ -213,16 +213,16 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
 
   return (
     <>
-      {/* Account Section - 1/3 width */}
+      {/* Account Section - 1/4 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'account-section',
             component: AccountSection,
             props: {
               ...props,
-              account: accountData, // ✅ Vollständiges CustomerAccount-Objekt
+              account: accountData,
               accountId: accountId,
               actionButtonProps: {
                 contextsArray: [FlowContextName.customerAccountEntity],
@@ -235,9 +235,9 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
         data-testid="account-account-section-wrapper"
       />
 
-      {/* Contact Section - 1/3 width */}
+      {/* Contact Section - 1/4 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-3 gba:lg:col-span-3 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'contact-section',
@@ -271,9 +271,9 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
         data-testid="account-contact-section-wrapper"
       />
 
-      {/* Activities Section - 1/3 width, full height */}
+      {/* Activities & Notes Section - 1/2 width, spans 2 rows */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-5"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-2 gba:min-h-196 gba:max-h-196"
         sections={[
           {
             id: 'activities-section',
@@ -288,14 +288,25 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
               activitySectionActionProps: activityActionProps,
               activityEntityActionProps: activityEntityActionProps
             }
+          },
+          {
+            id: 'notes-section',
+            component: NoteSection,
+            props: {
+              ...props,
+              notes: notes,
+              noteActionProps: noteActionProps,
+              noteEntityActionProps: noteEntityActionProps,
+              'data-testid': 'account-notes-section'
+            }
           }
         ]}
-        data-testid="account-activities-section-wrapper"
+        data-testid="account-activities-notes-section-wrapper"
       />
 
-      {/* Tasks & Approvals - 2/3 width, spans 2 rows */}
+      {/* Tasks & Approvals - 1/2 width */}
       <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
+        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-6 gba:lg:col-span-6 gba:row-span-1 gba:min-h-96 gba:max-h-96"
         sections={[
           {
             id: 'tasks-section',
@@ -322,25 +333,6 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
           }
         ]}
         data-testid="account-tasks-approvals-section-wrapper"
-      />
-
-      {/* Notes Section - 2/3 width, spans 3 rows */}
-      <SectionWrapper
-        className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-3"
-        sections={[
-          {
-            id: 'notes-section',
-            component: NoteSection,
-            props: {
-              ...props,
-              notes: notes,
-              noteActionProps: noteActionProps,
-              noteEntityActionProps: noteEntityActionProps,
-              'data-testid': 'account-notes-section'
-            }
-          }
-        ]}
-        data-testid="account-notes-section-wrapper"
       />
     </>
   )

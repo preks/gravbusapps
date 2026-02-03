@@ -117,6 +117,10 @@ export interface CalendarEvent {
   meetingLink?: string
   location?: string
   conversationId?: string
+  recurrence?: MeetingRecurrence
+  recurrenceEndDate?: Date
+  reminderMinutes?: number[]
+  metadata?: Record<string, any>
 }
 
 export interface CreateMeetingData {

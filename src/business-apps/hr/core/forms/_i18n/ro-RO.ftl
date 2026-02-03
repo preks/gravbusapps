@@ -1,9 +1,9 @@
 adjust-salary-title = Ajustare salariu angajat
 adjust-salary-adjustment-type = Tip ajustare
-adjust-salary-adjustment-type-amount = Creștere sumă
-adjust-salary-adjustment-type-percentage = Creștere procentuală
-adjust-salary-increase-amount = Sumă creștere
-adjust-salary-increase-percentage = Procent creștere (%)
+adjust-salary-adjustment-type-amount = Ajustare sumă
+adjust-salary-adjustment-type-percentage = Ajustare procentuală
+adjust-salary-increase-amount = Sumă ajustare
+adjust-salary-increase-percentage = Procent ajustare (%)
 adjust-salary-calculated-amount = Sumă calculată:
 adjust-salary-calculated-percentage = Procent calculat:
 adjust-salary-new-salary = Salariu anual nou
@@ -21,6 +21,8 @@ adjust-salary-adjustment-value-required = Introduceți suma sau procentul
 adjust-salary-adjustment-value-positive = Valoarea trebuie să fie pozitivă
 adjust-salary-currency-required = Moneda este obligatorie. Vă rugăm să selectați o monedă.
 adjust-salary-effective-date-required = Data efectivă este obligatorie. Vă rugăm să selectați o dată efectivă.
+adjust-salary-effective-date-too-old = Data efectivă nu poate fi cu mai mult de 6 luni în trecut
+adjust-salary-effective-date-helper = Data trebuie să fie în ultimele 6 luni
 adjust-salary-reason-required = Motivul este obligatoriu. Vă rugăm să selectați un motiv.
 adjust-salary-frequency = Tip ajustare salariu
 adjust-salary-frequency-required = Tipul ajustării salariului este obligatoriu. Vă rugăm să selectați un tip de ajustare salariu.
@@ -56,7 +58,7 @@ adjust-salary-review-salary-comparison = Comparație salariu
 adjust-salary-review-current-salary = Salariu curent
 adjust-salary-review-new-salary = Salariu nou
 adjust-salary-review-adjustment-details = Detalii ajustare
-adjust-salary-review-total-increase = Creștere totală
+adjust-salary-review-total-increase = Ajustare totală
 adjust-salary-review-effective-date = Dată efectivă
 adjust-salary-review-reason = Motiv
 adjust-salary-review-notes = Note
@@ -65,7 +67,7 @@ adjust-salary-review-reject = Respinge
 adjust-salary-review-annual-gross-salary = Salariu brut anual
 adjust-salary-review-monthly-gross-salary = Salariu brut lunar
 adjust-salary-review-hourly-gross-salary = Salariu brut pe oră
-adjust-salary-review-increase-text = { $percentage }% creștere
+adjust-salary-review-increase-text = { $percentage }% ajustare
 adjust-salary-review-hourly-suffix = /h
 
 # Assign Employee Salary Review Form (new employee without existing salary)
@@ -318,12 +320,16 @@ employee-form-email = Email
 employee-form-organizational-unit = Unitate organizațională
 employee-form-job-position = Poziție
 employee-form-hire-date = Data angajării
+employee-form-fixed-term-end-date = Data de încheiere a contractului cu durată determinată
+employee-form-fixed-term-reason = Motivul ieșirii
 employee-form-preferred-name = Nume preferat
 employee-form-employment-type = Tip angajare
 employee-form-contract-type = Tip contract
 
 # Validation Messages
 employee-form-email-invalid = Vă rugăm să introduceți o adresă de email validă
+employee-form-hire-date-required = Data angajării este obligatorie când este specificată data de încheiere a contractului cu durată determinată
+employee-form-fixed-term-before-hire = Data de încheiere a contractului cu durată determinată trebuie să fie la sau după data angajării
 
 # Empty States
 employee-form-no-results = Nu s-au găsit rezultate

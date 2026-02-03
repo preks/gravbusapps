@@ -1,4 +1,4 @@
-export const EMPLOYEE_DATA_QUERY = `query fetchEmployee($idEmployee: uuid!) {
+export const EMPLOYEE_DATA_QUERY = `query fetchEmployee($idEmployee: uuid!, $activeUserLocale: String!) {
   EmployeeByPk(id: $idEmployee) {
     id
     version
@@ -15,13 +15,56 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployee($idEmployee: uuid!) {
     schoolQualificationRef
     maritalStatusRef
     nationalityRef
+    languageRef
     displayName
     preferredName
     salutationRef
-    languageRef
     picture
     pictureThumbnail
     userId
+    
+    salutation {
+      value
+      id
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        value
+      }
+    }
+    maritalStatus {
+      id
+      value
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        value
+      }
+    }
+    gender {
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        value
+      }
+      value
+      id
+    }
+    nationality {
+      id
+      value
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        value
+      }
+    }
+    language {
+      id
+      value
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        value
+      }
+    }
+    schoolQualification {
+      id
+      value
+      translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+        value
+      }
+    }
   }
   EmployeePosition(where: {employeeId: {_eq: $idEmployee}}) {
     siteLocation {
@@ -122,7 +165,7 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
       }
     }
     
-    documentGroup: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentGroup"}}}) {
+    documentGroup: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentGroup"}}, additionalValue1: {_eq: "HRM"}}) {
       value
       id
       translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -137,6 +180,7 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
     documentType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentType"}}}) {
       value
       id
+      parentEntryId
       translations(where: {localeCode: {_eq: $activeUserLocale}}) {
         localeCode
         value

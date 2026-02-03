@@ -11,7 +11,7 @@ import {
   IconAvatar,
   HeaderSlot
 } from '@newwork/nw-design-system'
-import { UsersIcon, FileTextIcon, AddressBookIcon, RobotIcon, FlagIcon } from '@phosphor-icons/react'
+import { UsersIcon, FileTextIcon, AddressBookIcon, FlagIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -40,7 +40,7 @@ import ActivitySection from '@/common/components/common-relations/record-section
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
-import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
+import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAiSummary } from './hooks/useAiSummary'
 import { AppAction } from '@/components/app-action'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
@@ -273,7 +273,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     const hasReasons = rejectionReasons.length > 0
     const badgeVariant = hasReasons ? 'destructive' : 'secondary'
     const badgeText = hasReasons
-      ? getTranslationFromI18nKeyAndLabel('rejection.badge.rejected', 'Rejected')
+      ? getTranslationFromI18nKeyAndLabel('rejection.badge.rejected', 'Rejection Reasons')
       : getTranslationFromI18nKeyAndLabel('rejection.badge.noReasons', 'No Rejection Reason')
 
     return (
@@ -369,34 +369,16 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
     [lead?.leadSource?.value, lead?.leadRating?.value, lead?.ownerEmployee]
   )
 
-  const headerActions = useMemo(() => {
-    if (!props.accessToken || !leadId) return null
-
-    const actions: AiAction[] = [
-      {
-        key: 'ai-summary',
-        label: getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary'),
-        icon: <RobotIcon size={16} />,
-        hook: aiSummary,
-        config: {
-          entityType: 'lead',
-          loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.summary.loading', 'Generating AI Summary...'),
-          loadingSubtitle: getTranslationFromI18nKeyAndLabel(
-            'crm.ai.summary.subtitle',
-            'Analyzing lead data and activities'
-          )
-        }
-      }
-    ]
-
-    return (
-      <AiActions
-        actions={actions}
-        dataTestId={`lead-update-button-${leadId}`}
-        buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')}
-      />
-    )
-  }, [props.accessToken, leadId, aiSummary])
+  const headerActions = (
+    <AiActions
+      entityType="investment-lead"
+      entityId={leadId}
+      features={['summary']}
+      hooks={{ summary: aiSummary }}
+      requireAccessToken
+      accessToken={props.accessToken}
+    />
+  )
 
   const leadDisplayName =
     lead?.displayName || `${lead?.firstName || ''} ${lead?.lastName || ''}`.trim() || 'Investment Lead'

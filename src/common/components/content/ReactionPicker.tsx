@@ -60,13 +60,17 @@ export const ReactionPicker: React.FC<ReactionPickerProps> = ({
 }) => {
   const [open, setOpen] = useState(false)
   const selectedEmojiRef = useRef<string | null>(null)
-
-  // Optimistic state
+  const inFlightRef = useRef(false)
   const [reactionSummary, setReactionSummary] = useState<ReactionSummary>(initialReactionSummary)
+  const [inFlight, setInFlight] = useState(false)
 
-  // Update state when initialReactionSummary changes (e.g., after backend fetch)
   useEffect(() => {
-    setReactionSummary(initialReactionSummary)
+    setReactionSummary(prev => {
+      const initialHas = Object.values(initialReactionSummary).some(r => r.userReacted)
+      const prevHas = Object.values(prev).some(r => r.userReacted)
+      if (prevHas && !initialHas) return prev
+      return initialReactionSummary
+    })
   }, [initialReactionSummary])
 
   // Optimistic update helper
@@ -134,13 +138,19 @@ export const ReactionPicker: React.FC<ReactionPickerProps> = ({
     setReactionSummary(previousState)
   }, [])
 
-  // Handler for reaction button click
   const handleReactionClick = useCallback(
     (emoji: string, catalogEntryId: string, executeAction: () => Promise<void>) => {
+      if (inFlightRef.current) return
+      inFlightRef.current = true
+      setInFlight(true)
       const previousState = { ...reactionSummary }
-      const newState = getOptimisticReactionState(emoji, catalogEntryId)
-      setReactionSummary(newState)
-      executeAction().catch(() => handleReactionError(previousState))
+      setReactionSummary(getOptimisticReactionState(emoji, catalogEntryId))
+      executeAction()
+        .catch(() => handleReactionError(previousState))
+        .finally(() => {
+          inFlightRef.current = false
+          setInFlight(false)
+        })
     },
     [reactionSummary, getOptimisticReactionState, handleReactionError]
   )
@@ -184,7 +194,7 @@ export const ReactionPicker: React.FC<ReactionPickerProps> = ({
                   })
                 }}
               >
-                {({ executeAction, isLoading }) => (
+                {({ executeAction, isLoading, isProcessing }) => (
                   <Button
                     variant={reaction.userReacted ? 'default' : 'ghost'}
                     size="sm"
@@ -194,7 +204,7 @@ export const ReactionPicker: React.FC<ReactionPickerProps> = ({
                         : 'gba:bg-muted gba:text-foreground gba:hover:bg-accent'
                     }`}
                     onClick={() => handleReactionClick(emoji, reaction.catalogEntryId!, executeAction)}
-                    disabled={isLoading}
+                    disabled={inFlight || isLoading || isProcessing}
                     data-testid={`${dataTestId}-${emoji}`}
                   >
                     {reaction.imageUrl ? (
@@ -219,6 +229,7 @@ export const ReactionPicker: React.FC<ReactionPickerProps> = ({
             variant="ghost"
             size="sm"
             className="gba:h-7 gba:px-2 gba:py-1 gba:rounded-full gba:bg-muted gba:hover:bg-accent"
+            disabled={inFlight}
             data-testid={dataTestId}
           >
             <Smile className="gba:w-4 gba:h-4" />
@@ -262,21 +273,25 @@ export const ReactionPicker: React.FC<ReactionPickerProps> = ({
                 skinTonesDisabled={true}
                 allowExpandReactions={false}
                 onReactionClick={(emojiData: EmojiClickData) => {
-                  // Store selected emoji and execute action
-                  selectedEmojiRef.current = emojiData.unified
+                  if (inFlightRef.current) return
 
                   const catalogEntryId = reactionCatalogMap[emojiData.unified]
-                  if (catalogEntryId) {
-                    // Optimistic update
-                    const previousState = { ...reactionSummary }
-                    const newState = getOptimisticReactionState(emojiData.emoji, catalogEntryId)
-                    setReactionSummary(newState)
+                  if (!catalogEntryId) return
 
-                    // Call backend
-                    executeAction({}).catch(() => {
-                      handleReactionError(previousState)
+                  selectedEmojiRef.current = emojiData.unified
+                  inFlightRef.current = true
+                  setInFlight(true)
+                  setOpen(false)
+
+                  const previousState = { ...reactionSummary }
+                  setReactionSummary(getOptimisticReactionState(emojiData.emoji, catalogEntryId))
+
+                  executeAction({})
+                    .catch(() => handleReactionError(previousState))
+                    .finally(() => {
+                      inFlightRef.current = false
+                      setInFlight(false)
                     })
-                  }
                 }}
                 theme={Theme.AUTO}
               />

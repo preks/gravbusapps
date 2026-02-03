@@ -55,31 +55,62 @@ interface CalendarDay {
   absence: DayAbsence | null
 }
 
+/**
+ * Absence color palette using design system semantic tokens
+ * Subtle, premium look with softer colors
+ */
+const ABSENCE_COLORS = {
+  // Vacation/Annual leave - Soft blue (approved)
+  vacation: 'gba:bg-info-secondary',
+  vacationText: 'gba:text-info-secondary-foreground',
+  // Sick leave - Soft red/coral
+  sick: 'gba:bg-destructive-secondary',
+  sickText: 'gba:text-destructive-secondary-foreground',
+  // Pending requests - Soft amber
+  pending: 'gba:bg-warning-secondary',
+  pendingText: 'gba:text-warning-secondary-foreground',
+  // Other absences - Soft green/teal
+  other: 'gba:bg-success-secondary',
+  otherText: 'gba:text-success-secondary-foreground',
+  // Public holidays - Soft purple/muted
+  holiday: 'gba:bg-offline-secondary',
+  holidayText: 'gba:text-offline-secondary-foreground',
+  // Current request being reviewed - primary color with ring for clear distinction
+  currentRequest: 'gba:bg-primary/30',
+  currentRequestText: 'gba:text-foreground'
+} as const
+
+/**
+ * Solid background color for current request - uses primary for clear distinction
+ */
+const CURRENT_REQUEST_BG = 'gba:bg-primary/30'
+
 const getAbsenceColor = (typeRef: string, status: string): string => {
-  // Pending requests - Orange/Yellow
+  // Pending requests - Soft amber
   if (status === 'PENDING' || status === 'PENDING_APPROVAL') {
-    return 'gba:bg-orange-400'
+    return ABSENCE_COLORS.pending
   }
 
-  // Sick leave - Red
+  // Sick leave - Soft coral
   if (typeRef?.includes('A002') || typeRef?.toLowerCase()?.includes('sick')) {
-    return 'gba:bg-red-500'
+    return ABSENCE_COLORS.sick
   }
 
-  // Annual leave/Vacation - Blue (approved)
+  // Annual leave/Vacation - Soft blue (approved)
   if (
     typeRef?.includes('A001') ||
     typeRef?.toLowerCase()?.includes('annual') ||
     typeRef?.toLowerCase()?.includes('vacation')
   ) {
-    return 'gba:bg-blue-500'
+    return ABSENCE_COLORS.vacation
   }
 
-  // Other absences (business trip, special leave, etc.) - Teal
-  return 'gba:bg-teal-500'
+  // Other absences (business trip, special leave, etc.) - Soft green
+  return ABSENCE_COLORS.other
 }
 
-const HOLIDAY_OVERLAY_COLOR = 'rgb(168 85 247 / 0.8)' // purple-500 with opacity
+// Holiday overlay uses CSS variable for theme compatibility
+const HOLIDAY_OVERLAY_COLOR = 'hsl(var(--offline) / 0.6)'
 
 export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
   accessToken,
@@ -549,7 +580,7 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
         const holidayData: DayAbsence = {
           type: holiday.value || 'Public Holiday',
           status: 'HOLIDAY',
-          color: 'gba:bg-purple-500',
+          color: ABSENCE_COLORS.holiday,
           isCurrentRequest: false,
           isHoliday: true,
           isHolidayAndAbsence: false,
@@ -593,7 +624,7 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
         const requestData: DayAbsence = {
           type: t('vacation-calendar-current-request'),
           status: 'PENDING',
-          color: 'gba:bg-yellow-400',
+          color: ABSENCE_COLORS.currentRequest,
           isCurrentRequest: true,
           isHoliday: false,
           isHolidayAndAbsence: wasHoliday,
@@ -820,26 +851,28 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
     renderMode: ReturnType<typeof getDayRenderMode>
   ): string => {
     const { needsSplitRender, needsHalfRender, needsOverlayRender, needsHalfOverlayRender } = renderMode
+    const isSolidDay = !needsSplitRender && !needsHalfRender && !needsOverlayRender && !needsHalfOverlayRender
 
     return [
-      'gba:h-10 gba:flex gba:items-center gba:justify-center gba:text-xs gba:rounded-md gba:relative gba:transition-all gba:font-medium gba:overflow-hidden',
-      !isCurrentMonthDay && 'gba:opacity-25 gba:pointer-events-none',
-      isCurrentMonthDay && !hasAbsence && 'gba:cursor-pointer hover:gba:bg-muted/50',
-      day.isToday && !hasAbsence && 'gba:ring-2 gba:ring-primary/30 gba:bg-primary/5',
-      day.isWeekend && !hasAbsence && 'gba:bg-muted/85',
-      !day.isWeekend && !hasAbsence && 'gba:bg-muted/50',
-      !needsSplitRender &&
-        !needsHalfRender &&
-        !needsOverlayRender &&
-        !needsHalfOverlayRender &&
-        hasAbsence &&
-        day.absence?.color,
-      hasAbsence && 'gba:text-white gba:shadow-sm',
-      isCurrentRequest &&
-        !needsSplitRender &&
-        !needsOverlayRender &&
-        !needsHalfOverlayRender &&
-        'gba:ring-2 gba:ring-primary gba:ring-offset-2 gba:ring-offset-background gba:scale-105 gba:z-10'
+      // Base styles - clean, minimal
+      'gba:h-10 gba:flex gba:items-center gba:justify-center gba:text-sm gba:rounded-lg gba:relative gba:transition-all gba:duration-200 gba:overflow-hidden',
+      // Non-current month days
+      !isCurrentMonthDay && 'gba:opacity-30 gba:pointer-events-none',
+      // Interactive states for empty days
+      isCurrentMonthDay && !hasAbsence && 'gba:cursor-pointer hover:gba:bg-accent/50',
+      // Today indicator - subtle ring
+      day.isToday && !hasAbsence && 'gba:ring-1 gba:ring-primary/40 gba:bg-primary/5',
+      // Weekend styling - very subtle
+      day.isWeekend && !hasAbsence && 'gba:bg-muted/60',
+      // Weekday styling - minimal
+      !day.isWeekend && !hasAbsence && 'gba:bg-muted/30',
+      // Apply absence color for solid days (not split/overlay)
+      isSolidDay && hasAbsence && !isCurrentRequest && day.absence?.color,
+      // Current request highlight - uses primary color with prominent ring for clear distinction
+      isSolidDay && isCurrentRequest && CURRENT_REQUEST_BG,
+      isSolidDay &&
+        isCurrentRequest &&
+        'gba:ring-2 gba:ring-primary gba:ring-offset-1 gba:ring-offset-background gba:z-10'
     ]
       .filter(Boolean)
       .join(' ')
@@ -919,31 +952,31 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
 
         {isExpanded && (
           <>
-            {/* Inline Legend - Only show relevant colors */}
-            <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-3 gba:gap-y-1.5 gba:mt-3 gba:text-xs gba:text-muted-foreground">
+            {/* Inline Legend - Subtle design system colors */}
+            <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-x-4 gba:gap-y-1.5 gba:mt-3 gba:text-xs gba:text-muted-foreground">
               <div className="gba:flex gba:items-center gba:gap-1.5">
-                <div className="gba:w-2.5 gba:h-2.5 gba:rounded-sm gba:bg-blue-500" />
+                <div className={`gba:w-2.5 gba:h-2.5 gba:rounded-full ${ABSENCE_COLORS.vacation}`} />
                 <span>{t('vacation-calendar-legend-vacation')}</span>
               </div>
               <div className="gba:flex gba:items-center gba:gap-1.5">
-                <div className="gba:w-2.5 gba:h-2.5 gba:rounded-sm gba:bg-red-500" />
+                <div className={`gba:w-2.5 gba:h-2.5 gba:rounded-full ${ABSENCE_COLORS.sick}`} />
                 <span>{t('vacation-calendar-legend-sick')}</span>
               </div>
               <div className="gba:flex gba:items-center gba:gap-1.5">
-                <div className="gba:w-2.5 gba:h-2.5 gba:rounded-sm gba:bg-purple-500" />
+                <div className={`gba:w-2.5 gba:h-2.5 gba:rounded-full ${ABSENCE_COLORS.holiday}`} />
                 <span>{t('vacation-calendar-legend-holiday')}</span>
               </div>
               <div className="gba:flex gba:items-center gba:gap-1.5">
-                <div className="gba:w-2.5 gba:h-2.5 gba:rounded-sm gba:bg-orange-400" />
+                <div className={`gba:w-2.5 gba:h-2.5 gba:rounded-full ${ABSENCE_COLORS.pending}`} />
                 <span>{t('vacation-calendar-legend-pending')}</span>
               </div>
               <div className="gba:flex gba:items-center gba:gap-1.5">
-                <div className="gba:w-2.5 gba:h-2.5 gba:rounded-sm gba:bg-teal-500" />
+                <div className={`gba:w-2.5 gba:h-2.5 gba:rounded-full ${ABSENCE_COLORS.other}`} />
                 <span>{t('vacation-calendar-legend-other')}</span>
               </div>
               {currentRequestStartDate && (
-                <div className="gba:flex gba:items-center gba:gap-1.5 gba:font-medium">
-                  <div className="gba:w-2.5 gba:h-2.5 gba:rounded-sm gba:bg-yellow-400 gba:ring-1 gba:ring-primary gba:ring-offset-1" />
+                <div className="gba:flex gba:items-center gba:gap-1.5 gba:font-medium gba:text-foreground">
+                  <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-primary/30 gba:ring-2 gba:ring-primary/70 gba:ring-offset-1" />
                   <span>{t('vacation-calendar-legend-current-request')}</span>
                 </div>
               )}
@@ -1239,26 +1272,20 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
                       </>
                     )}
 
-                    {/* Day number - always on top with shadow for visibility */}
+                    {/* Day number - clean typography with proper contrast */}
                     <span
-                      className={`gba:relative gba:z-10 gba:font-bold gba:text-sm ${
-                        hasAbsence ? 'gba:text-white' : 'gba:text-foreground'
-                      }`}
-                      style={
+                      className={`gba:relative gba:z-10 gba:font-semibold gba:text-sm gba:tabular-nums ${
                         hasAbsence
-                          ? {
-                              textShadow: '0 0 3px rgba(0,0,0,0.5), 0 0 6px rgba(0,0,0,0.3)'
-                            }
-                          : undefined
-                      }
+                          ? day.absence?.isCurrentRequest
+                            ? ABSENCE_COLORS.currentRequestText
+                            : day.absence?.isHoliday
+                              ? ABSENCE_COLORS.holidayText
+                              : 'gba:text-foreground'
+                          : 'gba:text-foreground'
+                      }`}
                     >
                       {day.dayOfMonth}
                     </span>
-
-                    {/* Current request ring indicator */}
-                    {isCurrentRequest && (
-                      <div className="gba:absolute gba:inset-0 gba:rounded-md gba:ring-2 gba:ring-primary gba:ring-offset-2 gba:ring-offset-background gba:pointer-events-none" />
-                    )}
                   </div>
                 )
               })}

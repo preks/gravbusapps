@@ -33,7 +33,9 @@ search_documents = Caută zone...
 search_questions = Caută întrebări...
 
 # Content sections
+content_overview = Prezentare generală conținut
 recent_content = Conținut recent
+recent_comments = Comentarii recente
 latest_announcements = Ultimele anunțuri
 featured_news = Știri de top
 trending_now = În tendințe acum
@@ -41,6 +43,10 @@ all_articles = Toate articolele
 categories = Categorii
 recent_articles = Articole recente
 more_articles = Mai multe articole
+recent_news_articles = Articole de știri recente
+recent_knowledge_articles = Articole de cunoștințe recente
+recently_uploaded_documents = Documente încărcate recent
+unanswered_questions = Întrebări fără răspuns
 
 # Buttons
 create_article = Creează articol
@@ -62,6 +68,7 @@ no_questions_found = Încă nu există întrebări. Fii primul!
 votes = voturi
 views = vizualizări
 asked_by = Întrebat de
+answers = răspunsuri
 
 # Content
 knowledge_image = Imagine articol cunoștințe
@@ -87,3 +94,8 @@ current = Curent
 points = puncte
 error = Eroare
 retry = Încearcă din nou
+loading_more = Se încarcă mai multe...
+my-content = Conținutul Meu
+show-my-content-description = Vizualizați toate intrările de conținut pe care le-ați creat
+no-my-content-found = Nu ați creat încă niciun conținut.
+other = Altele

@@ -146,6 +146,7 @@ definitions:
         services:
           - docker
         script:
+          - export RC_UPLOAD="true"
           - bash scripts/detect-and-publish-changed-screens.sh
         artifacts:
           - changed-tsx.txt
@@ -210,6 +211,7 @@ definitions:
         services:
           - docker
         script:
+          - export RC_UPLOAD="true"
           - |
             if [ "$PUBLISH_ALL_SCREENS" = "true" ]; then
               echo "🌍 PUBLISH_ALL_SCREENS=true: Publishing ALL screens to development"
@@ -423,3 +425,27 @@ pipelines:
           artifacts:
             - component-hashes.json
             - component-hashes-prod.json
+
+    claude-execute-only:
+      - variables:
+          - name: BATCH_ID
+            default: "1"
+          - name: CLAUDE_VERBOSE
+            default: "false"
+      - step: *install_dependencies
+      - step:
+          name: Claude Execute (plan.md only)
+          runs-on:
+            - 'self.hosted'
+            - 'do.global.runner.size4'
+          size: 4x
+          clone:
+            enabled: true
+            depth: full
+          caches:
+            - nodecustom
+          script:
+            - bash scripts/claude/execute_batch.sh
+          artifacts:
+            - claude_execute_verbose.log
+            - pr_response.json

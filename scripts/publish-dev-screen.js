@@ -23,10 +23,16 @@ dotenv.config({ path: path.resolve(__dirname, '..', '.env') })
 const AZURE_STORAGE_ACCOUNT_NAME = process.env.AZURE_STORAGE_ACCOUNT
 const AZURE_STORAGE_SAS_TOKEN = process.env.AZURE_STORAGE_SAS_TOKEN
 const AZURE_CONTAINER_NAME = process.env.AZURE_BLOB_CONTAINER_NAME || 'screens'
+const RC_UPLOAD_ENABLED = process.env.RC_UPLOAD === 'true'
+const RC_VERSION = process.env.RC_VERSION || process.env.BITBUCKET_BUILD_NUMBER || ''
+const RC_AZURE_STORAGE_ACCOUNT_NAME = process.env.AZURE_STORAGE_ACCOUNT_PROD
+const RC_AZURE_STORAGE_SAS_TOKEN = process.env.AZURE_STORAGE_SAS_TOKEN_PROD
+const RC_AZURE_CONTAINER_NAME = process.env.AZURE_BLOB_CONTAINER_NAME_PROD || 'screens'
+const RC_PREFIX = process.env.RC_PREFIX || 'release-candidates'
 
 // Helper function to detect if the screen is a form
 function isFormScreen(screenPath) {
-  return screenPath.includes('/forms/')
+  return screenPath.includes('/forms/') || screenPath.includes('/popups/') || screenPath.includes('/windows/')
 }
 
 // Helper function to handle form screen publishing
@@ -170,7 +176,7 @@ async function uploadDirectory(buildOutputDir, azureDestinationPath) {
       await blockBlobClient.uploadFile(localFilePath, {
         blobHTTPHeaders: {
           blobContentType: contentType,
-          blobCacheControl: 'no-cache, no-store, must-revalidate'
+          blobCacheControl: 'no-cache'
         }
       })
     } catch (error) {
@@ -178,6 +184,127 @@ async function uploadDirectory(buildOutputDir, azureDestinationPath) {
     }
   }
   console.log('✅ All files uploaded successfully.')
+}
+
+async function uploadDirectoryToContainer(
+  buildOutputDir,
+  azureDestinationPath,
+  containerClient,
+  cacheControl = 'no-cache'
+) {
+  const filesToUpload = await glob('**/*', {
+    cwd: buildOutputDir,
+    nodir: true
+  })
+
+  if (filesToUpload.length === 0) {
+    console.log('No files found in build output directory to upload.')
+    return
+  }
+
+  for (const file of filesToUpload) {
+    const localFilePath = path.join(buildOutputDir, file)
+    const blobName = path.join(azureDestinationPath, file).replace(/\\/g, '/')
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName)
+    const contentType = getContentType(file)
+
+    try {
+      console.log(`   Uploading: ${file} as ${blobName} (Content-Type: ${contentType})`)
+      await blockBlobClient.uploadFile(localFilePath, {
+        blobHTTPHeaders: {
+          blobContentType: contentType,
+          blobCacheControl: cacheControl
+        }
+      })
+    } catch (error) {
+      console.error(`❌ Error uploading ${file}:`, error.message)
+    }
+  }
+  console.log('✅ All files uploaded successfully.')
+}
+
+async function clearBlobPrefix(containerClient, prefix) {
+  let deletedCount = 0
+  for await (const blob of containerClient.listBlobsFlat({ prefix })) {
+    await containerClient.deleteBlob(blob.name)
+    deletedCount += 1
+  }
+  return deletedCount
+}
+
+function getRcContainerClient() {
+  if (!RC_AZURE_STORAGE_ACCOUNT_NAME || !RC_AZURE_STORAGE_SAS_TOKEN) {
+    console.error('Error: RC upload requires AZURE_STORAGE_ACCOUNT_PROD and AZURE_STORAGE_SAS_TOKEN_PROD to be set.')
+    process.exit(1)
+  }
+
+  const blobServiceUrl = `https://${RC_AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/?${RC_AZURE_STORAGE_SAS_TOKEN}`
+  const blobServiceClient = new BlobServiceClient(blobServiceUrl)
+  return blobServiceClient.getContainerClient(RC_AZURE_CONTAINER_NAME)
+}
+
+async function uploadReleaseCandidateArtifacts({
+  buildOutputDir,
+  cssOutputDir,
+  azureDestinationPath,
+  projectRootDir,
+  rcVersion
+}) {
+  if (!rcVersion) {
+    console.error('Error: RC upload requires RC_VERSION or BITBUCKET_BUILD_NUMBER to be set.')
+    process.exit(1)
+  }
+
+  const containerClient = getRcContainerClient()
+  const rcDestinationPath = `${RC_PREFIX}/${azureDestinationPath}`.replace(/\\/g, '/')
+  const rcPrefix = `${rcDestinationPath}/`
+
+  console.log(`🧹 Clearing RC folder: ${RC_AZURE_CONTAINER_NAME}/${rcDestinationPath}`)
+  const deletedCount = await clearBlobPrefix(containerClient, rcPrefix)
+  console.log(`   Deleted ${deletedCount} blob(s)`)
+
+  const rcTempDir = fs.mkdtempSync(path.join(projectRootDir, 'temp_rc_'))
+  try {
+    fs.cpSync(buildOutputDir, rcTempDir, { recursive: true })
+
+    const indexJsPath = path.join(rcTempDir, 'index.js')
+    if (!fs.existsSync(indexJsPath)) {
+      console.error(`❌ Error: index.js not found in ${buildOutputDir}`)
+      process.exit(1)
+    }
+
+    const rcIndexJsPath = path.join(rcTempDir, `index-${rcVersion}.js`)
+    fs.renameSync(indexJsPath, rcIndexJsPath)
+
+    const cssFilesInScreenDir = await glob('**/*.css', {
+      cwd: rcTempDir,
+      nodir: true
+    })
+    for (const file of cssFilesInScreenDir) {
+      const cssFilePath = path.join(rcTempDir, file)
+      const parsed = path.parse(cssFilePath)
+      const renamedCssPath = path.join(parsed.dir, `${parsed.name}-${rcVersion}${parsed.ext}`)
+      fs.renameSync(cssFilePath, renamedCssPath)
+    }
+
+    const globalCssFiles = await glob('**/*.css', {
+      cwd: cssOutputDir,
+      nodir: true
+    })
+    for (const file of globalCssFiles) {
+      const sourceCssPath = path.join(cssOutputDir, file)
+      const parsed = path.parse(file)
+      const targetCssPath = path.join(rcTempDir, `${parsed.name}-${rcVersion}${parsed.ext}`)
+      fs.copyFileSync(sourceCssPath, targetCssPath)
+    }
+
+    console.log(`☁️  Uploading RC artifacts to ${RC_AZURE_STORAGE_ACCOUNT_NAME}/${rcDestinationPath}`)
+    await uploadDirectoryToContainer(rcTempDir, rcDestinationPath, containerClient, 'no-cache')
+  } finally {
+    if (fs.existsSync(rcTempDir)) {
+      fs.rmSync(rcTempDir, { recursive: true, force: true })
+    }
+  }
 }
 
 async function publishMainCss() {
@@ -250,7 +377,7 @@ async function main() {
     console.error('Error: Screen path argument is missing.')
     console.log('Usage: npm run publish:screen -- /<product>/[path/to/]/<ScreenName> [options]')
     console.log('Example: npm run publish:screen -- /irm/overview-screens/LeadOverview')
-    console.log('Example: npm run publish:screen -- /.debug/DebugView')
+    console.log('Example: npm run publish:screen -- /.debug/apps/debug-view')
     console.log('Example: npm run publish:screen -- /assets/main.css (to publish the main CSS file)')
     console.log('')
     console.log('Options:')
@@ -290,7 +417,7 @@ async function main() {
   if (screenPathParts.length < 2) {
     console.error('Error: Invalid screen path format. Expected at least /<product>/<ScreenName>')
     console.log('Example: npm run publish:screen -- /irm/overview-screens/LeadOverview')
-    console.log('Example: npm run publish:screen -- /.debug/DebugView')
+    console.log('Example: npm run publish:screen -- /.debug/apps/debug-view')
     process.exit(1)
   }
 
@@ -417,6 +544,17 @@ async function main() {
   const cssOutputDir = path.join(projectRootDir, 'dist', 'assets')
   await uploadDirectory(cssOutputDir, azureDestinationPath)
   console.log('✅ Screen CSS published successfully to Azure!')
+
+  if (RC_UPLOAD_ENABLED) {
+    await uploadReleaseCandidateArtifacts({
+      buildOutputDir,
+      cssOutputDir,
+      azureDestinationPath,
+      projectRootDir,
+      rcVersion: RC_VERSION
+    })
+    console.log('✅ Release candidate artifacts uploaded successfully.')
+  }
 
   // Handle different publishing flows for forms vs regular screens
   if (isFormScreen(screenPathArg)) {

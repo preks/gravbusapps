@@ -215,7 +215,16 @@ call-ringing = Klingelt
 call-decline = Ablehnen
 call-accept = Annehmen
 call-join = Beitreten
+call-joining = Tritt bei...
+call-joiningCall = Anruf beitreten...
+call-micOn = Mikro
+call-micOff = Mikro aus
+call-cameraOn = Kamera
+call-cameraOff = Kamera aus
+call-backgroundOn = Hintergrund
+call-backgroundOff = Hintergrund aus
 call-startedBy = Gestartet von
+call-activeParticipants = aktiv
 call-unmute = Stummschaltung aufheben
 call-mute = Stummschalten
 call-turnOnCamera = Kamera einschalten
@@ -250,6 +259,67 @@ call-retryConnection = Verbindung wiederholen
 call-reconnect = Erneut verbinden
 call-retrying = Wird wiederholt...
 call-waitingForParticipants = Warte auf Teilnehmer...
+
+# Group Call
+groupCall-title = Gruppenanruf
+groupCall-participants = Teilnehmer
+groupCall-audioOnly = Nur Audio
+groupCall-minimize = Anruf minimieren
+groupCall-waitingForParticipants = Warte auf Teilnehmer...
+groupCall-unmute = Stummschaltung aufheben
+groupCall-mute = Stummschalten
+groupCall-turnOnVideo = Kamera einschalten
+groupCall-turnOffVideo = Kamera ausschalten
+groupCall-endCall = Anruf beenden
+groupCall-enableBackground = Hintergrundeffekt aktivieren
+groupCall-disableBackground = Hintergrundeffekt deaktivieren
+groupCall-chat = Chat
+
+# Participants Panel
+participants-close = Schließen
+participants-in-this-call = In diesem Anruf
+participants-available = Verfügbar
+participants-pending-invites = Ausstehende Einladungen
+participants-invite = Einladen
+participants-inviting = Wird eingeladen...
+participants-no-available = Keine Teilnehmer zum Einladen verfügbar
+participants-host = Gastgeber
+participants-mute = Stummschalten
+participants-kick = Entfernen
+participants-no-hands-raised = Niemand hat die Hand gehoben
+participants-hand-raised = Hand gehoben
+participants-screen-sharing = Bildschirm teilen
+participants-audio-only = Nur Audio
+participants-speaking = Spricht
+participants-more-options = Mehr Optionen
+participants-mute-participant = {$name} stummschalten
+participants-mute-all = Alle stummschalten
+participants-no-results-found = Keine Ergebnisse gefunden
+participants-try-different-search = Versuchen Sie einen anderen Suchbegriff oder durchsuchen Sie alle Teilnehmer
+participants-clear-search = Suche löschen
+participants-everyones-here = Alle sind da!
+participants-all-members-in-call = Alle Mitglieder der Unterhaltung sind entweder im Anruf oder wurden eingeladen.
+participants-in-call = Im Anruf
+participants-invited = Eingeladen
+participants-unknown = Unbekannt
+participants-you = Sie
+participants-declined-invite = Einladung abgelehnt
+participants-not-answered = Nicht beantwortet
+participants-ringing = Klingelt...
+participants-available-to-invite = Zum Einladen verfügbar
+
+# Video Grid
+videogrid-page-info = Seite {$current} von {$total}
+videogrid-previous-page = Vorherige Seite
+videogrid-next-page = Nächste Seite
+
+# Transcription
+chat-call-enableTranscription = Transkription aktivieren
+chat-call-transcriptionActive = Aufnahme
+chat-call-recording = Aufnahme
+chat-transcript-ready = Meeting-Transkript bereit
+chat-transcript-view = Transkript anzeigen
+chat-transcript-saved = Ihr Meeting-Transkript wurde gespeichert
 
 # Notifications
 notifications-title = Benachrichtigungen
@@ -346,6 +416,8 @@ calendar-accept = Zusagen
 calendar-maybe = Vielleicht
 calendar-decline = Absagen
 calendar-joinCall = Anruf beitreten
+calendar-startMeeting = Meeting starten
+calendar-joinMeeting = Meeting beitreten
 calendar-chat = Chat
 calendar-edit = Bearbeiten
 

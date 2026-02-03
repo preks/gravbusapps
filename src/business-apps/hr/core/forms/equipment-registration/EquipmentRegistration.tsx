@@ -673,26 +673,52 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         <FormField
           control={form.control}
           name="warrantyPeriodMonths"
-          render={({ field }) => (
-            <FormItem>
-              <Label htmlFor="warrantyPeriodMonths" data-testid="warranty-period-label">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.warranty_months', 'Warranty (months)')} *
-              </Label>
-              <Input
-                id="warrantyPeriodMonths"
-                type="number"
-                min="0"
-                max="120"
-                value={field.value ?? ''}
-                onChange={e => {
-                  const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10) || 0
-                  field.onChange(value)
-                }}
-                onBlur={field.onBlur}
-                data-testid="warranty-period-input"
-              />
-            </FormItem>
-          )}
+          render={({ field }) => {
+            const [isFocused, setIsFocused] = React.useState(false)
+            // Show empty string when focused and value is 0, otherwise show the actual value
+            const displayValue = isFocused && field.value === 0 ? '' : (field.value ?? '')
+
+            return (
+              <FormItem>
+                <Label htmlFor="warrantyPeriodMonths" data-testid="warranty-period-label">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.warranty_months', 'Warranty (months)')} *
+                </Label>
+                <Input
+                  id="warrantyPeriodMonths"
+                  type="number"
+                  min="0"
+                  max="120"
+                  value={displayValue}
+                  onChange={e => {
+                    const inputValue = e.target.value
+                    // If input is empty, set to 0
+                    if (inputValue === '') {
+                      field.onChange(0)
+                      return
+                    }
+                    // Parse the value
+                    const numValue = Number.parseInt(inputValue, 10)
+                    // If it's a valid number, update the field
+                    if (!isNaN(numValue)) {
+                      field.onChange(numValue)
+                    }
+                  }}
+                  onFocus={() => {
+                    setIsFocused(true)
+                  }}
+                  onBlur={e => {
+                    setIsFocused(false)
+                    field.onBlur()
+                    // If empty on blur, set back to 0
+                    if (e.target.value === '') {
+                      field.onChange(0)
+                    }
+                  }}
+                  data-testid="warranty-period-input"
+                />
+              </FormItem>
+            )
+          }}
         />
       </div>
 
@@ -700,27 +726,53 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         <FormField
           control={form.control}
           name="inventoryValue"
-          render={({ field }) => (
-            <FormItem>
-              <Label htmlFor="inventoryValue" data-testid="inventory-value-label">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.inventory_value', 'Inventory Value')} *
-              </Label>
-              <Input
-                id="inventoryValue"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                value={field.value ?? ''}
-                onChange={e => {
-                  const value = e.target.value === '' ? 0 : parseFloat(e.target.value) || 0
-                  field.onChange(value)
-                }}
-                onBlur={field.onBlur}
-                data-testid="inventory-value-input"
-              />
-            </FormItem>
-          )}
+          render={({ field }) => {
+            const [isFocused, setIsFocused] = React.useState(false)
+            // Show empty string when focused and value is 0, otherwise show the actual value
+            const displayValue = isFocused && field.value === 0 ? '' : (field.value ?? '')
+
+            return (
+              <FormItem>
+                <Label htmlFor="inventoryValue" data-testid="inventory-value-label">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.inventory_value', 'Inventory Value')} *
+                </Label>
+                <Input
+                  id="inventoryValue"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={displayValue}
+                  onChange={e => {
+                    const inputValue = e.target.value
+                    // If input is empty, set to 0
+                    if (inputValue === '') {
+                      field.onChange(0)
+                      return
+                    }
+                    // Parse the value
+                    const numValue = parseFloat(inputValue)
+                    // If it's a valid number, update the field
+                    if (!isNaN(numValue)) {
+                      field.onChange(numValue)
+                    }
+                  }}
+                  onFocus={() => {
+                    setIsFocused(true)
+                  }}
+                  onBlur={e => {
+                    setIsFocused(false)
+                    field.onBlur()
+                    // If empty on blur, set back to 0
+                    if (e.target.value === '') {
+                      field.onChange(0)
+                    }
+                  }}
+                  data-testid="inventory-value-input"
+                />
+              </FormItem>
+            )
+          }}
         />
 
         <FormField

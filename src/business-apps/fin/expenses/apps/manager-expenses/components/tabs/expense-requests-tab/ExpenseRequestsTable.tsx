@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useRef } from 'react'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
 import {
@@ -18,7 +18,8 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  Badge
 } from '@newwork/nw-design-system'
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 
@@ -30,7 +31,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildDeduplicatedFilters } from '../../../utils/filterUtils'
 import { ExpenseRequest, SortField } from '../../../hooks/useGetExpenseRequests'
 import { getExpenseRequestStatusDisplay } from '../../../utils'
-import { pillTypeClassMap } from '../../../components/StatusLegend'
 import ExpenseRequestDetails from './ExpenseRequestDetails'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -38,8 +38,6 @@ import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { useExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { TablePagination } from '../../../../../components'
-
-// Use shared pill classes from StatusLegend to avoid duplication
 
 interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   expenseRequests: ExpenseRequest[]
@@ -65,7 +63,14 @@ interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   removeFilter: (filter: string) => void
   handleDataFilterChange: (filterId: string, selected: boolean) => void
   primaryCurrency: string | null
+  // Date range filter props for active filter detection
+  effectiveDateRange?: [Date | null, Date | null] | null
+  requestDateRange?: [Date | null, Date | null] | null
+  startDateRange?: [Date | null, Date | null] | null
+  endDateRange?: [Date | null, Date | null] | null
 }
+
+const DATA_TEST_ID_PREFIX = 'expense-requests'
 
 const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   const contextProps = useMemo(
@@ -82,15 +87,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   const [printModalOpen, setPrintModalOpen] = useState<boolean>(false)
   const [printPdfUrl, setPrintPdfUrl] = useState<string>('')
   const [printLoading, setPrintLoading] = useState<boolean>(false)
+  // Deterministic scroll target for pagination (top of table)
+  const tableTopRef = useRef<HTMLDivElement | null>(null)
 
   const [sorting, setSorting] = useState<{
     field: SortField | null
     order: 'ASC' | 'DESC' | null
     lastField: SortField | null
   }>({
-    field: null,
-    order: null,
-    lastField: null
+    field: 'requestDate',
+    order: 'DESC',
+    lastField: 'requestDate'
   })
 
   const {
@@ -110,12 +117,29 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     primaryCurrency
   } = props
 
+  // Helper to check if a date range is active
+  const isDateRangeActive = useCallback((range: [Date | null, Date | null] | null | undefined) => {
+    return !!(range && (range[0] || range[1]))
+  }, [])
+
   const hasActiveFilters = useMemo(() => {
     const hasSearch = (searchTerm || '').trim() !== ''
     const hasFilters = (selectedFilters || []).length > 0
-
-    return hasSearch || hasFilters
-  }, [searchTerm, selectedFilters])
+    const hasDateRangeFilters =
+      isDateRangeActive(props.effectiveDateRange) ||
+      isDateRangeActive(props.requestDateRange) ||
+      isDateRangeActive(props.startDateRange) ||
+      isDateRangeActive(props.endDateRange)
+    return hasSearch || hasFilters || hasDateRangeFilters
+  }, [
+    searchTerm,
+    selectedFilters,
+    props.effectiveDateRange,
+    props.requestDateRange,
+    props.startDateRange,
+    props.endDateRange,
+    isDateRangeActive
+  ])
 
   const handleSearchChange = useCallback(
     (value: string) => {
@@ -143,37 +167,43 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     [searchTerm, sorting, selectedFilters, primaryCurrency, fetchRequests]
   )
 
+  // Helper to calculate next sort state
+  const calculateNextSortState = useCallback((field: SortField, currentSorting: typeof sorting) => {
+    if (currentSorting.lastField !== field) {
+      return { field, order: 'ASC' as const, lastField: field }
+    }
+
+    if (currentSorting.order === 'ASC') {
+      return { field, order: 'DESC' as const, lastField: field }
+    }
+
+    if (currentSorting.order === 'DESC') {
+      return { field: null, order: null, lastField: null }
+    }
+
+    return { field, order: 'ASC' as const, lastField: field }
+  }, [])
+
   const handleSort = useCallback(
     (field: SortField) => {
-      let newSorting: {
-        field: SortField | null
-        order: 'ASC' | 'DESC' | null
-        lastField: SortField | null
-      }
-
-      if (sorting.lastField === field) {
-        if (sorting.order === 'ASC') {
-          newSorting = { field, order: 'DESC', lastField: field }
-        } else if (sorting.order === 'DESC') {
-          newSorting = { field: null, order: null, lastField: null }
-        } else {
-          newSorting = { field, order: 'ASC', lastField: field }
-        }
-      } else {
-        newSorting = { field, order: 'ASC', lastField: field }
-      }
-
+      const newSorting = calculateNextSortState(field, sorting)
       setSorting(newSorting)
       setCurrentPage(1)
 
-      if (newSorting.field && newSorting.order) {
-        const sortByParam = `${newSorting.field}:${newSorting.order.toLowerCase()}`
-        fetchRequests(searchTerm, 1, pageSize, sortByParam, selectedFilters, undefined, primaryCurrency)
-      } else {
-        fetchRequests(searchTerm, 1, pageSize, 'none', selectedFilters, undefined, primaryCurrency)
-      }
+      const sortByParam =
+        newSorting.field && newSorting.order ? `${newSorting.field}:${newSorting.order.toLowerCase()}` : 'none'
+      fetchRequests(searchTerm, 1, pageSize, sortByParam, selectedFilters, undefined, primaryCurrency)
     },
-    [setCurrentPage, sorting, fetchRequests, searchTerm, pageSize, selectedFilters, primaryCurrency]
+    [
+      calculateNextSortState,
+      sorting,
+      setCurrentPage,
+      fetchRequests,
+      searchTerm,
+      pageSize,
+      selectedFilters,
+      primaryCurrency
+    ]
   )
 
   const { printExpenseRequest, isMounted } = useExpenseRequestFileService(contextProps)
@@ -212,14 +242,14 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   const renderSortIndicator = useCallback(
     (field: SortField) => {
-      if (sorting.lastField === field && sorting.order !== null) {
-        if (sorting.order === 'ASC') {
-          return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
-        } else if (sorting.order === 'DESC') {
-          return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
-        }
+      if (sorting.lastField !== field || sorting.order === null) {
+        return null
       }
-      return null
+      return sorting.order === 'ASC' ? (
+        <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+      ) : (
+        <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+      )
     },
     [sorting]
   )
@@ -316,7 +346,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     }
 
     return (
-      <div>
+      <div ref={tableTopRef} data-testid={`${DATA_TEST_ID_PREFIX}-scroll-anchor`}>
         <div className="gba:overflow-x-auto gba:pr-4 gba:border gba:border-border gba:rounded-md gba:relative">
           {isLoading && requests.length > 0 && (
             <div
@@ -393,8 +423,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                   <div className="gba:flex gba:items-center">
                     <span>
                       {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:manager_expense_request_list.expense_table.creation_date',
-                        'Creation Date'
+                        'lowcoder:confirm_transfer_advance_payment.request_date_label',
+                        'Request Date'
                       )}
                     </span>
                     {renderSortIndicator('requestDate')}
@@ -448,7 +478,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                 </TableRow>
               ) : (
                 requests.map(record => {
-                  const { type, label } = getExpenseRequestStatusDisplay(record.status)
+                  const statusConfig = getExpenseRequestStatusDisplay(record.status)
                   return (
                     <TableRow
                       key={record.id}
@@ -514,14 +544,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                               {record.employee?.displayName?.charAt(0) || record.employee?.fullName?.charAt(0) || 'U'}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                            <div className="gba:font-medium gba:text-sm">
-                              {record.employee?.displayName || record.employee?.fullName}
-                            </div>
-                            <div className="gba:text-xs gba:text-muted-foreground">
-                              {record.employee?.department ||
-                                getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
-                            </div>
+                          <div className="gba:font-medium gba:text-sm">
+                            {record.employee?.displayName || record.employee?.fullName}
                           </div>
                         </div>
                       </TableCell>
@@ -540,15 +564,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                           : formatCurrencyDisplay(0, record.currency || 'EUR')}
                       </TableCell>
                       <TableCell className="gba:pr-6 gba:w-[20%]">
-                        <span
-                          className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
-                            pillTypeClassMap[String(type).toLowerCase() as keyof typeof pillTypeClassMap] ||
-                            pillTypeClassMap.draft
-                          }`}
+                        <Badge
+                          variant={(statusConfig as any).badgeVariant || 'outline'}
                           data-testid={`status-pill-${record.status?.toLowerCase()}`}
                         >
-                          {label}
-                        </span>
+                          {statusConfig.label}
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   )
@@ -563,11 +584,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           pageSize={pageSize}
           totalItems={totalCount}
           onPageChange={handleTablePaginationChange}
+          scrollTargetRef={tableTopRef}
           entityNamePlural={getTranslationFromI18nKeyAndLabel(
             'lowcoder:employee_list.flows_button.expense_requests',
             'Expense Requests'
           )}
-          dataTestIdPrefix="expense-requests"
+          dataTestIdPrefix={DATA_TEST_ID_PREFIX}
         />
       </div>
     )
@@ -584,32 +606,47 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           // Always keep applied filters visible, even when the current result set is empty
           filter: buildDeduplicatedFilters(selectedFilters, primaryCurrency),
           setFilter: (newFilters: string[]): void => {
-            // Separate currency and status filters
-            const currencyFilters = newFilters.filter(f => f.startsWith('currency:'))
-            const statusFilters = newFilters.filter(f => !f.startsWith('currency:'))
+            // Constants for filter type identification
+            const DATE_RANGE_FILTERS = new Set([
+              'effectiveDateRange',
+              'requestDateRange',
+              'startDateRange',
+              'endDateRange'
+            ])
+            const isCurrencyFilter = (f: string) => f.startsWith('currency:')
+            const isRequestTypeFilter = (f: string) => f.startsWith('ExpenseRequestType:')
+            const isDateRangeFilter = (f: string) => DATE_RANGE_FILTERS.has(f)
+            const isStatusFilter = (f: string) =>
+              !isCurrencyFilter(f) && !isRequestTypeFilter(f) && !isDateRangeFilter(f)
+
+            // Separate filters by type
+            const currencyFilters = newFilters.filter(isCurrencyFilter)
+            const requestTypeFilters = newFilters.filter(isRequestTypeFilter)
+            const statusFilters = newFilters.filter(isStatusFilter)
 
             // Handle status filter changes
-            const statusToRemove = selectedFilters.filter(f => !statusFilters.includes(f))
+            const statusToRemove = selectedFilters.filter(f => isStatusFilter(f) && !statusFilters.includes(f))
             const statusToAdd = statusFilters.filter(f => !selectedFilters.includes(f))
+            statusToRemove.forEach(f => removeFilter(f))
+            statusToAdd.forEach(f => addFilter(f))
 
-            for (const f of statusToRemove) {
-              removeFilter(f)
-            }
-            for (const f of statusToAdd) {
-              addFilter(f)
-            }
+            // Handle date range filter removal
+            const dateRangesToRemove = selectedFilters.filter(f => isDateRangeFilter(f) && !newFilters.includes(f))
+            dateRangesToRemove.forEach(f => removeFilter(f))
+
+            // Handle request type filter changes
+            const requestTypesToRemove = selectedFilters.filter(
+              f => isRequestTypeFilter(f) && !requestTypeFilters.includes(f)
+            )
+            const requestTypesToAdd = requestTypeFilters.filter(f => !selectedFilters.includes(f))
+            requestTypesToRemove.forEach(f => removeFilter(f))
+            requestTypesToAdd.forEach(f => addFilter(f))
 
             // Handle currency filter changes
-            // Note: Currency filter should remain even when "Clear all filters" is clicked
-            const hasCurrency = currencyFilters.length > 0
-
-            // Only process currency change if user explicitly selected a different one
-            if (hasCurrency && currencyFilters[0] !== `currency:${primaryCurrency}`) {
-              // User selected a different currency
+            if (currencyFilters.length > 0 && currencyFilters[0] !== `currency:${primaryCurrency}`) {
               const newCurrencyCode = currencyFilters[0].replace('currency:', '')
               addFilter(`currency:${newCurrencyCode}`)
             }
-            // Don't clear currency when clearing all filters - currency always stays selected
 
             setCurrentPage(1)
           },
@@ -645,10 +682,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       <Sheet
         open={!!selectedRequest}
         onOpenChange={open => !open && setSelectedRequest(null)}
-        title={
-          selectedRequest?.title ||
-          getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.title', 'Expense Request Details')
-        }
         data-testid="expense-request-details-sheet"
       >
         <SheetContent side="right" className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">

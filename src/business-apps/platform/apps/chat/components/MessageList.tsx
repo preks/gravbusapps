@@ -8,6 +8,7 @@ import type {
   TypingIndicator as TypingIndicatorType,
   ConversationParticipant
 } from '../types'
+import type { ChatApiClient } from '../services/chatApiClient'
 import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface MessageListProps {
@@ -23,6 +24,8 @@ interface MessageListProps {
   accessToken?: string
   onSendMessage?: (content: string, metadata?: Record<string, any>) => Promise<void>
   participants?: ConversationParticipant[]
+  compact?: boolean // Compact mode for in-call chat
+  apiClient?: ChatApiClient | null // For transcript/meeting minutes functionality
 }
 
 /**
@@ -50,7 +53,9 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     onReplyToAI,
     accessToken,
     onSendMessage,
-    participants
+    participants,
+    compact = false,
+    apiClient = null
   }) => {
     // OPTIMIZATION: Call useTranslation once and memoize the result
     const t = useChatTranslation()
@@ -502,6 +507,8 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
                         previewLabel={previewLabel}
                         timestampRefreshKey={timestampRefreshKey}
                         aiInitiatedByCurrentUser={aiInitiatedByCurrentUser}
+                        compact={compact}
+                        apiClient={apiClient}
                       />
                     )
                   })

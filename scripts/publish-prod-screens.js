@@ -1,8 +1,8 @@
 /**
  * Production screen publishing script
- * - Publishes only changed screens detected by detect-changed-screens.sh
- * - Uses Bitbucket build number as version
- * - Includes screen management registrations with build number versioning
+ * - Publishes only changed screens using RC promotion (no Vite build)
+ * - Promotes RC artifacts from release-candidates/ into prod paths
+ * - Updates screen management using RC version per screen
  * - Executed on master merge
  */
 
@@ -12,25 +12,14 @@ import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import dotenv from '@dotenvx/dotenvx'
 import { BlobServiceClient } from '@azure/storage-blob'
-import { glob } from 'glob'
-import axios from 'axios'
 import {
-  OAuthClient,
   getResourceUrls,
-  getResourceUrlByPath,
-  addScreenConfigToScreenManagement,
-  getScreenByKey,
-  addFormAsLandingScreen,
-  formatScreenNameFromPath,
-  generateScreenKeyFromPath,
   getAllNativeScreens,
   convertScreenKeyToUrl,
   syncResourceUrlWithSameId,
-  syncScreenFromDevToProd,
-  isLowcoderScreen,
-  deleteScreenInScreenManagement,
-  updateScreenConfigInScreenManagementDetailed
+  syncScreenFromDevToProd
 } from './api-client.js'
+import { getScreenDirectories } from './utils/screenDiscovery.js'
 import { compareScreenHashes, loadHashFile, saveHashFile, configureGit } from './utils/componentHashUtils.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -70,11 +59,12 @@ const NAVIGATION_SERVICE_API_PROD_SECONDARY =
   process.env.NAVIGATION_SERVICE_API_SECOND ||
   process.env.NAVIGATION_SERVICE_API_PROD_2
 
-// Use only the Bitbucket build number as the publish version
-const PUBLISH_VERSION = BITBUCKET_BUILD_NUMBER
+const RC_PREFIX = process.env.RC_PREFIX || 'release-candidates'
 
-console.log(`🔢 Build number: ${BITBUCKET_BUILD_NUMBER}`)
-console.log(`🎯 Publish version: ${PUBLISH_VERSION}`)
+if (BITBUCKET_BUILD_NUMBER) {
+  console.log(`🔢 Build number: ${BITBUCKET_BUILD_NUMBER}`)
+}
+console.log('🎯 Publish version: rc-per-screen')
 
 // Production OAuth configuration
 const OAUTH_CLIENT_ID_PROD = process.env.OAUTH_CLIENT_ID_PROD
@@ -98,7 +88,6 @@ const requiredEnvVars = [
   { name: 'AZURE_STORAGE_ACCOUNT_PROD', value: AZURE_STORAGE_ACCOUNT_NAME },
   { name: 'AZURE_STORAGE_SAS_TOKEN_PROD', value: AZURE_STORAGE_SAS_TOKEN },
   { name: 'AZURE_BLOB_CONTAINER_NAME_PROD', value: AZURE_CONTAINER_NAME },
-  { name: 'BITBUCKET_BUILD_NUMBER', value: BITBUCKET_BUILD_NUMBER },
   { name: 'SCREEN_MANAGEMENT_SERVICE_API_PROD', value: SCREEN_MANAGEMENT_SERVICE_API_PROD },
   { name: 'NAVIGATION_SERVICE_API_PROD', value: NAVIGATION_SERVICE_API_PROD },
   { name: 'OAUTH_CLIENT_ID_PROD', value: OAUTH_CLIENT_ID_PROD },
@@ -173,16 +162,7 @@ const SECONDARY_TARGET =
 
 // Helper function to detect if the screen is a form
 function isFormScreen(screenPath) {
-  return screenPath.includes('/forms/')
-}
-
-// Helper function to convert camelCase to natural language with spaces
-function camelCaseToNaturalLanguageWithWhiteSpaces(camelCase) {
-  if (!camelCase) return ''
-
-  // Replace camelCase with spaces and capitalize first letter
-  const withSpaces = camelCase.replace(/([A-Z])/g, ' $1').trim()
-  return withSpaces.charAt(0).toUpperCase() + withSpaces.slice(1)
+  return screenPath.includes('/forms/') || screenPath.includes('/windows/') || screenPath.includes('/popups/')
 }
 
 // Helper function to search for resource URLs with progressive search strategy
@@ -229,14 +209,22 @@ async function searchResourceUrlInDev(urlOrPath, devOauthConfig) {
     console.log(`   Strategy 2 failed: ${error.message}`)
   }
 
-  // Strategy 3: Search without "apps" or "forms" terms
+  // Strategy 3: Search without "apps", "forms", "popups", "records", or "windows" terms
   const pathWithoutAppsOrForms = searchPath
     .replace(/\/apps\//g, '/')
     .replace(/^apps\//, '')
     .replace(/\/forms\//g, '/')
     .replace(/^forms\//, '')
+    .replace(/\/popups\//g, '/')
+    .replace(/^popups\//, '')
+    .replace(/\/records\//g, '/')
+    .replace(/^records\//, '')
+    .replace(/\/windows\//g, '/')
+    .replace(/^windows\//, '')
   if (pathWithoutAppsOrForms !== searchPath) {
-    console.log(`   Strategy 3: Searching without 'apps'/'forms' terms: ${pathWithoutAppsOrForms}`)
+    console.log(
+      `   Strategy 3: Searching without 'apps'/'forms'/'popups'/'records'/'windows' terms: ${pathWithoutAppsOrForms}`
+    )
     try {
       const resourceUrls = await getResourceUrls(devNavigationApi, devOauthConfig, {
         search: pathWithoutAppsOrForms,
@@ -274,951 +262,92 @@ async function searchResourceUrlInDev(urlOrPath, devOauthConfig) {
   return null
 }
 
-// Helper function to generate screen key from URL
-function generateScreenKeyFromUrl(url) {
-  // Remove /platform or platform prefix and replace / with ~
-  let cleanUrl = url.replace(/^\/platform\//, '').replace(/^platform\//, '')
-  return `url_${cleanUrl.replace(/\//g, '~')}`
+function buildBlobUrl(accountName, containerName, blobName, sasToken) {
+  const encodedBlobName = blobName
+    .split('/')
+    .map(segment => encodeURIComponent(segment))
+    .join('/')
+  return `https://${accountName}.blob.core.windows.net/${containerName}/${encodedBlobName}?${sasToken}`
 }
 
-// Helper function to synchronize resource URLs from dev to a specific target
-async function handleResourceUrlSynchronization(screenPath, azureDestinationPath, target) {
-  console.log('🔗 Checking resource URL synchronization from dev to prod...')
-
-  // Create OAuth configurations
-  const devOauthConfig = {} // Use dev environment variables (default)
-  const prodOauthConfig = {
-    clientId: target.oauth.clientId,
-    clientSecret: target.oauth.clientSecret,
-    oauthUrl: target.oauth.oauthUrl,
-    realm: target.oauth.realm
+async function listReleaseCandidateBlobs(containerClient, rcDestinationPath) {
+  const blobs = []
+  const prefix = `${RC_PREFIX}/${rcDestinationPath}/`.replace(/\\/g, '/')
+  for await (const blob of containerClient.listBlobsFlat({ prefix })) {
+    blobs.push(blob)
   }
-
-  try {
-    // Search for resource URL in dev using progressive strategy
-    const devResourceUrl = await searchResourceUrlInDev(azureDestinationPath, devOauthConfig)
-
-    if (!devResourceUrl) {
-      console.log('   No resource URL found in dev with any strategy, skipping synchronization')
-      return { success: true, operation: 'skip', resourceUrl: null }
-    }
-
-    console.log(`   Found resource URL in dev: ${devResourceUrl.url} (code: ${devResourceUrl.code})`)
-
-    // Check if the same resource URL already exists in prod
-    console.log('   Checking if resource URL already exists in prod...')
-    const prodResourceUrl = await getResourceUrlByPath(
-      devResourceUrl.url,
-      target.services.navigationApi,
-      prodOauthConfig
-    )
-
-    if (prodResourceUrl) {
-      console.log(`   ✅ Resource URL already exists in prod (ID: ${prodResourceUrl.id || 'unknown'})`)
-      console.log('   ⏩ Skipping resource URL registration - proceeding to screen config')
-      return { success: true, operation: 'exists', resourceUrl: devResourceUrl }
-    }
-
-    // Resource URL doesn't exist in prod, proceed with registration
-    console.log('   Resource URL not found in prod, proceeding with registration...')
-
-    try {
-      const prodNavigationApi = target.services.navigationApi
-      const oauthClient = new OAuthClient(prodOauthConfig)
-      const accessToken = await oauthClient.getAccessToken()
-
-      const payload = {
-        code: devResourceUrl.code,
-        name: devResourceUrl.name,
-        url: devResourceUrl.url,
-        roles: devResourceUrl.roles || [],
-        features: devResourceUrl.features || [],
-        name_i18n: devResourceUrl.name_i18n || {},
-        description_i18n: devResourceUrl.description_i18n || {},
-        isSearchable: devResourceUrl.isSearchable || false
-      }
-
-      console.log(`   Registering resource URL: ${devResourceUrl.url}`)
-      await axios.post(`${prodNavigationApi}/resource-url`, payload, {
-        headers: {
-          accept: 'application/json',
-          authorization: `Bearer ${accessToken}`,
-          'content-type': 'application/json'
-        },
-        timeout: 30000
-      })
-
-      console.log(`   ✅ Resource URL successfully registered in prod: ${devResourceUrl.url}`)
-      return { success: true, operation: 'created', resourceUrl: devResourceUrl }
-    } catch (error) {
-      console.error(`   ❌ Failed to register resource URL in prod: ${error.message}`)
-      // Even if resource URL registration fails, continue with screen config
-      console.log('   ⚠️  Continuing with screen config despite resource URL registration failure')
-      return { success: false, operation: 'error', error: error.message, resourceUrl: devResourceUrl }
-    }
-  } catch (error) {
-    console.error('❌ Error during resource URL synchronization:', error.message)
-    return { success: false, operation: 'error', error: error.message, resourceUrl: null }
-  }
+  return blobs
 }
 
-// Helper function to handle screen management registration for production
-async function handleScreenManagement(screenPath, azureDestinationPath, resourceUrlInfo = null, target) {
-  console.log('📋 Registering screen in Screen Management system...')
-
-  // Create OAuth configuration for production
-  const oauthConfig = {
-    clientId: target.oauth.clientId,
-    clientSecret: target.oauth.clientSecret,
-    oauthUrl: target.oauth.oauthUrl,
-    realm: target.oauth.realm
+function extractRcVersionFromBlobName(blobName, rcDestinationPath) {
+  const rcPrefix = `${RC_PREFIX}/${rcDestinationPath}/`.replace(/\\/g, '/')
+  if (!blobName.startsWith(rcPrefix)) {
+    return null
   }
-
-  try {
-    if (isFormScreen(screenPath)) {
-      // Handle form screens with resource URL info
-      console.log('   Detected form - registering as production form screen')
-
-      // Extract process name from path for forms
-      const pathParts = screenPath.split('/')
-      const formName = pathParts[pathParts.length - 1] // Get the form name
-      const processName = formName.replace(/-form$/, '') // Remove "-form" suffix if present
-
-      // Generate screen name and key
-      let screenName, screenKey
-
-      if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
-        // Use resource URL info if available
-        screenName = resourceUrlInfo.resourceUrl.name
-        screenKey = generateScreenKeyFromUrl(resourceUrlInfo.resourceUrl.url)
-        console.log(`   Using resource URL info for form - Name: ${screenName}, Key: ${screenKey}`)
-      } else {
-        // Fallback to form-specific generation
-        screenName = camelCaseToNaturalLanguageWithWhiteSpaces(processName)
-        screenKey = `frm_${processName}`
-        console.log(`   Using form-based generation - Name: ${screenName}, Key: ${screenKey}`)
-      }
-
-      // First, check if the form already exists
-      console.log(`🔍 Checking if form exists with key: ${screenKey}`)
-      try {
-        const existingForm = await getScreenByKey(screenKey, target.services.screenManagementApi, oauthConfig)
-
-        if (existingForm && existingForm.id) {
-          // Strict LOWCODER form detection → delete and recreate
-          if (isLowcoderScreen(existingForm)) {
-            console.log('   🔎 LOWCODER form detected - deleting before recreation')
-            await deleteScreenInScreenManagement(existingForm.id, target.services.screenManagementApi, oauthConfig)
-
-            // Fetch dev screen for namespace
-            const devForm = await getScreenByKey(screenKey)
-            const ns = devForm
-              ? {
-                  namespaceId: devForm.namespaceId,
-                  namespaceCode: devForm.namespaceCode,
-                  namespaceDescription: devForm.namespaceDescription
-                }
-              : null
-
-            if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
-              const customUrlPath = resourceUrlInfo.resourceUrl.url.replace(/^\/platform\//, '')
-              const result = await addScreenConfigToScreenManagement(
-                azureDestinationPath,
-                customUrlPath,
-                PUBLISH_VERSION,
-                target.services.screenManagementApi,
-                oauthConfig,
-                ns ? { namespace: ns, idOverride: devForm?.id } : {}
-              )
-              if (result.success) {
-                console.log(`✅ Form screen recreated successfully with ID: ${result.id}`)
-                return { success: true, operation: 'recreate' }
-              }
-              console.error(`❌ Form screen recreation failed`)
-              return { success: false, operation: 'recreate', error: 'Form screen recreation failed' }
-            } else {
-              // Use landing screen creation (cannot override namespace via current helper)
-              const result = await addFormAsLandingScreen(
-                processName,
-                azureDestinationPath,
-                PUBLISH_VERSION,
-                target.services.screenManagementApi,
-                oauthConfig,
-                ns ? { namespace: ns, idOverride: devForm?.id } : {}
-              )
-              if (result.success) {
-                console.log(`✅ Form screen recreated successfully with ID: ${result.id}`)
-                return { success: true, operation: 'recreate' }
-              }
-              console.error(`❌ Form screen recreation failed`)
-              return { success: false, operation: 'recreate', error: 'Form screen recreation failed' }
-            }
-          }
-
-          // Form exists, update it (overwrite namespace from dev)
-          console.log(`📝 Form exists with ID: ${existingForm.id}, updating version to ${PUBLISH_VERSION}`)
-
-          const devForm = await getScreenByKey(screenKey)
-          const namespaceOverwrite = devForm
-            ? {
-                namespaceId: devForm.namespaceId,
-                namespaceCode: devForm.namespaceCode,
-                namespaceDescription: devForm.namespaceDescription
-              }
-            : {}
-
-          const updateData = {
-            screenKey: screenKey,
-            name: screenName,
-            type: 'SCREEN',
-            ...namespaceOverwrite,
-            screenComponents: {
-              key: screenKey,
-              name: screenName,
-              builderType: 'NATIVE_SCREEN',
-              formDefinition: {
-                componentPath: `/${azureDestinationPath}`,
-                version: PUBLISH_VERSION
-              },
-              release: 'true'
-            }
-          }
-
-          const updateResult = await updateScreenConfigInScreenManagementDetailed(
-            existingForm.id,
-            updateData,
-            target.services.screenManagementApi,
-            oauthConfig
-          )
-          if (updateResult.success) {
-            console.log(`✅ Form version updated to ${PUBLISH_VERSION}`)
-            return { success: true, operation: 'update' }
-          }
-          const msg = (updateResult.message || '').toLowerCase()
-          if ([400, 409, 422].includes(updateResult.status) || msg.includes('namespace')) {
-            console.log('🔁 Form update failed due to namespace mismatch → deleting and recreating')
-            await deleteScreenInScreenManagement(existingForm.id, target.services.screenManagementApi, oauthConfig)
-
-            const devForm2 = devForm || (await getScreenByKey(screenKey))
-            const ns2 = devForm2
-              ? {
-                  namespaceId: devForm2.namespaceId,
-                  namespaceCode: devForm2.namespaceCode,
-                  namespaceDescription: devForm2.namespaceDescription
-                }
-              : null
-
-            if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
-              const customUrlPath = resourceUrlInfo.resourceUrl.url.replace(/^\/platform\//, '')
-              const result = await addScreenConfigToScreenManagement(
-                azureDestinationPath,
-                customUrlPath,
-                PUBLISH_VERSION,
-                target.services.screenManagementApi,
-                oauthConfig,
-                ns2 ? { namespace: ns2, idOverride: devForm2?.id } : {}
-              )
-              if (result.success) {
-                console.log(`✅ Form screen recreated successfully with ID: ${result.id}`)
-                return { success: true, operation: 'recreate' }
-              }
-              console.error(`❌ Form screen recreation failed`)
-              return { success: false, operation: 'recreate', error: 'Form screen recreation failed' }
-            } else {
-              const result = await addFormAsLandingScreen(
-                processName,
-                azureDestinationPath,
-                PUBLISH_VERSION,
-                target.services.screenManagementApi,
-                oauthConfig,
-                ns2 ? { namespace: ns2, idOverride: devForm2?.id } : {}
-              )
-              if (result.success) {
-                console.log(`✅ Form screen recreated successfully with ID: ${result.id}`)
-                return { success: true, operation: 'recreate' }
-              }
-              console.error(`❌ Form screen recreation failed`)
-              return { success: false, operation: 'recreate', error: 'Form screen recreation failed' }
-            }
-          }
-          console.error(`❌ Form version update failed`)
-          return { success: false, operation: 'update', error: updateResult.message || 'Form version update failed' }
-        } else {
-          // Form doesn't exist, create it
-          console.log(`🆕 Form doesn't exist, creating new form with key: ${screenKey}`)
-
-          if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
-            // Create form using screen management API directly when we have resource URL info
-            // Use the resource URL path without /platform/ prefix as customUrlPath
-            const customUrlPath = resourceUrlInfo.resourceUrl.url.replace(/^\/platform\//, '')
-            const result = await addScreenConfigToScreenManagement(
-              azureDestinationPath,
-              customUrlPath,
-              PUBLISH_VERSION,
-              target.services.screenManagementApi,
-              oauthConfig
-            )
-
-            if (result.success) {
-              console.log(`✅ Form screen created successfully with ID: ${result.id}`)
-              return { success: true, operation: 'add' }
-            } else {
-              console.error(`❌ Form screen creation failed`)
-              return { success: false, operation: 'add', error: 'Form screen creation failed' }
-            }
-          } else {
-            // Use traditional form creation method when no resource URL info
-            const result = await addFormAsLandingScreen(
-              processName,
-              azureDestinationPath,
-              PUBLISH_VERSION,
-              target.services.screenManagementApi,
-              oauthConfig
-            )
-            if (result.success) {
-              console.log(`✅ Form screen created successfully with ID: ${result.id}`)
-              return { success: true, operation: 'add' }
-            } else {
-              console.error(`❌ Form screen creation failed`)
-              return { success: false, operation: 'add', error: 'Form screen creation failed' }
-            }
-          }
-        }
-      } catch (error) {
-        console.log(`⚠️  Error checking existing form: ${error.message}, attempting to create new form`)
-
-        // If lookup fails, try to create the form
-        if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
-          // Create form using screen management API directly when we have resource URL info
-          // Use the resource URL path without /platform/ prefix as customUrlPath
-          const customUrlPath = resourceUrlInfo.resourceUrl.url.replace(/^\/platform\//, '')
-          const result = await addScreenConfigToScreenManagement(
-            azureDestinationPath,
-            customUrlPath,
-            PUBLISH_VERSION,
-            target.services.screenManagementApi,
-            oauthConfig
-          )
-
-          if (result.success) {
-            console.log(`✅ Form screen created successfully with ID: ${result.id}`)
-            return { success: true, operation: 'add' }
-          } else {
-            console.error(`❌ Form screen creation failed`)
-            return { success: false, operation: 'add', error: 'Form screen creation failed' }
-          }
-        } else {
-          // Use traditional form creation method when no resource URL info
-          const result = await addFormAsLandingScreen(
-            processName,
-            azureDestinationPath,
-            PUBLISH_VERSION,
-            target.services.screenManagementApi,
-            oauthConfig
-          )
-          if (result.success) {
-            console.log(`✅ Form screen created successfully with ID: ${result.id}`)
-            return { success: true, operation: 'add' }
-          } else {
-            console.error(`❌ Form screen creation failed`)
-            return { success: false, operation: 'add', error: 'Form screen creation failed' }
-          }
-        }
-      }
-    } else {
-      // For regular screens, register with build number as version
-      console.log('   Detected app screen - registering as production app screen')
-
-      // Generate screen name and key
-      let screenName, screenKey
-
-      if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
-        // Use resource URL info if available
-        screenName = resourceUrlInfo.resourceUrl.name
-        screenKey = generateScreenKeyFromUrl(resourceUrlInfo.resourceUrl.url)
-        console.log(`   Using resource URL info - Name: ${screenName}, Key: ${screenKey}`)
-      } else {
-        // Fallback to path-based generation
-        const customUrlPath = `apps/${azureDestinationPath}`
-        screenName = formatScreenNameFromPath(customUrlPath)
-        screenKey = generateScreenKeyFromPath(customUrlPath)
-        console.log(`   Using path-based generation - Name: ${screenName}, Key: ${screenKey}`)
-      }
-
-      // First, check if the screen already exists
-      console.log(`🔍 Checking if screen exists with key: ${screenKey}`)
-      try {
-        const existingScreen = await getScreenByKey(screenKey, target.services.screenManagementApi, oauthConfig)
-
-        if (existingScreen && existingScreen.id) {
-          // Strict LOWCODER screen detection → delete and recreate
-          if (isLowcoderScreen(existingScreen)) {
-            console.log('   🔎 LOWCODER screen detected - deleting before recreation')
-            await deleteScreenInScreenManagement(existingScreen.id, target.services.screenManagementApi, oauthConfig)
-
-            // Fetch dev screen for namespace
-            const devScreen = await getScreenByKey(screenKey)
-            const ns = devScreen
-              ? {
-                  namespaceId: devScreen.namespaceId,
-                  namespaceCode: devScreen.namespaceCode,
-                  namespaceDescription: devScreen.namespaceDescription
-                }
-              : null
-
-            // Generate custom URL path for screen creation
-            let customUrlPathForCreation
-            if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
-              customUrlPathForCreation = resourceUrlInfo.resourceUrl.url.replace(/^\/platform\//, '')
-            } else {
-              customUrlPathForCreation = `apps/${azureDestinationPath}`
-            }
-
-            const result = await addScreenConfigToScreenManagement(
-              azureDestinationPath,
-              customUrlPathForCreation,
-              PUBLISH_VERSION,
-              target.services.screenManagementApi,
-              oauthConfig,
-              ns ? { namespace: ns, idOverride: devScreen?.id } : {}
-            )
-
-            if (result.success) {
-              console.log(`✅ Screen recreated successfully with ID: ${result.id}`)
-              return { success: true, operation: 'recreate' }
-            }
-            console.error(`❌ Screen recreation failed`)
-            return { success: false, operation: 'recreate', error: 'Screen recreation failed' }
-          }
-
-          // Screen exists, update it (overwrite namespace from dev)
-          console.log(`📝 Screen exists with ID: ${existingScreen.id}, updating version to ${PUBLISH_VERSION}`)
-
-          const devScreen = await getScreenByKey(screenKey)
-          const namespaceOverwrite = devScreen
-            ? {
-                namespaceId: devScreen.namespaceId,
-                namespaceCode: devScreen.namespaceCode,
-                namespaceDescription: devScreen.namespaceDescription
-              }
-            : {}
-
-          const updateData = {
-            screenKey: screenKey,
-            name: screenName,
-            type: 'SCREEN',
-            ...namespaceOverwrite,
-            screenComponents: {
-              key: screenKey,
-              name: screenName,
-              builderType: 'NATIVE_SCREEN',
-              formDefinition: {
-                componentPath: `/${azureDestinationPath}`,
-                version: PUBLISH_VERSION
-              },
-              release: 'true'
-            }
-          }
-
-          const updateResult = await updateScreenConfigInScreenManagementDetailed(
-            existingScreen.id,
-            updateData,
-            target.services.screenManagementApi,
-            oauthConfig
-          )
-          if (updateResult.success) {
-            console.log(`✅ Screen version updated to ${PUBLISH_VERSION}`)
-            return { success: true, operation: 'update' }
-          }
-          const msg = (updateResult.message || '').toLowerCase()
-          if ([400, 409, 422].includes(updateResult.status) || msg.includes('namespace')) {
-            console.log('🔁 Screen update failed due to namespace mismatch → deleting and recreating')
-            await deleteScreenInScreenManagement(existingScreen.id, target.services.screenManagementApi, oauthConfig)
-
-            // Generate custom URL path for screen creation
-            let customUrlPathForCreation
-            if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
-              customUrlPathForCreation = resourceUrlInfo.resourceUrl.url.replace(/^\/platform\//, '')
-            } else {
-              customUrlPathForCreation = `apps/${azureDestinationPath}`
-            }
-
-            const devScreen2 = devScreen || (await getScreenByKey(screenKey))
-            const ns2 = devScreen2
-              ? {
-                  namespaceId: devScreen2.namespaceId,
-                  namespaceCode: devScreen2.namespaceCode,
-                  namespaceDescription: devScreen2.namespaceDescription
-                }
-              : null
-
-            const result = await addScreenConfigToScreenManagement(
-              azureDestinationPath,
-              customUrlPathForCreation,
-              PUBLISH_VERSION,
-              target.services.screenManagementApi,
-              oauthConfig,
-              ns2 ? { namespace: ns2, idOverride: devScreen2?.id } : {}
-            )
-
-            if (result.success) {
-              console.log(`✅ Screen recreated successfully with ID: ${result.id}`)
-              return { success: true, operation: 'recreate' }
-            }
-            console.error(`❌ Screen recreation failed`)
-            return { success: false, operation: 'recreate', error: 'Screen recreation failed' }
-          }
-          console.error(`❌ Screen version update failed`)
-          return { success: false, operation: 'update', error: updateResult.message || 'Screen version update failed' }
-        } else {
-          // Screen doesn't exist, create it
-          console.log(`🆕 Screen doesn't exist, creating new screen with key: ${screenKey}`)
-
-          // Generate custom URL path for screen creation
-          let customUrlPathForCreation
-          if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
-            // Use resource URL path without /platform/ prefix
-            customUrlPathForCreation = resourceUrlInfo.resourceUrl.url.replace(/^\/platform\//, '')
-          } else {
-            // Use traditional apps path
-            customUrlPathForCreation = `apps/${azureDestinationPath}`
-          }
-
-          const result = await addScreenConfigToScreenManagement(
-            azureDestinationPath,
-            customUrlPathForCreation,
-            PUBLISH_VERSION,
-            target.services.screenManagementApi,
-            oauthConfig
-          )
-
-          if (result.success) {
-            console.log(`✅ Screen created successfully with ID: ${result.id}`)
-            return { success: true, operation: 'add' }
-          } else {
-            console.error(`❌ Screen creation failed`)
-            return { success: false, operation: 'add', error: 'Screen creation failed' }
-          }
-        }
-      } catch (error) {
-        console.log(`⚠️  Error checking existing screen: ${error.message}, attempting to create new screen`)
-
-        // If lookup fails, try to create the screen
-        // Generate custom URL path for screen creation
-        let customUrlPathForCreation
-        if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
-          // Use resource URL path without /platform/ prefix
-          customUrlPathForCreation = resourceUrlInfo.resourceUrl.url.replace(/^\/platform\//, '')
-        } else {
-          // Use traditional apps path
-          customUrlPathForCreation = `apps/${azureDestinationPath}`
-        }
-
-        const result = await addScreenConfigToScreenManagement(
-          azureDestinationPath,
-          customUrlPathForCreation,
-          PUBLISH_VERSION,
-          target.services.screenManagementApi,
-          oauthConfig
-        )
-
-        if (result.success) {
-          console.log(`✅ Screen created successfully with ID: ${result.id}`)
-          return { success: true, operation: 'add' }
-        } else {
-          console.error(`❌ Screen creation failed`)
-          return { success: false, operation: 'add', error: 'Screen creation failed' }
-        }
-      }
-    }
-  } catch (error) {
-    console.error('❌ Error during screen management registration:', error.message)
-    return { success: false, operation: 'error', error: error.message }
-  }
+  const fileName = blobName.slice(rcPrefix.length)
+  const match = fileName.match(/^index-(.+)\.js$/)
+  return match ? match[1] : null
 }
 
-function getContentType(fileName) {
-  const ext = path.extname(fileName).toLowerCase()
-  switch (ext) {
-    case '.js':
-      return 'application/javascript'
-    case '.css':
-      return 'text/css'
-    case '.html':
-      return 'text/html'
-    case '.json':
-      return 'application/json'
-    case '.png':
-      return 'image/png'
-    case '.jpg':
-    case '.jpeg':
-      return 'image/jpeg'
-    case '.gif':
-      return 'image/gif'
-    case '.svg':
-      return 'image/svg+xml'
-    default:
-      return 'application/octet-stream'
-  }
-}
-
-async function uploadDirectory(buildOutputDir, azureDestinationPath, azureTarget, version) {
-  const { accountName, sasToken, containerName } = azureTarget
-  if (!accountName || !sasToken) {
-    console.error('Error: Missing Azure Storage account or SAS token for the target upload.')
-    process.exit(1)
+async function promoteReleaseCandidateScreen(screenPath) {
+  const sourceAzure = PRIMARY_TARGET.azure
+  if (!sourceAzure?.accountName || !sourceAzure?.sasToken || !sourceAzure?.containerName) {
+    throw new Error('RC promotion requires primary Azure target configuration.')
   }
 
-  const blobServiceUrl = `https://${accountName}.blob.core.windows.net/?${sasToken}`
-  const blobServiceClient = new BlobServiceClient(blobServiceUrl)
-  const containerClient = blobServiceClient.getContainerClient(containerName)
+  const sourceBlobServiceUrl = `https://${sourceAzure.accountName}.blob.core.windows.net/?${sourceAzure.sasToken}`
+  const sourceContainerClient = new BlobServiceClient(sourceBlobServiceUrl).getContainerClient(
+    sourceAzure.containerName
+  )
 
-  console.log(`☁️  Uploading to Azure Storage account: ${accountName}, container: ${containerName}`)
-  console.log(`   Source: ${buildOutputDir}`)
-  console.log(`   Destination base path: ${azureDestinationPath}`)
-
-  const filesToUpload = await glob('**/*', {
-    cwd: buildOutputDir,
-    nodir: true
-  })
-
-  if (filesToUpload.length === 0) {
-    console.log('No files found in build output directory to upload.')
-    return
+  const rcBlobs = await listReleaseCandidateBlobs(sourceContainerClient, screenPath)
+  if (rcBlobs.length === 0) {
+    throw new Error(`No release-candidate blobs found for ${screenPath}`)
   }
 
-  for (const file of filesToUpload) {
-    const localFilePath = path.join(buildOutputDir, file)
-    const blobName = path.join(azureDestinationPath, file).replace(/\\/g, '/')
-    const blockBlobClient = containerClient.getBlockBlobClient(blobName)
-    const contentType = getContentType(file)
-    const isVersioned =
-      !!version &&
-      (file.endsWith(`index-${version}.js`) ||
-        (path.extname(file).toLowerCase() === '.css' && path.basename(file).includes(`-${version}`)))
-
-    const cacheControl = isVersioned ? 'public, max-age=31536000, immutable' : undefined
-
-    try {
-      console.log(`   Uploading: ${file} as ${blobName} (Content-Type: ${contentType})`)
-      await blockBlobClient.uploadFile(localFilePath, {
-        blobHTTPHeaders: {
-          blobContentType: contentType,
-          ...(cacheControl ? { blobCacheControl: cacheControl } : {})
-        }
-      })
-    } catch (error) {
-      console.error(`❌ Error uploading ${file}:`, error.message)
-    }
-  }
-  console.log('✅ All files uploaded successfully.')
-}
-
-async function publishScreen(
-  screenPath,
-  { skipResourceUrlSync = false, skipScreenRegistration = false, azureTargets = [], targets = [] } = {}
-) {
-  if (!skipResourceUrlSync) {
-    skipResourceUrlSync = process.env.SKIP_RESOURCE_URL_SYNC === 'true'
-  }
-
-  if (!skipScreenRegistration) {
-    skipScreenRegistration = false
-  }
-
-  if (!azureTargets || azureTargets.length === 0) {
-    azureTargets = [PRIMARY_TARGET.azure]
-  }
-
-  if (!targets || targets.length === 0) {
-    targets = [PRIMARY_TARGET]
-  }
-
-  console.log(`🚀 Publishing screen: ${screenPath} (Version: ${PUBLISH_VERSION})`)
-  const projectRootDir = path.resolve(__dirname, '..')
-  console.log(`   Project Root Dir: ${projectRootDir}`)
-
-  // Use the full screenPath for paths to maintain the directory structure
-  const sourceEntryFile = path.join('src', 'business-apps', screenPath, 'index.ts')
-  const viteEntryKey = screenPath
-  const buildOutputDir = path.join(projectRootDir, 'dist', screenPath)
-  const azureDestinationPath = screenPath.replace(/\\/g, '/')
-
-  console.log(`   Source Entry File: ${sourceEntryFile}`)
-  console.log(`   Vite Entry Key: ${viteEntryKey}`)
-  console.log(`   Build Output Dir: ${buildOutputDir}`)
-
-  console.log('\n⚙️  Building screen with Vite...')
-
-  if (fs.existsSync(buildOutputDir)) {
-    console.log(`🗑️  Deleting existing output directory: ${buildOutputDir}`)
-    fs.rmSync(buildOutputDir, { recursive: true, force: true })
-    console.log('✅ Directory deleted successfully.')
-  } else {
-    console.log(`ℹ️  Output directory ${buildOutputDir} does not exist, no need to delete.`)
-  }
-
-  // Create a temporary directory for build files
-  const tempDir = path.join(projectRootDir, 'temp_build')
-  if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir, { recursive: true })
-  }
-
-  const screenPathParts = screenPath.split('/')
-  const product = screenPathParts[0]
-
-  const originalIndexCssPath = path.join(projectRootDir, 'src', 'index.css')
-  const tempIndexCssPath = path.join(tempDir, 'index.css')
-
-  // Create a modified index.css
-  console.log('📝 Creating screen-specific index.css...')
-
-  const indexCssContent = fs.readFileSync(originalIndexCssPath, 'utf8')
-  const modifiedIndexCss = indexCssContent
-    // Process each line
-    .split('\n')
-    .filter(line => {
-      // Remove @newwork/gravity-ui-catalog import as it will already be loaded in the browser
-      if (line.includes("@import '@newwork/gravity-ui-catalog")) {
-        return false
-      }
-      // Keep all lines except specific CSS imports not relevant to this screen
-      if (line.includes("@import './business-apps/")) {
-        // Only keep imports related to this screen's product
-        return line.includes(`/business-apps/${product}/`)
-      }
-      return true
-    })
-    // Fix relative import paths by adding ../src prefix
-    .map(line => {
-      // Fix business-apps imports
-      if (line.includes("@import './business-apps/")) {
-        return line.replace("@import './business-apps/", "@import '../src/business-apps/")
-      }
-      // Fix common imports
-      else if (line.includes("@import './common/")) {
-        return line.replace("@import './common/", "@import '../src/common/")
-      }
-      // Fix any other relative imports from src
-      else if (line.includes("@import './") && !line.includes("@import './tailwind.config.js'")) {
-        return line.replace("@import './", "@import '../src/")
-      }
-      return line
-    })
-    .join('\n')
-
-  fs.writeFileSync(tempIndexCssPath, modifiedIndexCss, 'utf8')
-  console.log(`   Created: ${tempIndexCssPath}`)
-
-  // Build environment with production-specific variables
-  const buildEnv = {
-    ...process.env,
-    PROJECT_ROOT_DIR: projectRootDir,
-    VITE_GIT_USER: process.env.VITE_GIT_USER || execSync('git config user.name').toString().trim(),
-    VITE_PUBLISH_TIME: new Date().toISOString(),
-    VITE_BUILD_VERSION: PUBLISH_VERSION,
-    TARGET_ENTRY_FILE: sourceEntryFile,
-    TARGET_ENTRY_KEY: viteEntryKey,
-    TEMP_INDEX_CSS: tempIndexCssPath.replace(/\\/g, '/'),
-    SINGLE_SCREEN_CSS: 'true',
-    NODE_ENV: 'production',
-    VITE_BUILD_FOR_DEPLOYMENT: 'false',
-    // Add build number to filename
-    VITE_BUILD_NUMBER: BITBUCKET_BUILD_NUMBER
-  }
-
-  const viteBuildCommand = `npx vite build`
-
-  console.log(`   Executing: ${viteBuildCommand} with production environment`)
-  console.log(`   Publish version: ${PUBLISH_VERSION}`)
-  console.log(`   Build number: ${BITBUCKET_BUILD_NUMBER}`)
-
-  try {
-    execSync(viteBuildCommand, {
-      stdio: 'inherit',
-      cwd: projectRootDir,
-      env: buildEnv
-    })
-    console.log('✅ Screen built successfully.')
-
-    // Clean up temporary directory
-    console.log('🧹 Cleaning up temporary build files...')
-    if (fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true, force: true })
-    }
-  } catch (error) {
-    console.error('❌ Build failed:', error.message)
-    throw error
-  }
-
-  await renameFilesWithBuildNumber(buildOutputDir, PUBLISH_VERSION)
-
-  // Upload to Azure
-  for (const target of azureTargets) {
-    try {
-      await uploadDirectory(buildOutputDir, azureDestinationPath, target, PUBLISH_VERSION)
-    } catch (err) {
-      err.targetLabel = target.label || 'unknown'
-      throw err
-    }
-  }
-  console.log('✅ Screen JS published successfully to Azure targets!')
-
-  // Handle CSS files - check both screen directory and global assets directory
-  console.log('🎨 Handling CSS files...')
-
-  // Check for CSS in screen directory first
-  console.log(`   Checking screen directory: ${buildOutputDir}`)
-  const screenCssFiles = await glob('**/*.css', {
-    cwd: buildOutputDir,
-    nodir: true
-  })
-  console.log(`   Found ${screenCssFiles.length} CSS file(s) in screen directory`)
-
-  // Check for CSS in global assets directory
-  const globalAssetsDir = path.join(projectRootDir, 'dist', 'assets')
-  let globalCssFiles = []
-  if (fs.existsSync(globalAssetsDir)) {
-    globalCssFiles = await glob('**/*.css', {
-      cwd: globalAssetsDir,
-      nodir: true
-    })
-    console.log(`   Checking global assets directory: ${globalAssetsDir}`)
-    console.log(`   Found ${globalCssFiles.length} CSS file(s) in global assets directory`)
-  } else {
-    console.log(`   Global assets directory does not exist: ${globalAssetsDir}`)
-  }
-
-  // Handle screen-specific CSS
-  if (screenCssFiles.length > 0) {
-    console.log(`   Found ${screenCssFiles.length} CSS file(s) in screen directory:`)
-    screenCssFiles.forEach(file => console.log(`     - ${file}`))
-
-    await renameCssFilesInDirectory(buildOutputDir, PUBLISH_VERSION)
-    console.log('✅ Screen-specific CSS processed!')
-  }
-
-  // Handle global CSS (main.css) by moving it to screen directory
-  if (globalCssFiles.length > 0) {
-    console.log(`   Found ${globalCssFiles.length} global CSS file(s):`)
-    globalCssFiles.forEach(file => console.log(`     - ${file}`))
-
-    // Copy global CSS to screen directory and rename with publish version
-    for (const file of globalCssFiles) {
-      const globalCssPath = path.join(globalAssetsDir, file)
-      const parsedPath = path.parse(file)
-      const newName = `${parsedPath.name}-${PUBLISH_VERSION}${parsedPath.ext}`
-      const targetPath = path.join(buildOutputDir, newName)
-
-      console.log(`   Moving and renaming: ${file} → ${newName}`)
-      fs.copyFileSync(globalCssPath, targetPath)
-    }
-
-    // Upload the CSS files to all targets
-    for (const target of azureTargets) {
-      try {
-        await uploadDirectory(buildOutputDir, azureDestinationPath, target, PUBLISH_VERSION)
-      } catch (err) {
-        err.targetLabel = target.label || 'unknown'
-        throw err
-      }
-    }
-    console.log('✅ Global CSS moved to screen directory and uploaded to all targets!')
-  }
-
-  if (screenCssFiles.length === 0 && globalCssFiles.length === 0) {
-    console.log('   No CSS files found')
-  }
-
-  // Handle both forms and regular screens with resource URL synchronization across targets
-  for (const target of targets) {
-    let resourceUrlResult
-    if (!skipResourceUrlSync) {
-      console.log(`🔗 Step 3 [${target.label}]: Handling resource URL synchronization...`)
-      resourceUrlResult = await handleResourceUrlSynchronization(screenPath, azureDestinationPath, target)
-    } else {
-      console.log(`🔗 Step 3 [${target.label}]: Skipping resource URL synchronization (handled by comprehensive sync)`)
-      resourceUrlResult = { success: true, operation: 'skip_comprehensive_sync', resourceUrl: null }
-    }
-
-    if (!resourceUrlResult.success) {
-      throw new Error(`[${target.label}] Resource URL synchronization failed: ${resourceUrlResult.error}`)
-    }
-
-    console.log(`📱 Step 4 [${target.label}]: Registering screen in Screen Management...`)
-
-    if (!skipScreenRegistration) {
-      const registrationResult = await handleScreenManagement(
-        screenPath,
-        azureDestinationPath,
-        resourceUrlResult,
-        target
-      )
-
-      if (!registrationResult.success) {
-        throw new Error(`[${target.label}] Screen Management registration failed: ${registrationResult.error}`)
-      }
-    } else {
-      console.log(`📱 Step 4 [${target.label}]: Skipping screen registration (handled by comprehensive sync)`)
+  let rcVersion = null
+  for (const blob of rcBlobs) {
+    const version = extractRcVersionFromBlobName(blob.name, screenPath)
+    if (version) {
+      rcVersion = version
+      break
     }
   }
 
-  return {
-    success: true,
-    outputPath: buildOutputDir,
-    azureUrls: azureTargets.map(
-      t =>
-        `https://${t.accountName}.blob.core.windows.net/${t.containerName}/${azureDestinationPath}/index-${PUBLISH_VERSION}.js`
-    )
+  if (!rcVersion) {
+    throw new Error(`No index-<version>.js found in release-candidates for ${screenPath}`)
   }
-}
 
-async function renameFilesWithBuildNumber(buildOutputDir, version) {
-  console.log(`🔄 Renaming JS files with version: ${version}`)
-  const files = await glob('**/*', {
-    cwd: buildOutputDir,
-    nodir: true
-  })
+  console.log(`🚚 Promoting RC for ${screenPath} (version ${rcVersion})`)
 
-  for (const file of files) {
-    const filePath = path.join(buildOutputDir, file)
-    const parsedPath = path.parse(filePath)
+  const targetBlobServiceUrl = `https://${sourceAzure.accountName}.blob.core.windows.net/?${sourceAzure.sasToken}`
+  const targetContainerClient = new BlobServiceClient(targetBlobServiceUrl).getContainerClient(
+    sourceAzure.containerName
+  )
 
-    // Rename index.js to index-{version}.js
-    if (parsedPath.name === 'index' && parsedPath.ext === '.js') {
-      const newName = `index-${version}${parsedPath.ext}`
-      const newPath = path.join(parsedPath.dir, newName)
-
-      console.log(`   Renaming: ${file} → ${path.relative(buildOutputDir, newPath)}`)
-      fs.renameSync(filePath, newPath)
-    }
+  for (const blob of rcBlobs) {
+    const destinationBlobName = blob.name.replace(`${RC_PREFIX}/`, '')
+    const sourceUrl = buildBlobUrl(sourceAzure.accountName, sourceAzure.containerName, blob.name, sourceAzure.sasToken)
+    const blockBlobClient = targetContainerClient.getBlockBlobClient(destinationBlobName)
+    const poller = await blockBlobClient.beginCopyFromURL(sourceUrl)
+    await poller.pollUntilDone()
+    console.log(`   ✅ Copied ${blob.name} -> ${destinationBlobName} (primary)`)
   }
-}
 
-async function renameCssFilesInDirectory(targetDir, version) {
-  console.log(`🎨 Renaming CSS files in directory with version: ${version}`)
-  const files = await glob('**/*.css', {
-    cwd: targetDir,
-    nodir: true
-  })
-
-  for (const file of files) {
-    const filePath = path.join(targetDir, file)
-    const parsedPath = path.parse(filePath)
-
-    // Rename any CSS file (main.css or others) to include version
-    const newName = `${parsedPath.name}-${version}${parsedPath.ext}`
-    const newPath = path.join(parsedPath.dir, newName)
-
-    console.log(`   Renaming CSS: ${file} → ${path.relative(targetDir, newPath)}`)
-    fs.renameSync(filePath, newPath)
-  }
+  return rcVersion
 }
 
 // Helper function to handle comprehensive screen and resource URL synchronization
-async function handleComprehensiveScreenSyncForTarget(changedScreens, target) {
+async function handleComprehensiveScreenSyncForTarget(changedScreens, target, versionByComponentPath) {
   console.log('🔄 Starting comprehensive screen synchronization from dev to prod...')
   console.log(`📋 Changed screens to process: ${changedScreens.length}`)
+
+  const resolveVersionForComponentPath = componentPath => {
+    if (!versionByComponentPath || !versionByComponentPath[componentPath]) {
+      throw new Error(`Missing RC version for ${componentPath}`)
+    }
+    return versionByComponentPath[componentPath]
+  }
 
   // Create OAuth configurations
   const devOauthConfig = {} // Use dev environment variables (default)
@@ -1298,11 +427,12 @@ async function handleComprehensiveScreenSyncForTarget(changedScreens, target) {
         console.log(`   ℹ️  Form screens skip resource URL sync and preserve exact screenKey from dev`)
 
         // Sync screen to prod with preserved screenKey
+        const componentPath = screen.screenComponents.formDefinition.componentPath.replace(/^\//, '')
         const screenSyncResult = await syncScreenFromDevToProd(
           screen,
           target.services.screenManagementApi,
           prodOauthConfig,
-          PUBLISH_VERSION
+          resolveVersionForComponentPath(componentPath)
         )
 
         if (screenSyncResult.success) {
@@ -1361,11 +491,12 @@ async function handleComprehensiveScreenSyncForTarget(changedScreens, target) {
         }
 
         // Sync screen to prod
+        const componentPath = screen.screenComponents.formDefinition.componentPath.replace(/^\//, '')
         const screenSyncResult = await syncScreenFromDevToProd(
           screen,
           target.services.screenManagementApi,
           prodOauthConfig,
-          PUBLISH_VERSION
+          resolveVersionForComponentPath(componentPath)
         )
 
         if (screenSyncResult.success) {
@@ -1422,16 +553,12 @@ async function handleComprehensiveScreenSyncForTarget(changedScreens, target) {
  * Find all screen directories in the project
  */
 async function findAllScreenDirectories() {
-  const appIndexFiles = await glob('src/business-apps/**/apps/*/index.ts', { nodir: true })
-  const formIndexFiles = await glob('src/business-apps/**/forms/*/index.ts', { nodir: true })
-  const popupIndexFiles = await glob('src/business-apps/**/popups/*/index.ts', { nodir: true })
-  const recordIndexFiles = await glob('src/business-apps/**/records/*/index.ts', { nodir: true })
-
-  const allIndexFiles = [...appIndexFiles, ...formIndexFiles, ...popupIndexFiles, ...recordIndexFiles]
   const uniqueDirs = new Set()
 
-  for (const filePath of allIndexFiles) {
-    const dir = path.dirname(filePath)
+  const projectRootDir = path.resolve(__dirname, '..')
+  const screenDirs = await getScreenDirectories({ cwd: projectRootDir })
+
+  for (const dir of screenDirs) {
     // strip prefix 'src/business-apps/' to get publish path
     const publishPath = dir.replace(/^src[\\/]+business-apps[\\/]+/, '').replace(/\\/g, '/')
     if (publishPath) uniqueDirs.add(publishPath)
@@ -1443,7 +570,8 @@ async function findAllScreenDirectories() {
 async function main() {
   console.log('🚀 Starting production screen publishing...')
   console.log(`🔢 Build number: ${BITBUCKET_BUILD_NUMBER}`)
-  console.log(`🎯 Publish version: ${PUBLISH_VERSION}`)
+  console.log('🎯 Publish version: rc-per-screen')
+  console.log('🧩 RC promotion: ENABLED')
   console.log(`🔗 Resource URL sync: ${process.env.SKIP_RESOURCE_URL_SYNC === 'true' ? 'DISABLED' : 'ENABLED'}`)
   console.log(`🌐 Secondary target ${SECONDARY_TARGET ? 'DETECTED' : 'NOT configured'}`)
 
@@ -1473,7 +601,7 @@ async function main() {
         normalized = normalized.replace(/\.tsx?$/, '')
         // Extract screen directory (module/sub-module/.../app-name) - remove subfolders
         // e.g., hr/core/apps/employee-record/components/Foo -> hr/core/apps/employee-record
-        const screenMatch = normalized.match(/^(.*?\/(?:apps|forms|popups|records)\/[^/]+)/)
+        const screenMatch = normalized.match(/^(.*?\/(?:apps|forms|popups|records|windows)\/[^/]+)/)
         if (screenMatch) {
           normalized = screenMatch[1]
         }
@@ -1516,7 +644,7 @@ async function main() {
   const prodHashes = loadHashFile(prodHashFile)
 
   // ============================================================================
-  // STEP 1: PRE-BUILD HASH COMPARISON (skip if manual screen list provided)
+  // STEP 1: PRE-PROMOTION HASH COMPARISON (skip if manual screen list provided)
   // ============================================================================
   let screensToPublish = []
   const skippedScreens = []
@@ -1524,7 +652,7 @@ async function main() {
 
   if (useHashComparison) {
     console.log(`\n${'='.repeat(80)}`)
-    console.log(`🔍 STEP 1: PRE-BUILD HASH COMPARISON`)
+    console.log(`🔍 STEP 1: PRE-PROMOTION HASH COMPARISON`)
     console.log(`${'='.repeat(80)}`)
 
     console.log(`   Dev hashes loaded: ${Object.keys(devHashes).length} screens`)
@@ -1545,9 +673,9 @@ async function main() {
       }
     }
 
-    console.log(`\n   📊 Pre-build comparison results:`)
-    console.log(`      Changed screens (will build): ${screensToPublish.length}`)
-    console.log(`      Unchanged screens (skip build): ${skippedScreens.length}`)
+    console.log(`\n   📊 Pre-promotion comparison results:`)
+    console.log(`      Changed screens (will promote): ${screensToPublish.length}`)
+    console.log(`      Unchanged screens (skip promotion): ${skippedScreens.length}`)
     console.log(`      Time saved: ~${skippedScreens.length * 10} minutes ⚡`)
   } else {
     console.log(`\n${'='.repeat(80)}`)
@@ -1558,7 +686,7 @@ async function main() {
   }
 
   // ============================================================================
-  // STEP 2: BUILD AND PUBLISH (only changed screens or all if manual)
+  // STEP 2: PROMOTE RC ARTIFACTS (only changed screens or all if manual)
   // ============================================================================
   if (screensToPublish.length === 0) {
     console.log(`\n✅ No screens need publishing - all unchanged!`)
@@ -1566,22 +694,18 @@ async function main() {
   }
 
   console.log(`\n${'='.repeat(80)}`)
-  console.log(`🔨 STEP 2: BUILD AND PUBLISH (${screensToPublish.length} screens)`)
+  console.log(`🚚 STEP 2: PROMOTE RC ARTIFACTS (${screensToPublish.length} screens)`)
   console.log(`${'='.repeat(80)}`)
 
   const successfulScreens = []
+  const rcVersionsByScreen = {}
 
   for (const screen of screensToPublish) {
     console.log(`\n📦 Publishing: ${screen}`)
 
     try {
-      const azureTargets = targets.map(t => t.azure).filter(t => t !== null)
-      await publishScreen(screen, {
-        skipResourceUrlSync: true,
-        skipScreenRegistration: true,
-        azureTargets,
-        targets
-      })
+      const rcVersion = await promoteReleaseCandidateScreen(screen)
+      rcVersionsByScreen[screen] = rcVersion
 
       successfulScreens.push(screen)
       console.log(`   ✅ Published successfully`)
@@ -1590,7 +714,7 @@ async function main() {
       failedScreens.push({
         screen,
         error: error.message,
-        stage: 'build_upload',
+        stage: 'rc_promote',
         target: error.targetLabel || 'unknown'
       })
     }
@@ -1601,16 +725,18 @@ async function main() {
   // ============================================================================
   let comprehensiveSyncResults = []
 
-  if (screensToPublish.length > 0) {
+  const screensForSync = successfulScreens
+
+  if (screensForSync.length > 0) {
     console.log(`\n${'='.repeat(80)}`)
-    console.log(`🔄 STEP 2: COMPREHENSIVE SYNC (${screensToPublish.length} changed screens)`)
+    console.log(`🔄 STEP 2: COMPREHENSIVE SYNC (${screensForSync.length} promoted screens)`)
     console.log(`${'='.repeat(80)}`)
 
     for (const target of targets) {
       console.log(
         `\n▶️ Target: ${target.label.toUpperCase()} | ScreenMgmt: ${target.services.screenManagementApi} | Nav: ${target.services.navigationApi}`
       )
-      const result = await handleComprehensiveScreenSyncForTarget(screensToPublish, target)
+      const result = await handleComprehensiveScreenSyncForTarget(screensForSync, target, rcVersionsByScreen)
       comprehensiveSyncResults.push({ label: target.label, result })
       if (result.success) {
         console.log(`✅ [${target.label}] Comprehensive sync completed successfully!`)
@@ -1631,7 +757,7 @@ async function main() {
       }
     }
   } else {
-    console.log(`\n⏩ No screens need comprehensive sync - all ${skippedScreens.length} screen(s) unchanged!`)
+    console.log(`\n⏩ No screens available for comprehensive sync`)
   }
 
   // ============================================================================
@@ -1981,8 +1107,10 @@ async function main() {
   console.log(`\n${'='.repeat(80)}`)
   console.log(`📊 PRODUCTION PUBLISHING SUMMARY`)
   console.log(`${'='.repeat(80)}`)
-  console.log(`🔢 Build number: ${BITBUCKET_BUILD_NUMBER}`)
-  console.log(`🎯 Publish version: ${PUBLISH_VERSION}`)
+  if (BITBUCKET_BUILD_NUMBER) {
+    console.log(`🔢 Build number: ${BITBUCKET_BUILD_NUMBER}`)
+  }
+  console.log('🎯 Publish version: rc-per-screen')
   console.log(`🔗 Resource URL sync: ${process.env.SKIP_RESOURCE_URL_SYNC === 'true' ? 'DISABLED' : 'ENABLED'}`)
   console.log(`📈 Total screens processed: ${changedScreens.length}`)
 
@@ -2029,7 +1157,7 @@ async function main() {
 
     // Group failures by stage for better readability
     const syncFailures = failedScreens.filter(f => f.stage?.includes('comprehensive_sync'))
-    const buildFailures = failedScreens.filter(f => f.stage === 'build_upload')
+    const promoteFailures = failedScreens.filter(f => f.stage === 'rc_promote')
 
     if (syncFailures.length > 0) {
       console.log(`\n🔄 COMPREHENSIVE SYNC FAILURES (${syncFailures.length}):`)
@@ -2042,9 +1170,9 @@ async function main() {
       })
     }
 
-    if (buildFailures.length > 0) {
-      console.log(`\n🔨 BUILD/UPLOAD FAILURES (${buildFailures.length}):`)
-      buildFailures.forEach((failure, index) => {
+    if (promoteFailures.length > 0) {
+      console.log(`\n🚚 RC PROMOTION FAILURES (${promoteFailures.length}):`)
+      promoteFailures.forEach((failure, index) => {
         console.log(`\n${syncFailures.length + index + 1}. Screen: ${failure.screen}`)
         console.log(`   Target: ${failure.target || 'unknown'}`)
         console.log(`   Stage: ${failure.stage}`)
@@ -2058,8 +1186,8 @@ async function main() {
     if (syncFailures.length > 0) {
       console.log(`⚠️  ${syncFailures.length} screen(s) failed during comprehensive sync (screen management)`)
     }
-    if (buildFailures.length > 0) {
-      console.log(`⚠️  ${buildFailures.length} screen(s) failed during build/upload (Azure deployment)`)
+    if (promoteFailures.length > 0) {
+      console.log(`⚠️  ${promoteFailures.length} screen(s) failed during RC promotion (Azure copy)`)
     }
 
     // Exit with error code to fail the pipeline

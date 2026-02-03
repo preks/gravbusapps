@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DetailsPanelContent, type DetailsPanelField } from './DetailsPanelContent'
+import { useExpenseRequestAnalysis } from '../../hooks/useExpenseRequestAnalysis'
+import AIAnalysisSection from '../AIAnalysisSection'
 
 type CurrencyLike = { code?: string | null } | string | null | undefined
 
@@ -44,6 +46,15 @@ export interface ExpenseDetailsPanelContentProps {
    * These are inserted near the top (after Code/Status when header is hidden).
    */
   additionalFields?: DetailsPanelField[]
+  /**
+   * Expense Request ID for AI Analysis.
+   * If provided along with accessToken, AI Analysis section will be shown.
+   */
+  expenseRequestId?: string | null
+  /**
+   * Access token for AI Analysis API call.
+   */
+  accessToken?: string
 }
 
 const normalizeCurrencyCode = (currency: CurrencyLike, fallback: string): string => {
@@ -76,8 +87,21 @@ export const ExpenseDetailsPanelContent: React.FC<ExpenseDetailsPanelContentProp
   formatAmount,
   fallbackCurrencyCode = 'EUR',
   showHeader = true,
-  additionalFields
+  additionalFields,
+  expenseRequestId,
+  accessToken
 }) => {
+  // AI Analysis for expense requests
+  const {
+    analysis: aiAnalysis,
+    loading: aiAnalysisLoading,
+    error: aiAnalysisError,
+    refetch: refetchAiAnalysis
+  } = useExpenseRequestAnalysis({
+    expenseRequestId: expenseRequestId || null,
+    accessToken
+  })
+
   const currencyCode = useMemo(
     () => normalizeCurrencyCode(record.currency, fallbackCurrencyCode),
     [record.currency, fallbackCurrencyCode]
@@ -163,6 +187,21 @@ export const ExpenseDetailsPanelContent: React.FC<ExpenseDetailsPanelContentProp
     additionalFields
   ])
 
+  // Combine footer with AI Analysis section
+  const footerWithAiAnalysis = (
+    <>
+      {footer}
+      {expenseRequestId && accessToken && (
+        <AIAnalysisSection
+          analysis={aiAnalysis}
+          loading={aiAnalysisLoading}
+          error={aiAnalysisError}
+          onRefresh={refetchAiAnalysis}
+        />
+      )}
+    </>
+  )
+
   return (
     <DetailsPanelContent
       dataTestIdPrefix={dataTestIdPrefix}
@@ -172,7 +211,7 @@ export const ExpenseDetailsPanelContent: React.FC<ExpenseDetailsPanelContentProp
       afterHeaderContent={afterHeaderContent}
       fields={fields}
       extraContent={extraContent}
-      footer={footer}
+      footer={footerWithAiAnalysis}
       showHeader={showHeader}
     />
   )

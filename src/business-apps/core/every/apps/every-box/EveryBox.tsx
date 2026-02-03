@@ -19,20 +19,20 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import {
-  Card,
-  CardContent,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-  TabsBadge,
   ThemeProvider,
   Button,
-  useTranslation
+  useTranslation,
+  Tabs,
+  TabsContent,
+  toast,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent
 } from '@newwork/nw-design-system'
 import translations from './_i18n'
-import { Inbox, Send, Zap } from 'lucide-react'
-import { message } from 'antd'
+import { Inbox, Send, Zap, Search } from 'lucide-react'
+import { FiltersDropdown, FilterType } from './components/FiltersDropdown'
+import { EveryBoxHero } from './components/EveryBoxHero'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env } from '@/common/env/EnvUtils'
 import { useInboxTasks } from './hooks/useInboxTasks'
@@ -107,6 +107,8 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
 
   const [isQuickTaskModalOpen, setIsQuickTaskModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<ViewType>(getInitialView())
+  const [globalSearch, setGlobalSearch] = useState('')
+  const [selectedFilters, setSelectedFilters] = useState<FilterType[]>(['all'])
 
   // File upload hook for Blink attachments
   const { uploadFiles } = useQuickTaskFileUpload({
@@ -266,7 +268,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
           try {
             uploadResults = await uploadFiles(filesToUpload)
           } catch (uploadError) {
-            message.error(
+            toast.error(
               t('blink-upload-error', { error: uploadError instanceof Error ? uploadError.message : 'Unknown error' })
             )
             throw uploadError // Re-throw to prevent task creation with missing attachments
@@ -283,7 +285,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
         apiBaseUrl: baseUrl
       })
 
-      message.success(t('blink-created-success', { title: data.title }))
+      toast.success(t('blink-created-success', { title: data.title }))
 
       // Refresh the task lists in the background (don't wait for them)
       // This allows the modal to close immediately
@@ -291,10 +293,13 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
         // Ignore errors in background refresh
       })
     } catch (error) {
-      message.error(t('blink-created-error', { error: error instanceof Error ? error.message : 'Unknown error' }))
+      toast.error(t('blink-created-error', { error: error instanceof Error ? error.message : 'Unknown error' }))
       throw error // Re-throw to prevent modal from closing on error
     }
   }
+
+  // State for expandable search
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false)
 
   return (
     <ThemeProvider defaultTheme="light">
@@ -303,105 +308,215 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
           className="gba:h-full gba:flex gba:flex-col gba:overflow-hidden"
           data-testid={`${prefixDataTestId}-container`}
         >
-          {/* Max-width wrapper like PageLayout's layout-content */}
-          <div className="gba:max-w-[1440px] gba:w-full gba:mx-auto gba:h-full gba:px-3 gba:sm:px-4 gba:lg:px-6">
-            <div className="gba:h-full gba:flex gba:flex-col gba:relative">
-              <Card className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:border-0 gba:shadow-none">
-                <CardContent className="gba:p-0 gba:flex gba:flex-col gba:h-full gba:overflow-hidden">
-                  {/* Floating Header - Absolute positioned to not take vertical space */}
-                  <div className="gba:absolute gba:top-2 gba:left-0 gba:right-0 gba:z-10 gba:flex gba:items-center gba:justify-between gba:gap-2 gba:px-3 gba:sm:px-4 gba:lg:px-6">
-                    <h1
-                      className="gba:text-base gba:sm:text-lg gba:font-bold gba:text-foreground gba:truncate"
-                      data-testid={`${prefixDataTestId}-title`}
-                    >
-                      {t('every-box-title')}
-                    </h1>
+          {/* Hero Section */}
+          <EveryBoxHero data-testid={`${prefixDataTestId}-hero`} />
 
-                    {/* Blink Button - Icon-only on mobile, with text on tablet+ */}
-                    <Button
-                      onClick={() => setIsQuickTaskModalOpen(true)}
-                      className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 hover:gba:from-blue-700 hover:gba:to-indigo-700 gba:text-white gba:shadow-lg gba:flex-shrink-0"
-                      size="sm"
-                      data-testid={`${prefixDataTestId}-blink-button`}
-                    >
-                      <Zap className="gba:h-4 gba:w-4 gba:sm:mr-2" />
-                      <span className="gba:hidden gba:sm:inline">{t('every-box-blink-button')}</span>
-                    </Button>
-                  </div>
-
-                  {/* Tabs - Pill-shaped segmented control style, responsive */}
-                  <Tabs
-                    value={activeTab}
-                    onValueChange={handleTabChange}
-                    className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:pt-10"
-                    data-testid={`${prefixDataTestId}-tabs`}
+          {/* Main Content */}
+          <div className="layout-content gba:flex-1 gba:min-h-0 gba:flex gba:flex-col gba:overflow-hidden">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:flex gba:flex-col gba:h-full">
+              {/* Header Bar - Tabs on left, Actions on right */}
+              <div
+                className="gba:flex gba:items-center gba:justify-between gba:gap-4 gba:px-6 gba:bg-background gba:flex-shrink-0 gba:border-b gba:border-border"
+                data-testid={`${prefixDataTestId}-header`}
+              >
+                {/* Left: Custom Styled Tabs */}
+                <div className="gba:flex gba:items-center gba:gap-1" data-testid={`${prefixDataTestId}-tabs`}>
+                  <button
+                    onClick={() => handleTabChange('inbox')}
+                    className={`gba:group gba:relative gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-3 gba:transition-colors ${
+                      activeTab === 'inbox'
+                        ? 'gba:text-foreground'
+                        : 'gba:text-muted-foreground gba:hover:text-foreground'
+                    }`}
+                    data-testid={`${prefixDataTestId}-inbox-tab`}
+                    data-state={activeTab === 'inbox' ? 'active' : 'inactive'}
                   >
-                    <TabsList className="gba:mb-4 gba:flex-shrink-0 gba:ml-3 gba:sm:ml-4 gba:lg:ml-6">
-                      <TabsTrigger
-                        value="inbox"
-                        data-testid={`${prefixDataTestId}-inbox-tab`}
-                        startIcon={<Inbox className="gba:h-4 gba:w-4" />}
-                        endAdornment={totalTaskCount > 0 && <TabsBadge>{totalTaskCount}</TabsBadge>}
-                      >
-                        {t('every-box-tab-inflows')}
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="outbox"
-                        data-testid={`${prefixDataTestId}-outbox-tab`}
-                        startIcon={<Send className="gba:h-4 gba:w-4" />}
-                        endAdornment={flows.length > 0 && <TabsBadge>{flows.length}</TabsBadge>}
-                      >
-                        {t('every-box-tab-outflows')}
-                      </TabsTrigger>
-                    </TabsList>
+                    <Inbox className="gba:h-4 gba:w-4" />
+                    <span className="gba:text-sm gba:font-medium">{t('every-box-tab-inflows')}</span>
+                    {totalTaskCount > 0 && (
+                      <span className="gba:text-xs gba:text-muted-foreground gba:tabular-nums">{totalTaskCount}</span>
+                    )}
+                    {/* Active indicator line */}
+                    <span
+                      className={`gba:absolute gba:bottom-0 gba:left-4 gba:right-4 gba:h-0.5 gba:rounded-full gba:transition-all ${
+                        activeTab === 'inbox'
+                          ? 'gba:bg-foreground gba:opacity-100'
+                          : 'gba:bg-transparent gba:opacity-0 gba:group-hover:bg-muted-foreground gba:group-hover:opacity-30'
+                      }`}
+                    />
+                  </button>
 
-                    <TabsContent value="inbox" className="gba:flex-1 gba:overflow-hidden">
-                      <InboxView
-                        {...context}
-                        tasks={tasks}
-                        totalCount={totalTaskCount}
-                        isLoading={tasksLoading}
-                        error={tasksError}
-                        onRefresh={refetchTasks}
-                        onLoadMore={loadMoreTasks}
-                        hasMore={hasMoreTasks}
-                        hasNewTasks={hasNewInboxTasks}
-                        onLoadNewTasks={clearNewInboxTasksFlag}
-                        blinkCount={blinkTotalCount}
-                        blinkCountLoading={blinkTasksLoading}
-                        blinkTasks={blinkTasks}
-                        blinkTasksLoading={blinkTasksLoading}
-                        blinkHasMore={blinkHasMore}
-                        onBlinkLoadMore={loadMoreBlinkTasks}
-                        onBlinkRefresh={refetchBlinkTasks}
-                        completedTasks={completedTasks}
-                        completedTotalCount={totalCompletedCount}
-                        completedIsLoading={completedLoading}
-                        completedError={completedError}
-                        onCompletedRefresh={refetchCompleted}
-                        onCompletedLoadMore={loadMoreCompleted}
-                        completedHasMore={hasMoreCompleted}
-                        hasNewCompletedTasks={hasNewCompletedTasks}
-                        onLoadNewCompletedTasks={clearNewCompletedTasksFlag}
-                      />
-                    </TabsContent>
+                  <button
+                    onClick={() => handleTabChange('outbox')}
+                    className={`gba:group gba:relative gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-3 gba:transition-colors ${
+                      activeTab === 'outbox'
+                        ? 'gba:text-foreground'
+                        : 'gba:text-muted-foreground gba:hover:text-foreground'
+                    }`}
+                    data-testid={`${prefixDataTestId}-outbox-tab`}
+                    data-state={activeTab === 'outbox' ? 'active' : 'inactive'}
+                  >
+                    <Send className="gba:h-4 gba:w-4" />
+                    <span className="gba:text-sm gba:font-medium">{t('every-box-tab-outflows')}</span>
+                    {flows.length > 0 && (
+                      <span className="gba:text-xs gba:text-muted-foreground gba:tabular-nums">{flows.length}</span>
+                    )}
+                    {/* Active indicator line */}
+                    <span
+                      className={`gba:absolute gba:bottom-0 gba:left-4 gba:right-4 gba:h-0.5 gba:rounded-full gba:transition-all ${
+                        activeTab === 'outbox'
+                          ? 'gba:bg-foreground gba:opacity-100'
+                          : 'gba:bg-transparent gba:opacity-0 gba:group-hover:bg-muted-foreground gba:group-hover:opacity-30'
+                      }`}
+                    />
+                  </button>
+                </div>
 
-                    <TabsContent value="outbox" className="gba:flex-1 gba:overflow-hidden">
-                      <OutboxView
-                        flows={flows}
-                        isLoading={flowsLoading}
-                        error={flowsError}
-                        onRefresh={refetchFlows}
-                        accessToken={context.accessToken}
+                {/* Right: Search, Filter, Blink */}
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  {/* Expandable Search */}
+                  {isSearchExpanded ? (
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      <input
+                        type="text"
+                        placeholder={t('every-box-search-placeholder')}
+                        value={globalSearch}
+                        onChange={e => setGlobalSearch(e.target.value)}
+                        className="gba:w-48 gba:h-8 gba:px-3 gba:text-sm gba:bg-background gba:border gba:border-border gba:rounded-md gba:outline-none gba:focus:ring-1 gba:focus:ring-ring"
+                        data-testid={`${prefixDataTestId}-search-input`}
+                        autoFocus
+                        onBlur={() => {
+                          if (!globalSearch) {
+                            setIsSearchExpanded(false)
+                          }
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Escape') {
+                            setGlobalSearch('')
+                            setIsSearchExpanded(false)
+                          }
+                        }}
                       />
-                    </TabsContent>
-                  </Tabs>
-                </CardContent>
-              </Card>
-            </div>
+                      {globalSearch && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="gba:h-8 gba:w-8"
+                          onClick={() => {
+                            setGlobalSearch('')
+                            setIsSearchExpanded(false)
+                          }}
+                          aria-label={t('inbox-clear-search')}
+                          data-testid={`${prefixDataTestId}-search-clear`}
+                        >
+                          <span className="gba:text-xs">×</span>
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="gba:h-8 gba:w-8"
+                          onClick={() => setIsSearchExpanded(true)}
+                          aria-label={t('every-box-search-placeholder')}
+                          data-testid={`${prefixDataTestId}-search-button`}
+                        >
+                          <Search className="gba:h-4 gba:w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('every-box-search-placeholder')}</TooltipContent>
+                    </Tooltip>
+                  )}
+
+                  {/* Filters Dropdown */}
+                  <FiltersDropdown
+                    selectedFilters={selectedFilters}
+                    onFiltersChange={setSelectedFilters}
+                    filterCounts={{
+                      all: totalTaskCount,
+                      blinks: blinkTotalCount || 0,
+                      approvals: tasks.filter(task => {
+                        const taskName = (task.referenceTaskName || task.name || task.title || '').toLowerCase()
+                        const taskType = (task.type || '').toLowerCase()
+                        const taskCategory = (task.taskCategory || '').toLowerCase()
+                        return (
+                          taskName.includes('approval') ||
+                          taskName.includes('approve') ||
+                          taskType.includes('approval') ||
+                          taskCategory.includes('approval') ||
+                          task.tags?.category === 'approval'
+                        )
+                      }).length,
+                      completed: totalCompletedCount
+                    }}
+                    prefixDataTestId={`${prefixDataTestId}-filters`}
+                  />
+
+                  {/* Blink Button */}
+                  <Button
+                    onClick={() => setIsQuickTaskModalOpen(true)}
+                    size="sm"
+                    data-testid={`${prefixDataTestId}-blink-button`}
+                  >
+                    <Zap className="gba:h-4 gba:w-4 gba:mr-1.5 gba:fill-current" />
+                    <span className="gba:text-sm">{t('every-box-blink-button')}</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Tab Content */}
+              <div className="gba:flex-1 gba:min-h-0 gba:overflow-hidden">
+                <TabsContent value="inbox" className="gba:h-full gba:m-0">
+                  <InboxView
+                    {...context}
+                    tasks={tasks}
+                    totalCount={totalTaskCount}
+                    isLoading={tasksLoading}
+                    error={tasksError}
+                    onRefresh={refetchTasks}
+                    onLoadMore={loadMoreTasks}
+                    hasMore={hasMoreTasks}
+                    hasNewTasks={hasNewInboxTasks}
+                    onLoadNewTasks={clearNewInboxTasksFlag}
+                    blinkCount={blinkTotalCount}
+                    blinkCountLoading={blinkTasksLoading}
+                    blinkTasks={blinkTasks}
+                    blinkTasksLoading={blinkTasksLoading}
+                    blinkHasMore={blinkHasMore}
+                    onBlinkLoadMore={loadMoreBlinkTasks}
+                    onBlinkRefresh={refetchBlinkTasks}
+                    completedTasks={completedTasks}
+                    completedTotalCount={totalCompletedCount}
+                    completedIsLoading={completedLoading}
+                    completedError={completedError}
+                    onCompletedRefresh={refetchCompleted}
+                    onCompletedLoadMore={loadMoreCompleted}
+                    completedHasMore={hasMoreCompleted}
+                    hasNewCompletedTasks={hasNewCompletedTasks}
+                    onLoadNewCompletedTasks={clearNewCompletedTasksFlag}
+                    globalSearch={globalSearch}
+                    selectedFilters={selectedFilters}
+                  />
+                </TabsContent>
+
+                <TabsContent value="outbox" className="gba:h-full gba:m-0">
+                  <OutboxView
+                    flows={flows}
+                    isLoading={flowsLoading}
+                    error={flowsError}
+                    onRefresh={refetchFlows}
+                    accessToken={context.accessToken}
+                    globalSearch={globalSearch}
+                    selectedFilters={selectedFilters}
+                  />
+                </TabsContent>
+              </div>
+            </Tabs>
           </div>
 
-          {/* Blink Modal */}
           <QuickTaskModal
             open={isQuickTaskModalOpen}
             onOpenChange={setIsQuickTaskModalOpen}

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import type { Message, ConversationParticipant } from '../types'
+import type { ChatApiClient } from '../services/chatApiClient'
 import {
   Avatar,
   AvatarImage,
@@ -8,9 +9,14 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  TooltipProvider
+  TooltipProvider,
+  Spinner,
+  Alert,
+  AlertDescription
 } from '@newwork/nw-design-system'
+import { useCreateMeetingMinutes } from '../hooks/useCreateMeetingMinutes'
 import { ArrowBendUpLeft } from '@phosphor-icons/react'
+import { VideoCamera } from '@phosphor-icons/react'
 import { renderContentWithReferences } from './EntityReferenceBadge'
 import { EveryAIMessageRenderer } from './EveryAIMessageRenderer'
 import { ExpertResponseRenderer } from './ExpertResponseRenderer'
@@ -32,6 +38,8 @@ interface MessageItemProps {
   previewLabel?: string // Pre-translated label for attachments
   timestampRefreshKey?: number // Triggers timestamp recalculation when changed
   aiInitiatedByCurrentUser?: boolean // Explicitly computed by MessageList for backward compatibility
+  compact?: boolean // Compact mode for in-call chat (Teams-style density)
+  apiClient?: ChatApiClient | null // For transcript/meeting minutes functionality
 }
 
 /**
@@ -86,7 +94,9 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
     participants,
     previewLabel = 'Open preview',
     timestampRefreshKey = 0,
-    aiInitiatedByCurrentUser
+    aiInitiatedByCurrentUser,
+    compact = false,
+    apiClient = null
   }) => {
     const isAIResponse = message.metadata?.isAIResponse === true
     const isExpertResponse = message.metadata?.isEveryExpertResponse === true
@@ -213,6 +223,164 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
       }
     })()
 
+    // Transcript ready system message with download link and meeting minutes creation
+    if (message.type === 'system' && message.metadata?.transcriptReady) {
+      const downloadUrl = message.metadata.downloadUrl
+      const sessionName = message.metadata.sessionName
+      const sessionId = message.metadata.sessionId
+      const transcriptionStatus = message.metadata.transcriptionStatus
+
+      // For old messages without transcriptionStatus, default to 'READY'
+      // This ensures old transcript messages can still create meeting minutes
+      const effectiveStatus = transcriptionStatus || 'READY'
+
+      // Initialize meeting minutes hook
+      const { createMeetingMinutes, isCreating, error } = useCreateMeetingMinutes(apiClient)
+
+      return (
+        <div className="gba:flex gba:justify-center gba:py-2" data-testid={`message-transcript-${message.id}`}>
+          <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:bg-success-secondary/20 gba:border gba:border-success gba:px-4 gba:py-3 gba:rounded-lg gba:max-w-md">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span className="gba:text-lg">📝</span>
+              <span className="gba:text-sm gba:font-medium gba:text-foreground">Transcript Ready: {sessionName}</span>
+            </div>
+            <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
+              The call transcript is now available for download
+            </p>
+
+            <div className="gba:flex gba:flex-col gba:gap-2 gba:w-full">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => {
+                  if (downloadUrl) {
+                    window.open(downloadUrl, '_blank', 'noopener,noreferrer')
+                  }
+                }}
+                data-testid={`transcript-download-btn-${message.id}`}
+              >
+                Download Transcript (CSV)
+              </Button>
+
+              {effectiveStatus === 'READY' && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    if (sessionId) {
+                      createMeetingMinutes(sessionId)
+                    }
+                  }}
+                  disabled={isCreating || !sessionId}
+                  data-testid={`transcript-create-minutes-btn-${message.id}`}
+                >
+                  {isCreating ? (
+                    <>
+                      <Spinner className="gba:mr-2 gba:h-4 gba:w-4" />
+                      Generating Meeting Minutes...
+                    </>
+                  ) : (
+                    'Create Meeting Minutes'
+                  )}
+                </Button>
+              )}
+
+              {effectiveStatus === 'PROCESSING' && !isCreating && (
+                <div className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-2">
+                  <Spinner className="gba:inline gba:mr-2 gba:h-4 gba:w-4" />
+                  Generating meeting minutes...
+                </div>
+              )}
+
+              {effectiveStatus === 'FAILED' && (
+                <>
+                  <Alert variant="destructive" data-testid={`transcript-error-${message.id}`}>
+                    <AlertDescription className="gba:text-xs">Failed to create meeting minutes</AlertDescription>
+                  </Alert>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => {
+                      if (sessionId) {
+                        createMeetingMinutes(sessionId)
+                      }
+                    }}
+                    disabled={isCreating || !sessionId}
+                    data-testid={`transcript-retry-btn-${message.id}`}
+                  >
+                    Retry
+                  </Button>
+                </>
+              )}
+
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription className="gba:text-xs">{error}</AlertDescription>
+                </Alert>
+              )}
+            </div>
+
+            <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>
+          </div>
+        </div>
+      )
+    }
+
+    // Meeting minutes ready system message
+    if (message.type === 'system' && message.metadata?.type === 'meeting_minutes_ready') {
+      const noteId = message.metadata.noteId
+      const sessionName = message.metadata.sessionName
+
+      return (
+        <div className="gba:flex gba:justify-center gba:py-2" data-testid={`message-minutes-ready-${message.id}`}>
+          <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:bg-success-secondary/20 gba:border gba:border-success gba:px-4 gba:py-3 gba:rounded-lg gba:max-w-md">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span className="gba:text-lg">📋</span>
+              <span className="gba:text-sm gba:font-medium gba:text-foreground">
+                Meeting Minutes Ready: {sessionName}
+              </span>
+            </div>
+            <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
+              AI-generated meeting minutes have been created and shared with all participants
+            </p>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => {
+                if (noteId) {
+                  window.open(`/note-apps?noteId=${noteId}`, '_blank', 'noopener,noreferrer')
+                }
+              }}
+              className="gba:mt-1"
+              data-testid={`meeting-minutes-view-btn-${message.id}`}
+            >
+              View Meeting Note
+            </Button>
+            <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>
+          </div>
+        </div>
+      )
+    }
+
+    // System message (meeting/call start/end, etc.)
+    if (message.type === 'system') {
+      const messageType = message.metadata?.type
+      const isMeetingMessage = messageType === 'meeting_start' || messageType === 'meeting_end'
+      const isCallMessage = messageType === 'call_start' || messageType === 'call_end'
+
+      return (
+        <div className="gba:flex gba:justify-center gba:py-1.5" data-testid={`message-system-${message.id}`}>
+          <div className="gba:flex gba:items-center gba:gap-2 gba:bg-muted/50 gba:px-3 gba:py-1.5 gba:rounded-full">
+            {(isMeetingMessage || isCallMessage) && (
+              <VideoCamera className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />
+            )}
+            <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>
+            <span className="gba:text-xs gba:text-foreground gba:font-medium">{message.content}</span>
+          </div>
+        </div>
+      )
+    }
+
     // Deleted message
     if (message.isDeleted) {
       return (
@@ -231,13 +399,13 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
 
     return (
       <div
-        className={`gba:flex gba:gap-2 gba:px-4 gba:py-2 ${isOwnMessage ? 'gba:flex-row-reverse' : 'gba:flex-row'}`}
+        className={`gba:flex gba:gap-2 ${compact ? 'gba:px-3 gba:py-1' : 'gba:px-4 gba:py-2'} ${isOwnMessage ? 'gba:flex-row-reverse' : 'gba:flex-row'} ${compact ? 'hover:gba:bg-muted/30 gba:transition-colors' : ''}`}
         data-testid={`message-item-${message.id}`}
       >
         {/* Avatar (only show for other users in group chats) */}
         {!isOwnMessage && isGroupChat && showSender && (
           <div
-            className={`gba:flex-shrink-0 gba:w-8 gba:h-8 ${employeeId ? 'gba:cursor-pointer' : ''}`}
+            className={`gba:flex-shrink-0 ${compact ? 'gba:w-8 gba:h-8 gba:mt-0.5' : 'gba:w-8 gba:h-8'} ${employeeId ? 'gba:cursor-pointer' : ''}`}
             onClick={() => {
               if (employeeId) {
                 navigateTo(`/platform/employee-record?employeeId=${employeeId}`)
@@ -255,12 +423,17 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
         )}
 
         {/* Message content */}
-        <div className={`gba:flex gba:flex-col gba:max-w-[70%] ${isOwnMessage ? 'gba:items-end' : 'gba:items-start'}`}>
+        <div
+          className={`gba:flex gba:flex-col gba:max-w-[70%] ${isOwnMessage ? 'gba:items-end' : 'gba:items-start'} ${compact ? 'gba:flex-1' : ''}`}
+        >
           {/* Sender name (for group chats, other users only) - but not for AI/Expert responses */}
           {!isOwnMessage && isGroupChat && showSender && sender && !isAIResponse && !isExpertResponse && (
-            <span className="gba:text-xs gba:text-muted-foreground gba:mb-1">
-              {sender.displayName || sender.username || 'Unknown User'}
-            </span>
+            <div className={`gba:flex gba:items-baseline gba:gap-2 ${compact ? 'gba:mb-0.5' : 'gba:mb-1'}`}>
+              <span className={`${compact ? 'gba:text-sm gba:font-medium' : 'gba:text-xs'} gba:text-foreground`}>
+                {sender.displayName || sender.username || 'Unknown User'}
+              </span>
+              {compact && <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>}
+            </div>
           )}
 
           {/* Message bubble - AI and Expert responses get special rendering */}
@@ -353,7 +526,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
             </>
           ) : (
             <div
-              className={`gba:rounded-lg gba:px-3 gba:py-2 gba:break-words ${(() => {
+              className={`${compact ? 'gba:rounded-md gba:px-2.5 gba:py-1.5' : 'gba:rounded-lg gba:px-3 gba:py-2'} gba:break-words ${(() => {
                 if (isExpertResponse) {
                   return 'gba:bg-gradient-to-br gba:from-muted/50 gba:to-accent/5 gba:text-foreground gba:rounded-2xl gba:rounded-bl-md gba:border-2'
                 }
@@ -417,23 +590,25 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
                 </div>
               )}
 
-              {/* Timestamp and Status */}
-              <div className="gba:flex gba:items-center gba:justify-end gba:gap-1 gba:mt-1">
-                <span
-                  className={`gba:text-xs ${isOwnMessage ? 'gba:text-primary-foreground gba:opacity-70' : 'gba:text-muted-foreground'}`}
-                >
-                  {formattedTime}
-                </span>
-                {/* Status icon (only for own messages) */}
-                {isOwnMessage && message.status && (
-                  <span className="gba:text-xs gba:text-primary-foreground gba:opacity-70" title={message.status}>
-                    {message.status === 'sending' && '⏳'}
-                    {message.status === 'sent' && '✓'}
-                    {message.status === 'delivered' && '✓✓'}
-                    {message.status === 'read' && <span className="gba:text-primary-foreground">✓✓</span>}
+              {/* Timestamp and Status - hide timestamp in compact mode if shown inline with sender */}
+              {!(compact && !isOwnMessage && isGroupChat && showSender) && (
+                <div className="gba:flex gba:items-center gba:justify-end gba:gap-1 gba:mt-1">
+                  <span
+                    className={`gba:text-xs ${isOwnMessage ? 'gba:text-primary-foreground gba:opacity-70' : 'gba:text-muted-foreground'}`}
+                  >
+                    {formattedTime}
                   </span>
-                )}
-              </div>
+                  {/* Status icon (only for own messages) */}
+                  {isOwnMessage && message.status && (
+                    <span className="gba:text-xs gba:text-primary-foreground gba:opacity-70" title={message.status}>
+                      {message.status === 'sending' && '⏳'}
+                      {message.status === 'sent' && '✓'}
+                      {message.status === 'delivered' && '✓✓'}
+                      {message.status === 'read' && <span className="gba:text-primary-foreground">✓✓</span>}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

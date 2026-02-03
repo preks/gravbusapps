@@ -1,9 +1,9 @@
 adjust-salary-title = Gehalt anpassen
 adjust-salary-adjustment-type = Anpassungstyp
-adjust-salary-adjustment-type-amount = Betragserhöhung
-adjust-salary-adjustment-type-percentage = Prozentsatzerhöhung
-adjust-salary-increase-amount = Erhöhungsbetrag
-adjust-salary-increase-percentage = Erhöhungsprozentsatz (%)
+adjust-salary-adjustment-type-amount = Betragsanpassung
+adjust-salary-adjustment-type-percentage = Prozentsatzanpassung
+adjust-salary-increase-amount = Anpassungsbetrag
+adjust-salary-increase-percentage = Anpassungsprozentsatz (%)
 adjust-salary-calculated-amount = Berechneter Betrag:
 adjust-salary-calculated-percentage = Berechneter Prozentsatz:
 adjust-salary-new-salary = Neues Jahresgehalt
@@ -21,6 +21,8 @@ adjust-salary-adjustment-value-required = Betrag oder Prozentsatz eingeben
 adjust-salary-adjustment-value-positive = Wert muss positiv sein
 adjust-salary-currency-required = Währung ist erforderlich. Bitte wählen Sie eine Währung.
 adjust-salary-effective-date-required = Gültigkeitsdatum ist erforderlich. Bitte wählen Sie ein Gültigkeitsdatum.
+adjust-salary-effective-date-too-old = Das Gültigkeitsdatum darf nicht mehr als 6 Monate in der Vergangenheit liegen
+adjust-salary-effective-date-helper = Das Datum muss innerhalb der letzten 6 Monate liegen
 adjust-salary-reason-required = Grund ist erforderlich. Bitte wählen Sie einen Grund.
 adjust-salary-frequency = Gehaltsanpassungstyp
 adjust-salary-frequency-required = Gehaltsanpassungstyp ist erforderlich. Bitte wählen Sie einen Gehaltsanpassungstyp.
@@ -56,7 +58,7 @@ adjust-salary-review-salary-comparison = Gehaltsvergleich
 adjust-salary-review-current-salary = Aktuelles Gehalt
 adjust-salary-review-new-salary = Neues Gehalt
 adjust-salary-review-adjustment-details = Anpassungsdetails
-adjust-salary-review-total-increase = Gesamterhöhung
+adjust-salary-review-total-increase = Gesamtanpassung
 adjust-salary-review-effective-date = Gültigkeitsdatum
 adjust-salary-review-reason = Grund
 adjust-salary-review-notes = Notizen
@@ -65,7 +67,7 @@ adjust-salary-review-reject = Ablehnen
 adjust-salary-review-annual-gross-salary = Jahresbruttogehalt
 adjust-salary-review-monthly-gross-salary = Monatliches Bruttogehalt
 adjust-salary-review-hourly-gross-salary = Stündliches Bruttogehalt
-adjust-salary-review-increase-text = { $percentage }% Erhöhung
+adjust-salary-review-increase-text = { $percentage }% Anpassung
 adjust-salary-review-hourly-suffix = /h
 
 # Assign Employee Salary Review Form (new employee without existing salary)
@@ -318,12 +320,16 @@ employee-form-email = E-Mail
 employee-form-organizational-unit = Organisationseinheit
 employee-form-job-position = Stelle
 employee-form-hire-date = Einstellungsdatum
+employee-form-fixed-term-end-date = Befristungsende
+employee-form-fixed-term-reason = Austrittsgrund
 employee-form-preferred-name = Bevorzugter Name
 employee-form-employment-type = Beschäftigungsart
 employee-form-contract-type = Vertragsart
 
 # Validation Messages
 employee-form-email-invalid = Bitte geben Sie eine gültige E-Mail-Adresse ein
+employee-form-hire-date-required = Einstellungsdatum ist erforderlich, wenn Befristungsende angegeben ist
+employee-form-fixed-term-before-hire = Befristungsende muss am oder nach dem Einstellungsdatum liegen
 
 # Empty States
 employee-form-no-results = Keine Ergebnisse gefunden

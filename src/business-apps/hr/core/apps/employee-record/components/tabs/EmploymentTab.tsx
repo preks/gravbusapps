@@ -4,8 +4,9 @@ import React from 'react'
 import dayjs from 'dayjs'
 import { Card } from '@newwork/gravity-ui-catalog'
 import { Employee } from '../../hooks/useEmployeeData'
-import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils'
 import { AppAction } from '@/components/app-action/AppAction'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import { formatNumberFunction } from '../../../../../../../common/utils/windowUtils'
@@ -26,6 +27,7 @@ interface EmploymentTabProps {
  * Displays employment-related information about the employee
  */
 const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) => {
+  const { t } = useTranslation(translations)
   // Using isSelfView from props instead of calculating it locally
   // Fetch health insurance type catalog for health insurance type mapping
   const { getHealthInsuranceTypeValueById, loading: loadingHealthInsuranceTypes } =
@@ -37,35 +39,35 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
   // Prepare organizational data
   const organizationalData = [
     {
-      label: 'Employee ID',
+      label: t('employment-label-employee-id'),
       value: employee.code || ''
     },
     {
-      label: 'Company',
+      label: t('employment-label-company'),
       value: employee.employeePosition?.company?.name || ''
     },
     {
-      label: 'Job Position',
+      label: t('employment-label-job-position'),
       value: employee.employeePosition?.jobPosition?.name || ''
     },
     {
-      label: 'Location',
+      label: t('employment-label-location'),
       value: employee.employeePosition?.siteLocation?.name || ''
     },
     {
-      label: 'Organizational Unit',
+      label: t('employment-label-organizational-unit'),
       value: employee.employeePosition?.organizationalUnit?.name || ''
     },
     {
-      label: 'Workspace',
+      label: t('employment-label-workspace'),
       value: employee.workspace || ''
     },
     {
-      label: 'Management Level',
+      label: t('employment-label-management-level'),
       value: ''
     },
     {
-      label: 'Cost Center',
+      label: t('employment-label-cost-center'),
       value: employee.employeePosition?.costCenter?.name || ''
     }
   ]
@@ -76,35 +78,39 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
 
     return [
       {
-        label: 'Employment Type',
+        label: t('employment-label-employment-type'),
         value: getCatalogValue(workingCondition?.employmentType) || ''
       },
       {
-        label: 'Hire Date',
+        label: t('employment-label-hire-date'),
         value: workingCondition?.hireDate ? dayjs(workingCondition.hireDate).format('MMM D, YYYY') : ''
       },
       {
-        label: 'Contract Type',
+        label: t('employment-label-contract-type'),
         value: getCatalogValue(workingCondition?.contractType) || ''
       },
       {
-        label: 'Probation End Date',
+        label: t('employment-label-probation-end-date'),
         value: workingCondition?.probationEnd ? dayjs(workingCondition.probationEnd).format('MMM D, YYYY') : ''
       },
       {
-        label: 'Remote',
+        label: t('employment-label-remote'),
         value: workingCondition?.remote?.value || ''
       },
       {
-        label: 'Exit Date',
+        label: t('employment-label-exit-date'),
         value: workingCondition?.exitDate ? dayjs(workingCondition.exitDate).format('MMM D, YYYY') : ''
       },
       {
-        label: 'Region',
+        label: 'Exit Reason',
+        value: workingCondition?.additionalProperties?.fixedTermReason || ''
+      },
+      {
+        label: t('employment-label-region'),
         value: workingCondition?.region?.value || ''
       },
       {
-        label: 'Vacation Entitlement (Days)',
+        label: t('employment-label-vacation-entitlement-days'),
         value: workingCondition?.vacationDays?.toString() || ''
       }
     ]
@@ -146,18 +152,18 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
 
     return [
       {
-        label: 'Weekly Hours',
+        label: t('employment-label-weekly-hours'),
         value: computedWeeklyHours.toString() || ''
       },
       {
-        label: 'FTE (Full-Time Equivalent)',
+        label: t('employment-label-fte'),
         value:
           workingHours?.fullTimeEquivalent !== undefined && workingHours?.fullTimeEquivalent !== null
             ? workingHours.fullTimeEquivalent.toString()
             : ''
       },
       {
-        label: 'Days per Week',
+        label: t('employment-label-days-per-week'),
         value: computedWeeklyDays.toString() || ''
       }
     ]
@@ -169,27 +175,27 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
   const getPayrollData = () => {
     return [
       {
-        label: 'Salary Group',
+        label: t('employment-label-salary-group'),
         value: employee.employeePosition?.costCenter?.name || ''
       },
       {
-        label: 'Payment Method',
+        label: t('employment-label-payment-method'),
         value: 'Direct Deposit'
       },
       {
-        label: 'Bank Account',
+        label: t('employment-label-bank-account'),
         value: employee.bankAccounts?.[0]?.iban || ''
       },
       {
-        label: 'Bank Name',
+        label: t('employment-label-bank-name'),
         value: employee.bankAccounts?.[0]?.bankName || ''
       },
       {
-        label: 'Account Holder',
+        label: t('employment-label-account-holder'),
         value: employee.bankAccounts?.[0]?.accountHolder || ''
       },
       {
-        label: 'Full-Time Equivalent',
+        label: t('employment-label-full-time-equivalent'),
         value: employee.fullTimeEquivalent?.toString() || ''
       }
     ]
@@ -204,29 +210,31 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
     return [
       // Tax information from both tabs
       {
-        label: 'Tax Number',
+        label: t('employment-label-tax-number'),
         value: taxDetails.taxNumber || ''
       },
       {
-        label: 'Tax Identification Number',
+        label: t('employment-label-tax-identification-number'),
         value: taxDetails.taxIdentificationNumber || ''
       },
       {
-        label: 'Social Security Number',
+        label: t('employment-label-social-security-number'),
         value: taxDetails.socialSecurityNumber || ''
       },
       {
-        label: 'Tax Bracket',
-        value: loadingTaxBrackets ? 'Loading...' : getTaxBracketValueById(taxDetails.taxBracketRef || '')
+        label: t('employment-label-tax-bracket'),
+        value: loadingTaxBrackets ? t('common-loading') : getTaxBracketValueById(taxDetails.taxBracketRef || '')
       },
       // Church affiliation from Details tab
       {
-        label: 'Church Affiliation',
-        value: loadingReligions ? 'Loading...' : getReligionValueById(taxDetails.taxableChurchAffiliationRef || '')
+        label: t('employment-label-church-affiliation'),
+        value: loadingReligions
+          ? t('common-loading')
+          : getReligionValueById(taxDetails.taxableChurchAffiliationRef || '')
       },
       // Child allowance present in both tabs - formatted according to user locale
       {
-        label: 'Child Tax Allowance',
+        label: t('employment-label-child-tax-allowance'),
         value:
           taxDetails.childTaxAllowance !== undefined && taxDetails.childTaxAllowance !== null
             ? formatNumberFunction(taxDetails.childTaxAllowance.toString())
@@ -234,13 +242,13 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
       },
       // Health insurance info from Employment tab
       {
-        label: 'Health Insurance',
+        label: t('employment-label-health-insurance'),
         value: taxDetails.healthInsuranceName || ''
       },
       {
-        label: 'Type Of Health Insurance',
+        label: t('employment-label-type-of-health-insurance'),
         value: loadingHealthInsuranceTypes
-          ? 'Loading...'
+          ? t('common-loading')
           : getHealthInsuranceTypeValueById(taxDetails.healthInsuranceTypeRef || '')
       }
     ]
@@ -254,11 +262,15 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
       {data.map(item => (
         <div
           key={`${item.label}-${item.value}`}
-          className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-muted gba:rounded-md gba:transition-colors"
+          className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-muted gba:rounded-md gba:transition-colors gba:min-w-0"
           data-testid={`employment-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
         >
-          <span className="gba:text-sm gba:text-muted-foreground gba:mb-0.5">{item.label}</span>
-          <span className="gba:font-medium gba:text-foreground">{item.value || '-'}</span>
+          <span className="gba:text-sm gba:text-muted-foreground gba:mb-0.5 gba:truncate gba:block" title={item.label}>
+            {item.label}
+          </span>
+          <span className="gba:font-medium gba:text-foreground gba:truncate gba:block" title={item.value}>
+            {item.value || '-'}
+          </span>
         </div>
       ))}
     </div>
@@ -269,13 +281,10 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
       {/* Employment Overview Headline */}
       <div className="gba:employment-header" data-testid="employment-header">
         <div className="gba:font-bold gba:text-2xl" data-testid="employment-title">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.employment_overview', 'Employment Data')}
+          {t('employment-overview')}
         </div>
         <div className="gba:text-muted-foreground gba:text-lg gba:mb-4" data-testid="employment-description">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:hr_employee.employment_description',
-            'View employment information and working conditions'
-          )}
+          {t('employment-description')}
         </div>
       </div>
 
@@ -287,7 +296,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
           data-testid="employment-section-profile"
         >
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Employment Profile</h3>
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('employment-profile')}</h3>
           </div>
           {renderDataItems(organizationalData)}
         </Card>
@@ -299,7 +308,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
           data-testid="employment-section-conditions"
         >
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Working Conditions</h3>
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('employment-working-conditions')}</h3>
             <AppAction
               variant="update-secondary"
               data-testid="employee-working-conditions-edit-button"
@@ -320,7 +329,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
           data-testid="employment-section-hours"
         >
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Working Hours</h3>
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('employment-working-hours')}</h3>
             <AppAction
               variant="update-secondary"
               data-testid="employee-working-hours-edit-button"
@@ -341,7 +350,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
           data-testid="employment-section-payroll"
         >
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Payroll</h3>
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('employment-payroll')}</h3>
             <AppAction
               variant="update-secondary"
               data-testid="employment-bank-account-action-button"
@@ -362,7 +371,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
           data-testid="employment-section-tax"
         >
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Tax Information</h3>
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('employment-tax-information')}</h3>
           </div>
           {renderDataItems(taxInformationData)}
         </Card>

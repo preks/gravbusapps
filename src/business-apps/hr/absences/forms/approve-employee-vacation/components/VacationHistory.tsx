@@ -106,19 +106,23 @@ export const VacationHistory: React.FC<VacationHistoryProps> = ({
     switch (normalized) {
       case 'APPROVED':
         return (
-          <Badge variant="default" className="gba:bg-success gba:text-white">
+          <Badge variant="secondary" className="gba:bg-success-secondary gba:text-success-secondary-foreground">
             {t('status-approved')}
           </Badge>
         )
       case 'PENDING':
       case 'PENDING_APPROVAL':
         return (
-          <Badge variant="default" className="gba:bg-warning gba:text-white">
+          <Badge variant="secondary" className="gba:bg-warning-secondary gba:text-warning-secondary-foreground">
             {t('status-pending')}
           </Badge>
         )
       case 'REJECTED':
-        return <Badge variant="destructive">{t('status-rejected')}</Badge>
+        return (
+          <Badge variant="secondary" className="gba:bg-destructive-secondary gba:text-destructive-secondary-foreground">
+            {t('status-rejected')}
+          </Badge>
+        )
       default:
         // Handle empty/default case with safe fallback
         return <Badge variant="outline">{status || 'Unknown'}</Badge>
@@ -147,14 +151,16 @@ export const VacationHistory: React.FC<VacationHistoryProps> = ({
           </div>
         ) : (
           <>
-            {/* Summary Stats */}
+            {/* Summary Stats - Subtle premium styling */}
             <div className="gba:grid gba:grid-cols-2 gba:gap-4 gba:mb-6">
-              <div className="gba:bg-success/10 gba:p-3 gba:rounded-lg gba:border gba:border-success/20">
+              <div className="gba:bg-success-secondary/50 gba:p-3 gba:rounded-lg gba:border gba:border-success-secondary">
                 <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
                   {t('vacation-history-total-approved')}
                 </div>
                 <div className="gba:flex gba:items-baseline gba:gap-1">
-                  <div className="gba:text-2xl gba:font-bold gba:text-success">{totalApprovedDays}</div>
+                  <div className="gba:text-2xl gba:font-bold gba:text-success-secondary-foreground">
+                    {totalApprovedDays}
+                  </div>
                   <div className="gba:text-sm gba:text-muted-foreground">
                     {totalApprovedDays === 1 ? t('vacation-history-day') : t('vacation-history-days')}
                   </div>
@@ -164,12 +170,14 @@ export const VacationHistory: React.FC<VacationHistoryProps> = ({
                 </div>
               </div>
 
-              <div className="gba:bg-warning/10 gba:p-3 gba:rounded-lg gba:border gba:border-warning/20">
+              <div className="gba:bg-warning-secondary/50 gba:p-3 gba:rounded-lg gba:border gba:border-warning-secondary">
                 <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
                   {t('vacation-history-total-pending')}
                 </div>
                 <div className="gba:flex gba:items-baseline gba:gap-1">
-                  <div className="gba:text-2xl gba:font-bold gba:text-warning">{totalPendingDays}</div>
+                  <div className="gba:text-2xl gba:font-bold gba:text-warning-secondary-foreground">
+                    {totalPendingDays}
+                  </div>
                   <div className="gba:text-sm gba:text-muted-foreground">
                     {totalPendingDays === 1 ? t('vacation-history-day') : t('vacation-history-days')}
                   </div>
@@ -186,11 +194,11 @@ export const VacationHistory: React.FC<VacationHistoryProps> = ({
             <div className="gba:mb-6">
               <button
                 onClick={() => setShowApproved(!showApproved)}
-                className="gba:w-full gba:flex gba:items-center gba:justify-between gba:p-3 gba:bg-muted/50 gba:rounded-lg hover:gba:bg-muted gba:transition-colors"
+                className="gba:w-full gba:flex gba:items-center gba:justify-between gba:p-3 gba:bg-muted/30 gba:rounded-lg hover:gba:bg-muted/50 gba:transition-colors"
                 data-testid="toggle-approved-absences"
               >
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  <Calendar className="gba:h-4 gba:w-4 gba:text-success" />
+                  <Calendar className="gba:h-4 gba:w-4 gba:text-success-secondary-foreground" />
                   <span className="gba:font-semibold gba:text-sm">
                     {t('vacation-history-approved-section')} ({approvedAbsences.length})
                   </span>
@@ -212,7 +220,7 @@ export const VacationHistory: React.FC<VacationHistoryProps> = ({
                     approvedAbsences.map(absence => (
                       <div
                         key={absence.id}
-                        className="gba:bg-background gba:border gba:border-success/20 gba:rounded-lg gba:p-3 hover:gba:shadow-sm gba:transition-shadow"
+                        className="gba:bg-background gba:border gba:border-border gba:rounded-lg gba:p-3 hover:gba:shadow-sm gba:transition-shadow"
                         data-testid={`approved-absence-${absence.id}`}
                       >
                         <div className="gba:flex gba:justify-between gba:items-start gba:mb-2">
@@ -225,7 +233,7 @@ export const VacationHistory: React.FC<VacationHistoryProps> = ({
                           </div>
                           <div className="gba:flex gba:flex-col gba:items-end gba:gap-1">
                             {getStatusBadge(absence.status)}
-                            <div className="gba:text-sm gba:font-semibold gba:text-success">
+                            <div className="gba:text-sm gba:font-semibold gba:text-foreground">
                               {absence.workingDays}{' '}
                               {absence.workingDays === 1 ? t('vacation-history-day') : t('vacation-history-days')}
                             </div>
@@ -248,11 +256,11 @@ export const VacationHistory: React.FC<VacationHistoryProps> = ({
               <div>
                 <button
                   onClick={() => setShowPending(!showPending)}
-                  className="gba:w-full gba:flex gba:items-center gba:justify-between gba:p-3 gba:bg-muted/50 gba:rounded-lg hover:gba:bg-muted gba:transition-colors"
+                  className="gba:w-full gba:flex gba:items-center gba:justify-between gba:p-3 gba:bg-muted/30 gba:rounded-lg hover:gba:bg-muted/50 gba:transition-colors"
                   data-testid="toggle-pending-absences"
                 >
                   <div className="gba:flex gba:items-center gba:gap-2">
-                    <Clock className="gba:h-4 gba:w-4 gba:text-warning" />
+                    <Clock className="gba:h-4 gba:w-4 gba:text-warning-secondary-foreground" />
                     <span className="gba:font-semibold gba:text-sm">
                       {t('vacation-history-pending-section')} ({pendingAbsences.length})
                     </span>
@@ -269,7 +277,7 @@ export const VacationHistory: React.FC<VacationHistoryProps> = ({
                     {pendingAbsences.map(absence => (
                       <div
                         key={absence.id}
-                        className="gba:bg-background gba:border gba:border-warning/20 gba:rounded-lg gba:p-3 hover:gba:shadow-sm gba:transition-shadow"
+                        className="gba:bg-background gba:border gba:border-border gba:rounded-lg gba:p-3 hover:gba:shadow-sm gba:transition-shadow"
                         data-testid={`pending-absence-${absence.id}`}
                       >
                         <div className="gba:flex gba:justify-between gba:items-start gba:mb-2">
@@ -282,7 +290,7 @@ export const VacationHistory: React.FC<VacationHistoryProps> = ({
                           </div>
                           <div className="gba:flex gba:flex-col gba:items-end gba:gap-1">
                             {getStatusBadge(absence.status)}
-                            <div className="gba:text-sm gba:font-semibold gba:text-warning">
+                            <div className="gba:text-sm gba:font-semibold gba:text-foreground">
                               {absence.workingDays}{' '}
                               {absence.workingDays === 1 ? t('vacation-history-day') : t('vacation-history-days')}
                             </div>

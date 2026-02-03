@@ -6,7 +6,8 @@ import { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import { useConversations } from './useConversations'
 import { useMessages } from './useMessages'
 import { useTypingIndicator } from './useTypingIndicator'
-import { usePresence, type PresenceState } from './usePresence'
+import { usePresence, type PresenceState, type PresenceData } from './usePresence'
+import { rtkDebug } from '../utils/rtkDebug'
 
 // Shared WebSocket client to prevent duplicate connections
 // Multiple Chat instances (e.g., forceMount tabs) will share ONE WebSocket
@@ -162,13 +163,14 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
   // Build presence map for efficient lookups (memoized by presenceVersion)
   const presenceMap = useMemo(() => {
-    const map = new Map<string, { status: 'online' | 'offline'; lastSeen?: string }>()
+    const map = new Map<string, PresenceData>()
     const rawMap = presence.getPresenceMap()
 
     rawMap.forEach((data, userId) => {
       map.set(userId, {
-        status: data.state === 'online' ? 'online' : 'offline',
-        lastSeen: data.lastSeen
+        state: data.state,
+        lastSeen: data.lastSeen,
+        userStatus: data.userStatus // Include detailed status information
       })
     })
 
@@ -183,22 +185,37 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
     // Legacy methods (kept for backward compatibility, but prefer presenceMap)
     getUserPresence: useCallback(
-      (userId: string): { status: 'online' | 'offline'; lastSeen?: string } => {
-        // Direct lookup from memoized map
-        return presenceMap.get(userId) || { status: 'offline' }
+      (userId: string): PresenceData | { state: 'offline' } => {
+        // Direct lookup from memoized map - returns full PresenceData including userStatus
+        return presenceMap.get(userId) || { state: 'offline' }
       },
       [presenceMap]
     ),
     isUserOnline: useCallback(
       (userId: string): boolean => {
         const data = presenceMap.get(userId)
-        return data?.status === 'online'
+        return data?.state === 'online'
       },
       [presenceMap]
     ),
     updatePresence: useCallback(
-      (userId: string, presenceStatus: { status: 'online' | 'offline' }) => {
-        presence.updatePresence(userId, presenceStatus.status)
+      (
+        userId: string,
+        presenceStatus: { status: 'online' | 'offline' } | { state: 'online' | 'offline' } | PresenceData
+      ) => {
+        // Handle different input formats for backward compatibility
+        if ('state' in presenceStatus) {
+          // Has 'state' property - could be PresenceData or simple state object
+          const state = presenceStatus.state as PresenceState
+          // Use type narrowing to check for optional properties
+          const lastSeen = 'lastSeen' in presenceStatus ? presenceStatus.lastSeen : undefined
+          const userStatus = 'userStatus' in presenceStatus ? presenceStatus.userStatus : undefined
+          presence.updatePresence(userId, state, lastSeen, userStatus)
+        } else if ('status' in presenceStatus) {
+          // Legacy status object with 'status' property
+          const state = presenceStatus.status as PresenceState
+          presence.updatePresence(userId, state)
+        }
       },
       [presence]
     ),
@@ -679,6 +696,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleConversationCallStarted = (data: ActiveCall) => {
+      rtkDebug.log('[CHAT CLIENT] 📞 Received conversation:call-started:', data)
       setActiveCalls(prev => ({ ...prev, [data.conversationId]: data }))
       conversationsHookRef.current?.updateConversation?.(data.conversationId, {
         activeCall: data
@@ -686,9 +704,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleConversationCallEnded = (data: { conversationId: string; roomId: string }) => {
+      rtkDebug.log('[CHAT CLIENT] 📴 Received conversation:call-ended:', data)
       setActiveCalls(prev => {
+        rtkDebug.log('[CHAT CLIENT] ActiveCalls BEFORE remove:', prev)
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [data.conversationId]: _removed, ...rest } = prev
+        rtkDebug.log('[CHAT CLIENT] ActiveCalls AFTER remove:', rest)
         return rest
       })
       conversationsHookRef.current?.updateConversation?.(data.conversationId, {
@@ -1152,6 +1173,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       getUserPresence: presenceHook.getUserPresence,
       isUserOnline: presenceHook.isUserOnline,
       updatePresenceFromUser: presenceHook.updatePresenceFromUser,
+      updatePresence: presenceHook.updatePresence,
       // Actions
       sendMessage,
       createDirectConversation,
@@ -1200,6 +1222,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       presenceHook.getUserPresence,
       presenceHook.isUserOnline,
       presenceHook.updatePresenceFromUser,
+      presenceHook.updatePresence,
       // Actions (all are useCallback and stable)
       sendMessage,
       createDirectConversation,

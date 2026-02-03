@@ -13,6 +13,15 @@ export * from './useTypingIndicator'
 export * from './useUserManagementClient'
 export * from './useAgentCreationDetection'
 
+// RealtimeKit Call Hooks (Modular)
+export * from './useCallPreferences'
+export * from './useRealtimeKitDiagnostics'
+export * from './useRealtimeKitWebSocket'
+export * from './useRealtimeKitParticipants'
+export * from './useRealtimeKitScreenShare'
+export * from './useRealtimeKitMedia'
+export * from './useRealtimeKitGroupCall'
+
 // Every Experts
 export * from './useEveryExperts'
 export * from './useConversationExperts'
@@ -23,3 +32,4 @@ export * from './useChatExperts'
 export * from './useMessages'
 export * from './useCache'
 export * from './usePresence'
+export * from './useUserStatus'

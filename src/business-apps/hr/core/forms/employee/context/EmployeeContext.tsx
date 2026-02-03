@@ -33,6 +33,8 @@ export const EmployeeProvider: React.FC<{
     employmentTypeId: '',
     contractTypeId: '',
     hireDate: '',
+    fixedTermUntil: '',
+    fixedTermReason: '',
     ...initialValues
   })
 

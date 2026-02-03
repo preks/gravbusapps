@@ -9,7 +9,7 @@
 
 -- 1. EMPLOYEES PER YEAR (Total employees created each year) - IMPORTED
 {
-  "name": "employeesPerYear",
+  "name": "employeesCreatedPerYear",
   "description": "New employee records created each year",
   "query": "SELECT 'Total Employees' as category, DATE_TRUNC('year', e.created_at) as date_category, COUNT(DISTINCT e.id) as value FROM nw_employee.employee e WHERE e.is_deleted = false AND e.created_at IS NOT NULL AND e.created_at BETWEEN :startDate AND :endDate GROUP BY date_category ORDER BY date_category",
   "queryType": "TIMESERIES",

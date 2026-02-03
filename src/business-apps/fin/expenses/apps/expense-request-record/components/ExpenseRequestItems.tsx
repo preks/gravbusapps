@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Table } from 'antd'
-import { Card, CardHeader, CardTitle, CardContent, Icon } from '@newwork/nw-design-system'
+import { Card, CardHeader, CardTitle, CardContent, Icon, Sheet, SheetContent } from '@newwork/nw-design-system'
 import type { ColumnsType } from 'antd/es/table'
 import Pill from '@/components/pill'
 import { ExpenseRequestItem } from '../types/expenseRequestRecord.types'
@@ -9,10 +9,16 @@ import { SectionKpiCards, type KpiCardData } from '@newwork/nw-design-system'
 import { Check } from '@phosphor-icons/react'
 import { formatCurrencyDisplay } from '../../expense-plan-record/utils/currency'
 import { formatDate } from '@/common/utils/windowUtils'
+import { ExpenseDetailsShell } from '../../../common/components/details-panel/ExpenseDetailsShell'
+import { ExpenseItemDetails } from '../../personal-expenses/components/tabs/expense-items-tab/ExpenseItemDetails'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import ExpensePositionsSection from './ExpensePositionsSection'
 
-interface ExpenseRequestItemsProps {
+interface ExpenseRequestItemsProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {
   expenseRequestItems: ExpenseRequestItem[]
   currencyCode?: string
+  /** The employee ID of the expense owner (for fetching file attachments) */
+  expenseOwnerEmployeeId?: string
 }
 
 // Table summary component defined outside parent component to fix lint error
@@ -54,8 +60,30 @@ const TableSummary: React.FC<TableSummaryProps> = ({ pageData, formatAmount }) =
   )
 }
 
-const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({ expenseRequestItems, currencyCode }) => {
+const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({
+  expenseRequestItems,
+  currencyCode,
+  accessToken,
+  userInfo,
+  expenseOwnerEmployeeId
+}) => {
   const loading = false
+
+  // State for selected item and sheet visibility
+  const [selectedItem, setSelectedItem] = useState<ExpenseRequestItem | null>(null)
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
+
+  // Handle row click to open details sheet
+  const handleRowClick = (record: ExpenseRequestItem) => {
+    setSelectedItem(record)
+    setIsSheetOpen(true)
+  }
+
+  // Handle closing the details sheet
+  const handleCloseDetails = () => {
+    setIsSheetOpen(false)
+    setSelectedItem(null)
+  }
   // Date formatting via platform utility
   const formatDateOnly = (dateString: string | null) => {
     if (!dateString) return '-'
@@ -257,8 +285,8 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({ expenseReques
   )
 
   return (
-    <Card data-testid="expense-request-items" className="gba:p-8 gba:m-6">
-      <CardHeader className="gba:border-b gba:border-gray-200">
+    <Card data-testid="expense-request-items" className="gba:p-0 gba:border-none">
+      <CardHeader className="gba:px-0">
         <CardTitle className="gba:text-lg gba:font-semibold gba:mb-4">
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:expense_records.request.expense_request_items',
@@ -275,14 +303,66 @@ const ExpenseRequestItems: React.FC<ExpenseRequestItemsProps> = ({ expenseReques
         </div>
         <Table
           columns={columns}
-          dataSource={expenseRequestItems.map((item, index) => ({ ...item, key: index }))}
+          dataSource={expenseRequestItems.map((item, index) => ({ ...item, key: item.id || index }))}
           loading={loading}
           pagination={false}
           size="middle"
           scroll={{ x: 'max-content' }}
           summary={pageData => <TableSummary pageData={pageData} formatAmount={formatAmount} />}
+          onRow={record => ({
+            onClick: () => handleRowClick(record),
+            style: { cursor: 'pointer' }
+          })}
+          rowClassName="gba:hover:bg-muted/50 gba:transition-colors"
         />
       </CardContent>
+
+      {/* Expense Item Details Sheet */}
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
+          <ExpenseDetailsShell
+            title={
+              selectedItem?.title ||
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:personal_expenses.expense_item_details',
+                'Expense Item Details'
+              )
+            }
+          >
+            {selectedItem && accessToken ? (
+              <>
+                <ExpenseItemDetails
+                  selectedItem={
+                    {
+                      ...selectedItem,
+                      // Ensure status is always a string to prevent charAt error
+                      status: selectedItem.status || 'CREATED'
+                    } as any
+                  }
+                  onClose={handleCloseDetails}
+                  accessToken={accessToken}
+                  userInfo={
+                    expenseOwnerEmployeeId
+                      ? {
+                          ...userInfo,
+                          employeeDetails: {
+                            ...userInfo?.employeeDetails,
+                            employeeId: expenseOwnerEmployeeId
+                          }
+                        }
+                      : userInfo
+                  }
+                />
+                {/* Show expense positions for multi-position items */}
+                <ExpensePositionsSection
+                  positions={selectedItem.expensePosition}
+                  currencyCode={selectedItem.currency?.code || currencyCode}
+                />
+              </>
+            ) : null}
+          </ExpenseDetailsShell>
+        </SheetContent>
+      </Sheet>
     </Card>
   )
 }

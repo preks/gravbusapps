@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
 changed-tsx.txt
 
 # Generated Cursor rules (synced from @newwork/cursor-rules)
@@ -22,6 +23,7 @@ changed-tsx.txt
 !.vscode/extensions.json
 .idea
 .DS_Store
+*.code-workspace
 *.suo
 *.ntvs*
 *.njsproj
@@ -31,3 +33,16 @@ changed-tsx.txt
 wrapped-entries
 temp_build
 temp_build_files
+
+# Desktop app build artifacts
+desktop/release/
+.npm-cache/
+TEST_AI_SCHEMA_GENERATION_UI.md
+*.plan.md
+
+__pycache__
+
+# Test coverage and cache
+coverage/
+.jest-cache/
+

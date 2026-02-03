@@ -67,3 +67,14 @@ documents-detail-description = Descriere
 documents-detail-no-description = Nicio descriere furnizată
 documents-detail-na = N/A
 
+# Additional Document Strings
+documents-unknown = Necunoscut
+documents-error-load-failed = Nu s-au putut încărca documentele
+documents-viewer-title = Vizualizator documente
+documents-expired-tooltip = Documentul a expirat
+documents-valid-tooltip = Documentul este valid
+documents-error-load-document = Nu s-a putut încărca documentul
+documents-error-empty-blob = Blob gol primit
+documents-error-no-file-id = ID-ul fișierului documentului nu este disponibil
+documents-error-no-file-info = Nu sunt disponibile informații despre fișier
+documents-error-image-display = Imaginea nu a putut fi afișată. Poate fi într-un format neacceptat.
