@@ -181,7 +181,8 @@ export const McpToolsPanel: React.FC<Pick<TabProps, 'context' | 'state' | 'actio
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search MCP tools..."
-              startAddOn={<Search size={16} className="gba:-ms-1" />}
+              startAddOn={<Search size={16} />}
+              className="gba:ps-7"
               data-testid="agent-builder-mcp-tool-search"
             />
           </div>

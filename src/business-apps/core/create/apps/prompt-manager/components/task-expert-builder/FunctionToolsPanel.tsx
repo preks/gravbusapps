@@ -71,7 +71,8 @@ export const FunctionToolsPanel: React.FC<Pick<TabProps, 'state' | 'actions' | '
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search function tools..."
-          startAddOn={<Search size={16} className="gba:-ms-1" />}
+          startAddOn={<Search size={16} />}
+          className="gba:ps-7"
           data-testid="agent-builder-function-tool-search"
         />
 
