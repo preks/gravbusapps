@@ -107,12 +107,13 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
       const data = getEntityDataByKey(key)
       const keys = data ? Object.keys(data) : []
       const hasData = keys.length > 0
-      const emptyReason =
-        key === 'company_address' && !hasData
-          ? 'This company has no addresses in the database.'
-          : !hasData
-            ? 'No data provided for this entity.'
-            : null
+      let emptyReason: string | null = null
+      if (!hasData) {
+        emptyReason =
+          key === 'company_address'
+            ? 'This company has no addresses in the database.'
+            : 'No data provided for this entity.'
+      }
       return { key, hasData, emptyReason, fieldCount: keys.length }
     }
     if (selectedTemplateContent) {
@@ -212,32 +213,42 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
               <ul className="gba:space-y-1.5">
                 {entityDataStatus.map(({ key, hasData, emptyReason, fieldCount }) => {
                   const showLoading = entityDataLoading && !hasData
+                  let statusIcon: React.ReactNode
+                  if (hasData) {
+                    statusIcon = (
+                      <CheckCircle className="gba:w-4 gba:h-4 gba:text-success gba:flex-shrink-0 gba:mt-0.5" />
+                    )
+                  } else if (showLoading) {
+                    statusIcon = <Spinner size="sm" className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:mt-0.5" />
+                  } else {
+                    statusIcon = (
+                      <Info className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:flex-shrink-0 gba:mt-0.5" />
+                    )
+                  }
+                  let statusText: React.ReactNode = null
+                  if (hasData) {
+                    statusText = (
+                      <span className="gba:ml-1.5 gba:text-muted-foreground">
+                        {fieldCount} field{fieldCount !== 1 ? 's' : ''} available
+                      </span>
+                    )
+                  } else if (showLoading) {
+                    statusText = <span className="gba:ml-1.5 gba:text-muted-foreground gba:italic">Loading…</span>
+                  } else if (emptyReason) {
+                    statusText = <span className="gba:ml-1.5 gba:text-muted-foreground gba:italic">{emptyReason}</span>
+                  }
                   return (
                     <li
                       key={key}
                       className="gba:flex gba:items-start gba:gap-2 gba:text-sm"
                       data-testid={`${testId}-entity-status-${key}`}
                     >
-                      {hasData ? (
-                        <CheckCircle className="gba:w-4 gba:h-4 gba:text-success gba:flex-shrink-0 gba:mt-0.5" />
-                      ) : showLoading ? (
-                        <Spinner size="sm" className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:mt-0.5" />
-                      ) : (
-                        <Info className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:flex-shrink-0 gba:mt-0.5" />
-                      )}
+                      {statusIcon}
                       <span className="gba:min-w-0">
                         <Badge variant={hasData ? 'secondary' : 'outline'} className="gba:font-mono gba:text-[10px]">
                           {key}
                         </Badge>
-                        {hasData ? (
-                          <span className="gba:ml-1.5 gba:text-muted-foreground">
-                            {fieldCount} field{fieldCount !== 1 ? 's' : ''} available
-                          </span>
-                        ) : showLoading ? (
-                          <span className="gba:ml-1.5 gba:text-muted-foreground gba:italic">Loading…</span>
-                        ) : emptyReason ? (
-                          <span className="gba:ml-1.5 gba:text-muted-foreground gba:italic">{emptyReason}</span>
-                        ) : null}
+                        {statusText}
                       </span>
                     </li>
                   )

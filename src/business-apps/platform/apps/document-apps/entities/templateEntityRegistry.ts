@@ -26,7 +26,7 @@ export type TemplateEntityDomain = 'nw_orgchart' | 'nw_employee' | 'nw_recruitin
  * Known context tags for scoping which entities appear in the Insert Field panel.
  * Add new contexts here and assign them to entities in the registry.
  */
-export type TemplateEntityContext = 'candidate' | 'onboarding' | 'employee' | string
+export type TemplateEntityContext = 'candidate' | 'onboarding' | 'employee'
 
 /**
  * Entity definition – link only. No fields; BE knows the schema from GraphQL / model.
@@ -164,7 +164,7 @@ export function getTemplateEntities(
 ): TemplateEntityDefinition[] {
   let list: TemplateEntityDefinition[]
 
-  if (context != null && context !== '') {
+  if (context != null) {
     const keys = ENTITY_KEYS_BY_CONTEXT[context]
     if (keys?.length) {
       list = keys

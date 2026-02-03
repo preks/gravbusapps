@@ -51,7 +51,7 @@ const FieldButtons: React.FC<{
         onClick={() => onInsert(formatTemplatePlaceholder(entityKey, field.key))}
         className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1.5 gba:rounded gba:text-left gba:text-xs hover:gba:bg-muted/60 gba:transition-colors"
         title={formatTemplatePlaceholder(entityKey, field.key)}
-        data-testid={`${testId}-field-${entityKey}-${field.key.replace(/\./g, '-')}`}
+        data-testid={`${testId}-field-${entityKey}-${field.key.replaceAll('.', '-')}`}
       >
         <span className="gba:truncate gba:font-medium">{field.displayName}</span>
       </button>

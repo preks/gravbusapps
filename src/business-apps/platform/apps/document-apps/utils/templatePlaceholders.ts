@@ -6,7 +6,7 @@
 
 /** Convert camelCase to snake_case for API response key fallback */
 function camelToSnake(s: string): string {
-  return s.replace(/[A-Z]/g, c => `_${c.toLowerCase()}`)
+  return s.replaceAll(/[A-Z]/g, c => `_${c.toLowerCase()}`)
 }
 
 /**
@@ -109,12 +109,12 @@ function formatValue(value: unknown): string {
   if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
     const addressFormatted = formatAddressLike(value)
     if (addressFormatted) return addressFormatted
-    return typeof (value as { displayName?: string }).displayName === 'string'
-      ? (value as { displayName: string }).displayName
-      : typeof (value as { name?: string }).name === 'string'
-        ? (value as { name: string }).name
-        : JSON.stringify(value)
+    const obj = value as { displayName?: string; name?: string }
+    if (typeof obj.displayName === 'string') return obj.displayName
+    if (typeof obj.name === 'string') return obj.name
+    return JSON.stringify(value)
   }
+  if (typeof value === 'object' && value !== null) return JSON.stringify(value)
   return String(value)
 }
 
@@ -141,7 +141,7 @@ export function resolvePlaceholders(
 
   // Allow optional whitespace inside {{ }} so "{{ job_candidate.firstName }}" still matches
   const regex = /\{\{\s*(\w+)\s*\.\s*([^}]+)\s*\}\}/g
-  return content.replace(regex, (match, entityKey: string, path: string) => {
+  return content.replaceAll(regex, (match: string, entityKey: string, path: string) => {
     const keyTrimmed = entityKey.trim()
     const pathTrimmed = path.trim()
     if (keyTrimmed.toLowerCase() === 'today') {
@@ -150,12 +150,8 @@ export function resolvePlaceholders(
       }
     }
     // Case-insensitive entity lookup (templates may use Job_Candidate vs job_candidate)
-    const entityData =
-      map[keyTrimmed] ??
-      map[keyTrimmed.toLowerCase()] ??
-      (Object.entries(map).find(([k]) => k.toLowerCase() === keyTrimmed.toLowerCase())?.[1] as
-        | Record<string, unknown>
-        | undefined)
+    const entry = Object.entries(map).find(([k]) => k.toLowerCase() === keyTrimmed.toLowerCase())
+    const entityData = map[keyTrimmed] ?? map[keyTrimmed.toLowerCase()] ?? entry?.[1]
     if (entityData == null) return match
     const value = getByPath(entityData, pathTrimmed)
     return formatValue(value)
@@ -175,5 +171,5 @@ export function extractEntityKeysFromContent(content: string): string[] {
   while ((m = PLACEHOLDER_REGEX.exec(content)) !== null) {
     keys.add(m[1])
   }
-  return Array.from(keys).sort()
+  return Array.from(keys).sort((a, b) => a.localeCompare(b))
 }

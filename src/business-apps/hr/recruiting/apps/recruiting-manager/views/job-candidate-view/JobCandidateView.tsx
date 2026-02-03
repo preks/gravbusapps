@@ -297,7 +297,7 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
     const company = companyForDoc ?? {}
     const addresses =
       companyForDoc?.addresses ??
-      (companyForDoc != null ? (companyForDoc as unknown as Record<string, unknown>).addresses : undefined)
+      (companyForDoc == null ? undefined : (companyForDoc as unknown as Record<string, unknown>).addresses)
     const firstAddress =
       addresses && Array.isArray(addresses) && addresses.length > 0 ? (addresses[0] as Record<string, unknown>) : {}
     const applications =

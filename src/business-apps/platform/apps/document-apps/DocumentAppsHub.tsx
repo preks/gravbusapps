@@ -190,9 +190,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
   // Entity context: prop > URL ?entityContext= > category-derived (when editing a template) > default
   const urlEntityContext =
-    typeof window !== 'undefined'
-      ? (new URLSearchParams(window.location.search).get('entityContext') ?? undefined)
-      : undefined
+    typeof globalThis.window === 'undefined'
+      ? undefined
+      : (new URLSearchParams(globalThis.window.location.search).get('entityContext') ?? undefined)
   const effectiveEntityContext =
     entityContext ??
     urlEntityContext ??

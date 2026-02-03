@@ -517,7 +517,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             onCommentClick: commentId => {
               setShowComments(true)
               setTimeout(() => {
-                const commentElement = window.document.querySelector(`[data-testid="comment-thread-${commentId}"]`)
+                const commentElement = globalThis.document.querySelector(`[data-testid="comment-thread-${commentId}"]`)
                 commentElement?.scrollIntoView({ behavior: 'smooth', block: 'center' })
               }, 300)
             }
@@ -682,7 +682,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [title, editor, onSave, isReadOnly, isSaving])
 
     useDocumentEditorShortcuts({
-      onSave: handleSave,
+      onSave: () => {
+        void handleSave()
+      },
       onAddInlineComment: handleAddInlineComment,
       editor,
       editorContainerRef
@@ -1015,7 +1017,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
         {/* Main content: optional left panel + editor area */}
         <div className={`gba:flex gba:flex-1 gba:min-h-0 ${leftPanel ? 'gba:flex-row' : 'gba:flex-col'}`}>
-          {leftPanel != null ? (
+          {leftPanel ? (
             <div className="gba:flex-shrink-0 gba:w-64 gba:min-h-0 gba:flex gba:flex-col gba:overflow-hidden">
               {leftPanel}
             </div>

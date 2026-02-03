@@ -68,9 +68,9 @@ interface IntrospectionType {
 
 function humanizeFieldName(key: string): string {
   return key
-    .replace(/([A-Z])/g, ' $1')
+    .replaceAll(/([A-Z])/g, ' $1')
     .replace(/^./, s => s.toUpperCase())
-    .replace(/_/g, ' ')
+    .replaceAll('_', ' ')
     .trim()
 }
 

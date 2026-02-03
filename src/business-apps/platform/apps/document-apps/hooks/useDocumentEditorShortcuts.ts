@@ -35,8 +35,8 @@ export function useDocumentEditorShortcuts({
         onAddInlineComment()
       }
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    globalThis.addEventListener('keydown', handleKeyDown)
+    return () => globalThis.removeEventListener('keydown', handleKeyDown)
   }, [onSave, onAddInlineComment])
 
   // Context menu: right-click on selected text → add inline comment

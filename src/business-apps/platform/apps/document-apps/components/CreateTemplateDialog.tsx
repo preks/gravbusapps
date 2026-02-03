@@ -58,7 +58,7 @@ export function CreateTemplateDialog({
   currentUserId,
   onCreated,
   'data-testid': testId = 'create-template-dialog'
-}: CreateTemplateDialogProps) {
+}: Readonly<CreateTemplateDialogProps>) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState<TemplateCategory>('other')

@@ -37,7 +37,7 @@ export function useDocumentEditorAvatars({
     try {
       const token =
         accessToken ||
-        (typeof localStorage !== 'undefined' ? localStorage.getItem('business-app-ide-access-token') : null)
+        (typeof localStorage === 'undefined' ? null : localStorage.getItem('business-app-ide-access-token'))
       if (token) {
         const payload = JSON.parse(atob(token.split('.')[1]))
         setCurrentUserId(payload.sub || payload.userId || null)
