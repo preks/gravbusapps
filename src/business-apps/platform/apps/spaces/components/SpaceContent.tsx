@@ -8,7 +8,18 @@
 import React, { useState, useMemo } from 'react'
 import { format } from 'date-fns'
 import { Input } from '@newwork/nw-design-system'
-import { Search, FileText, Table2, StickyNote, Presentation, FolderOpen, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import {
+  Search,
+  FileText,
+  Table2,
+  StickyNote,
+  Presentation,
+  FolderOpen,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  FileType
+} from 'lucide-react'
 import type { SpaceContentItem } from '../types/space.types'
 
 export interface SpaceContentProps {
@@ -226,7 +237,7 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
           <div className="gba:divide-y gba:divide-border">
             {filteredItems.map(item => {
               const config = contentTypeConfig[item.type] || contentTypeConfig.document
-              const Icon = config.icon
+              const Icon = item.isPdf && item.type === 'document' ? FileType : config.icon
 
               return (
                 <div
@@ -237,7 +248,9 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
                 >
                   {/* Name */}
                   <div className="gba:col-span-5 gba:sm:col-span-6 gba:flex gba:items-center gba:gap-3 gba:min-w-0">
-                    <Icon className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:flex-shrink-0" />
+                    <Icon
+                      className={`gba:w-4 gba:h-4 gba:flex-shrink-0 ${item.isPdf && item.type === 'document' ? 'gba:text-red-600' : 'gba:text-muted-foreground'}`}
+                    />
                     <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{item.title}</span>
                   </div>
 

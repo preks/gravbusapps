@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
 type HubView = 'list' | 'editor'
+type SidebarSection = 'home' | 'my-slides' | 'shared' | 'favorites' | 'recent' | 'archived'
 
 export interface UseSlidesHubUrlStateParams {
   currentView: HubView
@@ -10,6 +11,8 @@ export interface UseSlidesHubUrlStateParams {
   loadSlideById: (id: string) => Promise<unknown | null>
   setCurrentView: (view: HubView) => void
   setSelectedSlideId: (id: string | null) => void
+  activeSection: SidebarSection
+  setActiveSection: (section: SidebarSection) => void
 }
 
 export interface UseSlidesHubUrlStateReturn {
@@ -17,38 +20,65 @@ export interface UseSlidesHubUrlStateReturn {
   resetLoadAttempt: () => void
 }
 
-function getUrlParams(): { slideId: string | null; view: HubView | null } {
+function getUrlParams(): { slideId: string | null; view: HubView | null; section: SidebarSection | null } {
   const urlParams = new URLSearchParams(window.location.search)
   return {
     slideId: urlParams.get('slideId'),
-    view: (urlParams.get('view') as HubView | null) || null
+    view: (urlParams.get('view') as HubView | null) || null,
+    section: (urlParams.get('section') as SidebarSection | null) || null
   }
 }
 
 export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSlidesHubUrlStateReturn {
-  const { currentView, currentSlideId, isLoadingSlide, loadSlideById, setCurrentView, setSelectedSlideId } = params
+  const {
+    currentView,
+    currentSlideId,
+    isLoadingSlide,
+    loadSlideById,
+    setCurrentView,
+    setSelectedSlideId,
+    activeSection,
+    setActiveSection
+  } = params
 
   const loadAttemptedRef = useRef<string | null>(null)
   const cameFromDeskRef = useRef(false)
 
-  const updateUrl = useCallback((slideId: string | null, view?: HubView) => {
-    const urlParams = new URLSearchParams(window.location.search)
-    if (slideId) {
-      urlParams.set('slideId', slideId)
-      if (view) urlParams.set('view', view)
-    } else {
-      urlParams.delete('slideId')
-      urlParams.delete('view')
-    }
-    const newUrl = urlParams.toString()
-      ? `${window.location.pathname}?${urlParams.toString()}`
-      : window.location.pathname
-    window.history.pushState({ slideId, view }, '', newUrl)
-  }, [])
+  const updateUrl = useCallback(
+    (slideId: string | null, view?: HubView) => {
+      const urlParams = new URLSearchParams(window.location.search)
+      if (slideId) {
+        urlParams.set('slideId', slideId)
+        if (view) urlParams.set('view', view)
+      } else {
+        urlParams.delete('slideId')
+        urlParams.delete('view')
+      }
+      // Always preserve section in URL (even when no slide is selected)
+      if (activeSection && activeSection !== 'my-slides') {
+        urlParams.set('section', activeSection)
+      } else {
+        urlParams.delete('section')
+      }
+      const newUrl = urlParams.toString()
+        ? `${window.location.pathname}?${urlParams.toString()}`
+        : window.location.pathname
+      window.history.pushState({ slideId, view, section: activeSection }, '', newUrl)
+    },
+    [activeSection]
+  )
 
   const resetLoadAttempt = useCallback(() => {
     loadAttemptedRef.current = null
   }, [])
+
+  // Restore section from URL on mount
+  useEffect(() => {
+    const { section } = getUrlParams()
+    if (section && section !== activeSection) {
+      setActiveSection(section)
+    }
+  }, []) // Run only on mount
 
   // Load slide from URL on mount
   useEffect(() => {
@@ -85,7 +115,17 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
   // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      const state = event.state as { slideId?: string; view?: HubView; fromDesk?: boolean } | null
+      const state = event.state as {
+        slideId?: string
+        view?: HubView
+        section?: SidebarSection
+        fromDesk?: boolean
+      } | null
+
+      // Restore section if present
+      if (state?.section) {
+        setActiveSection(state.section)
+      }
 
       // If we came from desk and there's no slide, go back to desk
       if (state?.fromDesk && !state?.slideId && currentView === 'list') {
@@ -108,7 +148,7 @@ export function useSlidesHubUrlState(params: UseSlidesHubUrlStateParams): UseSli
 
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [currentView, loadSlideById, setCurrentView, setSelectedSlideId])
+  }, [currentView, loadSlideById, setCurrentView, setSelectedSlideId, setActiveSection])
 
   return { updateUrl, resetLoadAttempt }
 }

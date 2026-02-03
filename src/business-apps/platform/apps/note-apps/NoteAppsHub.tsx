@@ -66,6 +66,7 @@ import type { PaperStyle, StrokeData } from './components/handwriting'
 
 // Hooks
 import { useNotes } from './hooks/useNotes'
+import { useNoteAppsHubUrlState } from './hooks/useNoteAppsHubUrlState'
 
 // GraphQL
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
@@ -183,30 +184,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     }
   }, [accessToken])
 
-  // URL helpers for deep linking
-  const getUrlParams = useCallback((): { noteId: string | null; view: HubView | null } => {
-    const urlParams = new URLSearchParams(window.location.search)
-    return {
-      noteId: urlParams.get('noteId'),
-      view: urlParams.get('view') as HubView | null
-    }
-  }, [])
-
-  const updateUrl = useCallback((noteId: string | null, view?: HubView) => {
-    const urlParams = new URLSearchParams(window.location.search)
-    if (noteId) {
-      urlParams.set('noteId', noteId)
-      if (view) urlParams.set('view', view)
-    } else {
-      urlParams.delete('noteId')
-      urlParams.delete('view')
-    }
-    const newUrl = urlParams.toString()
-      ? `${window.location.pathname}?${urlParams.toString()}`
-      : window.location.pathname
-    window.history.pushState({ noteId, view }, '', newUrl)
-  }, [])
-
   // Hooks
   const {
     notes,
@@ -227,69 +204,26 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     getSharedUsers
   } = useNotes({ accessToken, userId: currentUserId })
 
+  const { updateUrl, resetLoadAttempt } = useNoteAppsHubUrlState({
+    currentView,
+    currentNoteId: selectedNoteId,
+    isLoadingNote: isLoadingNotes,
+    loadNoteById: loadNote,
+    setCurrentView,
+    setSelectedNoteId,
+    activeSection,
+    setActiveSection
+  })
+
+  // Update URL whenever activeSection changes (when user clicks sidebar)
+  useEffect(() => {
+    if (currentView === 'list' && !selectedNoteId) {
+      updateUrl(null)
+    }
+  }, [activeSection, currentView, selectedNoteId, updateUrl])
+
   // GraphQL client for fetching user info
   const graphqlClient = useGraphQLClient(accessToken)
-
-  // Track which note ID we've attempted to load
-  const loadAttemptedRef = useRef<string | null>(null)
-
-  // Load note from URL on mount
-  useEffect(() => {
-    const { noteId, view } = getUrlParams()
-    if (noteId && !currentNote && !isLoadingNotes && loadAttemptedRef.current !== noteId) {
-      loadAttemptedRef.current = noteId
-      loadNote(noteId).then(note => {
-        if (note) {
-          setSelectedNoteId(noteId)
-          setCurrentView(view === 'editor' ? 'editor' : 'editor')
-        }
-      })
-    }
-  }, [getUrlParams, loadNote, currentNote, isLoadingNotes])
-
-  // Track if we came from desk
-  const cameFromDeskRef = useRef(false)
-  useEffect(() => {
-    const referrer = document.referrer
-    const urlParams = new URLSearchParams(window.location.search)
-    cameFromDeskRef.current =
-      referrer.includes('/platform/apps/desk') ||
-      referrer.includes('?app=platform/apps/desk') ||
-      urlParams.get('from') === 'desk'
-
-    // Push state to track navigation from desk
-    if (cameFromDeskRef.current && currentView === 'list') {
-      window.history.replaceState({ fromDesk: true }, '', window.location.href)
-    }
-  }, [currentView])
-
-  // Handle browser back/forward navigation
-  useEffect(() => {
-    const handlePopState = (event: PopStateEvent) => {
-      const state = event.state as { noteId?: string; view?: HubView; fromDesk?: boolean } | null
-
-      // If we came from desk and there's no note, go back to desk
-      if (state?.fromDesk && !state?.noteId && currentView === 'list') {
-        navigateTo('/platform/apps/desk')
-        return
-      }
-
-      if (state?.noteId) {
-        loadNote(state.noteId).then(note => {
-          if (note) {
-            setSelectedNoteId(state.noteId!)
-            setCurrentView(state.view || 'editor')
-          }
-        })
-      } else {
-        setSelectedNoteId(null)
-        setCurrentView('list')
-      }
-    }
-
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [loadNote, currentView])
 
   // Save favorites to localStorage
   useEffect(() => {
@@ -538,11 +472,11 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
    */
   const handleBack = useCallback(() => {
     clearCurrentNote()
-    loadAttemptedRef.current = null
+    resetLoadAttempt()
     setSelectedNoteId(null)
     setCurrentView('list')
     updateUrl(null)
-  }, [clearCurrentNote, updateUrl])
+  }, [clearCurrentNote, resetLoadAttempt, updateUrl])
 
   /**
    * Toggle favorite

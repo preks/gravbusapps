@@ -186,6 +186,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
           onCreateDocument={handleCreateDocument}
           onCreateSpreadsheet={handleCreateSpreadsheet}
           onCreateNote={handleCreateNote}
+          onCreateSlide={handleCreateSlide}
           searchResults={displayItems}
           onItemClick={handleItemClick}
           isLoading={isLoading}

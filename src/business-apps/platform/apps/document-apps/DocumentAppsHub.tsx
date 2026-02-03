@@ -5,7 +5,7 @@
  * Modern OneDrive-inspired design with sidebar navigation.
  */
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
 import {
   Card,
@@ -55,7 +55,8 @@ import {
   Archive,
   Send,
   Sparkles,
-  ChevronLeft
+  ChevronLeft,
+  FileType
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -194,8 +195,17 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     isLoadingDocument: isLoadingDocuments,
     loadDocumentById: loadDocument,
     setCurrentView,
-    setSelectedDocumentId
+    setSelectedDocumentId,
+    activeSection,
+    setActiveSection
   })
+
+  // Update URL whenever activeSection changes (when user clicks sidebar)
+  useEffect(() => {
+    if (currentView === 'list' && !selectedDocumentId) {
+      updateUrl(null)
+    }
+  }, [activeSection, currentView, selectedDocumentId, updateUrl])
 
   const { ownerInfoMap, sharedUsersMap, refreshSharedUsersForDocument } = useDocumentAppsHubUserLookup({
     accessToken,
@@ -475,7 +485,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     if (currentDocument) {
       // Check if this is a PDF document - render read-only viewer
       const isPdfDocument = currentDocument.sourceFile?.mimeType === 'application/pdf'
-      
+
       if (isPdfDocument) {
         return (
           <PdfDocumentViewer
@@ -1041,8 +1051,14 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
                           {/* Name & Icon */}
                           <div className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-3">
-                            <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-blue-500/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-                              <FileText className="gba:w-5 gba:h-5 gba:text-blue-600" />
+                            <div
+                              className={`gba:w-10 gba:h-10 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 ${doc.isPdf ? 'gba:bg-red-500/10' : 'gba:bg-blue-500/10'}`}
+                            >
+                              {doc.isPdf ? (
+                                <FileType className="gba:w-5 gba:h-5 gba:text-red-600" />
+                              ) : (
+                                <FileText className="gba:w-5 gba:h-5 gba:text-blue-600" />
+                              )}
                             </div>
                             <div className="gba:min-w-0">
                               <div className="gba:flex gba:items-center gba:gap-2">
@@ -1222,8 +1238,14 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                         onClick={() => handleOpenDocument(doc.id)}
                       >
                         {/* Preview area */}
-                        <div className="gba:relative gba:aspect-[4/3] gba:bg-gradient-to-br gba:from-blue-500/10 gba:to-indigo-500/10 gba:flex gba:items-center gba:justify-center gba:rounded-t-lg">
-                          <FileText className="gba:w-16 gba:h-16 gba:text-blue-500/50" />
+                        <div
+                          className={`gba:relative gba:aspect-[4/3] gba:bg-gradient-to-br gba:flex gba:items-center gba:justify-center gba:rounded-t-lg ${doc.isPdf ? 'gba:from-red-500/10 gba:to-red-600/10' : 'gba:from-blue-500/10 gba:to-indigo-500/10'}`}
+                        >
+                          {doc.isPdf ? (
+                            <FileType className="gba:w-16 gba:h-16 gba:text-red-500/50" />
+                          ) : (
+                            <FileText className="gba:w-16 gba:h-16 gba:text-blue-500/50" />
+                          )}
 
                           {/* Hover overlay */}
                           <div className="gba:absolute gba:inset-0 gba:bg-black/0 group-hover:gba:bg-black/5 gba:transition-colors gba:rounded-t-lg" />

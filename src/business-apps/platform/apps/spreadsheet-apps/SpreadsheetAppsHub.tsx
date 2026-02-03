@@ -257,8 +257,17 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     isLoadingApps,
     loadAppById: loadApp,
     setSelectedAppId,
-    setCurrentView
+    setCurrentView,
+    activeSection,
+    setActiveSection
   })
+
+  // Update URL whenever activeSection changes (when user clicks sidebar)
+  useEffect(() => {
+    if (currentView === 'list' && !currentApp) {
+      updateUrl(null)
+    }
+  }, [activeSection, currentView, currentApp, updateUrl])
 
   const { filteredApps } = useSpreadsheetAppsHubFiltering({
     apps,
@@ -1194,9 +1203,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                               key={user.userId}
                                               className="gba:w-5 gba:h-5 gba:border gba:border-background"
                                             >
-                                              {user.userAvatar && <AvatarImage src={user.userAvatar} />}
+                                              {user.avatar && <AvatarImage src={user.avatar} />}
                                               <AvatarFallback className="gba:text-[8px] gba:bg-muted">
-                                                {user.userName ? getInitials(user.userName) : '?'}
+                                                {user.name ? getInitials(user.name) : '?'}
                                               </AvatarFallback>
                                             </Avatar>
                                           ))}

@@ -184,8 +184,17 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     isLoadingSlide: isLoading,
     loadSlideById: loadSlide,
     setCurrentView,
-    setSelectedSlideId
+    setSelectedSlideId,
+    activeSection,
+    setActiveSection
   })
+
+  // Update URL whenever activeSection changes (when user clicks sidebar)
+  useEffect(() => {
+    if (currentView === 'list' && !selectedSlideId) {
+      updateUrl(null)
+    }
+  }, [activeSection, currentView, selectedSlideId, updateUrl])
 
   // Store access token for API service
   useEffect(() => {
