@@ -34,6 +34,9 @@ import { format, addDays, isWithinInterval, parseISO, differenceInYears } from '
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GenerateDocumentDialog } from '@/business-apps/platform/apps/document-apps/components/GenerateDocumentDialog'
+import { DocumentApiService } from '@/business-apps/platform/apps/document-apps/services/DocumentApiService'
+import { exportToWord } from '@/business-apps/platform/apps/document-apps/utils/exportUtils'
+import { toast } from 'sonner'
 
 interface EmployeeInsight {
   id: string
@@ -558,9 +561,19 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
         }}
         entityDataMap={entityDataMapForDoc}
         defaultTitle={generateDocEmployee?.fullName ?? 'Employee'}
-        onSuccess={documentId => {
-          const url = buildPlatformUrl('/platform/apps/document-apps', { docId: documentId, view: 'editor' })
-          navigateTo(url)
+        onSuccess={async documentId => {
+          if (!accessToken) return
+          DocumentApiService.setAccessToken(accessToken)
+          try {
+            const doc = await DocumentApiService.getDocument(documentId)
+            if (doc?.content != null) {
+              await exportToWord(doc.title || 'Document', doc.content)
+              toast.success('Document downloaded')
+            }
+          } catch (err) {
+            console.error('Failed to download document:', err)
+            toast.error('Failed to download document')
+          }
         }}
         data-testid="hr-insights-generate-document-dialog"
       />

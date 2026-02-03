@@ -13,6 +13,9 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { JobCandidate } from '@/common/data/recruiting/types/jobCandidateTypes'
 import type { JobApplication } from '@/common/data/recruiting/types/jobApplicationTypes'
 import { GenerateDocumentDialog } from '@/business-apps/platform/apps/document-apps/components/GenerateDocumentDialog'
+import { DocumentApiService } from '@/business-apps/platform/apps/document-apps/services/DocumentApiService'
+import { exportToWord } from '@/business-apps/platform/apps/document-apps/utils/exportUtils'
+import { toast } from 'sonner'
 
 export type JobCandidateViewProps = BusinessAppContextProps
 
@@ -517,12 +520,19 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
         defaultTitle={
           `${generateDocCandidate?.firstName ?? ''} ${generateDocCandidate?.lastName ?? ''}`.trim() || 'Candidate'
         }
-        onSuccess={documentId => {
-          const url = buildPlatformUrl('/platform/apps/platform/apps/desk', {
-            docId: documentId,
-            view: 'editor'
-          })
-          navigateTo(url)
+        onSuccess={async documentId => {
+          if (!context.accessToken) return
+          DocumentApiService.setAccessToken(context.accessToken)
+          try {
+            const doc = await DocumentApiService.getDocument(documentId)
+            if (doc?.content != null) {
+              await exportToWord(doc.title || 'Document', doc.content)
+              toast.success('Document downloaded')
+            }
+          } catch (err) {
+            console.error('Failed to download document:', err)
+            toast.error('Failed to download document')
+          }
         }}
         data-testid="job-candidate-generate-document-dialog"
       />

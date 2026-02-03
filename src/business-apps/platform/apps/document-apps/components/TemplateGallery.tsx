@@ -19,7 +19,6 @@ import {
   BookOpen,
   LayoutTemplate,
   Plus,
-  Pencil,
   Star,
   Clock,
   Users
@@ -88,21 +87,24 @@ const CATEGORY_CONFIG: Record<TemplateCategory, { icon: React.ReactNode; label: 
 
 /**
  * TemplateCard Component
- * Clean card layout: header (icon + title + edit), description, tags, usage footer.
+ * Clean card layout: header (icon + title), description, tags, usage footer.
  */
 const TemplateCard: React.FC<{
   template: TemplateSummary
-  onSelect: () => void
   onEdit?: (template: TemplateSummary) => void
   testId: string
-}> = ({ template, onSelect, onEdit, testId }) => {
+}> = ({ template, onEdit, testId }) => {
   const categoryConfig = CATEGORY_CONFIG[template.category] || CATEGORY_CONFIG.other
   const isBuiltIn = template.createdBy === 'system'
 
+  const handleCardClick = () => {
+    if (onEdit) onEdit(template)
+  }
+
   return (
     <Card
-      className="gba:group gba:relative gba:overflow-hidden gba:cursor-pointer gba:border gba:rounded-xl gba:transition-all gba:duration-200 hover:gba:shadow-lg hover:gba:border-primary/20"
-      onClick={onSelect}
+      className={`gba:group gba:relative gba:overflow-hidden gba:border gba:rounded-xl gba:transition-all gba:duration-200 hover:gba:shadow-lg hover:gba:border-primary/20 ${onEdit ? 'gba:cursor-pointer' : ''}`}
+      onClick={onEdit ? handleCardClick : undefined}
       data-testid={`${testId}-card`}
     >
       <div className="gba:p-4 gba:flex gba:flex-col gba:gap-3">
@@ -117,21 +119,6 @@ const TemplateCard: React.FC<{
               <p className="gba:text-sm gba:text-muted-foreground gba:truncate gba:mt-0.5">{template.description}</p>
             )}
           </div>
-          {onEdit && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg hover:gba:bg-muted"
-              onClick={e => {
-                e.stopPropagation()
-                onEdit(template)
-              }}
-              title="Edit template"
-              data-testid={`${testId}-edit`}
-            >
-              <Pencil className="gba:w-4 gba:h-4" />
-            </Button>
-          )}
         </div>
 
         {/* Tags */}
@@ -161,14 +148,6 @@ const TemplateCard: React.FC<{
           </div>
         )}
       </div>
-
-      {/* Hover overlay: Use Template CTA; overlay is non-blocking so edit stays clickable */}
-      <div className="gba:absolute gba:inset-0 gba:bg-primary/5 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:flex gba:items-center gba:justify-center gba:pointer-events-none">
-        <Button variant="default" size="sm" className="gba:pointer-events-auto gba:shadow-md">
-          <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-          Use Template
-        </Button>
-      </div>
     </Card>
   )
 }
@@ -178,7 +157,6 @@ const TemplateCard: React.FC<{
  */
 export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
   templates,
-  onSelectTemplate,
   onCreateTemplate,
   onEditTemplate,
   'data-testid': testId = 'template-gallery'
@@ -227,24 +205,6 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
     const cats = new Set(templates.map(t => t.category))
     return TEMPLATE_CATEGORY_API_VALUES.filter(c => cats.has(c))
   }, [templates])
-
-  // Handle template selection (need to convert summary to full template)
-  const handleSelectTemplate = (template: TemplateSummary) => {
-    // Create a minimal DocumentTemplate from summary
-    // The actual content will be loaded in the hook
-    onSelectTemplate({
-      id: template.id,
-      name: template.name,
-      description: template.description,
-      content: '', // Will be loaded
-      category: template.category,
-      tags: template.tags,
-      isPublic: template.isPublic,
-      createdBy: template.createdBy,
-      createdAt: template.createdAt,
-      updatedAt: template.updatedAt
-    })
-  }
 
   return (
     <div className="gba:space-y-6" data-testid={testId}>
@@ -309,7 +269,6 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
                     <TemplateCard
                       key={template.id}
                       template={template}
-                      onSelect={() => handleSelectTemplate(template)}
                       onEdit={onEditTemplate}
                       testId={`${testId}-${template.id}`}
                     />
@@ -328,7 +287,6 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
                 <TemplateCard
                   key={template.id}
                   template={template}
-                  onSelect={() => handleSelectTemplate(template)}
                   onEdit={onEditTemplate}
                   testId={`${testId}-${template.id}`}
                 />
