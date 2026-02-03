@@ -385,6 +385,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
       if (!selectedTask) return
       if (!context.accessToken) return
 
+      const prev = selectedTask.userState?.userPriority ?? null
       const next = value === 'none' ? null : Number.parseInt(value, 10)
       updateTaskUserStateLocally({ id: selectedTask.id, source: selectedTask.source }, { userPriority: next })
       try {
@@ -393,11 +394,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
           taskId: selectedTask.id,
           userPriority: next
         })
-      } finally {
-        refreshSelectedTaskList()
+      } catch {
+        // Roll back on error to avoid surprising UI state
+        updateTaskUserStateLocally({ id: selectedTask.id, source: selectedTask.source }, { userPriority: prev })
       }
     },
-    [selectedTask, context.accessToken, updateTaskUserStateLocally, refreshSelectedTaskList]
+    [selectedTask, context.accessToken, updateTaskUserStateLocally]
   )
 
   // Auto-mark as read when the task is opened/selected (idempotent + debounced)

@@ -214,7 +214,10 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
             {(isPinned || priorityIndicator) && (
               <div className="gba:flex gba:items-center gba:justify-end gba:gap-1 gba:flex-wrap">
                 {isPinned && (
-                  <Badge variant="secondary" className="gba:h-5 gba:px-2 gba:text-xs gba:gap-1">
+                  <Badge
+                    variant="secondary"
+                    className="gba:h-5 gba:px-2 gba:text-xs gba:gap-1 gba:bg-sky-50 gba:text-sky-700 gba:border gba:border-sky-200/70"
+                  >
                     <Pin className="gba:h-3 gba:w-3" />
                     <span>{t('task-card-pinned')}</span>
                   </Badge>
