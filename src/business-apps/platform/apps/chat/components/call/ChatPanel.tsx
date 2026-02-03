@@ -326,7 +326,7 @@ const ChatPanelComponent: React.FC<ChatPanelProps> = ({
         <div className="gba:flex gba:items-center gba:gap-2">
           {/* Live indicator */}
           <div className="gba:h-2 gba:w-2 gba:rounded-full gba:bg-success gba:animate-pulse" />
-          <h3 className="gba:font-semibold gba:text-sm">In-Call Chat</h3>
+          <h3 className="gba:font-semibold gba:text-sm">{t('groupCall-chat') || 'Chat'}</h3>
         </div>
       </div>
 

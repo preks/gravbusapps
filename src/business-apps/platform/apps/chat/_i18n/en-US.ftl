@@ -273,7 +273,7 @@ call-waitingForParticipants = Waiting for participants...
 
 # Group Call
 groupCall-title = Group Call
-groupCall-participants = participants
+groupCall-participants = Participants
 groupCall-audioOnly = Audio Only
 groupCall-minimize = Minimize call
 groupCall-waitingForParticipants = Waiting for participants...

@@ -2666,7 +2666,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                     <ParticipantsPanel
                       meeting={meeting}
                       isOpen={true}
-                      onClose={() => setSidebarView('closed')}
                       prefixDataTestId={prefixDataTestId}
                       availableParticipants={availableParticipants}
                       pendingInvites={pendingInvites}

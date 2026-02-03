@@ -11,7 +11,6 @@
 
 import React, { useState } from 'react'
 import {
-  XIcon,
   MagnifyingGlassIcon,
   MicrophoneIcon,
   MicrophoneSlashIcon,
@@ -54,8 +53,6 @@ export interface ParticipantsPanelProps {
   meeting: any
   /** Whether the panel is open */
   isOpen: boolean
-  /** Callback when panel is closed */
-  onClose: () => void
   /** Data test ID prefix */
   prefixDataTestId?: string
   /** Available participants to invite */
@@ -89,7 +86,6 @@ export interface ParticipantsPanelProps {
 export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   meeting,
   isOpen,
-  onClose,
   prefixDataTestId = 'rtk-group-call',
   availableParticipants = [],
   pendingInvites,
@@ -462,27 +458,17 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
       <div className="gba:px-4 gba:pt-2.5 gba:pb-4 gba:border-b gba:flex-shrink-0">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
           <h3 className="gba:font-semibold gba:text-sm">{t('groupCall-participants')}</h3>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            {onMuteAll && activeParticipants.length > 0 && (
-              <button
-                onClick={onMuteAll}
-                className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive-secondary gba:text-destructive-secondary-foreground hover:gba:bg-destructive gba:rounded gba:transition-colors"
-                aria-label={t('participants-mute-all')}
-                data-testid={`${prefixDataTestId}-mute-all-btn`}
-              >
-                <SpeakerXIcon className="gba:h-4 gba:w-4 gba:inline gba:mr-1" weight="fill" />
-                {t('participants-mute-all')}
-              </button>
-            )}
+          {onMuteAll && activeParticipants.length > 0 && (
             <button
-              onClick={onClose}
-              className="gba:p-1 hover:gba:bg-muted gba:rounded gba:transition-colors"
-              aria-label={t('participants-close')}
-              data-testid={`${prefixDataTestId}-participants-panel-close`}
+              onClick={onMuteAll}
+              className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive-secondary gba:text-destructive-secondary-foreground hover:gba:bg-destructive gba:rounded gba:transition-colors"
+              aria-label={t('participants-mute-all')}
+              data-testid={`${prefixDataTestId}-mute-all-btn`}
             >
-              <XIcon className="gba:h-5 gba:w-5" />
+              <SpeakerXIcon className="gba:h-4 gba:w-4 gba:inline gba:mr-1" weight="fill" />
+              {t('participants-mute-all')}
             </button>
-          </div>
+          )}
         </div>
 
         {/* Search Input */}
