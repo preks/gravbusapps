@@ -20,6 +20,15 @@ import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useInvestmentAccountStatistics } from '@/common/data/investment/hooks/useInvestmentAccountStatistics'
+import type { FilterConfiguration } from '@newwork/nw-design-system'
+
+// Custom filter configuration for IRM Account View - excludes Status, Contact Information, and Account Category filters
+const irmAccountFilterConfig: FilterConfiguration = {
+  ...commonAccountFilterConfig,
+  groups: commonAccountFilterConfig.groups.filter(
+    group => group.id !== 'status-group' && group.id !== 'contact-filters' && group.id !== 'account-type-group'
+  )
+}
 
 // Helper function to process date range filters
 const processInvestmentAccountDateRanges = (
@@ -132,7 +141,7 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         createdAt: 'Created Date',
         updatedAt: 'Updated Date'
       },
-      baseFilterConfig: commonAccountFilterConfig,
+      baseFilterConfig: irmAccountFilterConfig,
       buildQueryVariables: (params: {
         pagination: { pageIndex: number; pageSize: number }
         searchTerm: string
