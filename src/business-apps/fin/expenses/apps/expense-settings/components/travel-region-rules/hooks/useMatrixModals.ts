@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { ExpenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
-import { toISOEndOfDay, toISOStartOfDay } from '../../../utils'
+import { toISOEndOfDay, toISOStartOfDay } from '../../../utils/dateUtils'
 
 interface TravelRegion {
   id: string
@@ -53,6 +53,45 @@ interface UseMatrixModalsOptions {
   regionHasSavedDetails: (regionId: string) => boolean
   setRuleUsageInfo: (info: any) => void
   accessToken: string
+}
+
+const buildEditRuleData = (
+  formData: any,
+  selectedRuleForEdit: EditableAllowanceRegionRule,
+  travelRegionSetId: string
+) => ({
+  id: selectedRuleForEdit.id,
+  version: selectedRuleForEdit.version,
+  code: formData.code.trim(),
+  name: formData.name.trim(),
+  activeFrom: formData.activeFrom ? toISOStartOfDay(formData.activeFrom) : null,
+  activeTo: formData.activeTo ? toISOEndOfDay(formData.activeTo) : null,
+  travelRegionSetRef: travelRegionSetId,
+  ruleOrder: selectedRuleForEdit.ruleOrder || 1,
+  additionalProperties: selectedRuleForEdit.additionalProperties || {},
+  businessKey: formData.code.trim()
+})
+
+const buildRuleDetailPayload = (detail: any, ruleId: string) => ({
+  allowanceRegionRuleDetail: {
+    ...(detail.id && { id: detail.id }),
+    amount: detail.amounts?.[0] || 0,
+    currencyRef: detail.currencyRef,
+    activeFrom: detail.activeFrom ? toISOStartOfDay(detail.activeFrom) : null,
+    activeTo: detail.activeTo ? toISOEndOfDay(detail.activeTo) : null,
+    travelRegionRef: detail.travelRegionRef || detail.travelRegion,
+    countryRef: detail.countryRef,
+    home: detail.home || false,
+    allowanceRegionRule: ruleId
+  },
+  changeMode: detail.id ? 'UPDATE' : 'INSERT'
+})
+
+const saveRuleDetails = async (client: ExpenseSettingsClient, details: any[], ruleId: string) => {
+  if (!details || details.length === 0) return
+  for (const detail of details) {
+    await client.post('/employee-expense/saveAllowanceRegionRuleDetail', buildRuleDetailPayload(detail, ruleId))
+  }
 }
 
 export const useMatrixModals = (options: UseMatrixModalsOptions) => {
@@ -178,7 +217,7 @@ export const useMatrixModals = (options: UseMatrixModalsOptions) => {
         setIsRuleModalOpen(false)
         toast.success('Allowance rule and details created successfully')
       } catch (err) {
-        console.error('Error creating rule:', err)
+        console.error('Error creating rule:', err instanceof Error ? err.message : 'Unknown error')
         toast.error('Failed to create rule')
       } finally {
         setIsRuleModalLoading(false)
@@ -208,44 +247,16 @@ export const useMatrixModals = (options: UseMatrixModalsOptions) => {
     async (formData: any) => {
       setIsEditRuleModalLoading(true)
       try {
+        if (!selectedRuleForEdit?.id) {
+          toast.error('No rule selected for editing')
+          return
+        }
+
         const client = getExpenseSettingsClient()
+        const ruleId = selectedRuleForEdit.id
 
-        const ruleData = {
-          id: selectedRuleForEdit?.id,
-          version: selectedRuleForEdit?.version,
-          code: formData.code.trim(),
-          name: formData.name.trim(),
-          activeFrom: formData.activeFrom ? toISOStartOfDay(formData.activeFrom) : null,
-          activeTo: formData.activeTo ? toISOEndOfDay(formData.activeTo) : null,
-          travelRegionSetRef: travelRegionSetId,
-          ruleOrder: selectedRuleForEdit?.ruleOrder || 1,
-          additionalProperties: selectedRuleForEdit?.additionalProperties || {},
-          businessKey: formData.code.trim()
-        }
-
-        await client.saveAllowanceRegionRule(ruleData)
-
-        // Save each detail
-        if (formData.details && formData.details.length > 0) {
-          for (const detail of formData.details) {
-            const detailPayload = {
-              allowanceRegionRuleDetail: {
-                ...(detail.id && { id: detail.id }),
-                amount: detail.amounts?.[0] || 0,
-                currencyRef: detail.currencyRef,
-                activeFrom: detail.activeFrom ? toISOStartOfDay(detail.activeFrom) : null,
-                activeTo: detail.activeTo ? toISOEndOfDay(detail.activeTo) : null,
-                travelRegionRef: detail.travelRegionRef || detail.travelRegion,
-                countryRef: detail.countryRef,
-                home: detail.home || false,
-                allowanceRegionRule: selectedRuleForEdit?.id
-              },
-              changeMode: detail.id ? 'UPDATE' : 'INSERT'
-            }
-
-            await client.post('/employee-expense/saveAllowanceRegionRuleDetail', detailPayload)
-          }
-        }
+        await client.saveAllowanceRegionRule(buildEditRuleData(formData, selectedRuleForEdit, travelRegionSetId))
+        await saveRuleDetails(client, formData.details, ruleId)
 
         toast.success('Rule and details saved successfully')
         setIsEditRuleModalOpen(false)
@@ -253,7 +264,7 @@ export const useMatrixModals = (options: UseMatrixModalsOptions) => {
         setRuleUsageInfo(null)
         await loadData()
       } catch (err) {
-        console.error('Error saving rule:', err)
+        console.error('Error saving rule:', err instanceof Error ? err.message : 'Unknown error')
         toast.error('Failed to save rule and details')
       } finally {
         setIsEditRuleModalLoading(false)
@@ -297,7 +308,6 @@ export const useMatrixModals = (options: UseMatrixModalsOptions) => {
     setIsDeletingRegion(true)
     try {
       // Step 1: Check and delete catalog_entry_localized records first
-
       const localizedQuery = `
         query GetLocalizedEntries($catalogEntryId: String!) {
           CatalogEntryLocalized(where: { catalogEntryId: { _eq: $catalogEntryId } }) {
@@ -320,11 +330,9 @@ export const useMatrixModals = (options: UseMatrixModalsOptions) => {
           }
         `
         await graphqlClient.request<any>(deleteLocalizedMutation, { catalogEntryId: region.id })
-      } else {
       }
 
       // Step 2: Now hard delete the catalog entry
-
       await catalogClient.deleteCatalogEntry('TravelRegion', 'v1', region.id)
 
       // Verify deletion
@@ -334,15 +342,9 @@ export const useMatrixModals = (options: UseMatrixModalsOptions) => {
 
       toast.success(`Travel region "${region.value}" deleted successfully`)
       setDeleteRegionConfirmation({ isOpen: false, region: null })
-
       await loadData()
     } catch (err) {
-      console.error('Error deleting region:', err)
-      console.error('Error details:', {
-        message: err instanceof Error ? err.message : 'Unknown error',
-        stack: err instanceof Error ? err.stack : undefined,
-        full: err
-      })
+      console.error('Error deleting region:', err instanceof Error ? err.message : 'Unknown error')
       toast.error(err instanceof Error ? err.message : 'Failed to delete region')
     } finally {
       setIsDeletingRegion(false)

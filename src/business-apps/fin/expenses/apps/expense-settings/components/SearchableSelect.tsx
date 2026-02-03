@@ -101,7 +101,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const comboboxOptions = useMemo(() => {
     // Include selected option if not in current list
     let allOptions = [...options]
-    if (selectedOption && !options.find(opt => opt.value === selectedOption.value)) {
+    if (selectedOption && !options.some(opt => opt.value === selectedOption.value)) {
       allOptions = [selectedOption, ...options]
     }
 

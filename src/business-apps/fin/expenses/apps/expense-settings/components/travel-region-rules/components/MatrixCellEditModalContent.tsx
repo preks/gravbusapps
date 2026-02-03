@@ -49,11 +49,10 @@ const DateField: React.FC<{
       value={formatDateForInput(value) || ''}
       onChange={date => {
         const normalized = normalizeDateInputValue(date)
-        const dateValue = normalized
-          ? fieldName === 'activeFrom'
-            ? toISOStartOfDay(normalized)
-            : toISOEndOfDay(normalized)
-          : undefined
+        let dateValue: string | undefined = undefined
+        if (normalized) {
+          dateValue = fieldName === 'activeFrom' ? toISOStartOfDay(normalized) : toISOEndOfDay(normalized)
+        }
         onUpdate(fieldName, dateValue)
       }}
       outputFormat="iso"

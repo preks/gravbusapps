@@ -298,7 +298,7 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
 
       const assignmentData: any = {
         ...(isEditing && initialData?.id ? { id: initialData.id } : {}),
-        ...(currentVersion != null ? { version: currentVersion } : {}),
+        ...(typeof currentVersion === 'number' ? { version: currentVersion } : {}),
         assignmentOrder: data.assignmentOrder,
         cascading: data.cascading || false,
         applicants: data.applicants || false,

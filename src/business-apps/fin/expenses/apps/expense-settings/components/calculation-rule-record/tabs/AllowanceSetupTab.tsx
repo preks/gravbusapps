@@ -67,10 +67,9 @@ dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
 import { formatDateForInput, findOverlappingPeriods, formatDate, normalizeDateInputValue } from '../../../utils'
+import { toISOEndOfDay, toISOStartOfDay } from '../../../utils/dateUtils'
 import {
   validateAllowanceSetupDates,
-  formatDateToISO,
-  formatDateToISOEndOfDay,
   transformAllowanceSetupForRestrictedUpdate,
   transformAllowanceSetupForSave,
   parseAllowanceSetupSaveError,
@@ -601,14 +600,8 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       // IMPORTANT: Always use editingItem for id and version when updating
       const saveData =
         isRestrictedEdit && editingItem
-          ? transformAllowanceSetupForRestrictedUpdate(
-              formValues,
-              editingItem,
-              ruleId,
-              formatDateToISO,
-              formatDateToISOEndOfDay
-            )
-          : transformAllowanceSetupForSave(formValues, ruleId, editingItem, formatDateToISO, formatDateToISOEndOfDay)
+          ? transformAllowanceSetupForRestrictedUpdate(formValues, editingItem, ruleId, toISOStartOfDay, toISOEndOfDay)
+          : transformAllowanceSetupForSave(formValues, ruleId, editingItem, toISOStartOfDay, toISOEndOfDay)
 
       await expenseSettingsClient.saveExpenseRuleAllowanceSetup(saveData)
 
@@ -623,7 +616,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
       } else {
         toast.error(`Failed to ${editingItem ? 'update' : 'create'} allowance setup`)
       }
-      console.error('Save error:', err)
+      console.error('Save error:', err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setIsSaving(false)
     }
