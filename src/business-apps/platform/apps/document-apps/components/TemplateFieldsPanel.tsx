@@ -121,7 +121,7 @@ const EntityFieldsList: React.FC<{
               <ChevronRight className="gba:w-4 gba:h-4 gba:flex-shrink-0" />
             )}
             <FolderOpen className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-primary/70" />
-            <span>Catalog values (contract type, employment type)</span>
+            <span>Catalog values (contract type, employment type, currency)</span>
           </button>
           {catalogsExpanded && (
             <div className="gba:pl-2 gba:space-y-0.5">

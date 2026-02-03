@@ -87,20 +87,49 @@ function isObjectType(type: IntrospectionFieldType): boolean {
 /** Sub-fields we expose for catalog refs (avoid dumping full catalog entry internals) */
 const CATALOG_DISPLAY_FIELDS = new Set(['id', 'code', 'displayName', 'name', 'description', 'value'])
 
+/** Fallback sub-fields for Currency catalog when GraphQL introspection returns no fields (same shape as Country) */
+const CURRENCY_CATALOG_FALLBACK_SUBFIELDS: TemplateEntityFieldFromGraphQL[] = [
+  { key: 'code', displayName: 'Code' },
+  { key: 'description', displayName: 'Description' },
+  { key: 'id', displayName: 'Id' },
+  { key: 'value', displayName: 'Value' },
+  { key: 'displayName', displayName: 'Display name' }
+]
+
 /**
  * Catalog/reference fields shown under "Catalog values" with sub-fields (displayName, code, etc.).
  * At document generation time the backend resolves the ref and substitutes the chosen sub-field
  * (e.g. {{company_address.countryRef.displayName}} → resolved country name).
  */
-const ALLOWED_CATALOG_FIELD_KEYS = new Set(['contractType', 'employmentType', 'countryRef', 'country'])
+const ALLOWED_CATALOG_FIELD_KEYS = new Set(['contractType', 'employmentType', 'countryRef', 'country', 'currencyRef'])
 
-/** Entity keys that are catalog-like: show displayName/code when introspection returns no type or no fields */
-const CATALOG_ENTITY_KEYS = new Set(['contract_type', 'employment_type'])
+/**
+ * Relationship fields that are always shown as direct nested fields (e.g. "Organizational Unit → Name")
+ * even when the nested type looks like a catalog. Ensures org unit name and similar are available
+ * like Job Position.
+ */
+const RELATIONSHIP_FIELDS_ALWAYS_DIRECT = new Set(['organizationalUnit', 'organizational_unit'])
+
+/**
+ * Entity keys that get placeholder fields (value, displayName, code) when GraphQL introspection
+ * returns no type or no fields. Includes catalog entities and expense entities.
+ */
+const ENTITY_KEYS_WITH_PLACEHOLDER_FALLBACK = new Set([
+  'contract_type',
+  'employment_type',
+  'currency',
+  'adv_payment',
+  'expense_plan',
+  'expense_request_trip'
+])
 
 /** Exclude catalog ref ID fields from direct list (e.g. academicTitleRef, genderRef) – keep table fields only */
 function isRefIdField(fieldName: string): boolean {
   return fieldName.endsWith('Ref') || fieldName.endsWith('RefId')
 }
+
+/** Ref fields we always show so user can insert e.g. {{ adv_payment.currency_ref }} */
+const ALLOWED_REF_FIELDS = new Set(['currencyRef', 'currency_ref'])
 
 function looksLikeCatalogType(typeName: string | null, fieldNames: string[]): boolean {
   if (!typeName) return false
@@ -131,15 +160,36 @@ const CATALOG_PLACEHOLDER_FIELDS: TemplateEntityFieldFromGraphQL[] = [
   { key: 'code', displayName: 'Code' }
 ]
 
+/** Extra fields for expense entities (adv_payment, expense_plan, expense_request_trip) when GraphQL has no/empty type */
+const EXPENSE_PLACEHOLDER_FIELDS: TemplateEntityFieldFromGraphQL[] = [
+  { key: 'amount', displayName: 'Amount' },
+  { key: 'currency_ref', displayName: 'Currency ref' },
+  ...CATALOG_PLACEHOLDER_FIELDS
+]
+
+const EXPENSE_ENTITY_KEYS = new Set(['adv_payment', 'expense_plan', 'expense_request_trip'])
+
+/** Currency catalog group for fallback (same as Country under Catalog values) */
+const CURRENCY_CATALOG_GROUP_FALLBACK: TemplateCatalogGroup = {
+  fieldKey: 'currency_ref',
+  displayName: 'Currency',
+  subFields: CURRENCY_CATALOG_FALLBACK_SUBFIELDS.map(f => ({
+    key: `currency_ref.${f.key}`,
+    displayName: f.displayName
+  }))
+}
+
 function getFallbackForMissingType(entityKey: string): {
   direct: TemplateEntityFieldFromGraphQL[]
   catalogs: TemplateCatalogGroup[]
 } {
   const direct: TemplateEntityFieldFromGraphQL[] = []
-  if (CATALOG_ENTITY_KEYS.has(entityKey)) {
-    direct.push(...CATALOG_PLACEHOLDER_FIELDS)
+  const catalogs: TemplateCatalogGroup[] = []
+  if (ENTITY_KEYS_WITH_PLACEHOLDER_FALLBACK.has(entityKey)) {
+    direct.push(...(EXPENSE_ENTITY_KEYS.has(entityKey) ? EXPENSE_PLACEHOLDER_FIELDS : CATALOG_PLACEHOLDER_FIELDS))
+    if (EXPENSE_ENTITY_KEYS.has(entityKey)) catalogs.push(CURRENCY_CATALOG_GROUP_FALLBACK)
   }
-  return { direct, catalogs: [] }
+  return { direct, catalogs }
 }
 
 function getEnumFallback(): { direct: TemplateEntityFieldFromGraphQL[]; catalogs: TemplateCatalogGroup[] } {
@@ -164,8 +214,15 @@ async function processTypeFields(
   for (const field of type.fields) {
     const typeInfo = field.type
     if (isScalarOrEnum(typeInfo)) {
-      if (!isRefIdField(field.name)) {
-        direct.push({ key: field.name, displayName: humanizeFieldName(field.name) })
+      const showField = !isRefIdField(field.name) || ALLOWED_REF_FIELDS.has(field.name)
+      if (showField) {
+        direct.push({
+          key: field.name,
+          displayName:
+            field.name === 'currencyRef' || field.name === 'currency_ref'
+              ? 'Currency ref'
+              : humanizeFieldName(field.name)
+        })
       }
       continue
     }
@@ -182,16 +239,34 @@ async function processTypeFields(
         const nestedFieldNames = nestedType.fields.map(f => f.name)
         const isCatalog = looksLikeCatalogType(nestedTypeName, nestedFieldNames)
 
-        if (isCatalog && ALLOWED_CATALOG_FIELD_KEYS.has(field.name)) {
+        const showAsDirectNested = !isCatalog || RELATIONSHIP_FIELDS_ALWAYS_DIRECT.has(field.name)
+        if (
+          isCatalog &&
+          ALLOWED_CATALOG_FIELD_KEYS.has(field.name) &&
+          !RELATIONSHIP_FIELDS_ALWAYS_DIRECT.has(field.name)
+        ) {
           const subFields = filterCatalogSubFields(field.name, nestedType)
           if (subFields.length > 0) {
             catalogs.push({
               fieldKey: field.name,
-              displayName: humanizeFieldName(field.name),
+              displayName:
+                field.name === 'currencyRef' || field.name === 'currency_ref'
+                  ? 'Currency'
+                  : humanizeFieldName(field.name),
               subFields
             })
+          } else if (field.name === 'currencyRef' || field.name === 'currency_ref') {
+            catalogs.push({
+              fieldKey: field.name,
+              displayName: 'Currency',
+              subFields: CURRENCY_CATALOG_FALLBACK_SUBFIELDS.map(f => ({
+                key: `${field.name}.${f.key}`,
+                displayName: f.displayName
+              }))
+            })
           }
-        } else if (!isCatalog) {
+        }
+        if (showAsDirectNested) {
           for (const sub of nestedType.fields) {
             if (isScalarOrEnum(sub.type)) {
               direct.push({
@@ -201,8 +276,21 @@ async function processTypeFields(
             }
           }
         }
+        if (field.name === 'currencyRef' || field.name === 'currency_ref') {
+          direct.push({ key: field.name, displayName: 'Currency ref' })
+        }
       } catch {
-        // Skip nested type on introspection failure
+        if (field.name === 'currencyRef' || field.name === 'currency_ref') {
+          direct.push({ key: field.name, displayName: 'Currency ref' })
+          catalogs.push({
+            fieldKey: field.name,
+            displayName: 'Currency',
+            subFields: CURRENCY_CATALOG_FALLBACK_SUBFIELDS.map(f => ({
+              key: `${field.name}.${f.key}`,
+              displayName: f.displayName
+            }))
+          })
+        }
       }
     }
   }

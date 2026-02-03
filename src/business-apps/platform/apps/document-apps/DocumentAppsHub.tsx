@@ -84,7 +84,8 @@ import { useDocumentAppsHubFiltering } from './hooks/useDocumentAppsHubFiltering
 import { useDocumentAppsHubUrlState } from './hooks/useDocumentAppsHubUrlState'
 
 // Entities / context
-import { getContextForCategory } from './entities'
+import { getContextForCategory, getContextForEntityKeys } from './entities'
+import { extractEntityKeysFromContent } from './utils/templatePlaceholders'
 
 // Types
 import type { DocumentTemplate, ParsedWordDocument, DocumentSummary } from './types'
@@ -195,7 +196,12 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const effectiveEntityContext =
     entityContext ??
     urlEntityContext ??
-    (templateBeingEdited ? (sessionEntityContext ?? getContextForCategory(templateBeingEdited.category)) : undefined) ??
+    (templateBeingEdited
+      ? (templateBeingEdited.context ??
+        getContextForEntityKeys(extractEntityKeysFromContent(templateBeingEdited.content)) ??
+        sessionEntityContext ??
+        getContextForCategory(templateBeingEdited.category))
+      : undefined) ??
     'candidate'
 
   // Hooks

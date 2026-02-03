@@ -19,7 +19,8 @@ export interface TemplateContextOption {
  */
 export const TEMPLATE_CONTEXTS: TemplateContextOption[] = [
   { key: 'candidate', displayName: 'Candidate' },
-  { key: 'employee', displayName: 'Employee' }
+  { key: 'employee', displayName: 'Employee' },
+  { key: 'expenses', displayName: 'Expenses' }
 ]
 
 /**
@@ -42,7 +43,8 @@ export const ENTITY_KEYS_BY_CONTEXT: Record<string, string[]> = {
     'contract_type',
     'employment_type'
   ],
-  employee: ['job_candidate', 'employee', 'company', 'employment_type', 'contract_type', 'company_address']
+  employee: ['job_candidate', 'employee', 'company', 'employment_type', 'contract_type', 'company_address'],
+  expenses: ['employee_position', 'expense_plan', 'adv_payment', 'expense_request_trip', 'currency']
 }
 
 /** Get display name for a context key, or the key itself if unknown */
@@ -73,4 +75,19 @@ const DEFAULT_CONTEXT = 'candidate'
 /** Get entity context key for a template category (e.g. for "Insert field" panel when editing). */
 export function getContextForCategory(category: string): string {
   return CONTEXT_BY_CATEGORY[category] ?? DEFAULT_CONTEXT
+}
+
+/**
+ * Infer context from entity keys found in template content.
+ * Returns the context whose entity list contains all given keys (first match).
+ * Use when editing a template so the correct entities load without persisting context.
+ */
+export function getContextForEntityKeys(entityKeys: string[]): string | undefined {
+  if (entityKeys.length === 0) return undefined
+  for (const [context, keys] of Object.entries(ENTITY_KEYS_BY_CONTEXT)) {
+    const contextKeys = new Set(keys.map(k => k.toLowerCase()))
+    const allFound = entityKeys.every(k => contextKeys.has(k.toLowerCase()))
+    if (allFound) return context
+  }
+  return undefined
 }

@@ -8,6 +8,7 @@
  * Domains:
  * - nw_orgchart: employee_position, company, company_address
  * - nw_employee: employee, employee_address
+ * - nw_employee_expense: expense_plan, adv_payment, expense_request_trip
  * - nw_recruiting: job_candidate, job_application, job_request, job_position, job_posting
  * - nw_catalog: contract_type, employment_type only
  *
@@ -20,13 +21,18 @@
 
 import { ENTITY_KEYS_BY_CONTEXT } from './templateContextConfig'
 
-export type TemplateEntityDomain = 'nw_orgchart' | 'nw_employee' | 'nw_recruiting' | 'nw_catalog'
+export type TemplateEntityDomain =
+  | 'nw_orgchart'
+  | 'nw_employee'
+  | 'nw_employee_expense'
+  | 'nw_recruiting'
+  | 'nw_catalog'
 
 /**
  * Known context tags for scoping which entities appear in the Insert Field panel.
  * Add new contexts here and assign them to entities in the registry.
  */
-export type TemplateEntityContext = 'candidate' | 'onboarding' | 'employee'
+export type TemplateEntityContext = 'candidate' | 'onboarding' | 'employee' | 'expenses'
 
 /**
  * Entity definition – link only. No fields; BE knows the schema from GraphQL / model.
@@ -65,7 +71,7 @@ function entity(
  */
 export const TEMPLATE_ENTITY_REGISTRY: TemplateEntityDefinition[] = [
   // ----- nw_orgchart -----
-  entity('employee_position', 'Employee position', 'nw_orgchart', 'EmployeePosition'),
+  entity('employee_position', 'Employee position', 'nw_orgchart', 'EmployeePosition', ['candidate', 'expenses']),
   entity('company', 'Company', 'nw_orgchart', 'Company', ['candidate', 'onboarding']),
   entity('company_address', 'Company address', 'nw_orgchart', 'CompanyAddress', ['candidate', 'onboarding']),
   // ----- nw_employee -----
@@ -77,9 +83,14 @@ export const TEMPLATE_ENTITY_REGISTRY: TemplateEntityDefinition[] = [
   entity('job_request', 'Job request', 'nw_recruiting', 'JobRequest'),
   entity('job_position', 'Job position', 'nw_recruiting', 'JobPosition'),
   entity('job_posting', 'Job posting', 'nw_recruiting', 'JobPosting'),
-  // ----- nw_catalog (contract type and employment type only) -----
+  // ----- nw_catalog (contract type, employment type, currency) -----
   entity('contract_type', 'Contract type', 'nw_catalog', 'ContractType'),
-  entity('employment_type', 'Employment type', 'nw_catalog', 'EmploymentType')
+  entity('employment_type', 'Employment type', 'nw_catalog', 'EmploymentType'),
+  entity('currency', 'Currency', 'nw_catalog', 'Currency', ['expenses']),
+  // ----- nw_employee_expense -----
+  entity('expense_plan', 'Expense plan', 'nw_employee_expense', 'ExpensePlan', ['expenses']),
+  entity('adv_payment', 'Advance payment', 'nw_employee_expense', 'AdvancePayment', ['expenses']),
+  entity('expense_request_trip', 'Expense request trip', 'nw_employee_expense', 'ExpenseRequestTrip', ['expenses'])
 ]
 
 /** Placeholder format: {{entityKey.fieldKey}} */

@@ -99,14 +99,52 @@ function formatAddressLike(value: unknown): string {
   return ''
 }
 
+/** Match string that looks like a currency code (e.g. EUR, USD) or versioned ref (v1:EUR) */
+function looksLikeCurrencyRef(s: string): boolean {
+  const t = s.trim()
+  if (t.includes(':')) return /^v\d+:[A-Za-z]{2,4}$/.test(t)
+  return /^[A-Za-z]{2,4}$/.test(t)
+}
+
+/** Extract display code from full ref (e.g. "Currency:v1:RON" -> "RON"). Returns empty if not a currency ref. */
+function extractCurrencyDisplayCode(s: string): string {
+  const t = s.trim()
+  const match = t.match(/^Currency:v?\d*:?([A-Za-z]{2,4})$/i) ?? t.match(/^[^:]+:v?\d*:?([A-Za-z]{2,4})$/i)
+  return match ? match[1].toUpperCase() : ''
+}
+
+/**
+ * Format currency for document display: returns the code only (e.g. "RON", "EUR").
+ * Accepts: full ref "Currency:v1:RON", short "v1:EUR" or "EUR", or object { code: string }.
+ */
+function formatCurrencyRef(value: unknown): string {
+  if (typeof value === 'string') {
+    const s = value.trim()
+    if (!s) return ''
+    const displayCode = extractCurrencyDisplayCode(s)
+    if (displayCode) return displayCode
+    if (looksLikeCurrencyRef(s)) return s.includes(':') ? (s.split(':').pop() ?? s) : s
+    return ''
+  }
+  if (value == null || typeof value !== 'object' || Array.isArray(value)) return ''
+  const o = value as Record<string, unknown>
+  const code = (getStr(o, 'code') ?? getStr(o, 'id') ?? '') as string
+  return code ? code.toUpperCase() : ''
+}
+
 function formatValue(value: unknown): string {
   if (value === undefined || value === null) return ''
   if (typeof value === 'string') {
     if (isIsoDateString(value)) return formatDateString(value)
     const probationFormatted = formatProbationPeriod(value)
     if (probationFormatted) return probationFormatted
+    const currencyFormatted = formatCurrencyRef(value)
+    if (currencyFormatted) return currencyFormatted
+    return value
   }
   if (typeof value === 'object' && !Array.isArray(value) && value !== null) {
+    const currencyFormatted = formatCurrencyRef(value)
+    if (currencyFormatted) return currencyFormatted
     const addressFormatted = formatAddressLike(value)
     if (addressFormatted) return addressFormatted
     const obj = value as { displayName?: string; name?: string }

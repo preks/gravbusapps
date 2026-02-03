@@ -14,6 +14,7 @@ export {
   TEMPLATE_CONTEXTS,
   ENTITY_KEYS_BY_CONTEXT,
   getTemplateContextDisplayName,
-  getContextForCategory
+  getContextForCategory,
+  getContextForEntityKeys
 } from './templateContextConfig'
 export type { TemplateContextOption } from './templateContextConfig'
