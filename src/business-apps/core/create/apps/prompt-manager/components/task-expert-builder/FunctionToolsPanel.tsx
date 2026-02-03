@@ -67,18 +67,13 @@ export const FunctionToolsPanel: React.FC<Pick<TabProps, 'state' | 'actions' | '
         </div>
       </CardHeader>
       <CardContent className="gba:space-y-4">
-        <div className="gba:flex gba:items-center gba:gap-3">
-          <div className="gba:relative gba:flex-1">
-            <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search function tools..."
-              className="gba:pl-9"
-              data-testid="agent-builder-function-tool-search"
-            />
-          </div>
-        </div>
+        <Input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search function tools..."
+          startAddOn={<Search size={16} />}
+          data-testid="agent-builder-function-tool-search"
+        />
 
         <div className="gba:border gba:rounded-lg gba:divide-y gba:max-h-[400px] gba:overflow-y-auto">
           {catalogs.capabilitiesLoading ? (
