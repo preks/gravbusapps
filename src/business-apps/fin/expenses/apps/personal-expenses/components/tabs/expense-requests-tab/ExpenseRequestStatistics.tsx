@@ -163,7 +163,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     [onWidgetClick, isLoading]
   )
 
-  // Transform the stats data into widgets format
+  // No-trend widgets: value, empty row, footer (same layout as expense dashboard)
   const widgets: WidgetItem[] = [
     {
       key: 'total-requests',
@@ -215,10 +215,11 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       prefix: <CalendarOutlined />,
       color: '#faad14',
       span: { xs: 24, sm: 12, md: 6 },
-      description: getTranslationFromI18nKeyAndLabel(
+      footer: getTranslationFromI18nKeyAndLabel(
         'lowcoder:team_expenses_page.expense_plans_tab.requires_action',
         'Requires action'
       ),
+      trend: { hideBadge: true, value: '', description: '\u200B' },
       active: activeWidgetKey === 'pending-approval',
       onClick: () => handleWidgetClick('pending-approval')
     },
@@ -230,7 +231,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       color: '#722ed1',
       precision: 2,
       span: { xs: 24, sm: 12, md: 6 },
-      description: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_be_reimbursed', 'To be reimbursed'),
+      footer: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.to_be_reimbursed', 'To be reimbursed'),
+      trend: { hideBadge: true, value: '', description: '\u200B' },
       active: activeWidgetKey === 'reimbursable',
       onClick: () => handleWidgetClick('reimbursable')
     }
@@ -244,6 +246,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       error={error}
       onRetry={fetchRequestStatistics}
       skeletonCount={4}
+      useWidgetStructureForLoading={true}
       emptyText={getTranslationFromI18nKeyAndLabel(
         'lowcoder:personal_expenses.no_expense_request_statistics_available',
         'No expense request statistics available.'

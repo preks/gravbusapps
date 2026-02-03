@@ -128,7 +128,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
     [onWidgetClick, isLoading]
   )
 
-  // Transform the stats data into widgets format
+  // No-trend widgets: value, empty row, footer (same layout as expense dashboard)
   const widgets: WidgetItem[] = useMemo(
     () => [
       {
@@ -178,12 +178,9 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         prefix: <CalendarOutlined />,
         color: '#faad14',
         span: { xs: 24, sm: 12, md: 6 },
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:personal_expenses.awaiting_approval',
-          'Awaiting approval'
-        ),
+        footer: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_approval', 'Awaiting approval'),
+        trend: { hideBadge: true, value: '', description: '\u200B' },
         active: activeWidgetKey === 'pending-payments',
-        hideBadge: true,
         onClick: () => handleWidgetClick('pending-payments')
       },
       {
@@ -193,10 +190,11 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         prefix: <BankOutlined />,
         color: '#52c41a',
         span: { xs: 24, sm: 12, md: 6 },
-        description: getTranslationFromI18nKeyAndLabel(
+        footer: getTranslationFromI18nKeyAndLabel(
           'lowcoder:personal_expenses.ready_for_processing',
           'Ready for processing'
         ),
+        trend: { hideBadge: true, value: '', description: '\u200B' },
         active: activeWidgetKey === 'approved-payments',
         onClick: () => handleWidgetClick('approved-payments')
       }
@@ -211,6 +209,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
       error={error}
       onRetry={fetchStatistics}
       skeletonCount={4}
+      useWidgetStructureForLoading={true}
       emptyText={getTranslationFromI18nKeyAndLabel(
         'lowcoder:personal_expenses.no_advance_payment_statistics_available',
         'No advance payment statistics available.'
