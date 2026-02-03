@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_ABSENCE_DAILY_FACTS_BY_TYPE, GET_ABSENCE_DAILY_FACTS_BY_STATUS } from '../queries/graphql'
 
 export interface GroupDatum {
@@ -18,7 +18,7 @@ export function useDailyFactsByType(
   mapType?: (code: string) => { label?: string; color?: string },
   statuses?: string[]
 ) {
-  const client = useGraphqlClient(accessToken)
+  const client = useGraphQLClient(accessToken)
   const [data, setData] = useState<GroupDatum[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
@@ -67,7 +67,7 @@ export function useDailyFactsByType(
 }
 
 export function useDailyFactsByStatus(accessToken?: string, employeeId?: string, from?: string, to?: string) {
-  const client = useGraphqlClient(accessToken)
+  const client = useGraphQLClient(accessToken)
   const [data, setData] = useState<GroupDatum[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_ENTITLEMENTS_SNAPSHOT } from '../queries/graphql'
 
 export interface SnapshotEntitlement {
@@ -27,7 +27,7 @@ export function useEntitlementSnapshot(
   employeeId?: string,
   mapType?: (code: string) => { label?: string; color?: string }
 ) {
-  const client = useGraphqlClient(accessToken)
+  const client = useGraphQLClient(accessToken)
   const [entitlements, setEntitlements] = useState<SnapshotEntitlement[]>([])
   const [stats, setStats] = useState<SnapshotStatItem[]>([])
   const [loading, setLoading] = useState(false)

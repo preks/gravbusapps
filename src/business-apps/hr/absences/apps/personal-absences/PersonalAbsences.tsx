@@ -4,7 +4,7 @@ import type { AbsenceItem, StatItem, AbsenceListCardAbsence } from './types/abse
 import type { Entitlement } from './types/entitlementTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_ABSENCES } from './queries/graphql'
 import { getAbsenceGroups } from '@/business-apps/hr/core/forms/create-new-absence/queries/getAbsenceGroups'
 import dayjs from 'dayjs'
@@ -70,7 +70,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
 
   const { accessToken, userInfo } = props
   const employeeId = userInfo?.employeeDetails?.employeeId
-  const client = useGraphqlClient(accessToken)
+  const client = useGraphQLClient(accessToken)
   const rawStructureId = getCurrentActiveStructureId()
   const structureId = rawStructureId ?? ''
 

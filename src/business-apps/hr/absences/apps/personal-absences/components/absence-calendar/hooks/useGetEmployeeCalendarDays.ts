@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import dayjs from 'dayjs'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 interface UseGetEmployeeCalendarDaysProps {
   employeeId?: string
@@ -45,7 +45,7 @@ const GET_EMPLOYEE_CALENDAR_DAYS = `
 `
 
 export function useGetEmployeeCalendarDays({ employeeId, accessToken, month }: UseGetEmployeeCalendarDaysProps) {
-  const client = useGraphqlClient(accessToken)
+  const client = useGraphQLClient(accessToken)
   const [absences, setAbsences] = useState<CalendarLikeAbsence[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)

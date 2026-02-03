@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_ABSENCE_TYPES } from '../queries/graphql'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
@@ -11,7 +11,7 @@ export interface AbsenceTypePresentation {
 }
 
 export function useAbsenceTypeCatalog(accessToken?: string) {
-  const client = useGraphqlClient(accessToken)
+  const client = useGraphQLClient(accessToken)
   const [types, setTypes] = useState<Record<string, AbsenceTypePresentation>>({})
   const [typesById, setTypesById] = useState<Record<string, AbsenceTypePresentation>>({})
   const [typesByParentId, setTypesByParentId] = useState<Record<string, AbsenceTypePresentation>>({})
