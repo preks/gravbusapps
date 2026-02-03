@@ -50,101 +50,36 @@ export interface TemplateEntityDefinition {
   contexts?: TemplateEntityContext[]
 }
 
+function entity(
+  entityKey: string,
+  displayName: string,
+  domain: TemplateEntityDomain,
+  graphqlTypeName: string,
+  contexts: TemplateEntityContext[] = ['candidate']
+): TemplateEntityDefinition {
+  return { entityKey, displayName, domain, graphqlTypeName, contexts }
+}
+
 /**
  * Registry: entities and their backend link. No field list – BE provides mapping.
  */
 export const TEMPLATE_ENTITY_REGISTRY: TemplateEntityDefinition[] = [
   // ----- nw_orgchart -----
-  {
-    entityKey: 'employee_position',
-    displayName: 'Employee position',
-    domain: 'nw_orgchart',
-    graphqlTypeName: 'EmployeePosition',
-    contexts: ['candidate']
-  },
-  {
-    entityKey: 'company',
-    displayName: 'Company',
-    domain: 'nw_orgchart',
-    graphqlTypeName: 'Company',
-    contexts: ['candidate', 'onboarding']
-  },
-  {
-    entityKey: 'company_address',
-    displayName: 'Company address',
-    domain: 'nw_orgchart',
-    graphqlTypeName: 'CompanyAddress',
-    contexts: ['candidate', 'onboarding']
-  },
-
+  entity('employee_position', 'Employee position', 'nw_orgchart', 'EmployeePosition'),
+  entity('company', 'Company', 'nw_orgchart', 'Company', ['candidate', 'onboarding']),
+  entity('company_address', 'Company address', 'nw_orgchart', 'CompanyAddress', ['candidate', 'onboarding']),
   // ----- nw_employee -----
-  {
-    entityKey: 'employee',
-    displayName: 'Employee',
-    domain: 'nw_employee',
-    graphqlTypeName: 'Employee',
-    contexts: ['candidate']
-  },
-  {
-    entityKey: 'employee_address',
-    displayName: 'Employee address',
-    domain: 'nw_employee',
-    graphqlTypeName: 'EmployeeAddress',
-    contexts: ['candidate']
-  },
-
+  entity('employee', 'Employee', 'nw_employee', 'Employee'),
+  entity('employee_address', 'Employee address', 'nw_employee', 'EmployeeAddress'),
   // ----- nw_recruiting -----
-  {
-    entityKey: 'job_candidate',
-    displayName: 'Job candidate',
-    domain: 'nw_recruiting',
-    graphqlTypeName: 'JobCandidate',
-    contexts: ['candidate']
-  },
-  {
-    entityKey: 'job_application',
-    displayName: 'Job application',
-    domain: 'nw_recruiting',
-    graphqlTypeName: 'JobApplication',
-    contexts: ['candidate']
-  },
-  {
-    entityKey: 'job_request',
-    displayName: 'Job request',
-    domain: 'nw_recruiting',
-    graphqlTypeName: 'JobRequest',
-    contexts: ['candidate']
-  },
-  {
-    entityKey: 'job_position',
-    displayName: 'Job position',
-    domain: 'nw_recruiting',
-    graphqlTypeName: 'JobPosition',
-    contexts: ['candidate']
-  },
-  {
-    entityKey: 'job_posting',
-    displayName: 'Job posting',
-    domain: 'nw_recruiting',
-    graphqlTypeName: 'JobPosting',
-    contexts: ['candidate']
-  },
-
+  entity('job_candidate', 'Job candidate', 'nw_recruiting', 'JobCandidate'),
+  entity('job_application', 'Job application', 'nw_recruiting', 'JobApplication'),
+  entity('job_request', 'Job request', 'nw_recruiting', 'JobRequest'),
+  entity('job_position', 'Job position', 'nw_recruiting', 'JobPosition'),
+  entity('job_posting', 'Job posting', 'nw_recruiting', 'JobPosting'),
   // ----- nw_catalog (contract type and employment type only) -----
-  {
-    entityKey: 'contract_type',
-    displayName: 'Contract type',
-    domain: 'nw_catalog',
-    graphqlTypeName: 'ContractType',
-    contexts: ['candidate']
-  },
-  {
-    entityKey: 'employment_type',
-    displayName: 'Employment type',
-    domain: 'nw_catalog',
-    graphqlTypeName: 'EmploymentType',
-    contexts: ['candidate']
-  }
+  entity('contract_type', 'Contract type', 'nw_catalog', 'ContractType'),
+  entity('employment_type', 'Employment type', 'nw_catalog', 'EmploymentType')
 ]
 
 /** Placeholder format: {{entityKey.fieldKey}} */

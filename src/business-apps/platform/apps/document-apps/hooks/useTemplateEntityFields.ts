@@ -150,11 +150,7 @@ function getNoFieldsFallback(entityKey: string): {
   direct: TemplateEntityFieldFromGraphQL[]
   catalogs: TemplateCatalogGroup[]
 } {
-  const direct: TemplateEntityFieldFromGraphQL[] = []
-  if (CATALOG_ENTITY_KEYS.has(entityKey)) {
-    direct.push(...CATALOG_PLACEHOLDER_FIELDS)
-  }
-  return { direct, catalogs: [] }
+  return getFallbackForMissingType(entityKey)
 }
 
 async function processTypeFields(
