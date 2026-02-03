@@ -77,7 +77,7 @@ export const McpToolConfigForm: React.FC<McpToolConfigFormProps> = props => {
 
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <div className="gba:space-y-2">
-          <Label>Auth (for test)</Label>
+          <Label>Auth</Label>
           <Select
             value={draft.authType}
             onValueChange={v => onChange({ authType: v as McpToolAuthType })}

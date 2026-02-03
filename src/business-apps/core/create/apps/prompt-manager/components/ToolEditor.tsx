@@ -34,6 +34,15 @@ import type {
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
 
 type ToolType = 'mcp'
+type McpAuthType = 'none' | 'session' | 'bearer' | 'header'
+
+const MCP_RESERVED_SETTINGS_KEYS = new Set([
+  'auth.type',
+  'auth.bearerToken',
+  'auth.headerName',
+  'auth.headerValue',
+  'http.headersJson'
+])
 
 export interface ToolEditorProps extends BusinessAppContextProps {
   mode: 'create' | 'edit'
@@ -55,6 +64,40 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
 
   const [settings, setSettings] = useState<ToolSettings>({ config: {} })
   const [configKeys, setConfigKeys] = useState<Array<{ key: string; value: string }>>([{ key: '', value: '' }])
+
+  const getConfigValue = useCallback((key: string) => configKeys.find(kv => kv.key === key)?.value ?? '', [configKeys])
+
+  const setConfigValue = useCallback((key: string, value: string) => {
+    setConfigKeys(prev => {
+      const next = prev.slice()
+      const idx = next.findIndex(kv => kv.key === key)
+      const trimmed = value ?? ''
+
+      if (!trimmed) {
+        // Remove key if present
+        if (idx >= 0) next.splice(idx, 1)
+        return next.length > 0 ? next : [{ key: '', value: '' }]
+      }
+
+      if (idx >= 0) {
+        next[idx] = { key, value: trimmed }
+        return next
+      }
+
+      return [...next, { key, value: trimmed }]
+    })
+  }, [])
+
+  const authType = useMemo(() => {
+    const v = getConfigValue('auth.type')
+    if (v === 'session' || v === 'bearer' || v === 'header') return v
+    return 'none'
+  }, [getConfigValue])
+
+  const bearerToken = useMemo(() => getConfigValue('auth.bearerToken'), [getConfigValue])
+  const headerName = useMemo(() => getConfigValue('auth.headerName'), [getConfigValue])
+  const headerValue = useMemo(() => getConfigValue('auth.headerValue'), [getConfigValue])
+  const headersJson = useMemo(() => getConfigValue('http.headersJson') || '{}', [getConfigValue])
 
   // Schema configuration
   const [inputSchema, setInputSchema] = useState<string>('')
@@ -102,7 +145,12 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
       setMcpUrl('')
       setMcpTransport('sse')
       setSettings({ config: {} })
-      setConfigKeys([{ key: '', value: '' }])
+      setConfigKeys([
+        // Defaults so auth controls have sane initial values
+        { key: 'auth.type', value: 'none' },
+        { key: 'http.headersJson', value: '{}' },
+        { key: '', value: '' }
+      ])
       setInputSchema('')
       setOutputSchema('')
       setInputSchemaError(null)
@@ -127,6 +175,12 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
           }
           return acc
         }, {})
+      }
+
+      // Validate MCP headers JSON if provided
+      const hdr = finalSettings.config?.['http.headersJson']
+      if (hdr && hdr.trim()) {
+        JSON.parse(hdr)
       }
 
       // Build schema configuration
@@ -369,19 +423,11 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
                           Key-value pairs for credentials, authentication, environment variables, etc. These will be
                           provided at runtime.
                         </p>
-                        {toolType === 'mcp' && (
-                          <p>
-                            <strong>For MCP tools:</strong> Use keys like <code>API_KEY</code>,{' '}
-                            <code>BEARER_TOKEN</code>, <code>X-API-KEY</code>, or custom headers. The runtime will use
-                            these for authentication when connecting to the MCP server.
-                          </p>
-                        )}
-                        {toolType === 'function' && (
-                          <p>
-                            <strong>For Function tools:</strong> These are available as environment variables or in the
-                            function context at runtime.
-                          </p>
-                        )}
+                        <p>
+                          <strong>Auth keys (recommended):</strong> <code>auth.type</code> (none|session|bearer|header),{' '}
+                          <code>auth.bearerToken</code>, <code>auth.headerName</code>, <code>auth.headerValue</code>,{' '}
+                          <code>http.headersJson</code>.
+                        </p>
                       </div>
                     </TooltipContent>
                   </Tooltip>
@@ -390,39 +436,126 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
             </CardHeader>
             <CardContent className="gba:space-y-3">
               <div className="gba:space-y-2">
-                <Label>Runtime Configuration</Label>
+                <Label>Authentication</Label>
+                <Select
+                  value={authType}
+                  onValueChange={v => {
+                    const next = v as McpAuthType
+                    if (next === 'none') setConfigValue('auth.type', '')
+                    else setConfigValue('auth.type', next)
+
+                    if (next !== 'bearer') setConfigValue('auth.bearerToken', '')
+                    if (next !== 'header') {
+                      setConfigValue('auth.headerName', '')
+                      setConfigValue('auth.headerValue', '')
+                    }
+                  }}
+                >
+                  <SelectTrigger data-testid="tool-editor-mcp-auth-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="session">Use session token</SelectItem>
+                    <SelectItem value="bearer">Bearer token</SelectItem>
+                    <SelectItem value="header">Custom header</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="gba:text-xs gba:text-muted-foreground">
+                  For internal MCP tools (e.g. Flow Engine), auth is injected at runtime and these settings are ignored.
+                </p>
+              </div>
+
+              {authType === 'bearer' && (
+                <div className="gba:space-y-2">
+                  <Label>Bearer Token</Label>
+                  <Input
+                    type="password"
+                    value={bearerToken}
+                    onChange={e => setConfigValue('auth.bearerToken', e.target.value)}
+                    data-testid="tool-editor-mcp-bearer-token"
+                  />
+                </div>
+              )}
+
+              {authType === 'header' && (
+                <div className="gba:space-y-2">
+                  <Label>Custom Header</Label>
+                  <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+                    <Input
+                      value={headerName}
+                      onChange={e => setConfigValue('auth.headerName', e.target.value)}
+                      placeholder="Header name"
+                      data-testid="tool-editor-mcp-header-name"
+                    />
+                    <Input
+                      type="password"
+                      value={headerValue}
+                      onChange={e => setConfigValue('auth.headerValue', e.target.value)}
+                      placeholder="Header value"
+                      data-testid="tool-editor-mcp-header-value"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="gba:space-y-2">
+                <Label>Additional Headers (JSON)</Label>
+                <Textarea
+                  rows={4}
+                  value={headersJson}
+                  onChange={e => setConfigValue('http.headersJson', e.target.value)}
+                  className="gba:font-mono gba:text-xs"
+                  placeholder='{"X-Header":"value"}'
+                  data-testid="tool-editor-mcp-headers-json"
+                />
+              </div>
+
+              <div className="gba:space-y-2">
+                <Label>Advanced Runtime Configuration</Label>
                 <div className="gba:space-y-2 gba:mt-3">
-                  {configKeys.map((kv, idx) => (
-                    <div key={idx} className="gba:flex gba:gap-2">
-                      <Input
-                        placeholder="Key (e.g. API_KEY)"
-                        value={kv.key}
-                        onChange={e => {
-                          const newKeys = [...configKeys]
-                          newKeys[idx].key = e.target.value
-                          setConfigKeys(newKeys)
-                        }}
-                      />
-                      <Input
-                        type="password"
-                        placeholder="Value"
-                        value={kv.value}
-                        onChange={e => {
-                          const newKeys = [...configKeys]
-                          newKeys[idx].value = e.target.value
-                          setConfigKeys(newKeys)
-                        }}
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setConfigKeys(configKeys.filter((_, i) => i !== idx))}
-                        disabled={configKeys.length === 1}
-                      >
-                        ×
-                      </Button>
-                    </div>
-                  ))}
+                  {configKeys
+                    .filter(kv => !MCP_RESERVED_SETTINGS_KEYS.has(kv.key))
+                    .map((kv, idx) => (
+                      <div key={idx} className="gba:flex gba:gap-2">
+                        <Input
+                          placeholder="Key (e.g. API_KEY)"
+                          value={kv.key}
+                          onChange={e => {
+                            const visible = configKeys.filter(k => !MCP_RESERVED_SETTINGS_KEYS.has(k.key))
+                            const current = visible[idx]
+                            if (!current) return
+                            const next = configKeys.map(k => (k === current ? { ...k, key: e.target.value } : k))
+                            setConfigKeys(next)
+                          }}
+                        />
+                        <Input
+                          type="password"
+                          placeholder="Value"
+                          value={kv.value}
+                          onChange={e => {
+                            const visible = configKeys.filter(k => !MCP_RESERVED_SETTINGS_KEYS.has(k.key))
+                            const current = visible[idx]
+                            if (!current) return
+                            const next = configKeys.map(k => (k === current ? { ...k, value: e.target.value } : k))
+                            setConfigKeys(next)
+                          }}
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const visible = configKeys.filter(k => !MCP_RESERVED_SETTINGS_KEYS.has(k.key))
+                            const current = visible[idx]
+                            if (!current) return
+                            setConfigKeys(configKeys.filter(k => k !== current))
+                          }}
+                          disabled={configKeys.length === 1}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ))}
                   <Button
                     size="sm"
                     variant="outline"
