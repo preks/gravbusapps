@@ -35,7 +35,12 @@ export function useAbsenceTypeCatalog(accessToken?: string) {
           const translation =
             Array.isArray(row.translations) && row.translations.length > 0 ? row.translations[0].value : code
           const rawColor = row.objectValue?.color as string | undefined
-          const color = rawColor ? (rawColor.startsWith('#') ? rawColor : `#${rawColor}`) : undefined
+          let color: string | undefined
+          if (rawColor) {
+            color = rawColor.startsWith('#') ? rawColor : `#${rawColor}`
+          } else {
+            color = undefined
+          }
           const pres: AbsenceTypePresentation = {
             code,
             label: translation || code,

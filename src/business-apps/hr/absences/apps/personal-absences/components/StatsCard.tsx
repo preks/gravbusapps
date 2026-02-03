@@ -4,8 +4,12 @@ import { Calendar } from 'lucide-react'
 
 export const StatsCard = ({ stat }: StatsCardProps) => {
   const { title, used, total, progress, daysLeft, color, checkEntitlement } = stat as any
-  const normColor =
-    typeof color === 'string' && color.length > 0 ? (color.startsWith('#') ? color : `#${color}`) : undefined
+  let normColor: string | undefined
+  if (typeof color === 'string' && color.length > 0) {
+    normColor = color.startsWith('#') ? color : `#${color}`
+  } else {
+    normColor = undefined
+  }
   const safeUsed = Number.isFinite(Number(used)) ? Number(used) : 0
   const safeTotal = Number.isFinite(Number(total)) ? Number(total) : 0
   const safeProgress = Number.isFinite(Number(progress)) ? Number(progress) : 0

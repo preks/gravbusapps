@@ -3,6 +3,7 @@ import { TabComponentProps } from '../../../types'
 import { DashboardData } from '../../../types'
 
 import PersonalKeyInsightsSection from '../../../../personal-absences/components/KeyInsightsSection'
+import type { AbsenceListCardAbsence } from '../../../../personal-absences/types/absenceTypes'
 import OrgWorkPatternsPanel from './OrgWorkPatternsPanel'
 import { OrgYearComparisonCard } from './OrgYearComparisonCard'
 import { StatisticsDataProvider, useStatisticsData } from './StatisticsDataProvider'
@@ -10,21 +11,6 @@ import dayjs from 'dayjs'
 import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useAbsenceTypeCatalog } from '../../../../personal-absences/hooks/useAbsenceTypeCatalog'
-
-interface AbsenceListCardAbsence {
-  type: string
-  status: string
-  title: string
-  startDate: string
-  endDate: string
-  duration: string
-  description: string
-  requestedInfo: string
-  icon?: React.ReactNode
-  typeColor?: string
-  statusColor?: string
-  requestDate?: string
-}
 
 const StatisticsContent: React.FC<{ dashboardData: DashboardData; accessToken?: string }> = ({
   dashboardData,
@@ -59,12 +45,24 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData; accessToken?: 
       endDate: a.endDate,
       duration: String(Number(a.effectiveDays) || 0),
       description: a.employeeName ? `Employee: ${a.employeeName}` : '',
-      requestedInfo: a.createdAt || ''
+      requestedInfo: a.createdAt || '',
+      icon: <></>,
+      typeColor: (mapType(a?.type?.id || a?.type?.parentEntryId || a?.type?.value || a.typeName || a.groupName || '')
+        ?.color || 'var(--nw-chart-4)') as string,
+      statusColor:
+        String(a.status || '').toUpperCase() === 'APPROVED'
+          ? 'var(--nw-success)'
+          : String(a.status || '').toUpperCase() === 'PENDING'
+            ? 'var(--nw-warning)'
+            : String(a.status || '').toUpperCase() === 'REJECTED'
+              ? 'var(--nw-destructive)'
+              : 'var(--nw-muted-foreground)',
+      requestDate: a.createdAt || ''
     }))
   }, [dashboardData?.rawAbsences])
 
   const distributionEntries = useMemo(() => {
-    const items = (dashboardData?.rawAbsences || []) as any[]
+    const items = dashboardData?.rawAbsences || []
     const currentYearOnly = items.filter(
       a => String(a.status || '').toUpperCase() === 'APPROVED' && dayjs(a.startDate).year() === currentYear
     )
@@ -98,7 +96,7 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData; accessToken?: 
       <div className="gba:pb-6" data-testid="backoffice-statistics-key-insights">
         {data?.keyStats ? (
           <PersonalKeyInsightsSection
-            absences={absences as any[]}
+            absences={absences}
             overrides={{
               plannedPct: data.keyStats.plannedPct,
               unplannedPct: data.keyStats.unplannedPct,
@@ -110,12 +108,12 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData; accessToken?: 
             disableLocalCalc
           />
         ) : (
-          <PersonalKeyInsightsSection absences={absences as any[]} />
+          <PersonalKeyInsightsSection absences={absences} />
         )}
       </div>
       {/* Work Patterns and Monthly Patterns side by side (custom panel) */}
       <div className="gba:statisticsSection" data-testid="backoffice-statistics-workpatterns-grid">
-        <OrgWorkPatternsPanel absences={absences as any[]} accessToken={undefined} />
+        <OrgWorkPatternsPanel absences={absences} accessToken={undefined} />
       </div>
       {/* Year comparison + Leave Type Distribution side by side */}
       <div
@@ -123,7 +121,7 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData; accessToken?: 
         data-testid="backoffice-statistics-yoy-and-leave-grid"
       >
         <div className="gba:statisticsSection" data-testid="backoffice-statistics-year-comparison">
-          <OrgYearComparisonCard absences={absences as any[]} accessToken={undefined} />
+          <OrgYearComparisonCard absences={absences} accessToken={undefined} />
         </div>
         <div className="gba:statisticsSection" data-testid="backoffice-statistics-leave-type-distribution">
           <Card>

@@ -36,7 +36,7 @@ export function useDailyFactsByType(
         employeeId,
         from: fromDate,
         to: toDate,
-        statuses: statuses && statuses.length ? statuses : undefined
+        statuses: statuses?.length ? statuses : undefined
       })
       .then(res => {
         const rows: Array<{ typeRef: string; dayFraction: number }> =

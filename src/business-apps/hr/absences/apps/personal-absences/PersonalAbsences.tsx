@@ -31,6 +31,29 @@ import { AbsenceList } from './components/absence-list-table'
 import { useAbsenceTypeCatalog } from './hooks/useAbsenceTypeCatalog'
 import { useEntitlementSnapshot } from './hooks/useEntitlementSnapshot'
 
+const statusToColor = (status?: string): string => {
+  switch ((status || '').toLowerCase()) {
+    case 'pending':
+      return 'var(--nw-warning)'
+    case 'approved':
+      return 'var(--nw-success)'
+    case 'rejected':
+      return 'var(--nw-destructive)'
+    case 'cancelled':
+      return 'var(--nw-muted-foreground)'
+    default:
+      return 'var(--nw-muted-foreground)'
+  }
+}
+
+const timeUntil = (startIso: string): string => {
+  const days = dayjs(startIso).diff(dayjs(), 'day')
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Tomorrow'
+  if (days < 0) return 'Started'
+  return `in ${days} days`
+}
+
 export const PersonalAbsences = (props: BusinessAppContextProps) => {
   const [activeTab, setActiveTab] = useState('calendar')
   const [activeFilter, setActiveFilter] = useState('All')
@@ -123,20 +146,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
               />
             ),
             typeColor: absence.type?.objectValue?.color ? absence.type.objectValue.color : 'blue',
-            statusColor: (() => {
-              switch ((absence.status || '').toLowerCase()) {
-                case 'pending':
-                  return 'var(--nw-warning)'
-                case 'approved':
-                  return 'var(--nw-success)'
-                case 'rejected':
-                  return 'var(--nw-destructive)'
-                case 'cancelled':
-                  return 'var(--nw-muted-foreground)'
-                default:
-                  return 'var(--nw-muted-foreground)'
-              }
-            })(),
+            statusColor: statusToColor(absence.status),
             requestDate: absence.createdAt
           }))
         )
@@ -150,13 +160,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
               icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: 'var(--nw-chart-4)' }} />,
               dates: `${dayjs(a.startDate).format('MM/DD/YYYY')} - ${dayjs(a.endDate).format('MM/DD/YYYY')}`,
               description: a.description,
-              timeUntil: (() => {
-                const days = dayjs(a.startDate).diff(dayjs(), 'day')
-                if (days === 0) return 'Today'
-                if (days === 1) return 'Tomorrow'
-                if (days < 0) return 'Started'
-                return `in ${days} days`
-              })(),
+              timeUntil: timeUntil(a.startDate),
               bgColor: a.type?.objectValue?.color
             }))
         )

@@ -173,7 +173,7 @@ export const getCombinedStatistics = async (
   const unplannedPct = plannedPct > 0 ? Math.max(0, 100 - plannedPct) : 0
 
   // Extract monthly counts (days-based) from facts
-  const monthlyCounts: number[] = Array(12).fill(0)
+  const monthlyCounts: number[] = new Array(12).fill(0)
   facts.forEach(f => {
     const d = new Date(f.dayDate)
     const m = d.getUTCMonth()

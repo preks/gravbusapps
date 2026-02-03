@@ -47,8 +47,8 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
   const { dayCounts, dayPercents, monthlyCounts, monthlyPercents, peakMonth, lowMonth } = useMemo(() => {
     const approved = (absences || []).filter((a: any) => String(a.status || '').toUpperCase() === 'APPROVED')
 
-    const dayCounts = Array(7).fill(0)
-    const monthCounts = Array(12).fill(0)
+    const dayCounts = new Array(7).fill(0)
+    const monthCounts = new Array(12).fill(0)
 
     approved.forEach((a: any) => {
       if (a.startDate) {
