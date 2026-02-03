@@ -62,6 +62,7 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
   const percentChange = calculatePercentChange(currentTotal, previousTotal)
   const isPositiveChange = percentChange >= 0
 
+  // No-trend widgets: value, empty row, footer (personal expenses only; other WidgetGroup usages unchanged)
   const widgets: WidgetItem[] = [
     {
       key: 'current-month-expenses',
@@ -104,7 +105,11 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
       prefix: <PiCurrencyCircleDollar />,
       color: '#1890ff',
       valueIsString: true,
-      description: `${statistics?.bookedAndPendingCount || 0} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_payment', 'Awaiting payment')}`
+      footer: [
+        statistics?.bookedAndPendingCount ?? 0,
+        getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.awaiting_payment', 'Awaiting payment')
+      ].join(' '),
+      trend: { hideBadge: true, value: '', description: '\u200B' }
     },
     {
       key: 'upcoming-trips',
@@ -112,10 +117,11 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
       value: stats.upcomingTrips || 0,
       prefix: <GlobalOutlined />,
       color: '#722ed1',
-      description: getTranslationFromI18nKeyAndLabel(
+      footer: getTranslationFromI18nKeyAndLabel(
         'lowcoder:personal_expenses.planned_business_trips',
         'Planned business trips'
-      )
+      ),
+      trend: { hideBadge: true, value: '', description: '\u200B' }
     },
     {
       key: 'unallocated-expenses',
@@ -127,11 +133,12 @@ export const SummaryStatistics: React.FC<SummaryStatisticsProps> = ({
       prefix: <ArrowUpOutlined />,
       color: '#8c8c8c',
       valueIsString: true,
-      description: getTranslationFromI18nKeyAndLabel(
+      footer: getTranslationFromI18nKeyAndLabel(
         'lowcoder:personal_expenses.unlinked_items',
         'Expense items not linked to a request'
       ),
-      onClick: () => onWidgetClick?.('unallocated-expenses')
+      onClick: () => onWidgetClick?.('unallocated-expenses'),
+      trend: { hideBadge: true, value: '', description: '\u200B' }
     }
   ]
 
