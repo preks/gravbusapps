@@ -79,21 +79,6 @@ export const McpToolsPanel: React.FC<Pick<TabProps, 'context' | 'state' | 'actio
     setPendingSelectPmToolId(null)
   }, [ensureSelected, findCapabilityByPmToolId, pendingSelectPmToolId])
 
-  const addFlowEngineTool = useCallback(async () => {
-    setCreateError(null)
-
-    const existing = mcpCapabilities.find(c => c.code === 'mcp.flow-engine' && c.sourceMeta?.promptManagerToolId)
-    if (existing?.sourceMeta?.promptManagerToolId) {
-      ensureSelected(existing.id)
-      setExpandedToolId(existing.sourceMeta.promptManagerToolId)
-      return
-    }
-
-    setCreateError(
-      'Flow Engine MCP tool is not available. Ensure prompt-manager provides the internal preconfigured MCP tool.'
-    )
-  }, [ensureSelected, mcpCapabilities])
-
   const startCreate = useCallback(() => {
     setShowCreate(true)
     setCreateError(null)
@@ -151,15 +136,6 @@ export const McpToolsPanel: React.FC<Pick<TabProps, 'context' | 'state' | 'actio
             >
               <Plus className="gba:w-4 gba:h-4 gba:mr-1" />
               New MCP Tool
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={addFlowEngineTool}
-              disabled={isCreating}
-              data-testid="agent-builder-mcp-add-flow-engine-tool"
-            >
-              Add Flow Engine
             </Button>
           </div>
         </div>
