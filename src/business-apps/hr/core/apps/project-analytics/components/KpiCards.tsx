@@ -1,6 +1,6 @@
 import React from 'react'
 import { Card, ItemMedia } from '@newwork/nw-design-system'
-import { Briefcase, Clock, TrendUp, Warning, CheckCircle, XCircle } from '@phosphor-icons/react'
+import { BriefcaseIcon, ClockIcon, TrendUpIcon, WarningIcon, CheckCircleIcon, XCircleIcon } from '@phosphor-icons/react'
 import { KpiCardData } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -14,28 +14,28 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ kpis, prefixDataTestId = 'kp
   const primaryCards = [
     {
       id: 'total-projects',
-      icon: Briefcase,
+      icon: BriefcaseIcon,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:project_analytics.kpi_total_projects', 'Total Projects'),
       value: kpis.totalProjects.toString(),
       subtitle: `${kpis.activeProjects} active`
     },
     {
       id: 'budget-consumption',
-      icon: TrendUp,
+      icon: TrendUpIcon,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:project_analytics.kpi_avg_budget', 'Avg Budget Used'),
       value: `${kpis.averageBudgetConsumption}%`,
       subtitle: `${kpis.totalLoggedHours.toLocaleString()}h / ${kpis.totalBudgetHours.toLocaleString()}h`
     },
     {
       id: 'on-track',
-      icon: CheckCircle,
+      icon: CheckCircleIcon,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:project_analytics.kpi_on_track', 'On Track'),
       value: kpis.projectsOnTrack.toString(),
       subtitle: 'Projects progressing well'
     },
     {
       id: 'at-risk',
-      icon: Warning,
+      icon: WarningIcon,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:project_analytics.kpi_at_risk', 'At Risk'),
       value: kpis.projectsAtRisk.toString(),
       subtitle: 'Need attention'
@@ -46,14 +46,14 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ kpis, prefixDataTestId = 'kp
   const secondaryCards = [
     {
       id: 'over-budget',
-      icon: XCircle,
+      icon: XCircleIcon,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:project_analytics.kpi_over_budget', 'Over Budget'),
       value: kpis.projectsOverBudget.toString(),
       subtitle: 'Exceeded budget'
     },
     {
       id: 'hours-logged',
-      icon: Clock,
+      icon: ClockIcon,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:project_analytics.kpi_hours_logged', 'Hours Logged'),
       value: kpis.totalLoggedHours.toLocaleString(),
       subtitle: `${kpis.totalBudgetHours.toLocaleString()}h budgeted`

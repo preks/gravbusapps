@@ -124,6 +124,8 @@ export const PortfolioHeatmap: React.FC<PortfolioHeatmapProps> = ({
             return (
               <div
                 key={project.id}
+                role="button"
+                tabIndex={0}
                 className={`gba:absolute gba:w-4 gba:h-4 gba:rounded-full ${colorClass} gba:cursor-pointer gba:transition-transform gba:hover:scale-150 gba:border-2 gba:border-background`}
                 style={{
                   left: `${x}%`,
@@ -131,6 +133,12 @@ export const PortfolioHeatmap: React.FC<PortfolioHeatmapProps> = ({
                   transform: 'translate(-50%, -50%)'
                 }}
                 onClick={() => onProjectClick(project)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onProjectClick(project)
+                  }
+                }}
                 title={`${project.name}: ${project.budgetConsumptionPercent}% budget, ${project.elapsedTimePercent}% time`}
                 data-testid={`${prefixDataTestId}-dot-${project.id}`}
               />

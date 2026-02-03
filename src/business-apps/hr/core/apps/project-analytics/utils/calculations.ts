@@ -11,12 +11,12 @@ export const parseHoursFromText = (text?: string): number => {
   const tokens = String(text).trim().split(/\s+/)
   for (const token of tokens) {
     if (/^\d+(\.\d+)?h$/i.test(token)) {
-      hours = parseFloat(token.slice(0, -1)) || 0
+      hours = Number.parseFloat(token.slice(0, -1)) || 0
     } else if (/^\d+m$/i.test(token)) {
-      minutes = parseInt(token.slice(0, -1), 10) || 0
+      minutes = Number.parseInt(token.slice(0, -1), 10) || 0
     } else if (/^\d+(\.\d+)?$/.test(token)) {
       // Just a number, assume hours
-      hours = parseFloat(token) || 0
+      hours = Number.parseFloat(token) || 0
     }
   }
   return hours + minutes / 60
@@ -114,24 +114,10 @@ export const determineRiskStatus = (
 }
 
 /**
- * Generate smart insights for a project
+ * Generate budget vs time insights
  */
-export const generateInsights = (analytics: Partial<ProjectAnalyticsData>): string[] => {
+const generateBudgetTimeInsights = (budgetConsumptionPercent: number, elapsedTimePercent: number): string[] => {
   const insights: string[] = []
-
-  const {
-    budgetConsumptionPercent = 0,
-    elapsedTimePercent = 0,
-    burnRatePerDay = 0,
-    remainingHours = 0,
-    hoursBudget = 0,
-    weeklyBurnRates = [],
-    topContributors = [],
-    activeContributorsCount = 0,
-    plannedEndDate
-  } = analytics
-
-  // Budget vs Time insight
   if (budgetConsumptionPercent > elapsedTimePercent + 10) {
     insights.push(
       `Project is consuming budget ${budgetConsumptionPercent - elapsedTimePercent}% faster than time progression.`
@@ -139,8 +125,14 @@ export const generateInsights = (analytics: Partial<ProjectAnalyticsData>): stri
   } else if (elapsedTimePercent > budgetConsumptionPercent + 20) {
     insights.push(`Project is under-utilizing budget relative to timeline. Consider accelerating work.`)
   }
+  return insights
+}
 
-  // Burn rate trend
+/**
+ * Generate burn rate trend insights
+ */
+const generateBurnRateInsights = (weeklyBurnRates: Array<{ burnRate: number }>): string[] => {
+  const insights: string[] = []
   if (weeklyBurnRates.length >= 2) {
     const recentRates = weeklyBurnRates.slice(-2)
     const previousRate = recentRates[0]?.burnRate || 0
@@ -153,8 +145,18 @@ export const generateInsights = (analytics: Partial<ProjectAnalyticsData>): stri
       insights.push(`Burn rate decreased by ${Math.abs(rateChange)}% in the last 2 weeks.`)
     }
   }
+  return insights
+}
 
-  // Forecast
+/**
+ * Generate forecast insights
+ */
+const generateForecastInsights = (
+  burnRatePerDay: number,
+  remainingHours: number,
+  plannedEndDate?: string
+): string[] => {
+  const insights: string[] = []
   if (burnRatePerDay > 0 && remainingHours > 0 && plannedEndDate) {
     const daysNeeded = Math.ceil(remainingHours / burnRatePerDay)
     const projectedEndDate = dayjs().add(daysNeeded, 'day')
@@ -165,6 +167,52 @@ export const generateInsights = (analytics: Partial<ProjectAnalyticsData>): stri
       insights.push(`If current burn rate continues, budget will be exhausted ${daysLate} days after planned end date.`)
     }
   }
+  return insights
+}
+
+/**
+ * Generate team concentration insights
+ */
+const generateTeamConcentrationInsights = (
+  topContributors: Array<{ percentOfTotal: number }>,
+  activeContributorsCount: number
+): string[] => {
+  const insights: string[] = []
+  if (topContributors.length > 0 && activeContributorsCount > 2) {
+    const top2Percent = topContributors.slice(0, 2).reduce((sum, c) => sum + c.percentOfTotal, 0)
+    if (top2Percent > 45) {
+      insights.push(`Top 2 contributors account for ${Math.round(top2Percent)}% of total effort.`)
+    }
+  }
+  return insights
+}
+
+/**
+ * Generate smart insights for a project
+ */
+export const generateInsights = (analytics: Partial<ProjectAnalyticsData>): string[] => {
+  const {
+    budgetConsumptionPercent = 0,
+    elapsedTimePercent = 0,
+    burnRatePerDay = 0,
+    remainingHours = 0,
+    hoursBudget = 0,
+    weeklyBurnRates = [],
+    topContributors = [],
+    activeContributorsCount = 0,
+    plannedEndDate
+  } = analytics
+
+  const insights: string[] = []
+
+  // Budget vs Time insight
+  insights.push(...generateBudgetTimeInsights(budgetConsumptionPercent, elapsedTimePercent))
+
+  // Burn rate trend
+  insights.push(...generateBurnRateInsights(weeklyBurnRates))
+
+  // Forecast
+  insights.push(...generateForecastInsights(burnRatePerDay, remainingHours, plannedEndDate))
 
   // Over budget projection
   if (budgetConsumptionPercent > 100 && hoursBudget) {
@@ -173,12 +221,7 @@ export const generateInsights = (analytics: Partial<ProjectAnalyticsData>): stri
   }
 
   // Team concentration
-  if (topContributors.length > 0 && activeContributorsCount > 2) {
-    const top2Percent = topContributors.slice(0, 2).reduce((sum, c) => sum + c.percentOfTotal, 0)
-    if (top2Percent > 45) {
-      insights.push(`Top 2 contributors account for ${Math.round(top2Percent)}% of total effort.`)
-    }
-  }
+  insights.push(...generateTeamConcentrationInsights(topContributors, activeContributorsCount))
 
   return insights
 }

@@ -9,7 +9,7 @@ import {
   Progress,
   Button
 } from '@newwork/nw-design-system'
-import { CaretRight, SortAscending, SortDescending } from '@phosphor-icons/react'
+import { CaretRightIcon, SortAscendingIcon, SortDescendingIcon } from '@phosphor-icons/react'
 import { ProjectAnalyticsData } from '../types'
 import { RiskIndicator } from './RiskIndicator'
 
@@ -35,9 +35,9 @@ export const PortfolioTable: React.FC<PortfolioTableProps> = ({
   const renderSortIcon = (field: SortableField) => {
     if (sortField !== field) return null
     return sortOrder === 'asc' ? (
-      <SortAscending className="gba:w-4 gba:h-4 gba:inline gba:ml-1" />
+      <SortAscendingIcon className="gba:w-4 gba:h-4 gba:inline gba:ml-1" />
     ) : (
-      <SortDescending className="gba:w-4 gba:h-4 gba:inline gba:ml-1" />
+      <SortDescendingIcon className="gba:w-4 gba:h-4 gba:inline gba:ml-1" />
     )
   }
 
@@ -67,7 +67,7 @@ export const PortfolioTable: React.FC<PortfolioTableProps> = ({
       return getRiskOrder(a.riskStatus) - getRiskOrder(b.riskStatus)
     }
 
-    let comparison = 0
+    let comparison: number
     switch (sortField as SortableField) {
       case 'name':
         comparison = a.name.localeCompare(b.name)
@@ -181,7 +181,7 @@ export const PortfolioTable: React.FC<PortfolioTableProps> = ({
                 </TableCell>
                 <TableCell>
                   <Button variant="ghost" size="icon">
-                    <CaretRight className="gba:w-4 gba:h-4" />
+                    <CaretRightIcon className="gba:w-4 gba:h-4" />
                   </Button>
                 </TableCell>
               </TableRow>

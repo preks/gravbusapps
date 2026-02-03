@@ -144,7 +144,7 @@ export const useProjectAnalytics = (accessToken: string) => {
         )
 
         // Get date range from entries
-        const dates = projectHours.map(e => e.workingDate).sort()
+        const dates = projectHours.map(e => e.workingDate).sort((a, b) => a.localeCompare(b))
         const firstWorkingDate = dates[0]
         const lastWorkingDate = dates[dates.length - 1]
 

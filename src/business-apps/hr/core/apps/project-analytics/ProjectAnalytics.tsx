@@ -14,7 +14,7 @@ import {
   SheetHeader,
   SheetTitle
 } from '@newwork/nw-design-system'
-import { Table as TableIcon, GridFour } from '@phosphor-icons/react'
+import { TableIcon, GridFourIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useProjectAnalytics } from './hooks/useProjectAnalytics'
@@ -127,7 +127,7 @@ const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({ accessToken, prefix
           <TabsTrigger value="overview" startIcon={<TableIcon />} data-testid={`${prefixDataTestId}-overview-tab`}>
             {getTranslationFromI18nKeyAndLabel('lowcoder:project_analytics.portfolio_overview', 'Portfolio Overview')}
           </TabsTrigger>
-          <TabsTrigger value="portfolio" startIcon={<GridFour />} data-testid={`${prefixDataTestId}-portfolio-tab`}>
+          <TabsTrigger value="portfolio" startIcon={<GridFourIcon />} data-testid={`${prefixDataTestId}-portfolio-tab`}>
             {getTranslationFromI18nKeyAndLabel('lowcoder:project_analytics.health_matrix', 'Health Matrix')}
           </TabsTrigger>
         </TabsList>

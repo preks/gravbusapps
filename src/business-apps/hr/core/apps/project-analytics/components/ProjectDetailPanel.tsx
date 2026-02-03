@@ -12,7 +12,7 @@ import {
   ChartTooltipContent
 } from '@newwork/nw-design-system'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
-import { Clock, Users, TrendUp, Lightbulb } from '@phosphor-icons/react'
+import { ClockIcon, UsersIcon, TrendUpIcon, LightbulbIcon } from '@phosphor-icons/react'
 import { ProjectAnalyticsData } from '../types'
 import { RiskIndicator } from './RiskIndicator'
 import { formatHoursToText } from '../utils/calculations'
@@ -74,7 +74,7 @@ export const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
         {/* Budget Used */}
         <Card className="gba:p-4">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-            <TrendUp className="gba:w-4 gba:h-4 gba:text-primary" />
+            <TrendUpIcon className="gba:w-4 gba:h-4 gba:text-primary" />
             <span className="gba:text-sm gba:text-muted-foreground">Budget Used</span>
           </div>
           <div className="gba:text-2xl gba:font-bold">{project.budgetConsumptionPercent}%</div>
@@ -87,18 +87,22 @@ export const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
         {/* Time Elapsed */}
         <Card className="gba:p-4">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-            <Clock className="gba:w-4 gba:h-4 gba:text-info" />
+            <ClockIcon className="gba:w-4 gba:h-4 gba:text-info" />
             <span className="gba:text-sm gba:text-muted-foreground">Time Elapsed</span>
           </div>
           <div className="gba:text-2xl gba:font-bold">{project.elapsedTimePercent}%</div>
           <Progress value={project.elapsedTimePercent} className="gba:mt-2 gba:h-2" />
           {project.daysUntilDeadline !== undefined && (
             <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-              {project.daysUntilDeadline > 0
-                ? `${project.daysUntilDeadline} days remaining`
-                : project.daysUntilDeadline === 0
-                  ? 'Due today'
-                  : `${Math.abs(project.daysUntilDeadline)} days overdue`}
+              {(() => {
+                if (project.daysUntilDeadline > 0) {
+                  return `${project.daysUntilDeadline} days remaining`
+                }
+                if (project.daysUntilDeadline === 0) {
+                  return 'Due today'
+                }
+                return `${Math.abs(project.daysUntilDeadline)} days overdue`
+              })()}
             </p>
           )}
         </Card>
@@ -106,7 +110,7 @@ export const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
         {/* Remaining Budget */}
         <Card className="gba:p-4">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-            <Clock className="gba:w-4 gba:h-4 gba:text-accent" />
+            <ClockIcon className="gba:w-4 gba:h-4 gba:text-accent" />
             <span className="gba:text-sm gba:text-muted-foreground">Remaining</span>
           </div>
           <div className="gba:text-2xl gba:font-bold">{formatHoursToText(project.remainingHours)}</div>
@@ -116,7 +120,7 @@ export const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
         {/* Contributors */}
         <Card className="gba:p-4">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-            <Users className="gba:w-4 gba:h-4 gba:text-success" />
+            <UsersIcon className="gba:w-4 gba:h-4 gba:text-success" />
             <span className="gba:text-sm gba:text-muted-foreground">Contributors</span>
           </div>
           <div className="gba:text-2xl gba:font-bold">{project.activeContributorsCount}</div>
@@ -177,8 +181,8 @@ export const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
                       outerRadius="80%"
                       strokeWidth={2}
                     >
-                      {contributorData.map((entry, idx) => (
-                        <Cell key={`cell-${idx}`} fill={entry.fill} />
+                      {contributorData.map(entry => (
+                        <Cell key={`cell-${entry.name}`} fill={entry.fill} />
                       ))}
                     </Pie>
                   </PieChart>
@@ -215,14 +219,14 @@ export const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
         <Card>
           <CardHeader>
             <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
-              <Lightbulb className="gba:w-5 gba:h-5 gba:text-warning" />
+              <LightbulbIcon className="gba:w-5 gba:h-5 gba:text-warning" />
               Smart Insights
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="gba:space-y-2">
               {project.insights.map((insight, index) => (
-                <li key={index} className="gba:flex gba:items-start gba:gap-2">
+                <li key={`insight-${index}-${insight.substring(0, 20)}`} className="gba:flex gba:items-start gba:gap-2">
                   <span className="gba:text-warning">•</span>
                   <span className="gba:text-sm gba:text-muted-foreground">{insight}</span>
                 </li>
@@ -242,7 +246,10 @@ export const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
               </Badge>
               <ul className="gba:space-y-1">
                 {project.riskReasons.map((reason, index) => (
-                  <li key={index} className="gba:text-sm gba:text-muted-foreground">
+                  <li
+                    key={`reason-${index}-${reason.substring(0, 20)}`}
+                    className="gba:text-sm gba:text-muted-foreground"
+                  >
                     {reason}
                   </li>
                 ))}
