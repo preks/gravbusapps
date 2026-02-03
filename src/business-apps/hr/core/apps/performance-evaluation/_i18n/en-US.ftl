@@ -66,7 +66,7 @@ scale-preview = Preview
 participant-self = Self
 participant-peer = Peer
 participant-manager = Manager
-participant-team = Team
+participant-hr-team = HR Team
 
 # Frequency
 frequency-annual = Annual

@@ -20,20 +20,13 @@ const FREQUENCY_TO_API: Record<string, string> = {
   Custom: 'ANNUAL'
 }
 
-/** API participant type enum: SELF, PEER, MANAGER, TEAM, HR_ADMIN (no CALIBRATION). */
-const API_PARTICIPANT_TYPES = ['SELF', 'PEER', 'MANAGER', 'TEAM', 'HR_ADMIN'] as const
-
-/** Map UI participant label to API participantType (e.g. Calibration -> HR_ADMIN). */
-const UI_TO_API_PARTICIPANT: Record<string, string> = {
-  CALIBRATION: 'HR_ADMIN'
-}
+/** API participant type enum: only SELF, PEER, MANAGER. */
+const API_PARTICIPANT_TYPES = ['SELF', 'PEER', 'MANAGER'] as const
 
 /** Build participants array: each type with enabled true if selected in form. */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for future participants payload
+
 function buildParticipants(selectedParticipants: string[]): PerformanceCycleParticipantItem[] {
-  const selectedSet = new Set(
-    selectedParticipants.map(p => UI_TO_API_PARTICIPANT[String(p).toUpperCase()] ?? String(p).toUpperCase())
-  )
+  const selectedSet = new Set(selectedParticipants.map(p => String(p).toUpperCase()))
   return API_PARTICIPANT_TYPES.map(participantType => ({
     participantType,
     enabled: selectedSet.has(participantType)
@@ -75,8 +68,7 @@ function buildSavePayload(values: CycleEditorValues): SavePerformanceCyclePayloa
       endDate: values.endDate,
       frequency: frequencyApi,
       ratingScale: values.ratingScaleId ?? null,
-      // participants: buildParticipants(values.participants ?? []),
-      // participants: buildParticipants([]),
+      participants: buildParticipants(values.participants ?? []),
       ...(changeMode === 'INSERT' ? { status: 'DRAFT_CYCLE' } : {}),
       ...(companyValues.length > 0 ? { companyValues } : {})
     }

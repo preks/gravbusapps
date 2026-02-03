@@ -1,8 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   Accordion,
   Button,
@@ -32,7 +31,8 @@ import {
   ScrollArea,
   Progress,
   CardHeader,
-  Toaster
+  Toaster,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   EyeIcon,
@@ -59,12 +59,30 @@ import { useTeams } from '../organizational-data/hooks'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { showProjectManager } from '../project-setup/ProjectSetup'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
+import translations from './_i18n'
 
 export interface ProjectAllocationProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
 const DATA_TEST_ID_PREFIX = 'ProjectAllocation'
+
+// Helper to get translated project type label (INTERNAL / EXTERNAL or N/A)
+const getProjectTypeDisplayName = (projectType: string | undefined, t: (key: string) => string): string => {
+  if (projectType === 'INTERNAL') return t('project_type_internal')
+  if (projectType === 'EXTERNAL') return t('project_type_external')
+  return t('project_type_na')
+}
+
+// Helper to get translated project status label (Planned / In Progress / On Hold / Canceled / Completed)
+const getProjectStatusDisplayName = (status: ProjectStatusUI | undefined, t: (key: string) => string): string => {
+  if (status === ProjectStatusUI.Planned) return t('status_planned')
+  if (status === ProjectStatusUI.InProgress) return t('status_in_progress')
+  if (status === ProjectStatusUI.OnHold) return t('status_on_hold')
+  if (status === ProjectStatusUI.Canceled) return t('status_canceled')
+  if (status === ProjectStatusUI.Completed) return t('status_completed')
+  return status ?? t('status_planned')
+}
 
 // Helper function to get time status information for a project
 const getProjectTimeStatus = (project: Project) => {
@@ -319,11 +337,12 @@ const EmployeesTable: React.FC<EmployeesTableProps> = ({
 }
 
 const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
-  const { t } = useTranslation()
+  const { t } = useTranslation(translations)
+  const dateLocale = getCurrentActiveUserLocale()
   const { prefixDataTestId } = context
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
 
-  const { projects, accounts, isLoading, error, refetch, structureId } = useProjects(context, true)
+  const { projects, accounts, isLoading, error, refetch, structureId } = useProjects(context, true, dateLocale)
   const { teams, refetch: refretchTeams } = useTeams(context)
   const { getTeamEmployees, removeEmployeeFromTeam } = useTeamAssignments(context.accessToken)
 
@@ -747,7 +766,10 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
 
     if (selectedProject.validFrom) {
       items[0].items.push({
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:smart_project.label.valid_from', 'Valid From'),
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_calculation_rule.expense_table.valid_from',
+          'Valid From'
+        ),
         value: selectedProject.formattedValidFrom || new Date(selectedProject.validFrom).toLocaleDateString()
       })
     }
@@ -761,15 +783,15 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
 
     items[0].items.push({
       value: selectedProject.matrixTeam?.teamMembersCount
-        ? `${selectedProject.matrixTeam.teamMembersCount} ${selectedProject.matrixTeam.teamMembersCount > 1 ? 'members' : 'member'}`
-        : 'No team assigned',
-      label: 'Team Members'
+        ? `${selectedProject.matrixTeam.teamMembersCount} ${selectedProject.matrixTeam.teamMembersCount > 1 ? t('team_members_plural') : t('team_members_singular')}`
+        : t('no_team_assigned'),
+      label: t('label_team_members')
     })
 
     if (selectedProject.projectManagerId) {
       items[0].items.push({
         value: showProjectManager(selectedProject),
-        label: 'Project Manager'
+        label: t('label_project_manager')
       })
     }
 
@@ -781,7 +803,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
     }
 
     return items
-  }, [selectedProject, accounts])
+  }, [selectedProject, accounts, t])
 
   if (isLoading && projects.length === 0) {
     return (
@@ -816,7 +838,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
     <Card data-testid={`${prefixDataTestId || ''}-ProjectAllocation`} className="gba:overflow-hidden">
       {!isLoading && (
         <CardTabHeaderComponent
-          cardTitle={`${t('hr.project_allocation', 'Project Allocation')} (${projects.length})`}
+          cardTitle={`${t('card_title')} (${projects.length})`}
           cardDescription={getTranslationFromI18nKeyAndLabel(
             'lowcoder:smart_project.description',
             'Manage projects and their details'
@@ -830,10 +852,10 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
             key="search-input"
             value={searchTerm}
             onChange={value => setSearchTerm(value)}
-            placeholder="Search projects..."
+            placeholder={t('search_placeholder')}
             className="gba:w-full gba:pr-10"
             debounceDelay={300}
-            ariaLabel="Search projects..."
+            ariaLabel={t('search_aria_label')}
             data-testid="asset-search-input"
             icon={
               <MagnifyingGlassIcon
@@ -896,10 +918,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
                         className={`${selectedProject.projectType === 'INTERNAL' ? 'gba:text-[#1890ff]' : 'gba:text-[#722ed1]'} gba:!pt-0 gba:flex gba:items-center gba:gap-2`}
                       >
                         <WallIcon />
-                        {selectedProject.projectType
-                          ? selectedProject.projectType.charAt(0).toUpperCase() +
-                            selectedProject.projectType.slice(1).toLowerCase()
-                          : 'N/A'}
+                        {getProjectTypeDisplayName(selectedProject.projectType, t)}
                       </CardContent>
                     </Card>
 
@@ -908,14 +927,14 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
                         {getTranslationFromI18nKeyAndLabel('lowcoder:smart_project.status', 'Status')}
                       </CardHeader>
                       <CardContent
-                        className={`${selectedProject.status === ProjectStatusUI.InProgress ? 'gba:text-[#52c41a]' : inactiveStatusColor(selectedProject.status)} gba:items-center gba:!pt-0 gba:flex gba:gap-2`}
+                        className={`${selectedProject.status === ProjectStatusUI.InProgress ? 'gba:text-[#52c41a]' : inactiveStatusColor(selectedProject.status)} gba:items-center gba:justify-center gba:!pt-0 gba:flex gba:gap-2`}
                       >
                         {selectedProject.status === ProjectStatusUI.InProgress ? (
                           <CheckCircleIcon />
                         ) : (
                           inactiveStatusIcon(selectedProject.status)
                         )}
-                        {selectedProject.status}
+                        {getProjectStatusDisplayName(selectedProject.status, t)}
                       </CardContent>
                     </Card>
                   </div>
@@ -1033,6 +1052,7 @@ const ProjectAllocation: React.FC<ProjectAllocationProps> = context => {
               setIsEditAllocationOpen(false)
               setSelectedEmployeeForEdit(null)
             }}
+            t={t}
           />
         )}
 

@@ -20,7 +20,6 @@ import {
   Spinner
 } from '@newwork/nw-design-system'
 import { useTeamAssignments, AvailableEmployee } from '../../project-management/hooks/useTeamAssignments'
-import { useTranslation } from 'react-i18next'
 import { BriefcaseIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 
 const DATA_TEST_ID_PREFIX = 'AssignEmployeesDialog'
@@ -47,7 +46,6 @@ export const AssignEmployeesDialog: React.FC<AssignEmployeesDialogProps> = ({
   onAssignComplete,
   prefixDataTestId
 }) => {
-  const { t } = useTranslation()
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const { getAvailableEmployees, assignEmployeeToTeam } = useTeamAssignments(accessToken)
 
@@ -227,7 +225,10 @@ export const AssignEmployeesDialog: React.FC<AssignEmployeesDialogProps> = ({
           {/* Search Input */}
           <div className="gba:mb-4 gba:relative">
             <Input
-              placeholder={t('actions.search', { defaultValue: 'Search employees...' })}
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:hr_assets.search_employees',
+                'Search employees...'
+              )}
               value={searchInput}
               onChange={handleSearchChange}
               className="gba:pl-10"
@@ -311,7 +312,7 @@ export const AssignEmployeesDialog: React.FC<AssignEmployeesDialogProps> = ({
                     >
                       {availableAllocation > 0
                         ? `${availableAllocation}% ${getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:smart_project.available',
+                            'lowcoder:hr_assets.status_available',
                             'available'
                           )}`
                         : getTranslationFromI18nKeyAndLabel(

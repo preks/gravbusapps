@@ -67,7 +67,7 @@ scale-preview = Vorschau
 participant-self = Selbst
 participant-peer = Kollege
 participant-manager = Vorgesetzter
-participant-team = Team
+participant-hr-team = HR Team
 
 # Häufigkeit
 frequency-annual = Jährlich
