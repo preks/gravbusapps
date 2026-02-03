@@ -4,9 +4,8 @@
  */
 
 import React from 'react'
-import { Button, cn, useTranslation } from '@newwork/nw-design-system'
+import { Button, cn, toast, useTranslation } from '@newwork/nw-design-system'
 import { CheckCircle } from 'lucide-react'
-import { message } from 'antd'
 import { UnifiedTask } from '../types'
 import { useScreenManagementApi } from '../hooks/useScreenManagementApi'
 import { RemoteScreenLoader } from './RemoteScreenLoader'
@@ -83,10 +82,7 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     task: task ?? emptyTask,
     accessToken,
     onSuccess: () => {
-      message.success({
-        content: t('task-dialog-completed-success'),
-        duration: 3
-      })
+      toast.success(t('task-dialog-completed-success'))
       onClose()
       onTaskUpdated()
       if (onTaskCompleted && task?.id) {
@@ -95,10 +91,7 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     },
     onError: (error: Error) => {
       console.error('Error continuing process:', error)
-      message.error({
-        content: t('task-dialog-complete-error', { error: error.message || 'Unknown error' }),
-        duration: 5
-      })
+      toast.error(t('task-dialog-complete-error', { error: error.message || 'Unknown error' }))
     }
   })
 
@@ -132,7 +125,7 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
           })
 
           if (response.ok) {
-            message.success(t('task-dialog-completed-success'))
+            toast.success(t('task-dialog-completed-success'))
             onClose()
             onTaskUpdated()
             if (onTaskCompleted && task.id) {
@@ -143,7 +136,7 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
           }
         } catch (error) {
           console.error('Failed to complete cFlow task:', error)
-          message.error(t('task-dialog-action-failed'))
+          toast.error(t('task-dialog-action-failed'))
         }
       } else {
         onClose()
@@ -325,7 +318,7 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
   const handleCompleteBlinkTask = async () => {
     if (!task?.id || !userId) {
-      message.error(t('task-dialog-missing-user-info'))
+      toast.error(t('task-dialog-missing-user-info'))
       return
     }
 
@@ -353,10 +346,7 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
         throw new Error(errorData.error || 'Failed to complete task')
       }
 
-      message.success({
-        content: t('task-dialog-blink-completed-success'),
-        duration: 3
-      })
+      toast.success(t('task-dialog-blink-completed-success'))
 
       if (onTaskCompleted && task.id) {
         onTaskCompleted(task.id)
@@ -366,10 +356,7 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       onClose()
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-      message.error({
-        content: t('task-dialog-complete-error', { error: errorMessage }),
-        duration: 5
-      })
+      toast.error(t('task-dialog-complete-error', { error: errorMessage }))
     } finally {
       setIsCompleting(false)
     }

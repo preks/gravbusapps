@@ -12,6 +12,32 @@ import {
   taskFilterConfig
 } from '@/common/components/common-relations/view-layouts/task-layout/config'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import type { FilterConfiguration } from '@newwork/nw-design-system'
+
+// Custom filter configuration for CRM workspace tasks - removes Investment from reference type options
+const crmTaskFilterConfig: FilterConfiguration = {
+  ...taskFilterConfig,
+  groups: taskFilterConfig.groups.map(group => {
+    if (group.id === 'reference-group') {
+      return {
+        ...group,
+        filters: group.filters.map(filter => {
+          if (filter.id === 'referenceType' && filter.config && 'options' in filter.config) {
+            return {
+              ...filter,
+              config: {
+                ...filter.config,
+                options: filter.config.options?.filter((opt: any) => opt.id !== 'investment')
+              }
+            }
+          }
+          return filter
+        })
+      }
+    }
+    return group
+  })
+}
 
 // Helper function to process reference type filter
 // Note: referenceTypes filtering is not currently supported by CommonTaskQueryVariables
@@ -121,7 +147,7 @@ export const buildCrmMyTasksConfig = (
       createdBy: 'Created By'
     },
 
-    baseFilterConfig: taskFilterConfig,
+    baseFilterConfig: crmTaskFilterConfig,
 
     buildQueryVariables: params => {
       const vars: CustomerTaskQueryVariables = {

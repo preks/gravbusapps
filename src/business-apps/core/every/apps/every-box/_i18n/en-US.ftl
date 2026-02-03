@@ -6,6 +6,7 @@ every-box-blink-button = Blink
 every-box-tab-inflows = InFlows
 every-box-tab-outflows = OutFlows
 every-box-blink-description = Create and assign a quick task instantly
+every-box-hero-tagline = Your unified inbox for tasks and workflows
 every-box-search-placeholder = Search...
 
 # Filters Dropdown
