@@ -1,0 +1,163 @@
+{
+  "caseManagement": {
+    "title": "Case Management",
+    "dashboard": "Dashboard",
+    "cases": "Cases",
+    "createCase": "Create Case",
+    "caseDetails": "Case Details",
+    "noCases": "No cases found",
+    "noCasesDescription": "Get started by creating your first case",
+    "analytics": {
+      "totalCases": "Total Cases",
+      "activeCases": "Active Cases",
+      "completedCases": "Completed Cases",
+      "casesRequiringAttention": "Requiring Attention",
+      "avgCompletionTime": "Avg. Completion Time",
+      "hours": "hours"
+    },
+    "views": {
+      "dashboard": "Dashboard",
+      "list": "All Cases",
+      "myAssigned": "My Assigned"
+    },
+    "status": {
+      "open": "Open",
+      "in_progress": "In Progress",
+      "blocked": "Blocked",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "actions": {
+      "addFlow": "Add Flow",
+      "removeFlow": "Remove Flow",
+      "completeCase": "Complete Case",
+      "linkEntity": "Link Entity",
+      "addNote": "Add Note",
+      "edit": "Edit",
+      "delete": "Delete",
+      "save": "Save",
+      "cancel": "Cancel",
+      "close": "Close",
+      "refresh": "Refresh",
+      "filter": "Filter",
+      "search": "Search",
+      "viewDetails": "View Details",
+      "back": "Back"
+    },
+    "form": {
+      "title": "Title",
+      "titlePlaceholder": "Enter case title",
+      "description": "Description",
+      "descriptionPlaceholder": "Enter case description",
+      "priority": "Priority",
+      "assignedTo": "Assigned To",
+      "dueDate": "Due Date",
+      "tags": "Tags",
+      "status": "Status",
+      "required": "Required field",
+      "selectOption": "Select an option"
+    },
+    "filters": {
+      "title": "Filters",
+      "status": "Status",
+      "priority": "Priority",
+      "assignedTo": "Assigned To",
+      "dateRange": "Date Range",
+      "from": "From",
+      "to": "To",
+      "clearAll": "Clear All",
+      "apply": "Apply"
+    },
+    "table": {
+      "caseId": "Case ID",
+      "title": "Title",
+      "status": "Status",
+      "priority": "Priority",
+      "created": "Created",
+      "updated": "Updated",
+      "assignedTo": "Assigned To",
+      "flowsCount": "Flows",
+      "actions": "Actions"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "flows": "Flows",
+      "notes": "Notes",
+      "links": "Links",
+      "history": "History"
+    },
+    "flows": {
+      "title": "Linked Flows",
+      "noFlows": "No flows linked to this case",
+      "addFlowDialog": "Add Flow to Case",
+      "selectTemplate": "Select Template",
+      "templateSearch": "Search templates...",
+      "inputValues": "Input Values",
+      "flowStatus": "Status",
+      "addedBy": "Added By",
+      "addedAt": "Added At",
+      "removedAt": "Removed At",
+      "confirmRemove": "Are you sure you want to unlink this flow?",
+      "removeFlowTitle": "Remove Flow",
+      "cannotComplete": "Cannot complete case",
+      "blockingFlows": "The following flows must be completed first:"
+    },
+    "notes": {
+      "title": "Notes",
+      "addNote": "Add Note",
+      "notePlaceholder": "Write a note...",
+      "visibility": "Visibility",
+      "internal": "Internal",
+      "external": "External",
+      "noNotes": "No notes yet",
+      "editNote": "Edit Note",
+      "deleteNote": "Delete Note"
+    },
+    "links": {
+      "title": "Linked Entities",
+      "addEntity": "Link Entity",
+      "entityType": "Entity Type",
+      "user": "User",
+      "employee": "Employee",
+      "organizationalUnit": "Organizational Unit",
+      "search": "Search...",
+      "noEntities": "No entities linked",
+      "remove": "Remove Link"
+    },
+    "quickActions": {
+      "createNew": "Create New Case",
+      "viewAll": "View All Cases",
+      "templates": "Case Templates",
+      "recentCases": "Recent Cases"
+    },
+    "messages": {
+      "caseCreated": "Case created successfully",
+      "caseUpdated": "Case updated successfully",
+      "caseCompleted": "Case completed successfully",
+      "flowAdded": "Flow added to case",
+      "flowRemoved": "Flow removed from case",
+      "noteAdded": "Note added",
+      "entityLinked": "Entity linked to case",
+      "entityUnlinked": "Entity unlinked from case",
+      "error": "An error occurred",
+      "loadingCases": "Loading cases...",
+      "loadingCase": "Loading case details..."
+    },
+    "errors": {
+      "caseNotFound": "Case not found",
+      "cannotCompleteCase": "Cannot complete case. Some flows are not terminal.",
+      "failedToLoadCases": "Failed to load cases",
+      "failedToLoadCase": "Failed to load case details",
+      "failedToCreateCase": "Failed to create case",
+      "failedToUpdateCase": "Failed to update case",
+      "failedToAddFlow": "Failed to add flow",
+      "failedToRemoveFlow": "Failed to remove flow",
+      "invalidFormData": "Please check your form data"
+    }
+  }
+}
