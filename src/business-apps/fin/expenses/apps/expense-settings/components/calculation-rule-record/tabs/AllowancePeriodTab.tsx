@@ -280,6 +280,9 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
               toTime
               minHours
               midnightRule
+              overnightAccomodation
+              startAfter
+              returnBefore
               activeFrom
               activeTo
               periodOrder
@@ -306,9 +309,9 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
         toTime: period.toTime || '',
         minHours: period.minHours || 0,
         midnightRule: period.midnightRule || false,
-        overnightAccommodation: false, // TODO: Map from additionalProperties if available
-        startAfter: '', // TODO: Map from additionalProperties if available
-        returnBefore: '', // TODO: Map from additionalProperties if available
+        overnightAccommodation: period.overnightAccomodation || false,
+        startAfter: period.startAfter || '',
+        returnBefore: period.returnBefore || '',
         activeFrom: period.activeFrom,
         activeTo: period.activeTo,
         order: period.periodOrder || index + 1,
@@ -1068,12 +1071,29 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         <FormLabel data-testid="allowance-period-min-hours-label">Minimum Hours *</FormLabel>
                         <FormControl>
                           <Input
-                            type="number"
-                            min="0"
-                            max="24"
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="off"
                             placeholder="24"
-                            value={field.value}
-                            onChange={e => field.onChange(Number(e.target.value))}
+                            value={field.value ?? ''}
+                            onFocus={e => {
+                              // Improve UX: allow overwriting the default "0" without arrow controls
+                              if (field.value === 0) e.currentTarget.select()
+                            }}
+                            onClick={e => {
+                              // Some browsers won't select on focus for type="number" unless clicked
+                              if (field.value === 0) e.currentTarget.select()
+                            }}
+                            onChange={e => {
+                              const next = e.target.value
+                              if (next === '') {
+                                field.onChange(undefined)
+                                return
+                              }
+                              // Only allow digits; keep editing UX predictable.
+                              if (!/^\d+$/.test(next)) return
+                              field.onChange(Number(next))
+                            }}
                             disabled={isRestrictedEdit}
                             data-testid="allowance-period-min-hours-input"
                           />
@@ -1246,7 +1266,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         <FormLabel data-testid="allowance-period-midnight-rule-label">Midnight Rule</FormLabel>
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <span
-                            className="gba:text-sm gba:text-muted-foreground"
+                            className="gba:text-sm gba:text-foreground"
                             data-testid="allowance-period-midnight-rule-status"
                           >
                             {field.value ? 'Yes' : 'No'}
@@ -1275,7 +1295,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         <FormLabel data-testid="allowance-period-overnight-label">Overnight Accommodation</FormLabel>
                         <div className="gba:flex gba:items-center gba:gap-2">
                           <span
-                            className="gba:text-sm gba:text-muted-foreground"
+                            className="gba:text-sm gba:text-foreground"
                             data-testid="allowance-period-overnight-status"
                           >
                             {field.value ? 'Yes' : 'No'}
