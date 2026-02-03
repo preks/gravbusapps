@@ -554,6 +554,8 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     totalCount={totalTaskCount}
                     isLoading={tasksLoading}
                     error={tasksError}
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
                     onRefresh={refetchTasks}
                     onLoadMore={loadMoreTasks}
                     hasMore={hasMoreTasks}

@@ -16,6 +16,10 @@ import {
   EmptyState as DesignEmptyState,
   useTranslation,
   useLocale,
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -46,6 +50,8 @@ interface InboxViewProps extends BusinessAppContextProps {
   onRefresh: () => void
   onLoadMore: () => void
   hasMore: boolean
+  sortBy?: 'createdAt' | 'dueDate' | 'priority' | 'status' | 'title'
+  sortOrder?: 'asc' | 'desc'
   // Blink tasks from dedicated API endpoint
   blinkCount?: number
   blinkCountLoading?: boolean
@@ -132,11 +138,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
   onRefresh,
   onLoadMore,
   hasMore,
+  sortBy = 'createdAt',
+  sortOrder = 'desc',
   blinkTasks,
   blinkTasksLoading,
   blinkHasMore,
   onBlinkLoadMore,
-  onBlinkRefresh,
   completedTasks,
   completedIsLoading,
   completedError,
@@ -145,7 +152,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
   completedHasMore,
   globalSearch = '',
   selectedFilters = ['all'],
-  ...context
+  accessToken,
+  userInfo
 }) => {
   const { t } = useTranslation(translations)
   const { locale } = useLocale()
@@ -311,18 +319,66 @@ export const InboxView: React.FC<InboxViewProps> = ({
     updateTaskUrl(null)
   }, [])
 
-  const refreshSelectedTaskList = useCallback(() => {
-    if (filterType === 'completed') {
-      onCompletedRefresh()
-    } else if (filterType === 'blinks') {
-      onBlinkRefresh?.()
-    } else {
-      onRefresh()
-    }
-  }, [filterType, onCompletedRefresh, onBlinkRefresh, onRefresh])
-
   const updateTaskUserStateLocally = useCallback(
-    (taskKey: { id: string; source: string }, patch: Partial<NonNullable<UnifiedTask['userState']>>) => {
+    (
+      taskKey: { id: string; source: string },
+      patch: Partial<NonNullable<UnifiedTask['userState']>>,
+      options?: { resort?: boolean }
+    ) => {
+      const getSortValue = (t: UnifiedTask): string | number => {
+        switch (sortBy) {
+          case 'priority':
+            return t.userState?.userPriority ?? t.priority ?? 999999
+          case 'dueDate':
+            return t.dueDate ? new Date(t.dueDate).getTime() : 0
+          case 'status':
+            return t.status || ''
+          case 'title':
+            return (t.title || t.name || '').toLowerCase()
+          case 'createdAt':
+          default: {
+            const dt = t.status === 'COMPLETED' && t.completedAt ? t.completedAt : t.createdAt || t.scheduledAt
+            return dt ? new Date(dt).getTime() : 0
+          }
+        }
+      }
+
+      const getStableTime = (t: UnifiedTask): number => {
+        const dt = t.status === 'COMPLETED' && t.completedAt ? t.completedAt : t.createdAt || t.scheduledAt
+        return dt ? new Date(dt).getTime() : 0
+      }
+
+      const compare = (a: UnifiedTask, b: UnifiedTask): number => {
+        const aPinned = a.userState?.isPinned ? 1 : 0
+        const bPinned = b.userState?.isPinned ? 1 : 0
+        if (aPinned !== bPinned) return bPinned - aPinned
+
+        if (sortBy === 'priority') {
+          const aUp = a.userState?.userPriority
+          const bUp = b.userState?.userPriority
+          const aHas = aUp !== null && aUp !== undefined
+          const bHas = bUp !== null && bUp !== undefined
+          if (aHas && !bHas) return -1
+          if (bHas && !aHas) return 1
+          if (aHas && bHas && aUp !== bUp) return aUp - bUp
+        }
+
+        const av = getSortValue(a)
+        const bv = getSortValue(b)
+
+        const cmp = av > bv ? 1 : av < bv ? -1 : 0
+        if (cmp !== 0) return sortOrder === 'asc' ? cmp : -cmp
+
+        // stable tie-breakers (same idea as backend)
+        const at = getStableTime(a)
+        const bt = getStableTime(b)
+        if (at !== bt) return bt - at
+
+        const aKey = `${a.source}:${a.id}`
+        const bKey = `${b.source}:${b.id}`
+        return aKey.localeCompare(bKey)
+      }
+
       const apply = (t: UnifiedTask) => {
         if (t.id !== taskKey.id || t.source !== taskKey.source) return t
         return {
@@ -339,81 +395,129 @@ export const InboxView: React.FC<InboxViewProps> = ({
         }
       }
 
-      setLocalTasks(prev => prev.map(apply))
-      setLocalCompletedTasks(prev => prev.map(apply))
+      setLocalTasks(prev => {
+        const next = prev.map(apply)
+        return options?.resort ? [...next].sort(compare) : next
+      })
+      setLocalCompletedTasks(prev => {
+        const next = prev.map(apply)
+        return options?.resort ? [...next].sort(compare) : next
+      })
       setSelectedTask(prev => (prev ? apply(prev) : prev))
     },
-    []
+    [sortBy, sortOrder]
   )
 
-  const handleTogglePinned = useCallback(async () => {
-    if (!selectedTask) return
-    if (!context.accessToken) return
+  const togglePinnedForTask = useCallback(
+    async (task: UnifiedTask) => {
+      if (!accessToken) return
 
-    const nextPinned = !Boolean(selectedTask.userState?.isPinned)
-    updateTaskUserStateLocally(
-      { id: selectedTask.id, source: selectedTask.source },
-      { isPinned: nextPinned, pinnedAt: nextPinned ? new Date().toISOString() : null }
-    )
+      const prevPinned = Boolean(task.userState?.isPinned)
+      const prevPinnedAt = task.userState?.pinnedAt ?? null
 
-    try {
-      await patchTaskState(context.accessToken, {
-        source: selectedTask.source,
-        taskId: selectedTask.id,
-        isPinned: nextPinned
-      })
-    } finally {
-      // Re-fetch to ensure server-side ordering (pinned first)
-      refreshSelectedTaskList()
-    }
-  }, [selectedTask, context.accessToken, updateTaskUserStateLocally, refreshSelectedTaskList])
+      const nextPinned = !prevPinned
+      const nextPinnedAt = nextPinned ? new Date().toISOString() : null
 
-  const handleMarkUnread = useCallback(async () => {
-    if (!selectedTask) return
-    if (!context.accessToken) return
+      updateTaskUserStateLocally(
+        { id: task.id, source: task.source },
+        { isPinned: nextPinned, pinnedAt: nextPinnedAt },
+        { resort: true }
+      )
 
-    // If an auto-mark-as-read is pending for this task, cancel it so "mark unread" sticks on first click.
-    const key = `${selectedTask.source}:${selectedTask.id}`
-    lastAutoReadKeyRef.current = key
-    if (autoReadTimeoutRef.current) {
-      globalThis.clearTimeout(autoReadTimeoutRef.current)
-      autoReadTimeoutRef.current = null
-    }
-
-    updateTaskUserStateLocally({ id: selectedTask.id, source: selectedTask.source }, { isRead: false, readAt: null })
-    try {
-      await markTaskUnread(context.accessToken, { source: selectedTask.source, taskId: selectedTask.id })
-    } catch {
-      // Non-blocking
-    }
-  }, [selectedTask, context.accessToken, updateTaskUserStateLocally])
-
-  const handleSetUserPriority = useCallback(
-    async (value: string) => {
-      if (!selectedTask) return
-      if (!context.accessToken) return
-
-      const prev = selectedTask.userState?.userPriority ?? null
-      const next = value === 'none' ? null : Number.parseInt(value, 10)
-      updateTaskUserStateLocally({ id: selectedTask.id, source: selectedTask.source }, { userPriority: next })
       try {
-        await patchTaskState(context.accessToken, {
-          source: selectedTask.source,
-          taskId: selectedTask.id,
+        await patchTaskState(accessToken, {
+          source: task.source,
+          taskId: task.id,
+          isPinned: nextPinned
+        })
+      } catch {
+        updateTaskUserStateLocally(
+          { id: task.id, source: task.source },
+          { isPinned: prevPinned, pinnedAt: prevPinnedAt },
+          { resort: true }
+        )
+      }
+    },
+    [accessToken, updateTaskUserStateLocally]
+  )
+
+  const markUnreadForTask = useCallback(
+    async (task: UnifiedTask) => {
+      if (!accessToken) return
+
+      // If an auto-mark-as-read is pending for this task, cancel it so "mark unread" sticks immediately.
+      if (selectedTask && selectedTask.id === task.id && selectedTask.source === task.source) {
+        const key = `${selectedTask.source}:${selectedTask.id}`
+        lastAutoReadKeyRef.current = key
+        if (autoReadTimeoutRef.current) {
+          globalThis.clearTimeout(autoReadTimeoutRef.current)
+          autoReadTimeoutRef.current = null
+        }
+      }
+
+      const prevIsRead = Boolean(task.userState?.isRead)
+      const prevReadAt = task.userState?.readAt ?? null
+
+      updateTaskUserStateLocally({ id: task.id, source: task.source }, { isRead: false, readAt: null })
+      try {
+        await markTaskUnread(accessToken, { source: task.source, taskId: task.id })
+      } catch {
+        updateTaskUserStateLocally({ id: task.id, source: task.source }, { isRead: prevIsRead, readAt: prevReadAt })
+      }
+    },
+    [accessToken, selectedTask, updateTaskUserStateLocally]
+  )
+
+  const setPriorityForTask = useCallback(
+    async (task: UnifiedTask, next: number | null) => {
+      if (!accessToken) return
+
+      const prev = task.userState?.userPriority ?? null
+      updateTaskUserStateLocally(
+        { id: task.id, source: task.source },
+        { userPriority: next },
+        { resort: sortBy === 'priority' }
+      )
+      try {
+        await patchTaskState(accessToken, {
+          source: task.source,
+          taskId: task.id,
           userPriority: next
         })
       } catch {
-        // Roll back on error to avoid surprising UI state
-        updateTaskUserStateLocally({ id: selectedTask.id, source: selectedTask.source }, { userPriority: prev })
+        updateTaskUserStateLocally(
+          { id: task.id, source: task.source },
+          { userPriority: prev },
+          { resort: sortBy === 'priority' }
+        )
       }
     },
-    [selectedTask, context.accessToken, updateTaskUserStateLocally]
+    [accessToken, sortBy, updateTaskUserStateLocally]
+  )
+
+  const handleTogglePinned = useCallback(() => {
+    if (!selectedTask) return
+    void togglePinnedForTask(selectedTask)
+  }, [selectedTask, togglePinnedForTask])
+
+  const handleMarkUnread = useCallback(() => {
+    if (!selectedTask) return
+    void markUnreadForTask(selectedTask)
+  }, [selectedTask, markUnreadForTask])
+
+  const handleSetUserPriority = useCallback(
+    (value: string) => {
+      if (!selectedTask) return
+      const next = value === 'none' ? null : Number.parseInt(value, 10)
+      void setPriorityForTask(selectedTask, next)
+    },
+    [selectedTask, setPriorityForTask]
   )
 
   // Auto-mark as read when the task is opened/selected (idempotent + debounced)
   useEffect(() => {
     if (!selectedTask) return
-    if (!context.accessToken) return
+    if (!accessToken) return
     if (selectedTask.userState?.isRead) return
 
     const key = `${selectedTask.source}:${selectedTask.id}`
@@ -425,7 +529,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
     autoReadTimeoutRef.current = globalThis.setTimeout(async () => {
       try {
-        await markTaskRead(context.accessToken, { source: selectedTask.source, taskId: selectedTask.id })
+        await markTaskRead(accessToken, { source: selectedTask.source, taskId: selectedTask.id })
         lastAutoReadKeyRef.current = key
         updateTaskUserStateLocally(
           { id: selectedTask.id, source: selectedTask.source },
@@ -441,13 +545,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
         globalThis.clearTimeout(autoReadTimeoutRef.current)
       }
     }
-  }, [
-    selectedTask?.id,
-    selectedTask?.source,
-    selectedTask?.userState?.isRead,
-    context.accessToken,
-    updateTaskUserStateLocally
-  ])
+  }, [selectedTask?.id, selectedTask?.source, selectedTask?.userState?.isRead, accessToken, updateTaskUserStateLocally])
 
   /**
    * Helper function to check if a task is a Blink (quick direct task)
@@ -553,11 +651,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
   }, [currentTasks, filterType, displayedCount, applyTypeFilter])
 
   // Batch fetch all employee avatars in one request (handles both userIds and employeeIds)
-  const { employeeMap, isLoading: areAvatarsLoading } = useEmployeeAvatarsBatch(
-    context.accessToken || '',
-    userIds,
-    employeeIds
-  )
+  const { employeeMap, isLoading: areAvatarsLoading } = useEmployeeAvatarsBatch(accessToken || '', userIds, employeeIds)
 
   // Filter tasks (tasks are already sorted by date from the API)
   const allFilteredTasks = useMemo(() => {
@@ -721,17 +815,41 @@ export const InboxView: React.FC<InboxViewProps> = ({
             <>
               <div data-testid="inbox-task-list">
                 {filteredTasks.map(task => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    onView={handleSelectTask}
-                    employeeMap={employeeMap}
-                    areAvatarsLoading={areAvatarsLoading}
-                    isSelected={selectedTask?.id === task.id}
-                    isDetailViewOpen={!!selectedTask}
-                    t={t}
-                    locale={locale}
-                  />
+                  <ContextMenu key={task.id}>
+                    <ContextMenuTrigger className="gba:block">
+                      <TaskCard
+                        task={task}
+                        onView={handleSelectTask}
+                        employeeMap={employeeMap}
+                        areAvatarsLoading={areAvatarsLoading}
+                        isSelected={selectedTask?.id === task.id}
+                        isDetailViewOpen={!!selectedTask}
+                        t={t}
+                        locale={locale}
+                      />
+                    </ContextMenuTrigger>
+                    <ContextMenuContent className="gba:w-64">
+                      <ContextMenuItem onSelect={() => togglePinnedForTask(task)}>
+                        {task.userState?.isPinned ? t('task-meta-unpin') : t('task-meta-pin')}
+                      </ContextMenuItem>
+                      <ContextMenuItem disabled={!task.userState?.isRead} onSelect={() => markUnreadForTask(task)}>
+                        {t('task-meta-mark-unread')}
+                      </ContextMenuItem>
+                      <ContextMenuItem disabled>{t('task-meta-priority')}</ContextMenuItem>
+                      <ContextMenuItem onSelect={() => setPriorityForTask(task, null)}>
+                        {t('task-meta-priority-none')}
+                      </ContextMenuItem>
+                      <ContextMenuItem onSelect={() => setPriorityForTask(task, 0)}>
+                        {t('task-meta-priority-high')}
+                      </ContextMenuItem>
+                      <ContextMenuItem onSelect={() => setPriorityForTask(task, 10)}>
+                        {t('task-meta-priority-medium')}
+                      </ContextMenuItem>
+                      <ContextMenuItem onSelect={() => setPriorityForTask(task, 20)}>
+                        {t('task-meta-priority-low')}
+                      </ContextMenuItem>
+                    </ContextMenuContent>
+                  </ContextMenu>
                 ))}
               </div>
 
@@ -810,9 +928,9 @@ export const InboxView: React.FC<InboxViewProps> = ({
               onClose={handleCloseTask}
               onTaskUpdated={onRefresh}
               onTaskCompleted={handleTaskCompleted}
-              accessToken={context.accessToken}
-              userId={context.userInfo?.id}
-              userInfo={context.userInfo}
+              accessToken={accessToken}
+              userId={userInfo?.id}
+              userInfo={userInfo}
               showActions={true}
             />
           </div>
