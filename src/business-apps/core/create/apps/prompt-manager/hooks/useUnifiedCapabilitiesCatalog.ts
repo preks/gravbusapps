@@ -21,8 +21,11 @@ export const useUnifiedCapabilitiesCatalog = (
   context: BusinessAppContextProps
 ): UseUnifiedCapabilitiesCatalogResult => {
   const functionsClientRef = useRef<FunctionsServiceClient | null>(null)
-  if (!functionsClientRef.current) {
-    functionsClientRef.current = new FunctionsServiceClient()
+  // Recreate client when access token changes (functions endpoints are authenticated)
+  if (!functionsClientRef.current || (functionsClientRef.current as any).__token !== context.accessToken) {
+    const client = new FunctionsServiceClient(context.accessToken)
+    ;(client as any).__token = context.accessToken
+    functionsClientRef.current = client
   }
 
   const pmClient = usePromptManagerClient(context.accessToken)

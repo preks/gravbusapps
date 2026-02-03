@@ -6,6 +6,7 @@ import type { UnifiedCapability } from './types'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { McpToolDraft, McpToolAuthType } from './mcpToolDraft'
 import { McpToolConfigForm } from './McpToolConfigForm'
+import { McpAllowedActionsPanel } from './McpAllowedActionsPanel'
 
 const getSettingsString = (tool: ToolODM, key: string): string =>
   String((tool.settings?.config || ({} as Record<string, string>))[key] || '')
@@ -14,13 +15,26 @@ export interface McpToolItemProps {
   accessToken: string
   capability: UnifiedCapability
   toolId: string
+  toolCode: string
+  allowedTools: string[]
+  onChangeAllowedTools: (allowed: string[]) => void
   expanded: boolean
   onToggle: () => void
   onAfterSaved: () => void
 }
 
 export const McpToolItem: React.FC<McpToolItemProps> = props => {
-  const { accessToken, capability, toolId, expanded, onToggle, onAfterSaved } = props
+  const {
+    accessToken,
+    capability,
+    toolId,
+    toolCode,
+    allowedTools,
+    onChangeAllowedTools,
+    expanded,
+    onToggle,
+    onAfterSaved
+  } = props
   const client = usePromptManagerClient(accessToken)
 
   const [isLoading, setIsLoading] = useState(false)
@@ -34,6 +48,7 @@ export const McpToolItem: React.FC<McpToolItemProps> = props => {
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false)
 
   const load = useCallback(async () => {
+    if (isInternal) return
     setIsLoading(true)
     setError(null)
     try {
@@ -41,7 +56,23 @@ export const McpToolItem: React.FC<McpToolItemProps> = props => {
       const config = tool.config as MCPConfig
       setHasAttemptedLoad(true)
 
-      const authType = (getSettingsString(tool, 'auth.type') as McpToolAuthType) || 'none'
+      const rawAuthType = getSettingsString(tool, 'auth.type')
+      const rawPreferSession = getSettingsString(tool, 'auth.preferSession')
+      const preferSession =
+        rawAuthType === 'session' ||
+        ['1', 'true', 'yes', 'y', 'on'].includes(
+          String(rawPreferSession || '')
+            .trim()
+            .toLowerCase()
+        )
+
+      const authType: McpToolAuthType =
+        rawAuthType === 'bearer' ||
+        rawAuthType === 'basic' ||
+        rawAuthType === 'header' ||
+        rawAuthType === 'oauth_client_credentials'
+          ? (rawAuthType as McpToolAuthType)
+          : 'none'
       const headersJson = getSettingsString(tool, 'http.headersJson') || '{}'
 
       setDraft({
@@ -50,10 +81,17 @@ export const McpToolItem: React.FC<McpToolItemProps> = props => {
         url: config.url || '',
         transport: config.transport || 'http',
         envJson: JSON.stringify(config.env || {}, null, 2),
+        preferSession,
         authType,
         bearerToken: getSettingsString(tool, 'auth.bearerToken'),
+        basicUsername: getSettingsString(tool, 'auth.basicUsername'),
+        basicPassword: getSettingsString(tool, 'auth.basicPassword'),
         headerName: getSettingsString(tool, 'auth.headerName'),
         headerValue: getSettingsString(tool, 'auth.headerValue'),
+        oauthTokenUrl: getSettingsString(tool, 'auth.oauth.tokenUrl'),
+        oauthClientId: getSettingsString(tool, 'auth.oauth.clientId'),
+        oauthClientSecret: getSettingsString(tool, 'auth.oauth.clientSecret'),
+        oauthScope: getSettingsString(tool, 'auth.oauth.scope'),
         headersJson
       })
     } catch (e) {
@@ -71,22 +109,30 @@ export const McpToolItem: React.FC<McpToolItemProps> = props => {
     {
       load().catch(() => undefined)
     }
-  }, [expanded, draft, isLoading, load, hasAttemptedLoad, isInternal])
+  }, [expanded, draft, isLoading, load, hasAttemptedLoad])
 
-  const canTest = !isInternal && !!draft?.url?.trim()
+  const canTest = !!draft?.url?.trim()
 
   const headersForTest = useMemo(() => {
     if (!draft) return null
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
 
-    if (draft.authType === 'session') {
+    if (draft.preferSession) {
       if (accessToken?.trim()) headers['Authorization'] = `Bearer ${accessToken.trim()}`
     } else if (draft.authType === 'bearer') {
       if (draft.bearerToken?.trim()) headers['Authorization'] = `Bearer ${draft.bearerToken.trim()}`
+    } else if (draft.authType === 'basic') {
+      if (draft.basicUsername?.trim() && draft.basicPassword) {
+        const raw = `${draft.basicUsername.trim()}:${draft.basicPassword}`.trim()
+        headers['Authorization'] = `Basic ${btoa(raw)}`
+      }
     } else if (draft.authType === 'header') {
       if (draft.headerName?.trim() && draft.headerValue?.trim()) {
         headers[draft.headerName.trim()] = draft.headerValue.trim()
       }
+    } else if (draft.authType === 'oauth_client_credentials') {
+      // OAuth tokens are fetched server-side by Prompt Manager during actual agent runs.
+      // Browser-based test calls cannot reliably fetch tokens due to CORS; keep test as a plain connectivity check.
     }
 
     try {
@@ -123,10 +169,6 @@ export const McpToolItem: React.FC<McpToolItemProps> = props => {
 
   const onSave = useCallback(async () => {
     if (!draft) return
-    if (isInternal) {
-      setError('This is an internal MCP tool and cannot be edited here.')
-      return
-    }
     setIsSaving(true)
     setError(null)
     try {
@@ -134,13 +176,35 @@ export const McpToolItem: React.FC<McpToolItemProps> = props => {
       const env = draft.envJson.trim() ? JSON.parse(draft.envJson) : {}
       if (draft.headersJson.trim()) JSON.parse(draft.headersJson)
 
+      if (draft.authType === 'oauth_client_credentials') {
+        if (!draft.oauthTokenUrl.trim() || !draft.oauthClientId.trim() || !draft.oauthClientSecret) {
+          throw new Error('OAuth client credentials requires token URL, client id, and client secret')
+        }
+      }
+      if (draft.authType === 'basic') {
+        if (!draft.basicUsername.trim() || !draft.basicPassword) {
+          throw new Error('Basic auth requires username and password')
+        }
+      }
+
       const settingsConfig: Record<string, string> = {}
       if (draft.authType !== 'none') settingsConfig['auth.type'] = draft.authType
+      if (draft.preferSession) settingsConfig['auth.preferSession'] = 'true'
       if (draft.authType === 'bearer' && draft.bearerToken.trim())
         settingsConfig['auth.bearerToken'] = draft.bearerToken.trim()
+      if (draft.authType === 'basic' && draft.basicUsername.trim() && draft.basicPassword) {
+        settingsConfig['auth.basicUsername'] = draft.basicUsername.trim()
+        settingsConfig['auth.basicPassword'] = draft.basicPassword
+      }
       if (draft.authType === 'header' && draft.headerName.trim() && draft.headerValue.trim()) {
         settingsConfig['auth.headerName'] = draft.headerName.trim()
         settingsConfig['auth.headerValue'] = draft.headerValue.trim()
+      }
+      if (draft.authType === 'oauth_client_credentials') {
+        if (draft.oauthTokenUrl.trim()) settingsConfig['auth.oauth.tokenUrl'] = draft.oauthTokenUrl.trim()
+        if (draft.oauthClientId.trim()) settingsConfig['auth.oauth.clientId'] = draft.oauthClientId.trim()
+        if (draft.oauthClientSecret) settingsConfig['auth.oauth.clientSecret'] = draft.oauthClientSecret
+        if (draft.oauthScope.trim()) settingsConfig['auth.oauth.scope'] = draft.oauthScope.trim()
       }
       if (draft.headersJson.trim()) settingsConfig['http.headersJson'] = draft.headersJson
 
@@ -159,7 +223,7 @@ export const McpToolItem: React.FC<McpToolItemProps> = props => {
     } finally {
       setIsSaving(false)
     }
-  }, [client, draft, isInternal, onAfterSaved, toolId])
+  }, [client, draft, onAfterSaved, toolId])
 
   return (
     <div className="gba:border gba:rounded-lg" data-testid={`agent-builder-mcp-tool-${toolId}`}>
@@ -182,8 +246,8 @@ export const McpToolItem: React.FC<McpToolItemProps> = props => {
         </div>
 
         <div className="gba:flex gba:items-center gba:gap-2">
-          {status === 'connected' && <CheckCircle className="gba:w-4 gba:h-4 gba:text-success" />}
-          {status === 'error' && <AlertCircle className="gba:w-4 gba:h-4 gba:text-destructive" />}
+          {!isInternal && status === 'connected' && <CheckCircle className="gba:w-4 gba:h-4 gba:text-success" />}
+          {!isInternal && status === 'error' && <AlertCircle className="gba:w-4 gba:h-4 gba:text-destructive" />}
 
           <Button
             size="sm"
@@ -192,7 +256,7 @@ export const McpToolItem: React.FC<McpToolItemProps> = props => {
             data-testid={`agent-builder-configure-mcp-tool-${toolId}`}
           >
             <Settings className="gba:w-4 gba:h-4 gba:mr-1" />
-            {isInternal ? 'View' : 'Configure'}
+            Configure
           </Button>
         </div>
       </div>
@@ -200,10 +264,18 @@ export const McpToolItem: React.FC<McpToolItemProps> = props => {
       {expanded && (
         <div className="gba:border-t gba:p-4 gba:space-y-4">
           {isInternal ? (
-            <div className="gba:text-sm gba:text-muted-foreground gba:space-y-1">
-              <div>This is an internal MCP tool managed by the system.</div>
-              <div className="gba:font-mono gba:text-xs">{capability.sourceMeta?.mcpUrl || '—'}</div>
-            </div>
+            <>
+              <McpAllowedActionsPanel
+                accessToken={accessToken}
+                toolId={toolId}
+                toolCode={toolCode}
+                allowedTools={allowedTools}
+                onChangeAllowedTools={onChangeAllowedTools}
+              />
+              <div className="gba:text-xs gba:text-muted-foreground">
+                This is an internal MCP tool. Connection and credentials are managed by the system.
+              </div>
+            </>
           ) : isLoading || (!draft && !hasAttemptedLoad) ? (
             <div className="gba:flex gba:items-center gba:justify-center gba:py-6">
               <Loader2 className="gba:w-5 gba:h-5 gba:animate-spin" />
@@ -224,18 +296,27 @@ export const McpToolItem: React.FC<McpToolItemProps> = props => {
               </Button>
             </div>
           ) : (
-            <McpToolConfigForm
-              toolId={toolId}
-              draft={draft}
-              onChange={patch => setDraft({ ...draft, ...patch })}
-              error={error}
-              readOnly={isInternal}
-              canTest={canTest}
-              isTesting={isTesting}
-              isSaving={isSaving}
-              onTest={onTest}
-              onSave={onSave}
-            />
+            <>
+              <McpAllowedActionsPanel
+                accessToken={accessToken}
+                toolId={toolId}
+                toolCode={toolCode}
+                allowedTools={allowedTools}
+                onChangeAllowedTools={onChangeAllowedTools}
+              />
+              <McpToolConfigForm
+                toolId={toolId}
+                draft={draft}
+                onChange={patch => setDraft({ ...draft, ...patch })}
+                error={error}
+                readOnly={false}
+                canTest={canTest}
+                isTesting={isTesting}
+                isSaving={isSaving}
+                onTest={onTest}
+                onSave={onSave}
+              />
+            </>
           )}
         </div>
       )}

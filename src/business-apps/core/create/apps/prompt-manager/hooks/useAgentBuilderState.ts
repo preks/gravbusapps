@@ -9,7 +9,8 @@ import type {
   AgentType,
   ResponseStyle,
   CitationMode,
-  KnowledgeSource
+  KnowledgeSource,
+  ToolPolicies
 } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import type { AgentBuilderState, AgentBuilderActions } from '../components/task-expert-builder/types'
 import { useUnifiedCapabilitiesCatalog } from './useUnifiedCapabilitiesCatalog'
@@ -61,6 +62,7 @@ export const useAgentBuilderState = (
   const [tags, setTags] = useState<string[]>([])
   const [selectedToolIds, setSelectedToolIds] = useState<string[]>([])
   const [selectedToolVersion, setSelectedToolVersion] = useState<Record<string, string>>({})
+  const [toolPolicies, setToolPolicies] = useState<ToolPolicies>({})
   const [serviceId, setServiceId] = useState('')
   const [modelId, setModelId] = useState('')
   const [temperature, setTemperature] = useState(0)
@@ -147,6 +149,7 @@ export const useAgentBuilderState = (
           setKnowledgeSources(loadedPrompt.knowledge_sources || [])
           setIsPublic(loadedPrompt.is_public || false)
           setTags(loadedPrompt.tags || [])
+          setToolPolicies((loadedPrompt.toolPolicies || {}) as ToolPolicies)
 
           if (loadedPrompt.response_schema) {
             setResponseType('json')
@@ -199,6 +202,7 @@ export const useAgentBuilderState = (
     tags,
     selectedToolIds,
     selectedToolVersion,
+    toolPolicies,
     serviceId,
     modelId,
     temperature,
@@ -222,6 +226,7 @@ export const useAgentBuilderState = (
     setTags,
     setSelectedToolIds,
     setSelectedToolVersion,
+    setToolPolicies,
     setServiceId,
     setModelId,
     setTemperature,

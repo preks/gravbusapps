@@ -1,8 +1,9 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   Card,
   CardHeader,
   CardTitle,
+  CardDescription,
   CardContent,
   Button,
   Input,
@@ -21,7 +22,7 @@ import { ToolEditor } from './ToolEditor'
 
 export const ToolsSpace: React.FC<BusinessAppContextProps> = context => {
   const [search, setSearch] = useState('')
-  const [limit] = useState(20)
+  const [limit] = useState(5)
   const [offset, setOffset] = useState(0)
   const [editingTool, setEditingTool] = useState<{ mode: 'create' | 'edit'; tool?: any } | null>(null)
   const { items, total, isLoading, error, reload, create, update } = useTaskExpertToolsCatalog(context, {
@@ -31,7 +32,7 @@ export const ToolsSpace: React.FC<BusinessAppContextProps> = context => {
   })
 
   const onSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value), [])
-  const onCreateTool = useCallback(() => setEditingTool({ mode: 'create' }), [])
+  const onAddMcpServer = useCallback(() => setEditingTool({ mode: 'create' }), [])
   const onEditTool = useCallback(
     (id: string) => {
       const tool = items.find(t => (t._id || '') === id)
@@ -40,12 +41,20 @@ export const ToolsSpace: React.FC<BusinessAppContextProps> = context => {
     [items]
   )
 
+  const onReload = useCallback(() => {
+    reload({ search, limit, offset })
+  }, [reload, search, limit, offset])
+
   const handleToolSaved = useCallback(async () => {
     if (editingTool) {
       setEditingTool(null)
       reload({ search, limit, offset })
     }
   }, [editingTool, reload, search, limit, offset])
+
+  useEffect(() => {
+    setOffset(0)
+  }, [search])
 
   const totalPages = Math.max(1, Math.ceil((total || 0) / (limit || 1)))
   const currentPage = Math.floor((offset || 0) / (limit || 1)) + 1
@@ -77,23 +86,25 @@ export const ToolsSpace: React.FC<BusinessAppContextProps> = context => {
   return (
     <Card data-testid="prompt-manager-tools-space">
       <CardHeader>
-        <CardTitle>Tools</CardTitle>
+        <CardTitle>MCP Servers</CardTitle>
+        <CardDescription>Manage MCP server connections for AI Task Experts</CardDescription>
       </CardHeader>
       <CardContent className="gba:space-y-4">
         <div className="gba:flex gba:items-center gba:gap-3">
           <Input
             data-testid="prompt-manager-tools-search-input"
-            placeholder="Search tools..."
+            placeholder="Search MCP servers..."
             value={search}
             onChange={onSearchChange}
           />
-          <Button variant="default" data-testid="prompt-manager-tools-create-button" onClick={onCreateTool}>
-            New Tool
+          <Button variant="default" data-testid="prompt-manager-tools-add-mcp-server" onClick={onAddMcpServer}>
+            Add MCP server
           </Button>
-          <Button variant="secondary" onClick={() => reload({ search, limit, offset })}>
+          <Button variant="secondary" onClick={onReload} data-testid="prompt-manager-tools-reload">
             Reload
           </Button>
         </div>
+
         {error ? (
           <div data-testid="prompt-manager-tools-error" className="gba:text-destructive">
             {error}
@@ -101,7 +112,7 @@ export const ToolsSpace: React.FC<BusinessAppContextProps> = context => {
         ) : (
           <div className="gba:space-y-2">
             <div data-testid="prompt-manager-tools-count" className="gba:text-muted-foreground">
-              {total} tools
+              {total} MCP servers
             </div>
             <div className="gba:overflow-x-auto">
               <Table data-testid="prompt-manager-tools-table">
@@ -110,7 +121,7 @@ export const ToolsSpace: React.FC<BusinessAppContextProps> = context => {
                     <TableHead>Name</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="gba:w-[160px]">ACTIONS</TableHead>
+                    <TableHead className="gba:w-[160px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -123,39 +134,44 @@ export const ToolsSpace: React.FC<BusinessAppContextProps> = context => {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    items.map(tool => (
-                      <TableRow
-                        key={tool._id ?? tool.name}
-                        data-testid={`prompt-manager-tool-row-${tool._id ?? tool.name}`}
-                      >
-                        <TableCell className="gba:py-3">
-                          <span className="gba:font-medium">{tool.name}</span>
-                        </TableCell>
-                        <TableCell className="gba:py-3">
-                          <Badge variant="secondary">{tool.type}</Badge>
-                        </TableCell>
-                        <TableCell className="gba:py-3">
-                          <Badge variant={tool.active !== false ? 'success' : 'destructive'}>
-                            {tool.active !== false ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell
-                          className="gba:py-3"
-                          data-testid={`prompt-manager-tools-actions-cell-${tool._id ?? tool.name}`}
-                        >
-                          <div className="gba:flex gba:gap-2 gba:justify-start">
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => onEditTool(tool._id || '')}
-                              data-testid={`tool-edit-button-${tool._id ?? tool.name}`}
-                            >
-                              Edit
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    items.map(row => {
+                      const id = row._id ?? row.name
+                      const isInternal = !!row.internal
+                      const isActive = row.active !== false
+
+                      return (
+                        <TableRow key={id} data-testid={`prompt-manager-tool-row-${id}`}>
+                          <TableCell className="gba:py-3">
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <span className="gba:font-medium">{row.name}</span>
+                              {isInternal && <Badge variant="secondary">Internal</Badge>}
+                            </div>
+                          </TableCell>
+                          <TableCell className="gba:py-3">
+                            <Badge variant="secondary">{row.type}</Badge>
+                          </TableCell>
+                          <TableCell className="gba:py-3">
+                            <Badge variant={isActive ? 'success' : 'destructive'}>
+                              {isActive ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="gba:py-3" data-testid={`prompt-manager-tools-actions-cell-${id}`}>
+                            <div className="gba:flex gba:gap-2 gba:justify-start">
+                              {!isInternal && (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => onEditTool(row._id || '')}
+                                  data-testid={`tool-edit-button-${id}`}
+                                >
+                                  Edit
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
                   )}
                 </TableBody>
               </Table>

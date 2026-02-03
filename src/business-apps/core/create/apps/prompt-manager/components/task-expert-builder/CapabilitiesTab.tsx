@@ -6,8 +6,8 @@ import { McpToolsPanel } from './McpToolsPanel'
 export const CapabilitiesTab: React.FC<TabProps> = ({ context, state, actions, catalogs }) => {
   return (
     <div className="gba:space-y-6" data-testid="agent-builder-capabilities-tab">
-      <FunctionToolsPanel state={state} actions={actions} catalogs={catalogs} />
       <McpToolsPanel context={context} state={state} actions={actions} catalogs={catalogs} />
+      <FunctionToolsPanel state={state} actions={actions} catalogs={catalogs} />
     </div>
   )
 }

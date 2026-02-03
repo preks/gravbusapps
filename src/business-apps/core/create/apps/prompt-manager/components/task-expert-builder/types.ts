@@ -5,7 +5,8 @@ import type {
   KnowledgeSource,
   WorkspaceODM,
   AIServiceODM,
-  AIModelODM
+  AIModelODM,
+  ToolPolicies
 } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -54,6 +55,8 @@ export interface AgentBuilderState {
   // Capabilities
   selectedToolIds: string[]
   selectedToolVersion: Record<string, string>
+  /** Per-prompt tool policies (e.g. MCP allowlists), keyed by tool code (e.g. `mcp.flow-engine`) */
+  toolPolicies: ToolPolicies
 
   // Advanced
   serviceId: string
@@ -82,6 +85,7 @@ export interface AgentBuilderActions {
   setTags: (v: string[]) => void
   setSelectedToolIds: (v: string[]) => void
   setSelectedToolVersion: (v: Record<string, string>) => void
+  setToolPolicies: (v: ToolPolicies) => void
   setServiceId: (v: string) => void
   setModelId: (v: string) => void
   setTemperature: (v: number) => void

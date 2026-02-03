@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Button,
+  Checkbox,
   Input,
   Label,
   Textarea,
@@ -13,10 +14,6 @@ import {
   CardHeader,
   CardTitle,
   CardContent,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
   Tooltip,
   TooltipProvider,
   TooltipTrigger,
@@ -28,21 +25,11 @@ import type {
   ToolODM,
   MCPConfig,
   ToolSettings,
-  SchemaConfig,
   ToolDetails
 } from '@/common/network/ai/prompt-manager/PromptManagerClient'
-import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
-
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 type ToolType = 'mcp'
-type McpAuthType = 'none' | 'session' | 'bearer' | 'header'
-
-const MCP_RESERVED_SETTINGS_KEYS = new Set([
-  'auth.type',
-  'auth.bearerToken',
-  'auth.headerName',
-  'auth.headerValue',
-  'http.headersJson'
-])
+type McpAuthType = 'none' | 'bearer' | 'basic' | 'header' | 'oauth_client_credentials'
 
 export interface ToolEditorProps extends BusinessAppContextProps {
   mode: 'create' | 'edit'
@@ -54,10 +41,14 @@ export interface ToolEditorProps extends BusinessAppContextProps {
 }
 
 export const ToolEditor: React.FC<ToolEditorProps> = props => {
-  const { mode, tool, onClose, onSaved, onCreate, onUpdate } = props
+  const { mode, tool, onClose, onSaved, onCreate, onUpdate, accessToken } = props
   const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
   const toolType: ToolType = 'mcp'
+  const pmClient = usePromptManagerClient(accessToken)
+
+  // Test connection state
+  const [isTesting, setIsTesting] = useState(false)
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
 
   const [mcpUrl, setMcpUrl] = useState('')
   const [mcpTransport, setMcpTransport] = useState<'sse' | 'websocket' | 'http'>('sse')
@@ -90,21 +81,30 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
 
   const authType = useMemo(() => {
     const v = getConfigValue('auth.type')
-    if (v === 'session' || v === 'bearer' || v === 'header') return v
+    if (v === 'bearer' || v === 'basic' || v === 'header' || v === 'oauth_client_credentials') return v
     return 'none'
   }, [getConfigValue])
 
+  const preferSession = useMemo(() => {
+    const rawType = getConfigValue('auth.type')
+    const raw = getConfigValue('auth.preferSession')
+    if (rawType === 'session') return true
+    const s = String(raw || '')
+      .trim()
+      .toLowerCase()
+    return s === 'true' || s === '1' || s === 'yes' || s === 'y' || s === 'on'
+  }, [getConfigValue])
+
   const bearerToken = useMemo(() => getConfigValue('auth.bearerToken'), [getConfigValue])
+  const basicUsername = useMemo(() => getConfigValue('auth.basicUsername'), [getConfigValue])
+  const basicPassword = useMemo(() => getConfigValue('auth.basicPassword'), [getConfigValue])
   const headerName = useMemo(() => getConfigValue('auth.headerName'), [getConfigValue])
   const headerValue = useMemo(() => getConfigValue('auth.headerValue'), [getConfigValue])
+  const oauthTokenUrl = useMemo(() => getConfigValue('auth.oauth.tokenUrl'), [getConfigValue])
+  const oauthClientId = useMemo(() => getConfigValue('auth.oauth.clientId'), [getConfigValue])
+  const oauthClientSecret = useMemo(() => getConfigValue('auth.oauth.clientSecret'), [getConfigValue])
+  const oauthScope = useMemo(() => getConfigValue('auth.oauth.scope'), [getConfigValue])
   const headersJson = useMemo(() => getConfigValue('http.headersJson') || '{}', [getConfigValue])
-
-  // Schema configuration
-  const [inputSchema, setInputSchema] = useState<string>('')
-  const [inputSchemaError, setInputSchemaError] = useState<string | null>(null)
-  const [outputSchema, setOutputSchema] = useState<string>('')
-  const [outputSchemaError, setOutputSchemaError] = useState<string | null>(null)
-  const [schemaTab, setSchemaTab] = useState<'input' | 'output'>('input')
 
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -113,7 +113,6 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
   useEffect(() => {
     if (mode === 'edit' && tool) {
       setName(tool.name || '')
-      setDescription(tool.description || '')
       const mcpConfig = tool.config as MCPConfig
       setMcpUrl(mcpConfig.url || '')
       setMcpTransport(mcpConfig.transport || 'sse')
@@ -125,23 +124,9 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
       } else {
         setConfigKeys([{ key: '', value: '' }])
       }
-
-      // Load schema configuration (check both camelCase and snake_case field names)
-      // API returns schema_config (snake_case), but TypeScript interface uses schemaConfig
-      const schemaConfig = tool.schemaConfig || tool.schema_config || null
-      if (schemaConfig && typeof schemaConfig === 'object') {
-        const inputSchemaStr = schemaConfig.input ? JSON.stringify(schemaConfig.input, null, 2) : ''
-        const outputSchemaStr = schemaConfig.output ? JSON.stringify(schemaConfig.output, null, 2) : ''
-        setInputSchema(inputSchemaStr)
-        setOutputSchema(outputSchemaStr)
-      } else {
-        setInputSchema('')
-        setOutputSchema('')
-      }
     } else if (mode === 'create') {
       // Reset all fields for new tool
       setName('')
-      setDescription('')
       setMcpUrl('')
       setMcpTransport('sse')
       setSettings({ config: {} })
@@ -151,10 +136,6 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
         { key: 'http.headersJson', value: '{}' },
         { key: '', value: '' }
       ])
-      setInputSchema('')
-      setOutputSchema('')
-      setInputSchemaError(null)
-      setOutputSchemaError(null)
     }
   }, [mode, tool])
 
@@ -183,27 +164,11 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
         JSON.parse(hdr)
       }
 
-      // Build schema configuration
-      let schemaConfig: SchemaConfig | undefined = undefined
-      try {
-        const input = inputSchema.trim() ? JSON.parse(inputSchema) : undefined
-        const output = outputSchema.trim() ? JSON.parse(outputSchema) : undefined
-        if (input || output) {
-          schemaConfig = {}
-          if (input) schemaConfig.input = input
-          if (output) schemaConfig.output = output
-        }
-      } catch (e) {
-        throw new Error(`Invalid JSON schema: ${e instanceof Error ? e.message : 'Unknown error'}`)
-      }
-
       const payload: ToolDetails = {
         name,
-        description,
         type: toolType,
         config,
-        settings: finalSettings,
-        schemaConfig
+        settings: finalSettings
       } as ToolDetails
 
       if (mode === 'create' && onCreate) {
@@ -222,21 +187,28 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
       setIsSaving(false)
       setError(e instanceof Error ? e.message : 'Failed to save tool')
     }
-  }, [
-    name,
-    description,
-    toolType,
-    mcpUrl,
-    mcpTransport,
-    settings,
-    configKeys,
-    mode,
-    tool,
-    onCreate,
-    onUpdate,
-    onSaved,
-    onClose
-  ])
+  }, [name, toolType, mcpUrl, mcpTransport, settings, configKeys, mode, tool, onCreate, onUpdate, onSaved, onClose])
+
+  const handleTest = useCallback(async () => {
+    if (!tool?._id) return
+    setIsTesting(true)
+    setTestResult(null)
+    try {
+      const response = await pmClient.getMcpAvailableActions(tool._id)
+      const count = response.tools?.length ?? 0
+      setTestResult({
+        success: true,
+        message: `Connection successful - ${count} action${count !== 1 ? 's' : ''} available`
+      })
+    } catch (e) {
+      setTestResult({
+        success: false,
+        message: e instanceof Error ? e.message : 'Connection failed'
+      })
+    } finally {
+      setIsTesting(false)
+    }
+  }, [pmClient, tool?._id])
 
   return (
     <div data-testid="tool-editor" className="gba:w-full gba:space-y-4">
@@ -245,14 +217,28 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
           <Button variant="outline" onClick={onClose} data-testid="tool-editor-back">
             Back
           </Button>
-          <div className="gba:text-lg gba:font-semibold">{mode === 'edit' ? name || tool?.name : 'New Tool'}</div>
+          <div className="gba:text-lg gba:font-semibold">{mode === 'edit' ? name || tool?.name : 'Add MCP server'}</div>
         </div>
         <div className="gba:flex gba:gap-2">
+          {mode === 'edit' && tool?._id && (
+            <Button variant="outline" onClick={handleTest} disabled={isTesting} data-testid="tool-editor-test">
+              {isTesting ? 'Testing…' : 'Test Connection'}
+            </Button>
+          )}
           <Button variant="default" onClick={handleSave} disabled={!isValid || isSaving} data-testid="tool-editor-save">
             {isSaving ? 'Saving…' : 'Save'}
           </Button>
         </div>
       </div>
+
+      {testResult && (
+        <div
+          className={testResult.success ? 'gba:text-success' : 'gba:text-destructive'}
+          data-testid="tool-editor-test-result"
+        >
+          {testResult.message}
+        </div>
+      )}
 
       {error && (
         <div className="gba:text-destructive" data-testid="tool-editor-error">
@@ -272,14 +258,6 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
                 <Label>Name</Label>
                 <Input value={name} onChange={e => setName(e.target.value)} placeholder="Display Name" />
               </div>
-              <div className="gba:space-y-2">
-                <Label>Description</Label>
-                <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional" />
-              </div>
-              <div className="gba:space-y-2">
-                <Label>Type</Label>
-                <div className="gba:text-sm gba:text-muted-foreground">MCP</div>
-              </div>
             </CardContent>
           </Card>
 
@@ -295,22 +273,6 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
                   onChange={e => setMcpUrl(e.target.value)}
                   placeholder="https://mcp-server.example.com/api"
                 />
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setMcpUrl(`${getFlowEngineApiBaseUrl()}/mcp`)
-                      setMcpTransport('http')
-                    }}
-                    data-testid="tool-editor-flow-engine-mcp-preset"
-                  >
-                    Use Flow Engine MCP
-                  </Button>
-                  <div className="gba:text-xs gba:text-muted-foreground">
-                    Default: <code className="gba:font-mono">{`${getFlowEngineApiBaseUrl()}/mcp`}</code>
-                  </div>
-                </div>
               </div>
               <div className="gba:space-y-2">
                 <Label>Transport</Label>
@@ -329,85 +291,8 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
           </Card>
         </div>
 
-        {/* Right sidebar: Schema and Settings */}
+        {/* Right sidebar: Settings */}
         <div className="gba:w-80 gba:flex-shrink-0 gba:space-y-4">
-          {/* Schema Configuration */}
-          <Card>
-            <CardHeader>
-              <CardTitle>JSON Schema</CardTitle>
-            </CardHeader>
-            <CardContent className="gba:space-y-3">
-              <Tabs value={schemaTab} onValueChange={v => setSchemaTab(v as 'input' | 'output')}>
-                <TabsList className="gba:w-full">
-                  <TabsTrigger value="input" className="gba:flex-1">
-                    Input
-                  </TabsTrigger>
-                  <TabsTrigger value="output" className="gba:flex-1">
-                    Output
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="input" className="gba:mt-3">
-                  <div className="gba:space-y-2">
-                    <Textarea
-                      rows={10}
-                      value={inputSchema}
-                      onChange={e => {
-                        setInputSchema(e.target.value)
-                        try {
-                          if (e.target.value.trim()) {
-                            JSON.parse(e.target.value)
-                            setInputSchemaError(null)
-                          } else {
-                            setInputSchemaError(null)
-                          }
-                        } catch (error) {
-                          setInputSchemaError(error instanceof Error ? error.message : 'Invalid JSON')
-                        }
-                      }}
-                      placeholder='{"type": "object", "properties": {"name": {"type": "string"}}}'
-                      className="gba:font-mono gba:text-xs gba:border gba:rounded-md gba:bg-muted"
-                      data-testid="tool-editor-input-schema"
-                    />
-                    {inputSchemaError && (
-                      <div className="gba:text-destructive gba:text-xs" data-testid="tool-editor-input-schema-error">
-                        {inputSchemaError}
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-                <TabsContent value="output" className="gba:mt-3">
-                  <div className="gba:space-y-2">
-                    <Textarea
-                      rows={10}
-                      value={outputSchema}
-                      onChange={e => {
-                        setOutputSchema(e.target.value)
-                        try {
-                          if (e.target.value.trim()) {
-                            JSON.parse(e.target.value)
-                            setOutputSchemaError(null)
-                          } else {
-                            setOutputSchemaError(null)
-                          }
-                        } catch (error) {
-                          setOutputSchemaError(error instanceof Error ? error.message : 'Invalid JSON')
-                        }
-                      }}
-                      placeholder='{"type": "object", "properties": {"result": {"type": "string"}}}'
-                      className="gba:font-mono gba:text-xs gba:border gba:rounded-md gba:bg-muted"
-                      data-testid="tool-editor-output-schema"
-                    />
-                    {outputSchemaError && (
-                      <div className="gba:text-destructive gba:text-xs" data-testid="tool-editor-output-schema-error">
-                        {outputSchemaError}
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-
           <Card>
             <CardHeader>
               <div className="gba:flex gba:items-center gba:gap-2">
@@ -424,7 +309,8 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
                           provided at runtime.
                         </p>
                         <p>
-                          <strong>Auth keys (recommended):</strong> <code>auth.type</code> (none|session|bearer|header),{' '}
+                          <strong>Auth keys (recommended):</strong> <code>auth.preferSession</code> (true|false),{' '}
+                          <code>auth.type</code> (none|bearer|basic|header|oauth_client_credentials),{' '}
                           <code>auth.bearerToken</code>, <code>auth.headerName</code>, <code>auth.headerValue</code>,{' '}
                           <code>http.headersJson</code>.
                         </p>
@@ -437,6 +323,19 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
             <CardContent className="gba:space-y-3">
               <div className="gba:space-y-2">
                 <Label>Authentication</Label>
+                <div className="gba:flex gba:items-center gba:gap-2 gba:pt-1">
+                  <Checkbox
+                    checked={preferSession}
+                    onCheckedChange={() => {
+                      const next = !preferSession
+                      setConfigValue('auth.preferSession', next ? 'true' : '')
+                      if (!next && getConfigValue('auth.type') === 'session') setConfigValue('auth.type', '')
+                      if (next && getConfigValue('auth.type') === 'session') setConfigValue('auth.type', '')
+                    }}
+                    data-testid="tool-editor-mcp-prefer-session"
+                  />
+                  <div className="gba:text-xs gba:text-muted-foreground">Prefer session token (if available)</div>
+                </div>
                 <Select
                   value={authType}
                   onValueChange={v => {
@@ -444,10 +343,23 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
                     if (next === 'none') setConfigValue('auth.type', '')
                     else setConfigValue('auth.type', next)
 
+                    // Normalize legacy value
+                    if (getConfigValue('auth.type') === 'session') setConfigValue('auth.type', '')
+
                     if (next !== 'bearer') setConfigValue('auth.bearerToken', '')
+                    if (next !== 'basic') {
+                      setConfigValue('auth.basicUsername', '')
+                      setConfigValue('auth.basicPassword', '')
+                    }
                     if (next !== 'header') {
                       setConfigValue('auth.headerName', '')
                       setConfigValue('auth.headerValue', '')
+                    }
+                    if (next !== 'oauth_client_credentials') {
+                      setConfigValue('auth.oauth.tokenUrl', '')
+                      setConfigValue('auth.oauth.clientId', '')
+                      setConfigValue('auth.oauth.clientSecret', '')
+                      setConfigValue('auth.oauth.scope', '')
                     }
                   }}
                 >
@@ -456,9 +368,10 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="session">Use session token</SelectItem>
                     <SelectItem value="bearer">Bearer token</SelectItem>
+                    <SelectItem value="basic">Basic auth</SelectItem>
                     <SelectItem value="header">Custom header</SelectItem>
+                    <SelectItem value="oauth_client_credentials">OAuth client credentials</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="gba:text-xs gba:text-muted-foreground">
@@ -475,6 +388,27 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
                     onChange={e => setConfigValue('auth.bearerToken', e.target.value)}
                     data-testid="tool-editor-mcp-bearer-token"
                   />
+                </div>
+              )}
+
+              {authType === 'basic' && (
+                <div className="gba:space-y-2">
+                  <Label>Basic Auth</Label>
+                  <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+                    <Input
+                      value={basicUsername}
+                      onChange={e => setConfigValue('auth.basicUsername', e.target.value)}
+                      placeholder="Username"
+                      data-testid="tool-editor-mcp-basic-username"
+                    />
+                    <Input
+                      type="password"
+                      value={basicPassword}
+                      onChange={e => setConfigValue('auth.basicPassword', e.target.value)}
+                      placeholder="Password"
+                      data-testid="tool-editor-mcp-basic-password"
+                    />
+                  </div>
                 </div>
               )}
 
@@ -499,6 +433,41 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
                 </div>
               )}
 
+              {authType === 'oauth_client_credentials' && (
+                <div className="gba:space-y-2">
+                  <Label>OAuth Client Credentials</Label>
+                  <div className="gba:space-y-2">
+                    <Input
+                      value={oauthTokenUrl}
+                      onChange={e => setConfigValue('auth.oauth.tokenUrl', e.target.value)}
+                      placeholder="Token URL"
+                      data-testid="tool-editor-mcp-oauth-token-url"
+                    />
+                    <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+                      <Input
+                        value={oauthClientId}
+                        onChange={e => setConfigValue('auth.oauth.clientId', e.target.value)}
+                        placeholder="Client ID"
+                        data-testid="tool-editor-mcp-oauth-client-id"
+                      />
+                      <Input
+                        type="password"
+                        value={oauthClientSecret}
+                        onChange={e => setConfigValue('auth.oauth.clientSecret', e.target.value)}
+                        placeholder="Client Secret"
+                        data-testid="tool-editor-mcp-oauth-client-secret"
+                      />
+                    </div>
+                    <Input
+                      value={oauthScope}
+                      onChange={e => setConfigValue('auth.oauth.scope', e.target.value)}
+                      placeholder="Scope (optional)"
+                      data-testid="tool-editor-mcp-oauth-scope"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="gba:space-y-2">
                 <Label>Additional Headers (JSON)</Label>
                 <Textarea
@@ -509,61 +478,6 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
                   placeholder='{"X-Header":"value"}'
                   data-testid="tool-editor-mcp-headers-json"
                 />
-              </div>
-
-              <div className="gba:space-y-2">
-                <Label>Advanced Runtime Configuration</Label>
-                <div className="gba:space-y-2 gba:mt-3">
-                  {configKeys
-                    .filter(kv => !MCP_RESERVED_SETTINGS_KEYS.has(kv.key))
-                    .map((kv, idx) => (
-                      <div key={idx} className="gba:flex gba:gap-2">
-                        <Input
-                          placeholder="Key (e.g. API_KEY)"
-                          value={kv.key}
-                          onChange={e => {
-                            const visible = configKeys.filter(k => !MCP_RESERVED_SETTINGS_KEYS.has(k.key))
-                            const current = visible[idx]
-                            if (!current) return
-                            const next = configKeys.map(k => (k === current ? { ...k, key: e.target.value } : k))
-                            setConfigKeys(next)
-                          }}
-                        />
-                        <Input
-                          type="password"
-                          placeholder="Value"
-                          value={kv.value}
-                          onChange={e => {
-                            const visible = configKeys.filter(k => !MCP_RESERVED_SETTINGS_KEYS.has(k.key))
-                            const current = visible[idx]
-                            if (!current) return
-                            const next = configKeys.map(k => (k === current ? { ...k, value: e.target.value } : k))
-                            setConfigKeys(next)
-                          }}
-                        />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            const visible = configKeys.filter(k => !MCP_RESERVED_SETTINGS_KEYS.has(k.key))
-                            const current = visible[idx]
-                            if (!current) return
-                            setConfigKeys(configKeys.filter(k => k !== current))
-                          }}
-                          disabled={configKeys.length === 1}
-                        >
-                          ×
-                        </Button>
-                      </div>
-                    ))}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setConfigKeys([...configKeys, { key: '', value: '' }])}
-                  >
-                    + Add Config
-                  </Button>
-                </div>
               </div>
             </CardContent>
           </Card>

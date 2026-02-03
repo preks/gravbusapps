@@ -233,9 +233,6 @@ export interface TaskExpertHandlerConfig {
   userParamsMap?: Record<string, string>
   outputExpressionMap?: Record<string, string>
   modelSettings?: Record<string, any>
-  mcpConfig?: {
-    enabledScopes?: string[]
-  }
 }
 
 export interface FunctionHandlerConfig {

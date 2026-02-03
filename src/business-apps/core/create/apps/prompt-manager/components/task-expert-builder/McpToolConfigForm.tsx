@@ -1,6 +1,7 @@
 import React from 'react'
 import {
   Button,
+  Checkbox,
   Input,
   Label,
   Select,
@@ -78,6 +79,15 @@ export const McpToolConfigForm: React.FC<McpToolConfigFormProps> = props => {
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <div className="gba:space-y-2">
           <Label>Auth</Label>
+          <div className="gba:flex gba:items-center gba:gap-2 gba:pt-1">
+            <Checkbox
+              checked={draft.preferSession}
+              onCheckedChange={() => onChange({ preferSession: !draft.preferSession })}
+              disabled={disableInputs}
+              data-testid={`agent-builder-mcp-tool-prefer-session-${toolId}`}
+            />
+            <div className="gba:text-xs gba:text-muted-foreground">Prefer session token (if available)</div>
+          </div>
           <Select
             value={draft.authType}
             onValueChange={v => onChange({ authType: v as McpToolAuthType })}
@@ -89,9 +99,10 @@ export const McpToolConfigForm: React.FC<McpToolConfigFormProps> = props => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">None</SelectItem>
-              <SelectItem value="session">Use session token</SelectItem>
               <SelectItem value="bearer">Bearer token</SelectItem>
+              <SelectItem value="basic">Basic auth</SelectItem>
               <SelectItem value="header">Custom header</SelectItem>
+              <SelectItem value="oauth_client_credentials">OAuth client credentials</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -106,6 +117,29 @@ export const McpToolConfigForm: React.FC<McpToolConfigFormProps> = props => {
               disabled={disableInputs}
               data-testid={`agent-builder-mcp-tool-bearer-token-${toolId}`}
             />
+          </div>
+        )}
+
+        {draft.authType === 'basic' && (
+          <div className="gba:space-y-2">
+            <Label>Basic Auth</Label>
+            <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+              <Input
+                value={draft.basicUsername}
+                onChange={e => onChange({ basicUsername: e.target.value })}
+                disabled={disableInputs}
+                placeholder="Username"
+                data-testid={`agent-builder-mcp-tool-basic-username-${toolId}`}
+              />
+              <Input
+                type="password"
+                value={draft.basicPassword}
+                onChange={e => onChange({ basicPassword: e.target.value })}
+                disabled={disableInputs}
+                placeholder="Password"
+                data-testid={`agent-builder-mcp-tool-basic-password-${toolId}`}
+              />
+            </div>
           </div>
         )}
 
@@ -126,6 +160,45 @@ export const McpToolConfigForm: React.FC<McpToolConfigFormProps> = props => {
                 disabled={disableInputs}
                 placeholder="Header value"
                 data-testid={`agent-builder-mcp-tool-header-value-${toolId}`}
+              />
+            </div>
+          </div>
+        )}
+
+        {draft.authType === 'oauth_client_credentials' && (
+          <div className="gba:space-y-2">
+            <Label>OAuth Client Credentials</Label>
+            <div className="gba:space-y-2">
+              <Input
+                value={draft.oauthTokenUrl}
+                onChange={e => onChange({ oauthTokenUrl: e.target.value })}
+                disabled={disableInputs}
+                placeholder="Token URL"
+                data-testid={`agent-builder-mcp-tool-oauth-token-url-${toolId}`}
+              />
+              <div className="gba:grid gba:grid-cols-2 gba:gap-2">
+                <Input
+                  value={draft.oauthClientId}
+                  onChange={e => onChange({ oauthClientId: e.target.value })}
+                  disabled={disableInputs}
+                  placeholder="Client ID"
+                  data-testid={`agent-builder-mcp-tool-oauth-client-id-${toolId}`}
+                />
+                <Input
+                  type="password"
+                  value={draft.oauthClientSecret}
+                  onChange={e => onChange({ oauthClientSecret: e.target.value })}
+                  disabled={disableInputs}
+                  placeholder="Client Secret"
+                  data-testid={`agent-builder-mcp-tool-oauth-client-secret-${toolId}`}
+                />
+              </div>
+              <Input
+                value={draft.oauthScope}
+                onChange={e => onChange({ oauthScope: e.target.value })}
+                disabled={disableInputs}
+                placeholder="Scope (optional)"
+                data-testid={`agent-builder-mcp-tool-oauth-scope-${toolId}`}
               />
             </div>
           </div>

@@ -1,33 +1,22 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import {
-  Button,
   Badge,
+  Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-  Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Textarea
+  Dialog,
+  DialogContent,
+  DialogDescription as DialogDescriptionText,
+  DialogHeader,
+  DialogTitle,
+  Input
 } from '@newwork/nw-design-system'
-import { Plug, Plus, Search } from 'lucide-react'
-import type { MCPConfig } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import { Plug } from 'lucide-react'
 import type { TabProps, UnifiedCapability } from './types'
-import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
-import { McpToolItem } from './McpToolItem'
-
-type CreateDraft = {
-  name: string
-  description: string
-  url: string
-  transport: 'http' | 'sse' | 'websocket'
-}
+import { McpAllowedActionsPanel } from './McpAllowedActionsPanel'
 
 export const McpToolsPanel: React.FC<Pick<TabProps, 'context' | 'state' | 'actions' | 'catalogs'>> = ({
   context,
@@ -35,29 +24,36 @@ export const McpToolsPanel: React.FC<Pick<TabProps, 'context' | 'state' | 'actio
   actions,
   catalogs
 }) => {
-  const client = usePromptManagerClient(context.accessToken)
-
-  const [expandedToolId, setExpandedToolId] = useState<string | null>(null)
-  const [pendingSelectPmToolId, setPendingSelectPmToolId] = useState<string | null>(null)
+  const [configuringCapCode, setConfiguringCapCode] = useState<string | null>(null)
+  const [view, setView] = useState<'all' | 'selected'>('all')
+  const [pageIndex, setPageIndex] = useState(0)
+  const pageSize = 5
 
   const [search, setSearch] = useState('')
-  const [showCreate, setShowCreate] = useState(false)
-  const [createDraft, setCreateDraft] = useState<CreateDraft>({
-    name: '',
-    description: '',
-    url: '',
-    transport: 'http'
-  })
-  const [isCreating, setIsCreating] = useState(false)
-  const [createError, setCreateError] = useState<string | null>(null)
 
   const mcpCapabilities = useMemo(() => catalogs.capabilities.filter(c => c.kind === 'mcp'), [catalogs.capabilities])
 
   const filteredMcpCapabilities = useMemo(() => {
-    if (!search) return mcpCapabilities
+    let result = mcpCapabilities
+    if (view === 'selected') {
+      const selected = new Set(state.selectedToolIds)
+      result = result.filter(c => selected.has(c.id))
+    }
+    if (!search) return result
     const q = search.toLowerCase()
-    return mcpCapabilities.filter(c => c.name.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q))
-  }, [mcpCapabilities, search])
+    return result.filter(c => c.name.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q))
+  }, [mcpCapabilities, search, state.selectedToolIds, view])
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredMcpCapabilities.length / pageSize)),
+    [filteredMcpCapabilities.length]
+  )
+  const currentPage = Math.min(pageIndex + 1, totalPages)
+  const paged = useMemo(() => {
+    const start = pageIndex * pageSize
+    const end = start + pageSize
+    return filteredMcpCapabilities.slice(start, end)
+  }, [filteredMcpCapabilities, pageIndex])
 
   const selectedMcpCapabilities = useMemo(
     () => mcpCapabilities.filter(c => state.selectedToolIds.includes(c.id)),
@@ -86,121 +82,114 @@ export const McpToolsPanel: React.FC<Pick<TabProps, 'context' | 'state' | 'actio
     (cap: UnifiedCapability) => {
       if (state.selectedToolIds.includes(cap.id)) {
         ensureDeselected(cap.id)
-        const pmId = cap.sourceMeta?.promptManagerToolId
-        if (pmId && expandedToolId === pmId) setExpandedToolId(null)
+        // Remove per-prompt policy when tool is deselected
+        if (state.toolPolicies?.[cap.code]) {
+          const next = { ...(state.toolPolicies || {}) }
+          delete next[cap.code]
+          actions.setToolPolicies(next)
+        }
       } else {
         ensureSelected(cap.id)
+        // Deny-by-default: initialize empty allowlist for newly selected MCP tools
+        if (!state.toolPolicies?.[cap.code]) {
+          actions.setToolPolicies({
+            ...(state.toolPolicies || {}),
+            [cap.code]: { allowedTools: [] }
+          })
+        }
       }
     },
-    [ensureDeselected, ensureSelected, expandedToolId, state.selectedToolIds]
+    [actions, ensureDeselected, ensureSelected, state.selectedToolIds, state.toolPolicies]
   )
 
-  const findCapabilityByPmToolId = useCallback(
-    (pmToolId: string): UnifiedCapability | undefined =>
-      mcpCapabilities.find(c => c.sourceMeta?.promptManagerToolId === pmToolId),
-    [mcpCapabilities]
+  const onConfigureTools = useCallback(
+    (cap: UnifiedCapability) => {
+      // Ensure the tool is selected and has a policy entry (deny-by-default) before configuring allowlist.
+      if (!state.selectedToolIds.includes(cap.id)) {
+        ensureSelected(cap.id)
+      }
+      if (!state.toolPolicies?.[cap.code]) {
+        actions.setToolPolicies({
+          ...(state.toolPolicies || {}),
+          [cap.code]: { allowedTools: [] }
+        })
+      }
+      setConfiguringCapCode(cap.code)
+    },
+    [actions, ensureSelected, state.selectedToolIds, state.toolPolicies]
   )
 
-  useEffect(() => {
-    if (!pendingSelectPmToolId) return
-    const cap = findCapabilityByPmToolId(pendingSelectPmToolId)
-    if (!cap) return
-    ensureSelected(cap.id)
-    setExpandedToolId(pendingSelectPmToolId)
-    setPendingSelectPmToolId(null)
-  }, [ensureSelected, findCapabilityByPmToolId, pendingSelectPmToolId])
+  const configuringCapability = useMemo(
+    () => (configuringCapCode ? mcpCapabilities.find(c => c.code === configuringCapCode) : undefined),
+    [configuringCapCode, mcpCapabilities]
+  )
 
-  const startCreate = useCallback(() => {
-    setShowCreate(true)
-    setCreateError(null)
-    setCreateDraft({ name: 'New MCP Tool', description: '', url: '', transport: 'http' })
-  }, [])
-
-  const createTool = useCallback(async () => {
-    setCreateError(null)
-    if (!createDraft.name.trim()) {
-      setCreateError('Name is required')
-      return
-    }
-    if (!createDraft.url.trim()) {
-      setCreateError('Server URL is required')
-      return
-    }
-
-    setIsCreating(true)
-    try {
-      const created = await client.createMcpTool({
-        name: createDraft.name.trim(),
-        description: createDraft.description.trim() || undefined,
-        type: 'mcp',
-        config: { transport: createDraft.transport, url: createDraft.url.trim() } as MCPConfig,
-        settings: { config: { 'auth.type': 'none', 'http.headersJson': '{}' } }
-      })
-      setShowCreate(false)
-      await catalogs.reloadCapabilities()
-      if (created._id) setPendingSelectPmToolId(created._id)
-    } catch (e) {
-      setCreateError(e instanceof Error ? e.message : 'Failed to create MCP tool')
-    } finally {
-      setIsCreating(false)
-    }
-  }, [catalogs, client, createDraft])
+  const configuringToolId = configuringCapability?.sourceMeta?.promptManagerToolId
+  const configuringAllowedTools = configuringCapCode ? state.toolPolicies?.[configuringCapCode]?.allowedTools || [] : []
 
   return (
     <Card className="gba:!bg-background">
       <CardHeader>
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <div>
-            <CardTitle className="gba:flex gba:items-center gba:gap-2">
-              <Plug className="gba:w-5 gba:h-5" />
-              MCP Tools
-            </CardTitle>
-            <CardDescription>Select MCP tools and configure them</CardDescription>
-          </div>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={startCreate}
-              disabled={isCreating}
-              data-testid="agent-builder-mcp-create"
-            >
-              <Plus className="gba:w-4 gba:h-4 gba:mr-1" />
-              New MCP Tool
-            </Button>
-          </div>
-        </div>
+        <CardTitle className="gba:flex gba:items-center gba:gap-2">
+          <Plug className="gba:w-5 gba:h-5" />
+          MCP Tools
+        </CardTitle>
+        <CardDescription>Select MCP tools and configure them</CardDescription>
       </CardHeader>
 
       <CardContent className="gba:space-y-4">
-        {createError && <div className="gba:text-sm gba:text-destructive">{createError}</div>}
-
-        <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
-          <div className="gba:flex-1">
-            <Input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search MCP tools..."
-              startAddOn={<Search size={16} />}
-              className="gba:ps-7"
-              data-testid="agent-builder-mcp-tool-search"
-            />
-          </div>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <Button
+            size="sm"
+            variant={view === 'all' ? 'default' : 'outline'}
+            onClick={() => {
+              setView('all')
+              setPageIndex(0)
+            }}
+            data-testid="agent-builder-mcp-tools-view-all"
+          >
+            All
+          </Button>
+          <Button
+            size="sm"
+            variant={view === 'selected' ? 'default' : 'outline'}
+            onClick={() => {
+              setView('selected')
+              setPageIndex(0)
+            }}
+            data-testid="agent-builder-mcp-tools-view-selected"
+          >
+            Selected
+          </Button>
+          <div className="gba:flex-1" />
           <Badge variant="secondary" data-testid="agent-builder-mcp-selected-count">
             {selectedMcpCount} selected
           </Badge>
         </div>
 
-        <div
-          className="gba:border gba:rounded-lg gba:divide-y gba:max-h-[240px] gba:overflow-y-auto"
-          data-testid="agent-builder-mcp-tool-selector"
-        >
+        <Input
+          value={search}
+          onChange={e => {
+            setSearch(e.target.value)
+            setPageIndex(0)
+          }}
+          placeholder="Search MCP tools..."
+          data-testid="agent-builder-mcp-tool-search"
+        />
+
+        <div className="gba:border gba:rounded-lg gba:divide-y" data-testid="agent-builder-mcp-tool-selector">
           {filteredMcpCapabilities.length === 0 ? (
             <div className="gba:p-6 gba:text-center gba:text-muted-foreground">
-              {search ? 'No MCP tools match your search' : 'No MCP tools available'}
+              {view === 'selected'
+                ? search
+                  ? 'No selected MCP tools match your search'
+                  : 'No MCP tools selected'
+                : search
+                  ? 'No MCP tools match your search'
+                  : 'No MCP tools available'}
             </div>
           ) : (
-            filteredMcpCapabilities.map(cap => (
+            paged.map(cap => (
               <div
                 key={cap.id}
                 className={`gba:p-3 gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:transition-colors ${
@@ -226,99 +215,115 @@ export const McpToolsPanel: React.FC<Pick<TabProps, 'context' | 'state' | 'actio
                         Internal
                       </Badge>
                     )}
+                    <Badge
+                      variant="secondary"
+                      className="gba:text-xs"
+                      data-testid={`agent-builder-mcp-tool-configured-count-${cap.id}`}
+                    >
+                      {(state.toolPolicies?.[cap.code]?.allowedTools || []).length} allowed
+                    </Badge>
                   </div>
                   {cap.description && (
                     <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{cap.description}</p>
                   )}
                 </div>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={e => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    onConfigureTools(cap)
+                  }}
+                  disabled={!cap.sourceMeta?.promptManagerToolId}
+                  data-testid={`agent-builder-mcp-tool-configure-${cap.id}`}
+                >
+                  Configure tools
+                </Button>
               </div>
             ))
           )}
         </div>
 
-        {showCreate && (
-          <div className="gba:border gba:rounded-lg gba:p-4 gba:space-y-4" data-testid="agent-builder-mcp-create-form">
-            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-              <div className="gba:space-y-2">
-                <Label>Name</Label>
-                <Input
-                  value={createDraft.name}
-                  onChange={e => setCreateDraft({ ...createDraft, name: e.target.value })}
-                />
-              </div>
-              <div className="gba:space-y-2">
-                <Label>Transport</Label>
-                <Select
-                  value={createDraft.transport}
-                  onValueChange={v => setCreateDraft({ ...createDraft, transport: v as CreateDraft['transport'] })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="http">HTTP</SelectItem>
-                    <SelectItem value="sse">SSE</SelectItem>
-                    <SelectItem value="websocket">WebSocket</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="gba:space-y-2">
-              <Label>Server URL</Label>
-              <Input
-                value={createDraft.url}
-                onChange={e => setCreateDraft({ ...createDraft, url: e.target.value })}
-                placeholder="https://example.com/mcp"
-              />
-            </div>
-
-            <div className="gba:space-y-2">
-              <Label>Description</Label>
-              <Textarea
-                rows={3}
-                value={createDraft.description}
-                onChange={e => setCreateDraft({ ...createDraft, description: e.target.value })}
-              />
-            </div>
-
-            <div className="gba:flex gba:justify-end gba:gap-2">
-              <Button size="sm" variant="outline" onClick={() => setShowCreate(false)} disabled={isCreating}>
-                Cancel
-              </Button>
-              <Button size="sm" variant="default" onClick={createTool} disabled={isCreating}>
-                {isCreating ? 'Creating...' : 'Create'}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {selectedMcpCapabilities.length === 0 ? (
+        {selectedMcpCapabilities.length === 0 && (
           <div className="gba:text-center gba:py-6 gba:text-muted-foreground gba:border gba:rounded-lg gba:border-dashed">
             <Plug className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-2 gba:opacity-50" />
             <p className="gba:text-sm">No MCP tools selected</p>
-            <p className="gba:text-xs gba:mt-1">Select an MCP tool above to configure it here</p>
+            <p className="gba:text-xs gba:mt-1">Select an MCP tool above to enable it</p>
           </div>
-        ) : (
-          <div className="gba:space-y-3" data-testid="agent-builder-mcp-selected-tools">
-            {selectedMcpCapabilities.map(cap => {
-              const toolId = cap.sourceMeta?.promptManagerToolId
-              if (!toolId) return null
-              return (
-                <McpToolItem
-                  key={toolId}
-                  accessToken={context.accessToken}
-                  capability={cap}
-                  toolId={toolId}
-                  expanded={expandedToolId === toolId}
-                  onToggle={() => setExpandedToolId(expandedToolId === toolId ? null : toolId)}
-                  onAfterSaved={() => catalogs.reloadCapabilities()}
-                />
-              )
-            })}
+        )}
+
+        {filteredMcpCapabilities.length > 0 && (
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <div className="gba:text-muted-foreground gba:text-sm" data-testid="agent-builder-mcp-tools-page">
+              Page {currentPage} of {totalPages}
+            </div>
+            <div className="gba:flex gba:gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={currentPage <= 1}
+                onClick={() => setPageIndex(p => Math.max(0, p - 1))}
+                data-testid="agent-builder-mcp-tools-prev"
+              >
+                Previous
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={currentPage >= totalPages}
+                onClick={() => setPageIndex(p => Math.min(totalPages - 1, p + 1))}
+                data-testid="agent-builder-mcp-tools-next"
+              >
+                Next
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>
+
+      <Dialog
+        open={!!configuringCapCode && !!configuringToolId}
+        onOpenChange={open => {
+          if (!open) setConfiguringCapCode(null)
+        }}
+      >
+        <DialogContent data-testid="agent-builder-mcp-configure-tools-dialog">
+          <DialogHeader>
+            <DialogTitle>Configure tools</DialogTitle>
+            <DialogDescriptionText>
+              Choose which actions this AI Task Expert can call for{' '}
+              <span className="gba:font-medium">{configuringCapability?.name || 'this MCP server'}</span>.
+            </DialogDescriptionText>
+          </DialogHeader>
+
+          {configuringToolId && configuringCapCode && (
+            <McpAllowedActionsPanel
+              accessToken={context.accessToken}
+              toolId={configuringToolId}
+              toolCode={configuringCapCode}
+              allowedTools={configuringAllowedTools}
+              onChangeAllowedTools={allowed =>
+                actions.setToolPolicies({
+                  ...(state.toolPolicies || {}),
+                  [configuringCapCode]: { allowedTools: allowed }
+                })
+              }
+            />
+          )}
+
+          <div className="gba:flex gba:justify-end">
+            <Button
+              variant="default"
+              onClick={() => setConfiguringCapCode(null)}
+              data-testid="agent-builder-mcp-configure-tools-done"
+            >
+              Done
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

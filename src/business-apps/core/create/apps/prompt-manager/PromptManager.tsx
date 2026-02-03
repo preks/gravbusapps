@@ -1,17 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import '@newwork/nw-design-system/style'
-import { PageLayout, Button, Tabs, TabsList, TabsTrigger, TabsContent, useTranslation } from '@newwork/nw-design-system'
-import { Bot, WrenchIcon } from 'lucide-react'
+import { PageLayout, Tabs, TabsList, TabsTrigger, TabsContent, useTranslation } from '@newwork/nw-design-system'
+import { Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { TaskExpertsSpace } from './components/TaskExpertsSpace'
 import { TaskExpertEditor } from './components/TaskExpertEditor'
-import { InternalToolsPanel } from './components/InternalToolsPanel'
 import { ToolsSpace } from './components/ToolsSpace'
 import translations from './_i18n'
 
 const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
   const { t } = useTranslation(translations)
-  const [showInternalTools, setShowInternalTools] = useState(false)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null)
   const [editingPromptName, setEditingPromptName] = useState<string>('')
@@ -82,22 +80,7 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
     setShouldRefresh(prev => prev + 1)
   }, [])
 
-  const renderToolsTab = () => (
-    <div className="gba:space-y-4">
-      <div className="gba:flex gba:justify-end">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowInternalTools(true)}
-          data-testid="prompt-manager-internal-tools-button"
-        >
-          <WrenchIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-          {t('internal-tools')}
-        </Button>
-      </div>
-      <ToolsSpace {...context} />
-    </div>
-  )
+  const renderToolsTab = () => <ToolsSpace {...context} />
 
   // Create mode (keep editor mounted; allow switching to Tools tab)
   if (isCreateOpen) {
@@ -184,12 +167,6 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
           </TabsContent>
         </Tabs>
       </PageLayout>
-
-      <InternalToolsPanel
-        open={showInternalTools}
-        onClose={() => setShowInternalTools(false)}
-        accessToken={context.accessToken}
-      />
     </div>
   )
 }

@@ -19,6 +19,14 @@ export interface PromptContent {
   parameters: string[]
 }
 
+export interface ToolPolicy {
+  /** MCP tool names (actions) that are allowed for this prompt */
+  allowedTools: string[]
+}
+
+/** Per-prompt tool policies, keyed by tool code (e.g. `mcp.flow-engine`) */
+export type ToolPolicies = Record<string, ToolPolicy>
+
 export interface KnowledgeSource {
   id: string
   type: 'document' | 'url' | 'content_entry' | 'catalog' // content_entry = internal knowledge base, catalog = catalog entries
@@ -47,6 +55,7 @@ export interface PromptODM {
   system_content?: PromptContent | null
   user_content: PromptContent
   tools?: string // comma-separated tool codes
+  toolPolicies?: ToolPolicies
   model: { id: string; collection: string }
   model_settings?: Record<string, unknown>
   response_schema?: Record<string, unknown> | null
@@ -100,6 +109,7 @@ export interface PromptDetails {
   systemContent?: string | null
   userContent: string
   tools?: string[]
+  toolPolicies?: ToolPolicies
   modelId: string
   modelSettings?: Record<string, unknown>
   responseSchema?: Record<string, unknown> | null
@@ -123,6 +133,7 @@ export interface PromptPutDetails {
   systemContent?: string | null
   userContent: string
   tools?: string[]
+  toolPolicies?: ToolPolicies
   modelId: string
   modelSettings?: Record<string, unknown>
   responseSchema?: Record<string, unknown> | null
@@ -145,6 +156,7 @@ export interface PromptPatchDetails {
   systemContent?: string | null
   userContent?: string | null
   tools?: string[] | null
+  toolPolicies?: ToolPolicies | null
   modelId?: string | null
   modelSettings?: Record<string, unknown> | null
   responseSchema?: Record<string, unknown> | null
@@ -238,6 +250,20 @@ export interface ToolODM {
   active?: boolean
   /** Internal tools are preconfigured and read-only */
   internal?: boolean
+}
+
+export interface McpAvailableAction {
+  name: string
+  description?: string
+  inputSchema?: Record<string, unknown> | null
+}
+
+export interface McpAvailableActionsResponse {
+  toolId: string
+  toolCode?: string | null
+  serverId?: string | null
+  url: string
+  tools: McpAvailableAction[]
 }
 
 export interface ToolPage {
@@ -506,6 +532,10 @@ export class PromptManagerClient extends RestClient {
   // --- MCP Tools ---
   async getMcpTool(id: string): Promise<ToolODM> {
     return this.get<ToolODM>(`/api/v1/tools/mcp/${encodeURIComponent(id)}`)
+  }
+
+  async getMcpAvailableActions(id: string): Promise<McpAvailableActionsResponse> {
+    return this.get<McpAvailableActionsResponse>(`/api/v1/tools/mcp/${encodeURIComponent(id)}/available-actions`)
   }
 
   async createMcpTool(body: MCPToolDetails): Promise<ToolODM> {

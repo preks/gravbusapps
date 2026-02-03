@@ -1,28 +1,28 @@
 # Task Expert Studio Translations (Romanian)
 
 # Page Header
-page-title = Task Expert Studio
+page-title = AI Task Expert Studio
 page-description = Creati experti AI pentru sarcini din prompturi si testati integrarile.
 
 # Section
-section-label = Task Experts
+section-label = AI Task Experts
 
 # Actions
-new-task-expert = Task Expert nou
+new-task-expert = AI Task Expert nou
 edit = Editare
 test = Testare
-internal-tools = Instrumente interne
 
 # Tabs
-tab-task-experts = Task Experts
-tab-tools = Tools
+tab-task-experts = AI Task Experts
+tab-tools = Setări
 
 # Search
-search-placeholder = Cautare task experts...
+search-placeholder = Cautare AI task experts...
 
 # Table Columns
 column-name = Nume
 column-agent-type = Tip agent
+column-tools = Tools
 column-specialty = Specialitate
 column-version = Versiune
 
@@ -35,8 +35,8 @@ agent-type-flow = FLOW
 badge-public = Public
 
 # Empty State
-empty-message = Nu s-au gasit task experts. Faceti clic pe 'Task Expert nou' pentru a crea unul.
+empty-message = Nu s-au gasit AI task experts. Faceti clic pe 'AI Task Expert nou' pentru a crea unul.
 
 # Editor
-create-task-expert = Creare Task Expert
-edit-task-expert = Editare Task Expert
+create-task-expert = Creare AI Task Expert
+edit-task-expert = Editare AI Task Expert

@@ -52,17 +52,6 @@ const EVENT_TYPE_OPTIONS = [
 ]
 const NO_OPTIONS_VALUE = '__no_options__'
 
-const MCP_SCOPE_OPTIONS = [
-  { value: 'task:get', label: 'Get Task' },
-  { value: 'task:list_comments', label: 'List Comments' },
-  { value: 'task:add_comment', label: 'Add Comment' },
-  { value: 'task:claim', label: 'Claim Task' },
-  { value: 'task:unclaim', label: 'Unclaim Task' },
-  { value: 'task:reassign', label: 'Reassign Task' },
-  { value: 'task:complete', label: 'Complete Task' },
-  { value: 'task:reject', label: 'Reject Task' }
-]
-
 const NOTIFY_CHANNEL_OPTIONS = [
   { value: 'EMAIL', label: 'Email' },
   { value: 'PUSH', label: 'Push' },
@@ -344,41 +333,6 @@ export const EventSubscriptionsConfiguration: React.FC<EventSubscriptionsConfigu
               )}
             </SelectContent>
           </Select>
-        </div>
-
-        {/* MCP Scopes */}
-        <div className="gba:space-y-2">
-          <Label>Enabled Task Tools (MCP Scopes)</Label>
-          <div className="gba:flex gba:flex-wrap gba:gap-2">
-            {MCP_SCOPE_OPTIONS.map(opt => {
-              const enabledScopes = handler.mcpConfig?.enabledScopes || []
-              const isChecked = enabledScopes.includes(opt.value)
-
-              return (
-                <div key={opt.value} className="gba:flex gba:items-center gba:gap-1">
-                  <Checkbox
-                    id={`${subscription.id}-scope-${opt.value}`}
-                    checked={isChecked}
-                    onCheckedChange={checked => {
-                      const newScopes = checked
-                        ? [...enabledScopes, opt.value]
-                        : enabledScopes.filter(s => s !== opt.value)
-                      updateHandler({
-                        mcpConfig: {
-                          ...handler.mcpConfig,
-                          enabledScopes: newScopes.length > 0 ? newScopes : undefined
-                        }
-                      })
-                    }}
-                  />
-                  <Label htmlFor={`${subscription.id}-scope-${opt.value}`} className="gba:text-xs">
-                    {opt.label}
-                  </Label>
-                </div>
-              )
-            })}
-          </div>
-          <p className="gba:text-xs gba:text-muted-foreground">Select which task actions the agent can perform</p>
         </div>
       </div>
     )
