@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
 type HubView = 'list' | 'upload' | 'editor' | 'templates'
@@ -43,6 +43,8 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
 
   const loadAttemptedRef = useRef<string | null>(null)
   const cameFromDeskRef = useRef(false)
+  // Track URL search params to detect changes
+  const [urlSearch, setUrlSearch] = useState(window.location.search)
 
   const updateUrl = useCallback(
     (docId: string | null, view?: HubView) => {
@@ -80,11 +82,25 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
     }
   }, []) // Run only on mount
 
-  // Load document from URL on mount.
+  // Track URL changes from navigation (e.g., from every-office)
+  useEffect(() => {
+    const checkUrlChange = () => {
+      if (window.location.search !== urlSearch) {
+        setUrlSearch(window.location.search)
+      }
+    }
+
+    // Check on interval for URL changes (for programmatic navigation)
+    const interval = setInterval(checkUrlChange, 100)
+    return () => clearInterval(interval)
+  }, [urlSearch])
+
+  // Load document from URL on mount or when URL changes.
   useEffect(() => {
     const { docId, view } = getUrlParams()
     if (!docId) return
-    if (currentDocumentId) return
+    // Only skip if we're already viewing the requested document
+    if (currentDocumentId === docId) return
     if (isLoadingDocument) return
     if (loadAttemptedRef.current === docId) return
 
@@ -94,7 +110,7 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
       setSelectedDocumentId(docId)
       setCurrentView(view === 'editor' ? 'editor' : 'editor')
     })
-  }, [currentDocumentId, isLoadingDocument, loadDocumentById, setCurrentView, setSelectedDocumentId])
+  }, [urlSearch, currentDocumentId, isLoadingDocument, loadDocumentById, setCurrentView, setSelectedDocumentId])
 
   // Track if we came from desk.
   useEffect(() => {

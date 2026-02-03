@@ -54,7 +54,9 @@ import {
   AlertCircle,
   Database,
   Sparkles,
-  Upload
+  Upload,
+  PanelLeftClose,
+  PanelLeft
 } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -137,6 +139,10 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   const [selectedSlides, setSelectedSlides] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<SlideHubSortBy>('modified')
   const [sortOrder, setSortOrder] = useState<SlideHubSortOrder>('desc')
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('slides-hub-sidebar-collapsed')
+    return saved === 'true'
+  })
 
   // Data state
   const [selectedSlideId, setSelectedSlideId] = useState<string | null>(null)
@@ -195,6 +201,11 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
       updateUrl(null)
     }
   }, [activeSection, currentView, selectedSlideId, updateUrl])
+
+  // Persist sidebar collapsed state
+  useEffect(() => {
+    localStorage.setItem('slides-hub-sidebar-collapsed', String(isSidebarCollapsed))
+  }, [isSidebarCollapsed])
 
   // Store access token for API service
   useEffect(() => {
@@ -400,46 +411,81 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   return (
     <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
       {/* Sidebar */}
-      <aside className="gba:w-60 gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0">
+      <aside
+        className={`gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0 gba:transition-all gba:duration-300 ${isSidebarCollapsed ? 'gba:w-16' : 'gba:w-60'}`}
+      >
         {/* Logo / Brand */}
-        <div className="gba:p-4 gba:border-b">
-          {/* Back button row */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => navigateTo('/platform/every-office')}
-                  data-testid={`${testId}-back-to-desk`}
-                  className="gba:mb-2"
-                >
-                  <ChevronLeft className="gba:w-4 gba:h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Back to Desk</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+        <div className={`gba:border-b ${isSidebarCollapsed ? 'gba:p-2' : 'gba:p-4'}`}>
+          {/* Back button and collapse toggle row */}
+          <div
+            className={`gba:flex gba:items-center gba:mb-2 ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:justify-between'}`}
+          >
+            <TooltipProvider>
+              {!isSidebarCollapsed && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => navigateTo('/platform/every-office')}
+                      data-testid={`${testId}-back-to-desk`}
+                    >
+                      <ChevronLeft className="gba:w-4 gba:h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Back to Desk</TooltipContent>
+                </Tooltip>
+              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    data-testid={`${testId}-toggle-sidebar`}
+                  >
+                    {isSidebarCollapsed ? (
+                      <PanelLeft className="gba:w-4 gba:h-4" />
+                    ) : (
+                      <PanelLeftClose className="gba:w-4 gba:h-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
 
           {/* Brand section */}
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-orange-500 gba:to-pink-600 gba:flex gba:items-center gba:justify-center">
-              <Presentation className="gba:w-5 gba:h-5 gba:text-white" />
+          {!isSidebarCollapsed && (
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-orange-500 gba:to-pink-600 gba:flex gba:items-center gba:justify-center">
+                <Presentation className="gba:w-5 gba:h-5 gba:text-white" />
+              </div>
+              <div>
+                <h1 className="gba:font-semibold gba:text-foreground">Slides</h1>
+                <p className="gba:text-xs gba:text-muted-foreground">NEWWORK Apps</p>
+              </div>
             </div>
-            <div>
-              <h1 className="gba:font-semibold gba:text-foreground">Slides</h1>
-              <p className="gba:text-xs gba:text-muted-foreground">NEWWORK Apps</p>
+          )}
+          {isSidebarCollapsed && (
+            <div className="gba:flex gba:justify-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-orange-500 gba:to-pink-600 gba:flex gba:items-center gba:justify-center">
+                <Presentation className="gba:w-5 gba:h-5 gba:text-white" />
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* New Button */}
-        <div className="gba:p-3">
+        <div className={isSidebarCollapsed ? 'gba:p-2' : 'gba:p-3'}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button className="gba:w-full gba:justify-start gba:gap-2 gba:bg-gradient-to-r gba:from-orange-500 gba:to-pink-600 gba:text-white hover:gba:from-orange-600 hover:gba:to-pink-700">
+              <Button
+                className={`gba:w-full gba:gap-2 gba:bg-gradient-to-r gba:from-orange-500 gba:to-pink-600 gba:text-white hover:gba:from-orange-600 hover:gba:to-pink-700 ${isSidebarCollapsed ? 'gba:justify-center gba:px-0' : 'gba:justify-start'}`}
+              >
                 <Plus className="gba:w-4 gba:h-4" />
-                New
+                {!isSidebarCollapsed && 'New'}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="gba:w-56">
@@ -472,100 +518,161 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
         {/* Navigation */}
         <nav className="gba:flex-1 gba:overflow-y-auto gba:px-2 gba:py-2">
           <div className="gba:space-y-1">
-            <button
-              onClick={() => setActiveSection('home')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'home'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Home className="gba:w-4 gba:h-4" />
-              Home
-            </button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('home')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'home'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Home className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Home'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Home</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('my-slides')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'my-slides'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <FolderClosed className="gba:w-4 gba:h-4" />
-              My Slides
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('my-slides')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'my-slides'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <FolderClosed className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'My Slides'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">My Slides</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('shared')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'shared'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Users className="gba:w-4 gba:h-4" />
-              Shared with me
-              {sharedSlides.length > 0 && (
-                <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                  {sharedSlides.length}
-                </Badge>
-              )}
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('shared')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'shared'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Users className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && (
+                      <>
+                        Shared with me
+                        {sharedSlides.length > 0 && (
+                          <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
+                            {sharedSlides.length}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && (
+                  <TooltipContent side="right">
+                    Shared with me {sharedSlides.length > 0 && `(${sharedSlides.length})`}
+                  </TooltipContent>
+                )}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('favorites')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'favorites'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Star className="gba:w-4 gba:h-4" />
-              Favorites
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('favorites')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'favorites'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Star className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Favorites'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Favorites</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('recent')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'recent'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Clock className="gba:w-4 gba:h-4" />
-              Recent
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('recent')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'recent'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Clock className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Recent'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Recent</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('archived')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'archived'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Archive className="gba:w-4 gba:h-4" />
-              Archived
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('archived')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'archived'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Archive className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Archived'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Archived</TooltipContent>}
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
-          <div className="gba:mt-6 gba:pt-4 gba:border-t">
-            <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Storage</p>
-            <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <Database className="gba:w-4 gba:h-4 gba:text-orange-500" />
-                <span className="gba:text-xs gba:text-muted-foreground">Cloud storage</span>
+          {!isSidebarCollapsed && (
+            <div className="gba:mt-6 gba:pt-4 gba:border-t">
+              <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Storage</p>
+              <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
+                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                  <Database className="gba:w-4 gba:h-4 gba:text-orange-500" />
+                  <span className="gba:text-xs gba:text-muted-foreground">Cloud storage</span>
+                </div>
+                <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
+                  <div
+                    className="gba:h-full gba:bg-gradient-to-r gba:from-orange-500 gba:to-pink-500 gba:rounded-full"
+                    style={{ width: `${Math.min((slides.length / 50) * 100, 100)}%` }}
+                  />
+                </div>
+                <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">{slides.length} slides</p>
               </div>
-              <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
-                <div
-                  className="gba:h-full gba:bg-gradient-to-r gba:from-orange-500 gba:to-pink-500 gba:rounded-full"
-                  style={{ width: `${Math.min((slides.length / 50) * 100, 100)}%` }}
-                />
-              </div>
-              <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">{slides.length} slides</p>
             </div>
-          </div>
+          )}
+          {isSidebarCollapsed && (
+            <div className="gba:mt-6 gba:pt-4 gba:border-t gba:flex gba:justify-center">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="gba:p-2">
+                      <Database className="gba:w-4 gba:h-4 gba:text-orange-500" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <div>
+                      <p className="gba:font-medium">Cloud storage</p>
+                      <p className="gba:text-xs gba:text-muted-foreground">{slides.length} slides</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          )}
         </nav>
       </aside>
 

@@ -176,7 +176,7 @@ async function uploadDirectory(buildOutputDir, azureDestinationPath) {
       await blockBlobClient.uploadFile(localFilePath, {
         blobHTTPHeaders: {
           blobContentType: contentType,
-          blobCacheControl: 'no-cache'
+          blobCacheControl: 'no-store, no-cache, must-revalidate, max-age=0'
         }
       })
     } catch (error) {
@@ -190,7 +190,7 @@ async function uploadDirectoryToContainer(
   buildOutputDir,
   azureDestinationPath,
   containerClient,
-  cacheControl = 'no-cache'
+  cacheControl = 'no-store, no-cache, must-revalidate, max-age=0'
 ) {
   const filesToUpload = await glob('**/*', {
     cwd: buildOutputDir,
@@ -299,7 +299,12 @@ async function uploadReleaseCandidateArtifacts({
     }
 
     console.log(`☁️  Uploading RC artifacts to ${RC_AZURE_STORAGE_ACCOUNT_NAME}/${rcDestinationPath}`)
-    await uploadDirectoryToContainer(rcTempDir, rcDestinationPath, containerClient, 'no-cache')
+    await uploadDirectoryToContainer(
+      rcTempDir,
+      rcDestinationPath,
+      containerClient,
+      'no-store, no-cache, must-revalidate, max-age=0'
+    )
   } finally {
     if (fs.existsSync(rcTempDir)) {
       fs.rmSync(rcTempDir, { recursive: true, force: true })

@@ -56,7 +56,9 @@ import {
   Send,
   Sparkles,
   ChevronLeft,
-  FileType
+  FileType,
+  PanelLeftClose,
+  PanelLeft
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -154,6 +156,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [activeSection, setActiveSection] = useState<SidebarSection>('my-documents')
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('document-hub-sidebar-collapsed')
+    return saved === 'true'
+  })
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const { favorites, setFavorites } = useDocumentAppsHubFavorites()
 
@@ -206,6 +212,11 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       updateUrl(null)
     }
   }, [activeSection, currentView, selectedDocumentId, updateUrl])
+
+  // Persist sidebar collapsed state
+  useEffect(() => {
+    localStorage.setItem('document-hub-sidebar-collapsed', String(isSidebarCollapsed))
+  }, [isSidebarCollapsed])
 
   const { ownerInfoMap, sharedUsersMap, refreshSharedUsersForDocument } = useDocumentAppsHubUserLookup({
     accessToken,
@@ -545,46 +556,81 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   return (
     <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
       {/* Sidebar */}
-      <aside className="gba:w-60 gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0">
+      <aside
+        className={`gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0 gba:transition-all gba:duration-300 ${isSidebarCollapsed ? 'gba:w-16' : 'gba:w-60'}`}
+      >
         {/* Logo / Brand */}
-        <div className="gba:p-4 gba:border-b">
-          {/* Back button row */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => navigateTo('/platform/every-office')}
-                  data-testid={`${testId}-back-to-desk`}
-                  className="gba:mb-2"
-                >
-                  <ChevronLeft className="gba:w-4 gba:h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Back to Desk</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          {/* Existing brand section */}
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-blue-500 gba:to-indigo-600 gba:flex gba:items-center gba:justify-center">
-              <FileText className="gba:w-5 gba:h-5 gba:text-white" />
-            </div>
-            <div>
-              <h1 className="gba:font-semibold gba:text-foreground">Documents</h1>
-              <p className="gba:text-xs gba:text-muted-foreground">NEWWORK Apps</p>
-            </div>
+        <div className={`gba:border-b ${isSidebarCollapsed ? 'gba:p-2' : 'gba:p-4'}`}>
+          {/* Back button and collapse toggle row */}
+          <div
+            className={`gba:flex gba:items-center gba:mb-2 ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:justify-between'}`}
+          >
+            <TooltipProvider>
+              {!isSidebarCollapsed && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => navigateTo('/platform/every-office')}
+                      data-testid={`${testId}-back-to-desk`}
+                    >
+                      <ChevronLeft className="gba:w-4 gba:h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Back to Desk</TooltipContent>
+                </Tooltip>
+              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    data-testid={`${testId}-toggle-sidebar`}
+                  >
+                    {isSidebarCollapsed ? (
+                      <PanelLeft className="gba:w-4 gba:h-4" />
+                    ) : (
+                      <PanelLeftClose className="gba:w-4 gba:h-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
+
+          {/* Brand section */}
+          {!isSidebarCollapsed && (
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-blue-500 gba:to-indigo-600 gba:flex gba:items-center gba:justify-center">
+                <FileText className="gba:w-5 gba:h-5 gba:text-white" />
+              </div>
+              <div>
+                <h1 className="gba:font-semibold gba:text-foreground">Documents</h1>
+                <p className="gba:text-xs gba:text-muted-foreground">NEWWORK Apps</p>
+              </div>
+            </div>
+          )}
+          {isSidebarCollapsed && (
+            <div className="gba:flex gba:justify-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-blue-500 gba:to-indigo-600 gba:flex gba:items-center gba:justify-center">
+                <FileText className="gba:w-5 gba:h-5 gba:text-white" />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* New Button */}
-        <div className="gba:p-3">
+        <div className={isSidebarCollapsed ? 'gba:p-2' : 'gba:p-3'}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button className="gba:w-full gba:justify-start gba:gap-2 gba:bg-gradient-to-r gba:from-blue-500 gba:to-indigo-600 gba:text-white hover:gba:from-blue-600 hover:gba:to-indigo-700">
+              <Button
+                className={`gba:w-full gba:gap-2 gba:bg-gradient-to-r gba:from-blue-500 gba:to-indigo-600 gba:text-white hover:gba:from-blue-600 hover:gba:to-indigo-700 ${isSidebarCollapsed ? 'gba:justify-center gba:px-0' : 'gba:justify-start'}`}
+              >
                 <Plus className="gba:w-4 gba:h-4" />
-                New
+                {!isSidebarCollapsed && 'New'}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="gba:w-56">
@@ -623,121 +669,210 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
         {/* Navigation */}
         <nav className="gba:flex-1 gba:overflow-y-auto gba:px-2 gba:py-2">
           <div className="gba:space-y-1">
-            <button
-              onClick={() => setActiveSection('home')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'home'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Home className="gba:w-4 gba:h-4" />
-              Home
-            </button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('home')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'home'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Home className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Home'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Home</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('my-documents')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'my-documents'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <FolderClosed className="gba:w-4 gba:h-4" />
-              My Documents
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('my-documents')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'my-documents'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <FolderClosed className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'My Documents'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">My Documents</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('shared')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'shared'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Users className="gba:w-4 gba:h-4" />
-              Shared with me
-              {sharedDocuments.length > 0 && (
-                <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                  {sharedDocuments.length}
-                </Badge>
-              )}
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('shared')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'shared'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Users className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && (
+                      <>
+                        Shared with me
+                        {sharedDocuments.length > 0 && (
+                          <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
+                            {sharedDocuments.length}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && (
+                  <TooltipContent side="right">
+                    Shared with me {sharedDocuments.length > 0 && `(${sharedDocuments.length})`}
+                  </TooltipContent>
+                )}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('templates')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'templates'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <LayoutTemplate className="gba:w-4 gba:h-4" />
-              Templates
-              {templates.length > 0 && (
-                <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                  {templates.length}
-                </Badge>
-              )}
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('templates')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'templates'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <LayoutTemplate className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && (
+                      <>
+                        Templates
+                        {templates.length > 0 && (
+                          <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
+                            {templates.length}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && (
+                  <TooltipContent side="right">
+                    Templates {templates.length > 0 && `(${templates.length})`}
+                  </TooltipContent>
+                )}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('favorites')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'favorites'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Star className="gba:w-4 gba:h-4" />
-              Favorites
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('favorites')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'favorites'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Star className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && (
+                      <>
+                        Favorites
+                        {favorites.size > 0 && (
+                          <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
+                            {favorites.size}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && (
+                  <TooltipContent side="right">Favorites {favorites.size > 0 && `(${favorites.size})`}</TooltipContent>
+                )}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('recent')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'recent'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Clock className="gba:w-4 gba:h-4" />
-              Recent
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('recent')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'recent'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Clock className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Recent'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Recent</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('archived')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'archived'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Archive className="gba:w-4 gba:h-4" />
-              Archived
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('archived')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'archived'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Archive className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Archived'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Archived</TooltipContent>}
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
-          <div className="gba:mt-6 gba:pt-4 gba:border-t">
-            <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Storage</p>
-            <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <Database
-                  className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-blue-500' : 'gba:text-amber-500'}`}
-                />
-                <span className="gba:text-xs gba:text-muted-foreground">
-                  {storageMode === 'database' ? 'Cloud storage' : 'Local storage'}
-                </span>
+          {!isSidebarCollapsed && (
+            <div className="gba:mt-6 gba:pt-4 gba:border-t">
+              <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Storage</p>
+              <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
+                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                  <Database
+                    className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-blue-500' : 'gba:text-amber-500'}`}
+                  />
+                  <span className="gba:text-xs gba:text-muted-foreground">
+                    {storageMode === 'database' ? 'Cloud storage' : 'Local storage'}
+                  </span>
+                </div>
+                <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
+                  <div
+                    className="gba:h-full gba:bg-gradient-to-r gba:from-blue-500 gba:to-indigo-500 gba:rounded-full"
+                    style={{ width: `${Math.min((documents.length / 50) * 100, 100)}%` }}
+                  />
+                </div>
+                <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">{documents.length} documents</p>
               </div>
-              <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
-                <div
-                  className="gba:h-full gba:bg-gradient-to-r gba:from-blue-500 gba:to-indigo-500 gba:rounded-full"
-                  style={{ width: `${Math.min((documents.length / 50) * 100, 100)}%` }}
-                />
-              </div>
-              <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">{documents.length} documents</p>
             </div>
-          </div>
+          )}
+          {isSidebarCollapsed && (
+            <div className="gba:mt-6 gba:pt-4 gba:border-t gba:flex gba:justify-center">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="gba:p-2">
+                      <Database
+                        className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-blue-500' : 'gba:text-amber-500'}`}
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <div>
+                      <p className="gba:font-medium">
+                        {storageMode === 'database' ? 'Cloud storage' : 'Local storage'}
+                      </p>
+                      <p className="gba:text-xs gba:text-muted-foreground">{documents.length} documents</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          )}
         </nav>
       </aside>
 

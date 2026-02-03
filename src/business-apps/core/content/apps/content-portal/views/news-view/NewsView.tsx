@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Skeleton } from '@newwork/nw-design-system'
-import { Newspaper } from 'lucide-react'
 import { useContentEntries } from '@/common/data/content/hooks/useContentEntries'
 import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
@@ -228,22 +227,18 @@ const NewsView: React.FC<NewsViewProps> = ({
       <div className="gba:w-full gba:max-w-[1300px] gba:mx-auto gba:mb-10 gba:px-4">
         {/* Header with Search and Action */}
         {isLoading ? (
-          <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
-            <div className="gba:flex gba:items-center gba:gap-3">
-              <Skeleton className="gba:h-8 gba:w-8 gba:rounded-md" />
-              <Skeleton className="gba:h-9 gba:w-64" />
-            </div>
+          <div className="gba:mb-6 gba:pt-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
+            <Skeleton className="gba:h-5 gba:w-48" />
             <div className="gba:flex gba:gap-2 gba:items-center">
               <Skeleton className="gba:h-10 gba:w-[300px]" />
               <Skeleton className="gba:h-10 gba:w-32" />
             </div>
           </div>
         ) : (
-          <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
-            <div className="gba:flex gba:items-center gba:gap-3">
-              <Newspaper className="gba:w-8 gba:h-8 gba:text-primary" />
-              <h1 className="gba:text-3xl gba:font-bold gba:text-foreground">{t('featured_news')}</h1>
-            </div>
+          <div className="gba:mb-6 gba:pt-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
+            <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+              {t('featured_news')}
+            </h3>
             <div className="gba:flex gba:gap-2 gba:items-center">
               <SearchInput onSearch={handleSearch} placeholder={t('search_news')} className="gba:w-[300px]" />
               <AppAction

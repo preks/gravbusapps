@@ -36,7 +36,9 @@ search_documents = Search Areas...
 search_questions = Search Questions...
 
 # Content sections
+content_overview = Content Overview
 recent_content = Recent Content
+recent_comments = Recent Comments
 latest_announcements = Latest Announcements
 featured_news = Featured News
 trending_now = Trending Now
@@ -83,6 +85,7 @@ no_questions_found = No questions yet. Be the first to ask!
 votes = votes
 views = views
 asked_by = Asked by
+answers = answers
 
 # Content
 knowledge_image = Knowledge article image
