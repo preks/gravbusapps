@@ -160,22 +160,44 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
     }, [sheet.id, data, columns]) // Recompute when sheet, data, or columns change
 
     // Apply remote cell updates directly to FortuneSheet without full re-render
-    const applyRemoteCellUpdate = useCallback((rowIndex: number, colIndex: number, value: unknown) => {
-      const workbook = workbookRef.current
-      if (!workbook) return
+    const applyRemoteCellUpdate = useCallback(
+      (rowIndex: number, colIndex: number, value: unknown) => {
+        const workbook = workbookRef.current
+        if (!workbook) return
 
-      try {
-        isLocalEditRef.current = true
-        workbook.setCellValue(rowIndex, colIndex, value)
-        lastRemoteAppliedRef.current = { row: rowIndex, col: colIndex, value, at: Date.now() }
-      } catch (error) {
-        console.error('[FortuneSheetGrid] Failed to apply remote cell update:', error)
-      } finally {
-        setTimeout(() => {
-          isLocalEditRef.current = false
-        }, REMOTE_APPLY_DEDUPE_MS)
-      }
-    }, [])
+        try {
+          isLocalEditRef.current = true
+
+          if (value && typeof value === 'object' && 'f' in value) {
+            const cellObj = value as { f: string; v?: unknown; m?: string }
+            try {
+              workbook.setCellFormat(rowIndex, colIndex, 'f', cellObj.f, { id: sheet.id })
+              if (cellObj.v !== undefined) {
+                workbook.setCellFormat(rowIndex, colIndex, 'v', cellObj.v, { id: sheet.id })
+              }
+              if (cellObj.m !== undefined) {
+                workbook.setCellFormat(rowIndex, colIndex, 'm', cellObj.m, { id: sheet.id })
+              }
+              workbook.calculateFormula(sheet.id)
+            } catch (error) {
+              console.error('[FortuneSheetGrid] Failed to apply formula update:', error)
+              workbook.setCellValue(rowIndex, colIndex, cellObj.v, { id: sheet.id })
+            }
+          } else {
+            workbook.setCellValue(rowIndex, colIndex, value, { id: sheet.id })
+          }
+
+          lastRemoteAppliedRef.current = { row: rowIndex, col: colIndex, value, at: Date.now() }
+        } catch (error) {
+          console.error('[FortuneSheetGrid] Failed to apply remote cell update:', error)
+        } finally {
+          setTimeout(() => {
+            isLocalEditRef.current = false
+          }, REMOTE_APPLY_DEDUPE_MS)
+        }
+      },
+      [sheet.id]
+    )
 
     /**
      * Defensive hardening:
@@ -228,33 +250,64 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
 
         const rowIndex = op.path[1] as number
         const colIndex = op.path[2] as number
+        // Check if this is a formula operation (path ends with 'f')
+        const property = op.path.length >= 4 ? String(op.path[3]) : 'v'
+        const isFormula = property === 'f'
+
         let value = op.value
-        if (value && typeof value === 'object' && 'v' in value) {
+        // Check if value is a full cell object with a formula
+        const isFullCellWithFormula =
+          value && typeof value === 'object' && 'f' in value && typeof (value as any).f === 'string'
+
+        // For regular value operations WITHOUT formulas, extract v from cell objects
+        // But preserve the full cell object if it contains a formula
+        if (!isFormula && !isFullCellWithFormula && value && typeof value === 'object' && 'v' in value) {
           value = (value as { v: unknown }).v
         }
 
         const last = lastRemoteAppliedRef.current
         const now = Date.now()
+        // For deduplication, compare the display value
+        const displayValue = isFullCellWithFormula ? (value as any).v : value
         if (
           last &&
           now - last.at < REMOTE_APPLY_DEDUPE_MS &&
           last.row === rowIndex &&
           last.col === colIndex - 1 &&
-          last.value === value
+          last.value === displayValue
         ) {
           return
         }
 
-        applyRemoteCellUpdate(rowIndex, colIndex, value)
+        // Apply the cell update
+        if (isFormula && typeof value === 'string') {
+          // For formula property operations, set the cell with the formula
+          applyRemoteCellUpdate(rowIndex, colIndex, { f: value })
+        } else if (isFullCellWithFormula) {
+          // For full cell objects with formulas, pass the entire object
+          applyRemoteCellUpdate(rowIndex, colIndex, value)
+        } else {
+          applyRemoteCellUpdate(rowIndex, colIndex, value)
+        }
 
+        // Defer state updates to avoid setState-during-render warning
         const rowId = context.rowIndexToId.get(rowIndex)
         const columnId = context.columnIndexToId.get(colIndex)
-        if (onCellChange && rowId && columnId) {
-          const column = columns.find(c => c.id === columnId)
-          const columnName = column?.name ?? columnId
-          onCellChange(rowId, columnName, value, { fromRemote: true })
-        }
-        onRemoteChangeApplied?.()
+        setTimeout(() => {
+          if (onCellChange && rowId && columnId) {
+            const column = columns.find(c => c.id === columnId)
+            const columnName = column?.name ?? columnId
+            // For formulas, pass the computed value (not the formula object)
+            // The parent data model stores simple values, not formula objects
+            const changeValue = isFullCellWithFormula ? (value as any).v : value
+            onCellChange(rowId, columnName, changeValue, { fromRemote: true })
+          }
+          // DON'T call onRemoteChangeApplied for formula cells
+          // It causes a Workbook remount which loses the formula since parent data doesn't store formulas
+          if (!isFullCellWithFormula) {
+            onRemoteChangeApplied?.()
+          }
+        }, 0)
       },
       [applyRemoteCellUpdate, context, columns, onCellChange, onRemoteChangeApplied]
     )
@@ -413,8 +466,8 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             // path.length === 4 means: ['data', row, col, 'property'] → specific property change
             if (op.path.length === 4) {
               const prop = op.path[3]
-              // Only persist 'v' (value) changes, skip styling properties
-              if (prop !== 'v') {
+              // Persist 'v' (value) and 'f' (formula) changes, skip styling properties
+              if (prop !== 'v' && prop !== 'f') {
                 return
               }
             }
