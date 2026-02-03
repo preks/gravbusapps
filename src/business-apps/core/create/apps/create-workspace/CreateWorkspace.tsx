@@ -13,7 +13,7 @@ import {
   ConnectionsVisualization,
   ToolCardProps
 } from './components'
-import { OrchestratorViewEnhanced } from './components/OrchestratorViewEnhanced'
+import { OrchestratorViewConversational } from './components/OrchestratorViewConversational'
 
 export interface NewworkCreateProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -139,15 +139,13 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({
   // Render Orchestrator View
   if (viewMode === 'orchestrator') {
     return (
-      <div className="gba:min-h-screen gba:bg-background" data-testid={`${testId}-orchestrator`}>
-        <OrchestratorViewEnhanced
-          accessToken={accessToken}
-          initialPrompt={orchestratorPrompt}
-          onBack={handleOrchestratorBack}
-          onComplete={handleOrchestratorComplete}
-          data-testid={`${testId}-orchestrator-view`}
-        />
-      </div>
+      <OrchestratorViewConversational
+        accessToken={accessToken}
+        initialPrompt={orchestratorPrompt}
+        onBack={handleOrchestratorBack}
+        onComplete={handleOrchestratorComplete}
+        data-testid={`${testId}-orchestrator-view`}
+      />
     )
   }
 

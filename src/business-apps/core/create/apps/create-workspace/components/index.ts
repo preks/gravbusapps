@@ -10,6 +10,15 @@ export { OrchestratorView } from './OrchestratorView'
 export type { OrchestratorViewProps } from './OrchestratorView'
 export { OrchestratorViewEnhanced } from './OrchestratorViewEnhanced'
 export type { OrchestratorViewEnhancedProps } from './OrchestratorViewEnhanced'
+export { OrchestratorViewConversational } from './OrchestratorViewConversational'
+export type { OrchestratorViewConversationalProps } from './OrchestratorViewConversational'
+
+// Conversational components
+export * from './conversational'
+
+// Floating Action Button
+export { FloatingActionButton } from './FloatingActionButton'
+export type { FloatingActionButtonProps } from './FloatingActionButton'
 export { BuildPlanReview } from './BuildPlanReview'
 export type { BuildPlanReviewProps } from './BuildPlanReview'
 export { ProgressTilesGrid } from './ProgressTilesGrid'
