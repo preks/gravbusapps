@@ -21,6 +21,7 @@ import {
   UserIcon
 } from '@phosphor-icons/react'
 import { useChatTranslation } from '../contexts/TranslationContext'
+import { rtkDebug } from '../utils/rtkDebug'
 
 // Helper to get user initials from name
 const getInitials = (name: string): string => {
@@ -69,12 +70,12 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
 
     const handleJoin = () => {
       if (isJoining) {
-        console.log('[RejoinCallDialog] Already joining, ignoring duplicate click')
+        rtkDebug.log('[RejoinCallDialog] Already joining, ignoring duplicate click')
         return
       }
 
       setIsJoining(true)
-      console.log('[RejoinCallDialog] Joining with preferences:', {
+      rtkDebug.log('[RejoinCallDialog] Joining with preferences:', {
         micEnabled,
         cameraEnabled,
         backgroundEnabled
@@ -88,7 +89,7 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
 
     const handleCancel = () => {
       if (isJoining) {
-        console.log('[RejoinCallDialog] Already joining, ignoring cancel')
+        rtkDebug.log('[RejoinCallDialog] Already joining, ignoring cancel')
         return
       }
 
@@ -98,7 +99,7 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
 
     // Cleanup preview stream
     const cleanupPreview = useCallback(() => {
-      console.log('[RejoinCallDialog] Cleaning up preview')
+      rtkDebug.log('[RejoinCallDialog] Cleaning up preview')
 
       // Stop all tracks
       streamTracksRef.current.forEach(track => {
@@ -124,7 +125,7 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
 
       const initPreview = async () => {
         try {
-          console.log('[RejoinCallDialog] Requesting camera access for preview')
+          rtkDebug.log('[RejoinCallDialog] Requesting camera access for preview')
 
           const stream = await navigator.mediaDevices.getUserMedia({
             video: { width: 640, height: 360 },
@@ -148,9 +149,9 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
             videoRef.current.srcObject = stream
           }
 
-          console.log('[RejoinCallDialog] Camera preview ready')
+          rtkDebug.log('[RejoinCallDialog] Camera preview ready')
         } catch (error) {
-          console.error('[RejoinCallDialog] Failed to access camera:', error)
+          rtkDebug.error('[RejoinCallDialog] Failed to access camera:', error)
         } finally {
           if (isMounted) {
             setIsLoadingPreview(false)

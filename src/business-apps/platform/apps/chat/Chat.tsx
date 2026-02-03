@@ -430,19 +430,21 @@ const ChatInner: React.FC<ChatProps> = memo(
         ;(window as any).TestParticipantPresets = TestParticipantPresets
         ;(window as any).seedTestParticipants = seedTestParticipants
         ;(window as any).setTestParticipants = (countOrPreset: number | string) => {
-          console.log('[TEST] setTestParticipants called with:', countOrPreset)
+          rtkDebug.log('[TEST] setTestParticipants called with:', countOrPreset)
           try {
             let participants: GroupCallParticipant[]
             if (typeof countOrPreset === 'number') {
               participants = seedTestParticipants(countOrPreset)
-              console.log(`✅ Test participants set to ${countOrPreset}, generated ${participants.length} participants`)
+              rtkDebug.log(
+                `✅ Test participants set to ${countOrPreset}, generated ${participants.length} participants`
+              )
             } else if (
               typeof countOrPreset === 'string' &&
               TestParticipantPresets[countOrPreset as keyof typeof TestParticipantPresets]
             ) {
               const preset = TestParticipantPresets[countOrPreset as keyof typeof TestParticipantPresets]
               participants = preset()
-              console.log(
+              rtkDebug.log(
                 `✅ Test participants set to preset: ${countOrPreset}, generated ${participants.length} participants`
               )
             } else {
@@ -453,7 +455,7 @@ const ChatInner: React.FC<ChatProps> = memo(
             }
             // Use ref to ensure we have the latest setter
             setTestParticipantsOverrideRef.current(participants)
-            console.log(
+            rtkDebug.log(
               '[TEST] State updated, participants:',
               participants.map(p => p.odName)
             )
@@ -462,30 +464,30 @@ const ChatInner: React.FC<ChatProps> = memo(
           }
         }
         ;(window as any).clearTestParticipants = () => {
-          console.log('[TEST] Clearing test participants')
+          rtkDebug.log('[TEST] Clearing test participants')
           setTestParticipantsOverrideRef.current(null)
-          console.log('✅ Test participants cleared, using real participants')
+          rtkDebug.log('✅ Test participants cleared, using real participants')
         }
         ;(window as any).getTestParticipants = () => {
-          console.log('[TEST] Current test participants override:', testParticipantsOverride)
-          console.log('[TEST] Current real participants count:', groupParticipantsRaw.length)
+          rtkDebug.log('[TEST] Current test participants override:', testParticipantsOverride)
+          rtkDebug.log('[TEST] Current real participants count:', groupParticipantsRaw.length)
           return testParticipantsOverride
         }
         ;(window as any).testParticipantsDebug = () => {
-          console.log('🔍 Test Participants Debug Info:')
-          console.log('  - Function exists:', typeof (window as any).setTestParticipants === 'function')
-          console.log('  - Current override:', testParticipantsOverride)
-          console.log('  - Current override count:', testParticipantsOverride?.length || 0)
-          console.log('  - Real participants count:', groupParticipantsRaw.length)
-          console.log('  - Is in call:', groupCallState.status !== 'idle')
-          console.log('  - Call status:', groupCallState.status)
+          rtkDebug.log('🔍 Test Participants Debug Info:')
+          rtkDebug.log('  - Function exists:', typeof (window as any).setTestParticipants === 'function')
+          rtkDebug.log('  - Current override:', testParticipantsOverride)
+          rtkDebug.log('  - Current override count:', testParticipantsOverride?.length || 0)
+          rtkDebug.log('  - Real participants count:', groupParticipantsRaw.length)
+          rtkDebug.log('  - Is in call:', groupCallState.status !== 'idle')
+          rtkDebug.log('  - Call status:', groupCallState.status)
         }
-        console.log('🎮 Test participant utilities available:')
-        console.log('  - window.setTestParticipants(5)')
-        console.log('  - window.setTestParticipants("nine")')
-        console.log('  - window.clearTestParticipants()')
-        console.log('  - window.getTestParticipants()')
-        console.log('  - window.testParticipantsDebug()')
+        rtkDebug.log('🎮 Test participant utilities available:')
+        rtkDebug.log('  - window.setTestParticipants(5)')
+        rtkDebug.log('  - window.setTestParticipants("nine")')
+        rtkDebug.log('  - window.clearTestParticipants()')
+        rtkDebug.log('  - window.getTestParticipants()')
+        rtkDebug.log('  - window.testParticipantsDebug()')
       }
     }, [])
 
@@ -495,13 +497,13 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Debug log when participants change
     useEffect(() => {
       if (testParticipantsOverride) {
-        console.log(
+        rtkDebug.log(
           '[TEST] ✅ Using test participants:',
           testParticipantsOverride.length,
           testParticipantsOverride.map(p => p.odName)
         )
       } else {
-        console.log('[TEST] Using real participants:', groupParticipantsRaw.length)
+        rtkDebug.log('[TEST] Using real participants:', groupParticipantsRaw.length)
       }
     }, [testParticipantsOverride, groupParticipantsRaw.length])
 
@@ -519,7 +521,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Reset isStartingCall when call actually connects
     useEffect(() => {
       if (isInAnyCall && isStartingCall) {
-        console.log('[CHAT] Call connected, resetting isStartingCall flag')
+        rtkDebug.log('[CHAT] Call connected, resetting isStartingCall flag')
         setIsStartingCall(false)
       }
     }, [isInAnyCall, isStartingCall])
@@ -570,7 +572,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     const handleAudioCall = () => {
       // Guard: prevent duplicate call initiation
       if (isStartingCall) {
-        console.log('[CHAT] Already starting a call, ignoring duplicate request')
+        rtkDebug.log('[CHAT] Already starting a call, ignoring duplicate request')
         return
       }
 
@@ -620,7 +622,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     const handleVideoCall = () => {
       // Guard: prevent duplicate call initiation
       if (isStartingCall) {
-        console.log('[CHAT] Already starting a call, ignoring duplicate request')
+        rtkDebug.log('[CHAT] Already starting a call, ignoring duplicate request')
         return
       }
 
@@ -784,7 +786,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                 // Initialize presence with full status details
                 updatePresence(userId, { state, lastSeen: lastSeenString, userStatus })
 
-                console.log('[Chat] Initialized presence from API for user:', userId, { state, userStatus })
+                rtkDebug.log('[Chat] Initialized presence from API for user:', userId, { state, userStatus })
               }
             }
           })

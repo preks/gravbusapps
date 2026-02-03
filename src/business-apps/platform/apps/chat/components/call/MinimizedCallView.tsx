@@ -10,6 +10,7 @@
  */
 
 import React, { useRef, useEffect, useMemo, useState, useCallback } from 'react'
+import { rtkDebug } from '../../utils/rtkDebug'
 import {
   UserIcon,
   MicrophoneIcon,
@@ -143,13 +144,13 @@ export const MinimizedCallView: React.FC<MinimizedCallViewProps> = React.memo(
 
       // Only update if the video track ID is different
       if (currentVideoTrackId !== newVideoTrackId) {
-        console.log('[MinimizedCallView] Updating video stream', {
+        rtkDebug.log('[MinimizedCallView] Updating video stream', {
           oldTrackId: currentVideoTrackId,
           newTrackId: newVideoTrackId
         })
         videoElement.srcObject = firstRemoteStream
       } else {
-        console.log('[MinimizedCallView] Video stream already correct, skipping update')
+        rtkDebug.log('[MinimizedCallView] Video stream already correct, skipping update')
       }
     }, [firstRemoteStream])
 

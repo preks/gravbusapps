@@ -18,6 +18,7 @@ import {
   Spinner,
   IconAvatar
 } from '@newwork/nw-design-system'
+import { rtkDebug } from '../../utils/rtkDebug'
 import { Calendar, Clock, MapPin, Video, Users, X, Repeat, Bell, Palette, User, Mic } from 'lucide-react'
 import type { CreateMeetingData, MeetingRecurrence } from '../types'
 import { MEETING_COLORS, REMINDER_OPTIONS, getDefaultCalendarColor } from '../types'
@@ -120,7 +121,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   // Initialize form when editMeeting changes
   useEffect(() => {
     if (editMeeting && isOpen) {
-      console.log('[CreateMeetingModal] Initializing from editMeeting:', {
+      rtkDebug.log('[CreateMeetingModal] Initializing from editMeeting:', {
         meetingId: editMeeting.id,
         hasMetadata: !!editMeeting.metadata,
         metadata: editMeeting.metadata,
@@ -141,7 +142,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
       setReminderMinutes(editMeeting.reminderMinutes || [15])
 
       const transcriptionValue = editMeeting.metadata?.aiTranscriptionEnabled === true
-      console.log('[CreateMeetingModal] Setting AI Transcription to:', transcriptionValue)
+      rtkDebug.log('[CreateMeetingModal] Setting AI Transcription to:', transcriptionValue)
       setEnableAITranscription(transcriptionValue)
       // Convert participants to CalendarEmployee format
       if (editMeeting.participants) {

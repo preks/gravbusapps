@@ -12,6 +12,7 @@ import { Mic, MicOff, Video, VideoOff, PhoneOff, Maximize2, Users } from 'lucide
 import { globalCallManager, type GlobalCallState } from '../services/globalCallManager'
 import type { GroupCallParticipant } from '../services/groupWebrtcClient'
 import { useChatTranslation } from '../contexts/TranslationContext'
+import { rtkDebug } from '../utils/rtkDebug'
 
 // Format duration as MM:SS or HH:MM:SS
 const formatDuration = (seconds: number): string => {
@@ -312,7 +313,7 @@ export const GlobalMinimizedCall: React.FC = () => {
   const handleEndCall = async () => {
     // ✅ Use the proper leaveCall function if available (sends socket event + status restoration)
     if (callData.leaveCall) {
-      console.log('[GlobalMinimizedCall] Using stored leaveCall function (sends socket event)')
+      rtkDebug.log('[GlobalMinimizedCall] Using stored leaveCall function (sends socket event)')
       await callData.leaveCall()
     } else {
       // Fallback: old behavior (won't trigger status restoration!)

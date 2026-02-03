@@ -14,6 +14,7 @@ import {
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { UserIcon, UsersIcon, Sparkles, CalendarIcon } from 'lucide-react'
+import { rtkDebug } from '../utils/rtkDebug'
 import { SignOut } from '@phosphor-icons/react'
 import { UserStatusIndicator } from './UserStatusIndicator'
 
@@ -128,7 +129,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   // Debug logging
   if (process.env.NODE_ENV === 'development' && showPresence) {
     const otherUserId = conversation.participants?.find(p => p.userId !== currentUserId)?.userId
-    console.log('[ConversationItem] Presence data:', {
+    rtkDebug.log('[ConversationItem] Presence data:', {
       conversationId: conversation.id,
       conversationType: conversation.type,
       otherUserId,
@@ -270,7 +271,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               {(() => {
                 try {
                   const lastSeenDate = new Date(otherUserPresence.lastSeen)
-                  console.log('[ConversationItem] 📅 Calculating last seen:', {
+                  rtkDebug.log('[ConversationItem] 📅 Calculating last seen:', {
                     lastSeenString: otherUserPresence.lastSeen,
                     lastSeenDate,
                     isValidDate: !isNaN(lastSeenDate.getTime())
@@ -285,7 +286,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
                   const now = new Date()
                   const diffMs = now.getTime() - lastSeenDate.getTime()
 
-                  console.log('[ConversationItem] ⏱️ Time difference:', {
+                  rtkDebug.log('[ConversationItem] ⏱️ Time difference:', {
                     now: now.toISOString(),
                     lastSeen: lastSeenDate.toISOString(),
                     diffMs,
@@ -313,7 +314,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
                     lastSeenText = t('chat-lastSeenLongAgo')
                   }
 
-                  console.log('[ConversationItem] ✅ Last seen text generated:', lastSeenText)
+                  rtkDebug.log('[ConversationItem] ✅ Last seen text generated:', lastSeenText)
                   return lastSeenText
                 } catch (error) {
                   console.error('[ConversationItem] ❌ Error calculating last seen time:', error)
