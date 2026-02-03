@@ -1,20 +1,18 @@
 import { Extension } from '@tiptap/core'
 import type { Awareness } from 'y-protocols/awareness'
-import {
-  defaultAwarenessStateFilter,
-  yCursorPlugin
-} from '@tiptap/y-tiptap'
+import { defaultAwarenessStateFilter, yCursorPlugin } from '@tiptap/y-tiptap'
+import { fixUtf8Encoding } from '@/common/utils/textUtils'
 
 // Modern color palette for collaboration cursors
 const CURSOR_COLORS = [
-  { bg: '#3B82F6', light: 'rgba(59, 130, 246, 0.15)' },   // Blue
-  { bg: '#8B5CF6', light: 'rgba(139, 92, 246, 0.15)' },   // Purple
-  { bg: '#EC4899', light: 'rgba(236, 72, 153, 0.15)' },   // Pink
-  { bg: '#10B981', light: 'rgba(16, 185, 129, 0.15)' },   // Emerald
-  { bg: '#F59E0B', light: 'rgba(245, 158, 11, 0.15)' },   // Amber
-  { bg: '#EF4444', light: 'rgba(239, 68, 68, 0.15)' },    // Red
-  { bg: '#06B6D4', light: 'rgba(6, 182, 212, 0.15)' },    // Cyan
-  { bg: '#84CC16', light: 'rgba(132, 204, 22, 0.15)' },   // Lime
+  { bg: '#3B82F6', light: 'rgba(59, 130, 246, 0.15)' }, // Blue
+  { bg: '#8B5CF6', light: 'rgba(139, 92, 246, 0.15)' }, // Purple
+  { bg: '#EC4899', light: 'rgba(236, 72, 153, 0.15)' }, // Pink
+  { bg: '#10B981', light: 'rgba(16, 185, 129, 0.15)' }, // Emerald
+  { bg: '#F59E0B', light: 'rgba(245, 158, 11, 0.15)' }, // Amber
+  { bg: '#EF4444', light: 'rgba(239, 68, 68, 0.15)' }, // Red
+  { bg: '#06B6D4', light: 'rgba(6, 182, 212, 0.15)' }, // Cyan
+  { bg: '#84CC16', light: 'rgba(132, 204, 22, 0.15)' } // Lime
 ]
 
 // Get a consistent color based on user ID
@@ -36,21 +34,26 @@ const getInitials = (name: string): string => {
 }
 
 // Custom cursor builder - creates the blinking cursor line with label + avatar
-const modernCursorBuilder = (user: { name?: string; color?: string; userId?: string; avatar?: string }): HTMLElement => {
+const modernCursorBuilder = (user: {
+  name?: string
+  color?: string
+  userId?: string
+  avatar?: string
+}): HTMLElement => {
   // Guard for SSR - return a minimal element if document is not available
   if (typeof document === 'undefined') {
     return null as unknown as HTMLElement
   }
-  
+
   const cursor = document.createElement('span')
   cursor.classList.add('collaboration-cursor__caret')
-  
+
   const colors = getColorForUser(user.userId || user.name || '')
   const cursorColor = user.color || colors.bg
-  const userName = user.name || 'Anonymous'
+  const userName = fixUtf8Encoding(user.name) || 'Anonymous'
   const initials = getInitials(userName)
   const avatarUrl = user.avatar
-  
+
   // Cursor container style
   cursor.style.cssText = `
     position: relative;
@@ -160,10 +163,14 @@ const modernCursorBuilder = (user: { name?: string; color?: string; userId?: str
 }
 
 // Custom selection builder - creates a full-height highlight for selected text
-const modernSelectionBuilder = (user: { name?: string; color?: string; userId?: string }): { style: string; class?: string } => {
+const modernSelectionBuilder = (user: {
+  name?: string
+  color?: string
+  userId?: string
+}): { style: string; class?: string } => {
   const colors = getColorForUser(user.userId || user.name || '')
   const selectionColor = user.color || colors.bg
-  
+
   return {
     style: `
       background: ${selectionColor}35;

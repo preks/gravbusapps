@@ -18,7 +18,7 @@ import { Highlight } from '@tiptap/extension-highlight'
 import { Link } from '@tiptap/extension-link'
 import { Image } from '@tiptap/extension-image'
 import { TaskList } from '@tiptap/extension-task-list'
-import { TaskItem } from '@tiptap/extension-task-item'
+import { LinkedTaskItem } from '../shared/extensions/LinkedTaskItem'
 import { Typography } from '@tiptap/extension-typography'
 import { CharacterCount } from '@tiptap/extension-character-count'
 import {
@@ -71,7 +71,9 @@ import {
   Lock as LockIcon,
   Unlock as UnlockIcon,
   ListTodo,
-  RefreshCw
+  RefreshCw,
+  LayoutGrid,
+  Plus
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCollaboration } from '../shared/hooks/useCollaboration'
@@ -91,6 +93,8 @@ import { PublishDialog } from '../shared/components/PublishDialog'
 import { CommentPanel } from '../shared/components/CommentPanel'
 import { InlineCommentPopover } from '../shared/components/InlineCommentPopover'
 import { Drawing } from '../shared/extensions/Drawing'
+import { Kanban, type KanbanData } from '../shared/extensions/Kanban'
+import { useTaskKanbanSync } from './hooks/useTaskKanbanSync'
 import { HybridEditorCanvas } from '../shared/components/HybridEditorCanvas'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
@@ -263,6 +267,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   onColorChange,
   isReadOnly = false,
   accessToken: accessTokenProp,
+  userInfo,
   'data-testid': testId = 'note-editor'
 }) => {
   // Editor state
@@ -313,6 +318,13 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(null)
   const [isYjsSynced, setIsYjsSynced] = useState(false)
 
+  const contextUserId = ((userInfo as any)?.id as string | undefined) || null
+  const contextUserName =
+    ((userInfo as any)?.employeeDetails?.displayName as string | undefined) ||
+    ((userInfo as any)?.userName as string | undefined) ||
+    (userInfo?.givenName && userInfo?.familyName ? `${userInfo.givenName} ${userInfo.familyName}` : undefined) ||
+    null
+
   // Versioning UI state
   const [showVersionHistory, setShowVersionHistory] = useState(false)
   const [showCheckpointDialog, setShowCheckpointDialog] = useState(false)
@@ -321,6 +333,13 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
   const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
   const [pendingSelection, setPendingSelection] = useState<{ from: number; to: number; text: string } | null>(null)
+
+  // Task item context menu state - supports multiple positions for batch add
+  const [taskContextMenu, setTaskContextMenu] = useState<{
+    position: { top: number; left: number }
+    taskItemPositions: number[] // Array of positions for multiple task items
+    kanbanBoards: Array<{ id: string; data: KanbanData }>
+  } | null>(null)
 
   // Yjs CRDT state
   const ydoc = React.useMemo(() => new Y.Doc(), [note.id])
@@ -342,8 +361,46 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   }, [])
 
   // Get access token for GraphQL - must be before effects that use it
-  const accessToken = accessTokenProp || (note as any).accessToken || ''
+  // In published platform screens, the token may live under different storage keys.
+  const accessToken = React.useMemo(() => {
+    const direct = accessTokenProp || (note as any).accessToken
+    if (direct) return direct as string
+    if (typeof window === 'undefined') return ''
+
+    try {
+      const ideToken = window.localStorage.getItem('business-app-ide-access-token')
+      if (ideToken) return ideToken
+    } catch {
+      // ignore
+    }
+
+    try {
+      const authData = window.localStorage.getItem('keycloak-token')
+      if (authData) {
+        try {
+          const parsed = JSON.parse(authData)
+          return (parsed.token || parsed.access_token || '') as string
+        } catch {
+          return authData
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    return ''
+  }, [accessTokenProp, note.id])
   const graphqlClient = useGraphQLClient(accessToken)
+
+  // Persist token for NoteApiService (it reads from localStorage).
+  useEffect(() => {
+    if (!accessToken) return
+    try {
+      localStorage.setItem('business-app-ide-access-token', accessToken)
+    } catch {
+      // ignore
+    }
+  }, [accessToken])
 
   // Fill missing avatar/name for older flows
   useActionItemAssigneeEnrichment({
@@ -552,20 +609,54 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   useEffect(() => {
     const loadUserInfo = async () => {
       try {
-        // Prefer accessToken prop (published screens may not have token in localStorage)
-        const token = accessToken || localStorage.getItem('business-app-ide-access-token')
+        // Prefer the platform-provided context userInfo (more reliable than decoding the JWT).
+        if (contextUserId) {
+          setCurrentUserId(contextUserId)
+          setCurrentUserName(contextUserName)
+        }
+
+        const token =
+          accessToken ||
+          localStorage.getItem('business-app-ide-access-token') ||
+          (() => {
+            try {
+              const authData = localStorage.getItem('keycloak-token')
+              if (!authData) return null
+              try {
+                const parsed = JSON.parse(authData)
+                return parsed.token || parsed.access_token || null
+              } catch {
+                return authData
+              }
+            } catch {
+              return null
+            }
+          })()
         if (token) {
-          const payload = JSON.parse(atob(token.split('.')[1]))
+          const base64Url = token.split('.')[1]
+          if (!base64Url) return
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+          const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=')
+          const jsonPayload = decodeURIComponent(
+            atob(padded)
+              .split('')
+              .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+              .join('')
+          )
+          const payload = JSON.parse(jsonPayload)
           const userId = payload.sub || payload.userId || null
           const userName = payload.name || payload.preferred_username || payload.username || null
-
-          setCurrentUserId(userId)
-          setCurrentUserName(userName)
+          // Only use token-derived values if we didn't get them from userInfo.
+          if (!contextUserId) {
+            setCurrentUserId(userId)
+            setCurrentUserName(userName)
+          }
 
           // Fetch avatar from GraphQL if we have userId and graphqlClient
-          if (userId && graphqlClient) {
+          const effectiveUserId = (contextUserId || userId) as string | null
+          if (effectiveUserId && graphqlClient) {
             try {
-              const query = GET_EMPLOYEE_LIGHT_BY_USER_ID(userId)
+              const query = GET_EMPLOYEE_LIGHT_BY_USER_ID(effectiveUserId)
               const result = await graphqlClient.request<{
                 Employee: Array<{ displayName: string; pictureThumbnail?: string }>
               }>(query)
@@ -588,7 +679,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     }
 
     loadUserInfo()
-  }, [graphqlClient, accessToken])
+  }, [graphqlClient, accessToken, contextUserId, contextUserName])
 
   // Create mention suggestion with access token
   const mentionSuggestion = React.useMemo(() => {
@@ -622,7 +713,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         }),
         Image,
         TaskList,
-        TaskItem.configure({
+        LinkedTaskItem.configure({
           nested: true
         }),
         Typography,
@@ -732,6 +823,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           suggestion: mentionSuggestion
         }),
         Drawing,
+        Kanban,
         ...(collaborationExtension ? [collaborationExtension] : []),
         ...(yjsCursorExtension ? [yjsCursorExtension] : [])
       ],
@@ -753,6 +845,310 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   useEffect(() => {
     editorRef.current = editor
   }, [editor])
+
+  // Task-Kanban sync hook
+  const { addTaskToKanban, findKanbanBoards } = useTaskKanbanSync({
+    editor,
+    enabled: !isReadOnly && !!note.id
+  })
+
+  // Fetch shared users and combine with collaboration participants for Kanban
+  const [kanbanParticipants, setKanbanParticipants] = useState<
+    Array<{
+      userId: string
+      userName: string
+      userAvatar?: string
+      userColor?: string
+    }>
+  >([])
+  const [kanbanParticipantsDebug, setKanbanParticipantsDebug] = useState<{
+    status: 'idle' | 'loading' | 'ready' | 'error'
+    noteId?: string
+    hasOwnerId?: boolean
+    hasCurrentUserId?: boolean
+    sharedUsersCount?: number
+    collaborationParticipantsCount?: number
+    finalCount?: number
+    lastError?: string
+    updatedAt?: string
+  }>({ status: 'idle' })
+
+  useEffect(() => {
+    if (!note.id) {
+      setKanbanParticipants([])
+      setKanbanParticipantsDebug({
+        status: 'idle',
+        noteId: note.id,
+        hasOwnerId: Boolean(note.ownerId),
+        hasCurrentUserId: Boolean(currentUserId || contextUserId),
+        collaborationParticipantsCount: participants.length,
+        updatedAt: new Date().toISOString()
+      })
+      return
+    }
+
+    const fetchKanbanParticipants = async () => {
+      try {
+        const effectiveCurrentUserId = currentUserId || contextUserId
+        const effectiveCurrentUserName = currentUserName || contextUserName
+        setKanbanParticipantsDebug({
+          status: 'loading',
+          noteId: note.id,
+          hasOwnerId: Boolean(note.ownerId),
+          hasCurrentUserId: Boolean(effectiveCurrentUserId),
+          collaborationParticipantsCount: participants.length,
+          updatedAt: new Date().toISOString()
+        })
+
+        // Fetch shared users
+        const sharedUsers = await NoteApiService.getSharedUsers(note.id)
+
+        // Get all unique user IDs (owner + shared users + collaboration participants)
+        const userIds = new Set<string>()
+        if (effectiveCurrentUserId) userIds.add(effectiveCurrentUserId)
+        if (note.ownerId) userIds.add(note.ownerId)
+        sharedUsers.forEach(s => userIds.add(s.userId))
+        participants.forEach(p => userIds.add(p.userId))
+
+        // Always include at least the owner if we have one
+        if (userIds.size === 0 && note.ownerId) {
+          userIds.add(note.ownerId)
+        }
+        // Always include at least the current user if we have one (shared-users lookup may fail silently).
+        if (userIds.size === 0 && effectiveCurrentUserId) {
+          userIds.add(effectiveCurrentUserId)
+        }
+
+        if (userIds.size === 0) {
+          setKanbanParticipants([])
+          setKanbanParticipantsDebug({
+            status: 'ready',
+            noteId: note.id,
+            hasOwnerId: Boolean(note.ownerId),
+            hasCurrentUserId: Boolean(effectiveCurrentUserId),
+            sharedUsersCount: sharedUsers.length,
+            collaborationParticipantsCount: participants.length,
+            finalCount: 0,
+            updatedAt: new Date().toISOString()
+          })
+          return
+        }
+
+        const userMap = new Map<
+          string,
+          {
+            userId: string
+            userName: string
+            userAvatar?: string
+            userColor?: string
+          }
+        >()
+
+        // Add current user from token as immediate fallback (helps shared notes and empty GraphQL).
+        if (effectiveCurrentUserId) {
+          userMap.set(effectiveCurrentUserId, {
+            userId: effectiveCurrentUserId,
+            userName: effectiveCurrentUserName || `User ${effectiveCurrentUserId.slice(0, 8)}`,
+            userAvatar: currentUserAvatar || undefined
+          })
+        }
+
+        // Fetch user info if we have GraphQL client
+        if (accessToken && graphqlClient) {
+          const query = `
+            query GetEmployeeInfo($userIds: [String!]!) {
+              Employee(where: {userId: {_in: $userIds}}) {
+                userId
+                displayName
+                firstName
+                lastName
+                pictureThumbnail
+              }
+            }
+          `
+          const result = await graphqlClient.request<{
+            Employee: Array<{
+              userId: string
+              displayName?: string
+              firstName?: string
+              lastName?: string
+              pictureThumbnail?: string | null
+            }>
+          }>(query, { userIds: Array.from(userIds) })
+
+          // Add owner
+          if (note.ownerId) {
+            const owner = result.Employee?.find(e => e.userId === note.ownerId)
+            if (owner) {
+              const displayName =
+                owner.displayName ||
+                `${owner.firstName || ''} ${owner.lastName || ''}`.trim() ||
+                `User ${owner.userId.slice(0, 8)}`
+              const avatarUrl = owner.pictureThumbnail
+                ? owner.pictureThumbnail.startsWith('data:')
+                  ? owner.pictureThumbnail
+                  : `data:image/png;base64,${owner.pictureThumbnail}`
+                : undefined
+              userMap.set(note.ownerId, {
+                userId: note.ownerId,
+                userName: displayName,
+                userAvatar: avatarUrl
+              })
+            } else {
+              // Owner not found in Employee table, add with fallback name
+              userMap.set(note.ownerId, {
+                userId: note.ownerId,
+                userName: `User ${note.ownerId.slice(0, 8)}`
+              })
+            }
+          }
+
+          // Add shared users
+          sharedUsers.forEach(share => {
+            if (!userMap.has(share.userId)) {
+              const emp = result.Employee?.find(e => e.userId === share.userId)
+              const displayName =
+                emp?.displayName ||
+                share.userName ||
+                `${emp?.firstName || ''} ${emp?.lastName || ''}`.trim() ||
+                `User ${share.userId.slice(0, 8)}`
+              const avatarUrl = emp?.pictureThumbnail
+                ? emp.pictureThumbnail.startsWith('data:')
+                  ? emp.pictureThumbnail
+                  : `data:image/png;base64,${emp.pictureThumbnail}`
+                : share.userAvatar
+              userMap.set(share.userId, {
+                userId: share.userId,
+                userName: displayName,
+                userAvatar: avatarUrl
+              })
+            }
+          })
+        } else {
+          // No GraphQL client, use basic info from shared users
+          if (note.ownerId) {
+            userMap.set(note.ownerId, {
+              userId: note.ownerId,
+              userName: `User ${note.ownerId.slice(0, 8)}`
+            })
+          }
+          sharedUsers.forEach(share => {
+            if (!userMap.has(share.userId)) {
+              userMap.set(share.userId, {
+                userId: share.userId,
+                userName: share.userName || `User ${share.userId.slice(0, 8)}`,
+                userAvatar: share.userAvatar
+              })
+            }
+          })
+        }
+
+        // Add collaboration participants (may override with their colors and better names)
+        participants.forEach(p => {
+          const existing = userMap.get(p.userId)
+          userMap.set(p.userId, {
+            userId: p.userId,
+            userName: p.name || existing?.userName || p.userId,
+            userAvatar: p.avatarUrl || existing?.userAvatar,
+            userColor: p.color
+          })
+        })
+
+        const finalParticipants = Array.from(userMap.values())
+        setKanbanParticipants(finalParticipants)
+        setKanbanParticipantsDebug({
+          status: 'ready',
+          noteId: note.id,
+          hasOwnerId: Boolean(note.ownerId),
+          hasCurrentUserId: Boolean(effectiveCurrentUserId),
+          sharedUsersCount: sharedUsers.length,
+          collaborationParticipantsCount: participants.length,
+          finalCount: finalParticipants.length,
+          updatedAt: new Date().toISOString()
+        })
+      } catch (error) {
+        console.error('[NoteEditor] Failed to fetch kanban participants:', error)
+        // Fallback: include owner and collaboration participants
+        const fallback: Array<{
+          userId: string
+          userName: string
+          userAvatar?: string
+          userColor?: string
+        }> = []
+
+        const effectiveCurrentUserId = currentUserId || contextUserId
+        const effectiveCurrentUserName = currentUserName || contextUserName
+        if (effectiveCurrentUserId) {
+          fallback.push({
+            userId: effectiveCurrentUserId,
+            userName: effectiveCurrentUserName || `User ${effectiveCurrentUserId.slice(0, 8)}`,
+            userAvatar: currentUserAvatar || undefined
+          })
+        }
+
+        if (note.ownerId) {
+          if (!fallback.find(f => f.userId === note.ownerId)) {
+            fallback.push({
+              userId: note.ownerId,
+              userName: `User ${note.ownerId.slice(0, 8)}`
+            })
+          }
+        }
+
+        participants.forEach(p => {
+          if (!fallback.find(f => f.userId === p.userId)) {
+            fallback.push({
+              userId: p.userId,
+              userName: p.name || p.userId,
+              userAvatar: p.avatarUrl,
+              userColor: p.color
+            })
+          }
+        })
+
+        setKanbanParticipants(fallback)
+        setKanbanParticipantsDebug({
+          status: 'error',
+          noteId: note.id,
+          hasOwnerId: Boolean(note.ownerId),
+          hasCurrentUserId: Boolean(currentUserId || contextUserId),
+          collaborationParticipantsCount: participants.length,
+          finalCount: fallback.length,
+          lastError: error instanceof Error ? error.message : 'Unknown error',
+          updatedAt: new Date().toISOString()
+        })
+      }
+    }
+
+    fetchKanbanParticipants()
+  }, [
+    note.id,
+    note.ownerId,
+    accessToken,
+    graphqlClient,
+    participants,
+    currentUserId,
+    currentUserName,
+    currentUserAvatar,
+    contextUserId,
+    contextUserName
+  ])
+
+  // Sync participants to Kanban extension storage
+  useEffect(() => {
+    if (!editor) return
+    const kanbanExt = editor.extensionManager.extensions.find((ext: { name: string }) => ext.name === 'kanban')
+    if (kanbanExt?.storage) {
+      kanbanExt.storage.participants = kanbanParticipants
+      ;(kanbanExt.storage as any).participantsDebug = kanbanParticipantsDebug
+    }
+    // Also write to editor.storage (NodeView reads from extension.storage, but this keeps TipTap storage in sync too).
+    const anyEditor = editor as unknown as { storage?: Record<string, any> }
+    if (anyEditor?.storage?.kanban) {
+      anyEditor.storage.kanban.participants = kanbanParticipants
+      ;(anyEditor.storage.kanban as any).participantsDebug = kanbanParticipantsDebug
+    }
+  }, [editor, kanbanParticipants, kanbanParticipantsDebug])
 
   // Handler for inline comment (defined after editor)
   const handleAddInlineComment = useCallback(() => {
@@ -1103,12 +1499,100 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleSave, handleAddInlineComment])
 
-  // Context menu for inline comments
+  // Context menu for inline comments and task items
   useEffect(() => {
     if (!editor) return
 
     const handleContextMenu = (e: Event) => {
       const mouseEvent = e as unknown as MouseEvent
+      const target = mouseEvent.target as HTMLElement
+
+      // Check if right-clicked on a task item
+      const taskItemElement = target.closest('li[data-type="taskItem"]') as HTMLElement | null
+      if (taskItemElement) {
+        mouseEvent.preventDefault()
+
+        // Collect task items to add - check if there's a selection spanning multiple items
+        const { from, to } = editor.state.selection
+        const taskItemPositions: number[] = []
+
+        // If there's a selection, find all task items within it
+        if (from !== to) {
+          editor.state.doc.nodesBetween(from, to, (node, pos) => {
+            if (node.type.name === 'taskItem' && !node.attrs.kanbanCardId) {
+              taskItemPositions.push(pos)
+            }
+          })
+        }
+
+        // If no selection or no task items in selection, use the clicked item
+        if (taskItemPositions.length === 0) {
+          // Try to get position from data attribute (set by LinkedTaskItemView)
+          const nodePosAttr = taskItemElement.getAttribute('data-node-pos')
+          let resolvedPos = nodePosAttr ? parseInt(nodePosAttr, 10) : -1
+
+          // Fallback: try to find position from DOM
+          if (resolvedPos < 0 || isNaN(resolvedPos)) {
+            const editorView = editor.view
+            const pos = editorView.posAtDOM(taskItemElement, 0)
+
+            // posAtDOM returns position inside the node, we need to find the actual taskItem node
+            const node = editor.state.doc.nodeAt(pos)
+
+            // If we're inside the content, resolve to find the parent taskItem
+            if (!node || node.type.name !== 'taskItem') {
+              const $pos = editor.state.doc.resolve(pos)
+              // Walk up the tree to find taskItem
+              for (let d = $pos.depth; d >= 0; d--) {
+                const parentNode = $pos.node(d)
+                if (parentNode.type.name === 'taskItem') {
+                  resolvedPos = $pos.before(d)
+                  break
+                }
+              }
+            } else {
+              resolvedPos = pos
+            }
+          }
+
+          const node = editor.state.doc.nodeAt(resolvedPos)
+
+          // Check if task is already linked
+          if (node?.type.name === 'taskItem' && node.attrs.kanbanCardId) {
+            console.debug('[NoteEditor] Task already linked to Kanban')
+            return
+          }
+
+          // Verify we found a valid taskItem
+          if (!node || node.type.name !== 'taskItem') {
+            console.debug('[NoteEditor] Could not find taskItem node at pos:', resolvedPos)
+            return
+          }
+
+          taskItemPositions.push(resolvedPos)
+        }
+
+        console.debug('[NoteEditor] Task context menu:', {
+          taskItemCount: taskItemPositions.length,
+          positions: taskItemPositions
+        })
+
+        // Find available Kanban boards (may be empty - we'll offer to create one)
+        const boards = findKanbanBoards()
+
+        // Show the task context menu (even if no boards - will offer to create one)
+        setTaskContextMenu({
+          position: {
+            top: mouseEvent.clientY,
+            left: mouseEvent.clientX
+          },
+          taskItemPositions,
+          kanbanBoards: boards
+        })
+        return
+      }
+
+      // Default behavior: inline comment for text selection
       const { from, to } = editor.state.selection
       if (from === to) return // No selection
 
@@ -1121,7 +1605,73 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       editorElement.addEventListener('contextmenu', handleContextMenu)
       return () => editorElement.removeEventListener('contextmenu', handleContextMenu)
     }
-  }, [editor, handleAddInlineComment])
+  }, [editor, handleAddInlineComment, findKanbanBoards])
+
+  // Handler for adding task(s) to Kanban - supports multiple items
+  const handleAddTaskToKanban = useCallback(
+    (kanbanId: string, columnId: string = 'todo') => {
+      if (!taskContextMenu) return
+
+      const positions = taskContextMenu.taskItemPositions
+      const addedCards: string[] = []
+
+      // Add each task item to Kanban (in reverse order to maintain positions after edits)
+      for (const pos of [...positions].reverse()) {
+        const cardId = addTaskToKanban(pos, kanbanId, columnId)
+        if (cardId) {
+          addedCards.push(cardId)
+        }
+      }
+
+      console.debug('[NoteEditor] Tasks linked to Kanban:', {
+        count: addedCards.length,
+        kanbanId,
+        columnId,
+        cardIds: addedCards
+      })
+
+      setTaskContextMenu(null)
+    },
+    [taskContextMenu, addTaskToKanban]
+  )
+
+  // Handler for creating a new Kanban and adding selected tasks
+  const handleCreateKanbanWithTasks = useCallback(() => {
+    if (!taskContextMenu || !editor) return
+
+    const positions = taskContextMenu.taskItemPositions
+    const kanbanId = `kanban-${Date.now()}`
+
+    // First, create the Kanban board
+    const inserted = editor.chain().focus().insertKanban({ id: kanbanId }).run()
+
+    if (!inserted) {
+      console.error('[NoteEditor] Failed to create Kanban')
+      setTaskContextMenu(null)
+      return
+    }
+
+    // Wait a tick for the Kanban to be inserted, then add tasks
+    setTimeout(() => {
+      const addedCards: string[] = []
+
+      // Add each task item to the new Kanban (in reverse order to maintain positions)
+      for (const pos of [...positions].reverse()) {
+        const cardId = addTaskToKanban(pos, kanbanId, 'todo')
+        if (cardId) {
+          addedCards.push(cardId)
+        }
+      }
+
+      console.debug('[NoteEditor] Created Kanban and linked tasks:', {
+        kanbanId,
+        count: addedCards.length,
+        cardIds: addedCards
+      })
+    }, 100)
+
+    setTaskContextMenu(null)
+  }, [taskContextMenu, editor, addTaskToKanban])
 
   // Color change handler
   const handleColorChange = useCallback(
@@ -1634,6 +2184,63 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                 <TooltipContent>Mention Entity (@)</TooltipContent>
               </Tooltip>
             </TooltipProvider>
+
+            <Separator orientation="vertical" className="gba:h-6 gba:mx-1" />
+
+            {/* Kanban Board */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="gba:h-8 gba:w-8"
+                    onClick={() => {
+                      if (!editor || !isYjsSynced) return
+                      const debugEnabled = (() => {
+                        try {
+                          return (
+                            window.localStorage.getItem('debug:note-apps') === '1' ||
+                            window.localStorage.getItem('debug:kanban') === '1'
+                          )
+                        } catch {
+                          return false
+                        }
+                      })()
+
+                      const kanbanId = `kanban-${Date.now()}`
+                      const ok = editor.chain().focus().insertKanban({ id: kanbanId }).run()
+                      if (debugEnabled) {
+                        const hasKanban = (id: string) => {
+                          let found = false
+                          editor.state.doc.descendants(node => {
+                            if (node.type.name === 'kanban' && node.attrs?.id === id) {
+                              found = true
+                              return false
+                            }
+                          })
+                          return found
+                        }
+
+                        const immediate = hasKanban(kanbanId)
+                        console.debug('[NoteEditor][Kanban] insert result:', { ok, kanbanId, immediate })
+                        window.setTimeout(() => {
+                          console.debug('[NoteEditor][Kanban] after 2500ms present:', {
+                            kanbanId,
+                            present: hasKanban(kanbanId)
+                          })
+                        }, 2500)
+                      }
+                    }}
+                    data-testid="note-editor-insert-kanban"
+                    disabled={!isYjsSynced}
+                  >
+                    <LayoutGrid className="gba:w-4 gba:h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Insert Kanban Board</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       )}
@@ -2026,6 +2633,20 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           display: inline;
         }
 
+        /* Kanban Board Styles */
+        .note-editor-content .ProseMirror .kanban-board-wrapper {
+          margin: 1.5rem 0;
+        }
+
+        .note-editor-content .ProseMirror .kanban-node {
+          display: block;
+          margin: 1.5rem 0;
+        }
+
+        .note-editor-content .ProseMirror .kanban-board-wrapper .kanban-board-wrapper {
+          margin: 0;
+        }
+
         /* Tippy mention dropdown styling */
         .tippy-box[data-theme~='light-border'] {
           background-color: hsl(var(--popover));
@@ -2217,6 +2838,73 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         }}
         data-testid="note-inline-comment-popover"
       />
+
+      {/* Task item context menu for Kanban linking */}
+      {taskContextMenu && (
+        <div
+          className="gba:fixed gba:z-50 gba:min-w-[200px] gba:rounded-md gba:border gba:bg-popover gba:p-1 gba:shadow-md"
+          style={{
+            top: taskContextMenu.position.top,
+            left: taskContextMenu.position.left
+          }}
+        >
+          <div className="gba:px-2 gba:py-1.5 gba:text-xs gba:font-medium gba:text-muted-foreground gba:flex gba:items-center gba:justify-between">
+            <span>Add to Kanban</span>
+            {taskContextMenu.taskItemPositions.length > 1 && (
+              <Badge variant="secondary" className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:h-4">
+                {taskContextMenu.taskItemPositions.length} items
+              </Badge>
+            )}
+          </div>
+          {taskContextMenu.kanbanBoards.length === 0 ? (
+            // No Kanban boards - offer to create one
+            <button
+              type="button"
+              className="gba:w-full gba:flex gba:items-center gba:px-2 gba:py-1.5 gba:text-sm gba:rounded-sm hover:gba:bg-accent hover:gba:text-accent-foreground gba:cursor-pointer"
+              onClick={handleCreateKanbanWithTasks}
+            >
+              <Plus className="gba:w-3.5 gba:h-3.5 gba:mr-2 gba:text-muted-foreground" />
+              Create Kanban Board
+            </button>
+          ) : taskContextMenu.kanbanBoards.length === 1 ? (
+            // Single Kanban - show columns directly
+            <>
+              {taskContextMenu.kanbanBoards[0].data.columns.map(column => (
+                <button
+                  key={column.id}
+                  type="button"
+                  className="gba:w-full gba:flex gba:items-center gba:px-2 gba:py-1.5 gba:text-sm gba:rounded-sm hover:gba:bg-accent hover:gba:text-accent-foreground gba:cursor-pointer"
+                  onClick={() => handleAddTaskToKanban(taskContextMenu.kanbanBoards[0].id, column.id)}
+                >
+                  <LayoutGrid className="gba:w-3.5 gba:h-3.5 gba:mr-2 gba:text-muted-foreground" />
+                  {column.title}
+                </button>
+              ))}
+            </>
+          ) : (
+            // Multiple Kanbans - show board names, then columns on hover (simplified: just add to first column)
+            <>
+              {taskContextMenu.kanbanBoards.map(board => (
+                <button
+                  key={board.id}
+                  type="button"
+                  className="gba:w-full gba:flex gba:items-center gba:px-2 gba:py-1.5 gba:text-sm gba:rounded-sm hover:gba:bg-accent hover:gba:text-accent-foreground gba:cursor-pointer"
+                  onClick={() => handleAddTaskToKanban(board.id, 'todo')}
+                >
+                  <LayoutGrid className="gba:w-3.5 gba:h-3.5 gba:mr-2 gba:text-muted-foreground" />
+                  {board.data.columns[0]?.title || 'Kanban'}
+                  <span className="gba:ml-auto gba:text-xs gba:text-muted-foreground">
+                    {board.data.columns.reduce((sum, col) => sum + col.cards.length, 0)} cards
+                  </span>
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Click outside to close task context menu */}
+      {taskContextMenu && <div className="gba:fixed gba:inset-0 gba:z-40" onClick={() => setTaskContextMenu(null)} />}
     </div>
   )
 }

@@ -85,6 +85,7 @@ import { PublishDialog } from '../../../shared/components/PublishDialog'
 import { CommentPanel } from '../../../shared/components/CommentPanel'
 import { InlineCommentPopover } from '../../../shared/components/InlineCommentPopover'
 import { InlineComment as InlineCommentExtension } from '../../../shared/extensions/InlineCommentExtension'
+import { fixUtf8Encoding } from '@/common/utils/textUtils'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 
@@ -514,7 +515,7 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
     awareness.setLocalStateField('user', {
       id: currentUserId,
       userId: currentUserId,
-      name: currentUserName || 'User',
+      name: fixUtf8Encoding(currentUserName) || 'User',
       color: participants.find(p => p.userId === currentUserId)?.userColor || '#4ECDC4',
       avatar: currentUserAvatar // Include avatar URL for cursor rendering
     })
