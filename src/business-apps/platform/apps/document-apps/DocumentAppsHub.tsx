@@ -5,7 +5,7 @@
  * Modern OneDrive-inspired design with sidebar navigation.
  */
 
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { toast } from 'sonner'
 import {
   Card,
@@ -71,10 +71,8 @@ import { CreateTemplateDialog } from './components/CreateTemplateDialog'
 import { SendForApprovalDialog } from './components/SendForApprovalDialog'
 import { ShareDocumentDialog } from './components/ShareDocumentDialog'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
-import { PagedDocumentEditor } from './components/PagedDocumentEditor'
-import { PdfDocumentViewer } from './components/PdfDocumentViewer'
 import type { PagedDocumentEditorRef } from './components/PagedDocumentEditor'
-import { TemplateFieldsPanel } from './components/TemplateFieldsPanel'
+import { DocumentAppsHubEditorView } from './components/DocumentAppsHubEditorView'
 
 // Hooks
 import { useDocumentApps } from './hooks/useDocumentApps'
@@ -189,10 +187,11 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
   // Entity context: prop > URL ?entityContext= > category-derived (when editing a template) > default
-  const urlEntityContext =
-    typeof globalThis.window === 'undefined'
-      ? undefined
-      : (new URLSearchParams(globalThis.window.location.search).get('entityContext') ?? undefined)
+  const urlEntityContext = useMemo(() => {
+    if (typeof globalThis.window === 'undefined') return undefined
+    const params = new URLSearchParams(globalThis.window.location.search)
+    return params.get('entityContext') ?? undefined
+  }, [typeof globalThis.window === 'undefined' ? '' : globalThis.window.location.search])
   const effectiveEntityContext =
     entityContext ??
     urlEntityContext ??
@@ -494,142 +493,31 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
   // Render editor view
   if (currentView === 'editor') {
-    const canEdit = currentDocumentPermission === 'owner' || currentDocumentPermission === 'edit'
-
-    // If editing a template, show editor with template content, "Insert field" panel, and save to template
-    if (templateBeingEdited) {
-      return (
-        <PagedDocumentEditor
-          ref={templateEditorRef}
-          key={`template-${templateBeingEdited.id}`}
-          initialContent={templateBeingEdited.content}
-          initialTitle={templateBeingEdited.name}
-          leftPanel={
-            <TemplateFieldsPanel
-              onInsertField={placeholder => templateEditorRef.current?.insertAtCursor(placeholder)}
-              accessToken={accessToken}
-              context={effectiveEntityContext}
-              templateContent={templateBeingEdited.content}
-              data-testid={`${testId}-template-fields-panel`}
-            />
-          }
-          onSave={async (title, content) => {
-            const updated = await updateTemplate(templateBeingEdited.id, { name: title, content })
-            if (updated) {
-              setTemplateBeingEdited(updated)
-              toast.success('Template saved')
-            }
-          }}
-          onBack={() => {
-            setTemplateBeingEdited(null)
-            setSessionEntityContext(null)
-            setCurrentView('list')
-            setActiveSection('templates')
-          }}
-          onSendForApproval={() => {
-            toast.info('Templates are edited here; use documents for approval workflow.')
-          }}
-          accessToken={accessToken}
-          userInfo={userInfo}
-          data-testid={`${testId}-template-editor`}
-        />
-      )
-    }
-
-    // If we have a parsed Word document (from upload), create a new document with that content
-    if (parsedWordDocument && !currentDocument) {
-      return (
-        <PagedDocumentEditor
-          initialContent={parsedWordDocument.html}
-          initialTitle={parsedWordDocument.fileName.replace(/\.(docx?|doc)$/i, '')}
-          onSave={async (title, content) => {
-            const newDoc = await createDocument({
-              title,
-              content,
-              status: 'draft',
-              createdBy: currentUserId,
-              sourceFile: {
-                originalName: parsedWordDocument.fileName,
-                fileSize: parsedWordDocument.fileSize,
-                mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                uploadedAt: new Date().toISOString()
-              }
-            })
-            if (newDoc) {
-              setParsedWordDocument(null)
-              setSelectedDocumentId(newDoc.id)
-              await loadDocument(newDoc.id)
-              updateUrl(newDoc.id, 'editor')
-            }
-          }}
-          onBack={handleBack}
-          onSendForApproval={() => {
-            toast.info('Please save the document first before sending for approval')
-          }}
-          accessToken={accessToken}
-          userInfo={userInfo}
-          data-testid={`${testId}-editor`}
-        />
-      )
-    }
-
-    // If we have a current document loaded
-    if (currentDocument) {
-      // Check if this is a PDF document - render read-only viewer
-      const isPdfDocument = currentDocument.sourceFile?.mimeType === 'application/pdf'
-
-      if (isPdfDocument) {
-        return (
-          <PdfDocumentViewer
-            key={currentDocument.id}
-            document={currentDocument}
-            accessToken={accessToken}
-            onBack={handleBack}
-            data-testid={`${testId}-pdf-viewer`}
-          />
-        )
-      }
-
-      return (
-        <PagedDocumentEditor
-          key={currentDocument.id}
-          document={currentDocument}
-          onSave={async (title, content) => {
-            await updateDocument(currentDocument.id, { title, content })
-          }}
-          onBack={handleBack}
-          onSendForApproval={() => handleSendForApprovalClick(currentDocument.id)}
-          isReadOnly={!canEdit}
-          accessToken={accessToken}
-          userInfo={userInfo}
-          data-testid={`${testId}-editor`}
-        />
-      )
-    }
-
-    // Fallback - new document
     return (
-      <PagedDocumentEditor
-        onSave={async (title, content) => {
-          const newDoc = await createDocument({
-            title,
-            content,
-            status: 'draft',
-            createdBy: currentUserId
-          })
-          if (newDoc) {
-            setSelectedDocumentId(newDoc.id)
-            await loadDocument(newDoc.id)
-            updateUrl(newDoc.id, 'editor')
-          }
-        }}
-        onBack={handleBack}
-        onSendForApproval={() => {
-          toast.info('Please save the document first before sending for approval')
-        }}
+      <DocumentAppsHubEditorView
+        templateBeingEdited={templateBeingEdited}
+        setTemplateBeingEdited={setTemplateBeingEdited}
+        setSessionEntityContext={setSessionEntityContext}
+        parsedWordDocument={parsedWordDocument}
+        setParsedWordDocument={setParsedWordDocument}
+        setSelectedDocumentId={setSelectedDocumentId}
+        currentDocument={currentDocument}
+        currentDocumentPermission={currentDocumentPermission ?? ''}
+        createDocument={async opts => createDocument(opts as Parameters<typeof createDocument>[0])}
+        loadDocument={loadDocument}
+        updateDocument={updateDocument}
+        updateTemplate={updateTemplate}
+        updateUrl={(docId, view) => updateUrl(docId, view as HubView | undefined)}
+        setCurrentView={v => setCurrentView(v as HubView)}
+        setActiveSection={s => setActiveSection(s as SidebarSection)}
+        handleBack={handleBack}
+        handleSendForApprovalClick={handleSendForApprovalClick}
+        currentUserId={currentUserId}
         accessToken={accessToken}
         userInfo={userInfo}
-        data-testid={`${testId}-editor`}
+        templateEditorRef={templateEditorRef}
+        effectiveEntityContext={effectiveEntityContext ?? ''}
+        testId={testId}
       />
     )
   }

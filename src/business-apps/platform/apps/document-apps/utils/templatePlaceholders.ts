@@ -154,6 +154,7 @@ export function resolvePlaceholders(
     const entityData = map[keyTrimmed] ?? map[keyTrimmed.toLowerCase()] ?? entry?.[1]
     if (entityData == null) return match
     const value = getByPath(entityData, pathTrimmed)
+    if (value === undefined || value === null) return match
     return formatValue(value)
   })
 }

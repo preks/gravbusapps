@@ -450,6 +450,15 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setHasUnsavedChanges
     })
 
+    const editorContent = React.useMemo(
+      () => (document?.id ? '<p></p>' : document?.content || initialContent || '<p></p>'),
+      [document?.id, document?.content, initialContent]
+    )
+    const editorEditable = React.useMemo(
+      () => !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit)),
+      [isReadOnly, document?.id, isYjsSynced, fileLock.canEdit]
+    )
+
     // Set local awareness state (user meta shown in cursors/selections)
     useEffect(() => {
       if (!document?.id) return
@@ -526,29 +535,19 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           ...(yjsCursorExtension ? [yjsCursorExtension] : [])
         ],
         // In CRDT mode, the Yjs doc becomes the single source of truth.
-        content: document?.id ? '<p></p>' : document?.content || initialContent || '<p></p>',
-        editable: !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit)),
+        content: editorContent,
+        editable: editorEditable,
         onUpdate: () => {
           updatePageCount()
-
-          // Mark as changed for versioning system
-          if (document?.id) {
-            versioning.markAsChanged()
-          }
-
-          // For documents without an ID (not yet persisted), fallback to REST save debounce.
+          if (document?.id) versioning.markAsChanged()
           if (!document?.id) {
             setHasUnsavedChanges(true)
-            if (autoSaveTimeoutRef.current) {
-              clearTimeout(autoSaveTimeoutRef.current)
-            }
-            autoSaveTimeoutRef.current = setTimeout(() => {
-              handleSave()
-            }, 3000)
+            if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current)
+            autoSaveTimeoutRef.current = setTimeout(() => handleSave(), 3000)
           }
         }
       },
-      [document?.id, ydoc]
+      [document?.id, ydoc, editorContent, editorEditable]
     )
 
     // Inject collaboration cursor styles once on mount

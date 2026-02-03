@@ -308,24 +308,19 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
       (app: Record<string, unknown>) => app?.jobPosting != null || app?.job_posting != null
     ) as Record<string, unknown> | undefined
     const firstJobPosting = firstApplicationWithPosting
-      ? ((firstApplicationWithPosting.jobPosting ?? firstApplicationWithPosting.job_posting) as
-          | Record<string, unknown>
-          | undefined)
+      ? (firstApplicationWithPosting.jobPosting ?? firstApplicationWithPosting.job_posting)
       : undefined
-    const firstJobRequest = (firstJobPosting?.jobRequest ?? firstJobPosting?.job_request ?? {}) as Record<
-      string,
-      unknown
-    >
-    const firstJobPostingData = (firstJobPosting ?? {}) as Record<string, unknown>
-    const firstJobApplicationData = (firstApplicationWithPosting ?? {}) as Record<string, unknown>
+    const firstJobRequest = firstJobPosting?.jobRequest ?? firstJobPosting?.job_request ?? {}
+    const firstJobPostingData = firstJobPosting ?? {}
+    const firstJobApplicationData = firstApplicationWithPosting ?? {}
     return {
-      job_candidate: candidate as Record<string, unknown>,
+      job_candidate: candidate,
       job_application: firstJobApplicationData,
       job_posting: firstJobPostingData,
       job_request: firstJobRequest,
-      company: company as Record<string, unknown>,
-      company_address: firstAddress as Record<string, unknown>
-    }
+      company,
+      company_address: firstAddress
+    } as Record<string, Record<string, unknown>>
   }, [fullCandidateForDoc, generateDocCandidate, companyForDoc])
 
   const { jobCandidates, total, loading, error, refetch } = useJobCandidates(

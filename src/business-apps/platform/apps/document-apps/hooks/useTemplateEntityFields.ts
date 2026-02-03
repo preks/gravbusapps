@@ -68,9 +68,9 @@ interface IntrospectionType {
 
 function humanizeFieldName(key: string): string {
   return key
-    .replaceAll(/([A-Z])/g, ' $1')
-    .replace(/^./, s => s.toUpperCase())
-    .replaceAll('_', ' ')
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (s: string) => s.toUpperCase())
+    .replace(/_/g, ' ')
     .trim()
 }
 
@@ -125,6 +125,94 @@ function filterCatalogSubFields(parentKey: string, nestedType: IntrospectionType
   return result
 }
 
+const CATALOG_PLACEHOLDER_FIELDS: TemplateEntityFieldFromGraphQL[] = [
+  { key: 'value', displayName: 'Value' },
+  { key: 'displayName', displayName: 'Display name' },
+  { key: 'code', displayName: 'Code' }
+]
+
+function getFallbackForMissingType(entityKey: string): {
+  direct: TemplateEntityFieldFromGraphQL[]
+  catalogs: TemplateCatalogGroup[]
+} {
+  const direct: TemplateEntityFieldFromGraphQL[] = []
+  if (CATALOG_ENTITY_KEYS.has(entityKey)) {
+    direct.push(...CATALOG_PLACEHOLDER_FIELDS)
+  }
+  return { direct, catalogs: [] }
+}
+
+function getEnumFallback(): { direct: TemplateEntityFieldFromGraphQL[]; catalogs: TemplateCatalogGroup[] } {
+  return { direct: [...CATALOG_PLACEHOLDER_FIELDS], catalogs: [] }
+}
+
+function getNoFieldsFallback(entityKey: string): {
+  direct: TemplateEntityFieldFromGraphQL[]
+  catalogs: TemplateCatalogGroup[]
+} {
+  const direct: TemplateEntityFieldFromGraphQL[] = []
+  if (CATALOG_ENTITY_KEYS.has(entityKey)) {
+    direct.push(...CATALOG_PLACEHOLDER_FIELDS)
+  }
+  return { direct, catalogs: [] }
+}
+
+async function processTypeFields(
+  type: IntrospectionType,
+  graphqlClient: ReturnType<typeof useGraphQLClient>
+): Promise<{ direct: TemplateEntityFieldFromGraphQL[]; catalogs: TemplateCatalogGroup[] }> {
+  const direct: TemplateEntityFieldFromGraphQL[] = []
+  const catalogs: TemplateCatalogGroup[] = []
+  if (!type.fields?.length) return { direct, catalogs }
+
+  for (const field of type.fields) {
+    const typeInfo = field.type
+    if (isScalarOrEnum(typeInfo)) {
+      if (!isRefIdField(field.name)) {
+        direct.push({ key: field.name, displayName: humanizeFieldName(field.name) })
+      }
+      continue
+    }
+    if (isObjectType(typeInfo)) {
+      const nestedTypeName = typeInfo.ofType?.name ?? typeInfo.name
+      if (!nestedTypeName) continue
+      try {
+        const nestedData = await graphqlClient.request<{ __type: IntrospectionType | null }>(INTROSPECTION_QUERY, {
+          name: nestedTypeName
+        })
+        const nestedType = nestedData?.__type
+        if (!nestedType?.fields?.length) continue
+
+        const nestedFieldNames = nestedType.fields.map(f => f.name)
+        const isCatalog = looksLikeCatalogType(nestedTypeName, nestedFieldNames)
+
+        if (isCatalog && ALLOWED_CATALOG_FIELD_KEYS.has(field.name)) {
+          const subFields = filterCatalogSubFields(field.name, nestedType)
+          if (subFields.length > 0) {
+            catalogs.push({
+              fieldKey: field.name,
+              displayName: humanizeFieldName(field.name),
+              subFields
+            })
+          }
+        } else if (!isCatalog) {
+          for (const sub of nestedType.fields) {
+            if (isScalarOrEnum(sub.type)) {
+              direct.push({
+                key: `${field.name}.${sub.name}`,
+                displayName: `${humanizeFieldName(field.name)} → ${humanizeFieldName(sub.name)}`
+              })
+            }
+          }
+        }
+      } catch {
+        // Skip nested type on introspection failure
+      }
+    }
+  }
+  return { direct, catalogs }
+}
+
 /**
  * Fetches fields for a template entity via GraphQL introspection.
  * Uses entity's graphqlTypeName; flattens one level of nested object fields (e.g. address.locality).
@@ -161,101 +249,27 @@ export function useTemplateEntityFields(
         name: entity.graphqlTypeName
       })
       const type = data?.__type
-      const direct: TemplateEntityFieldFromGraphQL[] = []
-      const catalogs: TemplateCatalogGroup[] = []
 
       if (!type) {
-        // Type not in schema (e.g. not exposed). For known catalog entities, show common placeholders.
-        if (CATALOG_ENTITY_KEYS.has(entityKey)) {
-          direct.push(
-            { key: 'value', displayName: 'Value' },
-            { key: 'displayName', displayName: 'Display name' },
-            { key: 'code', displayName: 'Code' }
-          )
-        }
+        const { direct, catalogs } = getFallbackForMissingType(entityKey)
         setDirectFields(direct)
         setCatalogGroups(catalogs)
-        setIsLoading(false)
         return
       }
-
-      // GraphQL ENUM types have enumValues, not fields (e.g. ContractType, EmploymentType)
       if (type.kind === 'ENUM' && type.enumValues?.length) {
-        direct.push(
-          { key: 'value', displayName: 'Value' },
-          { key: 'displayName', displayName: 'Display name' },
-          { key: 'code', displayName: 'Code' }
-        )
+        const { direct, catalogs } = getEnumFallback()
         setDirectFields(direct)
         setCatalogGroups(catalogs)
-        setIsLoading(false)
         return
       }
-
       if (!type.fields?.length) {
-        // Object type with no fields, or unknown kind. Fallback for catalog entities.
-        if (CATALOG_ENTITY_KEYS.has(entityKey)) {
-          direct.push(
-            { key: 'value', displayName: 'Value' },
-            { key: 'displayName', displayName: 'Display name' },
-            { key: 'code', displayName: 'Code' }
-          )
-        }
+        const { direct, catalogs } = getNoFieldsFallback(entityKey)
         setDirectFields(direct)
         setCatalogGroups(catalogs)
-        setIsLoading(false)
         return
       }
 
-      for (const field of type.fields) {
-        const typeInfo = field.type
-        if (isScalarOrEnum(typeInfo)) {
-          if (!isRefIdField(field.name)) {
-            direct.push({
-              key: field.name,
-              displayName: humanizeFieldName(field.name)
-            })
-          }
-          continue
-        }
-        if (isObjectType(typeInfo)) {
-          const nestedTypeName = typeInfo.ofType?.name ?? typeInfo.name
-          if (!nestedTypeName) continue
-          try {
-            const nestedData = await graphqlClient.request<{ __type: IntrospectionType | null }>(INTROSPECTION_QUERY, {
-              name: nestedTypeName
-            })
-            const nestedType = nestedData?.__type
-            if (!nestedType?.fields?.length) continue
-
-            const nestedFieldNames = nestedType.fields.map(f => f.name)
-            const isCatalog = looksLikeCatalogType(nestedTypeName, nestedFieldNames)
-
-            if (isCatalog && ALLOWED_CATALOG_FIELD_KEYS.has(field.name)) {
-              const subFields = filterCatalogSubFields(field.name, nestedType)
-              if (subFields.length > 0) {
-                catalogs.push({
-                  fieldKey: field.name,
-                  displayName: humanizeFieldName(field.name),
-                  subFields
-                })
-              }
-            } else if (!isCatalog) {
-              for (const sub of nestedType.fields) {
-                if (isScalarOrEnum(sub.type)) {
-                  direct.push({
-                    key: `${field.name}.${sub.name}`,
-                    displayName: `${humanizeFieldName(field.name)} → ${humanizeFieldName(sub.name)}`
-                  })
-                }
-              }
-            }
-          } catch {
-            // Skip nested type on introspection failure
-          }
-        }
-      }
-
+      const { direct, catalogs } = await processTypeFields(type, graphqlClient)
       setDirectFields(direct)
       setCatalogGroups(catalogs)
     } catch (err) {
