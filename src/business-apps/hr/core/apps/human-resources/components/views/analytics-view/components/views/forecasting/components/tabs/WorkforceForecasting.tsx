@@ -109,8 +109,12 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
 
     // Use authoritative total employee count for headcount and calculations
     const headcount = totalEmployeeCount
+    // Calculate headcount at start of year (Jan 1st) for growth rate calculation
+    // Current headcount = headcount at Jan 1st + net change (YTD)
+    // Therefore: headcount at Jan 1st = current headcount - net change
+    const headcountAtStartOfYear = headcount - netChange
     const turnoverRate = headcount > 0 ? (ytdDepartures / headcount) * 100 : 0
-    const growthRate = headcount > 0 ? (netChange / headcount) * 100 : 0
+    const growthRate = headcountAtStartOfYear > 0 ? (netChange / headcountAtStartOfYear) * 100 : 0
 
     return [
       {
