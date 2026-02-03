@@ -61,8 +61,11 @@ interface AccountSelectProps {
   initialAccount?: any
 
   // Component behavior
-  multiple?: boolean
   disabled?: boolean
+
+  // Note: multiple mode is automatically detected from value type
+  // - Array value = multiple mode
+  // - Single value = single mode
 }
 
 const AccountSelect: React.FC<AccountSelectProps> = ({
@@ -76,7 +79,6 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
   searchAccounts,
   accountContacts = [],
   initialAccount,
-  multiple = false,
   disabled = false
   // onNewAccount - can be added later if needed
 }) => {
@@ -84,6 +86,11 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
   const getAccountId = (accountValue: string | AccountValue): string => {
     return typeof accountValue === 'object' ? accountValue.id : accountValue
   }
+
+  // Derive multiple mode from value type (array = multiple, single value = single)
+  const multiple = React.useMemo(() => {
+    return Array.isArray(value)
+  }, [value])
 
   // Normalize value to always work with arrays internally
   // If value is string and initialAccount exists, create object with name (like EmployeeSelect does with initialEmployee)
@@ -386,11 +393,12 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
     onChange(multiple ? newValue : newValue[0] || '')
   }
 
-  // Handle remove account (filters out)
+  // Handle remove account (filters out or clears in single mode)
   const handleRemoveAccount = (accountId: string) => {
     const newValue = internalValue.filter(a => getAccountId(a) !== accountId)
     setInternalValue(newValue)
-    onChange(multiple ? newValue : newValue[0] || '')
+    // For single mode, emit null when cleared; for multiple mode, emit the array
+    onChange(multiple ? newValue : newValue[0] || null)
   }
 
   // Get empty text for combobox (like ContactSelect)
@@ -401,15 +409,10 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
   }
 
   // Filter out already selected accounts from available options
-  // NOTE: For single-select mode, we DON'T filter out the selected account so the Combobox can display it
   const selectedAccountIds = new Set(internalValue.map(a => getAccountId(a)))
   const availableAccountOptions = React.useMemo(() => {
     return mergedAccounts
-      .filter(a => {
-        // For single-select: keep all accounts (including selected) so Combobox can display the value
-        // For multiple-select: filter out already selected accounts
-        return multiple ? !selectedAccountIds.has(a.id) : true
-      })
+      .filter(a => !selectedAccountIds.has(a.id))
       .map(a => {
         const accountData = getAccountData({ id: a.id, name: a.label || a.name })
         // Combobox only supports string labels, so we provide name + website
@@ -425,24 +428,8 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
 
   return (
     <div className="gba:space-y-2" data-testid={dataTestId || 'account-list'}>
-      {/* For single-select mode: show combobox with selected value */}
-      {!multiple && (
-        <Combobox
-          value={internalValue.length > 0 ? getAccountId(internalValue[0]) : ''}
-          onValueChange={handleAddAccount}
-          options={availableAccountOptions}
-          placeholder="Search and select account..."
-          searchPlaceholder="Type to search..."
-          emptyText={getEmptyText()}
-          disabled={disabled || accountsLoading}
-          loading={accountsLoading}
-          onSearch={searchAccounts}
-          data-testid={formatDataTestId(dataTestId || 'account-list', 'combobox')}
-        />
-      )}
-
-      {/* Selected Accounts List - only for multiple mode */}
-      {multiple && internalValue.length > 0 && (
+      {/* Selected Accounts List - shown for both single and multiple modes */}
+      {internalValue.length > 0 && (
         <div className="gba:space-y-0" data-testid={formatDataTestId(dataTestId || 'account-list', 'selected-list')}>
           {internalValue.map((account, index) => {
             const accountId = getAccountId(account)
@@ -511,7 +498,7 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
         </div>
       )}
 
-      {/* Combobox for adding accounts - always visible */}
+      {/* Combobox for selecting/adding accounts - always visible */}
       <Combobox
         value=""
         onValueChange={handleAddAccount}
