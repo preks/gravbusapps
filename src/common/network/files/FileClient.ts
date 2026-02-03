@@ -129,16 +129,42 @@ export class FileClient extends RestClient {
       Accept: 'application/pdf, application/octet-stream, */*'
     }
 
-    // Remove leading slash if present since RestClient will add it
-    const path = filePath.startsWith('/') ? filePath.substring(1) : filePath
+    // File service returns download paths in different shapes depending on endpoint:
+    // - Upload/PUT often returns: /tenant/...
+    // - Download paths are commonly: /api/v1/tenant/downloads/...
+    //
+    // Our RestClient baseUrl for FileClient is NEXT_PUBLIC_FILE_SERVICE_ENDPOINT, usually:
+    //   https://<host>/files/api/v1
+    // For /api/v1/... paths, we must call https://<host>/files + <path> (NOT /files/api/v1 + /api/v1/...).
+    const normalizedPath = filePath.startsWith('/') ? filePath : `/${filePath}`
+    const fileServiceEndpoint = this.baseUrl // e.g. https://newwork-dev.newwork.com/files/api/v1
+    const filesBaseUrl = fileServiceEndpoint.replace(/\/api\/v1\/?$/, '') // -> https://newwork-dev.newwork.com/files
+
+    const url = normalizedPath.startsWith('/api/v1/')
+      ? `${filesBaseUrl}${normalizedPath}`
+      : `${fileServiceEndpoint}${normalizedPath}`
 
     try {
-      // Always force BLOB response type for file downloads
-      return await this.get(path, {
-        ...options,
+      const response = await fetch(url, {
+        method: 'GET',
         headers,
-        responseType: ResponseType.BLOB
+        credentials: options.withCredentials ? 'include' : 'same-origin',
+        mode: 'cors',
+        signal: options.signal
       })
+
+      if (!response.ok) {
+        let errorMessage = response.statusText || `HTTP error! status: ${response.status}`
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData?.message || errorData?.error || errorMessage
+        } catch {
+          // ignore JSON parse errors for non-JSON error bodies
+        }
+        throw new Error(`REST request failed: ${response.status} - ${errorMessage}`)
+      }
+
+      return await response.blob()
     } catch (error) {
       console.error('FileClient: Error downloading file by path:', error)
       throw error

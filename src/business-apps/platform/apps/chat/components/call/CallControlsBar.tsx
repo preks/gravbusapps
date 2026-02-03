@@ -35,6 +35,8 @@ export interface CallControlsBarProps {
   backgroundEnabled: boolean
   /** Whether hand is raised */
   handRaised: boolean
+  /** Whether transcription is active */
+  transcriptionActive?: boolean
   /** Callback to toggle mute */
   onToggleMute: () => void
   /** Callback to toggle video */
@@ -64,6 +66,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
   isScreenSharing,
   backgroundEnabled,
   handRaised,
+  transcriptionActive,
   onToggleMute,
   onToggleVideo,
   onToggleScreenShare,
@@ -77,26 +80,34 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
   const [reactionsOpen, setReactionsOpen] = useState(false)
 
   return (
-    <div className="gba:border-t gba:bg-background gba:flex-shrink-0">
-      <div className="gba:flex gba:items-center gba:justify-center gba:px-6 gba:py-3 gba:gap-6">
+    <div className="gba:flex-shrink-0">
+      <div className="gba:flex gba:items-center gba:justify-center gba:px-4 gba:py-2.5 gba:gap-3">
         {/* Left: Media Controls Group */}
         <div className="gba:flex gba:items-center gba:gap-3">
+          {/* Transcription indicator */}
+          {transcriptionActive && (
+            <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1 gba:rounded-full gba:bg-destructive/10 gba:text-destructive">
+              <Microphone className="gba:w-4 gba:h-4 gba:animate-pulse" weight="fill" />
+              <span className="gba:text-xs gba:font-semibold">{t('chat-call-recording')}</span>
+            </div>
+          )}
+
           {/* Mute button */}
           <button
             onClick={onToggleMute}
-            className={`gba:p-3 gba:rounded-full gba:transition-all ${
+            className={`gba:p-2.5 gba:rounded-full gba:transition-all ${
               isMuted
                 ? 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
-                : 'gba:bg-accent hover:gba:bg-accent/90'
+                : 'gba:bg-accent gba:text-accent-foreground hover:gba:bg-accent/90'
             }`}
             data-testid={`${prefixDataTestId}-mute-btn`}
             aria-label={isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
             title={isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
           >
             {isMuted ? (
-              <MicrophoneSlash className="gba:w-5 gba:h-5" weight="fill" />
+              <MicrophoneSlash className="gba:w-4 gba:h-4" weight="fill" />
             ) : (
-              <Microphone className="gba:w-5 gba:h-5" weight="fill" />
+              <Microphone className="gba:w-4 gba:h-4" weight="fill" />
             )}
           </button>
 
@@ -104,34 +115,34 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
           {callType === 'video' && (
             <button
               onClick={onToggleVideo}
-              className={`gba:p-3 gba:rounded-full gba:transition-all ${
+              className={`gba:p-2.5 gba:rounded-full gba:transition-all ${
                 !isVideoEnabled
                   ? 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
-                  : 'gba:bg-accent hover:gba:bg-accent/90'
+                  : 'gba:bg-accent gba:text-accent-foreground hover:gba:bg-accent/90'
               }`}
               data-testid={`${prefixDataTestId}-video-btn`}
               aria-label={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
               title={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
             >
               {isVideoEnabled ? (
-                <VideoCamera className="gba:w-5 gba:h-5" weight="fill" />
+                <VideoCamera className="gba:w-4 gba:h-4" weight="fill" />
               ) : (
-                <VideoCameraSlash className="gba:w-5 gba:h-5" weight="fill" />
+                <VideoCameraSlash className="gba:w-4 gba:h-4" weight="fill" />
               )}
             </button>
           )}
         </div>
 
         {/* Separator */}
-        <div className="gba:h-8 gba:w-px gba:bg-border/50" />
+        <div className="gba:h-6 gba:w-px gba:bg-border/50" />
 
         {/* Center: Sharing & Effects Controls Group */}
-        <div className="gba:flex gba:items-center gba:gap-3">
+        <div className="gba:flex gba:items-center gba:gap-2">
           {/* Screen share button */}
           {onToggleScreenShare && (
             <button
               onClick={onToggleScreenShare}
-              className={`gba:p-3 gba:rounded-full gba:transition-all ${
+              className={`gba:p-2.5 gba:rounded-full gba:transition-all ${
                 isScreenSharing
                   ? 'gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90'
                   : 'gba:bg-accent hover:gba:bg-accent/90'
@@ -144,7 +155,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                 isScreenSharing ? t('chat-stopSharing') || 'Stop sharing' : t('chat-shareScreen') || 'Share screen'
               }
             >
-              <Monitor className="gba:w-5 gba:h-5" weight="fill" />
+              <Monitor className="gba:w-4 gba:h-4" weight="fill" />
             </button>
           )}
 
@@ -152,7 +163,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
           {onToggleBackground && callType === 'video' && (
             <button
               onClick={onToggleBackground}
-              className={`gba:p-3 gba:rounded-full gba:transition-all ${
+              className={`gba:p-2.5 gba:rounded-full gba:transition-all ${
                 backgroundEnabled
                   ? 'gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90'
                   : 'gba:bg-accent hover:gba:bg-accent/90'
@@ -169,7 +180,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                   : t('groupCall-enableBackground') || 'Enable background'
               }
             >
-              <Image className="gba:w-5 gba:h-5" weight="fill" />
+              <Image className="gba:w-4 gba:h-4" weight="fill" />
             </button>
           )}
 
@@ -177,7 +188,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
           {onToggleRaiseHand && (
             <button
               onClick={onToggleRaiseHand}
-              className={`gba:p-3 gba:rounded-full gba:transition-all ${
+              className={`gba:p-2.5 gba:rounded-full gba:transition-all ${
                 handRaised
                   ? 'gba:bg-warning gba:text-warning-foreground hover:gba:bg-warning/90'
                   : 'gba:bg-accent hover:gba:bg-accent/90'
@@ -186,7 +197,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
               aria-label={handRaised ? 'Lower hand' : 'Raise hand'}
               title={handRaised ? 'Lower hand' : 'Raise hand'}
             >
-              <HandIcon className="gba:w-5 gba:h-5" weight="fill" />
+              <HandIcon className="gba:w-4 gba:h-4" weight="fill" />
             </button>
           )}
 
@@ -195,12 +206,12 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
             <Popover open={reactionsOpen} onOpenChange={setReactionsOpen}>
               <PopoverTrigger asChild>
                 <button
-                  className="gba:p-3 gba:rounded-full gba:bg-accent hover:gba:bg-accent/90 gba:transition-all"
+                  className="gba:p-2.5 gba:rounded-full gba:bg-accent hover:gba:bg-accent/90 gba:transition-all"
                   data-testid={`${prefixDataTestId}-reactions-btn`}
                   aria-label="Send reaction"
                   title="Send reaction"
                 >
-                  <Smiley className="gba:w-5 gba:h-5" weight="fill" />
+                  <Smiley className="gba:w-4 gba:h-4" weight="fill" />
                 </button>
               </PopoverTrigger>
               <PopoverContent
@@ -231,18 +242,18 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
         </div>
 
         {/* Separator */}
-        <div className="gba:h-8 gba:w-px gba:bg-border/50" />
+        <div className="gba:h-6 gba:w-px gba:bg-border/50" />
 
         {/* Right: End Call Button */}
         <button
           onClick={onEndCall}
-          className="gba:px-6 gba:py-3 gba:rounded-full gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90 gba:transition-all gba:font-semibold gba:flex gba:items-center gba:gap-2"
+          className="gba:px-4 gba:py-2 gba:rounded-full gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90 gba:transition-all gba:font-medium gba:flex gba:items-center gba:gap-1.5"
           data-testid={`${prefixDataTestId}-end-btn`}
           aria-label={t('groupCall-endCall')}
           title={t('groupCall-endCall')}
         >
-          <PhoneDisconnect className="gba:w-4 gba:h-4" weight="fill" />
-          <span className="gba:text-sm">{t('groupCall-endCall') || 'End call'}</span>
+          <PhoneDisconnect className="gba:w-3.5 gba:h-3.5" weight="fill" />
+          <span className="gba:text-xs">{t('groupCall-endCall') || 'End call'}</span>
         </button>
       </div>
     </div>

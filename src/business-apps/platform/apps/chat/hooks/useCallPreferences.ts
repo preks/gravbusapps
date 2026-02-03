@@ -53,15 +53,15 @@ const getSavedVideoQuality = (): VideoQuality => {
 
 /**
  * Get saved background enabled state from localStorage
- * @returns Saved state or true as default (enabled on first use)
+ * @returns Saved state or false as default (disabled to prevent video flashing)
  */
 const getSavedBackgroundEnabled = (): boolean => {
   try {
     const saved = localStorage.getItem(PREF_BACKGROUND_ENABLED_KEY)
-    // Default to true if never set (first time), otherwise respect user preference
-    return saved === null ? true : saved === 'true'
+    // Default to false if never set (prevents auto-apply feedback loop)
+    return saved === null ? false : saved === 'true'
   } catch {
-    return true // Default to enabled
+    return false // Default to disabled
   }
 }
 

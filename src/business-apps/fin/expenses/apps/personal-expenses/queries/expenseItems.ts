@@ -263,6 +263,15 @@ export const GET_EXPENSE_ITEM_BY_ID = `
   }
 `
 
+export const GET_EXPENSE_ITEMS_STATUS_BY_IDS = `
+  query GetExpenseItemsStatusByIds($ids: [uuid!]!) {
+    ExpenseItem(where: { id: { _in: $ids } }) {
+      id
+      status
+    }
+  }
+`
+
 export const GET_EXPENSE_ITEM_STATISTICS = `
   query GetExpenseItemStatistics($employeeId: uuid!, $startDate: timestamp, $endDate: timestamp, $currencyRef: String!) {
     totalExpenses: ExpenseItemAggregate(

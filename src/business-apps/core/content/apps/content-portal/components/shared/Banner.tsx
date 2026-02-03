@@ -6,7 +6,8 @@ export enum BannerVariant {
   INTRANET = 'intranet',
   DOCUMENT = 'document',
   QUESTION = 'question',
-  GLOSSARY = 'glossary'
+  GLOSSARY = 'glossary',
+  ENGAGEMENT = 'engagement'
 }
 
 export interface BannerConfig {
@@ -30,12 +31,12 @@ interface BannerCarouselProps {
 export const gradients = {
   [BannerVariant.INTRANET]: {
     className:
-      'gba:bg-gradient-to-r gba:from-pink-500 gba:via-red-500 gba:to-orange-500 gba:dark:from-red-500 gba:dark:via-orange-500 gba:dark:to-yellow-500',
+      'gba:bg-gradient-to-r gba:from-sky-400 gba:via-blue-500 gba:to-sky-500 gba:dark:from-sky-600 gba:dark:via-blue-600 gba:dark:to-sky-700',
     textColor: 'gba:text-white'
   },
   [BannerVariant.NEWS]: {
     className:
-      'gba:bg-gradient-to-r gba:from-cyan-400 gba:via-blue-400 gba:to-indigo-400 gba:dark:from-cyan-700 gba:dark:via-blue-500 gba:dark:to-indigo-600',
+      'gba:bg-gradient-to-r gba:from-cyan-400 gba:via-blue-400 gba:to-blue-500 gba:dark:from-cyan-600 gba:dark:via-blue-500 gba:dark:to-blue-600',
     textColor: 'gba:text-white'
   },
   [BannerVariant.KNOWLEDGE]: {
@@ -45,17 +46,22 @@ export const gradients = {
   },
   [BannerVariant.DOCUMENT]: {
     className:
-      'gba:bg-gradient-to-r gba:from-yellow-200 gba:via-yellow-400 gba:to-yellow-600 gba:dark:from-yellow-400 gba:dark:via-orange-500 gba:dark:to-yellow-600',
+      'gba:bg-gradient-to-r gba:from-slate-400 gba:via-slate-500 gba:to-blue-400 gba:dark:from-slate-500 gba:dark:via-slate-600 gba:dark:to-blue-500',
     textColor: 'gba:text-white'
   },
   [BannerVariant.QUESTION]: {
     className:
-      'gba:bg-gradient-to-r gba:from-purple-500 gba:via-violet-500 gba:to-fuchsia-500 gba:dark:from-purple-600 gba:dark:via-violet-600 gba:dark:to-fuchsia-600',
+      'gba:bg-gradient-to-r gba:from-blue-400 gba:via-sky-400 gba:to-blue-500 gba:dark:from-blue-500 gba:dark:via-sky-500 gba:dark:to-blue-600',
     textColor: 'gba:text-white'
   },
   [BannerVariant.GLOSSARY]: {
     className:
-      'gba:bg-gradient-to-r gba:from-amber-500 gba:via-orange-500 gba:to-rose-500 gba:dark:from-amber-600 gba:dark:via-orange-600 gba:dark:to-rose-600',
+      'gba:bg-gradient-to-r gba:from-blue-600 gba:via-blue-500 gba:to-blue-400 gba:dark:from-blue-700 gba:dark:via-blue-600 gba:dark:to-blue-500',
+    textColor: 'gba:text-white'
+  },
+  [BannerVariant.ENGAGEMENT]: {
+    className:
+      'gba:bg-gradient-to-r gba:from-slate-500 gba:via-blue-500 gba:to-slate-600 gba:dark:from-slate-600 gba:dark:via-blue-600 gba:dark:to-slate-700',
     textColor: 'gba:text-white'
   }
 }

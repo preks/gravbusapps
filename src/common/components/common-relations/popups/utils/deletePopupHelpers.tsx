@@ -8,10 +8,12 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
  * These are simple utility functions that return JSX, not React components
  */
 
-export const renderLoadingState = (prefixDataTestId: string, entityType: string) => (
+export const renderLoadingState = (prefixDataTestId: string, entityType: string, customMessage?: string) => (
   <div className="gba:p-6 gba:text-center" data-testid={formatDataTestId(prefixDataTestId, 'loading')}>
     <Spinner size="lg" className="gba:mx-auto gba:mb-4" />
-    <p>{getTranslationFromI18nKeyAndLabel(`${entityType}.delete.loading`, `Loading ${entityType}...`)}</p>
+    <p>
+      {customMessage || getTranslationFromI18nKeyAndLabel(`${entityType}.delete.loading`, `Loading ${entityType}...`)}
+    </p>
   </div>
 )
 
@@ -38,7 +40,7 @@ export const renderDeleteWarning = (
     data-testid={formatDataTestId(prefixDataTestId, 'warning')}
   >
     <div className="gba:flex">
-      <div className="gba:flex-shrink-0">
+      <div className="gba:shrink-0">
         <svg className="gba:h-5 gba:w-5 gba:text-destructive" viewBox="0 0 20 20" fill="currentColor">
           <path
             fillRule="evenodd"

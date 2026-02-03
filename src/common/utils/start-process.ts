@@ -9,6 +9,8 @@ export interface ProcessStartInfo {
   processInstanceId?: string
   builderType?: 'NATIVE_SCREEN' | 'LOWCODER'
   skipScreen?: boolean
+  targetDesktop?: string
+  targetMobile?: string
 }
 
 export function getCurrentActiveStructureId() {
@@ -37,14 +39,26 @@ export function startProcess({
   payload,
   processInstanceId,
   builderType = 'LOWCODER',
-  skipScreen = false
+  skipScreen = false,
+  targetDesktop,
+  targetMobile
 }: ProcessStartInfo) {
+  const startProcessBody = { ...getPlatformContext(), ...payload }
+
+  // Include targetDesktop and targetMobile in startProcessBody for platform compatibility
+  if (targetDesktop) {
+    startProcessBody.targetDesktop = targetDesktop
+  }
+  if (targetMobile) {
+    startProcessBody.targetMobile = targetMobile
+  }
+
   window.dispatchEvent(
     new CustomEvent('com.newwork.process.start', {
       detail: {
         domain,
         processName,
-        startProcessBody: { ...getPlatformContext(), ...payload },
+        startProcessBody,
         processInstanceId,
         builderType,
         skipScreen

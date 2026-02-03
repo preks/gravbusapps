@@ -221,7 +221,10 @@ call-micOn = Mic
 call-micOff = Mic off
 call-cameraOn = Camera
 call-cameraOff = Camera off
+call-backgroundOn = Background
+call-backgroundOff = Background off
 call-startedBy = Started by
+call-activeParticipants = active
 call-unmute = Unmute
 call-mute = Mute
 call-turnOnCamera = Turn on camera
@@ -270,6 +273,53 @@ groupCall-turnOffVideo = Turn off camera
 groupCall-endCall = End call
 groupCall-enableBackground = Enable background effect
 groupCall-disableBackground = Disable background effect
+groupCall-chat = Chat
+
+# Participants Panel
+participants-close = Close
+participants-in-this-call = In this call
+participants-available = Available
+participants-pending-invites = Pending invites
+participants-invite = Invite
+participants-inviting = Inviting...
+participants-no-available = No participants available to invite
+participants-host = Host
+participants-mute = Mute
+participants-kick = Kick
+participants-no-hands-raised = No one has their hand raised
+participants-hand-raised = Hand raised
+participants-screen-sharing = Screen sharing
+participants-audio-only = Audio only
+participants-speaking = Speaking
+participants-more-options = More options
+participants-mute-participant = Mute {$name}
+participants-mute-all = Mute all
+participants-no-results-found = No results found
+participants-try-different-search = Try a different search term or browse all participants
+participants-clear-search = Clear Search
+participants-everyones-here = Everyone's here!
+participants-all-members-in-call = All conversation members are either in the call or have been invited.
+participants-in-call = In Call
+participants-invited = Invited
+participants-unknown = Unknown
+participants-you = You
+participants-declined-invite = Declined invite
+participants-not-answered = Not answered
+participants-ringing = Ringing...
+participants-available-to-invite = Available to invite
+
+# Video Grid
+videogrid-page-info = Page {$current} of {$total}
+videogrid-previous-page = Previous page
+videogrid-next-page = Next page
+
+# Transcription
+chat-call-enableTranscription = Enable Transcription
+chat-call-transcriptionActive = Recording
+chat-call-recording = Recording
+chat-transcript-ready = Meeting Transcript Ready
+chat-transcript-view = View Transcript
+chat-transcript-saved = Your meeting transcript has been saved
 
 # Notifications
 notifications-title = Notifications
@@ -332,6 +382,8 @@ calendar-monthly = Monthly
 calendar-endDate = End date
 calendar-reminders = Reminders
 calendar-color = Color
+calendar-aiTranscription = AI Meeting Transcription
+calendar-aiTranscriptionDescription = Automatically transcribe and save meeting conversation for all participants
 calendar-cancel = Cancel
 calendar-createMeeting = Create Meeting
 calendar-saveChanges = Save Changes
@@ -366,6 +418,8 @@ calendar-accept = Accept
 calendar-maybe = Maybe
 calendar-decline = Decline
 calendar-joinCall = Join Call
+calendar-startMeeting = Start Meeting
+calendar-joinMeeting = Join Meeting
 calendar-chat = Chat
 calendar-edit = Edit
 

@@ -5,60 +5,8 @@ set -euo pipefail
 extract_app_paths() {
   local input_file="$1"
   local output_file="$2"
-  
-  # Clear the output file
-  > "$output_file"
-  
-  # Check if input file exists and has content
-  if [[ ! -f "$input_file" ]] || [[ ! -s "$input_file" ]]; then
-    return 0
-  fi
-  
-  # Process each .tsx file path and extract the directory path
-  while IFS= read -r file_path || [[ -n "$file_path" ]]; do
-    # Skip empty lines
-    [[ -z "$file_path" ]] && continue
-    
-    # Extract app directory path using sed
-    # Pattern: src/business-apps/.../apps/[app-name]
-    app_path=$(echo "$file_path" | sed -n 's|\(src/business-apps/.*/apps/[^/]*\).*|\1|p')
-    
-    # Extract form directory path using sed
-    # Pattern: src/business-apps/.../forms/[form-name]
-    form_path=$(echo "$file_path" | sed -n 's|\(src/business-apps/.*/forms/[^/]*\).*|\1|p')
-    
-    # Extract popup directory path using sed
-    # Pattern: src/business-apps/.../popups/[popup-name]
-    popup_path=$(echo "$file_path" | sed -n 's|\(src/business-apps/.*/popups/[^/]*\).*|\1|p')
-    
-    # Extract record directory path using sed
-    # Pattern: src/business-apps/.../records/[record-name]
-    record_path=$(echo "$file_path" | sed -n 's|\(src/business-apps/.*/records/[^/]*\).*|\1|p')
-    
-    # Extract window directory path using sed
-    # Pattern: src/business-apps/.../windows/[window-name]
-    window_path=$(echo "$file_path" | sed -n 's|\(src/business-apps/.*/windows/[^/]*\).*|\1|p')
-    
-    if [[ -n "$app_path" ]]; then
-      echo "$app_path"
-    fi
 
-    if [[ -n "$form_path" ]]; then
-      echo "$form_path"
-    fi
-
-    if [[ -n "$popup_path" ]]; then
-      echo "$popup_path"
-    fi
-
-    if [[ -n "$record_path" ]]; then
-      echo "$record_path"
-    fi
-
-    if [[ -n "$window_path" ]]; then
-      echo "$window_path"
-    fi
-  done < "$input_file" | sort -u > "$output_file"
+  node scripts/map-files-to-screens.js "$input_file" "$output_file"
 }
 
 # Function to detect the default branch
@@ -217,14 +165,7 @@ fi
 
 # Build cache of screen directories (folders with index.ts)
 build_screen_dirs_cache() {
-  # Find all index.ts files in screens and get their directories
-  find src/business-apps -type f -name 'index.ts' 2>/dev/null | while read -r index_file; do
-    dir=$(dirname "$index_file")
-    # Check if it's in screens
-    if echo "$dir" | grep -qE '/(apps|forms|popups|records|windows)/[^/]+$'; then
-      echo "$dir"
-    fi
-  done | sort -u
+  node scripts/list-screen-dirs.js
 }
 
 # Cache screen directories
@@ -233,22 +174,16 @@ SCREEN_DIRS_CACHE=$(build_screen_dirs_cache)
 # Function to check if a file is screen-specific
 is_screen_specific() {
   local file="$1"
-  
-  # Must be in screens to even be considered
-  if ! echo "$file" | grep -qE '/(apps|forms|popups|records|windows)/'; then
-    return 1  # false - not in screen folder type
-  fi
-  
+
   # Check if this file is inside any known screen directory
   while IFS= read -r screen_dir; do
     if [[ "$file" == "$screen_dir"/* || "$file" == "$screen_dir" ]]; then
       return 0  # true - is screen specific
     fi
   done <<< "$SCREEN_DIRS_CACHE"
-  
-  # File is in screens but NOT in a folder with index.ts
-  # This means it's shared code (e.g., forms/components/)
-  return 1  # false - is shared
+
+  # File is not inside any screen directory
+  return 1
 }
 
 # Check if there are dependency-related changes:

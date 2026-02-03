@@ -1,8 +1,8 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
-import { DataDetails } from '@/components/data-details'
 import { ChangeLogEntry as ChangeLogEntryType } from '../../ChangeLogTab'
-import { FIELD_CATEGORIES } from './constants'
+import { getFieldCategories } from './constants'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
 
 interface ChangeLogEntryProps {
   entry: ChangeLogEntryType
@@ -11,9 +11,12 @@ interface ChangeLogEntryProps {
 // FIELD_CATEGORIES imported from constants
 
 export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
-  if (!entry.isVisible) return null
+  // Compute categories at runtime using useMemo to avoid module-level initialization
+  // Must be called before any conditional returns to comply with Rules of Hooks
+  const fieldCategories = useMemo(() => getFieldCategories(), [])
+  const categoryInfo = fieldCategories.find(cat => cat.value === entry.fieldCategory)
 
-  const categoryInfo = FIELD_CATEGORIES.find(cat => cat.value === entry.fieldCategory)
+  if (!entry.isVisible) return null
 
   const [open, setOpen] = React.useState(false)
 
@@ -55,58 +58,58 @@ export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
         </div>
       </div>
 
-      {open && (
-        <>
-          {/* Floating Details panel – matches DataContainer floatingDetails (no page dimming) */}
-          <aside
-            aria-label="Details panel"
-            className="gba:fixed gba:top-12 gba:right-0 gba:bottom-0 gba:w-[400px] gba:bg-white gba:border-l gba:border-gray-200 gba:z-20 gba:flex gba:flex-col gba:!shadow-lg"
-            data-testid={`hr-changelog-details-${entry.id}`}
-          >
-            <DataDetails title={entry.fieldName} onClose={() => setOpen(false)} className="gba:px-6">
-              <div className="gba:space-y-4">
-                <div className="gba:space-y-3">
-                  {(() => {
-                    const channel = entry.channelName || (entry.fieldDetail || '').replace(/^Channel:\s*/i, '')
-                    return channel ? (
-                      <div className="gba:py-2 gba:px-1">
-                        <p className="gba:text-base gba:font-semibold gba:text-foreground">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.labels.channel', 'Channel')}
-                        </p>
-                        <p className="gba:text-sm gba:text-foreground">{channel}</p>
-                      </div>
-                    ) : null
-                  })()}
-                  <div className="gba:py-2 gba:px-1">
-                    <p className="gba:text-base gba:font-semibold gba:text-foreground">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.labels.category', 'Category')}
-                    </p>
-                    <p className="gba:text-sm gba:text-foreground">{categoryInfo?.label || '-'}</p>
-                  </div>
-                  <div className="gba:py-2 gba:px-1">
-                    <p className="gba:text-base gba:font-semibold gba:text-foreground">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.labels.timestamp', 'Timestamp')}
-                    </p>
-                    <p className="gba:text-sm gba:text-foreground">{safeFormatDate(entry.timestamp, 'date.short')}</p>
-                  </div>
-                  <div className="gba:py-2 gba:px-1">
-                    <p className="gba:text-base gba:font-semibold gba:text-foreground">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.privacy.created_by', 'Created by')}
-                    </p>
-                    <p className="gba:text-sm gba:text-foreground">
-                      {entry.changedBy.userName || entry.changedBy.userId}
-                    </p>
-                  </div>
-                  <div className="gba:py-2 gba:px-1">
-                    <p className="gba:text-base gba:font-semibold gba:text-foreground">Flow</p>
-                    <p className="gba:text-sm gba:text-foreground">{entry.changeOrigin.flowName}</p>
-                  </div>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent
+          side="right"
+          className="gba:w-[400px] gba:max-w-[400px] gba:sm:max-w-[400px] gba:p-0 gba:flex gba:flex-col"
+          data-testid={`hr-changelog-details-${entry.id}`}
+        >
+          <SheetHeader className="gba:px-6 gba:py-4 gba:border-b gba:border-border">
+            <SheetTitle>{entry.fieldName}</SheetTitle>
+          </SheetHeader>
+          <div className="gba:flex-1 gba:overflow-auto gba:px-6 gba:py-4">
+            <div className="gba:space-y-4">
+              <div className="gba:space-y-3">
+                {(() => {
+                  const channel = entry.channelName || (entry.fieldDetail || '').replace(/^Channel:\s*/i, '')
+                  return channel ? (
+                    <div className="gba:py-2 gba:px-1">
+                      <p className="gba:text-base gba:font-semibold gba:text-foreground">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.labels.channel', 'Channel')}
+                      </p>
+                      <p className="gba:text-sm gba:text-foreground">{channel}</p>
+                    </div>
+                  ) : null
+                })()}
+                <div className="gba:py-2 gba:px-1">
+                  <p className="gba:text-base gba:font-semibold gba:text-foreground">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.group_by.category', 'Category')}
+                  </p>
+                  <p className="gba:text-sm gba:text-foreground">{categoryInfo?.label || '-'}</p>
+                </div>
+                <div className="gba:py-2 gba:px-1">
+                  <p className="gba:text-base gba:font-semibold gba:text-foreground">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.labels.timestamp', 'Timestamp')}
+                  </p>
+                  <p className="gba:text-sm gba:text-foreground">{safeFormatDate(entry.timestamp, 'date.short')}</p>
+                </div>
+                <div className="gba:py-2 gba:px-1">
+                  <p className="gba:text-base gba:font-semibold gba:text-foreground">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.privacy.created_by', 'Created by')}
+                  </p>
+                  <p className="gba:text-sm gba:text-foreground">
+                    {entry.changedBy.userName || entry.changedBy.userId}
+                  </p>
+                </div>
+                <div className="gba:py-2 gba:px-1">
+                  <p className="gba:text-base gba:font-semibold gba:text-foreground">Flow</p>
+                  <p className="gba:text-sm gba:text-foreground">{entry.changeOrigin.flowName}</p>
                 </div>
               </div>
-            </DataDetails>
-          </aside>
-        </>
-      )}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </>
   )
 }

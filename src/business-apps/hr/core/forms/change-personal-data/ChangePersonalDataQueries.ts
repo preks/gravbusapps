@@ -165,7 +165,7 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
       }
     }
     
-    documentGroup: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentGroup"}}}) {
+    documentGroup: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentGroup"}}, additionalValue1: {_eq: "HRM"}}) {
       value
       id
       translations(where: {localeCode: {_eq: $activeUserLocale}}) {
@@ -180,6 +180,7 @@ export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: Str
     documentType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentType"}}}) {
       value
       id
+      parentEntryId
       translations(where: {localeCode: {_eq: $activeUserLocale}}) {
         localeCode
         value

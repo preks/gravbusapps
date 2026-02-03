@@ -31,6 +31,7 @@ import { Share2, Users, X, Search, Trash2, Eye, Pencil, Shield, Send, CheckCircl
 import { toast } from 'sonner'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { env } from '@/common/env/EnvUtils'
+import { getCanonicalContentUrl } from '@/common/utils/navigationUtils'
 import type { SharePermission } from '../types'
 
 export interface ShareAppDialogProps {
@@ -111,8 +112,12 @@ const sendBlinkNotifications = async (
 
     const workflowIds: string[] = []
 
-    // Build the app URL - use filePath to create shareable link
-    const appUrl = `/platform/spreadsheets?appId=${payload.appId}&view=viewer&filePath=${encodeURIComponent(payload.appFilePath)}`
+    // Build the app URL using canonical URL
+    const appUrl = getCanonicalContentUrl('spreadsheet', {
+      appId: payload.appId,
+      view: 'viewer',
+      filePath: payload.appFilePath
+    })
 
     for (const userId of payload.assigneeUserIds) {
       // Build entity link for the links array (displayed in task inbox)

@@ -42,6 +42,37 @@ const getOwnerName = (account: Account) => {
 }
 
 /**
+ * Creates a prospective column with context-aware labeling
+ * @param context - 'crm' or 'irm' to determine non-prospective label
+ * @returns Column definition for prospective field
+ */
+export function createProspectiveColumn(context: 'crm' | 'irm'): ColumnDef<Account> {
+  const nonProspectiveLabel = context === 'irm' ? 'Portfolio Company' : 'Customer'
+
+  return {
+    id: 'prospective',
+    accessorFn: row => (row.prospective ? 'Prospect' : nonProspectiveLabel),
+    header: 'Category',
+    size: 150,
+    minSize: 120,
+    maxSize: 200,
+    enableResizing: false,
+    cell: ({ row }) => {
+      const isProspective = row.original.prospective
+      return (
+        <Badge
+          variant={isProspective ? 'info' : 'success'}
+          className="gba:text-sm"
+          data-testid={`account-prospective-cell-${row.original.id}`}
+        >
+          {isProspective ? 'Prospect' : nonProspectiveLabel}
+        </Badge>
+      )
+    }
+  }
+}
+
+/**
  * Default Account Columns - Base columns that work for both Customer and Investment Accounts
  * Uses Account (the CORRECT structure)
  * Accounts must be mapped via accountMapper before passing to these columns
@@ -79,6 +110,27 @@ export const commonAccountColumns: ColumnDef<Account>[] = [
             </div>
           </div>
         </div>
+      )
+    }
+  },
+  {
+    id: 'prospective',
+    accessorFn: row => (row.prospective ? 'Prospect' : 'Established'),
+    header: 'Category',
+    size: 150,
+    minSize: 120,
+    maxSize: 200,
+    enableResizing: false,
+    cell: ({ row }) => {
+      const isProspective = row.original.prospective
+      return (
+        <Badge
+          variant={isProspective ? 'info' : 'success'}
+          className="gba:text-sm"
+          data-testid={`account-prospective-cell-${row.original.id}`}
+        >
+          {isProspective ? 'Prospect' : 'Established'}
+        </Badge>
       )
     }
   },
@@ -454,6 +506,7 @@ export const defaultAccountSortableColumns = deriveSortableColumns(
  */
 export const defaultVisibleAccountColumns = [
   'name',
+  'prospective',
   'communicationChannels',
   'addresses',
   'accountPriority',

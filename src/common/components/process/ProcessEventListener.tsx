@@ -6,6 +6,8 @@ export interface ProcessLocalDevEvent {
   processName: string
   startProcessBody: any
   processInstanceId?: string
+  builderType?: 'NATIVE_SCREEN' | 'LOWCODER'
+  skipScreen?: boolean
 }
 
 interface ProcessEventListenerProps {

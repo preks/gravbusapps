@@ -22,6 +22,7 @@ export interface UseGroupCallOptions {
   onCallEnded?: (roomId: string, duration: number) => void
   onParticipantJoined?: (participant: CallParticipant) => void
   onParticipantLeft?: (participantId: string) => void
+  accessToken?: string | null
 }
 
 export interface GroupCallInvite {
@@ -46,9 +47,11 @@ export interface GroupCallUIState {
   backgroundEnabled: boolean
   handRaised: boolean // Whether local user has hand raised
   remoteHandsRaised: Record<string, boolean> // Map of participantId -> handRaised for remote participants
+  handRaisedOrder?: Record<string, { order: number; timestamp: number }> // Map of participantId -> order and timestamp
   startTime: number | null
   duration: number
   callImplementation: 'mesh' | 'realtime-kit' | '1-on-1' // Track which implementation is used
+  calendarMeetingId?: string | null // Calendar meeting ID for AI transcription (only for calls started from calendar)
 }
 
 export interface ActiveConversationCall {
@@ -60,12 +63,15 @@ export interface ActiveConversationCall {
   conversationName?: string
 }
 
+export type InviteStatus = 'pending' | 'declined' | 'not-answered'
+
 export interface PendingInvite {
   id: string
   odId: string
   odName: string
   avatarUrl?: string
   invitedAt: number
+  status?: InviteStatus
 }
 
 export interface UseGroupCallReturn {
@@ -82,11 +88,20 @@ export interface UseGroupCallReturn {
   currentCallConversationName?: string // Conversation name for the current active call
   activeSpeakerId?: string | null // Current active speaker ID (RTK only)
   activeSpeakerHistory?: string[] // Recent speakers for sorting (RTK only)
+  /**
+   * Start a new group call
+   * @param roomId - The room/conversation ID for the call
+   * @param callType - Type of call (audio or video)
+   * @param participants - List of participants to invite
+   * @param conversationName - Optional name of the conversation
+   * @param calendarMeetingId - Optional calendar meeting ID for linking to AI transcription (RealtimeKit only, unused in mesh implementation)
+   */
   startCall: (
     roomId: string,
     callType: CallType,
     participants: CallParticipant[],
-    conversationName?: string
+    conversationName?: string,
+    calendarMeetingId?: string | null
   ) => Promise<void>
   joinCall: (roomId: string, callType: CallType, initialParticipants?: CallParticipant[]) => Promise<void>
   acceptInvite: () => Promise<void>
@@ -102,6 +117,8 @@ export interface UseGroupCallReturn {
   sendReaction?: (emoji: string) => Promise<void>
   inviteToCall: (participants: CallParticipant[], conversationName?: string) => void
   reconnectParticipant: (participantId: string) => Promise<void>
+  transcriptionEnabled?: boolean
+  toggleTranscription?: () => void
   // Debugging
   getConnectionDiagnostics: () => Map<string, any>
 }
@@ -573,12 +590,32 @@ export const useGroupCall = ({
   }, [fetchIceServers, onParticipantJoined, onParticipantLeft])
 
   // Start a group call and invite participants
+  /**
+   * Start a new group call with the specified participants.
+   *
+   * @param roomId - The room/conversation ID for the call
+   * @param callType - Type of call (audio or video)
+   * @param participants - List of participants to invite to the call
+   * @param conversationName - Optional conversation name to display in the call UI
+   * @param calendarMeetingId - Optional calendar meeting ID for linking call to AI transcription.
+   *                            This parameter is accepted for API compatibility with RealtimeKit implementation
+   *                            but is not used in the mesh topology implementation.
+   */
   const startCall = useCallback(
-    async (roomId: string, callType: CallType, participants: CallParticipant[], conversationName?: string) => {
+    async (
+      roomId: string,
+      callType: CallType,
+      participants: CallParticipant[],
+      conversationName?: string,
+      calendarMeetingId?: string | null
+    ) => {
       if (!currentUserRef.current || !wsClientRef.current) {
         console.error('Cannot start call: missing user or WebSocket client')
         return
       }
+
+      // Note: calendarMeetingId is unused in mesh implementation but accepted for API compatibility
+      void calendarMeetingId
 
       try {
         updateCallState({

@@ -8,7 +8,15 @@
  */
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
-import { Button, Alert, AlertTitle, AlertDescription, useTranslation, useLocale } from '@newwork/nw-design-system'
+import {
+  Button,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  EmptyState as DesignEmptyState,
+  useTranslation,
+  useLocale
+} from '@newwork/nw-design-system'
 import translations from '../_i18n'
 import { Zap } from 'lucide-react'
 import { UnifiedTask } from '../types'
@@ -464,6 +472,14 @@ export const InboxView: React.FC<InboxViewProps> = ({
       // This prevents the toggle logic from deselecting the current task
       if (nextTask && nextTask.id !== selectedTask.id) {
         handleSelectTask(nextTask)
+
+        // Scroll the selected task into view
+        setTimeout(() => {
+          const taskElement = document.querySelector(`[data-testid="task-card-${nextTask.id}"]`)
+          if (taskElement) {
+            taskElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+          }
+        }, 0)
       }
     }
 
@@ -615,27 +631,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
           </div>
         ) : (
           <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-background">
-            <div className="gba:text-center gba:max-w-md gba:px-6">
-              <div className="gba:mb-4 gba:text-muted-foreground">
-                <svg
-                  className="gba:w-24 gba:h-24 gba:mx-auto gba:opacity-20"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-              <h3 className="gba:text-xl gba:font-semibold gba:mb-2 gba:text-foreground">
-                {t('inbox-no-task-selected')}
-              </h3>
-              <p className="gba:text-sm gba:text-muted-foreground">{t('inbox-select-task-prompt')}</p>
-            </div>
+            <DesignEmptyState
+              type="no-data"
+              title={t('inbox-no-task-selected')}
+              description={t('inbox-select-task-prompt')}
+              data-testid="task-detail-empty"
+            />
           </div>
         )}
       </div>

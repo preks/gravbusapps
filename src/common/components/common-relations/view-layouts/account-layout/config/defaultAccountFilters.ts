@@ -129,6 +129,26 @@ export const commonAccountFilterConfig: FilterConfiguration = {
       ]
     },
     {
+      id: 'account-type-group',
+      label: 'Account Category',
+      collapsible: true,
+      defaultExpanded: false,
+      filters: [
+        {
+          id: 'prospective',
+          field: 'prospective',
+          label: 'Account Category',
+          type: 'checkbox-group',
+          config: {
+            options: [
+              { id: 'true', label: 'Prospect' },
+              { id: 'false', label: 'Established' }
+            ]
+          }
+        }
+      ]
+    },
+    {
       id: 'status-group',
       label: 'Status',
       collapsible: true,
