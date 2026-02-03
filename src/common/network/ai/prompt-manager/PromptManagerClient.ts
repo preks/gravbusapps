@@ -212,11 +212,6 @@ export interface MCPConfig {
   env?: Record<string, string>
 }
 
-export interface FunctionConfig {
-  runtime: 'js-runtime'
-  source: string
-}
-
 export interface ToolSettings {
   // Key-value pairs for runtime configuration (credentials, env vars, auth, etc.)
   // These will be provided to the function/MCP at runtime
@@ -235,8 +230,8 @@ export interface ToolODM {
   name: string
   created_at?: string
   description?: string
-  type: 'mcp' | 'function'
-  config: MCPConfig | FunctionConfig
+  type: 'mcp'
+  config: MCPConfig
   settings?: ToolSettings
   schemaConfig?: SchemaConfig
   schema_config?: SchemaConfig // Backend returns snake_case
@@ -259,22 +254,13 @@ export interface MCPToolDetails {
   schemaConfig?: SchemaConfig
 }
 
-export interface FunctionToolDetails {
-  name: string
-  description?: string
-  type: 'function'
-  config: FunctionConfig
-  settings?: ToolSettings
-  schemaConfig?: SchemaConfig
-}
-
-export type ToolDetails = MCPToolDetails | FunctionToolDetails
+export type ToolDetails = MCPToolDetails
 
 export interface ToolPutDetails {
   name?: string
   description?: string
-  type?: 'mcp' | 'function'
-  config?: MCPConfig | FunctionConfig
+  type?: 'mcp'
+  config?: MCPConfig
   settings?: ToolSettings
   schemaConfig?: SchemaConfig
 }
@@ -282,8 +268,8 @@ export interface ToolPutDetails {
 export interface ToolPatchDetails {
   name?: string | null
   description?: string | null
-  type?: 'mcp' | 'function' | null
-  config?: MCPConfig | FunctionConfig | null
+  type?: 'mcp' | null
+  config?: MCPConfig | null
   settings?: ToolSettings | null
   schemaConfig?: SchemaConfig | null
   active?: boolean | null
@@ -509,7 +495,7 @@ export class PromptManagerClient extends RestClient {
   // --- Tools (Common List API) ---
   async getTools(params?: {
     toolName?: string | null
-    toolType?: 'mcp' | 'function' | null
+    toolType?: 'mcp' | null
     limit?: number
     offset?: number
     returnTotalRecords?: boolean
@@ -536,27 +522,6 @@ export class PromptManagerClient extends RestClient {
 
   async deleteMcpTool(id: string): Promise<void> {
     await this.delete<void>(`/api/v1/tools/mcp/${encodeURIComponent(id)}`)
-  }
-
-  // --- Function Tools ---
-  async getFunctionTool(id: string): Promise<ToolODM> {
-    return this.get<ToolODM>(`/api/v1/tools/function/${encodeURIComponent(id)}`)
-  }
-
-  async createFunctionTool(body: FunctionToolDetails): Promise<ToolODM> {
-    return this.post<ToolODM>('/api/v1/tools/function/', body)
-  }
-
-  async putFunctionTool(id: string, body: FunctionToolDetails): Promise<ToolODM> {
-    return this.put<ToolODM>(`/api/v1/tools/function/${encodeURIComponent(id)}`, body)
-  }
-
-  async patchFunctionTool(id: string, body: ToolPatchDetails): Promise<ToolODM> {
-    return this.patch<ToolODM>(`/api/v1/tools/function/${encodeURIComponent(id)}`, body)
-  }
-
-  async deleteFunctionTool(id: string): Promise<void> {
-    await this.delete<void>(`/api/v1/tools/function/${encodeURIComponent(id)}`)
   }
 
   // --- Every Experts (EveryAI Agents) ---

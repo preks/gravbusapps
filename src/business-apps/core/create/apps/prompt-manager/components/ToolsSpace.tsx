@@ -132,7 +132,7 @@ export const ToolsSpace: React.FC<BusinessAppContextProps> = context => {
                           <span className="gba:font-medium">{tool.name}</span>
                         </TableCell>
                         <TableCell className="gba:py-3">
-                          <Badge variant={tool.type === 'function' ? 'default' : 'secondary'}>{tool.type}</Badge>
+                          <Badge variant="secondary">{tool.type}</Badge>
                         </TableCell>
                         <TableCell className="gba:py-3">
                           <Badge variant={tool.active !== false ? 'success' : 'destructive'}>
@@ -152,15 +152,6 @@ export const ToolsSpace: React.FC<BusinessAppContextProps> = context => {
                             >
                               Edit
                             </Button>
-                            {tool.type === 'function' && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                data-testid={`tool-test-button-${tool._id ?? tool.name}`}
-                              >
-                                Test
-                              </Button>
-                            )}
                           </div>
                         </TableCell>
                       </TableRow>

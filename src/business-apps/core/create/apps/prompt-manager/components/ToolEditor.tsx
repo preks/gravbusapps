@@ -22,20 +22,18 @@ import {
   TooltipTrigger,
   TooltipContent
 } from '@newwork/nw-design-system'
-import { ChevronDown, ChevronUp, Info } from 'lucide-react'
+import { Info } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type {
   ToolODM,
   MCPConfig,
-  FunctionConfig,
   ToolSettings,
   SchemaConfig,
   ToolDetails
 } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { getFlowEngineApiBaseUrl } from '@/common/network/flows/flowEngineUrl'
-import { useRuntimeInvoke } from '../hooks/useRuntimeInvoke'
 
-type ToolType = 'mcp' | 'function'
+type ToolType = 'mcp'
 
 export interface ToolEditorProps extends BusinessAppContextProps {
   mode: 'create' | 'edit'
@@ -50,8 +48,7 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
   const { mode, tool, onClose, onSaved, onCreate, onUpdate } = props
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [toolType, setToolType] = useState<ToolType>('function')
-  const [source, setSource] = useState('')
+  const toolType: ToolType = 'mcp'
 
   const [mcpUrl, setMcpUrl] = useState('')
   const [mcpTransport, setMcpTransport] = useState<'sse' | 'websocket' | 'http'>('sse')
@@ -65,33 +62,18 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
   const [outputSchema, setOutputSchema] = useState<string>('')
   const [outputSchemaError, setOutputSchemaError] = useState<string | null>(null)
   const [schemaTab, setSchemaTab] = useState<'input' | 'output'>('input')
-  const [isSourceExpanded, setIsSourceExpanded] = useState(false)
-
-  // Testing state (only for function tools)
-  const [testPayload, setTestPayload] = useState<string>('{}')
-  const [testResult, setTestResult] = useState<string>('')
-  const [isTesting, setIsTesting] = useState(false)
-  const [testError, setTestError] = useState<string | null>(null)
 
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const { test } = useRuntimeInvoke()
 
   // Load initial data
   useEffect(() => {
     if (mode === 'edit' && tool) {
       setName(tool.name || '')
       setDescription(tool.description || '')
-      setToolType(tool.type || 'function')
-      if (tool.type === 'function') {
-        const funcConfig = tool.config as FunctionConfig
-        setSource(funcConfig.source || '')
-      } else if (tool.type === 'mcp') {
-        const mcpConfig = tool.config as MCPConfig
-        setMcpUrl(mcpConfig.url || '')
-        setMcpTransport(mcpConfig.transport || 'sse')
-      }
+      const mcpConfig = tool.config as MCPConfig
+      setMcpUrl(mcpConfig.url || '')
+      setMcpTransport(mcpConfig.transport || 'sse')
       const toolSettings = tool.settings || { config: {} }
       setSettings(toolSettings)
       // Load config key-value pairs
@@ -117,8 +99,6 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
       // Reset all fields for new tool
       setName('')
       setDescription('')
-      setToolType('function')
-      setSource('')
       setMcpUrl('')
       setMcpTransport('sse')
       setSettings({ config: {} })
@@ -130,31 +110,13 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
     }
   }, [mode, tool])
 
-  const isValid = useMemo(() => !!name && (toolType === 'mcp' ? !!mcpUrl : !!source), [name, toolType, mcpUrl, source])
-
-  // Get preview lines (first 5 lines) of source code
-  const sourcePreview = useMemo(() => {
-    if (!source) return ''
-    const lines = source.split('\n')
-    return lines.slice(0, 5).join('\n')
-  }, [source])
-
-  const sourceLineCount = useMemo(() => {
-    if (!source) return 0
-    return source.split('\n').length
-  }, [source])
+  const isValid = useMemo(() => !!name && !!mcpUrl, [name, mcpUrl])
 
   const handleSave = useCallback(async () => {
     setIsSaving(true)
     setError(null)
     try {
-      let config: MCPConfig | FunctionConfig
-
-      if (toolType === 'mcp') {
-        config = { url: mcpUrl, transport: mcpTransport }
-      } else {
-        config = { runtime: 'js-runtime', source }
-      }
+      const config: MCPConfig = { url: mcpUrl, transport: mcpTransport }
 
       // Build settings with config key-value pairs
       const finalSettings: ToolSettings = {
@@ -212,7 +174,6 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
     toolType,
     mcpUrl,
     mcpTransport,
-    source,
     settings,
     configKeys,
     mode,
@@ -222,84 +183,6 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
     onSaved,
     onClose
   ])
-
-  const handleTest = useCallback(async () => {
-    if (toolType !== 'function' || !source) {
-      setTestError('Source code is required for testing')
-      return
-    }
-
-    setIsTesting(true)
-    setTestError(null)
-    setTestResult('')
-
-    try {
-      // Parse test payload
-      let parsedPayload = {}
-      try {
-        parsedPayload = JSON.parse(testPayload || '{}')
-      } catch {
-        throw new Error('Invalid JSON in test payload')
-      }
-
-      // Build config and settings from current form state
-      const testConfig: FunctionConfig = { runtime: 'js-runtime', source }
-      const testSettings: ToolSettings = {
-        config: configKeys.reduce<Record<string, string>>((acc, kv) => {
-          if (kv.key && kv.value) {
-            acc[kv.key] = kv.value
-          }
-          return acc
-        }, {})
-      }
-
-      // Build schema configuration for test
-      let testSchemaConfig: SchemaConfig | undefined = undefined
-      try {
-        const hasInputSchema = inputSchema.trim() !== ''
-        const hasOutputSchema = outputSchema.trim() !== ''
-
-        if (hasInputSchema || hasOutputSchema) {
-          testSchemaConfig = {} as SchemaConfig
-          if (hasInputSchema) {
-            testSchemaConfig.input = JSON.parse(inputSchema)
-          }
-          if (hasOutputSchema) {
-            testSchemaConfig.output = JSON.parse(outputSchema)
-          }
-        }
-      } catch (e) {
-        throw new Error(`Invalid JSON schema: ${e instanceof Error ? e.message : 'Unknown error'}`)
-      }
-
-      const testOptions: {
-        source: string
-        payload: unknown
-        config: FunctionConfig
-        settings: ToolSettings
-        schemaConfig?: SchemaConfig
-      } = {
-        source,
-        payload: parsedPayload,
-        config: testConfig,
-        settings: testSettings
-      }
-
-      // Only add schemaConfig if it's defined and has at least one property
-      if (testSchemaConfig && (testSchemaConfig.input || testSchemaConfig.output)) {
-        testOptions.schemaConfig = testSchemaConfig
-      }
-
-      const result = await test(testOptions)
-
-      setTestResult(JSON.stringify(result, null, 2))
-    } catch (e) {
-      setTestError(e instanceof Error ? e.message : 'Test failed')
-      setTestResult('')
-    } finally {
-      setIsTesting(false)
-    }
-  }, [toolType, source, testPayload, configKeys, inputSchema, outputSchema, test])
 
   return (
     <div data-testid="tool-editor" className="gba:w-full gba:space-y-4">
@@ -341,165 +224,55 @@ export const ToolEditor: React.FC<ToolEditorProps> = props => {
               </div>
               <div className="gba:space-y-2">
                 <Label>Type</Label>
-                <div className="gba:flex gba:gap-2">
-                  <Button
-                    size="sm"
-                    variant={toolType === 'function' ? 'default' : 'outline'}
-                    onClick={() => setToolType('function')}
-                  >
-                    Function
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={toolType === 'mcp' ? 'default' : 'outline'}
-                    onClick={() => setToolType('mcp')}
-                  >
-                    MCP
-                  </Button>
-                </div>
+                <div className="gba:text-sm gba:text-muted-foreground">MCP</div>
               </div>
             </CardContent>
           </Card>
 
-          {toolType === 'function' ? (
-            <>
-              <Card>
-                <CardHeader>
-                  <div className="gba:flex gba:items-center gba:justify-between">
-                    <CardTitle>Function Source (JS)</CardTitle>
-                    {sourceLineCount > 5 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setIsSourceExpanded(!isSourceExpanded)}
-                        className="gba:flex gba:items-center gba:gap-1"
-                      >
-                        {isSourceExpanded ? (
-                          <>
-                            <ChevronUp className="gba:w-4 gba:h-4" />
-                            Collapse
-                          </>
-                        ) : (
-                          <>
-                            <ChevronDown className="gba:w-4 gba:h-4" />
-                            Expand {sourceLineCount} lines
-                          </>
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="gba:space-y-3">
-                  {isSourceExpanded ? (
-                    <Textarea
-                      rows={Math.min(sourceLineCount + 2, 30)}
-                      value={source}
-                      onChange={e => setSource(e.target.value)}
-                      placeholder={`export async function handler(event, context) {\n  return { ok: true };\n}`}
-                      className="gba:font-mono gba:text-sm"
-                    />
-                  ) : (
-                    <div>
-                      <pre className="gba:border gba:rounded-md gba:p-3 gba:bg-muted gba:font-mono gba:text-xs gba:overflow-x-auto gba:max-h-[120px] gba:overflow-y-auto">
-                        <code>{sourcePreview || '// No source code yet...'}</code>
-                      </pre>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsSourceExpanded(true)}
-                        className="gba:mt-2 gba:w-full"
-                      >
-                        Edit Source Code
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <div className="gba:flex gba:items-center gba:justify-between">
-                    <CardTitle>Testing</CardTitle>
-                    <Button
-                      variant="default"
-                      onClick={handleTest}
-                      disabled={isTesting || !source}
-                      data-testid="tool-editor-test-button"
-                    >
-                      {isTesting ? 'Testing…' : 'Test Function'}
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="gba:space-y-3">
-                  <div className="gba:space-y-2">
-                    <Label>Test Payload (JSON)</Label>
-                    <Textarea
-                      rows={4}
-                      value={testPayload}
-                      onChange={e => setTestPayload(e.target.value)}
-                      placeholder='{"key": "value"}'
-                    />
-                  </div>
-                  {testError && (
-                    <div className="gba:text-destructive gba:text-sm" data-testid="tool-editor-test-error">
-                      Error: {testError}
-                    </div>
-                  )}
-                  {testResult && (
-                    <div className="gba:space-y-2">
-                      <Label>Test Result</Label>
-                      <Textarea rows={8} readOnly value={testResult} className="gba:font-mono gba:text-xs" />
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </>
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>MCP Configuration</CardTitle>
-              </CardHeader>
-              <CardContent className="gba:space-y-3">
-                <div className="gba:space-y-2">
-                  <Label>URL</Label>
-                  <Input
-                    value={mcpUrl}
-                    onChange={e => setMcpUrl(e.target.value)}
-                    placeholder="https://mcp-server.example.com/api"
-                  />
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setMcpUrl(`${getFlowEngineApiBaseUrl()}/mcp`)
-                        setMcpTransport('http')
-                      }}
-                      data-testid="tool-editor-flow-engine-mcp-preset"
-                    >
-                      Use Flow Engine MCP
-                    </Button>
-                    <div className="gba:text-xs gba:text-muted-foreground">
-                      Default: <code className="gba:font-mono">{`${getFlowEngineApiBaseUrl()}/mcp`}</code>
-                    </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>MCP Configuration</CardTitle>
+            </CardHeader>
+            <CardContent className="gba:space-y-3">
+              <div className="gba:space-y-2">
+                <Label>URL</Label>
+                <Input
+                  value={mcpUrl}
+                  onChange={e => setMcpUrl(e.target.value)}
+                  placeholder="https://mcp-server.example.com/api"
+                />
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setMcpUrl(`${getFlowEngineApiBaseUrl()}/mcp`)
+                      setMcpTransport('http')
+                    }}
+                    data-testid="tool-editor-flow-engine-mcp-preset"
+                  >
+                    Use Flow Engine MCP
+                  </Button>
+                  <div className="gba:text-xs gba:text-muted-foreground">
+                    Default: <code className="gba:font-mono">{`${getFlowEngineApiBaseUrl()}/mcp`}</code>
                   </div>
                 </div>
-                <div className="gba:space-y-2">
-                  <Label>Transport</Label>
-                  <Select value={mcpTransport} onValueChange={v => setMcpTransport(v as 'sse' | 'websocket' | 'http')}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="sse" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="http">HTTP</SelectItem>
-                      <SelectItem value="sse">SSE (Server-Sent Events)</SelectItem>
-                      <SelectItem value="websocket">WebSocket</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+              <div className="gba:space-y-2">
+                <Label>Transport</Label>
+                <Select value={mcpTransport} onValueChange={v => setMcpTransport(v as 'sse' | 'websocket' | 'http')}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="sse" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="http">HTTP</SelectItem>
+                    <SelectItem value="sse">SSE (Server-Sent Events)</SelectItem>
+                    <SelectItem value="websocket">WebSocket</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right sidebar: Schema and Settings */}

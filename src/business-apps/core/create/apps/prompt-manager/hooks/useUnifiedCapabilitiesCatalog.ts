@@ -42,7 +42,7 @@ export const useUnifiedCapabilitiesCatalog = (
       // Fetch from multiple sources in parallel
       const [functionsResult, pmToolsResult] = await Promise.all([
         functionsClientRef.current!.listLatest({ agentEnabled: true }).catch(() => [] as LatestFunctionItem[]),
-        pmClient.getTools({ limit: 100 }).catch(() => ({ data: [] as ToolODM[] }))
+        pmClient.getTools({ limit: 100, toolType: 'mcp' }).catch(() => ({ data: [] as ToolODM[] }))
       ])
 
       const unified: UnifiedCapability[] = []
@@ -91,19 +91,6 @@ export const useUnifiedCapabilitiesCatalog = (
               promptManagerToolId: tool._id,
               mcpUrl: mcpConfig.url,
               transport: mcpConfig.transport
-            }
-          })
-        } else if (tool.type === 'function') {
-          // Prompt Manager function tools (distinct from Functions Service)
-          unified.push({
-            id: `pm-func-${tool._id}`,
-            code: backendCode || `pm.${tool.name?.toLowerCase().replace(/\s+/g, '-') || tool._id}`,
-            name: tool.name,
-            description: tool.description || null,
-            kind: 'function',
-            supportsVersion: false,
-            sourceMeta: {
-              promptManagerToolId: tool._id
             }
           })
         }
