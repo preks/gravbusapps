@@ -19,6 +19,14 @@ export interface PromptContent {
   parameters: string[]
 }
 
+export interface ToolPolicy {
+  /** MCP tool names (actions) that are allowed for this prompt */
+  allowedTools: string[]
+}
+
+/** Per-prompt tool policies, keyed by tool code (e.g. `mcp.flow-engine`) */
+export type ToolPolicies = Record<string, ToolPolicy>
+
 export interface KnowledgeSource {
   id: string
   type: 'document' | 'url' | 'content_entry' | 'catalog' // content_entry = internal knowledge base, catalog = catalog entries
@@ -47,6 +55,7 @@ export interface PromptODM {
   system_content?: PromptContent | null
   user_content: PromptContent
   tools?: string // comma-separated tool codes
+  toolPolicies?: ToolPolicies
   model: { id: string; collection: string }
   model_settings?: Record<string, unknown>
   response_schema?: Record<string, unknown> | null
@@ -100,6 +109,7 @@ export interface PromptDetails {
   systemContent?: string | null
   userContent: string
   tools?: string[]
+  toolPolicies?: ToolPolicies
   modelId: string
   modelSettings?: Record<string, unknown>
   responseSchema?: Record<string, unknown> | null
@@ -123,6 +133,7 @@ export interface PromptPutDetails {
   systemContent?: string | null
   userContent: string
   tools?: string[]
+  toolPolicies?: ToolPolicies
   modelId: string
   modelSettings?: Record<string, unknown>
   responseSchema?: Record<string, unknown> | null
@@ -145,6 +156,7 @@ export interface PromptPatchDetails {
   systemContent?: string | null
   userContent?: string | null
   tools?: string[] | null
+  toolPolicies?: ToolPolicies | null
   modelId?: string | null
   modelSettings?: Record<string, unknown> | null
   responseSchema?: Record<string, unknown> | null
@@ -207,14 +219,9 @@ export interface AIModelPage {
 
 export interface MCPConfig {
   serverId?: string
-  transport: 'sse' | 'websocket'
+  transport: 'sse' | 'websocket' | 'http'
   url: string
   env?: Record<string, string>
-}
-
-export interface FunctionConfig {
-  runtime: 'js-runtime'
-  source: string
 }
 
 export interface ToolSettings {
@@ -230,15 +237,33 @@ export interface SchemaConfig {
 
 export interface ToolODM {
   _id?: string
+  /** Stable tool identifier used in prompts (e.g. `mcp.flow-engine`) */
+  code?: string
   name: string
   created_at?: string
   description?: string
-  type: 'mcp' | 'function'
-  config: MCPConfig | FunctionConfig
+  type: 'mcp'
+  config: MCPConfig
   settings?: ToolSettings
   schemaConfig?: SchemaConfig
   schema_config?: SchemaConfig // Backend returns snake_case
   active?: boolean
+  /** Internal tools are preconfigured and read-only */
+  internal?: boolean
+}
+
+export interface McpAvailableAction {
+  name: string
+  description?: string
+  inputSchema?: Record<string, unknown> | null
+}
+
+export interface McpAvailableActionsResponse {
+  toolId: string
+  toolCode?: string | null
+  serverId?: string | null
+  url: string
+  tools: McpAvailableAction[]
 }
 
 export interface ToolPage {
@@ -255,22 +280,13 @@ export interface MCPToolDetails {
   schemaConfig?: SchemaConfig
 }
 
-export interface FunctionToolDetails {
-  name: string
-  description?: string
-  type: 'function'
-  config: FunctionConfig
-  settings?: ToolSettings
-  schemaConfig?: SchemaConfig
-}
-
-export type ToolDetails = MCPToolDetails | FunctionToolDetails
+export type ToolDetails = MCPToolDetails
 
 export interface ToolPutDetails {
   name?: string
   description?: string
-  type?: 'mcp' | 'function'
-  config?: MCPConfig | FunctionConfig
+  type?: 'mcp'
+  config?: MCPConfig
   settings?: ToolSettings
   schemaConfig?: SchemaConfig
 }
@@ -278,8 +294,8 @@ export interface ToolPutDetails {
 export interface ToolPatchDetails {
   name?: string | null
   description?: string | null
-  type?: 'mcp' | 'function' | null
-  config?: MCPConfig | FunctionConfig | null
+  type?: 'mcp' | null
+  config?: MCPConfig | null
   settings?: ToolSettings | null
   schemaConfig?: SchemaConfig | null
   active?: boolean | null
@@ -505,7 +521,7 @@ export class PromptManagerClient extends RestClient {
   // --- Tools (Common List API) ---
   async getTools(params?: {
     toolName?: string | null
-    toolType?: 'mcp' | 'function' | null
+    toolType?: 'mcp' | null
     limit?: number
     offset?: number
     returnTotalRecords?: boolean
@@ -516,6 +532,10 @@ export class PromptManagerClient extends RestClient {
   // --- MCP Tools ---
   async getMcpTool(id: string): Promise<ToolODM> {
     return this.get<ToolODM>(`/api/v1/tools/mcp/${encodeURIComponent(id)}`)
+  }
+
+  async getMcpAvailableActions(id: string): Promise<McpAvailableActionsResponse> {
+    return this.get<McpAvailableActionsResponse>(`/api/v1/tools/mcp/${encodeURIComponent(id)}/available-actions`)
   }
 
   async createMcpTool(body: MCPToolDetails): Promise<ToolODM> {
@@ -532,27 +552,6 @@ export class PromptManagerClient extends RestClient {
 
   async deleteMcpTool(id: string): Promise<void> {
     await this.delete<void>(`/api/v1/tools/mcp/${encodeURIComponent(id)}`)
-  }
-
-  // --- Function Tools ---
-  async getFunctionTool(id: string): Promise<ToolODM> {
-    return this.get<ToolODM>(`/api/v1/tools/function/${encodeURIComponent(id)}`)
-  }
-
-  async createFunctionTool(body: FunctionToolDetails): Promise<ToolODM> {
-    return this.post<ToolODM>('/api/v1/tools/function/', body)
-  }
-
-  async putFunctionTool(id: string, body: FunctionToolDetails): Promise<ToolODM> {
-    return this.put<ToolODM>(`/api/v1/tools/function/${encodeURIComponent(id)}`, body)
-  }
-
-  async patchFunctionTool(id: string, body: ToolPatchDetails): Promise<ToolODM> {
-    return this.patch<ToolODM>(`/api/v1/tools/function/${encodeURIComponent(id)}`, body)
-  }
-
-  async deleteFunctionTool(id: string): Promise<void> {
-    await this.delete<void>(`/api/v1/tools/function/${encodeURIComponent(id)}`)
   }
 
   // --- Every Experts (EveryAI Agents) ---
