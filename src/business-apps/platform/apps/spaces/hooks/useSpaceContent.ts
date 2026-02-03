@@ -93,7 +93,8 @@ export function useSpaceContent(
           updatedAt: item.updatedAt || item.addedAt || new Date().toISOString(),
           createdAt: item.createdAt || item.addedAt || new Date().toISOString(),
           ownerId: item.ownerId || item.addedBy || '',
-          spaceId: spaceId
+          spaceId: spaceId,
+          isPdf: type === 'document' && item.sourceFileInfo?.mimeType === 'application/pdf'
         }
 
         switch (type) {
@@ -146,8 +147,7 @@ export function useSpaceContent(
       try {
         setIsLoading(true)
         // Map content type to backend entity type
-        const entityType =
-          input.contentType === 'spreadsheet' ? 'spreadsheet_app' : input.contentType
+        const entityType = input.contentType === 'spreadsheet' ? 'spreadsheet_app' : input.contentType
 
         const response = await fetch(`${API_URL}/spaces/${spaceId}/content`, {
           method: 'POST',
@@ -192,8 +192,7 @@ export function useSpaceContent(
       try {
         setIsLoading(true)
         // Map content type to backend entity type
-        const backendEntityType =
-          entityType === 'spreadsheet' ? 'spreadsheet_app' : entityType
+        const backendEntityType = entityType === 'spreadsheet' ? 'spreadsheet_app' : entityType
 
         const response = await fetch(`${API_URL}/spaces/${spaceId}/content/${backendEntityType}/${entityId}`, {
           method: 'DELETE',

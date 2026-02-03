@@ -58,6 +58,7 @@ interface EmployeeAbsenceMap {
       type: string
       status: string
       color: string
+      textColor: string
     }
   }
 }
@@ -86,17 +87,40 @@ const useIsMobile = (breakpoint: number = 768) => {
   return isMobile
 }
 
+/**
+ * Consistent absence colors - matches EmployeeYearlyCalendar
+ * Using secondary variants for softer, premium look
+ */
+const ABSENCE_COLORS = {
+  approved: {
+    bg: 'gba:bg-info-secondary',
+    text: 'gba:text-info-secondary-foreground'
+  },
+  pending: {
+    bg: 'gba:bg-warning-secondary',
+    text: 'gba:text-warning-secondary-foreground'
+  },
+  rejected: {
+    bg: 'gba:bg-destructive-secondary',
+    text: 'gba:text-destructive-secondary-foreground'
+  },
+  default: {
+    bg: 'gba:bg-muted',
+    text: 'gba:text-muted-foreground'
+  }
+} as const
+
 // Helper function for status display - returns type for logic, label translation key
 const getAbsenceStatusDisplay = (status: string, t: (key: string) => string) => {
   switch (status) {
     case 'APPROVED':
-      return { label: t('absence-status-approved'), type: 'approved' }
+      return { label: t('absence-status-approved'), type: 'approved' as const }
     case 'PENDING':
-      return { label: t('absence-status-pending'), type: 'pending' }
+      return { label: t('absence-status-pending'), type: 'pending' as const }
     case 'REJECTED':
-      return { label: t('absence-status-rejected'), type: 'rejected' }
+      return { label: t('absence-status-rejected'), type: 'rejected' as const }
     default:
-      return { label: status, type: 'default' }
+      return { label: status, type: 'default' as const }
   }
 }
 
@@ -190,14 +214,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
       map[currentAbsence.employeeId] = {}
 
       const statusDisplay = getAbsenceStatusDisplay(currentAbsence.status, t)
-      let color = 'gba:bg-info'
-      if (statusDisplay.type === 'approved') {
-        color = 'gba:bg-success'
-      } else if (statusDisplay.type === 'rejected') {
-        color = 'gba:bg-destructive'
-      } else if (statusDisplay.type === 'pending') {
-        color = 'gba:bg-warning'
-      }
+      const colorSet = ABSENCE_COLORS[statusDisplay.type] || ABSENCE_COLORS.default
 
       const absStart = new Date(startDate.split('T')[0] + 'T12:00:00')
       const absEnd = new Date(endDate.split('T')[0] + 'T12:00:00')
@@ -208,7 +225,8 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
         map[currentAbsence.employeeId][dateStr] = {
           type: currentAbsence.type,
           status: statusDisplay.label,
-          color
+          color: colorSet.bg,
+          textColor: colorSet.text
         }
         currentDate.setDate(currentDate.getDate() + 1)
       }
@@ -234,16 +252,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
       // Get absence type and color (with locale-aware translation)
       const statusDisplay = getAbsenceStatusDisplay(absence.status, t)
       const absenceType = getCatalogValue(absence.type) || t('absence-calendar-fallback-type')
-
-      // Determine color based on status
-      let color = 'gba:bg-info'
-      if (statusDisplay.type === 'approved') {
-        color = 'gba:bg-success'
-      } else if (statusDisplay.type === 'rejected') {
-        color = 'gba:bg-destructive'
-      } else if (statusDisplay.type === 'pending') {
-        color = 'gba:bg-warning'
-      }
+      const colorSet = ABSENCE_COLORS[statusDisplay.type] || ABSENCE_COLORS.default
 
       // Mark all days in the absence range (only within the week range)
       const currentDate = new Date(Math.max(absStart.getTime(), weekRange.weekStart.getTime()))
@@ -254,7 +263,8 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
         map[employeeId][dateStr] = {
           type: absenceType,
           status: statusDisplay.label,
-          color
+          color: colorSet.bg,
+          textColor: colorSet.text
         }
         currentDate.setDate(currentDate.getDate() + 1)
       }
@@ -367,8 +377,8 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
                 return (
                   <span
                     key={groupKey}
-                    className={`${group.color} gba:text-white gba:text-[10px] gba:px-2 gba:py-0.5 gba:rounded gba:font-medium ${
-                      isCurrentAbsenceDay ? 'gba:ring-1 gba:ring-primary gba:ring-offset-1' : ''
+                    className={`${group.color} ${group.days[0].absence.textColor} gba:text-[10px] gba:px-2 gba:py-0.5 gba:rounded gba:font-medium ${
+                      isCurrentAbsenceDay ? 'gba:ring-2 gba:ring-primary/60 gba:ring-offset-1' : ''
                     }`}
                   >
                     {group.type}
@@ -414,7 +424,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
                         {day.monthShort} {day.dayNumber}
                       </div>
                       <div
-                        className={`${day.absence.color} gba:text-white gba:text-[10px] gba:px-1.5 gba:py-0.5 gba:rounded gba:mt-1 gba:font-medium gba:truncate`}
+                        className={`${day.absence.color} ${day.absence.textColor} gba:text-[10px] gba:px-1.5 gba:py-0.5 gba:rounded gba:mt-1 gba:font-medium gba:truncate`}
                         title={`${day.absence.type} - ${day.absence.status}`}
                       >
                         {day.absence.type}
@@ -553,12 +563,12 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
                           const isCurrentAbsenceDay = dayDate >= absStart && dayDate <= absEnd
 
                           return (
-                            <TableCell key={day.dateString} className="gba:text-center gba:p-2 gba:bg-muted">
+                            <TableCell key={day.dateString} className="gba:text-center gba:p-2 gba:bg-muted/30">
                               {absence ? (
                                 <div
-                                  className={`${absence.color} gba:text-white gba:text-xs gba:py-1 gba:px-2 gba:rounded gba:font-medium gba:relative ${
+                                  className={`${absence.color} ${absence.textColor} gba:text-xs gba:py-1 gba:px-2 gba:rounded gba:font-medium gba:relative ${
                                     isCurrentAbsenceDay
-                                      ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2 gba:shadow-lg'
+                                      ? 'gba:ring-2 gba:ring-primary/60 gba:ring-offset-1 gba:ring-offset-background'
                                       : ''
                                   }`}
                                   title={(() => {
@@ -571,7 +581,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
                                   {absence.type}
                                   {isCurrentAbsenceDay && (
                                     <span
-                                      className="gba:absolute -gba:top-1 -gba:right-1 gba:bg-primary gba:text-white gba:rounded-full gba:w-3 gba:h-3 gba:flex gba:items-center gba:justify-center gba:text-[8px]"
+                                      className="gba:absolute -gba:top-1 -gba:right-1 gba:bg-primary gba:text-primary-foreground gba:rounded-full gba:w-3 gba:h-3 gba:flex gba:items-center gba:justify-center gba:text-[8px]"
                                       title={t('absence-calendar-pending-approval')}
                                     >
                                       •
@@ -610,7 +620,7 @@ export const TeamAbsenceCalendar: React.FC<TeamAbsenceCalendarProps> = ({
                               >
                                 {absence ? (
                                   <div
-                                    className={`${absence.color} gba:text-white gba:text-xs gba:py-1 gba:px-2 gba:rounded gba:font-medium`}
+                                    className={`${absence.color} ${absence.textColor} gba:text-xs gba:py-1 gba:px-2 gba:rounded gba:font-medium`}
                                     title={`${absence.type} - ${absence.status}`}
                                   >
                                     {absence.type}

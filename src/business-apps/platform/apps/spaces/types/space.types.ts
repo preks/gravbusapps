@@ -55,6 +55,7 @@ export interface SpaceContentItem {
   createdAt: string
   ownerId: string
   spaceId?: string
+  isPdf?: boolean // For PDF documents
 }
 
 export interface SpaceActivity {

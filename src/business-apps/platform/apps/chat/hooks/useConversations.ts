@@ -178,6 +178,20 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       const conversationsData = response.data || (response as any).conversations || []
       const total = response.total || 0
 
+      // Log backend response for debugging sorting issues
+      if (process.env.NODE_ENV === 'development') {
+        console.debug(
+          '[useConversations] Backend returned conversations:',
+          conversationsData.slice(0, 3).map((c: any) => ({
+            id: c.id?.substring(0, 8),
+            hasLastMessage: !!c.lastMessage,
+            lastMessageCreatedAt: c.lastMessage?.createdAt,
+            updatedAt: c.updatedAt,
+            createdAt: c.createdAt
+          }))
+        )
+      }
+
       // Check if there are more conversations to load
       setHasMore(conversationsData.length === LIMIT && conversationsData.length < total)
 
@@ -188,11 +202,30 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         ? enrichConversationsWithAvatarsOnly(conversationsData)
         : await enrichConversations(conversationsData)
 
-      // Sort by most recent activity (lastMessage or updatedAt)
+      // Sort by most recent activity
+      // Priority: lastMessage.createdAt > lastMessageAt > updatedAt > createdAt
+      // This ensures proper ordering even if backend's lastMessageAt is stale
       const sortedConversations = enrichedConversations.sort((a, b) => {
-        const aTime = a.lastMessage?.createdAt || a.updatedAt || a.createdAt
-        const bTime = b.lastMessage?.createdAt || b.updatedAt || b.createdAt
-        return new Date(bTime).getTime() - new Date(aTime).getTime()
+        // Use lastMessage.createdAt as the source of truth (most accurate)
+        const aTime = a.lastMessage?.createdAt || a.lastMessageAt || a.updatedAt || a.createdAt
+        const bTime = b.lastMessage?.createdAt || b.lastMessageAt || b.updatedAt || b.createdAt
+        const aTimestamp = new Date(aTime).getTime()
+        const bTimestamp = new Date(bTime).getTime()
+
+        if (process.env.NODE_ENV === 'development') {
+          // Log if we're using different time sources for debugging
+          const aSource = a.lastMessage?.createdAt ? 'lastMessage' : a.lastMessageAt ? 'lastMessageAt' : 'updatedAt'
+          const bSource = b.lastMessage?.createdAt ? 'lastMessage' : b.lastMessageAt ? 'lastMessageAt' : 'updatedAt'
+
+          if (aSource !== 'lastMessageAt' || bSource !== 'lastMessageAt') {
+            console.debug('[useConversations] Sorting fallback used:', {
+              convA: { id: a.id.substring(0, 8), source: aSource, time: aTime },
+              convB: { id: b.id.substring(0, 8), source: bSource, time: bTime }
+            })
+          }
+        }
+
+        return bTimestamp - aTimestamp
       })
 
       // Set conversations and clear loading in same tick to prevent flash
@@ -224,8 +257,12 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       // Enrich new conversations
       const enrichedConversations = await enrichConversations(conversationsData)
 
-      // Append to existing conversations
-      setConversations(prev => [...prev, ...enrichedConversations])
+      // Append to existing conversations, filtering out duplicates
+      setConversations(prev => {
+        const existingIds = new Set(prev.map(c => c.id))
+        const newConversations = enrichedConversations.filter(c => !existingIds.has(c.id))
+        return [...prev, ...newConversations]
+      })
       setCurrentPage(nextPage)
     } catch {
       // Error loading more conversations
@@ -381,11 +418,22 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
 
   // Re-enrich conversations when avatars are loaded from cache
   // Use fast enrichment to avoid re-fetching user data
+  // Use ref to avoid re-running on every conversations change (only when cacheVersion increments)
+  const conversationsRef = useRef(conversations)
   useEffect(() => {
-    if (conversations.length > 0 && cacheVersion > 0) {
+    conversationsRef.current = conversations
+  }, [conversations])
+
+  useEffect(() => {
+    const currentConversations = conversationsRef.current
+    if (currentConversations.length > 0 && cacheVersion > 0) {
       // Use fast avatar-only enrichment to avoid slow user data fetch
-      const enriched = enrichConversationsWithAvatarsOnly(conversations)
-      setConversations(enriched)
+      const enriched = enrichConversationsWithAvatarsOnly(currentConversations)
+
+      // Safety check: ensure no duplicates after enrichment (defensive programming)
+      const uniqueEnriched = enriched.filter((conv, index, arr) => arr.findIndex(c => c.id === conv.id) === index)
+
+      setConversations(uniqueEnriched)
     }
   }, [cacheVersion, enrichConversationsWithAvatarsOnly])
 
