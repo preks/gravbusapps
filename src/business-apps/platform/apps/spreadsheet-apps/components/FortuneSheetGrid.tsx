@@ -25,8 +25,8 @@ export interface FortuneSheetGridProps {
   columns: SpreadsheetColumn[]
   /** Whether grid is read-only */
   isReadOnly: boolean
-  /** Callback when cell value changes */
-  onCellChange: (rowId: string, columnId: string, value: unknown) => void
+  /** Callback when cell value changes (options.fromRemote = true when applying received collaboration op) */
+  onCellChange: (rowId: string, columnId: string, value: unknown, options?: { fromRemote?: boolean }) => void
   /** Callback when data changes (batch update) */
   onDataChange: (data: Record<string, unknown>[]) => void
   /** Callback when a new column needs to be created (auto-column creation) */
@@ -45,6 +45,12 @@ export interface FortuneSheetGridProps {
   height?: string | number
   /** Container width */
   width?: string | number
+  /** Called when a remote cell update was applied so parent can force grid refresh */
+  onRemoteChangeApplied?: () => void
+  /** Key to force Workbook remount when remote data arrives (bump when onRemoteChangeApplied is called) */
+  remoteUpdateKey?: number
+  /** Remote operation to apply (from viewer's WebSocket); grid applies it when this changes */
+  receivedOperation?: { operation: any; timestamp: number } | null
 }
 
 /** Ref handle for imperative actions */
@@ -69,7 +75,10 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       participants = [],
       onOperationEmit = () => {},
       onCursorEmit = () => {},
-      collaborationEnabled = false
+      collaborationEnabled = false,
+      onRemoteChangeApplied,
+      remoteUpdateKey = 0,
+      receivedOperation
     } = props
 
     // Track if we're currently processing a local edit (to prevent feedback loops)
@@ -211,6 +220,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
      * Deduplicates spurious duplicate: when first user edits G6, sometimes a second op
      * for H6 with the same value is emitted; we skip applying that so the other user
      * only sees the value in G6.
+     * Also syncs the change into parent data via onCellChange so the grid re-renders immediately.
      */
     const applyOperationToFortuneSheet = useCallback(
       (op: FortuneSheetOp) => {
@@ -236,8 +246,17 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         }
 
         applyRemoteCellUpdate(rowIndex, colIndex, value)
+
+        const rowId = context.rowIndexToId.get(rowIndex)
+        const columnId = context.columnIndexToId.get(colIndex)
+        if (onCellChange && rowId && columnId) {
+          const column = columns.find(c => c.id === columnId)
+          const columnName = column?.name ?? columnId
+          onCellChange(rowId, columnName, value, { fromRemote: true })
+        }
+        onRemoteChangeApplied?.()
       },
-      [applyRemoteCellUpdate]
+      [applyRemoteCellUpdate, context, columns, onCellChange, onRemoteChangeApplied]
     )
 
     // Collaboration hooks
@@ -249,6 +268,15 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       onApplyOperation: applyOperationToFortuneSheet,
       debounceDelay: 300
     })
+
+    // Apply received remote operations from the viewer's WebSocket
+    const lastAppliedOpTimestamp = useRef<number>(0)
+    useEffect(() => {
+      if (!receivedOperation || !collaborationEnabled) return
+      if (receivedOperation.timestamp <= lastAppliedOpTimestamp.current) return
+      lastAppliedOpTimestamp.current = receivedOperation.timestamp
+      collaboration.handleDocumentOp(receivedOperation.operation)
+    }, [receivedOperation, collaborationEnabled, collaboration])
 
     const cursorTracking = useFortuneSheetCursorTracking({
       sheetId: sheet.id,
@@ -489,7 +517,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               workbookRef.current = ref
               patchWorkbookSelection(ref)
             }}
-            key={`workbook-${sheet.id}`}
+            key={`workbook-${sheet.id}-${remoteUpdateKey}`}
             data={
               initialFortuneSheetData
                 ? [

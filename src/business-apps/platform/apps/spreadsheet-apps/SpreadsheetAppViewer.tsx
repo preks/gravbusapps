@@ -160,11 +160,18 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   })
 
   const [isAutomationsOpen, setIsAutomationsOpen] = useState(false)
+  const [remoteUpdateKey, setRemoteUpdateKey] = useState(0)
+  const [receivedOperation, setReceivedOperation] = useState<{
+    operation: any
+    timestamp: number
+  } | null>(null)
 
   // --- Collaboration (header presence + FortuneSheet operations/cursors) ---
-  const handleCollaborationOperation = useCallback(() => {
-    // FortuneSheetGrid applies ops internally; we keep app-level state authoritative.
-    // If we later need to reflect ops into non-table views, we can handle it here.
+  const handleCollaborationOperation = useCallback((op: any) => {
+    // Pass received operation to the grid so it can apply it
+    if (op?.operation) {
+      setReceivedOperation({ operation: op.operation, timestamp: Date.now() })
+    }
   }, [])
 
   const collaboration = useSpreadsheetViewerCollaboration({
@@ -174,7 +181,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   })
 
   // --- Column handling (includes auto-add for FortuneSheet) ---
-  const handleCellChangeRef = useRef<(rowId: string, columnName: string, value: unknown) => void>(() => {})
+  const handleCellChangeRef = useRef<
+    (rowId: string, columnName: string, value: unknown, options?: { fromRemote?: boolean }) => void
+  >(() => {})
 
   const columnsState = useSpreadsheetColumns({
     app,
@@ -191,26 +200,29 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const [editingRow, setEditingRow] = useState<Record<string, unknown> | null>(null)
 
   const handleCellChange = useCallback(
-    async (rowId: string, columnName: string, value: unknown) => {
-      if (entityEnabled) return // entity-sourced sheets are treated as read-only for now
+    async (rowId: string, columnName: string, value: unknown, options?: { fromRemote?: boolean }) => {
+      if (entityEnabled) return
 
       const current = localSheetDataRef.current
       const idx = current.findIndex(r => String(r._id ?? r.id ?? '') === String(rowId))
       if (idx < 0) return
 
       const row = current[idx]
-      const backendRowId = (row as any)._rowUuid || (row as any)._id || (row as any).id || rowId
-
       const updatedRow = { ...row, [columnName]: value, _updatedAt: new Date().toISOString() }
       const next = [...current.slice(0, idx), updatedRow, ...current.slice(idx + 1)]
       setLocalSheetData(next)
       onDataChange?.(activeSheetId, next)
 
+      if (options?.fromRemote) return
+
+      const backendRowId = (row as any)._rowUuid || (row as any)._id || (row as any).id || rowId
       try {
         if (onRowUpdate) {
           await onRowUpdate(app.id, activeSheetId, String(backendRowId), { [columnName]: value })
         } else {
-          await SpreadsheetApiService.updateRow(app.id, activeSheetId, String(backendRowId), { [columnName]: value })
+          await SpreadsheetApiService.updateRow(app.id, activeSheetId, String(backendRowId), {
+            [columnName]: value
+          })
         }
       } catch (error) {
         console.error('[SpreadsheetAppViewer] Failed to persist cell change:', error)
@@ -393,6 +405,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             onOperationEmit={op => collaboration.emitOperation(op as any)}
             onCursorEmit={pos => collaboration.emitCursor({ path: pos.path })}
             collaborationEnabled={collaboration.isCollaborationConnected}
+            onRemoteChangeApplied={() => setRemoteUpdateKey(k => k + 1)}
+            remoteUpdateKey={remoteUpdateKey}
+            receivedOperation={receivedOperation}
             isReadOnly={!isEditing || entityEnabled}
           />
         )}
