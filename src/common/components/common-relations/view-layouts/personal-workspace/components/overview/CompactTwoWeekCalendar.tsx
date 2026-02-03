@@ -177,22 +177,29 @@ export const CompactTwoWeekCalendar: React.FC<CompactTwoWeekCalendarProps> = ({
   }, [activitiesWithMeta, tasksAsActivities])
 
   // Helper functions
-  const getActivityTypeIcon = (type: string, size = 12) => {
-    switch (type) {
-      case 'Task':
-        return <CheckSquareIcon size={size} weight="fill" className="gba:text-warning" />
-      // All activities use same icon
-      case 'Call':
-      case 'Email':
-      case 'Meeting':
-      default:
-        return <CalendarBlankIcon size={size} weight="fill" className="gba:text-info" />
+  const getActivityTypeIcon = (item: CalendarActivity, size = 12) => {
+    const isTask = item.activityType?.value === 'Task'
+    const isOverdue = item.isTask && item.originalTask?.status?.code === 'OVERDUE'
+
+    if (isTask) {
+      return (
+        <CheckSquareIcon size={size} weight="fill" className={isOverdue ? 'gba:text-destructive' : 'gba:text-info'} />
+      )
     }
+
+    // All activities use same icon (green)
+    return <CalendarBlankIcon size={size} weight="fill" className="gba:text-success" />
   }
 
-  const getActivityColorClass = (activityType: string) => {
-    const normalizedType = activityType?.trim() || 'Task'
-    return normalizedType === 'Task' ? 'gba:bg-warning/10' : 'gba:bg-info/10'
+  const getActivityColorClass = (item: CalendarActivity) => {
+    const isTask = item.activityType?.value === 'Task'
+    const isOverdue = item.isTask && item.originalTask?.status?.code === 'OVERDUE'
+
+    if (isTask) {
+      return isOverdue ? 'gba:bg-destructive/10' : 'gba:bg-info/10'
+    }
+
+    return 'gba:bg-success/10'
   }
 
   // Generate 10 weekdays (2 weeks, excluding weekends)
@@ -477,9 +484,9 @@ export const CompactTwoWeekCalendar: React.FC<CompactTwoWeekCalendarProps> = ({
       <DragOverlay>
         {activeItem ? (
           <div
-            className={`gba:px-1.5 gba:py-1 gba:rounded gba:text-[11px] gba:flex gba:items-center gba:gap-1 gba:opacity-90 gba:shadow-lg ${getActivityColorClass(activeItem.activityType?.value || 'Task')}`}
+            className={`gba:px-1.5 gba:py-1 gba:rounded gba:text-[11px] gba:flex gba:items-center gba:gap-1 gba:opacity-90 gba:shadow-lg ${getActivityColorClass(activeItem)}`}
           >
-            {getActivityTypeIcon(activeItem.activityType?.value || 'Task', 11)}
+            {getActivityTypeIcon(activeItem, 11)}
             <span className="gba:truncate gba:text-gray-700">{activeItem.title}</span>
           </div>
         ) : null}
@@ -494,8 +501,8 @@ interface DayCellProps {
     isToday: boolean
     items: CalendarActivity[]
   }
-  getActivityTypeIcon: (type: string, size?: number) => React.ReactNode
-  getActivityColorClass: (activityType: string) => string
+  getActivityTypeIcon: (item: CalendarActivity, size?: number) => React.ReactNode
+  getActivityColorClass: (item: CalendarActivity) => string
   onItemClick: (item: CalendarActivity) => void
   taskEnabled: boolean
   activityEnabled: boolean
@@ -558,7 +565,7 @@ const DayCell: React.FC<DayCellProps> = ({
                       <CheckSquareIcon
                         size={16}
                         weight="fill"
-                        className="gba:text-warning gba:transition-transform gba:duration-200 gba:hover:scale-125"
+                        className="gba:text-info gba:transition-transform gba:duration-200 gba:hover:scale-125"
                       />
                     </button>
                   </AppAction>
@@ -591,7 +598,7 @@ const DayCell: React.FC<DayCellProps> = ({
                       <CalendarBlankIcon
                         size={16}
                         weight="fill"
-                        className="gba:text-info gba:transition-transform gba:duration-200 gba:hover:scale-125"
+                        className="gba:text-success gba:transition-transform gba:duration-200 gba:hover:scale-125"
                       />
                     </button>
                   </AppAction>
@@ -637,8 +644,8 @@ const DayCell: React.FC<DayCellProps> = ({
 interface DraggableCalendarItemProps {
   activity: CalendarActivity
   onItemClick: (item: CalendarActivity) => void
-  getActivityTypeIcon: (type: string, size?: number) => React.ReactNode
-  getActivityColorClass: (activityType: string) => string
+  getActivityTypeIcon: (item: CalendarActivity, size?: number) => React.ReactNode
+  getActivityColorClass: (item: CalendarActivity) => string
 }
 
 const DraggableCalendarItem: React.FC<DraggableCalendarItemProps> = ({
@@ -657,7 +664,6 @@ const DraggableCalendarItem: React.FC<DraggableCalendarItemProps> = ({
       }
     : undefined
 
-  const activityType = activity.activityType?.value || 'Task'
   const isTask = activity.isTask
 
   return (
@@ -666,14 +672,14 @@ const DraggableCalendarItem: React.FC<DraggableCalendarItemProps> = ({
       type="button"
       onClick={() => onItemClick(activity)}
       style={style}
-      className={`gba:w-full gba:px-1.5 gba:py-1 gba:rounded gba:text-[11px] gba:text-left gba:border-0 gba:flex gba:items-center gba:gap-1 gba:cursor-grab active:gba:cursor-grabbing hover:gba:opacity-80 ${getActivityColorClass(activityType)} ${
+      className={`gba:w-full gba:px-1.5 gba:py-1 gba:rounded gba:text-[11px] gba:text-left gba:border-0 gba:flex gba:items-center gba:gap-1 gba:cursor-grab active:gba:cursor-grabbing hover:gba:opacity-80 ${getActivityColorClass(activity)} ${
         isDragging ? 'gba:opacity-50' : ''
       }`}
       data-testid={`${isTask ? 'task' : 'activity'}-${activity.id}`}
       {...listeners}
       {...attributes}
     >
-      {getActivityTypeIcon(activityType, 11)}
+      {getActivityTypeIcon(activity, 11)}
       <span className="gba:truncate gba:flex-1 gba:text-gray-700">{activity.title}</span>
     </button>
   )
