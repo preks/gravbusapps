@@ -197,7 +197,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       presenceMap,
       presenceVersion,
       getUserPresence,
-      updatePresenceFromUser,
+      updatePresence,
       sendMessage,
       createDirectConversation,
       createContextConversation,
@@ -375,13 +375,15 @@ const ChatInner: React.FC<ChatProps> = memo(
     const meshGroupCall = useGroupCall({
       wsClient: wsClient || null,
       apiClient: apiClient || null,
-      currentUser: currentUserAsParticipant
+      currentUser: currentUserAsParticipant,
+      accessToken: stableAccessToken
     })
 
     const realtimeKitGroupCall = useRealtimeKitGroupCall({
       wsClient: wsClient || null,
       apiClient: realtimeKitApiClient,
-      currentUser: currentUserAsParticipant
+      currentUser: currentUserAsParticipant,
+      accessToken: stableAccessToken
     })
 
     // Route to appropriate implementation based on feature flag
@@ -410,7 +412,9 @@ const ChatInner: React.FC<ChatProps> = memo(
       inviteToCall: inviteToGroupCall,
       reconnectParticipant: reconnectGroupParticipant,
       getConnectionDiagnostics: getGroupConnectionDiagnostics,
-      pendingInvites: groupPendingInvites
+      pendingInvites: groupPendingInvites,
+      transcriptionEnabled
+      // toggleTranscription - Available but not used here (should be in pre-call UI)
     } = groupCall
 
     // TEST MODE: Allow overriding participants from browser console
@@ -427,19 +431,21 @@ const ChatInner: React.FC<ChatProps> = memo(
         ;(window as any).TestParticipantPresets = TestParticipantPresets
         ;(window as any).seedTestParticipants = seedTestParticipants
         ;(window as any).setTestParticipants = (countOrPreset: number | string) => {
-          console.log('[TEST] setTestParticipants called with:', countOrPreset)
+          rtkDebug.log('[TEST] setTestParticipants called with:', countOrPreset)
           try {
             let participants: GroupCallParticipant[]
             if (typeof countOrPreset === 'number') {
               participants = seedTestParticipants(countOrPreset)
-              console.log(`✅ Test participants set to ${countOrPreset}, generated ${participants.length} participants`)
+              rtkDebug.log(
+                `✅ Test participants set to ${countOrPreset}, generated ${participants.length} participants`
+              )
             } else if (
               typeof countOrPreset === 'string' &&
               TestParticipantPresets[countOrPreset as keyof typeof TestParticipantPresets]
             ) {
               const preset = TestParticipantPresets[countOrPreset as keyof typeof TestParticipantPresets]
               participants = preset()
-              console.log(
+              rtkDebug.log(
                 `✅ Test participants set to preset: ${countOrPreset}, generated ${participants.length} participants`
               )
             } else {
@@ -450,7 +456,7 @@ const ChatInner: React.FC<ChatProps> = memo(
             }
             // Use ref to ensure we have the latest setter
             setTestParticipantsOverrideRef.current(participants)
-            console.log(
+            rtkDebug.log(
               '[TEST] State updated, participants:',
               participants.map(p => p.odName)
             )
@@ -459,30 +465,30 @@ const ChatInner: React.FC<ChatProps> = memo(
           }
         }
         ;(window as any).clearTestParticipants = () => {
-          console.log('[TEST] Clearing test participants')
+          rtkDebug.log('[TEST] Clearing test participants')
           setTestParticipantsOverrideRef.current(null)
-          console.log('✅ Test participants cleared, using real participants')
+          rtkDebug.log('✅ Test participants cleared, using real participants')
         }
         ;(window as any).getTestParticipants = () => {
-          console.log('[TEST] Current test participants override:', testParticipantsOverride)
-          console.log('[TEST] Current real participants count:', groupParticipantsRaw.length)
+          rtkDebug.log('[TEST] Current test participants override:', testParticipantsOverride)
+          rtkDebug.log('[TEST] Current real participants count:', groupParticipantsRaw.length)
           return testParticipantsOverride
         }
         ;(window as any).testParticipantsDebug = () => {
-          console.log('🔍 Test Participants Debug Info:')
-          console.log('  - Function exists:', typeof (window as any).setTestParticipants === 'function')
-          console.log('  - Current override:', testParticipantsOverride)
-          console.log('  - Current override count:', testParticipantsOverride?.length || 0)
-          console.log('  - Real participants count:', groupParticipantsRaw.length)
-          console.log('  - Is in call:', groupCallState.status !== 'idle')
-          console.log('  - Call status:', groupCallState.status)
+          rtkDebug.log('🔍 Test Participants Debug Info:')
+          rtkDebug.log('  - Function exists:', typeof (window as any).setTestParticipants === 'function')
+          rtkDebug.log('  - Current override:', testParticipantsOverride)
+          rtkDebug.log('  - Current override count:', testParticipantsOverride?.length || 0)
+          rtkDebug.log('  - Real participants count:', groupParticipantsRaw.length)
+          rtkDebug.log('  - Is in call:', groupCallState.status !== 'idle')
+          rtkDebug.log('  - Call status:', groupCallState.status)
         }
-        console.log('🎮 Test participant utilities available:')
-        console.log('  - window.setTestParticipants(5)')
-        console.log('  - window.setTestParticipants("nine")')
-        console.log('  - window.clearTestParticipants()')
-        console.log('  - window.getTestParticipants()')
-        console.log('  - window.testParticipantsDebug()')
+        rtkDebug.log('🎮 Test participant utilities available:')
+        rtkDebug.log('  - window.setTestParticipants(5)')
+        rtkDebug.log('  - window.setTestParticipants("nine")')
+        rtkDebug.log('  - window.clearTestParticipants()')
+        rtkDebug.log('  - window.getTestParticipants()')
+        rtkDebug.log('  - window.testParticipantsDebug()')
       }
     }, [])
 
@@ -492,13 +498,13 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Debug log when participants change
     useEffect(() => {
       if (testParticipantsOverride) {
-        console.log(
+        rtkDebug.log(
           '[TEST] ✅ Using test participants:',
           testParticipantsOverride.length,
           testParticipantsOverride.map(p => p.odName)
         )
       } else {
-        console.log('[TEST] Using real participants:', groupParticipantsRaw.length)
+        rtkDebug.log('[TEST] Using real participants:', groupParticipantsRaw.length)
       }
     }, [testParticipantsOverride, groupParticipantsRaw.length])
 
@@ -516,7 +522,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Reset isStartingCall when call actually connects
     useEffect(() => {
       if (isInAnyCall && isStartingCall) {
-        console.log('[CHAT] Call connected, resetting isStartingCall flag')
+        rtkDebug.log('[CHAT] Call connected, resetting isStartingCall flag')
         setIsStartingCall(false)
       }
     }, [isInAnyCall, isStartingCall])
@@ -567,7 +573,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     const handleAudioCall = () => {
       // Guard: prevent duplicate call initiation
       if (isStartingCall) {
-        console.log('[CHAT] Already starting a call, ignoring duplicate request')
+        rtkDebug.log('[CHAT] Already starting a call, ignoring duplicate request')
         return
       }
 
@@ -617,7 +623,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     const handleVideoCall = () => {
       // Guard: prevent duplicate call initiation
       if (isStartingCall) {
-        console.log('[CHAT] Already starting a call, ignoring duplicate request')
+        rtkDebug.log('[CHAT] Already starting a call, ignoring duplicate request')
         return
       }
 
@@ -749,7 +755,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Only initialize each user once from API data, then rely on WebSocket updates
     useEffect(() => {
       try {
-        if (!conversations || conversations.length === 0 || !updatePresenceFromUser) return
+        if (!conversations || conversations.length === 0 || !updatePresence) return
 
         // Extract all users from conversations and initialize their presence
         conversations.forEach(conv => {
@@ -762,24 +768,34 @@ const ChatInner: React.FC<ChatProps> = memo(
               if (!presenceInitializedUsersRef.current.has(userId)) {
                 presenceInitializedUsersRef.current.add(userId)
 
-                // The API returns isOnline (boolean) and lastSeen on user object
+                // Extract presence data from API response
                 const lastSeen = p.user.lastSeen || p.user.lastSeenAt
+                const isOnline = typeof p.user.isOnline === 'boolean' ? p.user.isOnline : p.user.isActive
+                const state = isOnline ? 'online' : 'offline'
+                const lastSeenString = lastSeen instanceof Date ? lastSeen.toISOString() : lastSeen
 
-                // If we have isOnline directly from API, use it
-                if (typeof p.user.isOnline === 'boolean') {
-                  updatePresenceFromUser(userId, lastSeen, p.user.isOnline)
-                } else {
-                  // Fallback to calculating from lastSeen/lastSeenAt
-                  updatePresenceFromUser(userId, lastSeen, p.user.isActive)
-                }
+                // Extract detailed user status from API response
+                const userStatus = p.user.currentStatus
+                  ? {
+                      status: p.user.currentStatus,
+                      isSystemStatus: p.user.isSystemStatus || false,
+                      statusMessage: p.user.statusMessage,
+                      isOnline: isOnline || false
+                    }
+                  : undefined
+
+                // Initialize presence with full status details
+                updatePresence(userId, { state, lastSeen: lastSeenString, userStatus })
+
+                rtkDebug.log('[Chat] Initialized presence from API for user:', userId, { state, userStatus })
               }
             }
           })
         })
-      } catch {
-        // Error initializing presence
+      } catch (error) {
+        console.error('[Chat] Error initializing presence:', error)
       }
-    }, [conversations, currentUser?.id, updatePresenceFromUser])
+    }, [conversations, currentUser?.id, updatePresence])
 
     // Wrap sendMessage to match the expected signature (Promise<void> instead of Promise<Message>)
     const sendMessageVoid = useCallback(
@@ -1768,6 +1784,8 @@ const ChatInner: React.FC<ChatProps> = memo(
                 presenceMap={presenceMap}
                 presenceVersion={presenceVersion}
                 conversationExpertCounts={conversationExpertCounts}
+                wsClient={wsClient}
+                isConnected={isConnected}
               />
             </div>
           )}
@@ -1829,6 +1847,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                     accessToken={accessToken}
                     onSendMessage={handleAISendMessage}
                     participants={stableActiveConversation.participants}
+                    apiClient={apiClient}
                   />
 
                   {/* V1 - Old implementation (commented for testing)
@@ -2059,6 +2078,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                 currentUser={currentUser}
                 conversationName={realtimeKitGroupCall.currentCallConversationName || activeConversation?.name}
                 wsClient={wsClient}
+                transcriptionEnabled={transcriptionEnabled}
                 activeConversation={activeConversation}
                 activeExperts={activeConversation?.activeExperts || activeExperts || []}
               />

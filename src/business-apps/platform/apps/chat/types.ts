@@ -32,6 +32,10 @@ export interface User {
   language?: string
   createdAt: Date | string
   updatedAt: Date | string
+  // User status fields
+  currentStatus?: CombinedPresenceStatus
+  isSystemStatus?: boolean
+  userStatus?: UserStatus // Computed status object
 }
 
 export interface ActiveCall {
@@ -57,9 +61,16 @@ export interface Conversation {
   updatedAt: Date | string
   participants?: ConversationParticipant[]
   lastMessage?: Message
+  lastMessageAt?: Date | string // Timestamp of the last message (from backend)
   unreadCount?: number
   activeCall?: ActiveCall | null
   activeExperts?: string[] // Array of Every Expert prompt IDs
+  metadata?: {
+    type?: 'meeting' | 'regular'
+    meetingId?: string
+    icon?: 'calendar' | 'users' | 'video'
+    [key: string]: any
+  }
 }
 
 export interface ConversationParticipant {
@@ -127,48 +138,50 @@ export interface PresenceStatus {
   timestamp?: Date | string
 }
 
-// Entity Reference Types for @ mentions
-export type EntityType =
-  // AI Assistants
-  | 'ai_assistant'
-  | 'every_expert' // NEW: Specialized Every Experts
-  // CRM entities
-  | 'lead'
-  | 'contact'
-  | 'account'
-  | 'opportunity'
-  // IRM entities
-  | 'investment_lead'
-  | 'investment_contact'
-  | 'investment_account'
-  | 'investment_opportunity'
-  | 'investment'
-  // Intranet content
-  | 'news_article'
-  | 'knowledge_article'
-  | 'intranet_article'
-  | 'document_article'
-  // Other entities
-  | 'employee'
-  | 'campaign'
-  | 'expense_request'
-
-export interface EntityReference {
-  id: string
-  userId?: string // Open Directory ID (for employees - used by calendar/meetings API)
-  type: EntityType | string
-  name: string
-  subtitle?: string
-  pictureThumbnail?: string
-  // Document/content data (for sending full content to AI)
-  contentPreview?: string // Preview/excerpt of document content
-  contentData?: any // Full content data if available
+// User Presence Status Types
+export enum UserPresenceStatus {
+  AVAILABLE = 'available',
+  BUSY = 'busy',
+  DO_NOT_DISTURB = 'do_not_disturb',
+  BE_RIGHT_BACK = 'be_right_back',
+  APPEAR_AWAY = 'appear_away',
+  APPEAR_OFFLINE = 'appear_offline'
 }
 
-export interface MessageEntityReference extends EntityReference {
-  startIndex: number
-  endIndex: number
+export enum SystemPresenceStatus {
+  IN_MEETING = 'in_meeting',
+  IN_CALL = 'in_call',
+  PRESENTING = 'presenting',
+  OFFLINE = 'offline'
 }
+
+export type CombinedPresenceStatus = UserPresenceStatus | SystemPresenceStatus
+
+export interface UserStatus {
+  status: CombinedPresenceStatus
+  isSystemStatus: boolean
+  statusMessage?: string
+  isOnline: boolean
+}
+
+export interface UserStatusChangeEvent {
+  userId: string
+  status: CombinedPresenceStatus
+  isSystemStatus: boolean
+  statusMessage?: string
+  isOnline: boolean
+  timestamp: Date | string
+}
+
+export interface SetUserStatusPayload {
+  status: UserPresenceStatus
+  statusMessage?: string
+  expiresAt?: string
+}
+
+// Entity Reference Types for @ mentions - re-exported from common hooks for backward compatibility
+export type { EntityType, EntityReference, MessageEntityReference } from '@/common/hooks/useEntityMentions'
+import type { EntityType } from '@/common/hooks/useEntityMentions'
 
 // Entity navigation paths (platform URLs that work with navigateTo)
 export const ENTITY_NAVIGATION_PATHS: Record<EntityType, string> = {

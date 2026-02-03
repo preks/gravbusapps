@@ -13,8 +13,10 @@ import {
 } from '@newwork/nw-design-system'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
-import { UserIcon, UsersIcon, Sparkles } from 'lucide-react'
+import { UserIcon, UsersIcon, Sparkles, CalendarIcon } from 'lucide-react'
+import { rtkDebug } from '../utils/rtkDebug'
 import { SignOut } from '@phosphor-icons/react'
+import { UserStatusIndicator } from './UserStatusIndicator'
 
 interface ConversationItemProps {
   conversation: Conversation
@@ -115,9 +117,34 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   const [isHovered, setIsHovered] = useState(false)
 
   // Only show presence for direct messages (default to offline if no presence data)
+  // Map 'away' to 'offline' for display purposes (PresenceIndicator only shows online/offline)
   const showPresence = conversation.type === 'direct'
-  const presenceStatus = otherUserPresence?.status || 'offline'
+  const rawPresenceStatus = otherUserPresence?.state || 'offline'
+  const presenceStatus: 'online' | 'offline' = rawPresenceStatus === 'online' ? 'online' : 'offline'
   const hasActiveCall = conversation.type === 'group' && !!conversation.activeCall
+
+  // Use enhanced status if available
+  const userStatus = otherUserPresence?.userStatus
+
+  // Debug logging
+  if (process.env.NODE_ENV === 'development' && showPresence) {
+    const otherUserId = conversation.participants?.find(p => p.userId !== currentUserId)?.userId
+    rtkDebug.log('[ConversationItem] Presence data:', {
+      conversationId: conversation.id,
+      conversationType: conversation.type,
+      otherUserId,
+      hasOtherUserPresence: !!otherUserPresence,
+      hasUserStatus: !!userStatus,
+      userStatus,
+      fullOtherUserPresence: otherUserPresence,
+      // Last seen debug
+      hasLastSeen: !!otherUserPresence?.lastSeen,
+      lastSeen: otherUserPresence?.lastSeen,
+      presenceStatus,
+      compact,
+      shouldShowLastSeen: showPresence && !!otherUserPresence?.lastSeen && presenceStatus === 'offline'
+    })
+  }
 
   // Get names of participants currently in the call
   const getParticipantsInCall = (): string[] => {
@@ -186,12 +213,12 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
       >
         <div className="gba:relative gba:flex-shrink-0">
           {conversation.type === 'group' ? (
-            // Group chat: always show group icon
+            // Group chat: show calendar icon for meeting chats, group icon for regular
             <div className="gba:relative">
               <IconAvatar
                 className={`${avatarSize} ${hasActiveExperts ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2 gba:ring-offset-background' : ''}`}
                 label={name}
-                icon={UsersIcon}
+                icon={conversation.metadata?.type === 'meeting' ? CalendarIcon : UsersIcon}
               />
               {hasActiveExperts && (
                 <div className="gba:absolute gba:-bottom-1 gba:-right-1 gba:w-4 gba:h-4 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:flex gba:items-center gba:justify-center gba:border-2 gba:border-background gba:shadow-md">
@@ -208,7 +235,11 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
             // Direct chat without avatar
             <IconAvatar className={avatarSize} label={name} icon={UserIcon} />
           )}
-          {showPresence && <PresenceIndicator status={presenceStatus} t={t} />}
+          {showPresence && userStatus ? (
+            <UserStatusIndicator status={userStatus} size="sm" className="gba:absolute gba:bottom-0 gba:right-0" />
+          ) : showPresence ? (
+            <PresenceIndicator status={presenceStatus} t={t} />
+          ) : null}
         </div>
 
         <div className="gba:flex-1 gba:min-w-0 gba:flex gba:flex-col gba:gap-0.5">
@@ -235,18 +266,32 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
             <p className="gba:text-xs gba:text-success gba:truncate gba:max-w-[180px]">
               {participantsInCall.join(', ')}
             </p>
-          ) : showPresence && otherUserPresence?.lastSeen && presenceStatus === 'offline' && !compact ? (
+          ) : showPresence && otherUserPresence?.lastSeen && presenceStatus === 'offline' ? (
             <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
               {(() => {
                 try {
                   const lastSeenDate = new Date(otherUserPresence.lastSeen)
+                  rtkDebug.log('[ConversationItem] 📅 Calculating last seen:', {
+                    lastSeenString: otherUserPresence.lastSeen,
+                    lastSeenDate,
+                    isValidDate: !isNaN(lastSeenDate.getTime())
+                  })
+
                   // Check if date is valid
                   if (isNaN(lastSeenDate.getTime())) {
+                    console.error('[ConversationItem] ❌ Invalid lastSeen date')
                     return null
                   }
 
                   const now = new Date()
                   const diffMs = now.getTime() - lastSeenDate.getTime()
+
+                  rtkDebug.log('[ConversationItem] ⏱️ Time difference:', {
+                    now: now.toISOString(),
+                    lastSeen: lastSeenDate.toISOString(),
+                    diffMs,
+                    diffMinutes: Math.floor(diffMs / (1000 * 60))
+                  })
 
                   // Check for negative or invalid differences
                   if (diffMs < 0 || isNaN(diffMs)) {
@@ -257,22 +302,27 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
                   const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
                   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
+                  // Show "just now" for very recent disconnections (< 1 minute)
+                  let lastSeenText: string
                   if (diffMinutes < 60) {
-                    return t('chat-lastSeenMinutes', { minutes: diffMinutes })
+                    lastSeenText = t('chat-lastSeenMinutes', { minutes: diffMinutes })
                   } else if (diffHours < 24) {
-                    return t('chat-lastSeenHours', { hours: diffHours })
+                    lastSeenText = t('chat-lastSeenHours', { hours: diffHours })
                   } else if (diffDays < 7) {
-                    return t('chat-lastSeenDays', { days: diffDays })
+                    lastSeenText = t('chat-lastSeenDays', { days: diffDays })
                   } else {
-                    return t('chat-lastSeenLongAgo')
+                    lastSeenText = t('chat-lastSeenLongAgo')
                   }
+
+                  rtkDebug.log('[ConversationItem] ✅ Last seen text generated:', lastSeenText)
+                  return lastSeenText
                 } catch (error) {
-                  console.error('Error calculating last seen time:', error)
+                  console.error('[ConversationItem] ❌ Error calculating last seen time:', error)
                   return null
                 }
               })()}
             </p>
-          ) : conversation.lastMessage && !compact ? (
+          ) : conversation.lastMessage ? (
             <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
               {conversation.lastMessage.content}
             </p>

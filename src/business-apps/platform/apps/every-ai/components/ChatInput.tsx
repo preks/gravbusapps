@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { Button, Textarea, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
-import { Plus, Paperclip, Globe, Trash, PaperPlaneTilt, Camera } from '@phosphor-icons/react'
+import { Plus, Paperclip, Globe, Trash, PaperPlaneTilt, Camera, At } from '@phosphor-icons/react'
+import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '../hooks/useFileUploadManager'
 
 // Detect if running on a mobile device with camera capabilities
 function useIsMobileWithCamera(): boolean {
@@ -15,9 +16,9 @@ function useIsMobileWithCamera(): boolean {
     const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
     return (hasTouch || isMobileUA) && hasMediaDevices
   }, [])
-}
-import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '../hooks/useFileUploadManager'
 import { VoiceModeButton } from './voice/VoiceModeButton'
+import { useEntityMentions, type EntityReference } from '@/common/hooks/useEntityMentions'
+import { EntityMentionPopover } from '@/common/components/entity-mentions'
 
 type Suggestion = string | { heading?: string; message?: string }
 
@@ -71,6 +72,8 @@ interface ChatInputProps {
   // Cancel restoration props
   cancelledMessageText?: string | null
   onClearCancelledMessage?: () => void
+  // Access token for entity mentions
+  accessToken?: string
   /** When true, applies translucent dark mode styling for dark backgrounds */
   darkMode?: boolean
   /** When true, show fewer suggestions (e.g. in sidebar) so they fit in one row */
@@ -96,31 +99,57 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onFilesAttached,
   cancelledMessageText,
   onClearCancelledMessage,
+  accessToken = '',
   darkMode = false,
   compactSuggestions = false
 }) => {
   const [value, setValue] = useState('')
   const [isSearching, setIsSearching] = useState(false)
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0)
   const { files, uploadFile, removeFile, clearFiles } = useFileUploadManager()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const isMobileWithCamera = useIsMobileWithCamera()
 
+  // Entity mentions hook
+  const {
+    entities,
+    isLoading: isMentionsLoading,
+    mentionState,
+    selectedEntities,
+    handleTextChange,
+    insertEntity,
+    clearMentions,
+    closeMention
+  } = useEntityMentions(accessToken)
+
   const handleSend = useCallback(() => {
     const { canSend, trimmed } = shouldSendMessage({ disabled, value, fileCount: files.length })
     if (!canSend) return
+
+    // Convert selectedEntities to the format expected by onSend
+    const mentionsForSend = selectedEntities.map(entity => ({
+      id: entity.id,
+      typeKey: entity.type,
+      display: entity.name,
+      raw: entity,
+      start: entity.startIndex,
+      end: entity.endIndex
+    }))
+
     onSend(
       trimmed,
       files.map(f => f.file),
       false,
       isSearching,
-      undefined
+      mentionsForSend.length > 0 ? mentionsForSend : undefined
     )
     setValue('')
     clearFiles()
     setIsSearching(false)
-  }, [value, files, onSend, clearFiles, disabled, isSearching])
+    clearMentions()
+  }, [value, files, onSend, clearFiles, disabled, isSearching, selectedEntities, clearMentions])
 
   const pickFiles = useCallback(
     (list: FileList | null) => {
@@ -148,8 +177,111 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     }, 0)
   }, [])
 
+  // Handle text change and detect mentions
+  const handleValueChange = useCallback(
+    (newValue: string) => {
+      setValue(newValue)
+      const caretPosition = textareaRef.current?.selectionStart || newValue.length
+      handleTextChange(newValue, caretPosition)
+    },
+    [handleTextChange]
+  )
+
+  // Handle entity selection from mention popover
+  const handleEntitySelect = useCallback(
+    (entity: EntityReference) => {
+      const { newText, newCaretPosition } = insertEntity(entity, value)
+      setValue(newText)
+      handleTextChange(newText, newCaretPosition)
+      setSelectedMentionIndex(0)
+
+      // Focus and set cursor position
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus()
+          textareaRef.current.setSelectionRange(newCaretPosition, newCaretPosition)
+        }
+      }, 0)
+    },
+    [insertEntity, value, handleTextChange]
+  )
+
+  // Handle @ button click - insert @ and trigger mention
+  const handleAtClick = useCallback(() => {
+    const currentPos = textareaRef.current?.selectionStart || value.length
+    const beforeCursor = value.slice(0, currentPos)
+    const afterCursor = value.slice(currentPos)
+
+    // Add @ at cursor position (with space before if needed)
+    const needsSpace = beforeCursor.length > 0 && !beforeCursor.endsWith(' ')
+    const newValue = beforeCursor + (needsSpace ? ' @' : '@') + afterCursor
+    const newCaretPosition = currentPos + (needsSpace ? 2 : 1)
+
+    setValue(newValue)
+    handleTextChange(newValue, newCaretPosition)
+
+    // Focus and set cursor position
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus()
+        textareaRef.current.setSelectionRange(newCaretPosition, newCaretPosition)
+      }
+    }, 0)
+  }, [value, handleTextChange])
+
   // Check if voice mode is supported (has the callback)
   const voiceModeSupported = !!onToggleVoiceMode
+
+  // Reset selected index when entities change
+  useEffect(() => {
+    setSelectedMentionIndex(0)
+  }, [entities])
+
+  // Handle keyboard navigation for mentions
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      // If mention popover is open, handle navigation
+      if (mentionState?.isActive && entities.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          e.stopPropagation()
+          setSelectedMentionIndex(prev => Math.min(prev + 1, entities.length - 1))
+          return
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault()
+          e.stopPropagation()
+          setSelectedMentionIndex(prev => Math.max(prev - 1, 0))
+          return
+        }
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault()
+          e.stopPropagation()
+          handleEntitySelect(entities[selectedMentionIndex])
+          return
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          e.stopPropagation()
+          closeMention()
+          return
+        }
+        if (e.key === 'Tab') {
+          e.preventDefault()
+          e.stopPropagation()
+          handleEntitySelect(entities[selectedMentionIndex])
+          return
+        }
+      }
+
+      // Normal Enter to send (if mention popover is not open)
+      if (e.key === 'Enter' && !e.shiftKey && !mentionState?.isActive) {
+        e.preventDefault()
+        handleSend()
+      }
+    },
+    [mentionState, entities, selectedMentionIndex, handleEntitySelect, closeMention, handleSend]
+  )
 
   // Restore cancelled message to input when cancelledMessageText changes
   useEffect(() => {
@@ -277,6 +409,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                         )
                         clearFiles()
                         setIsSearching(false)
+                        clearMentions()
                       }}
                       data-testid={`suggestion-${idx}`}
                     >
@@ -453,6 +586,59 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                         </button>
                       )}
 
+                      {/* Mention Entity */}
+                      <button
+                        onClick={() => {
+                          handleAtClick()
+                        }}
+                        className={`gba:group/option gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:rounded-xl gba:text-sm gba:transition-all gba:duration-200 gba:w-full gba:text-left ${darkMode && selectedEntities.length === 0 ? 'gba:text-white/90 hover:gba:bg-white/10' : ''}`}
+                        style={{
+                          background: selectedEntities.length > 0 ? `rgba(${goldRgb}, 0.08)` : 'transparent',
+                          color:
+                            selectedEntities.length > 0
+                              ? `rgb(${goldRgb})`
+                              : darkMode
+                                ? undefined
+                                : 'var(--nw-foreground)'
+                        }}
+                        onMouseEnter={e => {
+                          if (selectedEntities.length === 0 && !darkMode) {
+                            ;(e.currentTarget as HTMLButtonElement).style.background = `rgba(${goldRgb}, 0.08)`
+                          }
+                        }}
+                        onMouseLeave={e => {
+                          if (selectedEntities.length === 0 && !darkMode) {
+                            ;(e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+                          }
+                        }}
+                        disabled={disabled}
+                      >
+                        <div
+                          className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
+                          style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
+                        >
+                          <At
+                            className="gba:h-4 gba:w-4"
+                            style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
+                            weight="bold"
+                          />
+                        </div>
+                        <span className="gba:font-medium">Mention entity</span>
+                        {selectedEntities.length > 0 && (
+                          <span
+                            className="gba:ml-auto gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-semibold"
+                            style={{
+                              background: darkMode
+                                ? 'rgba(96, 165, 250, 0.3)'
+                                : `linear-gradient(135deg, rgb(${goldRgb}), ${goldSecondary})`,
+                              color: darkMode ? 'white' : 'var(--nw-ai-foreground)'
+                            }}
+                          >
+                            {selectedEntities.length}
+                          </span>
+                        )}
+                      </button>
+
                       {/* Web Search Toggle */}
                       <button
                         onClick={() => setIsSearching(!isSearching)}
@@ -508,6 +694,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                         onClick={() => {
                           setValue('')
                           clearFiles()
+                          clearMentions()
                           onClear()
                           focusTextarea()
                         }}
@@ -523,19 +710,26 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   </PopoverContent>
                 </Popover>
 
+                {/* Entity Mention Popover */}
+                {mentionState?.isActive && (
+                  <EntityMentionPopover
+                    entities={entities}
+                    isLoading={isMentionsLoading}
+                    onSelect={handleEntitySelect}
+                    onClose={closeMention}
+                    selectedIndex={selectedMentionIndex}
+                    onSelectedIndexChange={setSelectedMentionIndex}
+                  />
+                )}
+
                 {/* Textarea - Seamless integration */}
                 <Textarea
                   ref={textareaRef}
                   value={value}
-                  onChange={e => setValue(e.target.value)}
+                  onChange={e => handleValueChange(e.target.value)}
                   placeholder={placeholder}
                   className={`gba:flex-1 gba:min-w-0 gba:min-h-10 gba:max-h-32 gba:resize-none gba:bg-transparent gba:border-none gba:px-1 gba:py-2 gba:text-base gba:leading-relaxed focus-visible:gba:ring-0 ${darkMode ? 'gba:text-white gba:placeholder-white/50' : 'gba:text-foreground'}`}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSend()
-                    }
-                  }}
+                  onKeyDown={handleKeyDown}
                   disabled={disabled}
                 />
 

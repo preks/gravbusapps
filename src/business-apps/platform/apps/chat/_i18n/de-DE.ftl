@@ -313,6 +313,14 @@ videogrid-page-info = Seite {$current} von {$total}
 videogrid-previous-page = Vorherige Seite
 videogrid-next-page = Nächste Seite
 
+# Transcription
+chat-call-enableTranscription = Transkription aktivieren
+chat-call-transcriptionActive = Aufnahme
+chat-call-recording = Aufnahme
+chat-transcript-ready = Meeting-Transkript bereit
+chat-transcript-view = Transkript anzeigen
+chat-transcript-saved = Ihr Meeting-Transkript wurde gespeichert
+
 # Notifications
 notifications-title = Benachrichtigungen
 notifications-empty = Derzeit keine Benachrichtigungen
@@ -408,6 +416,8 @@ calendar-accept = Zusagen
 calendar-maybe = Vielleicht
 calendar-decline = Absagen
 calendar-joinCall = Anruf beitreten
+calendar-startMeeting = Meeting starten
+calendar-joinMeeting = Meeting beitreten
 calendar-chat = Chat
 calendar-edit = Bearbeiten
 

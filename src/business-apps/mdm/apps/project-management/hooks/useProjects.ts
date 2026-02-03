@@ -7,6 +7,13 @@ import { Project, ProjectData, ProjectStatusBE, ProjectStatusUI, ProjectTypeBE }
 const DEFAULT_PAGE_SIZE = 10
 const DEFAULT_CURRENT_PAGE = 1
 
+/** Map i18n language code to Intl locale for date formatting (e.g. en -> en-US, de -> de-DE, ro -> ro-RO) */
+export const getDateLocaleFromLanguage = (lang: string | undefined): string => {
+  if (lang == null || lang === '') return 'en-US'
+  const map: Record<string, string> = { en: 'en-US', de: 'de-DE', ro: 'ro-RO' }
+  return map[lang] ?? map[lang.split('-')[0]] ?? 'en-US'
+}
+
 // GraphQL query to get active structure ID
 export const GET_ACTIVE_STRUCTURE = (): string => {
   return `query getActiveStructure {
@@ -217,8 +224,14 @@ const transformStatus = (beStatus?: ProjectStatusBE): ProjectStatusUI => {
   }
 }
 
+const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric'
+}
+
 // Transform API project data to UI-friendly Project interface
-const transformProject = (projectData: ProjectData): Project => {
+const transformProject = (projectData: ProjectData, locale: string = 'en-US'): Project => {
   const now = new Date()
   let status = ProjectStatusUI.InProgress
   let isActive = true
@@ -231,11 +244,7 @@ const transformProject = (projectData: ProjectData): Project => {
   // Format validFrom date
   if (projectData.validFrom) {
     const validFromDate = new Date(projectData.validFrom)
-    formattedValidFrom = validFromDate.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
+    formattedValidFrom = validFromDate.toLocaleDateString(locale, DATE_FORMAT_OPTIONS)
     const timeDiffFrom = validFromDate.getTime() - now.getTime()
     daysUntilStart = Math.ceil(timeDiffFrom / (1000 * 3600 * 24))
   }
@@ -243,11 +252,7 @@ const transformProject = (projectData: ProjectData): Project => {
   // Format validTo date
   if (projectData.validTo) {
     const validToDate = new Date(projectData.validTo)
-    formattedValidTo = validToDate.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
+    formattedValidTo = validToDate.toLocaleDateString(locale, DATE_FORMAT_OPTIONS)
     const timeDiffTo = validToDate.getTime() - now.getTime()
     daysUntilExpiry = Math.ceil(timeDiffTo / (1000 * 3600 * 24))
   }
@@ -285,7 +290,11 @@ const transformProject = (projectData: ProjectData): Project => {
   }
 }
 
-export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects: boolean = false) => {
+export const useProjects = (
+  context: BusinessAppContextProps,
+  onlyActiveProjects: boolean = false,
+  locale: string = 'en-US'
+) => {
   const [projects, setProjects] = useState<Project[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -348,7 +357,7 @@ export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects
               matrixUnitId: project.matrixUnitId,
               hoursBudget: project.hoursBudget
             }
-            return transformProject(projectData)
+            return transformProject(projectData, locale)
           })
 
           const totalCount = result.ProjectAggregate?.aggregate?.count || 0
@@ -368,7 +377,7 @@ export const useProjects = (context: BusinessAppContextProps, onlyActiveProjects
         throw new Error('Failed to fetch projects')
       }
     },
-    [graphqlClient, fetchStructureId]
+    [graphqlClient, fetchStructureId, locale]
   )
 
   // Fetch accounts using GraphQL

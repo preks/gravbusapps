@@ -45,6 +45,8 @@ export interface ContactRelationFields {
 
 export interface CommonContactQueryVariables extends BaseQueryVariables {
   academicTitleIds?: string[]
+  departmentIds?: string[]
+  jobPositions?: string[]
   languageIds?: string[]
   ownerEmployeeIds?: string[]
   salutationIds?: string[]

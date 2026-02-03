@@ -196,6 +196,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
   const changeLogFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
   const servicesFeatureFlag = useFeature('services.enabled')
+  const attendanceFeatureFlag = useFeature('human-resources.attendance.enabled')
   const compensationFeatureFlagRaw = useFeature<boolean>(Feature.HCM.Compensation.Key)
 
   // Handle undefined as true (enabled by default until FeatureHub loads)
@@ -578,7 +579,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             }
           ]
         : []),
-      ...(devFeatureFlag
+      ...(attendanceFeatureFlag
         ? [
             {
               value: TAB_KEYS.timeTracking,

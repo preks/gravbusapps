@@ -6,6 +6,7 @@ every-box-blink-button = Blink
 every-box-tab-inflows = InFlows
 every-box-tab-outflows = OutFlows
 every-box-blink-description = Create and assign a quick task instantly
+every-box-hero-tagline = Your unified inbox for tasks and workflows
 every-box-search-placeholder = Search...
 
 # Filters Dropdown
@@ -139,7 +140,6 @@ flow-detail-flow-steps = Flow Steps
 flow-detail-step = Step {$number}: {$title}
 flow-detail-assigned-to = Assigned to: {$name}
 flow-detail-completed-by = Completed by: {$name}
-flow-detail-id = ID: {$id}
 
 # TaskDetailDialog Component
 task-dialog-completed-success = ✓ Task completed successfully!
@@ -164,6 +164,8 @@ completed-load-more = Load More
 task-details-related-to = Related To
 task-details-attachments = Attachments ({$count})
 task-details-form = Form
+task-due-date-label = Due
+task-start-date-label = Starts
 task-details-read-only = Read-only
 task-details-form-loading = Loading...
 task-details-add-comment = Add Comment
@@ -231,3 +233,21 @@ formatter-priority-normal = Normal
 formatter-priority-high = High
 formatter-priority-medium = Medium
 formatter-priority-low = Low
+
+# Due Date Labels
+due-date-days-overdue = { $days ->
+    [one] { $days }d overdue
+   *[other] { $days }d overdue
+}
+due-date-hours-overdue = { $hours ->
+    [one] { $hours }h overdue
+   *[other] { $hours }h overdue
+}
+due-date-hours-left = { $hours ->
+    [one] { $hours }h left
+   *[other] { $hours }h left
+}
+due-date-days-left = { $days ->
+    [one] { $days }d left
+   *[other] { $days }d left
+}
