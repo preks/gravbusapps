@@ -10,8 +10,6 @@ import { Case, LinkedFlow } from '../types'
 import { CaseApiClient } from '../services'
 import { AUTO_REFRESH_INTERVAL } from '../utils'
 
-const BASE_URL = import.meta.env.VITE_CFLOW_ENGINE_URL || window.location.origin
-
 export const useCaseData = (caseId: string | null, context: BusinessAppContextProps) => {
   const [caseData, setCaseData] = useState<Case | null>(null)
   const [linkedFlows, setLinkedFlows] = useState<LinkedFlow[]>([])
@@ -26,7 +24,8 @@ export const useCaseData = (caseId: string | null, context: BusinessAppContextPr
 
     try {
       setError(null)
-      const client = new CaseApiClient(BASE_URL, context.accessToken)
+      // Let CaseApiClient handle the URL resolution (it has production-safe fallbacks)
+      const client = new CaseApiClient(undefined, context.accessToken)
 
       const [data, flows] = await Promise.all([client.getCaseById(caseId), client.getLinkedFlows(caseId)])
 

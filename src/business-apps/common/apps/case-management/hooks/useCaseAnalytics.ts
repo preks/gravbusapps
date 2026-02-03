@@ -9,11 +9,6 @@ import { BusinessAppContextProps } from '@/business-apps/types'
 import { CaseAnalytics } from '../types'
 import { CaseApiClient } from '../services'
 
-const BASE_URL =
-  import.meta.env.VITE_CFLOW_ENGINE_URL ||
-  import.meta.env.NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL ||
-  'http://localhost:3000'
-
 export const useCaseAnalytics = (appTag: string, context: BusinessAppContextProps) => {
   const [analytics, setAnalytics] = useState<CaseAnalytics | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -24,7 +19,8 @@ export const useCaseAnalytics = (appTag: string, context: BusinessAppContextProp
       setError(null)
       setIsLoading(true)
 
-      const client = new CaseApiClient(BASE_URL, context.accessToken)
+      // Let CaseApiClient handle the URL resolution (it has production-safe fallbacks)
+      const client = new CaseApiClient(undefined, context.accessToken)
       const data = await client.getCaseAnalytics({ tags: { app: appTag } })
 
       setAnalytics(data)

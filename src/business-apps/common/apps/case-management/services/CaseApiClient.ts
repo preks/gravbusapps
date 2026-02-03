@@ -2,7 +2,7 @@
  * Case API Client
  *
  * Service for interacting with the Custom Flow Engine Cases API
- * Backend endpoint: /api/cases on cflow engine (default: localhost:3002)
+ * Backend endpoint: /api/cases on cflow engine
  */
 
 import {
@@ -17,12 +17,30 @@ import {
   LinkedEntity,
   LinkedCase
 } from '../types'
+import { env } from '@/common/env/EnvUtils'
 
-// Get the cflow engine URL from env
-const CFLOW_ENGINE_URL =
-  import.meta.env.VITE_CFLOW_ENGINE_URL ||
-  import.meta.env.NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL ||
-  'http://localhost:3000'
+/**
+ * Get the cflow engine base URL
+ * Uses same pattern as service-desk: NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL || NEXT_PUBLIC_BASE_URL + '/flow-engine'
+ */
+const getCflowEngineUrl = (): string => {
+  // Priority 1: Explicit cflow engine URL (for development or specific deployments)
+  const explicitUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL')
+  if (explicitUrl) {
+    return explicitUrl
+  }
+
+  // Priority 2: Construct from base URL (standard platform routing)
+  const baseUrl = env('NEXT_PUBLIC_BASE_URL')
+  if (baseUrl) {
+    return `${baseUrl}/flow-engine`
+  }
+
+  // Fallback: Use current origin (for local development without env vars)
+  return `${window.location.origin}/flow-engine`
+}
+
+const CFLOW_ENGINE_URL = getCflowEngineUrl()
 
 export class CaseApiClient {
   private baseUrl: string

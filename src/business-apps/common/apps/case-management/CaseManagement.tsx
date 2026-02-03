@@ -14,8 +14,6 @@ import { CaseList } from './components/CaseList'
 import { CaseDetails } from './components/CaseDetails'
 import { CreateCaseDialog } from './components/CreateCaseDialog'
 
-const BASE_URL = import.meta.env.VITE_CFLOW_ENGINE_URL || window.location.origin
-
 type ViewState = 'dashboard' | 'list' | 'detail'
 
 export const CaseManagement: React.FC<CaseManagementProps> = ({
@@ -45,7 +43,8 @@ export const CaseManagement: React.FC<CaseManagementProps> = ({
   // Suppress unused variable warning - isLoadingRecent reserved for future loading indicator
   void _isLoadingRecent
 
-  const client = new CaseApiClient(BASE_URL, context.accessToken)
+  // Let CaseApiClient handle the URL resolution (it has production-safe fallbacks)
+  const client = new CaseApiClient(undefined, context.accessToken)
 
   // Parse URL parameters on mount
   useEffect(() => {

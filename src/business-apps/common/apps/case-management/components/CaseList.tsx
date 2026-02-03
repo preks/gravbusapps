@@ -25,8 +25,6 @@ import { CaseStatusBadge } from './CaseStatusBadge'
 import { CaseApiClient } from '../services'
 import { formatDate, formatCaseId } from '../utils'
 
-const BASE_URL = import.meta.env.VITE_CFLOW_ENGINE_URL || window.location.origin
-
 interface CaseListProps {
   context: BusinessAppContextProps
   appTag: string
@@ -57,7 +55,8 @@ export const CaseList: React.FC<CaseListProps> = ({
     try {
       setIsLoading(true)
       setError(null)
-      const client = new CaseApiClient(BASE_URL, context.accessToken)
+      // Let CaseApiClient handle the URL resolution (it has production-safe fallbacks)
+      const client = new CaseApiClient(undefined, context.accessToken)
       const response = await client.getCasesList({
         tags: { app: appTag },
         search: searchTerm
