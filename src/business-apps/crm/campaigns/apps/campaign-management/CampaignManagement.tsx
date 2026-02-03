@@ -54,10 +54,23 @@ const CampaignRowActions: React.FC<{
 
 /**
  * Helper: Process date range filter and normalize it
+ * Handles both array format ["2025-12-29", "2026-02-22"] and string format "2025-12-29,2026-02-22"
+ * Converts to ISO datetime strings with proper time boundaries
  */
 const processDateRangeFilter = (filters: Record<string, any>, rangeKey: string) => {
-  const normalized = normalizeDateRange(filters[rangeKey])
-  return normalized || { from: undefined, to: undefined }
+  const rangeValue = filters[rangeKey]
+
+  const normalized = normalizeDateRange(rangeValue)
+
+  if (!normalized || (!normalized.from && !normalized.to)) {
+    return { from: undefined, to: undefined }
+  }
+
+  // Convert date strings to ISO datetime with time boundaries
+  const from = normalized.from ? new Date(normalized.from + 'T00:00:00.000Z').toISOString() : undefined
+  const to = normalized.to ? new Date(normalized.to + 'T23:59:59.999Z').toISOString() : undefined
+
+  return { from, to }
 }
 
 /**
@@ -164,18 +177,7 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
 
   // Use the centralized campaign filters hook
   const campaignFilters = useCampaignFilters(props)
-  const {
-    search,
-    setSearch,
-    selectedFilters: campaignSelectedFilters,
-    startDateAfter: filterStartDateAfter,
-    startDateBefore: filterStartDateBefore,
-    endDateAfter: filterEndDateAfter,
-    endDateBefore: filterEndDateBefore,
-    createdAfter: filterCreatedAfter,
-    createdBefore: filterCreatedBefore,
-    filtersInitialized
-  } = campaignFilters
+  const { search, setSearch, filtersInitialized } = campaignFilters
 
   // Fetch campaign data
   const {
@@ -215,32 +217,29 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
   )
 
   // Handle filter changes from DataDisplay
-  const handleFilterChange = useCallback(
-    (filters: Record<string, any>) => {
-      // Update local state to trigger useEffect
-      setSelectedFilters(filters)
+  const handleFilterChange = useCallback((filters: Record<string, any>) => {
+    // Map date ranges to separate after/before values
+    const startDate = processDateRangeFilter(filters, 'startDateRange')
+    const endDate = processDateRangeFilter(filters, 'endDateRange')
+    const createdDate = processDateRangeFilter(filters, 'createdAtRange')
 
-      // Map date ranges to separate after/before values
-      const startDate = processDateRangeFilter(filters, 'startDateRange')
-      const endDate = processDateRangeFilter(filters, 'endDateRange')
-      const createdDate = processDateRangeFilter(filters, 'createdAtRange')
+    // Map type and status filters
+    const newSelectedFilters = mapFiltersToOldFormat(filters)
 
-      // Update date filter states
-      campaignFilters.handleStartDateRangeChange(startDate.from, startDate.to)
-      campaignFilters.handleEndDateRangeChange(endDate.from, endDate.to)
-      campaignFilters.handleCreatedDateRangeChange(createdDate.from, createdDate.to)
-
-      // Map type and status filters
-      const newSelectedFilters = mapFiltersToOldFormat(filters)
-
-      // Update the old hook's selectedFilters
-      campaignFilters.resetFilters()
-      for (const filterId of newSelectedFilters) {
-        campaignFilters.addFilter(filterId)
-      }
-    },
-    [campaignFilters]
-  )
+    // Update local state with ALL filter data (including processed dates)
+    setSelectedFilters({
+      ...filters,
+      // Store processed date values in state
+      _processedStartDateAfter: startDate.from,
+      _processedStartDateBefore: startDate.to,
+      _processedEndDateAfter: endDate.from,
+      _processedEndDateBefore: endDate.to,
+      _processedCreatedAfter: createdDate.from,
+      _processedCreatedBefore: createdDate.to,
+      // Store campaign type filters
+      _processedCampaignTypes: newSelectedFilters
+    })
+  }, [])
 
   // Handle sorting changes from DataDisplay
   const handleSortChange = useCallback((field: string, order: 'ASC' | 'DESC') => {
@@ -254,35 +253,30 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
       return
     }
 
+    // Extract processed values from selectedFilters state
+    const startDateAfter = selectedFilters._processedStartDateAfter
+    const startDateBefore = selectedFilters._processedStartDateBefore
+    const endDateAfter = selectedFilters._processedEndDateAfter
+    const endDateBefore = selectedFilters._processedEndDateBefore
+    const createdAfter = selectedFilters._processedCreatedAfter
+    const createdBefore = selectedFilters._processedCreatedBefore
+    const campaignTypesArray = selectedFilters._processedCampaignTypes || []
+
     processFiltersAndFetch({
       search: search,
-      selectedFilters: campaignSelectedFilters,
-      startDateAfter: filterStartDateAfter,
-      startDateBefore: filterStartDateBefore,
-      endDateAfter: filterEndDateAfter,
-      endDateBefore: filterEndDateBefore,
-      createdAfter: filterCreatedAfter,
-      createdBefore: filterCreatedBefore,
+      selectedFilters: campaignTypesArray,
+      startDateAfter,
+      startDateBefore,
+      endDateAfter,
+      endDateBefore,
+      createdAfter,
+      createdBefore,
       sortField: sortField,
       sortOrder: sortOrder,
       offset: 0,
       limit: 10000
     })
-  }, [
-    search,
-    selectedFilters,
-    sortField,
-    sortOrder,
-    filtersInitialized,
-    processFiltersAndFetch,
-    campaignSelectedFilters,
-    filterStartDateAfter,
-    filterStartDateBefore,
-    filterEndDateAfter,
-    filterEndDateBefore,
-    filterCreatedAfter,
-    filterCreatedBefore
-  ])
+  }, [search, selectedFilters, sortField, sortOrder, filtersInitialized, processFiltersAndFetch])
 
   // Process Completion Handlers
   const handleProcessComplete = useCallback(() => {
