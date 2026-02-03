@@ -14,13 +14,13 @@ export const OVERVIEW_KPI_CONFIG: KPIConfig = {
   description: 'High-level portfolio metrics across all investment types',
   kpis: [
     {
-      key: 'total-portfolio-value',
-      title: 'Total Portfolio Value',
-      field: 'totalPortfolioValue',
-      icon: ChartPieIcon,
-      color: 'var(--nw-color-primary-500)',
+      key: 'total-amount-invested',
+      title: 'Total Amount Invested',
+      field: 'totalAmountInvested',
+      icon: CurrencyDollarIcon,
+      color: 'var(--nw-color-warning-500)',
       format: 'currency',
-      description: 'All investments',
+      description: 'Total capital',
       order: 1,
       span: { xs: 24, sm: 12, lg: 6 }
     },
@@ -36,13 +36,13 @@ export const OVERVIEW_KPI_CONFIG: KPIConfig = {
       span: { xs: 24, sm: 12, lg: 6 }
     },
     {
-      key: 'total-amount-invested',
-      title: 'Total Amount Invested',
-      field: 'totalAmountInvested',
-      icon: CurrencyDollarIcon,
-      color: 'var(--nw-color-warning-500)',
+      key: 'avg-investment-amount',
+      title: 'Avg. Investment Amount',
+      field: 'averageInvestmentValue',
+      icon: ChartPieIcon,
+      color: 'var(--nw-color-primary-500)',
       format: 'currency',
-      description: 'Total capital',
+      description: 'Per investment',
       order: 3,
       span: { xs: 24, sm: 12, lg: 6 }
     },

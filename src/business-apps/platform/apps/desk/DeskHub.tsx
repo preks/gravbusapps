@@ -9,7 +9,15 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react'
-import { FileText, FileSpreadsheet, StickyNote, MessageSquare, Presentation } from 'lucide-react'
+import {
+  FileText,
+  FileSpreadsheet,
+  StickyNote,
+  MessageSquare,
+  Presentation,
+  ChevronDown,
+  ChevronUp
+} from 'lucide-react'
 import {
   Button,
   Carousel,
@@ -76,6 +84,14 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
   const [isChatOpen, setIsChatOpen] = useState(false)
   const [chatScope, setChatScope] = useState<'all' | 'space'>('all')
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null)
+  const [isAppsCollapsed, setIsAppsCollapsed] = useState(() => {
+    try {
+      const stored = localStorage.getItem('desk-apps-collapsed')
+      return stored ? JSON.parse(stored) : false
+    } catch {
+      return false
+    }
+  })
 
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
@@ -145,6 +161,14 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
     navigateTo(buildPlatformUrl('/platform/spaces'))
   }, [])
 
+  const toggleAppsCollapse = useCallback(() => {
+    setIsAppsCollapsed(prev => {
+      const newValue = !prev
+      localStorage.setItem('desk-apps-collapsed', JSON.stringify(newValue))
+      return newValue
+    })
+  }, [])
+
   const handleSpaceClick = useCallback((spaceId: string) => {
     navigateTo(buildPlatformUrl('/platform/spaces', { spaceId, from: 'desk' }))
   }, [])
@@ -186,6 +210,7 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
           onCreateDocument={handleCreateDocument}
           onCreateSpreadsheet={handleCreateSpreadsheet}
           onCreateNote={handleCreateNote}
+          onCreateSlide={handleCreateSlide}
           searchResults={displayItems}
           onItemClick={handleItemClick}
           isLoading={isLoading}
@@ -270,63 +295,78 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
                   Access your documents, spreadsheets, notes, and slides in one place
                 </p>
               </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleAppsCollapse}
+                className="gba:flex-shrink-0"
+                data-testid={`${testId}-toggle-apps`}
+              >
+                {isAppsCollapsed ? (
+                  <ChevronDown className="gba:w-5 gba:h-5" />
+                ) : (
+                  <ChevronUp className="gba:w-5 gba:h-5" />
+                )}
+              </Button>
             </div>
 
-            {/* App cards grid */}
-            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 lg:gba:grid-cols-4 gba:gap-4">
-              <AppCard
-                title="Documents"
-                description="Create and edit rich text documents with collaboration"
-                icon={FileText}
-                count={stats.documents.total}
-                sharedCount={stats.documents.shared}
-                accentColor="sky"
-                onOpen={handleOpenDocuments}
-                onCreate={handleCreateDocument}
-                isLoading={isLoading}
-                animationDelay={0.1}
-                data-testid={`${testId}-app-documents`}
-              />
-              <AppCard
-                title="Spreadsheets"
-                description="Build data apps with formulas, charts, and AI analysis"
-                icon={FileSpreadsheet}
-                count={stats.spreadsheets.total}
-                sharedCount={stats.spreadsheets.shared}
-                accentColor="teal"
-                onOpen={handleOpenSpreadsheets}
-                onCreate={handleCreateSpreadsheet}
-                isLoading={isLoading}
-                animationDelay={0.2}
-                data-testid={`${testId}-app-spreadsheets`}
-              />
-              <AppCard
-                title="Notes"
-                description="Capture ideas quickly with rich formatting and tags"
-                icon={StickyNote}
-                count={stats.notes.total}
-                sharedCount={stats.notes.shared}
-                accentColor="amber"
-                onOpen={handleOpenNotes}
-                onCreate={handleCreateNote}
-                isLoading={isLoading}
-                animationDelay={0.3}
-                data-testid={`${testId}-app-notes`}
-              />
-              <AppCard
-                title="Slides"
-                description="Create slide decks with live collaboration"
-                icon={Presentation}
-                count={stats.slides.total}
-                sharedCount={stats.slides.shared}
-                accentColor="primary"
-                onOpen={handleOpenSlides}
-                onCreate={handleCreateSlide}
-                isLoading={isLoading}
-                animationDelay={0.4}
-                data-testid={`${testId}-app-slides`}
-              />
-            </div>
+            {/* App cards grid - collapsible */}
+            {!isAppsCollapsed && (
+              <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 lg:gba:grid-cols-4 gba:gap-4">
+                <AppCard
+                  title="Documents"
+                  description="Create and edit rich text documents with collaboration"
+                  icon={FileText}
+                  count={stats.documents.total}
+                  sharedCount={stats.documents.shared}
+                  accentColor="sky"
+                  onOpen={handleOpenDocuments}
+                  onCreate={handleCreateDocument}
+                  isLoading={isLoading}
+                  animationDelay={0.1}
+                  data-testid={`${testId}-app-documents`}
+                />
+                <AppCard
+                  title="Spreadsheets"
+                  description="Build data apps with formulas, charts, and AI analysis"
+                  icon={FileSpreadsheet}
+                  count={stats.spreadsheets.total}
+                  sharedCount={stats.spreadsheets.shared}
+                  accentColor="teal"
+                  onOpen={handleOpenSpreadsheets}
+                  onCreate={handleCreateSpreadsheet}
+                  isLoading={isLoading}
+                  animationDelay={0.2}
+                  data-testid={`${testId}-app-spreadsheets`}
+                />
+                <AppCard
+                  title="Notes"
+                  description="Capture ideas quickly with rich formatting and tags"
+                  icon={StickyNote}
+                  count={stats.notes.total}
+                  sharedCount={stats.notes.shared}
+                  accentColor="amber"
+                  onOpen={handleOpenNotes}
+                  onCreate={handleCreateNote}
+                  isLoading={isLoading}
+                  animationDelay={0.3}
+                  data-testid={`${testId}-app-notes`}
+                />
+                <AppCard
+                  title="Slides"
+                  description="Create slide decks with live collaboration"
+                  icon={Presentation}
+                  count={stats.slides.total}
+                  sharedCount={stats.slides.shared}
+                  accentColor="primary"
+                  onOpen={handleOpenSlides}
+                  onCreate={handleCreateSlide}
+                  isLoading={isLoading}
+                  animationDelay={0.4}
+                  data-testid={`${testId}-app-slides`}
+                />
+              </div>
+            )}
           </div>
         </section>
 

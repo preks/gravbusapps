@@ -408,6 +408,8 @@ calendar-accept = Accept
 calendar-maybe = Poate
 calendar-decline = Refuză
 calendar-joinCall = Intră în Apel
+calendar-startMeeting = Începe Întâlnirea
+calendar-joinMeeting = Intră în Întâlnire
 calendar-chat = Chat
 calendar-edit = Editează
 

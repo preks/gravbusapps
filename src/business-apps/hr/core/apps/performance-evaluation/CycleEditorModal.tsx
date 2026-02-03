@@ -16,7 +16,7 @@ import {
 } from '@newwork/nw-design-system'
 
 export type FrequencyType = 'Annual' | 'Quarterly' | 'Custom'
-export type ParticipantType = 'Self' | 'Peer' | 'Manager' | 'Calibration' | 'Team'
+export type ParticipantType = 'Self' | 'Peer' | 'Manager'
 
 export interface EvaluationStage {
   id: string
@@ -38,7 +38,7 @@ export interface CycleEditorValues {
 }
 
 const frequencyOptions: FrequencyType[] = ['Annual', 'Quarterly', 'Custom']
-const participantOptions: ParticipantType[] = ['Self', 'Peer', 'Manager', 'Team']
+const participantOptions: ParticipantType[] = ['Self', 'Peer', 'Manager']
 
 // Stages are managed outside this modal; no stage templates here.
 
@@ -65,9 +65,7 @@ function defaultParticipantsState(initialValues?: CycleEditorValues): Record<Par
   return {
     Self: initialValues?.participants?.includes('Self') ?? true,
     Peer: initialValues?.participants?.includes('Peer') ?? true,
-    Manager: initialValues?.participants?.includes('Manager') ?? true,
-    Calibration: false,
-    Team: initialValues?.participants?.includes('Team') ?? true
+    Manager: initialValues?.participants?.includes('Manager') ?? true
   }
 }
 
@@ -120,30 +118,55 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
     }
   }, [open])
 
-  // Auto-calc end date based on start date and selected frequency (Annual = +12 months, Quarterly = +3 months).
-  useEffect(() => {
-    if (!startDate) return
-    if (frequency === 'Custom') return
-    const parts = startDate.split('-')
-    if (parts.length !== 3) return
-    const y = Number(parts[0])
-    const m = Number(parts[1]) // 1-12
-    const d = Number(parts[2])
-    if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return
+  /** Parse date string in YYYY-MM-DD, ISO datetime (YYYY-MM-DDTHH:mm:...), or MM/DD/YYYY to { y, m, d }. */
+  const parseStartDate = (dateStr: string): { y: number; m: number; d: number } | null => {
+    if (!dateStr?.trim()) return null
+    const s = dateStr.trim()
+    // ISO datetime from DateInput with outputFormat="iso": take date part only
+    const datePart = s.includes('T') ? s.split('T')[0].trim() : s
+    const byDash = datePart.split('-')
+    const bySlash = s.split('/')
+    if (byDash.length === 3) {
+      const y = Number(byDash[0])
+      const m = Number(byDash[1])
+      const d = Number(byDash[2])
+      if (!Number.isNaN(y) && !Number.isNaN(m) && !Number.isNaN(d)) return { y, m, d }
+    }
+    if (bySlash.length === 3 && !s.includes('T')) {
+      const a = Number(bySlash[0])
+      const b = Number(bySlash[1])
+      const c = Number(bySlash[2])
+      if (Number.isNaN(a) || Number.isNaN(b) || Number.isNaN(c)) return null
+      // MM/DD/YYYY (US) when first part <= 12; else DD/MM/YYYY
+      const m = a <= 12 ? a : b
+      const d = a <= 12 ? b : a
+      const y = c
+      if (m >= 1 && m <= 12 && d >= 1 && d <= 31) return { y, m, d }
+    }
+    return null
+  }
 
+  /** Compute end date from { y, m, d } and frequency (Annual +12 months, Quarterly +3). */
+  const computeEndDateFromStart = (parsed: { y: number; m: number; d: number }, freq: FrequencyType): string | null => {
     let addMonths = 0
-    if (frequency === 'Annual') addMonths = 12
-    else if (frequency === 'Quarterly') addMonths = 3
-    else return
-
-    const totalMonths = y * 12 + (m - 1) + addMonths
+    if (freq === 'Annual') addMonths = 12
+    else if (freq === 'Quarterly') addMonths = 3
+    else return null
+    const totalMonths = parsed.y * 12 + (parsed.m - 1) + addMonths
     const newYear = Math.floor(totalMonths / 12)
-    const newMonthZeroBased = totalMonths % 12 // 0-11
+    const newMonthZeroBased = totalMonths % 12
     const daysInNewMonth = new Date(newYear, newMonthZeroBased + 1, 0).getDate()
-    const newDay = Math.min(d, daysInNewMonth)
+    const newDay = Math.min(parsed.d, daysInNewMonth)
     const pad2 = (n: number) => n.toString().padStart(2, '0')
-    const computed = `${newYear.toString().padStart(4, '0')}-${pad2(newMonthZeroBased + 1)}-${pad2(newDay)}`
-    setEndDate(computed)
+    return `${newYear.toString().padStart(4, '0')}-${pad2(newMonthZeroBased + 1)}-${pad2(newDay)}`
+  }
+
+  // Auto-calc end date when start date or frequency changes (e.g. from useEffect or when user changes frequency).
+  useEffect(() => {
+    const parsed = parseStartDate(startDate)
+    if (!parsed) return
+    const computed = computeEndDateFromStart(parsed, frequency)
+    if (computed) setEndDate(computed)
   }, [startDate, frequency])
 
   // Load available rating scales when modal opens
@@ -189,8 +212,6 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
         return t('participant-peer')
       case 'Manager':
         return t('participant-manager')
-      case 'Team':
-        return t('participant-team')
       default:
         return p
     }
@@ -233,7 +254,19 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               <DateInput
                 type="date"
                 value={startDate}
-                onChange={(value: string | null) => setStartDate(value || '')}
+                onChange={(value: string | [string | null, string | null] | null) => {
+                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
+                  const parsed = parseStartDate(raw)
+                  if (parsed) {
+                    const pad2 = (n: number) => n.toString().padStart(2, '0')
+                    const isoStart = `${parsed.y.toString().padStart(4, '0')}-${pad2(parsed.m)}-${pad2(parsed.d)}`
+                    setStartDate(isoStart)
+                    const end = computeEndDateFromStart(parsed, frequency)
+                    if (end) setEndDate(end)
+                  } else {
+                    setStartDate(raw)
+                  }
+                }}
                 outputFormat="iso"
               />
             </div>
@@ -251,7 +284,10 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               <DateInput
                 type="date"
                 value={endDate}
-                onChange={(value: string | null) => setEndDate(value || '')}
+                onChange={(value: string | [string | null, string | null] | null) => {
+                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
+                  setEndDate(raw)
+                }}
                 outputFormat="iso"
               />
             </div>

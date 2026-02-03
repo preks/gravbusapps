@@ -20,6 +20,8 @@ export * from './MessageAttachments'
 export * from './MessageInput'
 export * from './UserSearch'
 export * from './UserSelector'
+export * from './UserStatusDropdown'
+export * from './UserStatusIndicator'
 
 // Call Components (RealtimeKit)
 export * from './call'

@@ -313,6 +313,14 @@ videogrid-page-info = Page {$current} of {$total}
 videogrid-previous-page = Previous page
 videogrid-next-page = Next page
 
+# Transcription
+chat-call-enableTranscription = Enable Transcription
+chat-call-transcriptionActive = Recording
+chat-call-recording = Recording
+chat-transcript-ready = Meeting Transcript Ready
+chat-transcript-view = View Transcript
+chat-transcript-saved = Your meeting transcript has been saved
+
 # Notifications
 notifications-title = Notifications
 notifications-empty = No notifications at the moment
@@ -374,6 +382,8 @@ calendar-monthly = Monthly
 calendar-endDate = End date
 calendar-reminders = Reminders
 calendar-color = Color
+calendar-aiTranscription = AI Meeting Transcription
+calendar-aiTranscriptionDescription = Automatically transcribe and save meeting conversation for all participants
 calendar-cancel = Cancel
 calendar-createMeeting = Create Meeting
 calendar-saveChanges = Save Changes
@@ -408,6 +418,8 @@ calendar-accept = Accept
 calendar-maybe = Maybe
 calendar-decline = Decline
 calendar-joinCall = Join Call
+calendar-startMeeting = Start Meeting
+calendar-joinMeeting = Join Meeting
 calendar-chat = Chat
 calendar-edit = Edit
 

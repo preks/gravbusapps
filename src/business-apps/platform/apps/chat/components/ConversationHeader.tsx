@@ -15,10 +15,11 @@ import {
   DialogTitle
 } from '@newwork/nw-design-system'
 import { ArrowLeft, DotsThreeVertical, SignOut, X, Info, Users } from '@phosphor-icons/react'
-import { UserIcon, Phone, Video, PhoneCall, UserPlus, Bell } from 'lucide-react'
+import { UserIcon, Phone, Video, PhoneCall, UserPlus, Bell, CalendarIcon } from 'lucide-react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { UserStatusIndicator } from './UserStatusIndicator'
 
 export interface ActiveCallInfo {
   roomId: string
@@ -129,11 +130,14 @@ const PresenceIndicator: React.FC<{
 const getPresenceStatusText = (presence?: UserPresence, t?: (key: string, params?: any) => string): string | null => {
   if (!presence || !t) return null
 
-  if (presence.status === 'online') return t('chat-statusOnline')
-  if (presence.status === 'away') return t('chat-statusAway')
+  // If user has detailed status, don't show basic presence text
+  if (presence.userStatus) return null
+
+  if (presence.state === 'online') return t('chat-statusOnline')
+  if (presence.state === 'away') return t('chat-statusAway')
 
   // For offline status, show last seen if available
-  if (presence.status === 'offline' && presence.lastSeen) {
+  if (presence.state === 'offline' && presence.lastSeen) {
     try {
       const lastSeenDate = new Date(presence.lastSeen)
       // Check if date is valid
@@ -206,7 +210,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
       navigateTo(`/platform/employee-record?employeeId=${otherEmployeeId}`)
     }
   }
-  const presenceStatus = otherUserPresence?.status || 'offline'
+  const presenceStatus = otherUserPresence?.state || 'offline'
   const presenceStatusText = isDirectChat ? getPresenceStatusText(otherUserPresence, t) : null
   // Check for active call from prop (for group chats from useGroupCall) or conversation object
   const hasActiveCall = isGroupChat && (!!activeCall || !!conversation.activeCall)
@@ -252,7 +256,11 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
               <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
             </Avatar>
           ) : (
-            <IconAvatar className={avatarSize} label={name} icon={isGroupChat ? Users : UserIcon} />
+            <IconAvatar
+              className={avatarSize}
+              label={name}
+              icon={isGroupChat ? (conversation.metadata?.type === 'meeting' ? CalendarIcon : Users) : UserIcon}
+            />
           )}
           {isDirectChat && <PresenceIndicator status={presenceStatus} size={compact ? 'sm' : 'md'} t={t} />}
         </div>
@@ -263,9 +271,51 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
           >
             {name}
           </h2>
-          {/* Show presence status for direct chats */}
+          {/* Show user status for direct chats */}
+          {isDirectChat && !compact && otherUserPresence?.userStatus && (
+            <div className="gba:flex gba:items-center gba:gap-1.5">
+              <UserStatusIndicator status={otherUserPresence.userStatus} showLabel={true} size="sm" />
+            </div>
+          )}
+          {/* Show "Last seen" for offline users */}
+          {isDirectChat && otherUserPresence?.lastSeen && presenceStatus === 'offline' && (
+            <p className="gba:text-xs gba:text-muted-foreground">
+              {(() => {
+                try {
+                  const lastSeenDate = new Date(otherUserPresence.lastSeen)
+                  if (isNaN(lastSeenDate.getTime())) return null
+
+                  const now = new Date()
+                  const diffMs = now.getTime() - lastSeenDate.getTime()
+                  if (diffMs < 0 || isNaN(diffMs)) return null
+
+                  const diffMinutes = Math.floor(diffMs / (1000 * 60))
+                  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+                  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+                  if (diffMinutes < 1) {
+                    return 'Last seen just now'
+                  } else if (diffMinutes < 60) {
+                    return t('chat-lastSeenMinutes', { minutes: diffMinutes })
+                  } else if (diffHours < 24) {
+                    return t('chat-lastSeenHours', { hours: diffHours })
+                  } else if (diffDays < 7) {
+                    return t('chat-lastSeenDays', { days: diffDays })
+                  } else {
+                    return t('chat-lastSeenLongAgo')
+                  }
+                } catch (error) {
+                  console.error('Error calculating last seen time in header:', error)
+                  return null
+                }
+              })()}
+            </p>
+          )}
+          {/* Fallback: Show basic presence status if no detailed status */}
           {isDirectChat &&
             !compact &&
+            !otherUserPresence?.userStatus &&
+            !otherUserPresence?.lastSeen &&
             presenceStatusText &&
             (() => {
               let statusColorClass = 'gba:text-muted-foreground'

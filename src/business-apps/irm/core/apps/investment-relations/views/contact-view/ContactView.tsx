@@ -16,6 +16,24 @@ import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 export type ContactViewProps = BusinessAppContextProps
 
+// Helper function to process communication channels filter
+const processCommunicationChannels = (
+  selectedFilters: Record<string, any>,
+  vars: InvestmentContactQueryVariables
+): void => {
+  if (
+    selectedFilters.communicationChannels &&
+    Array.isArray(selectedFilters.communicationChannels) &&
+    selectedFilters.communicationChannels.length > 0
+  ) {
+    const contactFilters = selectedFilters.communicationChannels as string[]
+    if (contactFilters.includes('has:email')) vars.hasEmail = true
+    if (contactFilters.includes('missing:email')) vars.missingEmail = true
+    if (contactFilters.includes('has:phone')) vars.hasPhone = true
+    if (contactFilters.includes('missing:phone')) vars.missingPhone = true
+  }
+}
+
 export const ContactView: React.FC<ContactViewProps> = context => {
   const { accessToken } = context
 
@@ -68,10 +86,14 @@ export const ContactView: React.FC<ContactViewProps> = context => {
           }
         }
 
+        // Process communication channels filter (special handling)
+        processCommunicationChannels(params.selectedFilters, vars)
+
         // Copy all other filters directly (they now match Descriptor-Keys)
+        const excludeKeys = new Set([...dateRangeKeys, 'communicationChannels'])
         for (const key of Object.keys(params.selectedFilters)) {
           if (
-            !dateRangeKeys.includes(key) &&
+            !excludeKeys.has(key) &&
             params.selectedFilters[key] !== undefined &&
             params.selectedFilters[key] !== null
           ) {
