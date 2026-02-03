@@ -18,7 +18,7 @@ import {
   Spinner,
   IconAvatar
 } from '@newwork/nw-design-system'
-import { Calendar, Clock, MapPin, Video, Users, X, Repeat, Bell, Palette, User } from 'lucide-react'
+import { Calendar, Clock, MapPin, Video, Users, X, Repeat, Bell, Palette, User, Mic } from 'lucide-react'
 import type { CreateMeetingData, MeetingRecurrence } from '../types'
 import { MEETING_COLORS, REMINDER_OPTIONS, getDefaultCalendarColor } from '../types'
 import { createEmployeeSearchService, CalendarEmployee } from '../services/employeeSearchService'
@@ -47,6 +47,7 @@ interface CreateMeetingModalProps {
     color?: string
     reminderMinutes?: number[]
     participants?: Array<{ id: string; displayName?: string; firstName?: string; lastName?: string }>
+    metadata?: Record<string, any>
   }
 }
 
@@ -114,10 +115,18 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
   const [selectedColor, setSelectedColor] = useState(getDefaultCalendarColor())
   const [reminderMinutes, setReminderMinutes] = useState<number[]>([15])
+  const [enableAITranscription, setEnableAITranscription] = useState(false)
 
   // Initialize form when editMeeting changes
   useEffect(() => {
     if (editMeeting && isOpen) {
+      console.log('[CreateMeetingModal] Initializing from editMeeting:', {
+        meetingId: editMeeting.id,
+        hasMetadata: !!editMeeting.metadata,
+        metadata: editMeeting.metadata,
+        aiTranscriptionEnabled: editMeeting.metadata?.aiTranscriptionEnabled
+      })
+
       setTitle(editMeeting.title || '')
       setDescription(editMeeting.description || '')
       setDate(formatDateForInput(editMeeting.startTime))
@@ -130,6 +139,10 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
       setRecurrenceEndDate(editMeeting.recurrenceEndDate ? formatDateForInput(editMeeting.recurrenceEndDate) : '')
       setSelectedColor(editMeeting.color || getDefaultCalendarColor())
       setReminderMinutes(editMeeting.reminderMinutes || [15])
+
+      const transcriptionValue = editMeeting.metadata?.aiTranscriptionEnabled === true
+      console.log('[CreateMeetingModal] Setting AI Transcription to:', transcriptionValue)
+      setEnableAITranscription(transcriptionValue)
       // Convert participants to CalendarEmployee format
       if (editMeeting.participants) {
         setSelectedParticipants(
@@ -270,6 +283,9 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
             recurrence !== 'none' && recurrenceEndDate ? new Date(recurrenceEndDate).toISOString() : undefined,
           color: selectedColor,
           reminderMinutes,
+          metadata: {
+            aiTranscriptionEnabled: enableAITranscription
+          },
           // For updates, use addParticipantIds and removeParticipantIds
           ...(addParticipantIds.length > 0 && { addParticipantIds }),
           ...(removeParticipantIds.length > 0 && { removeParticipantIds })
@@ -291,7 +307,10 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
             recurrence !== 'none' && recurrenceEndDate ? new Date(recurrenceEndDate).toISOString() : undefined,
           color: selectedColor,
           reminderMinutes,
-          participantIds: selectedParticipants.map(p => p.userId || p.id)
+          participantIds: selectedParticipants.map(p => p.userId || p.id),
+          metadata: {
+            aiTranscriptionEnabled: enableAITranscription
+          }
         }
 
         await onSubmit(meetingData)
@@ -320,6 +339,7 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
     setRecurrenceEndDate('')
     setSelectedColor(getDefaultCalendarColor())
     setReminderMinutes([15])
+    setEnableAITranscription(false)
     setSelectedParticipants([])
     setSearchQuery('')
     setSearchResults([])
@@ -583,6 +603,29 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                   title={color.name}
                 />
               ))}
+            </div>
+          </div>
+
+          {/* AI Transcription */}
+          <div className="gba:space-y-2">
+            <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:border-border gba:rounded-lg gba:bg-muted/50">
+              <div className="gba:flex gba:items-start gba:gap-2 gba:flex-1">
+                <Mic className="gba:h-4 gba:w-4 gba:text-primary gba:mt-0.5" />
+                <div className="gba:flex-1">
+                  <Label htmlFor="ai-transcription" className="gba:font-medium gba:cursor-pointer">
+                    {t('calendar-aiTranscription')}
+                  </Label>
+                  <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
+                    {t('calendar-aiTranscriptionDescription')}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="ai-transcription"
+                checked={enableAITranscription}
+                onCheckedChange={setEnableAITranscription}
+                data-testid="meeting-ai-transcription-toggle"
+              />
             </div>
           </div>
         </div>
