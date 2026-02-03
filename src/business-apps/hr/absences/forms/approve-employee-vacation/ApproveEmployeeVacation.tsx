@@ -633,7 +633,7 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
                       const formattedDate = parsedDate ? parsedDate.format('MMM D, YYYY') : ''
                       return (
                         <div key={holiday.id || index} className="gba:flex gba:items-center gba:gap-2">
-                          <span className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-purple-500" />
+                          <span className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-offline-secondary" />
                           <span>{formattedDate}</span>
                           <span className="gba:text-muted-foreground">- {holiday.value}</span>
                         </div>
@@ -703,7 +703,7 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
                 <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
                   {t('vacation-balance-current')}:
                 </span>
-                <span className="gba:text-sm gba:flex-1 gba:font-medium gba:text-success">
+                <span className="gba:text-sm gba:flex-1 gba:font-medium gba:text-success-secondary-foreground">
                   {remainingBeforeRequest} {t('days-unit')}
                 </span>
               </div>
@@ -713,7 +713,7 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
                 <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
                   {t('vacation-balance-requested')}:
                 </span>
-                <span className="gba:text-sm gba:flex-1 gba:font-medium gba:text-info">
+                <span className="gba:text-sm gba:flex-1 gba:font-medium gba:text-warning-secondary-foreground">
                   {employeeAbsence.workingDays || 0} {t('days-unit')}
                 </span>
               </div>
@@ -723,7 +723,7 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
                 <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
                   {t('vacation-balance-after-approval')}:
                 </span>
-                <span className="gba:text-sm gba:flex-1 gba:font-medium gba:text-primary">
+                <span className="gba:text-sm gba:flex-1 gba:font-medium gba:text-foreground">
                   {remainingAfterApproval} {t('days-unit')}
                 </span>
               </div>
@@ -734,7 +734,7 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
                   <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
                     {t('vacation-balance-pending')}:
                   </span>
-                  <span className="gba:text-sm gba:flex-1 gba:font-medium gba:text-warning">
+                  <span className="gba:text-sm gba:flex-1 gba:font-medium gba:text-warning-secondary-foreground">
                     {totalPendingDays} {t('days-unit')}
                   </span>
                 </div>
@@ -767,8 +767,8 @@ const ApproveEmployeeVacation: React.FC<ApproveEmployeeVacationProps> = ({
                         approvalStatus === 'APPROVED' ||
                         approvalStatus === 'APPROVED_BY_MANAGER' ||
                         approvalStatus === 'APPROVED_BY_HR'
-                          ? 'gba:text-success'
-                          : 'gba:text-destructive'
+                          ? 'gba:text-success-secondary-foreground'
+                          : 'gba:text-destructive-secondary-foreground'
                       }`}
                     >
                       {approvalStatus === 'APPROVED' ||
