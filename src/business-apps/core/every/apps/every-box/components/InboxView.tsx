@@ -169,6 +169,22 @@ export const InboxView: React.FC<InboxViewProps> = ({
     [t]
   )
 
+  const getPriorityBadgeClass = useCallback((value: number | null | undefined): string => {
+    if (value === null || value === undefined) {
+      return 'gba:bg-muted gba:text-muted-foreground gba:border gba:border-muted-foreground/15'
+    }
+    if (value === 0) {
+      return 'gba:bg-red-500/10 gba:text-red-700 gba:border gba:border-red-500/20 gba:dark:text-red-200'
+    }
+    if (value === 10) {
+      return 'gba:bg-amber-500/10 gba:text-amber-800 gba:border gba:border-amber-500/20 gba:dark:text-amber-200'
+    }
+    if (value === 20) {
+      return 'gba:bg-emerald-500/10 gba:text-emerald-800 gba:border gba:border-emerald-500/20 gba:dark:text-emerald-200'
+    }
+    return 'gba:bg-muted gba:text-muted-foreground gba:border gba:border-muted-foreground/15'
+  }, [])
+
   /**
    * Get empty state message based on search query and filter type
    */
@@ -898,7 +914,10 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="gba:gap-2" data-testid="task-meta-priority-trigger">
                     <span>{t('task-meta-priority')}</span>
-                    <Badge variant="secondary" className="gba:h-5 gba:px-2">
+                    <Badge
+                      variant="secondary"
+                      className={`gba:h-5 gba:px-2 ${getPriorityBadgeClass(selectedTask.userState?.userPriority)}`}
+                    >
                       {formatUserPriorityLabel(selectedTask.userState?.userPriority)}
                     </Badge>
                   </Button>

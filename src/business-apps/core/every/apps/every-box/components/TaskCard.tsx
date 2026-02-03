@@ -146,15 +146,29 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     const priorityIndicator = useMemo(() => {
       if (userPriority === null) return null
       if (userPriority === 0) {
-        return { label: t('task-meta-priority-high'), dotClass: 'gba:bg-red-500/70' }
+        return {
+          label: t('task-meta-priority-high'),
+          badgeClass: 'gba:bg-red-500/10 gba:text-red-700 gba:border gba:border-red-500/20 gba:dark:text-red-200'
+        }
       }
       if (userPriority === 10) {
-        return { label: t('task-meta-priority-medium'), dotClass: 'gba:bg-amber-500/70' }
+        return {
+          label: t('task-meta-priority-medium'),
+          badgeClass:
+            'gba:bg-amber-500/10 gba:text-amber-800 gba:border gba:border-amber-500/20 gba:dark:text-amber-200'
+        }
       }
       if (userPriority === 20) {
-        return { label: t('task-meta-priority-low'), dotClass: 'gba:bg-emerald-500/70' }
+        return {
+          label: t('task-meta-priority-low'),
+          badgeClass:
+            'gba:bg-emerald-500/10 gba:text-emerald-800 gba:border gba:border-emerald-500/20 gba:dark:text-emerald-200'
+        }
       }
-      return { label: `P${userPriority}`, dotClass: 'gba:bg-muted-foreground/60' }
+      return {
+        label: `P${userPriority}`,
+        badgeClass: 'gba:bg-muted gba:text-muted-foreground gba:border gba:border-muted-foreground/15'
+      }
     }, [t, userPriority])
 
     // Avatar URL from base64
@@ -236,14 +250,10 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
 
                 {priorityIndicator && (
                   <Badge
-                    variant="outline"
-                    className="gba:h-5 gba:px-2 gba:text-xs gba:gap-1 gba:border-muted-foreground/20 gba:text-muted-foreground"
+                    variant="secondary"
+                    className={`gba:h-5 gba:px-2 gba:text-xs gba:gap-1 ${priorityIndicator.badgeClass}`}
                     aria-label={`${t('task-meta-priority')}: ${priorityIndicator.label}`}
                   >
-                    <span
-                      className={`gba:inline-block gba:h-1.5 gba:w-1.5 gba:rounded-full ${priorityIndicator.dotClass}`}
-                      aria-hidden="true"
-                    />
                     <span>{priorityIndicator.label}</span>
                   </Badge>
                 )}
