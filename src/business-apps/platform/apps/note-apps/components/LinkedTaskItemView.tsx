@@ -104,7 +104,8 @@ export const LinkedTaskItemView: React.FC<LinkedTaskItemViewProps> = ({ node, up
     }
 
     return null
-  }, [isLinked, kanbanId, kanbanCardId, updateCounter, editor.state.doc])
+    // updateCounter triggers re-computation on editor updates
+  }, [isLinked, kanbanId, kanbanCardId, updateCounter])
 
   // Get participant info for assignee - with proper avatar URL formatting
   const assigneeInfo = useMemo(() => {
@@ -139,7 +140,8 @@ export const LinkedTaskItemView: React.FC<LinkedTaskItemViewProps> = ({ node, up
     }
 
     return null
-  }, [linkedCardInfo, updateCounter, editor.storage?.kanban?.participants])
+    // updateCounter triggers re-computation on editor updates
+  }, [linkedCardInfo, updateCounter])
 
   const handleCheckboxChange = () => {
     if (!editor.isEditable) return
