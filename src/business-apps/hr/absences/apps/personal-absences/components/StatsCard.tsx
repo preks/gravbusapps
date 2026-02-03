@@ -2,6 +2,79 @@ import type { StatsCardProps } from '../types/absenceTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { Calendar } from 'lucide-react'
 
+const UsedOnlyCard = ({ title, normColor, safeUsed }: { title: string; normColor?: string; safeUsed: number }) => (
+  <div className="gba:statsCard" data-testid="stats-card">
+    <div className="gba:statsCardRow gba:statsCardRow--top" data-testid="stats-card-row-top">
+      <span className="gba:statsCardIcon" data-testid="stats-card-icon">
+        <Calendar className="gba:w-4 gba:h-4" style={normColor ? { color: normColor } : undefined} />
+      </span>
+      <span className="gba:statsCardTitle" data-testid="stats-card-title">
+        {title}
+      </span>
+    </div>
+    <div className="gba:statsCardRow gba:statsCardRow--bottom" data-testid="stats-card-row-bottom">
+      <span
+        className="gba:statsCardUsed"
+        style={safeUsed > 0 ? { color: 'var(--nw-success)' } : { color: 'var(--nw-foreground)' }}
+        data-testid="stats-card-used"
+      >
+        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} {safeUsed}
+      </span>
+    </div>
+  </div>
+)
+
+const FullStatsCard = ({
+  title,
+  normColor,
+  safeDaysLeft,
+  safeProgress,
+  safeUsed,
+  safeTotal
+}: {
+  title: string
+  normColor?: string
+  safeDaysLeft: number
+  safeProgress: number
+  safeUsed: number
+  safeTotal: number
+}) => (
+  <div className="gba:statsCard" data-testid="stats-card">
+    <div className="gba:statsCardRow gba:statsCardRow--top" data-testid="stats-card-row-top">
+      <span className="gba:statsCardIcon" data-testid="stats-card-icon">
+        <Calendar className="gba:w-4 gba:h-4" style={normColor ? { color: normColor } : undefined} />
+      </span>
+      <span className="gba:statsCardTitle" data-testid="stats-card-title">
+        {title}
+      </span>
+      <span className="gba:statsCardDaysLeft" data-testid="stats-card-days-left">
+        {safeDaysLeft} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.days_left', 'days left')}
+      </span>
+    </div>
+    <div className="gba:statsCardProgressBarContainer" data-testid="stats-card-progress-bar-container">
+      <div className="gba:statsCardProgressBarBg" data-testid="stats-card-progress-bar-bg">
+        <div
+          className="gba:statsCardProgressBarFg"
+          style={{ width: `${Math.max(0, Math.min(100, safeProgress))}%` }}
+          data-testid="stats-card-progress-bar"
+        />
+      </div>
+    </div>
+    <div className="gba:statsCardRow gba:statsCardRow--bottom" data-testid="stats-card-row-bottom">
+      <span
+        className="gba:statsCardUsed"
+        style={safeUsed > 0 ? { color: 'var(--nw-success)' } : { color: 'var(--nw-foreground)' }}
+        data-testid="stats-card-used"
+      >
+        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} {safeUsed}
+      </span>
+      <span className="gba:statsCardTotal" data-testid="stats-card-total">
+        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_colon', 'Total:')} {safeTotal}
+      </span>
+    </div>
+  </div>
+)
+
 export const StatsCard = ({ stat }: StatsCardProps) => {
   const { title, used, total, progress, daysLeft, color, checkEntitlement } = stat as any
   let normColor: string | undefined
@@ -17,65 +90,19 @@ export const StatsCard = ({ stat }: StatsCardProps) => {
 
   // If checkEntitlement is explicitly false, show only used days
   if (checkEntitlement === false) {
-    return (
-      <div className="gba:statsCard" data-testid="stats-card">
-        <div className="gba:statsCardRow gba:statsCardRow--top" data-testid="stats-card-row-top">
-          <span className="gba:statsCardIcon" data-testid="stats-card-icon">
-            <Calendar className="gba:w-4 gba:h-4" style={normColor ? { color: normColor } : undefined} />
-          </span>
-          <span className="gba:statsCardTitle" data-testid="stats-card-title">
-            {title}
-          </span>
-        </div>
-        <div className="gba:statsCardRow gba:statsCardRow--bottom" data-testid="stats-card-row-bottom">
-          <span
-            className="gba:statsCardUsed"
-            style={safeUsed > 0 ? { color: 'var(--nw-success)' } : { color: 'var(--nw-foreground)' }}
-            data-testid="stats-card-used"
-          >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} {safeUsed}
-          </span>
-        </div>
-      </div>
-    )
+    return <UsedOnlyCard title={title} normColor={normColor} safeUsed={safeUsed} />
   }
 
   // Default: show all details
   return (
-    <div className="gba:statsCard" data-testid="stats-card">
-      <div className="gba:statsCardRow gba:statsCardRow--top" data-testid="stats-card-row-top">
-        <span className="gba:statsCardIcon" data-testid="stats-card-icon">
-          <Calendar className="gba:w-4 gba:h-4" style={normColor ? { color: normColor } : undefined} />
-        </span>
-        <span className="gba:statsCardTitle" data-testid="stats-card-title">
-          {title}
-        </span>
-        <span className="gba:statsCardDaysLeft" data-testid="stats-card-days-left">
-          {safeDaysLeft} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.days_left', 'days left')}
-        </span>
-      </div>
-      <div className="gba:statsCardProgressBarContainer" data-testid="stats-card-progress-bar-container">
-        <div className="gba:statsCardProgressBarBg" data-testid="stats-card-progress-bar-bg">
-          <div
-            className="gba:statsCardProgressBarFg"
-            style={{ width: `${Math.max(0, Math.min(100, safeProgress))}%` }}
-            data-testid="stats-card-progress-bar"
-          />
-        </div>
-      </div>
-      <div className="gba:statsCardRow gba:statsCardRow--bottom" data-testid="stats-card-row-bottom">
-        <span
-          className="gba:statsCardUsed"
-          style={safeUsed > 0 ? { color: 'var(--nw-success)' } : { color: 'var(--nw-foreground)' }}
-          data-testid="stats-card-used"
-        >
-          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_colon', 'Used:')} {safeUsed}
-        </span>
-        <span className="gba:statsCardTotal" data-testid="stats-card-total">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.total_colon', 'Total:')} {safeTotal}
-        </span>
-      </div>
-    </div>
+    <FullStatsCard
+      title={title}
+      normColor={normColor}
+      safeDaysLeft={safeDaysLeft}
+      safeProgress={safeProgress}
+      safeUsed={safeUsed}
+      safeTotal={safeTotal}
+    />
   )
 }
 

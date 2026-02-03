@@ -37,28 +37,34 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData; accessToken?: 
 
   const absences: AbsenceListCardAbsence[] = useMemo(() => {
     const items = dashboardData?.rawAbsences || []
-    return items.map((a: any) => ({
-      type: a.typeName || a.groupName || '',
-      status: a.status || '',
-      title: a.typeName || a.groupName || 'Absence',
-      startDate: a.startDate,
-      endDate: a.endDate,
-      duration: String(Number(a.effectiveDays) || 0),
-      description: a.employeeName ? `Employee: ${a.employeeName}` : '',
-      requestedInfo: a.createdAt || '',
-      icon: <></>,
-      typeColor: (mapType(a?.type?.id || a?.type?.parentEntryId || a?.type?.value || a.typeName || a.groupName || '')
-        ?.color || 'var(--nw-chart-4)') as string,
-      statusColor:
-        String(a.status || '').toUpperCase() === 'APPROVED'
-          ? 'var(--nw-success)'
-          : String(a.status || '').toUpperCase() === 'PENDING'
-            ? 'var(--nw-warning)'
-            : String(a.status || '').toUpperCase() === 'REJECTED'
-              ? 'var(--nw-destructive)'
-              : 'var(--nw-muted-foreground)',
-      requestDate: a.createdAt || ''
-    }))
+    return items.map((a: any) => {
+      const typeRef = a?.type?.id || a?.type?.parentEntryId || a?.type?.value || a.typeName || a.groupName || ''
+      const mapped = mapType(typeRef)
+      let statusColor = 'var(--nw-muted-foreground)'
+      const statusUpper = String(a.status || '').toUpperCase()
+      if (statusUpper === 'APPROVED') {
+        statusColor = 'var(--nw-success)'
+      } else if (statusUpper === 'PENDING') {
+        statusColor = 'var(--nw-warning)'
+      } else if (statusUpper === 'REJECTED') {
+        statusColor = 'var(--nw-destructive)'
+      }
+
+      return {
+        type: a.typeName || a.groupName || '',
+        status: a.status || '',
+        title: a.typeName || a.groupName || 'Absence',
+        startDate: a.startDate,
+        endDate: a.endDate,
+        duration: String(Number(a.effectiveDays) || 0),
+        description: a.employeeName ? `Employee: ${a.employeeName}` : '',
+        requestedInfo: a.createdAt || '',
+        icon: <></>,
+        typeColor: mapped?.color || 'var(--nw-chart-4)',
+        statusColor,
+        requestDate: a.createdAt || ''
+      }
+    })
   }, [dashboardData?.rawAbsences])
 
   const distributionEntries = useMemo(() => {
