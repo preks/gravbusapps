@@ -12,6 +12,12 @@ every-box-sort-newest = Cele mai noi
 every-box-sort-oldest = Cele mai vechi
 every-box-sort-priority = Prioritate
 every-box-refresh-label = Reîmprospătare
+every-box-due-filter-label = Termen
+every-box-due-filter-any = Oricare
+every-box-due-filter-overdue = Întârziat
+every-box-due-filter-due-soon = Scadent în curând
+every-box-due-filter-has = Are termen
+every-box-due-filter-none = Fără termen
 
 # Filters Dropdown
 filters-dropdown-label = Filtre

@@ -12,6 +12,12 @@ every-box-sort-newest = Neueste zuerst
 every-box-sort-oldest = Älteste zuerst
 every-box-sort-priority = Priorität
 every-box-refresh-label = Aktualisieren
+every-box-due-filter-label = Fälligkeit
+every-box-due-filter-any = Alle
+every-box-due-filter-overdue = Überfällig
+every-box-due-filter-due-soon = Bald fällig
+every-box-due-filter-has = Mit Fälligkeitsdatum
+every-box-due-filter-none = Ohne Fälligkeitsdatum
 
 # Filters Dropdown
 filters-dropdown-label = Filter

@@ -139,6 +139,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     // Display data
     const creatorName = getCreatorDisplayName(task, employeeData, areAvatarsLoading, t)
     const createdAt = task.createdAt || task.scheduledAt || task.sourceMetadata?.createdAt
+    const dueDate = task.dueDate
     const isUnread = !task.userState?.isRead
     const isPinned = Boolean(task.userState?.isPinned)
     const userPriority = task.userState?.userPriority ?? null
@@ -197,6 +198,39 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
 
       return `${base} gba:bg-card gba:border-transparent gba:hover:bg-accent/50`
     }, [isSelected, isUnread])
+
+    const dueBadge = useMemo(() => {
+      if (!dueDate) return null
+      if (task.status === 'COMPLETED') return null
+
+      const d = dayjs(dueDate)
+      if (!d.isValid()) return null
+
+      const now = dayjs()
+      const isOverdue = d.isBefore(now)
+      const hoursUntil = d.diff(now, 'hour', true)
+      const isDueSoon = !isOverdue && hoursUntil <= 72
+
+      const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
+      const dateLabel = d.locale(baseLocale).format('L')
+
+      if (isOverdue) {
+        return {
+          label: `${t('task-card-overdue')} · ${d.fromNow(true)}`,
+          className: 'gba:bg-red-500/10 gba:text-red-700 gba:border gba:border-red-500/20 gba:dark:text-red-200'
+        }
+      }
+      if (isDueSoon) {
+        return {
+          label: `${t('task-card-due-soon')} · ${d.fromNow(true)}`,
+          className: 'gba:bg-amber-500/10 gba:text-amber-800 gba:border gba:border-amber-500/20 gba:dark:text-amber-200'
+        }
+      }
+      return {
+        label: t('task-card-due', { date: dateLabel }),
+        className: 'gba:bg-muted gba:text-muted-foreground gba:border gba:border-muted-foreground/15'
+      }
+    }, [dueDate, locale, t, task.status])
 
     // Always use compact split view layout (since detail panel is always visible)
     return (
@@ -258,6 +292,11 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
                   </Badge>
                 )}
               </div>
+            )}
+            {dueBadge && (
+              <Badge variant="secondary" className={`gba:h-5 gba:px-2 gba:text-xs gba:gap-1 ${dueBadge.className}`}>
+                {dueBadge.label}
+              </Badge>
             )}
             <span className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap" data-testid="task-created-at">
               {task.status === 'COMPLETED' && task.completedAt

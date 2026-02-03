@@ -13,6 +13,12 @@ every-box-sort-newest = Newest first
 every-box-sort-oldest = Oldest first
 every-box-sort-priority = Priority
 every-box-refresh-label = Refresh
+every-box-due-filter-label = Due date
+every-box-due-filter-any = Any
+every-box-due-filter-overdue = Overdue
+every-box-due-filter-due-soon = Due soon
+every-box-due-filter-has = Has due date
+every-box-due-filter-none = No due date
 
 # Filters Dropdown
 filters-dropdown-label = Filters

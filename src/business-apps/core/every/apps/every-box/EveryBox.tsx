@@ -36,7 +36,7 @@ import {
   TooltipContent
 } from '@newwork/nw-design-system'
 import translations from './_i18n'
-import { Inbox, Send, Zap, Search, ArrowUpDown, RefreshCcw } from 'lucide-react'
+import { Inbox, Send, Zap, Search, ArrowUpDown, RefreshCcw, CalendarDays } from 'lucide-react'
 import { FiltersDropdown, FilterType } from './components/FiltersDropdown'
 import { EveryBoxHero } from './components/EveryBoxHero'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -63,6 +63,7 @@ interface EveryBoxProps extends BusinessAppContextProps {
 
 type ViewType = 'inbox' | 'outbox'
 type SortOption = 'newest' | 'oldest' | 'priority'
+type DueDateFilter = 'any' | 'overdue' | 'dueSoon' | 'hasDueDate' | 'noDueDate'
 
 /**
  * Get initial view from URL
@@ -118,6 +119,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedFilters, setSelectedFilters] = useState<FilterType[]>(['all'])
   const [sortOption, setSortOption] = useState<SortOption>('newest')
+  const [dueDateFilter, setDueDateFilter] = useState<DueDateFilter>('any')
 
   const sortBy = sortOption === 'priority' ? 'priority' : 'createdAt'
   const sortOrder = sortOption === 'oldest' ? 'asc' : sortOption === 'priority' ? 'asc' : 'desc'
@@ -488,6 +490,51 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     prefixDataTestId={`${prefixDataTestId}-filters`}
                   />
 
+                  {/* Due date filter */}
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="gba:h-8 gba:w-8 gba:relative"
+                            aria-label={t('every-box-due-filter-label')}
+                            data-testid={`${prefixDataTestId}-due-filter-trigger`}
+                          >
+                            <CalendarDays className="gba:h-4 gba:w-4" />
+                            {dueDateFilter !== 'any' && (
+                              <span className="gba:absolute gba:top-0.5 gba:right-0.5 gba:h-2 gba:w-2 gba:rounded-full gba:bg-primary" />
+                            )}
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('every-box-due-filter-label')}</TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="end" className="gba:w-56">
+                      <DropdownMenuRadioGroup
+                        value={dueDateFilter}
+                        onValueChange={v => setDueDateFilter(v as DueDateFilter)}
+                      >
+                        <DropdownMenuRadioItem value="any">{t('every-box-due-filter-any')}</DropdownMenuRadioItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuRadioItem value="overdue">
+                          {t('every-box-due-filter-overdue')}
+                        </DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="dueSoon">
+                          {t('every-box-due-filter-due-soon')}
+                        </DropdownMenuRadioItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuRadioItem value="hasDueDate">
+                          {t('every-box-due-filter-has')}
+                        </DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="noDueDate">
+                          {t('every-box-due-filter-none')}
+                        </DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
                   {/* Sort */}
                   <DropdownMenu>
                     <Tooltip>
@@ -556,6 +603,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     error={tasksError}
                     sortBy={sortBy}
                     sortOrder={sortOrder}
+                    dueDateFilter={dueDateFilter}
                     onRefresh={refetchTasks}
                     onLoadMore={loadMoreTasks}
                     hasMore={hasMoreTasks}
