@@ -10,9 +10,14 @@ import {
   DateInput
 } from '@newwork/nw-design-system'
 import { PiFloppyDisk, PiX } from 'react-icons/pi'
-import dayjs from 'dayjs'
 import { EditableCell, CurrencyOption, UsageInfo } from './types'
-import { formatDateForInput, normalizeDateInputValue } from '../../utils'
+import {
+  formatDate as formatDateDisplay,
+  formatDateForInput,
+  normalizeDateInputValue,
+  toISOEndOfDay,
+  toISOStartOfDay
+} from '../../utils'
 
 interface MatrixCellProps {
   cell: EditableCell
@@ -49,12 +54,6 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
   setEditingCellId,
   setEditingCellUsageInfo
 }) => {
-  const formatDate = (dateStr: string | undefined): string => {
-    if (!dateStr) return ''
-    const date = dayjs(dateStr)
-    return date.isValid() ? date.format('DD.MM.YYYY') : ''
-  }
-
   return (
     <div
       key={cell.id || cell.validityPeriodId}
@@ -100,7 +99,7 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
               value={formatDateForInput(cell.activeFrom) || ''}
               onChange={date => {
                 const normalized = normalizeDateInputValue(date)
-                const dateValue = normalized ? `${normalized}T00:00:00+00:00` : ''
+                const dateValue = normalized ? toISOStartOfDay(normalized) : ''
                 updateCellField(cell.id!, cell.validityPeriodId!, 'activeFrom', dateValue)
               }}
               outputFormat="iso"
@@ -116,7 +115,7 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
               value={formatDateForInput(cell.activeTo) || ''}
               onChange={date => {
                 const normalized = normalizeDateInputValue(date)
-                const dateValue = normalized ? `${normalized}T00:00:00+00:00` : undefined
+                const dateValue = normalized ? toISOEndOfDay(normalized) : undefined
                 updateCellField(cell.id!, cell.validityPeriodId!, 'activeTo', dateValue)
               }}
               outputFormat="iso"
@@ -240,7 +239,7 @@ export const MatrixCell: React.FC<MatrixCellProps> = ({
             {cell.amount ? cell.amount.toFixed(2) : '—'} {cell.currencyCode}
           </div>
           <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-            {formatDate(cell.activeFrom)} - {cell.activeTo ? formatDate(cell.activeTo) : '∞'}
+            {formatDateDisplay(cell.activeFrom)} - {cell.activeTo ? formatDateDisplay(cell.activeTo) : '∞'}
           </div>
         </div>
       )}

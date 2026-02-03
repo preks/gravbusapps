@@ -12,7 +12,7 @@ import {
 } from '@newwork/nw-design-system'
 import type { EditableCell } from '../types'
 import { formatPeriodShort } from '../utils/matrixFormatters'
-import { formatDateForInput, normalizeDateInputValue } from '../../../utils'
+import { formatDateForInput, normalizeDateInputValue, toISOEndOfDay, toISOStartOfDay } from '../../../utils'
 
 /**
  * Action buttons for new cell (Cancel + Save)
@@ -187,7 +187,7 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
               value={formatDateForInput(cell.activeFrom) || ''}
               onChange={date => {
                 const normalized = normalizeDateInputValue(date)
-                const dateValue = normalized ? `${normalized}T00:00:00+00:00` : ''
+                const dateValue = normalized ? toISOStartOfDay(normalized) : ''
                 onUpdateCell({ activeFrom: dateValue, isModified: true })
               }}
               outputFormat="iso"
@@ -209,7 +209,7 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
               value={formatDateForInput(cell.activeTo) || ''}
               onChange={date => {
                 const normalized = normalizeDateInputValue(date)
-                const dateValue = normalized ? `${normalized}T00:00:00+00:00` : undefined
+                const dateValue = normalized ? toISOEndOfDay(normalized) : undefined
                 onUpdateCell({ activeTo: dateValue, isModified: true })
               }}
               outputFormat="iso"

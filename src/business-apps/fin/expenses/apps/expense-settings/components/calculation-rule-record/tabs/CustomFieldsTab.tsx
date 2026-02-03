@@ -999,7 +999,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
                       <FormControl>
                         <DateInput
                           value={field.value || ''}
-                          onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                          onChange={date => field.onChange(normalizeDateInputValue(date))}
                           outputFormat="iso"
                           data-testid="custom-field-valid-to-input"
                         />

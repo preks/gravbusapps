@@ -1366,7 +1366,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                       <FormControl>
                         <DateInput
                           value={field.value || ''}
-                          onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                          onChange={date => field.onChange(normalizeDateInputValue(date))}
                           outputFormat="iso"
                           data-testid="mileage-rule-active-to-input"
                         />

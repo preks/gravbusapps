@@ -759,7 +759,7 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
                       <DateInput
                         value={field.value || ''}
                         onChange={date => {
-                          const normalized = normalizeDateInputValue(date) ?? ''
+                          const normalized = normalizeDateInputValue(date)
                           field.onChange(normalized)
                           setFormData(prev => ({ ...prev, activeTo: normalized }))
                         }}

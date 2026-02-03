@@ -1201,7 +1201,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         <FormControl>
                           <DateInput
                             value={field.value || ''}
-                            onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                            onChange={date => field.onChange(normalizeDateInputValue(date))}
                             outputFormat="iso"
                             disabled={isRestrictedEdit}
                             data-testid="allowance-period-valid-from-input"
@@ -1222,7 +1222,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         <FormControl>
                           <DateInput
                             value={field.value || ''}
-                            onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                            onChange={date => field.onChange(normalizeDateInputValue(date))}
                             outputFormat="iso"
                             data-testid="allowance-period-valid-to-input"
                           />

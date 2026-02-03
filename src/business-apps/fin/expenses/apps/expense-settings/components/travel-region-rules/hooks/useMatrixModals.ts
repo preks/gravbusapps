@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { ExpenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
+import { toISOEndOfDay, toISOStartOfDay } from '../../../utils'
 
 interface TravelRegion {
   id: string
@@ -140,9 +141,9 @@ export const useMatrixModals = (options: UseMatrixModalsOptions) => {
           name: formData.name.trim(),
           description: `Allowance rule: ${formData.name.trim()}`,
           activeFrom: formData.activeFrom
-            ? `${formData.activeFrom}T00:00:00+00:00`
-            : `${dayjs().format('YYYY-MM-DD')}T00:00:00+00:00`,
-          activeTo: formData.activeTo ? `${formData.activeTo}T00:00:00+00:00` : null,
+            ? toISOStartOfDay(formData.activeFrom)
+            : toISOStartOfDay(dayjs().format('YYYY-MM-DD')),
+          activeTo: formData.activeTo ? toISOEndOfDay(formData.activeTo) : null,
           travelRegionSetRef: travelRegionSetId,
           ruleOrder: allowanceRegionRules.length + 1,
           additionalProperties: {},
@@ -159,8 +160,8 @@ export const useMatrixModals = (options: UseMatrixModalsOptions) => {
               allowanceRegionRuleDetail: {
                 amount: detail.amounts?.[0] || 0,
                 currencyRef: detail.currencyRef,
-                activeFrom: detail.activeFrom ? `${detail.activeFrom}T00:00:00+00:00` : null,
-                activeTo: detail.activeTo ? `${detail.activeTo}T00:00:00+00:00` : null,
+                activeFrom: detail.activeFrom ? toISOStartOfDay(detail.activeFrom) : null,
+                activeTo: detail.activeTo ? toISOEndOfDay(detail.activeTo) : null,
                 travelRegionRef: detail.travelRegionRef || detail.travelRegion,
                 countryRef: detail.countryRef,
                 home: detail.home || false,
@@ -214,8 +215,8 @@ export const useMatrixModals = (options: UseMatrixModalsOptions) => {
           version: selectedRuleForEdit?.version,
           code: formData.code.trim(),
           name: formData.name.trim(),
-          activeFrom: formData.activeFrom ? `${formData.activeFrom}T00:00:00+00:00` : null,
-          activeTo: formData.activeTo ? `${formData.activeTo}T00:00:00+00:00` : null,
+          activeFrom: formData.activeFrom ? toISOStartOfDay(formData.activeFrom) : null,
+          activeTo: formData.activeTo ? toISOEndOfDay(formData.activeTo) : null,
           travelRegionSetRef: travelRegionSetId,
           ruleOrder: selectedRuleForEdit?.ruleOrder || 1,
           additionalProperties: selectedRuleForEdit?.additionalProperties || {},
@@ -232,8 +233,8 @@ export const useMatrixModals = (options: UseMatrixModalsOptions) => {
                 ...(detail.id && { id: detail.id }),
                 amount: detail.amounts?.[0] || 0,
                 currencyRef: detail.currencyRef,
-                activeFrom: detail.activeFrom ? `${detail.activeFrom}T00:00:00+00:00` : null,
-                activeTo: detail.activeTo ? `${detail.activeTo}T00:00:00+00:00` : null,
+                activeFrom: detail.activeFrom ? toISOStartOfDay(detail.activeFrom) : null,
+                activeTo: detail.activeTo ? toISOEndOfDay(detail.activeTo) : null,
                 travelRegionRef: detail.travelRegionRef || detail.travelRegion,
                 countryRef: detail.countryRef,
                 home: detail.home || false,

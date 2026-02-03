@@ -36,44 +36,6 @@ import { UsageInfo } from '../../types'
 
 export type GeneralExpenseFormData = GeneralExpenseFormSchema
 
-const shouldLogExpenseSettingsDateDebug = (): boolean => {
-  try {
-    if (typeof window === 'undefined') return false
-    const isEnabledViaSearch = (w: Window): boolean => {
-      try {
-        const params = new URLSearchParams(w.location.search)
-        return params.get('debugExpenseSettingsDates') === '1'
-      } catch {
-        return false
-      }
-    }
-
-    if (
-      isEnabledViaSearch(window) ||
-      (window.parent !== window && isEnabledViaSearch(window.parent)) ||
-      (window.top ? window.top !== window && isEnabledViaSearch(window.top) : false)
-    ) {
-      return true
-    }
-
-    const isEnabledViaLocalStorage = (w: Window): boolean => {
-      try {
-        return w.localStorage?.getItem('debugExpenseSettingsDates') === '1'
-      } catch {
-        return false
-      }
-    }
-
-    return (
-      isEnabledViaLocalStorage(window) ||
-      (window.parent !== window && isEnabledViaLocalStorage(window.parent)) ||
-      (window.top ? window.top !== window && isEnabledViaLocalStorage(window.top) : false)
-    )
-  } catch {
-    return false
-  }
-}
-
 // Re-export UsageInfo for backward compatibility
 export type { UsageInfo } from '../../types'
 
@@ -547,12 +509,6 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
                         value={field.value || ''}
                         onChange={date => {
                           const normalized = normalizeDateInputValue(date) ?? ''
-                          if (shouldLogExpenseSettingsDateDebug()) {
-                            console.warn('[expense-settings][GeneralExpenseForm] activeFrom change', {
-                              raw: date,
-                              normalized
-                            })
-                          }
                           field.onChange(normalized)
                         }}
                         outputFormat="iso"
@@ -575,14 +531,7 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
                       <DateInput
                         value={field.value || ''}
                         onChange={date => {
-                          const normalized = normalizeDateInputValue(date) ?? ''
-                          if (shouldLogExpenseSettingsDateDebug()) {
-                            console.warn('[expense-settings][GeneralExpenseForm] activeTo change', {
-                              raw: date,
-                              normalized
-                            })
-                          }
-                          field.onChange(normalized)
+                          field.onChange(normalizeDateInputValue(date))
                         }}
                         outputFormat="iso"
                         data-testid="general-expense-active-to-input"

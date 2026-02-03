@@ -1056,7 +1056,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
                       <FormControl>
                         <DateInput
                           value={field.value || ''}
-                          onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                          onChange={date => field.onChange(normalizeDateInputValue(date))}
                           outputFormat="iso"
                           data-testid="other-calculation-valid-to-input"
                         />

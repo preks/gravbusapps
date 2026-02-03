@@ -1536,7 +1536,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                           <DateInput
                             value={field.value || ''}
                             onChange={date => {
-                              field.onChange(normalizeDateInputValue(date) ?? '')
+                              field.onChange(normalizeDateInputValue(date))
                               form.clearErrors('activeFrom')
                             }}
                             outputFormat="iso"
@@ -1560,7 +1560,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                           <DateInput
                             value={field.value || ''}
                             onChange={date => {
-                              field.onChange(normalizeDateInputValue(date) ?? '')
+                              field.onChange(normalizeDateInputValue(date))
                               form.clearErrors('activeTo')
                             }}
                             outputFormat="iso"

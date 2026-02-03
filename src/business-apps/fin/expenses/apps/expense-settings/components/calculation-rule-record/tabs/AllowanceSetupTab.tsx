@@ -79,46 +79,6 @@ import {
 import { useTableSorting, createFieldMappings } from '../hooks'
 import { UsageInfo } from '../../../types'
 
-const shouldLogExpenseSettingsDateDebug = (): boolean => {
-  try {
-    if (typeof window === 'undefined') return false
-    const isEnabledViaSearch = (w: Window): boolean => {
-      try {
-        const params = new URLSearchParams(w.location.search)
-        return params.get('debugExpenseSettingsDates') === '1'
-      } catch {
-        return false
-      }
-    }
-
-    if (
-      isEnabledViaSearch(window) ||
-      (window.parent !== window && isEnabledViaSearch(window.parent)) ||
-      (window.top ? window.top !== window && isEnabledViaSearch(window.top) : false)
-    ) {
-      return true
-    }
-
-    const isEnabledViaLocalStorage = (w: Window): boolean => {
-      try {
-        return w.localStorage?.getItem('debugExpenseSettingsDates') === '1'
-      } catch {
-        return false
-      }
-    }
-
-    // Support cases where the app runs in an embedded frame, but the flag
-    // is set in the top/parent window DevTools context.
-    return (
-      isEnabledViaLocalStorage(window) ||
-      (window.parent !== window && isEnabledViaLocalStorage(window.parent)) ||
-      (window.top ? window.top !== window && isEnabledViaLocalStorage(window.top) : false)
-    )
-  } catch {
-    return false
-  }
-}
-
 interface AllowanceSetupTabProps {
   ruleId: string
   accessToken: string
@@ -161,18 +121,6 @@ interface AllowanceSetupFormData {
 
 const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessToken, activeFrom, activeTo }) => {
   const graphqlClient = useGraphQLClient(accessToken)
-
-  const hasLoggedDateDebugEnabledRef = React.useRef(false)
-
-  useEffect(() => {
-    if (hasLoggedDateDebugEnabledRef.current) return
-    if (!shouldLogExpenseSettingsDateDebug()) return
-    hasLoggedDateDebugEnabledRef.current = true
-    console.warn('[expense-settings] date debug enabled', {
-      origin: window.location.origin,
-      search: window.location.search
-    })
-  }, [])
 
   const [allowanceSetups, setAllowanceSetups] = useState<AllowanceSetup[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -414,17 +362,6 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
         version: setup.version,
         isDeleted: false
       }))
-
-      if (shouldLogExpenseSettingsDateDebug() && transformedSetups.length > 0) {
-        const first = transformedSetups[0]
-        console.warn('[expense-settings][AllowanceSetupTab] loaded first record', {
-          name: first.name,
-          activeFromRaw: first.activeFrom,
-          activeFromDisplay: first.activeFrom ? formatDate(first.activeFrom) : null,
-          activeToRaw: first.activeTo,
-          activeToDisplay: first.activeTo ? formatDate(first.activeTo) : null
-        })
-      }
 
       setAllowanceSetups(transformedSetups)
       setAllowancePeriods(periods)
@@ -672,15 +609,6 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
               formatDateToISOEndOfDay
             )
           : transformAllowanceSetupForSave(formValues, ruleId, editingItem, formatDateToISO, formatDateToISOEndOfDay)
-
-      if (shouldLogExpenseSettingsDateDebug()) {
-        console.warn('[expense-settings][AllowanceSetupTab] saving', {
-          formActiveFrom: formValues.activeFrom,
-          formActiveTo: formValues.activeTo,
-          apiActiveFrom: saveData.activeFrom,
-          apiActiveTo: saveData.activeTo
-        })
-      }
 
       await expenseSettingsClient.saveExpenseRuleAllowanceSetup(saveData)
 
@@ -1182,14 +1110,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                           <DateInput
                             value={field.value || ''}
                             onChange={date => {
-                              const normalized = normalizeDateInputValue(date) ?? ''
-                              if (shouldLogExpenseSettingsDateDebug()) {
-                                console.warn('[expense-settings][AllowanceSetupTab] activeFrom change', {
-                                  raw: date,
-                                  normalized
-                                })
-                              }
-                              field.onChange(normalized)
+                              field.onChange(normalizeDateInputValue(date) ?? '')
                             }}
                             outputFormat="iso"
                             disabled={isRestrictedEdit}
@@ -1210,14 +1131,7 @@ const AllowanceSetupTab: React.FC<AllowanceSetupTabProps> = ({ ruleId, accessTok
                           <DateInput
                             value={field.value || ''}
                             onChange={date => {
-                              const normalized = normalizeDateInputValue(date) ?? ''
-                              if (shouldLogExpenseSettingsDateDebug()) {
-                                console.warn('[expense-settings][AllowanceSetupTab] activeTo change', {
-                                  raw: date,
-                                  normalized
-                                })
-                              }
-                              field.onChange(normalized)
+                              field.onChange(normalizeDateInputValue(date))
                             }}
                             outputFormat="iso"
                             data-testid="allowance-setup-valid-to-input"

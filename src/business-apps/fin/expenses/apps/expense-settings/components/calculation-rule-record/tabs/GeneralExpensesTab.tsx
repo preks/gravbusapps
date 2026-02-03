@@ -50,44 +50,6 @@ import { expenseSettingsClient, formatDate, toISOStartOfDay, toISOEndOfDay } fro
 import { useTableSorting, createFieldMappings } from '../hooks'
 import { validateDateRange } from '../utils/sharedDateValidation'
 
-const shouldLogExpenseSettingsDateDebug = (): boolean => {
-  try {
-    if (typeof window === 'undefined') return false
-    const isEnabledViaSearch = (w: Window): boolean => {
-      try {
-        const params = new URLSearchParams(w.location.search)
-        return params.get('debugExpenseSettingsDates') === '1'
-      } catch {
-        return false
-      }
-    }
-
-    if (
-      isEnabledViaSearch(window) ||
-      (window.parent !== window && isEnabledViaSearch(window.parent)) ||
-      (window.top ? window.top !== window && isEnabledViaSearch(window.top) : false)
-    ) {
-      return true
-    }
-
-    const isEnabledViaLocalStorage = (w: Window): boolean => {
-      try {
-        return w.localStorage?.getItem('debugExpenseSettingsDates') === '1'
-      } catch {
-        return false
-      }
-    }
-
-    return (
-      isEnabledViaLocalStorage(window) ||
-      (window.parent !== window && isEnabledViaLocalStorage(window.parent)) ||
-      (window.top ? window.top !== window && isEnabledViaLocalStorage(window.top) : false)
-    )
-  } catch {
-    return false
-  }
-}
-
 interface GeneralExpensesTabProps {
   ruleId: string
   accessToken: string
@@ -247,17 +209,6 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
 
       const expenseRule = result.ExpenseRule?.[0]
       const expenses = expenseRule?.expenseRuleGeneralExpense || []
-
-      if (shouldLogExpenseSettingsDateDebug() && expenses.length > 0) {
-        const first = expenses[0]
-        console.warn('[expense-settings][GeneralExpensesTab] loaded first record', {
-          code: first.code,
-          activeFromRaw: first.activeFrom,
-          activeFromDisplay: formatDate(first.activeFrom),
-          activeToRaw: first.activeTo,
-          activeToDisplay: first.activeTo ? formatDate(first.activeTo) : null
-        })
-      }
 
       setGeneralExpenses(expenses)
 
@@ -447,15 +398,6 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
           })
           return // Stop save operation
         }
-      }
-
-      if (shouldLogExpenseSettingsDateDebug()) {
-        console.warn('[expense-settings][GeneralExpensesTab] saving', {
-          formActiveFrom: formData.activeFrom,
-          formActiveTo: formData.activeTo,
-          apiActiveFrom: saveData.activeFrom,
-          apiActiveTo: saveData.activeTo
-        })
       }
 
       await expenseSettingsClient.saveExpenseRuleGeneralExpense(saveData)

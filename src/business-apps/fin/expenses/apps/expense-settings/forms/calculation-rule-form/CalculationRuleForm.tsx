@@ -5,7 +5,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useFeature } from '@/common/hooks/useFeature'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient'
-import { formatDateForInput, normalizeDateInputValue } from '../../utils'
+import { formatDateForInput, normalizeDateInputValue, toISOEndOfDay, toISOStartOfDay } from '../../utils'
 import { useGetExpenseRuleById } from '../../queries/ExpenseRuleQueries'
 import {
   Dialog,
@@ -260,8 +260,8 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
         code: data.code,
         name: data.name,
         standard: data.standard || false,
-        activeFrom: data.activeFrom ? dayjs(data.activeFrom).toISOString() : undefined,
-        activeTo: data.activeTo ? dayjs(data.activeTo).toISOString() : undefined,
+        activeFrom: data.activeFrom ? toISOStartOfDay(data.activeFrom) : undefined,
+        activeTo: data.activeTo ? toISOEndOfDay(data.activeTo) : undefined,
         deductionLimit: data.deductionLimit || false,
         useLastCountry: data.useLastCountry || false,
         useSingleCurrency: data.useSingleCurrency || false,
@@ -279,8 +279,8 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
 
       const saveData: CalculationRuleFormData = {
         ...data,
-        activeFrom: data.activeFrom ? dayjs(data.activeFrom).toISOString() : '',
-        activeTo: data.activeTo ? dayjs(data.activeTo).toISOString() : '',
+        activeFrom: data.activeFrom ? toISOStartOfDay(data.activeFrom) || '' : '',
+        activeTo: data.activeTo ? toISOEndOfDay(data.activeTo) || '' : '',
         id: result.expenseRule?.id || initialData?.id,
         version: result.expenseRule?.version ?? (initialData?.version !== undefined ? initialData.version + 1 : 1)
       }
@@ -500,7 +500,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                           <FormControl>
                             <DateInput
                               value={field.value || ''}
-                              onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                              onChange={date => field.onChange(normalizeDateInputValue(date))}
                               outputFormat="iso"
                               data-testid="calculation-rule-form-active-to"
                             />

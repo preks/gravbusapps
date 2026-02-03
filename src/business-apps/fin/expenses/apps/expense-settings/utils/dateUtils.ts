@@ -11,6 +11,12 @@ dayjs.extend(utc)
 const normalizeDateString = (dateStr: string): string => {
   const trimmed = dateStr.trim()
 
+  // ISO-ish strings: always preserve the calendar date part (YYYY-MM-DD)
+  // because these fields are date-only semantics across expense-settings.
+  // This prevents timezone offsets (e.g. ...T22:00:00+00:00) from shifting
+  // the displayed/edited date.
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10)
+
   // YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed
 
@@ -47,12 +53,8 @@ const normalizeDateString = (dateStr: string): string => {
  */
 export const formatDateForInput = (dateStr?: string): string | undefined => {
   if (!dateStr) return undefined
-  // If already in YYYY-MM-DD format, return as is
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr
-  // Use UTC to prevent timezone conversion
-  const formatted = dayjs.utc(dateStr).format('YYYY-MM-DD')
-  // Return undefined if dayjs returns invalid date
-  return formatted === 'Invalid Date' ? undefined : formatted
+  const normalized = normalizeDateString(dateStr)
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : undefined
 }
 
 /**
@@ -65,8 +67,15 @@ export const formatDateForInput = (dateStr?: string): string | undefined => {
  */
 export const formatDate = (dateString: string): string => {
   if (!dateString) return ''
-  // Use UTC to prevent timezone conversion
-  return dayjs.utc(dateString).format('DD.MM.YYYY')
+  const normalized = normalizeDateString(dateString)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    const [yyyy, mm, dd] = normalized.split('-')
+    return `${dd}.${mm}.${yyyy}`
+  }
+
+  // Fallback (should be rare)
+  const formatted = dayjs.utc(dateString).format('DD.MM.YYYY')
+  return formatted === 'Invalid Date' ? '' : formatted
 }
 
 /**
