@@ -3,6 +3,7 @@ import type { Conversation, Message, ConversationParticipant } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
 import { useUserManagementClient } from './useUserManagementClient'
 import { useEmployeeAvatarsCache } from './useEmployeeAvatarsCache'
+import { rtkDebug } from '../utils/rtkDebug'
 
 interface UseConversationsOptions {
   apiClient: ChatApiClient
@@ -180,7 +181,7 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
 
       // Log backend response for debugging sorting issues
       if (process.env.NODE_ENV === 'development') {
-        console.debug(
+        rtkDebug.debug(
           '[useConversations] Backend returned conversations:',
           conversationsData.slice(0, 3).map((c: any) => ({
             id: c.id?.substring(0, 8),
