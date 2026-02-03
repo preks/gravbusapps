@@ -237,6 +237,7 @@ export const CaseManagement: React.FC<CaseManagementProps> = ({
         caseId={selectedCaseId}
         context={context}
         appTag={appTag}
+        headerCategory={appName}
         onBack={handleBack}
         onCompleteCase={handleCompleteCase}
         onAddFlow={handleAddFlow}
