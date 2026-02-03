@@ -177,16 +177,13 @@ export const McpToolsPanel: React.FC<Pick<TabProps, 'context' | 'state' | 'actio
 
         <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
           <div className="gba:flex-1">
-            <div className="gba:relative">
-              <Search className="gba:absolute gba:start-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search MCP tools..."
-                className="gba:ps-10"
-                data-testid="agent-builder-mcp-tool-search"
-              />
-            </div>
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search MCP tools..."
+              startAddOn={<Search size={16} className="gba:-ms-1" />}
+              data-testid="agent-builder-mcp-tool-search"
+            />
           </div>
           <Badge variant="secondary" data-testid="agent-builder-mcp-selected-count">
             {selectedMcpCount} selected
