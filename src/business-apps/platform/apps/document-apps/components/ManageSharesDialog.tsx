@@ -115,15 +115,6 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
   const graphqlClient = useGraphQLClient(accessToken)
 
   /**
-   * Fetch shares when dialog opens
-   */
-  useEffect(() => {
-    if (open && documentId) {
-      loadShares()
-    }
-  }, [open, documentId, loadShares])
-
-  /**
    * Load shares and enrich with user info
    */
   const loadShares = useCallback(async () => {
@@ -200,6 +191,15 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
       setIsLoading(false)
     }
   }, [documentId, graphqlClient])
+
+  /**
+   * Fetch shares when dialog opens
+   */
+  useEffect(() => {
+    if (open && documentId) {
+      loadShares()
+    }
+  }, [open, documentId, loadShares])
 
   /**
    * Update a share's permission

@@ -3,7 +3,8 @@
  * Individual task card with priority badges and quick actions
  */
 
-import React, { memo } from 'react'
+import React, { memo, useMemo } from 'react'
+import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
@@ -17,6 +18,7 @@ import 'dayjs/locale/es'
 import 'dayjs/locale/it'
 import { UnifiedTask } from '../types'
 import { EmployeeAvatarData } from '../hooks/useEmployeeAvatarsBatch'
+import { base64ToObjectURL } from '../utils/avatarUtils'
 
 dayjs.extend(relativeTime)
 dayjs.extend(localizedFormat)
@@ -109,6 +111,21 @@ const formatDateTimeWithRelative = (date: string | Date, locale: string, t: (key
 
   return d.locale(baseLocale).format('L LT')
 }
+// Helper to get initials from name
+const getInitials = (employeeData: EmployeeAvatarData | null | undefined, name: string): string => {
+  if (employeeData) {
+    const first = employeeData.firstName?.[0] || ''
+    const last = employeeData.lastName?.[0] || ''
+    if (first || last) return `${first}${last}`.toUpperCase()
+  }
+  // Fallback: get initials from display name
+  const parts = name.split(' ').filter(Boolean)
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+  }
+  return name.substring(0, 2).toUpperCase()
+}
+
 export const TaskCard: React.FC<TaskCardProps> = memo(
   ({ task, onView, employeeMap, isSelected = false, areAvatarsLoading = false, t, locale }) => {
     // Module and task metadata
@@ -122,15 +139,33 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     const creatorName = getCreatorDisplayName(task, employeeData, areAvatarsLoading, t)
     const createdAt = task.createdAt || task.scheduledAt || task.sourceMetadata?.createdAt
 
+    // Avatar URL from base64
+    const avatarUrl = useMemo(() => {
+      if (employeeData?.pictureThumbnail) {
+        return base64ToObjectURL(employeeData.pictureThumbnail)
+      }
+      return undefined
+    }, [employeeData?.pictureThumbnail])
+
+    const initials = getInitials(employeeData, creatorName)
+
     // Always use compact split view layout (since detail panel is always visible)
     return (
       <div
-        className={`gba:cursor-pointer gba:transition-all gba:duration-150 gba:px-3 gba:py-2.5 gba:bg-card gba:rounded-lg gba:mb-2 gba:border-2 ${
-          isSelected ? 'gba:border-foreground gba:shadow-sm' : 'gba:border-transparent hover:gba:bg-accent/50'
+        className={`gba:relative gba:cursor-pointer gba:transition-all gba:duration-150 gba:pl-10 gba:pr-3 gba:py-2.5 gba:bg-card gba:rounded-lg gba:mb-2 gba:border-2 gba:overflow-hidden ${
+          isSelected ? 'gba:border-foreground gba:shadow-sm' : 'gba:border-transparent gba:hover:bg-accent/50'
         }`}
         onClick={() => onView(task)}
         data-testid={`task-card-${task.id}`}
       >
+        {/* Corner Avatar */}
+        <div className="gba:absolute gba:left-2 gba:top-0 gba:bottom-0 gba:w-8 gba:flex gba:items-center gba:justify-center">
+          <Avatar className="gba:h-6 gba:w-6">
+            {avatarUrl && !areAvatarsLoading && <AvatarImage src={avatarUrl} alt={creatorName} />}
+            <AvatarFallback className="gba:text-[10px] gba:font-medium">{initials}</AvatarFallback>
+          </Avatar>
+        </div>
+
         <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
           {/* Left: Name and Title */}
           <div className="gba:flex gba:flex-col gba:gap-0.5 gba:flex-1 gba:min-w-0">

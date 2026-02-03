@@ -20,6 +20,15 @@ import { normalizeDateRange } from '@/common/utils/dateRangeNormalizer'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useCustomerAccountStatistics } from '@/common/data/customer/hooks/useCustomerAccountStatistics'
+import type { FilterConfiguration } from '@newwork/nw-design-system'
+
+// Custom filter configuration for CRM Account View - excludes Status, Contact Information, and Account Category filters
+const crmAccountFilterConfig: FilterConfiguration = {
+  ...commonAccountFilterConfig,
+  groups: commonAccountFilterConfig.groups.filter(
+    group => group.id !== 'status-group' && group.id !== 'contact-filters' && group.id !== 'account-type-group'
+  )
+}
 
 // Helper function to process date range filters
 const processDateRangeFilters = (selectedFilters: Record<string, any>, vars: CustomerAccountQueryVariables): void => {
@@ -123,7 +132,7 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         createdAt: 'Created Date',
         updatedAt: 'Updated Date'
       },
-      baseFilterConfig: commonAccountFilterConfig,
+      baseFilterConfig: crmAccountFilterConfig,
       buildQueryVariables: (params: {
         pagination: { pageIndex: number; pageSize: number }
         searchTerm: string
