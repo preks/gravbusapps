@@ -93,12 +93,28 @@ export const MinimizedCallView: React.FC<MinimizedCallViewProps> = React.memo(
     // Calculate live duration independently to avoid parent re-renders
     const [duration, setDuration] = useState(0)
 
+    // Constrain position within viewport boundaries
+    const constrainPosition = useCallback((x: number, y: number) => {
+      const maxX = window.innerWidth - MODAL_WIDTH
+      const maxY = window.innerHeight - MODAL_HEIGHT
+
+      return {
+        x: Math.max(0, Math.min(x, maxX)),
+        y: Math.max(0, Math.min(y, maxY))
+      }
+    }, [])
+
     // Drag state
     const [position, setPosition] = useState(() => {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
         try {
-          return JSON.parse(saved)
+          const parsed = JSON.parse(saved)
+          // CRITICAL: Constrain saved position to current viewport
+          return {
+            x: Math.max(0, Math.min(parsed.x, window.innerWidth - MODAL_WIDTH)),
+            y: Math.max(0, Math.min(parsed.y, window.innerHeight - MODAL_HEIGHT))
+          }
         } catch {
           // Ignore invalid JSON
         }
@@ -158,17 +174,6 @@ export const MinimizedCallView: React.FC<MinimizedCallViewProps> = React.memo(
     const hasRemoteVideo = useMemo(() => {
       return firstRemoteStream?.getVideoTracks().some(t => t.enabled) ?? false
     }, [firstRemoteStream])
-
-    // Constrain position within viewport boundaries
-    const constrainPosition = useCallback((x: number, y: number) => {
-      const maxX = window.innerWidth - MODAL_WIDTH
-      const maxY = window.innerHeight - MODAL_HEIGHT
-
-      return {
-        x: Math.max(0, Math.min(x, maxX)),
-        y: Math.max(0, Math.min(y, maxY))
-      }
-    }, [])
 
     // Handle drag start
     const handleMouseDown = useCallback(
