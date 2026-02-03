@@ -67,11 +67,17 @@ const FileUploadInput: React.FC<FileUploadInputProps> = ({
         return `File size must be less than ${input.maxFileSize || 10}MB`
       }
 
-      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase()
-      const allowedExtensions = allowedTypes.split(',').map((t: string) => t.trim())
+      const fileName = file.name || ''
+      const lastDotIndex = fileName.lastIndexOf('.')
+      const fileExtension = lastDotIndex > 0 ? fileName.slice(lastDotIndex).toLowerCase() : ''
+      const allowedExtensions = allowedTypes.split(',').map((t: string) => t.trim().toLowerCase())
 
-      if (!allowedExtensions.includes(fileExtension)) {
+      if (fileExtension && !allowedExtensions.includes(fileExtension)) {
         return `File type ${fileExtension} is not allowed`
+      }
+
+      if (!fileExtension) {
+        return `File has no extension`
       }
 
       return null

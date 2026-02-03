@@ -825,7 +825,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             {/* Due Date with Criticality */}
             {task.dueDate &&
               (() => {
-                const criticality = calculateDueDateCriticality(task.dueDate)
+                const criticality = calculateDueDateCriticality(task.dueDate, t)
                 if (!criticality) return null
 
                 const Icon =

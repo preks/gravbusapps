@@ -13,11 +13,18 @@ export interface DueDateCriticality {
   label: string
 }
 
+type TranslationFunction = (key: string, params?: Record<string, number | string>) => string
+
 /**
  * Calculate due date criticality based on current time
  * Similar to service portal implementation
+ * @param dueDate - The due date to calculate criticality for
+ * @param t - Translation function from useTranslation hook
  */
-export const calculateDueDateCriticality = (dueDate?: string | Date): DueDateCriticality | null => {
+export const calculateDueDateCriticality = (
+  dueDate?: string | Date,
+  t?: TranslationFunction
+): DueDateCriticality | null => {
   if (!dueDate) {
     return null
   }
@@ -37,19 +44,21 @@ export const calculateDueDateCriticality = (dueDate?: string | Date): DueDateCri
     const daysOverdue = Math.abs(daysLeft)
 
     if (daysOverdue > 0) {
-      label = `${daysOverdue}d overdue`
+      label = t ? t('due-date-days-overdue', { days: daysOverdue }) : `${daysOverdue}d overdue`
     } else {
-      label = `${hoursOverdue}h overdue`
+      label = t ? t('due-date-hours-overdue', { hours: hoursOverdue }) : `${hoursOverdue}h overdue`
     }
   } else if (hoursLeft < 2) {
     status = 'warning'
-    label = `${Math.round(hoursLeft)}h left`
+    const hours = Math.round(hoursLeft)
+    label = t ? t('due-date-hours-left', { hours }) : `${hours}h left`
   } else if (hoursLeft < 24) {
     status = 'warning'
-    label = `${Math.round(hoursLeft)}h left`
+    const hours = Math.round(hoursLeft)
+    label = t ? t('due-date-hours-left', { hours }) : `${hours}h left`
   } else {
     status = 'ok'
-    label = `${daysLeft}d left`
+    label = t ? t('due-date-days-left', { days: daysLeft }) : `${daysLeft}d left`
   }
 
   return {

@@ -227,3 +227,21 @@ formatter-priority-normal = Normal
 formatter-priority-high = Hoch
 formatter-priority-medium = Mittel
 formatter-priority-low = Niedrig
+
+# Due Date Labels
+due-date-days-overdue = { $days ->
+    [one] { $days }T überfällig
+   *[other] { $days }T überfällig
+}
+due-date-hours-overdue = { $hours ->
+    [one] { $hours }Std überfällig
+   *[other] { $hours }Std überfällig
+}
+due-date-hours-left = { $hours ->
+    [one] { $hours }Std übrig
+   *[other] { $hours }Std übrig
+}
+due-date-days-left = { $days ->
+    [one] { $days }T übrig
+   *[other] { $days }T übrig
+}
