@@ -7,6 +7,11 @@ every-box-tab-inflows = Eingang
 every-box-tab-outflows = Ausgang
 every-box-blink-description = Schnelle Aufgabe erstellen und zuweisen
 every-box-search-placeholder = Suchen...
+every-box-sort-label = Sortieren
+every-box-sort-newest = Neueste zuerst
+every-box-sort-oldest = Älteste zuerst
+every-box-sort-priority = Priorität
+every-box-refresh-label = Aktualisieren
 
 # Filters Dropdown
 filters-dropdown-label = Filter
@@ -73,9 +78,20 @@ blink-upload-error = Anhänge konnten nicht hochgeladen werden: {$error}
 task-card-overdue = Überfällig
 task-card-due-soon = Bald fällig
 task-card-due = Fällig {$date}
+
+# Task meta actions (Everybox-service)
+task-meta-pin = Anheften
+task-meta-unpin = Lösen
+task-meta-mark-unread = Als ungelesen markieren
+task-meta-priority = Priorität
+task-meta-priority-none = Keine
+task-meta-priority-high = Hoch
+task-meta-priority-medium = Mittel
+task-meta-priority-low = Niedrig
 task-card-blink = Blink
 task-card-unknown-creator = Unbekannt
 task-card-untitled = Aufgabe ohne Titel
+task-card-pinned = Angeheftet
 
 # FlowCard Component
 flow-card-blink = Blink

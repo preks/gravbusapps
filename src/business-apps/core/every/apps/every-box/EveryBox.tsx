@@ -22,6 +22,12 @@ import {
   ThemeProvider,
   Button,
   useTranslation,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   Tabs,
   TabsContent,
   toast,
@@ -30,7 +36,7 @@ import {
   TooltipContent
 } from '@newwork/nw-design-system'
 import translations from './_i18n'
-import { Inbox, Send, Zap, Search } from 'lucide-react'
+import { Inbox, Send, Zap, Search, ArrowUpDown, RefreshCcw } from 'lucide-react'
 import { FiltersDropdown, FilterType } from './components/FiltersDropdown'
 import { EveryBoxHero } from './components/EveryBoxHero'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -56,6 +62,7 @@ interface EveryBoxProps extends BusinessAppContextProps {
 }
 
 type ViewType = 'inbox' | 'outbox'
+type SortOption = 'newest' | 'oldest' | 'priority'
 
 /**
  * Get initial view from URL
@@ -108,7 +115,18 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   const [isQuickTaskModalOpen, setIsQuickTaskModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<ViewType>(getInitialView())
   const [globalSearch, setGlobalSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedFilters, setSelectedFilters] = useState<FilterType[]>(['all'])
+  const [sortOption, setSortOption] = useState<SortOption>('newest')
+
+  const sortBy = sortOption === 'priority' ? 'priority' : 'createdAt'
+  const sortOrder = sortOption === 'oldest' ? 'asc' : sortOption === 'priority' ? 'asc' : 'desc'
+
+  // Debounce search to avoid firing backend requests on each keystroke
+  useEffect(() => {
+    const handle = globalThis.setTimeout(() => setDebouncedSearch(globalSearch), 300)
+    return () => globalThis.clearTimeout(handle)
+  }, [globalSearch])
 
   // File upload hook for Blink attachments
   const { uploadFiles } = useQuickTaskFileUpload({
@@ -124,10 +142,8 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     refetch: refetchTasks,
     loadMore: loadMoreTasks,
     hasMore: hasMoreTasks,
-    hasNewTasks: hasNewInboxTasks,
-    backgroundRefresh: backgroundRefreshInbox,
-    clearNewTasksFlag: clearNewInboxTasksFlag
-  } = useInboxTasks(context)
+    backgroundRefresh: backgroundRefreshInbox
+  } = useInboxTasks(context, { search: debouncedSearch, sortBy, sortOrder })
 
   // Fetch outbox flows
   const { flows, isLoading: flowsLoading, error: flowsError, refetch: refetchFlows } = useOutboxFlows(context)
@@ -141,10 +157,8 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     refetch: refetchCompleted,
     loadMore: loadMoreCompleted,
     hasMore: hasMoreCompleted,
-    hasNewTasks: hasNewCompletedTasks,
-    backgroundRefresh: backgroundRefreshCompleted,
-    clearNewTasksFlag: clearNewCompletedTasksFlag
-  } = useCompletedTasks(context)
+    backgroundRefresh: backgroundRefreshCompleted
+  } = useCompletedTasks(context, { search: debouncedSearch, sortBy, sortOrder })
 
   // Fetch blink tasks using tag filtering (response contains totalCount for badge)
   const {
@@ -183,6 +197,25 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     const newView = value as ViewType
     setActiveTab(newView)
     updateViewUrl(newView)
+  }
+
+  const handleRefresh = async () => {
+    if (activeTab === 'outbox') {
+      await refetchFlows()
+      return
+    }
+
+    // inbox tab
+    const filter = selectedFilters[0] || 'all'
+    if (filter === 'completed') {
+      await refetchCompleted()
+      return
+    }
+    if (filter === 'blinks') {
+      await refetchBlinkTasks()
+      return
+    }
+    await refetchTasks()
   }
 
   // Set up staggered polling intervals (SMART POLLING - no UI disruption)
@@ -455,6 +488,51 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     prefixDataTestId={`${prefixDataTestId}-filters`}
                   />
 
+                  {/* Sort */}
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="gba:h-8 gba:w-8"
+                            aria-label={t('every-box-sort-label')}
+                            data-testid={`${prefixDataTestId}-sort-trigger`}
+                          >
+                            <ArrowUpDown className="gba:h-4 gba:w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('every-box-sort-label')}</TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="end" className="gba:w-56">
+                      <DropdownMenuRadioGroup value={sortOption} onValueChange={v => setSortOption(v as SortOption)}>
+                        <DropdownMenuRadioItem value="newest">{t('every-box-sort-newest')}</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="oldest">{t('every-box-sort-oldest')}</DropdownMenuRadioItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuRadioItem value="priority">{t('every-box-sort-priority')}</DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Refresh */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="gba:h-8 gba:w-8"
+                        onClick={handleRefresh}
+                        aria-label={t('every-box-refresh-label')}
+                        data-testid={`${prefixDataTestId}-refresh`}
+                      >
+                        <RefreshCcw className="gba:h-4 gba:w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('every-box-refresh-label')}</TooltipContent>
+                  </Tooltip>
+
                   {/* Blink Button */}
                   <Button
                     onClick={() => setIsQuickTaskModalOpen(true)}
@@ -479,8 +557,6 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     onRefresh={refetchTasks}
                     onLoadMore={loadMoreTasks}
                     hasMore={hasMoreTasks}
-                    hasNewTasks={hasNewInboxTasks}
-                    onLoadNewTasks={clearNewInboxTasksFlag}
                     blinkCount={blinkTotalCount}
                     blinkCountLoading={blinkTasksLoading}
                     blinkTasks={blinkTasks}
@@ -495,8 +571,6 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     onCompletedRefresh={refetchCompleted}
                     onCompletedLoadMore={loadMoreCompleted}
                     completedHasMore={hasMoreCompleted}
-                    hasNewCompletedTasks={hasNewCompletedTasks}
-                    onLoadNewCompletedTasks={clearNewCompletedTasksFlag}
                     globalSearch={globalSearch}
                     selectedFilters={selectedFilters}
                   />

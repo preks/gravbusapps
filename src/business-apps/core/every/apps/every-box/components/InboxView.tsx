@@ -15,19 +15,26 @@ import {
   AlertDescription,
   EmptyState as DesignEmptyState,
   useTranslation,
-  useLocale
+  useLocale,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  Badge
 } from '@newwork/nw-design-system'
 import translations from '../_i18n'
-import { Zap } from 'lucide-react'
+import { Pin, Mail } from 'lucide-react'
 import { UnifiedTask } from '../types'
 import { TaskCard } from './TaskCard'
 import { TaskDetailContent } from './TaskDetailContent'
 import { EmptyState } from './EmptyState'
 import { LoadingSkeleton } from './LoadingSkeleton'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { filterTasksBySearch } from '../utils/taskGrouping'
 import { useEmployeeAvatarsBatch } from '../hooks/useEmployeeAvatarsBatch'
 import { FilterType } from './FiltersDropdown'
+import { markTaskRead, markTaskUnread, patchTaskState } from '@/business-apps/core/every/apps/every-api'
 
 type TaskFilterType = 'all' | 'blinks' | 'approvals' | 'completed'
 
@@ -39,8 +46,6 @@ interface InboxViewProps extends BusinessAppContextProps {
   onRefresh: () => void
   onLoadMore: () => void
   hasMore: boolean
-  hasNewTasks: boolean
-  onLoadNewTasks: () => void
   // Blink tasks from dedicated API endpoint
   blinkCount?: number
   blinkCountLoading?: boolean
@@ -57,8 +62,6 @@ interface InboxViewProps extends BusinessAppContextProps {
   onCompletedRefresh: () => void
   onCompletedLoadMore: () => void
   completedHasMore: boolean
-  hasNewCompletedTasks: boolean
-  onLoadNewCompletedTasks: () => void
   // Global search and filters from parent
   globalSearch?: string
   selectedFilters?: FilterType[]
@@ -129,26 +132,34 @@ export const InboxView: React.FC<InboxViewProps> = ({
   onRefresh,
   onLoadMore,
   hasMore,
-  hasNewTasks,
-  onLoadNewTasks,
   blinkTasks,
   blinkTasksLoading,
   blinkHasMore,
   onBlinkLoadMore,
+  onBlinkRefresh,
   completedTasks,
   completedIsLoading,
   completedError,
   onCompletedRefresh,
   onCompletedLoadMore,
   completedHasMore,
-  hasNewCompletedTasks,
-  onLoadNewCompletedTasks,
   globalSearch = '',
   selectedFilters = ['all'],
   ...context
 }) => {
   const { t } = useTranslation(translations)
   const { locale } = useLocale()
+
+  const formatUserPriorityLabel = useCallback(
+    (value: number | null | undefined): string => {
+      if (value === null || value === undefined) return t('task-meta-priority-none')
+      if (value === 0) return t('task-meta-priority-high')
+      if (value === 10) return t('task-meta-priority-medium')
+      if (value === 20) return t('task-meta-priority-low')
+      return `P${value}`
+    },
+    [t]
+  )
 
   /**
    * Get empty state message based on search query and filter type
@@ -174,6 +185,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
   )
 
   const [selectedTask, setSelectedTask] = useState<UnifiedTask | null>(null)
+  const lastAutoReadKeyRef = useRef<string>('')
+  const autoReadTimeoutRef = useRef<number | null>(null)
   // Map selectedFilters from parent to local filterType
   const filterType: TaskFilterType = selectedFilters.includes('all')
     ? 'all'
@@ -219,6 +232,16 @@ export const InboxView: React.FC<InboxViewProps> = ({
     // Ensure completed tasks only include truly completed tasks
     setLocalCompletedTasks(filterCompletedTasks(completedTasks))
   }, [completedTasks])
+
+  // Keep selectedTask in sync with latest task data (important for auto-refresh updates)
+  useEffect(() => {
+    if (!selectedTask) return
+    const all = [...localTasks, ...localCompletedTasks]
+    const next = all.find(t => t.id === selectedTask.id && t.source === selectedTask.source)
+    if (next) {
+      setSelectedTask(next)
+    }
+  }, [localTasks, localCompletedTasks, selectedTask?.id, selectedTask?.source])
 
   // Initialize selected task from URL when tasks are loaded, or auto-select first task
   useEffect(() => {
@@ -287,6 +310,134 @@ export const InboxView: React.FC<InboxViewProps> = ({
     setSelectedTask(null)
     updateTaskUrl(null)
   }, [])
+
+  const refreshSelectedTaskList = useCallback(() => {
+    if (filterType === 'completed') {
+      onCompletedRefresh()
+    } else if (filterType === 'blinks') {
+      onBlinkRefresh?.()
+    } else {
+      onRefresh()
+    }
+  }, [filterType, onCompletedRefresh, onBlinkRefresh, onRefresh])
+
+  const updateTaskUserStateLocally = useCallback(
+    (taskKey: { id: string; source: string }, patch: Partial<NonNullable<UnifiedTask['userState']>>) => {
+      const apply = (t: UnifiedTask) => {
+        if (t.id !== taskKey.id || t.source !== taskKey.source) return t
+        return {
+          ...t,
+          userState: {
+            isRead: false,
+            isPinned: false,
+            userPriority: null,
+            readAt: null,
+            pinnedAt: null,
+            ...(t.userState || {}),
+            ...patch
+          }
+        }
+      }
+
+      setLocalTasks(prev => prev.map(apply))
+      setLocalCompletedTasks(prev => prev.map(apply))
+      setSelectedTask(prev => (prev ? apply(prev) : prev))
+    },
+    []
+  )
+
+  const handleTogglePinned = useCallback(async () => {
+    if (!selectedTask) return
+    if (!context.accessToken) return
+
+    const nextPinned = !Boolean(selectedTask.userState?.isPinned)
+    updateTaskUserStateLocally(
+      { id: selectedTask.id, source: selectedTask.source },
+      { isPinned: nextPinned, pinnedAt: nextPinned ? new Date().toISOString() : null }
+    )
+
+    try {
+      await patchTaskState(context.accessToken, {
+        source: selectedTask.source,
+        taskId: selectedTask.id,
+        isPinned: nextPinned
+      })
+    } finally {
+      // Re-fetch to ensure server-side ordering (pinned first)
+      refreshSelectedTaskList()
+    }
+  }, [selectedTask, context.accessToken, updateTaskUserStateLocally, refreshSelectedTaskList])
+
+  const handleMarkUnread = useCallback(async () => {
+    if (!selectedTask) return
+    if (!context.accessToken) return
+
+    updateTaskUserStateLocally({ id: selectedTask.id, source: selectedTask.source }, { isRead: false, readAt: null })
+    try {
+      await markTaskUnread(context.accessToken, { source: selectedTask.source, taskId: selectedTask.id })
+    } catch {
+      // Non-blocking
+    }
+  }, [selectedTask, context.accessToken, updateTaskUserStateLocally])
+
+  const handleSetUserPriority = useCallback(
+    async (value: string) => {
+      if (!selectedTask) return
+      if (!context.accessToken) return
+
+      const next = value === 'none' ? null : Number.parseInt(value, 10)
+      updateTaskUserStateLocally({ id: selectedTask.id, source: selectedTask.source }, { userPriority: next })
+      try {
+        await patchTaskState(context.accessToken, {
+          source: selectedTask.source,
+          taskId: selectedTask.id,
+          userPriority: next
+        })
+      } finally {
+        refreshSelectedTaskList()
+      }
+    },
+    [selectedTask, context.accessToken, updateTaskUserStateLocally, refreshSelectedTaskList]
+  )
+
+  // Auto-mark as read when the task is opened/selected (idempotent + debounced)
+  useEffect(() => {
+    if (!selectedTask) return
+    if (!context.accessToken) return
+    if (selectedTask.userState?.isRead) return
+
+    const key = `${selectedTask.source}:${selectedTask.id}`
+    if (lastAutoReadKeyRef.current === key) return
+
+    if (autoReadTimeoutRef.current) {
+      globalThis.clearTimeout(autoReadTimeoutRef.current)
+    }
+
+    autoReadTimeoutRef.current = globalThis.setTimeout(async () => {
+      try {
+        await markTaskRead(context.accessToken, { source: selectedTask.source, taskId: selectedTask.id })
+        lastAutoReadKeyRef.current = key
+        updateTaskUserStateLocally(
+          { id: selectedTask.id, source: selectedTask.source },
+          { isRead: true, readAt: new Date().toISOString() }
+        )
+      } catch {
+        // Non-blocking; keep UI responsive if service isn't reachable
+      }
+    }, 250) as unknown as number
+
+    return () => {
+      if (autoReadTimeoutRef.current) {
+        globalThis.clearTimeout(autoReadTimeoutRef.current)
+      }
+    }
+  }, [
+    selectedTask?.id,
+    selectedTask?.source,
+    selectedTask?.userState?.isRead,
+    context.accessToken,
+    updateTaskUserStateLocally
+  ])
 
   /**
    * Helper function to check if a task is a Blink (quick direct task)
@@ -363,12 +514,18 @@ export const InboxView: React.FC<InboxViewProps> = ({
     return hasMore
   }, [filterType, completedHasMore, blinkHasMore, hasMore])
 
-  // Extract user IDs and employee IDs separately
+  // Extract user IDs and employee IDs for the tasks we actually render.
+  // This keeps avatar fetching fast even when many tasks are loaded in memory.
   const { userIds, employeeIds } = useMemo(() => {
     const uIds: string[] = []
     const eIds: string[] = []
 
-    currentTasks.forEach(task => {
+    const tasksForAvatars =
+      filterType !== 'completed'
+        ? applyTypeFilter(currentTasks, filterType).slice(0, displayedCount)
+        : currentTasks.slice(0, displayedCount)
+
+    tasksForAvatars.forEach(task => {
       // Both Kogito and CFlow tasks have creatorUserId (user ID)
       if (task.sourceMetadata?.creatorUserId) {
         uIds.push(task.sourceMetadata.creatorUserId)
@@ -383,7 +540,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
       userIds: [...new Set(uIds)], // Remove duplicates
       employeeIds: [...new Set(eIds)] // Remove duplicates
     }
-  }, [currentTasks])
+  }, [currentTasks, filterType, displayedCount, applyTypeFilter])
 
   // Batch fetch all employee avatars in one request (handles both userIds and employeeIds)
   const { employeeMap, isLoading: areAvatarsLoading } = useEmployeeAvatarsBatch(
@@ -407,10 +564,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
       result = applyTypeFilter(result, filterType)
     }
 
-    // Apply search filter (including sender name search)
-    if (globalSearch.trim()) {
-      result = filterTasksBySearch(result, globalSearch, employeeMap)
-    }
+    // Search is handled server-side (debounced) for performance; avoid filtering locally
+    // to prevent hiding backend results (e.g. fuzzy/semantic matching in the future).
 
     // Tasks are already sorted by createdAt (desc) from the unified API
     // No additional sorting needed here
@@ -540,31 +695,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
     <div className="gba:flex gba:h-full gba:overflow-hidden gba:gap-0" data-testid="inbox-view">
       {/* Master Panel - Task List (always visible, fixed width) */}
       <div className="gba:h-full gba:flex gba:flex-col gba:w-[480px] gba:flex-shrink-0 gba:bg-muted/30 gba:border-r gba:border-border">
-        {/* New Tasks Notification Banner */}
-        {((filterType === 'all' && hasNewTasks) || (filterType === 'completed' && hasNewCompletedTasks)) && (
-          <Alert className="gba:border-info gba:bg-info-secondary" data-testid="new-tasks-banner">
-            <AlertTitle className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:flex gba:items-center gba:gap-2">
-                <Zap className="gba:h-4 gba:w-4 gba:text-info-foreground" />
-                <span className="gba:text-info-foreground">{t('inbox-new-tasks-title')}</span>
-              </span>
-              <Button
-                size="sm"
-                variant="default"
-                onClick={filterType === 'completed' ? onLoadNewCompletedTasks : onLoadNewTasks}
-                data-testid="load-new-tasks-button"
-              >
-                {t('inbox-new-tasks-button')}
-              </Button>
-            </AlertTitle>
-            <AlertDescription className="gba:text-info-secondary-foreground">
-              {filterType === 'completed'
-                ? t('inbox-new-completed-tasks-description')
-                : t('inbox-new-tasks-description')}
-            </AlertDescription>
-          </Alert>
-        )}
-
         {/* Error Alert */}
         {currentError && (
           <Alert variant="destructive">
@@ -618,6 +748,59 @@ export const InboxView: React.FC<InboxViewProps> = ({
       <div className="gba:flex gba:flex-col gba:flex-1 gba:overflow-hidden gba:min-h-0 gba:px-6">
         {selectedTask ? (
           <div className="gba:h-full gba:flex gba:flex-col gba:bg-background" data-testid="task-detail-dialog">
+            <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:py-2 gba:border-b">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Button
+                  variant={selectedTask.userState?.isPinned ? 'secondary' : 'outline'}
+                  size="sm"
+                  onClick={handleTogglePinned}
+                  data-testid="task-meta-pin-toggle"
+                >
+                  <Pin className="gba:h-4 gba:w-4 gba:mr-2" />
+                  {selectedTask.userState?.isPinned ? t('task-meta-unpin') : t('task-meta-pin')}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleMarkUnread}
+                  disabled={!selectedTask.userState?.isRead}
+                  data-testid="task-meta-mark-unread"
+                >
+                  <Mail className="gba:h-4 gba:w-4 gba:mr-2" />
+                  {t('task-meta-mark-unread')}
+                </Button>
+              </div>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gba:gap-2" data-testid="task-meta-priority-trigger">
+                    <span>{t('task-meta-priority')}</span>
+                    <Badge variant="secondary" className="gba:h-5 gba:px-2">
+                      {formatUserPriorityLabel(selectedTask.userState?.userPriority)}
+                    </Badge>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuRadioGroup
+                    value={
+                      selectedTask.userState?.userPriority === null ||
+                      selectedTask.userState?.userPriority === undefined
+                        ? 'none'
+                        : String(selectedTask.userState.userPriority)
+                    }
+                    onValueChange={handleSetUserPriority}
+                  >
+                    <DropdownMenuRadioItem value="none">{t('task-meta-priority-none')}</DropdownMenuRadioItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuRadioItem value="0">{t('task-meta-priority-high')}</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="10">{t('task-meta-priority-medium')}</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="20">{t('task-meta-priority-low')}</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
             <TaskDetailContent
               task={selectedTask}
               onClose={handleCloseTask}

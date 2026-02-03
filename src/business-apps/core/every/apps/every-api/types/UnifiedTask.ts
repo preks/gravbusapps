@@ -92,6 +92,17 @@ export interface UnifiedTask {
   sourceMetadata?: {
     [key: string]: any
   }
+
+  /**
+   * Per-user task state persisted by everybox-service
+   */
+  userState?: {
+    isRead: boolean
+    isPinned: boolean
+    userPriority: number | null
+    readAt: string | null
+    pinnedAt: string | null
+  }
 }
 
 /**

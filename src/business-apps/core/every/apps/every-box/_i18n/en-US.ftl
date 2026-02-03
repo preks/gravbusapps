@@ -8,6 +8,11 @@ every-box-tab-outflows = OutFlows
 every-box-blink-description = Create and assign a quick task instantly
 every-box-hero-tagline = Your unified inbox for tasks and workflows
 every-box-search-placeholder = Search...
+every-box-sort-label = Sort
+every-box-sort-newest = Newest first
+every-box-sort-oldest = Oldest first
+every-box-sort-priority = Priority
+every-box-refresh-label = Refresh
 
 # Filters Dropdown
 filters-dropdown-label = Filters
@@ -79,9 +84,20 @@ blink-upload-error = Failed to upload attachments: {$error}
 task-card-overdue = Overdue
 task-card-due-soon = Due soon
 task-card-due = Due {$date}
+
+# Task meta actions (Everybox-service)
+task-meta-pin = Pin
+task-meta-unpin = Unpin
+task-meta-mark-unread = Mark unread
+task-meta-priority = Priority
+task-meta-priority-none = None
+task-meta-priority-high = High
+task-meta-priority-medium = Medium
+task-meta-priority-low = Low
 task-card-blink = Blink
 task-card-unknown-creator = Unknown
 task-card-untitled = Untitled Task
+task-card-pinned = Pinned
 
 # FlowCard Component
 flow-card-blink = Blink

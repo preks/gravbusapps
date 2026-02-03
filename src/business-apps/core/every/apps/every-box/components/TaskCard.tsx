@@ -4,7 +4,7 @@
  */
 
 import React, { memo, useMemo } from 'react'
-import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
@@ -16,6 +16,7 @@ import 'dayjs/locale/ro'
 import 'dayjs/locale/fr'
 import 'dayjs/locale/es'
 import 'dayjs/locale/it'
+import { Pin } from 'lucide-react'
 import { UnifiedTask } from '../types'
 import { EmployeeAvatarData } from '../hooks/useEmployeeAvatarsBatch'
 import { base64ToObjectURL } from '../utils/avatarUtils'
@@ -138,6 +139,23 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     // Display data
     const creatorName = getCreatorDisplayName(task, employeeData, areAvatarsLoading, t)
     const createdAt = task.createdAt || task.scheduledAt || task.sourceMetadata?.createdAt
+    const isUnread = !task.userState?.isRead
+    const isPinned = Boolean(task.userState?.isPinned)
+    const userPriority = task.userState?.userPriority ?? null
+
+    const priorityIndicator = useMemo(() => {
+      if (userPriority === null) return null
+      if (userPriority === 0) {
+        return { label: t('task-meta-priority-high'), dotClass: 'gba:bg-red-500/70' }
+      }
+      if (userPriority === 10) {
+        return { label: t('task-meta-priority-medium'), dotClass: 'gba:bg-amber-500/70' }
+      }
+      if (userPriority === 20) {
+        return { label: t('task-meta-priority-low'), dotClass: 'gba:bg-emerald-500/70' }
+      }
+      return { label: `P${userPriority}`, dotClass: 'gba:bg-muted-foreground/60' }
+    }, [t, userPriority])
 
     // Avatar URL from base64
     const avatarUrl = useMemo(() => {
@@ -171,30 +189,58 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
           <div className="gba:flex gba:flex-col gba:gap-0.5 gba:flex-1 gba:min-w-0">
             {/* Creator Name */}
             <span
-              className="gba:text-sm gba:font-semibold gba:text-foreground gba:truncate gba:leading-tight"
+              className={`gba:text-sm gba:truncate gba:leading-tight ${
+                isUnread ? 'gba:font-semibold gba:text-foreground' : 'gba:font-normal gba:text-muted-foreground'
+              }`}
               data-testid="task-creator-name"
             >
+              {isUnread && <span className="gba:inline-block gba:mr-1 gba:text-primary">•</span>}
               {creatorName}
             </span>
 
             {/* Task Title - single line truncated */}
             <span
-              className="gba:text-xs gba:text-muted-foreground gba:truncate gba:leading-tight"
+              className={`gba:text-xs gba:truncate gba:leading-tight ${
+                isUnread ? 'gba:text-muted-foreground' : 'gba:text-muted-foreground/70'
+              }`}
               data-testid="task-title"
             >
               {taskTitle}
             </span>
           </div>
 
-          {/* Right: Timestamp */}
-          <span
-            className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:flex-shrink-0"
-            data-testid="task-created-at"
-          >
-            {task.status === 'COMPLETED' && task.completedAt
-              ? formatDateTimeWithRelative(task.completedAt, locale, t)
-              : createdAt && formatDateTimeWithRelative(createdAt, locale, t)}
-          </span>
+          {/* Right: Pinned + Timestamp */}
+          <div className="gba:flex gba:flex-col gba:items-end gba:gap-1 gba:flex-shrink-0">
+            {(isPinned || priorityIndicator) && (
+              <div className="gba:flex gba:items-center gba:justify-end gba:gap-1 gba:flex-wrap">
+                {isPinned && (
+                  <Badge variant="secondary" className="gba:h-5 gba:px-2 gba:text-xs gba:gap-1">
+                    <Pin className="gba:h-3 gba:w-3" />
+                    <span>{t('task-card-pinned')}</span>
+                  </Badge>
+                )}
+
+                {priorityIndicator && (
+                  <Badge
+                    variant="outline"
+                    className="gba:h-5 gba:px-2 gba:text-xs gba:gap-1 gba:border-muted-foreground/20 gba:text-muted-foreground"
+                    aria-label={`${t('task-meta-priority')}: ${priorityIndicator.label}`}
+                  >
+                    <span
+                      className={`gba:inline-block gba:h-1.5 gba:w-1.5 gba:rounded-full ${priorityIndicator.dotClass}`}
+                      aria-hidden="true"
+                    />
+                    <span>{priorityIndicator.label}</span>
+                  </Badge>
+                )}
+              </div>
+            )}
+            <span className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap" data-testid="task-created-at">
+              {task.status === 'COMPLETED' && task.completedAt
+                ? formatDateTimeWithRelative(task.completedAt, locale, t)
+                : createdAt && formatDateTimeWithRelative(createdAt, locale, t)}
+            </span>
+          </div>
         </div>
       </div>
     )
