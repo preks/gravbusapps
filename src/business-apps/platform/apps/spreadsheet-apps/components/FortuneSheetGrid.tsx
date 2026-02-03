@@ -83,6 +83,9 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
 
     const workbookRef = useRef<WorkbookInstance | null>(null)
     const presenceUsersRef = useRef<Map<string, { username: string; userId?: string }>>(new Map())
+    /** Track last applied remote cell to suppress duplicate apply to adjacent column (G6 value appearing in H6) */
+    const lastRemoteAppliedRef = useRef<{ row: number; col: number; value: unknown; at: number } | null>(null)
+    const REMOTE_APPLY_DEDUPE_MS = 150
 
     // Create conversion context
     const context = useMemo(() => createConversionContext(columns, data), [columns, data])
@@ -155,12 +158,13 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       try {
         isLocalEditRef.current = true
         workbook.setCellValue(rowIndex, colIndex, value)
+        lastRemoteAppliedRef.current = { row: rowIndex, col: colIndex, value, at: Date.now() }
       } catch (error) {
         console.error('[FortuneSheetGrid] Failed to apply remote cell update:', error)
       } finally {
         setTimeout(() => {
           isLocalEditRef.current = false
-        }, 50)
+        }, REMOTE_APPLY_DEDUPE_MS)
       }
     }, [])
 
@@ -203,19 +207,35 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
     )
 
     /**
-     * Apply remote operation to FortuneSheet using cell-level API
+     * Apply remote operation to FortuneSheet using cell-level API.
+     * Deduplicates spurious duplicate: when first user edits G6, sometimes a second op
+     * for H6 with the same value is emitted; we skip applying that so the other user
+     * only sees the value in G6.
      */
     const applyOperationToFortuneSheet = useCallback(
       (op: FortuneSheetOp) => {
-        if (op.op === 'replace' && op.path.length >= 3 && op.path[0] === 'data') {
-          const rowIndex = op.path[1] as number
-          const colIndex = op.path[2] as number
-          let value = op.value
-          if (value && typeof value === 'object' && 'v' in value) {
-            value = (value as { v: unknown }).v
-          }
-          applyRemoteCellUpdate(rowIndex, colIndex, value)
+        if (op.op !== 'replace' || op.path.length < 3 || op.path[0] !== 'data') return
+
+        const rowIndex = op.path[1] as number
+        const colIndex = op.path[2] as number
+        let value = op.value
+        if (value && typeof value === 'object' && 'v' in value) {
+          value = (value as { v: unknown }).v
         }
+
+        const last = lastRemoteAppliedRef.current
+        const now = Date.now()
+        if (
+          last &&
+          now - last.at < REMOTE_APPLY_DEDUPE_MS &&
+          last.row === rowIndex &&
+          last.col === colIndex - 1 &&
+          last.value === value
+        ) {
+          return
+        }
+
+        applyRemoteCellUpdate(rowIndex, colIndex, value)
       },
       [applyRemoteCellUpdate]
     )
