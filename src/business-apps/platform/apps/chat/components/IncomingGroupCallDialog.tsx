@@ -64,7 +64,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
     const [ringCount, setRingCount] = useState(0)
     const [isJoining, setIsJoining] = useState(false)
     const [micEnabled, setMicEnabled] = useState(true)
-    const [cameraEnabled, setCameraEnabled] = useState(invite.callType === 'video')
+    const [cameraEnabled, setCameraEnabled] = useState(invite?.callType === 'video')
     const [backgroundEnabled, setBackgroundEnabled] = useState(true)
     const [isLoadingPreview, setIsLoadingPreview] = useState(false)
 
@@ -74,6 +74,24 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
     const callerName = invite.from.odName || 'Unknown'
     const groupName = invite.conversationName || t('chat-groupCall')
     const isVideoCall = invite.callType === 'video'
+
+    // CRITICAL: Reset state when invite changes
+    // This ensures fresh defaults for each new invite
+    useEffect(() => {
+      if (invite) {
+        rtkDebug.log('[IncomingGroupCallDialog] Invite received - resetting to defaults', {
+          callType: invite.callType,
+          willSetMic: true,
+          willSetCamera: invite.callType === 'video',
+          willSetBackground: true
+        })
+        setRingCount(0)
+        setIsJoining(false)
+        setMicEnabled(true)
+        setCameraEnabled(invite.callType === 'video')
+        setBackgroundEnabled(true)
+      }
+    }, [invite])
 
     const handleAccept = () => {
       if (isJoining) {
@@ -121,8 +139,9 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
     }, [])
 
     // Setup camera preview when camera is enabled
+    // CRITICAL: Include invite in dependencies to re-initialize preview for each new invite
     useEffect(() => {
-      if (!cameraEnabled || isJoining) {
+      if (!invite || !cameraEnabled || isJoining) {
         cleanupPreview()
         return
       }
@@ -172,7 +191,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
         isMounted = false
         cleanupPreview()
       }
-    }, [cameraEnabled, isJoining, cleanupPreview])
+    }, [invite, cameraEnabled, isJoining, cleanupPreview])
 
     // Ring animation counter
     useEffect(() => {
@@ -323,8 +342,8 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                 {/* Ringing indicator / Joining status */}
                 {isJoining ? (
                   <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-                    <Spinner className="gba:w-4 gba:h-4 gba:text-primary" />
-                    <p className="gba:text-primary gba:text-sm gba:font-medium">
+                    <Spinner className="gba:w-4 gba:h-4 gba:text-white" />
+                    <p className="gba:text-white gba:text-sm gba:font-medium">
                       {t('call-joiningCall') || 'Joining call...'}
                     </p>
                   </div>
@@ -367,8 +386,8 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                 {/* Ringing indicator / Joining status */}
                 {isJoining ? (
                   <div className="gba:flex gba:items-center gba:gap-2 gba:mb-6">
-                    <Spinner className="gba:w-4 gba:h-4 gba:text-success" />
-                    <p className="gba:text-success gba:text-sm gba:font-medium">
+                    <Spinner className="gba:w-4 gba:h-4 gba:text-white" />
+                    <p className="gba:text-white gba:text-sm gba:font-medium">
                       {t('call-joiningCall') || 'Joining call...'}
                     </p>
                   </div>
@@ -474,7 +493,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                     <PhoneIcon className="gba:w-7 gba:h-7 gba:text-white" weight="fill" />
                   )}
                 </Button>
-                <span className="gba:text-xs gba:text-gray-400">
+                <span className="gba:text-xs gba:text-white">
                   {isJoining ? t('call-joining') || 'Joining...' : t('call-join')}
                 </span>
               </div>

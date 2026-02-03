@@ -78,7 +78,7 @@ export interface UseRealtimeKitGroupCallOptions {
 }
 
 interface CallState extends GroupCallUIState {
-  status: 'idle' | 'joining' | 'connected' | 'reconnecting' | 'ended'
+  status: 'idle' | 'setup' | 'joining' | 'connected' | 'reconnecting' | 'ended'
   roomId: string | null
   meetingId: string | null
   sessionId: string | null // Database call session ID from backend
@@ -134,7 +134,10 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   const joinCallConversationIdRef = useRef<string | null>(null)
   const wasIdleRef = useRef<boolean>(true)
   const isLeavingRef = useRef<boolean>(false) // Prevent duplicate leave calls
+  const isCancelledRef = useRef<boolean>(false) // Track if call was cancelled during setup
+  const abortControllerRef = useRef<AbortController | null>(null) // Abort in-flight call creation
   const calendarMeetingIdRef = useRef<string | null>(null) // Track calendar meeting ID for AI transcription
+  const pendingCallParticipantsRef = useRef<CallParticipant[]>([]) // Store participants for confirmStartCall
 
   // Initialize RealtimeKit SDK - returns tuple [meeting, initMeeting]
   const [meeting, initMeeting] = useRealtimeKitClient()
@@ -161,7 +164,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   ])
 
   // Preferences management (localStorage)
-  const preferences = useCallPreferences()
+  const callPreferences = useCallPreferences()
 
   // CRITICAL: Stable callbacks for child hooks to prevent their useCallbacks from recreating
   const handleScreenShareStateChange = useCallback((isSharing: boolean) => {
@@ -178,8 +181,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   const media = useRealtimeKitMedia({
     meeting: stableMeeting,
     callType: callState.callType,
-    initialVideoQuality: preferences.videoQuality,
-    initialBackgroundEnabled: preferences.backgroundEnabled,
+    initialVideoQuality: callPreferences.videoQuality,
+    initialBackgroundEnabled: callPreferences.backgroundEnabled,
     callStatus: callState.status
   })
 
@@ -249,9 +252,9 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   const callStartTimeRef = useRef(callState.callStartTime)
   callStartTimeRef.current = callState.callStartTime
 
-  // CRITICAL: Keep ref in sync with preferences to avoid leaveCall recreation
-  const preferencesRef = useRef(preferences)
-  preferencesRef.current = preferences
+  // CRITICAL: Keep ref in sync with callPreferences to avoid leaveCall recreation
+  const preferencesRef = useRef(callPreferences)
+  preferencesRef.current = callPreferences
 
   // CRITICAL: Keep refs in sync to avoid leaveCall recreation
   const wsClientRef = useRef(wsClient)
@@ -260,6 +263,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   onCallEndedRef.current = onCallEnded
   const currentUserRef = useRef(currentUser)
   currentUserRef.current = currentUser
+  const leaveCallRef = useRef<(() => Promise<void>) | null>(null)
 
   // Update wasIdleRef: mark as not idle when call starts
   if (callState.status !== 'idle' && callState.status !== 'ended') {
@@ -355,10 +359,10 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   }, [])
 
   /**
-   * Start a new call
+   * Initiate call - Shows pre-call setup dialog
    */
-  const startCall = useCallback(
-    async (
+  const initiateCall = useCallback(
+    (
       conversationId: string,
       callType: CallType,
       participants: CallParticipant[],
@@ -366,28 +370,97 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       calendarMeetingId?: string | null
     ) => {
       if (!currentUser || !apiClient) {
+        rtkDebug.error('[RTK] Cannot initiate call: missing currentUser or apiClient')
+        return
+      }
+
+      rtkDebug.log('[RTK] 📋 Initiating call setup...', {
+        conversationId,
+        callType,
+        participantCount: participants.length,
+        conversationName,
+        calendarMeetingId
+      })
+
+      // CRITICAL: Reset cancellation flag for new call attempt
+      isCancelledRef.current = false
+
+      // Show setup dialog
+      setCallState(prev => ({
+        ...prev,
+        status: 'setup' as const,
+        roomId: conversationId,
+        callType,
+        conversationName
+      }))
+
+      // Store participants and calendar meeting ID for when user confirms
+      callStateRoomIdRef.current = conversationId
+      conversationIdRef.current = conversationId
+      calendarMeetingIdRef.current = calendarMeetingId || null
+      pendingCallParticipantsRef.current = participants // CRITICAL: Store participants for confirmStartCall
+    },
+    [currentUser, apiClient]
+  )
+
+  /**
+   * Confirm and start call with user preferences
+   */
+  const confirmStartCall = useCallback(
+    async (preferences: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => {
+      if (!currentUser || !apiClient) {
         rtkDebug.error('[RTK] Cannot start call: missing currentUser or apiClient')
         return
       }
 
+      const conversationId = callStateRoomIdRef.current
+      const calendarMeetingId = calendarMeetingIdRef.current
+      const callType = callState.callType
+      const conversationName = callState.conversationName
+
+      if (!conversationId) {
+        rtkDebug.error('[RTK] Cannot start call: missing conversationId')
+        return
+      }
+
+      // CRITICAL: Get participants from ref (stored during initiateCall)
+      const participants = pendingCallParticipantsRef.current
+
       try {
-        rtkDebug.log('[RTK] 🚀 Starting call...', {
+        rtkDebug.log('[RTK] 🚀 Starting call with preferences...', {
           conversationId,
           callType,
-          participantCount: participants.length,
           conversationName,
           calendarMeetingId,
+          preferences,
           currentStatus: callState.status
         })
 
-        // CRITICAL: Check if we were idle BEFORE changing state
+        // CRITICAL: Check if we were in setup BEFORE changing state
         // This is used to determine if we should send invites
-        const wasIdleBeforeStart = callState.status === 'idle'
+        const wasIdleBeforeStart = callState.status === 'setup'
 
-        rtkDebug.log('[RTK] Checking idle state before starting call:', {
+        rtkDebug.log('[RTK] Checking setup state before starting call:', {
           callStateStatus: callState.status,
           wasIdleBeforeStart
         })
+
+        // Reset cancellation flag at the start of a new call
+        isCancelledRef.current = false
+
+        // Create new AbortController for this call
+        abortControllerRef.current = new AbortController()
+
+        // CRITICAL: Set status to 'joining' IMMEDIATELY
+        // This gives instant UI feedback before any backend calls
+        setCallState(prev => ({
+          ...prev,
+          status: 'joining' as const
+        }))
+
+        // Also set refs immediately for cancel to work
+        callStateRoomIdRef.current = conversationId
+        conversationIdRef.current = conversationId
 
         // Generate session ID from backend with display name
         rtkDebug.log('[RTK] Requesting meeting creation from backend...', {
@@ -404,6 +477,13 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           try {
             rtkDebug.log('[RTK] Fetching meeting metadata for transcription setting...', { calendarMeetingId })
             const meetingDetails = await options.calendarApiClient.getMeeting(calendarMeetingId)
+
+            // Check if cancelled after async operation
+            if (abortControllerRef.current?.signal.aborted) {
+              rtkDebug.log('[RTK] ❌ Call cancelled after fetching meeting metadata - aborting')
+              return
+            }
+
             if (meetingDetails?.metadata?.aiTranscriptionEnabled === true) {
               transcriptionEnabled = true
               rtkDebug.log('[RTK] 🎙️  AI Transcription ENABLED from calendar meeting settings')
@@ -425,6 +505,15 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           transcriptionEnabled,
           calendarMeetingId // Pass calendar meeting ID for linking
         )
+
+        // CRITICAL: Check if cancelled after backend meeting creation
+        if (abortControllerRef.current?.signal.aborted) {
+          rtkDebug.log('[RTK] ❌ Call cancelled after backend meeting creation - aborting and cleaning up')
+          // Meeting was created but user cancelled - we should clean it up
+          // The backend will handle cleanup when no one joins
+          return
+        }
+
         const sessionId = sessionResponse.data.sessionId // Database call session ID
         const meetingId = sessionResponse.data.meetingId // Cloudflare meeting ID
         const authToken = sessionResponse.data.hostAuthToken
@@ -453,14 +542,13 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           }
         }
 
-        // Initialize meeting with default preferences
-        // Initiator defaults: audio=true, video=(depends on callType), background=true
-        const shouldEnableAudio = true
-        const shouldEnableVideo = callType === 'video'
-        const shouldEnableBackground = true // ON by default for initiator
+        // Initialize meeting with user preferences from setup dialog
+        const shouldEnableAudio = preferences.micEnabled
+        const shouldEnableVideo = preferences.cameraEnabled
+        const shouldEnableBackground = preferences.backgroundEnabled
 
         // Save background preference (persists for future calls)
-        preferences.setBackgroundEnabled(true)
+        callPreferences.setBackgroundEnabled(preferences.backgroundEnabled)
 
         rtkDebug.log('[RTK] Initializing meeting with preferences:', {
           hasAuthToken: !!authToken,
@@ -470,6 +558,12 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           video: shouldEnableVideo,
           background: shouldEnableBackground
         })
+
+        // CRITICAL: Check if cancelled before initializing SDK (this triggers camera/mic access)
+        if (abortControllerRef.current?.signal.aborted) {
+          rtkDebug.log('[RTK] ❌ Call cancelled before SDK initialization - aborting WITHOUT triggering camera/mic')
+          return
+        }
 
         const initializedMeeting = await initMeeting({
           authToken,
@@ -493,6 +587,19 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         if (!initializedMeeting) {
           rtkDebug.error('[RTK] ❌ initMeeting returned null/undefined')
           throw new Error('Failed to initialize meeting')
+        }
+
+        // CRITICAL: Check if cancelled after SDK initialization (camera/mic already accessed)
+        if (abortControllerRef.current?.signal.aborted) {
+          rtkDebug.log('[RTK] ❌ Call cancelled after SDK initialization - cleaning up media')
+          try {
+            await initializedMeeting.leave()
+            media.stopAllTracks()
+            rtkDebug.log('[RTK] ✅ Cleaned up SDK meeting and media after cancellation')
+          } catch (err) {
+            rtkDebug.error('[RTK] ⚠️ Error cleaning up after cancellation:', err)
+          }
+          return
         }
 
         // CRITICAL: Configure video middleware before video is enabled (for background effects)
@@ -627,44 +734,48 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         calendarMeetingIdRef.current = calendarMeetingId || null
         sessionIdRef.current = sessionId // CRITICAL: Store sessionId in ref for leaveCall
 
-        // Update state
+        // Update state with backend response data
         // Start duration timer
         const callStartTime = Date.now()
         startTimeRef.current = callStartTime
         startDurationTimer()
 
-        const newState = {
-          ...callState,
-          status: 'joining' as const,
-          roomId: conversationId,
+        rtkDebug.log('[RTK] Updating call state with backend data:', {
           meetingId,
           sessionId,
-          callType,
-          callStartTime,
-          conversationName,
           calendarMeetingId,
           transcriptionEnabled
-        }
-
-        rtkDebug.log('[RTK] Setting call state with calendarMeetingId:', {
-          calendarMeetingId,
-          hasCalendarMeetingId: !!calendarMeetingId,
-          newStateCalendarMeetingId: newState.calendarMeetingId
         })
 
-        setCallState(newState)
+        // Update state with meeting details from backend
+        setCallState(prev => ({
+          ...prev,
+          meetingId,
+          sessionId,
+          callStartTime,
+          calendarMeetingId,
+          transcriptionEnabled
+        }))
 
         // Save to localStorage for recovery
-        preferences.saveActiveCall(currentUser.id, conversationId)
+        callPreferences.saveActiveCall(currentUser.id, conversationId)
+
+        // CRITICAL: Check if call was cancelled before sending invites
+        // Don't return early - let it continue to cleanup checkpoint below
+        const wasCancelledBeforeInvites = isCancelledRef.current
+        if (wasCancelledBeforeInvites) {
+          rtkDebug.log('[RTK] ❌ Call was cancelled during setup - will skip invites and clean up')
+        }
 
         // Send invites when starting a new call with participants
         // wasIdleBeforeStart ensures we don't send duplicate invites when rejoining
-        const shouldSendInvites = wasIdleBeforeStart && participants.length > 0
+        const shouldSendInvites = wasIdleBeforeStart && participants.length > 0 && !wasCancelledBeforeInvites
 
         rtkDebug.log('[RTK] 📨 Invite decision:', {
           wasIdleBeforeStart,
           participantsCount: participants.length,
           shouldSendInvites,
+          wasCancelled: wasCancelledBeforeInvites,
           conversationId,
           meetingId,
           callType,
@@ -694,6 +805,40 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
             wasIdleBeforeStart,
             participantsCount: participants.length
           })
+        }
+
+        // CRITICAL: Check again if call was cancelled (user might have clicked cancel during SDK initialization)
+        if (isCancelledRef.current) {
+          rtkDebug.log('[RTK] ❌ Call was cancelled after SDK join - cleaning up and aborting')
+
+          // Clean up the meeting we just created
+          if (initializedMeeting) {
+            try {
+              await initializedMeeting.leave()
+              rtkDebug.log('[RTK] ✅ Left meeting after cancellation')
+            } catch (err) {
+              rtkDebug.error('[RTK] ⚠️ Error leaving meeting after cancellation:', err)
+            }
+          }
+
+          // Stop media tracks
+          try {
+            media.stopAllTracks()
+            rtkDebug.log('[RTK] ✅ Stopped media tracks after cancellation')
+          } catch (err) {
+            rtkDebug.error('[RTK] ⚠️ Error stopping media after cancellation:', err)
+          }
+
+          // Reset state
+          setCallState(prev => ({
+            ...prev,
+            status: 'idle',
+            roomId: null,
+            meetingId: null,
+            sessionId: null
+          }))
+
+          return
         }
 
         // CRITICAL: Emit start event FIRST so backend creates activeCalls entry
@@ -767,7 +912,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       currentUser,
       apiClient,
       initMeeting,
-      preferences,
+      callPreferences,
       participantsHook,
       onCallStarted,
       startDurationTimer,
@@ -775,8 +920,35 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       callState.status,
       callState.roomId,
       conversationIdRef,
-      media
+      media,
+      callState.callType,
+      callState.conversationName
     ]
+  )
+
+  /**
+   * Legacy startCall - directly starts call without setup dialog
+   * @deprecated Use initiateCall + confirmStartCall for better UX
+   */
+  const startCall = useCallback(
+    async (
+      conversationId: string,
+      callType: CallType,
+      participants: CallParticipant[],
+      conversationName?: string,
+      calendarMeetingId?: string | null
+    ) => {
+      // For backward compatibility, directly start with default preferences
+      initiateCall(conversationId, callType, participants, conversationName, calendarMeetingId)
+
+      // Immediately confirm with default preferences
+      await confirmStartCall({
+        micEnabled: true,
+        cameraEnabled: callType === 'video',
+        backgroundEnabled: true
+      })
+    },
+    [initiateCall, confirmStartCall]
   )
 
   /**
@@ -857,11 +1029,11 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         // If preferences provided from invite dialog, use those; otherwise use call type defaults
         const shouldEnableAudio = initialPreferences?.micEnabled ?? true
         const shouldEnableVideo = initialPreferences?.cameraEnabled ?? callType === 'video'
-        const shouldEnableBackground = initialPreferences?.backgroundEnabled ?? preferences.backgroundEnabled
+        const shouldEnableBackground = initialPreferences?.backgroundEnabled ?? callPreferences.backgroundEnabled
 
         // Save background preference if explicitly provided (persists for future calls)
         if (initialPreferences?.backgroundEnabled !== undefined) {
-          preferences.setBackgroundEnabled(initialPreferences.backgroundEnabled)
+          callPreferences.setBackgroundEnabled(initialPreferences.backgroundEnabled)
         }
 
         rtkDebug.log('[RTK] Initializing meeting with preferences:', {
@@ -985,7 +1157,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         }))
 
         // Save to localStorage
-        preferences.saveActiveCall(currentUser.id, roomId)
+        callPreferences.saveActiveCall(currentUser.id, roomId)
 
         // Mark active call in localStorage for cross-tab detection
         setActiveCallInStorage(currentUser.id, roomId)
@@ -1025,7 +1197,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         setCallState(prev => ({ ...prev, status: 'idle' }))
       }
     },
-    [currentUser, apiClient, initMeeting, preferences, wsClient, startDurationTimer, conversationIdRef, media]
+    [currentUser, apiClient, initMeeting, callPreferences, wsClient, startDurationTimer, conversationIdRef, media]
   )
 
   /**
@@ -1104,6 +1276,40 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   )
 
   /**
+   * Cancel pre-call setup
+   */
+  const cancelSetup = useCallback(() => {
+    rtkDebug.log('[RTK] 🚫 Canceling call setup')
+
+    // CRITICAL: Mark as cancelled BEFORE resetting state
+    // This prevents race conditions with confirmStartCall
+    isCancelledRef.current = true
+
+    // Reset state to idle
+    setCallState(prev => ({
+      ...prev,
+      status: 'idle',
+      roomId: null,
+      callType: 'audio',
+      conversationName: undefined
+    }))
+
+    // Clear refs
+    callStateRoomIdRef.current = null
+    conversationIdRef.current = null
+    calendarMeetingIdRef.current = null
+    pendingCallParticipantsRef.current = [] // Clear pending participants
+
+    // CRITICAL: Reset cancellation flag after a short delay
+    // This allows the current call attempt to be properly cancelled
+    // but ensures the next call attempt starts fresh
+    setTimeout(() => {
+      isCancelledRef.current = false
+      rtkDebug.log('[RTK] ✅ Reset cancellation flag - ready for new call')
+    }, 100)
+  }, [])
+
+  /**
    * Decline incoming invite
    */
   const declineInvite = useCallback(() => {
@@ -1149,6 +1355,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     const roomId = callStateRoomIdRef.current
     const meetingId = meetingIdRef.current
     const callStartTime = callStartTimeRef.current
+    const currentStatus = callState.status
 
     if (!roomId) return
 
@@ -1164,8 +1371,67 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       rtkDebug.log('[RTK] 🚪 Leaving call...', {
         roomId,
         meetingId,
-        hasMeeting: !!stableMeeting
+        hasMeeting: !!stableMeeting,
+        status: currentStatus,
+        wasCancelled: isCancelledRef.current
       })
+
+      // CRITICAL: Detect if this is a cancellation during setup
+      // This happens when user clicks cancel before the call is fully established
+      // Check: no stable meeting connection AND not already marked as cancelled
+      const isEarlyCancellation = !stableMeeting && !isCancelledRef.current
+
+      if (isEarlyCancellation) {
+        // CRITICAL: Abort any in-flight async operations (API calls, SDK initialization)
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort()
+          rtkDebug.log('[RTK] 🚫 Aborted in-flight call creation')
+        }
+
+        // Set cancellation flag to prevent invites from being sent
+        isCancelledRef.current = true
+
+        rtkDebug.log('[RTK] 🚫 Detected early cancellation during setup', {
+          roomId,
+          meetingId: meetingId || 'not-yet-created',
+          hasMeeting: !!stableMeeting,
+          status: currentStatus
+        })
+
+        // Emit cancellation event ONLY if we have a meetingId
+        // If meetingId doesn't exist yet, the backend meeting wasn't created,
+        // so no invites were sent and we don't need to notify anyone
+        if (meetingId) {
+          const user = currentUserRef.current
+          const socket = wsClientRef.current?.getSocket()
+          if (user && socket) {
+            socket.emit('rtk-group-call:cancelled', {
+              conversationId: roomId,
+              meetingId: meetingId,
+              hostId: user.id
+            })
+            rtkDebug.log('[RTK] 📤 Emitted rtk-group-call:cancelled event', {
+              conversationId: roomId,
+              meetingId: meetingId
+            })
+          }
+        } else {
+          rtkDebug.log('[RTK] ⏭️ Skipping cancellation event - meeting not created yet, no invites sent')
+        }
+      }
+
+      // CRITICAL: Stop all media tracks FIRST (camera and microphone) to release resources
+      // This is especially important during 'joining' phase when stableMeeting doesn't exist yet
+      // This MUST happen early to prevent browser showing "in use" indicator
+      try {
+        media.stopAllTracks()
+        rtkDebug.log('[RTK] ✅ All media tracks stopped', {
+          phase: currentStatus,
+          hadMeeting: !!stableMeeting
+        })
+      } catch (err) {
+        rtkDebug.error('[RTK] ⚠️ Failed to stop media tracks during cleanup:', err)
+      }
 
       // Stop duration timer
       stopDurationTimer()
@@ -1175,6 +1441,9 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       meetingIdRef.current = null // CRITICAL: Clear meeting ID ref to allow re-invites
       sessionIdRef.current = null // Clear sessionId ref
       wasIdleRef.current = true // Mark as idle for next call
+      abortControllerRef.current = null // Clear abort controller
+      pendingCallParticipantsRef.current = [] // CRITICAL: Clear pending participants for next call
+      calendarMeetingIdRef.current = null // Clear calendar meeting ID
 
       // Calculate duration
       const duration = callStartTime ? Date.now() - callStartTime : 0
@@ -1188,15 +1457,6 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         } catch (err) {
           rtkDebug.error('[RTK] ⚠️ Failed to stop screen share during cleanup:', err)
         }
-      }
-
-      // CRITICAL: Stop all media tracks (camera and microphone) to release resources
-      // This MUST happen before leaving the meeting to prevent browser showing "in use" indicator
-      try {
-        media.stopAllTracks()
-        rtkDebug.log('[RTK] ✅ All media tracks stopped')
-      } catch (err) {
-        rtkDebug.error('[RTK] ⚠️ Failed to stop media tracks during cleanup:', err)
       }
 
       // CRITICAL: Disconnect from RealtimeKit SFU
@@ -1273,6 +1533,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       setTimeout(() => {
         setCallState(prev => ({ ...prev, status: 'idle' }))
         isLeavingRef.current = false // Reset the flag after cleanup
+        isCancelledRef.current = false // Reset cancellation flag for next call
       }, 100)
     } catch (error) {
       rtkDebug.error('[RTK] Error leaving call:', error)
@@ -1285,6 +1546,9 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     // - roomId, meetingId, callStartTime, isScreenSharing
     // - preferences, wsClient, onCallEnded, currentUser
   ])
+
+  // Store leaveCall in ref for WebSocket effect
+  leaveCallRef.current = leaveCall
 
   /**
    * Toggle minimized state
@@ -1408,7 +1672,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
       // If we're in this call, leave it
       if (callStateRoomIdRef.current === data.meetingId) {
-        leaveCall()
+        leaveCallRef.current?.()
       }
 
       // If we have an incoming invite for this call, dismiss it (call ended before we could answer)
@@ -1436,6 +1700,32 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         rtkDebug.log("[RTK] ⚠️ Have incoming invite but IDs don't match - NOT dismissing")
       } else {
         rtkDebug.log('[RTK] ℹ️ No incoming invite to dismiss')
+      }
+    }
+
+    const handleCallCancelled = (data: { meetingId: string; conversationId: string; hostId: string }) => {
+      rtkDebug.log('[RTK] Call cancelled by host', data)
+
+      // If we have an incoming invite for this call, dismiss it (call was cancelled before we could answer)
+      if (
+        incomingInvite &&
+        (incomingInvite.roomId === data.meetingId || incomingInvite.conversationId === data.conversationId)
+      ) {
+        rtkDebug.log('[RTK] 📵 Dismissing incoming invite - call cancelled by host')
+
+        // CRITICAL: Stop all media tracks when dismissing invite
+        try {
+          media.stopAllTracks()
+          rtkDebug.log('[RTK] ✅ Media tracks stopped when dismissing cancelled invite')
+        } catch (err) {
+          rtkDebug.error('[RTK] ⚠️ Failed to stop media tracks when dismissing invite:', err)
+        }
+
+        // Clear start time
+        startTimeRef.current = null
+        rtkDebug.log('[RTK] ⏱️ Cleared start time when dismissing invite (call cancelled)')
+
+        setIncomingInvite(null)
       }
     }
 
@@ -1593,6 +1883,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
     socket.on('rtk-group-call:invite', handleInvite)
     socket.on('rtk-group-call:ended', handleCallEnded)
+    socket.on('rtk-group-call:cancelled', handleCallCancelled)
     socket.on('rtk-group-call:declined', handleDeclined)
     socket.on('rtk-group-call:not-answered', handleNotAnswered)
     socket.on('conversation:call-started', handleConversationCallStarted)
@@ -1601,12 +1892,13 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     return () => {
       socket.off('rtk-group-call:invite', handleInvite)
       socket.off('rtk-group-call:ended', handleCallEnded)
+      socket.off('rtk-group-call:cancelled', handleCallCancelled)
       socket.off('rtk-group-call:declined', handleDeclined)
       socket.off('rtk-group-call:not-answered', handleNotAnswered)
       socket.off('conversation:call-started', handleConversationCallStarted)
       socket.off('conversation:call-ended', handleConversationCallEnded)
     }
-  }, [wsClient, currentUser, callState.status, leaveCall, incomingInvite])
+  }, [wsClient, currentUser, callState.status, incomingInvite, media])
 
   /**
    * Listen for transcript-ready WebSocket events
@@ -1799,7 +2091,10 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     currentCallConversationName: callState.conversationName,
     activeSpeakerId: activeSpeaker.activeSpeakerId, // Active speaker tracking
     activeSpeakerHistory: activeSpeaker.activeSpeakerHistory, // Recent speakers for sorting
-    startCall,
+    initiateCall, // Show pre-call setup dialog
+    confirmStartCall, // Start call with user preferences
+    cancelSetup, // Cancel pre-call setup
+    startCall, // Legacy: directly start call (deprecated, use initiateCall + confirmStartCall)
     // Wrap joinCall to match interface signature from old useGroupCall
     // IMPORTANT: When joining existing call, Chat.tsx passes:
     //   - roomId = existingCall.roomId (which is actually the backend meetingId from activeCalls)

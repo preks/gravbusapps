@@ -19,7 +19,7 @@ export interface UseRealtimeKitParticipantsOptions {
   callType: CallType
   currentUser: CallParticipant | null
   localStream: MediaStream | null
-  callStatus: 'idle' | 'joining' | 'connected' | 'reconnecting' | 'ended'
+  callStatus: 'idle' | 'setup' | 'joining' | 'connected' | 'reconnecting' | 'ended'
   emitSocketEvent: (event: string, data: any) => void
   cleanupParticipantHandState?: (participantId: string, peerId?: string, userId?: string) => void
   calendarMeetingId?: string | null // Calendar meeting ID for AI transcription

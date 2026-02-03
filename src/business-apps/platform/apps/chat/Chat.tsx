@@ -23,6 +23,7 @@ import { AIThinkingIndicator, AIResponseRenderer, ExpertThinkingIndicator } from
 import { playNudgeSound, applyShakeAnimation, injectNudgeStyles } from './utils/nudgeUtils'
 import { IncomingCallDialog } from './components/IncomingCallDialog'
 import { IncomingGroupCallDialog } from './components/IncomingGroupCallDialog'
+import { PreCallSetupDialog } from './components/PreCallSetupDialog'
 import { RejoinCallDialog } from './components/RejoinCallDialog'
 import { CallModal } from './components/CallModal'
 import { GroupCallModal } from './components/GroupCallModal'
@@ -395,7 +396,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       remoteStreams: groupRemoteStreams,
       participants: groupParticipantsRaw,
       incomingInvite: incomingGroupCallInvite,
-      startCall: startGroupCall,
+      initiateCall: initiateGroupCall,
       joinCall: joinGroupCall,
       acceptInvite: acceptGroupInvite,
       declineInvite: declineGroupInvite,
@@ -723,7 +724,9 @@ const ChatInner: React.FC<ChatProps> = memo(
             }) || []
 
         // Use conversation ID as the room ID, pass conversation name for the invite
-        startGroupCall(activeConversation.id, callType, callParticipants, activeConversation.name)
+        if (initiateGroupCall) {
+          initiateGroupCall(activeConversation.id, callType, callParticipants, activeConversation.name)
+        }
       }
     }
 
@@ -746,7 +749,9 @@ const ChatInner: React.FC<ChatProps> = memo(
         // Generate a new room ID for the group call (use conversation ID or create new)
         const roomId = activeConversation.id
         const callType = callState.type || 'video'
-        startGroupCall(roomId, callType, callParticipants, activeConversation.name)
+        if (initiateGroupCall) {
+          initiateGroupCall(roomId, callType, callParticipants, activeConversation.name)
+        }
       }, 100)
     }
 
@@ -2035,8 +2040,36 @@ const ChatInner: React.FC<ChatProps> = memo(
           prefixDataTestId={`${prefixDataTestId}-rejoin-call`}
         />
 
+        {/* Pre-Call Setup Dialog - Show during setup and joining, and connected until room is joined (outgoing calls only) */}
+        <PreCallSetupDialog
+          isOpen={
+            (groupCallState.status === 'setup' ||
+              groupCallState.status === 'joining' ||
+              (groupCallState.status === 'connected' && realtimeKitGroupCall.meeting?.self?.roomState !== 'joined')) &&
+            !groupCallState.isMinimized &&
+            !incomingGroupCallInvite
+          }
+          callType={groupCallState.callType}
+          conversationName={activeConversation?.name}
+          participantCount={groupParticipants.length}
+          userName={currentUserAsParticipant?.odName}
+          userAvatarUrl={currentUserAsParticipant?.avatarUrl}
+          onStart={preferences => {
+            if (realtimeKitGroupCall.confirmStartCall) {
+              realtimeKitGroupCall.confirmStartCall(preferences)
+            }
+          }}
+          onCancel={() => {
+            if (realtimeKitGroupCall.cancelSetup) {
+              realtimeKitGroupCall.cancelSetup()
+            }
+          }}
+          prefixDataTestId={`${prefixDataTestId}-pre-call-setup`}
+        />
+
         {/* Group Call Modal - Use Realtime Kit or Mesh based on feature flag */}
-        {groupCallState.status !== 'idle' &&
+        {groupCallState.status === 'connected' &&
+          realtimeKitGroupCall.meeting?.self?.roomState === 'joined' &&
           (useRealtimeKitForGroupCalls ? (
             <RealtimeKitProvider value={realtimeKitGroupCall.meeting}>
               <GroupCallModalRtk

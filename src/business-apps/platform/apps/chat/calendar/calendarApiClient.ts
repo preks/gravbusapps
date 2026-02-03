@@ -152,6 +152,16 @@ export class CalendarApiClient {
   }
 
   /**
+   * Link a Cloudflare WebRTC session to a calendar meeting
+   * This stores the Cloudflare meeting ID for transcript polling
+   */
+  async linkWebrtcSession(meetingId: string, cloudFlareMeetingId: string): Promise<void> {
+    await this.client.post(`/meetings/${meetingId}/link-webrtc-session`, {
+      cloudFlareMeetingId
+    })
+  }
+
+  /**
    * Resolve and store Cloudflare Session ID from Meeting ID
    * This should be called after the host joins the call
    */
