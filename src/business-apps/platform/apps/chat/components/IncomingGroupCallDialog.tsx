@@ -11,6 +11,7 @@ import {
   IconAvatar,
   Spinner
 } from '@newwork/nw-design-system'
+import { rtkDebug } from '../utils/rtkDebug'
 import {
   MicrophoneIcon,
   MicrophoneSlashIcon,
@@ -76,12 +77,12 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
 
     const handleAccept = () => {
       if (isJoining) {
-        console.log('[IncomingGroupCallDialog] Already joining, ignoring duplicate click')
+        rtkDebug.log('[IncomingGroupCallDialog] Already joining, ignoring duplicate click')
         return
       }
 
       setIsJoining(true)
-      console.log('[IncomingGroupCallDialog] Joining with preferences:', {
+      rtkDebug.log('[IncomingGroupCallDialog] Joining with preferences:', {
         micEnabled,
         cameraEnabled,
         backgroundEnabled
@@ -95,7 +96,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
 
     const handleDecline = () => {
       if (isJoining) {
-        console.log('[IncomingGroupCallDialog] Already joining, ignoring decline')
+        rtkDebug.log('[IncomingGroupCallDialog] Already joining, ignoring decline')
         return
       }
 
@@ -105,7 +106,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
 
     // Cleanup preview stream
     const cleanupPreview = useCallback(() => {
-      console.log('[IncomingGroupCallDialog] Cleaning up preview')
+      rtkDebug.log('[IncomingGroupCallDialog] Cleaning up preview')
 
       // Stop all tracks
       streamTracksRef.current.forEach(track => {
@@ -131,7 +132,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
 
       const initPreview = async () => {
         try {
-          console.log('[IncomingGroupCallDialog] Requesting camera access for preview')
+          rtkDebug.log('[IncomingGroupCallDialog] Requesting camera access for preview')
 
           const stream = await navigator.mediaDevices.getUserMedia({
             video: { width: 640, height: 360 },
@@ -155,7 +156,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
             videoRef.current.srcObject = stream
           }
 
-          console.log('[IncomingGroupCallDialog] Camera preview ready')
+          rtkDebug.log('[IncomingGroupCallDialog] Camera preview ready')
         } catch (error) {
           console.error('[IncomingGroupCallDialog] Failed to access camera:', error)
         } finally {
