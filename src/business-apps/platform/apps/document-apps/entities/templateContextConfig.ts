@@ -18,9 +18,8 @@ export interface TemplateContextOption {
  * Add a new row here when you add a new scenario (e.g. letter proposal).
  */
 export const TEMPLATE_CONTEXTS: TemplateContextOption[] = [
-  { key: 'recruitManager', displayName: 'Recruitment' },
-  { key: 'onboarding', displayName: 'Onboarding' },
-  { key: 'letter', displayName: 'Letter' }
+  { key: 'candidate', displayName: 'Candidate' },
+  { key: 'employee', displayName: 'Employee' }
 ]
 
 /**
@@ -29,7 +28,7 @@ export const TEMPLATE_CONTEXTS: TemplateContextOption[] = [
  * When backend is ready, replace with: fetch entity keys for context from API.
  */
 export const ENTITY_KEYS_BY_CONTEXT: Record<string, string[]> = {
-  recruitManager: [
+  candidate: [
     'job_candidate',
     'job_application',
     'job_request',
@@ -43,8 +42,7 @@ export const ENTITY_KEYS_BY_CONTEXT: Record<string, string[]> = {
     'contract_type',
     'employment_type'
   ],
-  onboarding: ['company', 'company_address'],
-  letter: ['job_candidate', 'employee', 'company', 'employment_type', 'contract_type', 'company_address']
+  employee: ['job_candidate', 'employee', 'company', 'employment_type', 'contract_type', 'company_address']
 }
 
 /** Get display name for a context key, or the key itself if unknown */
@@ -59,18 +57,18 @@ export function getTemplateContextDisplayName(contextKey: string): string {
  * Category is not shown as "context" in the UI; context is derived from category.
  */
 const CONTEXT_BY_CATEGORY: Record<string, string> = {
-  contracts: 'recruitManager',
-  agreements: 'recruitManager',
-  letters: 'letter',
-  reports: 'recruitManager',
-  proposals: 'recruitManager',
-  policies: 'recruitManager',
-  procedures: 'recruitManager',
-  forms: 'onboarding',
-  other: 'recruitManager'
+  contracts: 'candidate',
+  agreements: 'candidate',
+  letters: 'employee',
+  reports: 'candidate',
+  proposals: 'candidate',
+  policies: 'candidate',
+  procedures: 'candidate',
+  forms: 'employee',
+  other: 'candidate'
 }
 
-const DEFAULT_CONTEXT = 'recruitManager'
+const DEFAULT_CONTEXT = 'candidate'
 
 /** Get entity context key for a template category (e.g. for "Insert field" panel when editing). */
 export function getContextForCategory(category: string): string {

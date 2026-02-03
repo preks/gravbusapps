@@ -25,6 +25,7 @@ import {
 } from '@newwork/nw-design-system'
 import type { DocumentTemplate, TemplateCategory } from '../types'
 import { TEMPLATE_CATEGORY_API_VALUES } from '../types'
+import { TEMPLATE_CONTEXTS, getContextForCategory } from '../entities/templateContextConfig'
 
 const CATEGORY_LABELS: Record<TemplateCategory, string> = {
   contracts: 'Contracts',
@@ -45,7 +46,8 @@ export interface CreateTemplateDialogProps {
     template: Omit<DocumentTemplate, 'id' | 'createdAt' | 'updatedAt' | 'usageCount'>
   ) => Promise<DocumentTemplate | null>
   currentUserId: string
-  onCreated?: (template: DocumentTemplate) => void
+  /** Called after create; pass chosen context so the editor can show the right entities (not persisted). */
+  onCreated?: (template: DocumentTemplate, options?: { entityContext?: string }) => void
   'data-testid'?: string
 }
 
@@ -60,7 +62,13 @@ export function CreateTemplateDialog({
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState<TemplateCategory>('other')
+  const [context, setContext] = useState<string>(() => getContextForCategory('other'))
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleCategoryChange = (value: TemplateCategory) => {
+    setCategory(value)
+    setContext(getContextForCategory(value))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -80,8 +88,9 @@ export function CreateTemplateDialog({
         setName('')
         setDescription('')
         setCategory('other')
+        setContext(getContextForCategory('other'))
         onOpenChange(false)
-        onCreated?.(newTemplate)
+        onCreated?.(newTemplate, { entityContext: context })
       }
     } finally {
       setIsSubmitting(false)
@@ -121,20 +130,37 @@ export function CreateTemplateDialog({
               data-testid={`${testId}-description`}
             />
           </div>
-          <div className="gba:space-y-2">
-            <Label htmlFor="template-category">Category</Label>
-            <Select value={category} onValueChange={v => setCategory(v as TemplateCategory)}>
-              <SelectTrigger id="template-category" data-testid={`${testId}-category`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TEMPLATE_CATEGORY_API_VALUES.map(cat => (
-                  <SelectItem key={cat} value={cat}>
-                    {CATEGORY_LABELS[cat]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+            <div className="gba:space-y-2">
+              <Label htmlFor="template-category">Category</Label>
+              <Select value={category} onValueChange={handleCategoryChange}>
+                <SelectTrigger id="template-category" data-testid={`${testId}-category`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEMPLATE_CATEGORY_API_VALUES.map(cat => (
+                    <SelectItem key={cat} value={cat}>
+                      {CATEGORY_LABELS[cat]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="gba:space-y-2">
+              <Label htmlFor="template-context">Context</Label>
+              <Select value={context} onValueChange={setContext}>
+                <SelectTrigger id="template-context" data-testid={`${testId}-context`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEMPLATE_CONTEXTS.map(ctx => (
+                    <SelectItem key={ctx.key} value={ctx.key}>
+                      {ctx.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>

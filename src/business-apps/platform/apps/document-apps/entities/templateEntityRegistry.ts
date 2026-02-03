@@ -26,7 +26,7 @@ export type TemplateEntityDomain = 'nw_orgchart' | 'nw_employee' | 'nw_recruitin
  * Known context tags for scoping which entities appear in the Insert Field panel.
  * Add new contexts here and assign them to entities in the registry.
  */
-export type TemplateEntityContext = 'recruitManager' | 'onboarding' | string
+export type TemplateEntityContext = 'candidate' | 'onboarding' | 'employee' | string
 
 /**
  * Entity definition – link only. No fields; BE knows the schema from GraphQL / model.
@@ -44,7 +44,7 @@ export interface TemplateEntityDefinition {
    */
   graphqlTypeName: string
   /**
-   * Optional: context tags (e.g. 'recruitManager', 'onboarding'). When a context
+   * Optional: context tags (e.g. 'candidate', 'onboarding'). When a context
    * is set, only entities that include that context are shown. Omit = shown in all contexts.
    */
   contexts?: TemplateEntityContext[]
@@ -60,21 +60,21 @@ export const TEMPLATE_ENTITY_REGISTRY: TemplateEntityDefinition[] = [
     displayName: 'Employee position',
     domain: 'nw_orgchart',
     graphqlTypeName: 'EmployeePosition',
-    contexts: ['recruitManager']
+    contexts: ['candidate']
   },
   {
     entityKey: 'company',
     displayName: 'Company',
     domain: 'nw_orgchart',
     graphqlTypeName: 'Company',
-    contexts: ['recruitManager', 'onboarding']
+    contexts: ['candidate', 'onboarding']
   },
   {
     entityKey: 'company_address',
     displayName: 'Company address',
     domain: 'nw_orgchart',
     graphqlTypeName: 'CompanyAddress',
-    contexts: ['recruitManager', 'onboarding']
+    contexts: ['candidate', 'onboarding']
   },
 
   // ----- nw_employee -----
@@ -83,14 +83,14 @@ export const TEMPLATE_ENTITY_REGISTRY: TemplateEntityDefinition[] = [
     displayName: 'Employee',
     domain: 'nw_employee',
     graphqlTypeName: 'Employee',
-    contexts: ['recruitManager']
+    contexts: ['candidate']
   },
   {
     entityKey: 'employee_address',
     displayName: 'Employee address',
     domain: 'nw_employee',
     graphqlTypeName: 'EmployeeAddress',
-    contexts: ['recruitManager']
+    contexts: ['candidate']
   },
 
   // ----- nw_recruiting -----
@@ -99,35 +99,35 @@ export const TEMPLATE_ENTITY_REGISTRY: TemplateEntityDefinition[] = [
     displayName: 'Job candidate',
     domain: 'nw_recruiting',
     graphqlTypeName: 'JobCandidate',
-    contexts: ['recruitManager']
+    contexts: ['candidate']
   },
   {
     entityKey: 'job_application',
     displayName: 'Job application',
     domain: 'nw_recruiting',
     graphqlTypeName: 'JobApplication',
-    contexts: ['recruitManager']
+    contexts: ['candidate']
   },
   {
     entityKey: 'job_request',
     displayName: 'Job request',
     domain: 'nw_recruiting',
     graphqlTypeName: 'JobRequest',
-    contexts: ['recruitManager']
+    contexts: ['candidate']
   },
   {
     entityKey: 'job_position',
     displayName: 'Job position',
     domain: 'nw_recruiting',
     graphqlTypeName: 'JobPosition',
-    contexts: ['recruitManager']
+    contexts: ['candidate']
   },
   {
     entityKey: 'job_posting',
     displayName: 'Job posting',
     domain: 'nw_recruiting',
     graphqlTypeName: 'JobPosting',
-    contexts: ['recruitManager']
+    contexts: ['candidate']
   },
 
   // ----- nw_catalog (contract type and employment type only) -----
@@ -136,14 +136,14 @@ export const TEMPLATE_ENTITY_REGISTRY: TemplateEntityDefinition[] = [
     displayName: 'Contract type',
     domain: 'nw_catalog',
     graphqlTypeName: 'ContractType',
-    contexts: ['recruitManager']
+    contexts: ['candidate']
   },
   {
     entityKey: 'employment_type',
     displayName: 'Employment type',
     domain: 'nw_catalog',
     graphqlTypeName: 'EmploymentType',
-    contexts: ['recruitManager']
+    contexts: ['candidate']
   }
 ]
 

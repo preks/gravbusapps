@@ -174,6 +174,8 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [documentForManageShares, setDocumentForManageShares] = useState<string | null>(null)
   const [createTemplateDialogOpen, setCreateTemplateDialogOpen] = useState(false)
   const [templateBeingEdited, setTemplateBeingEdited] = useState<DocumentTemplate | null>(null)
+  /** Context chosen in create modal; used only to pick entities in the editor (not sent to API). */
+  const [sessionEntityContext, setSessionEntityContext] = useState<string | null>(null)
   const templateEditorRef = useRef<PagedDocumentEditorRef>(null)
 
   // Get current user ID
@@ -187,8 +189,8 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const effectiveEntityContext =
     entityContext ??
     urlEntityContext ??
-    (templateBeingEdited ? getContextForCategory(templateBeingEdited.category) : undefined) ??
-    'recruitManager'
+    (templateBeingEdited ? (sessionEntityContext ?? getContextForCategory(templateBeingEdited.category)) : undefined) ??
+    'candidate'
 
   // Hooks
   const {
@@ -284,6 +286,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     async (template: { id: string }) => {
       const full = await loadTemplate(template.id)
       if (full) {
+        setSessionEntityContext(null)
         setTemplateBeingEdited(full)
         setCurrentView('editor')
       }
@@ -498,6 +501,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           }}
           onBack={() => {
             setTemplateBeingEdited(null)
+            setSessionEntityContext(null)
             setCurrentView('list')
             setActiveSection('templates')
           }}
@@ -552,7 +556,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     if (currentDocument) {
       // Check if this is a PDF document - render read-only viewer
       const isPdfDocument = currentDocument.sourceFile?.mimeType === 'application/pdf'
-      
+
       if (isPdfDocument) {
         return (
           <PdfDocumentViewer
@@ -892,6 +896,11 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
               onOpenChange={setCreateTemplateDialogOpen}
               createTemplate={createTemplate}
               currentUserId={currentUserId}
+              onCreated={(template, options) => {
+                setSessionEntityContext(options?.entityContext ?? null)
+                setTemplateBeingEdited(template)
+                setCurrentView('editor')
+              }}
               data-testid={`${testId}-create-template-dialog`}
             />
           </>

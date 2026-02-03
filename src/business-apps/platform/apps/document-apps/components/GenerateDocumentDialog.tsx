@@ -16,12 +16,17 @@ import {
   DialogFooter,
   Button,
   Spinner,
-  Badge
+  Badge,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@newwork/nw-design-system'
-import { FileText, AlertCircle, CheckCircle, Info } from 'lucide-react'
+import { AlertCircle, CheckCircle, Info } from 'lucide-react'
 import { toast } from 'sonner'
 import { DocumentApiService } from '../services/DocumentApiService'
-import { resolvePlaceholders } from '../utils/templatePlaceholders'
+import { resolvePlaceholders, extractEntityKeysFromContent } from '../utils/templatePlaceholders'
 import type { TemplateSummary } from '../types'
 
 export interface GenerateDocumentDialogProps {
@@ -54,12 +59,53 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
+  /** Content of the selected template; used to derive placeholder data status for that template. */
+  const [selectedTemplateContent, setSelectedTemplateContent] = useState<string | null>(null)
+  const [loadingTemplateContent, setLoadingTemplateContent] = useState(false)
   const [generating, setGenerating] = useState(false)
 
-  /** Show whether each entity has data (to check if empty DB is the reason placeholders are not replaced) */
+  /** Find entity data for a key (case-insensitive match on entityDataMap keys). */
+  const getEntityDataByKey = useCallback(
+    (entityKey: string): Record<string, unknown> | undefined => {
+      const lower = entityKey.toLowerCase()
+      const entry = Object.entries(entityDataMap).find(([k]) => k.toLowerCase() === lower)
+      return entry?.[1]
+    },
+    [entityDataMap]
+  )
+
+  /** When user selects a template, fetch its content so we can show placeholder status for that template. */
+  useEffect(() => {
+    if (!selectedTemplateId || !open) {
+      setSelectedTemplateContent(null)
+      return
+    }
+    let cancelled = false
+    setLoadingTemplateContent(true)
+    DocumentApiService.getTemplate(selectedTemplateId)
+      .then(t => {
+        if (!cancelled && t?.content) setSelectedTemplateContent(t.content)
+        else if (!cancelled) setSelectedTemplateContent(null)
+      })
+      .catch(() => {
+        if (!cancelled) setSelectedTemplateContent(null)
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingTemplateContent(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedTemplateId, open])
+
+  /**
+   * Placeholder data status: when a template is selected, show only entities referenced in that template;
+   * otherwise show all entities we have data for.
+   */
   const entityDataStatus = useMemo(() => {
-    return Object.entries(entityDataMap).map(([key, data]) => {
-      const keys = Object.keys(data)
+    const buildStatus = (key: string) => {
+      const data = getEntityDataByKey(key)
+      const keys = data ? Object.keys(data) : []
       const hasData = keys.length > 0
       const emptyReason =
         key === 'company_address' && !hasData
@@ -68,8 +114,15 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
             ? 'No data provided for this entity.'
             : null
       return { key, hasData, emptyReason, fieldCount: keys.length }
-    })
-  }, [entityDataMap])
+    }
+    if (selectedTemplateContent) {
+      const entityKeys = extractEntityKeysFromContent(selectedTemplateContent).filter(
+        key => key.toLowerCase() !== 'today'
+      )
+      return entityKeys.map(buildStatus)
+    }
+    return Object.entries(entityDataMap).map(([key]) => buildStatus(key))
+  }, [entityDataMap, selectedTemplateContent, getEntityDataByKey])
 
   const loadTemplates = useCallback(async () => {
     setLoading(true)
@@ -135,8 +188,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Generate document</DialogTitle>
           <DialogDescription>
-            Choose a template. Placeholders like {`{{job_candidate.firstName}}`}, {`{{company.name}}`},{' '}
-            {`{{company_address.locality}}`} will be replaced with the linked entity data.
+            Choose a template. Placeholders like will be replaced with the linked entity data.
           </DialogDescription>
         </DialogHeader>
         <div className="gba:space-y-4 gba:py-2">
@@ -147,6 +199,11 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
               data-testid={`${testId}-entity-data-status`}
             >
               <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Placeholder data status</p>
+              {loadingTemplateContent && selectedTemplateId && (
+                <p className="gba:text-xs gba:text-muted-foreground gba:italic gba:mb-2">
+                  Loading placeholders for selected template…
+                </p>
+              )}
               {entityDataLoading && (
                 <p className="gba:text-xs gba:text-muted-foreground gba:italic gba:mb-2">
                   Loading candidate and related data (job_request, company)…
@@ -204,28 +261,25 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
           )}
           {!loading && !error && templates.length > 0 && (
             <div className="gba:space-y-2">
-              <label className="gba:text-sm gba:font-medium">Template</label>
-              <div className="gba:border gba:rounded-lg gba:max-h-48 gba:overflow-y-auto gba:divide-y">
-                {templates.map(t => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setSelectedTemplateId(t.id)}
-                    className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:text-left gba:transition-colors hover:gba:bg-muted/60 ${
-                      selectedTemplateId === t.id ? 'gba:bg-primary/10 gba:border-primary/30' : ''
-                    }`}
-                    data-testid={`${testId}-template-${t.id}`}
-                  >
-                    <FileText className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:flex-shrink-0" />
-                    <div className="gba:min-w-0">
-                      <div className="gba:font-medium gba:truncate">{t.name}</div>
-                      {t.description && (
-                        <div className="gba:text-xs gba:text-muted-foreground gba:truncate">{t.description}</div>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
+              <label className="gba:text-sm gba:font-medium" htmlFor={`${testId}-template-select`}>
+                Template
+              </label>
+              <Select
+                value={selectedTemplateId ?? ''}
+                onValueChange={val => setSelectedTemplateId(val || null)}
+                disabled={loadingTemplateContent}
+              >
+                <SelectTrigger id={`${testId}-template-select`} data-testid={`${testId}-template-select`}>
+                  <SelectValue placeholder="Select a template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map(t => (
+                    <SelectItem key={t.id} value={t.id} data-testid={`${testId}-template-${t.id}`}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
         </div>

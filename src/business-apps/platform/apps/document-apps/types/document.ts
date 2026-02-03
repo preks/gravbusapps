@@ -187,6 +187,8 @@ export interface DocumentTemplate {
   description?: string
   content: string // HTML content
   category: TemplateCategory
+  /** Optional entity context for "Insert field" panel (e.g. candidate, employee). When set, overrides derivation from category. */
+  context?: string
   tags?: string[]
   thumbnail?: string // Preview image URL
   createdAt: string
@@ -220,6 +222,7 @@ export interface TemplateSummary {
   name: string
   description?: string
   category: TemplateCategory
+  context?: string
   tags?: string[]
   thumbnail?: string
   createdAt: string

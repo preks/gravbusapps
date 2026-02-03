@@ -25,15 +25,16 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuTrigger
 } from '@newwork/nw-design-system'
-import { MoreHorizontal, FileText } from 'lucide-react'
+import { MoreHorizontal } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { format, addDays, isWithinInterval, parseISO, differenceInYears } from 'date-fns'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { GenerateDocumentDialog } from '@/business-apps/platform/apps/document-apps/components/GenerateDocumentDialog'
+import { GenerateDocumentDialog } from '@/business-apps/platform/apps/document-apps/components'
 import { DocumentApiService } from '@/business-apps/platform/apps/document-apps/services/DocumentApiService'
 import { exportToWord } from '@/business-apps/platform/apps/document-apps/utils/exportUtils'
 import { toast } from 'sonner'
@@ -449,11 +450,13 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuLabel className="gba:font-semibold">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.actions', 'Actions')}
+                      </DropdownMenuLabel>
                       <DropdownMenuItem
                         onClick={() => handleGenerateDocument(record)}
                         data-testid="hr-insights-row-generate-document"
                       >
-                        <FileText className="gba:mr-2 gba:h-4 gba:w-4" />
                         {getTranslationFromI18nKeyAndLabel(
                           'lowcoder:hr_insights.generate_document',
                           'Generate document'

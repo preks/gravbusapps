@@ -26,7 +26,7 @@ export interface TemplateFieldsPanelProps {
   /** Optional: show only entities from this domain */
   domain?: TemplateEntityDomain
   /**
-   * Optional: context tag (e.g. 'recruitManager', 'onboarding'). When set, only entities
+   * Optional: context tag (e.g. 'candidate', 'onboarding'). When set, only entities
    * that list this context in the registry are shown. Omit to show all entities.
    */
   context?: TemplateEntityContext
