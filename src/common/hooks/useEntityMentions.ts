@@ -1,7 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import type { EntityReference, MessageEntityReference } from '../types'
-import type { ActiveExpert } from './useConversationExperts'
 
 // GraphQL query for searching all entities
 const SEARCH_ENTITIES_QUERY = `
@@ -199,7 +197,7 @@ const SEARCH_ENTITIES_QUERY = `
       }
     }
     
-    # Employees - only firstName, lastName, code are filterable
+    # Employees
     Employee(
       limit: $limit
       where: {
@@ -228,7 +226,6 @@ const SEARCH_ENTITIES_QUERY = `
         }
       }
     }
-    
     
     # Sales Campaigns
     SalesCampaign(
@@ -268,7 +265,7 @@ const SEARCH_ENTITIES_QUERY = `
       description
     }
     
-    # Intranet Content (ContentEntry - new intranet system)
+    # Intranet Content (ContentEntry)
     ContentEntry(
       limit: $limit
       where: {
@@ -336,7 +333,7 @@ interface SearchResponse {
   // Other
   Employee: Array<{
     id: string
-    userId?: string // Open Directory ID (user ID for calendar/meetings)
+    userId?: string
     firstName?: string
     lastName?: string
     pictureThumbnail?: string
@@ -347,7 +344,6 @@ interface SearchResponse {
   }>
   SalesCampaign: Array<{ id: string; name: string; description?: string }>
   ExpenseRequest: Array<{ id: string; title?: string; code?: string; status?: string; description?: string }>
-  // Intranet Content (new system)
   ContentEntry: Array<{
     id: string
     title?: string
@@ -360,6 +356,42 @@ interface SearchResponse {
   }>
 }
 
+export type EntityType =
+  | 'ai_assistant'
+  | 'every_expert'
+  | 'account'
+  | 'contact'
+  | 'lead'
+  | 'opportunity'
+  | 'investment_account'
+  | 'investment_contact'
+  | 'investment_lead'
+  | 'investment_opportunity'
+  | 'investment'
+  | 'employee'
+  | 'campaign'
+  | 'expense_request'
+  | 'news_article'
+  | 'knowledge_article'
+  | 'intranet_article'
+  | 'document_article'
+
+export interface EntityReference {
+  id: string
+  userId?: string
+  type: EntityType | string
+  name: string
+  subtitle?: string
+  pictureThumbnail?: string
+  contentPreview?: string
+  contentData?: any
+}
+
+export interface MessageEntityReference extends EntityReference {
+  startIndex: number
+  endIndex: number
+}
+
 interface MentionState {
   isActive: boolean
   query: string
@@ -367,14 +399,23 @@ interface MentionState {
   caretPosition: number
 }
 
-export function useEntityMentions(accessToken: string, activeExperts: ActiveExpert[] = []) {
+export interface UseEntityMentionsOptions {
+  /** Optional active experts to include in search results (for chat app) */
+  activeExperts?: Array<{
+    expertId: string
+    expertName: string
+    specialty: string
+  }>
+}
+
+export function useEntityMentions(accessToken: string, options: UseEntityMentionsOptions = {}) {
+  const { activeExperts = [] } = options
   const graphqlClient = useGraphQLClient(accessToken)
   const [entities, setEntities] = useState<EntityReference[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [mentionState, setMentionState] = useState<MentionState | null>(null)
   const [selectedEntities, setSelectedEntities] = useState<MessageEntityReference[]>([])
   const searchAbortRef = useRef<AbortController | null>(null)
-  // Track positions where mentions were just inserted to prevent re-detection
   const justInsertedRef = useRef<{ endPosition: number; timestamp: number } | null>(null)
 
   // Check if an @ position is within an already completed mention
@@ -388,11 +429,9 @@ export function useEntityMentions(accessToken: string, activeExperts: ActiveExpe
       // If we just inserted a mention, skip detection briefly
       if (justInsertedRef.current) {
         const { endPosition, timestamp } = justInsertedRef.current
-        // Skip if caret is right after a just-inserted mention (within 500ms)
         if (Date.now() - timestamp < 500 && caretPosition <= endPosition + 1) {
           return null
         }
-        // Clear the ref after timeout
         if (Date.now() - timestamp > 500) {
           justInsertedRef.current = null
         }
@@ -440,18 +479,18 @@ export function useEntityMentions(accessToken: string, activeExperts: ActiveExpe
         return null
       }
 
-      // Stop if query contains another @ or newline (but allow spaces for multi-word searches)
+      // Stop if query contains another @ or newline
       if (/[@\n]/.test(query)) return null
 
-      // Stop if query ends with double space (user finished typing the mention)
+      // Stop if query ends with double space
       if (query.endsWith('  ')) return null
 
-      // Limit query length to prevent very long searches
+      // Limit query length
       if (query.length > 50) return null
 
       return {
         isActive: true,
-        query: query.trim(), // Trim for cleaner search
+        query: query.trim(),
         startIndex: atIndex,
         caretPosition
       }
@@ -590,7 +629,7 @@ export function useEntityMentions(accessToken: string, activeExperts: ActiveExpe
       const subtitle = [jobTitle, orgUnit].filter(Boolean).join(' • ') || undefined
       allEntities.push({
         id: emp.id,
-        userId: emp.userId, // Open Directory ID for calendar/meetings
+        userId: emp.userId,
         type: 'employee',
         name,
         subtitle,
@@ -618,9 +657,8 @@ export function useEntityMentions(accessToken: string, activeExperts: ActiveExpe
       })
     })
 
-    // Intranet Content (ContentEntry - new system)
+    // Intranet Content
     result.ContentEntry?.forEach(entry => {
-      // Determine the entity type based on contentGroupRef
       const groupRef = entry.contentGroupRef || ''
       let entityType: 'news_article' | 'knowledge_article' | 'intranet_article' | 'document_article' =
         'intranet_article'
@@ -652,7 +690,6 @@ export function useEntityMentions(accessToken: string, activeExperts: ActiveExpe
         name: entry.title || 'Untitled Content',
         subtitle,
         pictureThumbnail: entry.pictureThumbnail || undefined,
-        // Include document content for AI processing
         contentPreview: entry.preview || undefined,
         contentData: {
           title: entry.title,
@@ -758,13 +795,16 @@ export function useEntityMentions(accessToken: string, activeExperts: ActiveExpe
       const newText = `${before}${displayText} ${after}`
       const newCaretPosition = before.length + displayText.length + 1
 
+      // Strip out pictureThumbnail to avoid storing large base64 data in state
+      // It's only needed for UI display in the popover, not in selected entities
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { pictureThumbnail, ...entityWithoutPicture } = entity
       const entityRef: MessageEntityReference = {
-        ...entity,
+        ...entityWithoutPicture,
         startIndex: mentionState.startIndex,
         endIndex: mentionState.startIndex + displayText.length
       }
 
-      // Mark this position as just inserted to prevent re-detection
       justInsertedRef.current = {
         endPosition: newCaretPosition,
         timestamp: Date.now()
@@ -805,8 +845,11 @@ export function useEntityMentions(accessToken: string, activeExperts: ActiveExpe
       const displayText = `@${entity.name}`
       const endIndex = startIndex + displayText.length
 
+      // Strip out pictureThumbnail to avoid storing large base64 data in state
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { pictureThumbnail, ...entityWithoutPicture } = entity
       const entityRef: MessageEntityReference = {
-        ...entity,
+        ...entityWithoutPicture,
         startIndex,
         endIndex
       }
@@ -819,9 +862,8 @@ export function useEntityMentions(accessToken: string, activeExperts: ActiveExpe
       })
 
       // Mark this position as just inserted to prevent re-detection
-      // Use a longer timeout and check the full text length to handle typing after
       justInsertedRef.current = {
-        endPosition: text.length, // Use full text length to cover typing after
+        endPosition: text.length,
         timestamp: Date.now()
       }
 
