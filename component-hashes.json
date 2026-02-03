@@ -4,6 +4,7 @@
   "ai/apps/scheduled-tasks": "125844daf0e1cf2f337174b931622fa9",
   "ai/apps/task-expert-studio": "a189a748db3a02b5a093c8b056c29f3f",
   "ai/forms/scheduled-task-result": "72b5260347752b39bf3f39d93a5a10cd",
+  "common/apps/case-management": "28d1cdd3315698e82bb5ac85d54458b4",
   "core/content/apps/content-hub": "09d9960ad94ce914a5ec850f00c5ddaf",
   "core/content/apps/content-management": "8abba99a2c3d1c18d554cd3a134b82f2",
   "core/content/apps/content-manager": "282899daf4c27129ea02df107bc40c76",
@@ -330,6 +331,7 @@
   "sales-demo/sales-order/apps/sales-order-overview": "9514539a2981f2a89a7e30bfad9da9fd",
   "sales-demo/sales-order/apps/sales-performance-report": "80941f6bada7355a42477dd1498fdedb",
   "sales-demo/sales-order/forms/sales-order-creation-form": "a313f8cdd45c15bb883a2e04504bb16c",
+  "ser/apps/service-cases": "c968685c7bb320ebb7f68a8ca257c87a",
   "ser/apps/service-desk": "11ad9d2a2ac420fa47bfb1fed0e0ed1f",
   "ser/apps/service-portal": "5246fb5f1d7e960e94c331c0985386da",
   "ser/apps/warranty-service": "f8d35a5cc249719107a073518c32ffeb"
