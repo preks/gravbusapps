@@ -2,7 +2,6 @@ import React, { useMemo } from 'react'
 import dayjs from 'dayjs'
 import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useStatisticsData } from './StatisticsDataProvider'
 
 interface OrgWorkPatternsPanelProps {
   absences: any[]
@@ -44,8 +43,6 @@ const getDayLabel = (index: number): string => {
 
 export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ absences }) => {
   const currentYear = dayjs().year()
-  const { data } = useStatisticsData()
-  const monthlyServer = data?.monthlyCounts || null
 
   const { dayCounts, dayPercents, monthlyCounts, monthlyPercents, peakMonth, lowMonth } = useMemo(() => {
     const approved = (absences || []).filter((a: any) => String(a.status || '').toUpperCase() === 'APPROVED')
@@ -67,14 +64,16 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
     })
 
     const dayTotal = dayCounts.reduce((s: number, c: number) => s + c, 0) || 1
-    const baseMonthCounts = monthlyServer ?? monthCounts
+    // For backoffice visuals, keep monthly patterns request-based (approved) for stronger contrast and to match the status note.
+    const baseMonthCounts = monthCounts
     const monthlyTotal = baseMonthCounts.reduce((s: number, c: number) => s + c, 0) || 1
 
     const dayPercents = dayCounts.map((c: number) => Math.round((c / dayTotal) * 100))
     const monthlyPercents = baseMonthCounts.map((c: number) => Math.round((c / monthlyTotal) * 100))
 
-    const peakIdx = monthCounts.indexOf(Math.max(...monthCounts))
-    const lowIdx = monthCounts.indexOf(Math.min(...monthCounts))
+    // Compute peaks consistently from the same monthly source used for rendering
+    const peakIdx = baseMonthCounts.indexOf(Math.max(...baseMonthCounts))
+    const lowIdx = baseMonthCounts.indexOf(Math.min(...baseMonthCounts))
 
     return {
       dayCounts,
