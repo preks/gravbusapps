@@ -12,7 +12,8 @@ export interface RealtimeKitMeeting {
 export interface CreateMeetingResponse {
   success: boolean
   data: {
-    meetingId: string
+    sessionId: string // Database call session ID
+    meetingId: string // Cloudflare meeting ID
     hostAuthToken: string
   }
 }
@@ -52,7 +53,9 @@ export class RealtimeKitApiClient {
     displayName?: string,
     firstName?: string,
     lastName?: string,
-    meetingName?: string
+    meetingName?: string,
+    transcriptionEnabled?: boolean,
+    calendarMeetingId?: string | null
   ): Promise<CreateMeetingResponse> {
     const response = await this.client.post<CreateMeetingResponse>('/meetings', {
       conversationId,
@@ -60,7 +63,9 @@ export class RealtimeKitApiClient {
       displayName,
       firstName,
       lastName,
-      meetingName
+      meetingName,
+      transcriptionEnabled,
+      calendarMeetingId
     })
     return response.data
   }

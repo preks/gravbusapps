@@ -31,6 +31,7 @@ export interface UseRealtimeKitMediaReturn {
   toggleVideo: () => boolean
   setVideoQuality: (quality: VideoQuality) => Promise<void>
   toggleBackground: () => Promise<void>
+  stopAllTracks: () => void
 }
 
 /**
@@ -557,6 +558,36 @@ export const useRealtimeKitMedia = ({
     }
   }, [meeting])
 
+  /**
+   * Stop all media tracks (audio and video)
+   * CRITICAL: Must be called when leaving call to release camera/microphone
+   */
+  const stopAllTracks = useCallback(() => {
+    if (!localStream) {
+      rtkDebug.log('[RTK Media] No local stream to stop')
+      return
+    }
+
+    rtkDebug.log('[RTK Media] 🛑 Stopping all media tracks:', {
+      audioTracks: localStream.getAudioTracks().length,
+      videoTracks: localStream.getVideoTracks().length
+    })
+
+    // Stop all tracks
+    localStream.getTracks().forEach(track => {
+      track.stop()
+      rtkDebug.log('[RTK Media] Stopped track:', {
+        kind: track.kind,
+        id: track.id,
+        readyState: track.readyState
+      })
+    })
+
+    // Clear the stream
+    setLocalStream(null)
+    rtkDebug.log('[RTK Media] ✅ All media tracks stopped and stream cleared')
+  }, [localStream])
+
   return {
     localStream,
     isMuted,
@@ -566,6 +597,7 @@ export const useRealtimeKitMedia = ({
     toggleMute,
     toggleVideo,
     setVideoQuality,
-    toggleBackground
+    toggleBackground,
+    stopAllTracks
   }
 }
