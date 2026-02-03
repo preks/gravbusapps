@@ -224,7 +224,7 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
   // Reset isStartingCall when call actually connects
   useEffect(() => {
     if (isInAnyCall && isStartingCall) {
-      console.log('[Calendar] Call connected, resetting isStartingCall flag')
+      rtkDebug.log('[Calendar] Call connected, resetting isStartingCall flag')
       setIsStartingCall(false)
     }
   }, [isInAnyCall, isStartingCall])
@@ -536,7 +536,7 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
   const handleStartCall = useCallback(async () => {
     // Guard: prevent duplicate call initiation
     if (isStartingCall) {
-      console.log('[Calendar] Already starting a call, ignoring duplicate request')
+      rtkDebug.log('[Calendar] Already starting a call, ignoring duplicate request')
       return
     }
 
