@@ -203,16 +203,14 @@ export const generateInsights = (analytics: Partial<ProjectAnalyticsData>): stri
     plannedEndDate
   } = analytics
 
-  const insights: string[] = []
-
   // Budget vs Time insight
-  insights.push(...generateBudgetTimeInsights(budgetConsumptionPercent, elapsedTimePercent))
-
+  const budgetTimeInsights = generateBudgetTimeInsights(budgetConsumptionPercent, elapsedTimePercent)
   // Burn rate trend
-  insights.push(...generateBurnRateInsights(weeklyBurnRates))
-
+  const burnRateInsights = generateBurnRateInsights(weeklyBurnRates)
   // Forecast
-  insights.push(...generateForecastInsights(burnRatePerDay, remainingHours, plannedEndDate))
+  const forecastInsights = generateForecastInsights(burnRatePerDay, remainingHours, plannedEndDate)
+
+  const insights: string[] = [...budgetTimeInsights, ...burnRateInsights, ...forecastInsights]
 
   // Over budget projection
   if (budgetConsumptionPercent > 100 && hoursBudget) {

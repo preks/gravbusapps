@@ -1,6 +1,7 @@
 import React from 'react'
-import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
+import { Card, CardHeader, CardTitle, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { ProjectAnalyticsData } from '../types'
+import translations from '../_i18n'
 
 interface PortfolioHeatmapProps {
   projects: ProjectAnalyticsData[]
@@ -24,6 +25,7 @@ export const PortfolioHeatmap: React.FC<PortfolioHeatmapProps> = ({
   onProjectClick,
   prefixDataTestId = 'portfolio-heatmap'
 }) => {
+  const { t } = useTranslation(translations)
   // Calculate position for each project dot
   const getProjectPosition = (project: ProjectAnalyticsData): { x: number; y: number } => {
     // Clamp values between 0-100 for display, but allow over 100% for y
@@ -56,18 +58,18 @@ export const PortfolioHeatmap: React.FC<PortfolioHeatmapProps> = ({
   return (
     <Card data-testid={prefixDataTestId}>
       <CardHeader>
-        <CardTitle className="gba:text-base">Portfolio Health Matrix</CardTitle>
+        <CardTitle className="gba:text-base">{t('portfolio-health-matrix')}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="gba:relative gba:w-full gba:h-[400px] gba:border gba:border-border gba:rounded-lg gba:bg-card">
           {/* Y-axis label */}
           <div className="gba:absolute gba:-left-8 gba:top-1/2 gba:-translate-y-1/2 gba:-rotate-90 gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-            Budget Used (%)
+            {t('table-budget-used')} (%)
           </div>
 
           {/* X-axis label */}
           <div className="gba:absolute gba:bottom-[-24px] gba:left-1/2 gba:-translate-x-1/2 gba:text-sm gba:text-muted-foreground">
-            Time Elapsed (%)
+            {t('table-time-elapsed')} (%)
           </div>
 
           {/* Quadrant lines */}
@@ -82,16 +84,16 @@ export const PortfolioHeatmap: React.FC<PortfolioHeatmapProps> = ({
 
           {/* Quadrant Labels */}
           <div className="gba:absolute gba:top-2 gba:left-2 gba:text-xs gba:text-muted-foreground gba:opacity-50">
-            Overrun Risk
+            {t('quadrant-overrun-risk')}
           </div>
           <div className="gba:absolute gba:top-2 gba:right-2 gba:text-xs gba:text-muted-foreground gba:opacity-50">
-            Critical
+            {t('quadrant-critical')}
           </div>
           <div className="gba:absolute gba:bottom-2 gba:left-2 gba:text-xs gba:text-muted-foreground gba:opacity-50">
-            Underutilized
+            {t('quadrant-underutilized')}
           </div>
           <div className="gba:absolute gba:bottom-2 gba:right-2 gba:text-xs gba:text-muted-foreground gba:opacity-50">
-            Healthy
+            {t('quadrant-healthy')}
           </div>
 
           {/* Y-axis ticks */}
@@ -122,23 +124,16 @@ export const PortfolioHeatmap: React.FC<PortfolioHeatmapProps> = ({
             const colorClass = getProjectColor(project)
 
             return (
-              <div
+              <button
                 key={project.id}
-                role="button"
-                tabIndex={0}
-                className={`gba:absolute gba:w-4 gba:h-4 gba:rounded-full ${colorClass} gba:cursor-pointer gba:transition-transform gba:hover:scale-150 gba:border-2 gba:border-background`}
+                type="button"
+                className={`gba:absolute gba:w-4 gba:h-4 gba:rounded-full ${colorClass} gba:cursor-pointer gba:transition-transform gba:hover:scale-150 gba:border-2 gba:border-background gba:p-0 gba:m-0 gba:outline-none`}
                 style={{
                   left: `${x}%`,
                   top: `${100 - (y / 120) * 100}%`,
                   transform: 'translate(-50%, -50%)'
                 }}
                 onClick={() => onProjectClick(project)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    onProjectClick(project)
-                  }
-                }}
                 title={`${project.name}: ${project.budgetConsumptionPercent}% budget, ${project.elapsedTimePercent}% time`}
                 data-testid={`${prefixDataTestId}-dot-${project.id}`}
               />
@@ -148,7 +143,7 @@ export const PortfolioHeatmap: React.FC<PortfolioHeatmapProps> = ({
           {/* Empty state */}
           {plotableProjects.length === 0 && (
             <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:text-muted-foreground">
-              No projects with budget data to display
+              {t('no-projects-with-budget')}
             </div>
           )}
         </div>
@@ -157,19 +152,19 @@ export const PortfolioHeatmap: React.FC<PortfolioHeatmapProps> = ({
         <div className="gba:flex gba:items-center gba:justify-center gba:gap-4 gba:mt-6">
           <div className="gba:flex gba:items-center gba:gap-1">
             <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-success" />
-            <span className="gba:text-xs gba:text-muted-foreground">On Track</span>
+            <span className="gba:text-xs gba:text-muted-foreground">{t('risk-on-track')}</span>
           </div>
           <div className="gba:flex gba:items-center gba:gap-1">
             <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-warning" />
-            <span className="gba:text-xs gba:text-muted-foreground">At Risk</span>
+            <span className="gba:text-xs gba:text-muted-foreground">{t('risk-at-risk')}</span>
           </div>
           <div className="gba:flex gba:items-center gba:gap-1">
             <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-destructive" />
-            <span className="gba:text-xs gba:text-muted-foreground">Over Budget</span>
+            <span className="gba:text-xs gba:text-muted-foreground">{t('risk-over-budget')}</span>
           </div>
           <div className="gba:flex gba:items-center gba:gap-1">
             <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-muted" />
-            <span className="gba:text-xs gba:text-muted-foreground">Not Started</span>
+            <span className="gba:text-xs gba:text-muted-foreground">{t('risk-not-started')}</span>
           </div>
         </div>
       </CardContent>

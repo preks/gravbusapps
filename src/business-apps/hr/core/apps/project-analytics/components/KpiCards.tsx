@@ -1,8 +1,8 @@
 import React from 'react'
-import { Card, ItemMedia } from '@newwork/nw-design-system'
+import { Card, ItemMedia, useTranslation } from '@newwork/nw-design-system'
 import { BriefcaseIcon, ClockIcon, TrendUpIcon, WarningIcon, CheckCircleIcon, XCircleIcon } from '@phosphor-icons/react'
 import { KpiCardData } from '../types'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../_i18n'
 
 interface KpiCardsProps {
   kpis: KpiCardData
@@ -10,35 +10,36 @@ interface KpiCardsProps {
 }
 
 export const KpiCards: React.FC<KpiCardsProps> = ({ kpis, prefixDataTestId = 'kpi-cards' }) => {
+  const { t } = useTranslation(translations)
   // Primary row cards (4 columns)
   const primaryCards = [
     {
       id: 'total-projects',
       icon: BriefcaseIcon,
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:project_analytics.kpi_total_projects', 'Total Projects'),
+      label: t('kpi-total-projects'),
       value: kpis.totalProjects.toString(),
-      subtitle: `${kpis.activeProjects} active`
+      subtitle: `${kpis.activeProjects} ${t('kpi-active-projects')}`
     },
     {
       id: 'budget-consumption',
       icon: TrendUpIcon,
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:project_analytics.kpi_avg_budget', 'Avg Budget Used'),
+      label: t('kpi-avg-budget-used'),
       value: `${kpis.averageBudgetConsumption}%`,
       subtitle: `${kpis.totalLoggedHours.toLocaleString()}h / ${kpis.totalBudgetHours.toLocaleString()}h`
     },
     {
       id: 'on-track',
       icon: CheckCircleIcon,
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:project_analytics.kpi_on_track', 'On Track'),
+      label: t('kpi-on-track'),
       value: kpis.projectsOnTrack.toString(),
-      subtitle: 'Projects progressing well'
+      subtitle: t('kpi-projects-progressing-well')
     },
     {
       id: 'at-risk',
       icon: WarningIcon,
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:project_analytics.kpi_at_risk', 'At Risk'),
+      label: t('kpi-at-risk'),
       value: kpis.projectsAtRisk.toString(),
-      subtitle: 'Need attention'
+      subtitle: t('kpi-need-attention')
     }
   ]
 
@@ -47,16 +48,16 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ kpis, prefixDataTestId = 'kp
     {
       id: 'over-budget',
       icon: XCircleIcon,
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:project_analytics.kpi_over_budget', 'Over Budget'),
+      label: t('kpi-over-budget'),
       value: kpis.projectsOverBudget.toString(),
-      subtitle: 'Exceeded budget'
+      subtitle: t('kpi-exceeded-budget')
     },
     {
       id: 'hours-logged',
       icon: ClockIcon,
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:project_analytics.kpi_hours_logged', 'Hours Logged'),
+      label: t('kpi-hours-logged'),
       value: kpis.totalLoggedHours.toLocaleString(),
-      subtitle: `${kpis.totalBudgetHours.toLocaleString()}h budgeted`
+      subtitle: t('hours-budgeted', { hours: kpis.totalBudgetHours.toLocaleString() })
     }
   ]
 

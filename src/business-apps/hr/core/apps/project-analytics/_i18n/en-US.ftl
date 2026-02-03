@@ -81,5 +81,11 @@ insight-budget-exhausted = If current burn rate continues, budget will be exhaus
 insight-budget-exceeded = This project has exceeded budget by { $hours } hours.
 insight-top-contributors = Top 2 contributors account for { $percent }% of total effort.
 
+# Additional Labels
+hours-budgeted = { $hours }h budgeted
+no-data-available = No data available
+no-contributors-yet = No contributors yet
+filter-search = Search
+
 
 

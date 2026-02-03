@@ -1,7 +1,8 @@
 import React from 'react'
-import { Input, Button, Badge } from '@newwork/nw-design-system'
+import { Input, Button, Badge, useTranslation } from '@newwork/nw-design-system'
 import { MagnifyingGlassIcon, XIcon, FunnelIcon } from '@phosphor-icons/react'
 import { ProjectAnalyticsFilters, RiskStatus } from '../types'
+import translations from '../_i18n'
 
 interface FilterBarProps {
   filters: ProjectAnalyticsFilters
@@ -9,14 +10,14 @@ interface FilterBarProps {
   prefixDataTestId?: string
 }
 
-const STATUS_OPTIONS: Array<{ value: RiskStatus; label: string }> = [
-  { value: 'on-track', label: '🟢 On Track' },
-  { value: 'at-risk', label: '🟠 At Risk' },
-  { value: 'over-budget', label: '🔴 Over Budget' },
-  { value: 'not-started', label: '⚪ Not Started' }
-]
-
 export const FilterBar: React.FC<FilterBarProps> = ({ filters, onFiltersChange, prefixDataTestId = 'filter-bar' }) => {
+  const { t } = useTranslation(translations)
+  const STATUS_OPTIONS: Array<{ value: RiskStatus; label: string }> = [
+    { value: 'on-track', label: `🟢 ${t('risk-on-track')}` },
+    { value: 'at-risk', label: `🟠 ${t('risk-at-risk')}` },
+    { value: 'over-budget', label: `🔴 ${t('risk-over-budget')}` },
+    { value: 'not-started', label: `⚪ ${t('risk-not-started')}` }
+  ]
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onFiltersChange({ ...filters, search: e.target.value })
   }
@@ -50,7 +51,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({ filters, onFiltersChange, 
         <div className="gba:relative gba:flex-1 gba:max-w-md">
           <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
           <Input
-            placeholder="Search projects..."
+            placeholder={t('filter-search-placeholder')}
             value={filters.search || ''}
             onChange={handleSearchChange}
             className="gba:pl-9"
@@ -66,7 +67,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({ filters, onFiltersChange, 
             data-testid={`${prefixDataTestId}-clear`}
           >
             <XIcon className="gba:w-4 gba:h-4 gba:mr-1" />
-            Clear filters
+            {t('filter-clear')}
           </Button>
         )}
       </div>
@@ -74,7 +75,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({ filters, onFiltersChange, 
       {/* Status Filters */}
       <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
         <FunnelIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-        <span className="gba:text-sm gba:text-muted-foreground gba:mr-2">Status:</span>
+        <span className="gba:text-sm gba:text-muted-foreground gba:mr-2">{t('filter-status')}:</span>
         {STATUS_OPTIONS.map(option => (
           <Badge
             key={option.value}
@@ -91,10 +92,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({ filters, onFiltersChange, 
       {/* Active Filters Summary */}
       {hasActiveFilters && (
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
-          <span>Showing:</span>
+          <span>{t('filter-showing')}:</span>
           {filters.search && (
             <Badge variant="secondary" className="gba:gap-1">
-              Search: &quot;{filters.search}&quot;
+              {t('filter-search')}: &quot;{filters.search}&quot;
               <XIcon
                 className="gba:w-3 gba:h-3 gba:cursor-pointer"
                 onClick={() => onFiltersChange({ ...filters, search: '' })}

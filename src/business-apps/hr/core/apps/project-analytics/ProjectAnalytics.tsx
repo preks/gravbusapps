@@ -9,23 +9,23 @@ import {
   AlertTitle,
   AlertDescription,
   Button,
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle
+  useTranslation
 } from '@newwork/nw-design-system'
-import { TableIcon, GridFourIcon } from '@phosphor-icons/react'
+import { TableIcon, GridFourIcon, BriefcaseIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { DataContainer } from '@/components/layout/dataContainer'
+import type { DataControllerProps } from '@/components/dataController/DataController'
 import { useProjectAnalytics } from './hooks/useProjectAnalytics'
 import { ProjectAnalyticsData } from './types'
 import { KpiCards, FilterBar, PortfolioTable, PortfolioHeatmap, ProjectDetailPanel } from './components'
+import translations from './_i18n'
 
 interface ProjectAnalyticsProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
 const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({ accessToken, prefixDataTestId = 'project-analytics' }) => {
+  const { t } = useTranslation(translations)
   const [activeTab, setActiveTab] = useState<'overview' | 'portfolio'>('overview')
   const [selectedProject, setSelectedProject] = useState<ProjectAnalyticsData | null>(null)
   const [sortField, setSortField] = useState<string>('')
@@ -58,9 +58,7 @@ const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({ accessToken, prefix
         data-testid={`${prefixDataTestId}-no-auth`}
       >
         <Spinner size="lg" />
-        <span className="gba:ml-3 gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:loading', 'Loading...')}
-        </span>
+        <span className="gba:ml-3 gba:text-muted-foreground">{t('loading')}</span>
       </div>
     )
   }
@@ -70,16 +68,11 @@ const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({ accessToken, prefix
     return (
       <div className="gba:p-6" data-testid={`${prefixDataTestId}-error`}>
         <Alert variant="destructive">
-          <AlertTitle>
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:project_analytics.error_loading',
-              'Failed to load project analytics'
-            )}
-          </AlertTitle>
+          <AlertTitle>{t('error-loading')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
         <Button onClick={refetch} className="gba:mt-4" data-testid={`${prefixDataTestId}-retry-button`}>
-          {getTranslationFromI18nKeyAndLabel('lowcoder:try_again', 'Try again')}
+          {t('try-again')}
         </Button>
       </div>
     )
@@ -93,9 +86,7 @@ const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({ accessToken, prefix
         data-testid={`${prefixDataTestId}-loading`}
       >
         <Spinner size="lg" />
-        <span className="gba:ml-3 gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:loading', 'Loading project analytics...')}
-        </span>
+        <span className="gba:ml-3 gba:text-muted-foreground">{t('loading-project-analytics')}</span>
       </div>
     )
   }
@@ -104,15 +95,8 @@ const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({ accessToken, prefix
     <div className="gba:container gba:mx-auto gba:p-6" data-testid={prefixDataTestId}>
       {/* Page Header */}
       <div className="gba:mb-6">
-        <h1 className="gba:text-3xl gba:font-bold gba:text-foreground">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:project_analytics.title', 'Project Analytics')}
-        </h1>
-        <p className="gba:text-muted-foreground gba:mt-2">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:project_analytics.subtitle',
-            'Monitor project performance, budget consumption, and identify risks'
-          )}
-        </p>
+        <h1 className="gba:text-3xl gba:font-bold gba:text-foreground">{t('project-analytics-title')}</h1>
+        <p className="gba:text-muted-foreground gba:mt-2">{t('project-analytics-subtitle')}</p>
       </div>
 
       {/* KPI Cards */}
@@ -121,54 +105,85 @@ const ProjectAnalytics: React.FC<ProjectAnalyticsProps> = ({ accessToken, prefix
       {/* Filters */}
       <FilterBar filters={filters} onFiltersChange={setFilters} prefixDataTestId={`${prefixDataTestId}-filters`} />
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={value => setActiveTab(value as typeof activeTab)}>
-        <TabsList className="gba:mb-6">
-          <TabsTrigger value="overview" startIcon={<TableIcon />} data-testid={`${prefixDataTestId}-overview-tab`}>
-            {getTranslationFromI18nKeyAndLabel('lowcoder:project_analytics.portfolio_overview', 'Portfolio Overview')}
-          </TabsTrigger>
-          <TabsTrigger value="portfolio" startIcon={<GridFourIcon />} data-testid={`${prefixDataTestId}-portfolio-tab`}>
-            {getTranslationFromI18nKeyAndLabel('lowcoder:project_analytics.health_matrix', 'Health Matrix')}
-          </TabsTrigger>
-        </TabsList>
+      {/* Main Content with DataContainer for details panel */}
+      <DataContainer
+        contentBackground="white"
+        floatingDetails={true}
+        onDetailsPanelClose={handleCloseDetail}
+        dataControllerProps={
+          {
+            listTitle: t('project-analytics-title'),
+            listIcon: <BriefcaseIcon size={20} />,
+            search: '',
+            setSearch: () => {},
+            filter: [],
+            setFilter: () => {}
+          } as Omit<DataControllerProps, 'showDataFilter' | 'onToggleDataFilter'>
+        }
+        dataFilterProps={{
+          filterGroups: [],
+          onFilterChange: () => {}
+        }}
+        hideFilter={true}
+        dataBody={
+          <div>
+            {/* Tabs */}
+            <Tabs value={activeTab} onValueChange={value => setActiveTab(value as typeof activeTab)}>
+              <TabsList className="gba:mb-6">
+                <TabsTrigger
+                  value="overview"
+                  startIcon={<TableIcon />}
+                  data-testid={`${prefixDataTestId}-overview-tab`}
+                >
+                  {t('portfolio-overview-tab')}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="portfolio"
+                  startIcon={<GridFourIcon />}
+                  data-testid={`${prefixDataTestId}-portfolio-tab`}
+                >
+                  {t('health-matrix-tab')}
+                </TabsTrigger>
+              </TabsList>
 
-        {/* Portfolio Overview Tab */}
-        <TabsContent value="overview">
-          <PortfolioTable
-            projects={projects}
-            onProjectClick={handleProjectClick}
-            sortField={sortField}
-            sortOrder={sortOrder}
-            onSort={handleSort}
-            prefixDataTestId={`${prefixDataTestId}-table`}
-          />
-        </TabsContent>
+              {/* Portfolio Overview Tab */}
+              <TabsContent value="overview">
+                <PortfolioTable
+                  projects={projects}
+                  onProjectClick={handleProjectClick}
+                  sortField={sortField}
+                  sortOrder={sortOrder}
+                  onSort={handleSort}
+                  prefixDataTestId={`${prefixDataTestId}-table`}
+                />
+              </TabsContent>
 
-        {/* Health Matrix Tab */}
-        <TabsContent value="portfolio">
-          <PortfolioHeatmap
-            projects={projects}
-            onProjectClick={handleProjectClick}
-            prefixDataTestId={`${prefixDataTestId}-heatmap`}
-          />
-        </TabsContent>
-      </Tabs>
-
-      {/* Project Detail Sheet */}
-      <Sheet open={!!selectedProject} onOpenChange={open => !open && handleCloseDetail()}>
-        <SheetContent className="gba:w-full sm:gba:max-w-2xl gba:overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:project_analytics.project_details', 'Project Details')}
-            </SheetTitle>
-          </SheetHeader>
-          {selectedProject && (
-            <div className="gba:mt-6">
-              <ProjectDetailPanel project={selectedProject} prefixDataTestId={`${prefixDataTestId}-detail`} />
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+              {/* Health Matrix Tab */}
+              <TabsContent value="portfolio">
+                <PortfolioHeatmap
+                  projects={projects}
+                  onProjectClick={handleProjectClick}
+                  prefixDataTestId={`${prefixDataTestId}-heatmap`}
+                />
+              </TabsContent>
+            </Tabs>
+          </div>
+        }
+        dataDetails={
+          selectedProject
+            ? {
+                title: selectedProject.name,
+                icon: <BriefcaseIcon size={20} />,
+                content: (
+                  <div className="gba:p-6">
+                    <ProjectDetailPanel project={selectedProject} prefixDataTestId={`${prefixDataTestId}-detail`} />
+                  </div>
+                ),
+                onClose: handleCloseDetail
+              }
+            : undefined
+        }
+      />
     </div>
   )
 }

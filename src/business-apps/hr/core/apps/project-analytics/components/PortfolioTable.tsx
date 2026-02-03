@@ -7,11 +7,13 @@ import {
   TableHeader,
   TableRow,
   Progress,
-  Button
+  Button,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { CaretRightIcon, SortAscendingIcon, SortDescendingIcon } from '@phosphor-icons/react'
 import { ProjectAnalyticsData } from '../types'
 import { RiskIndicator } from './RiskIndicator'
+import translations from '../_i18n'
 
 interface PortfolioTableProps {
   projects: ProjectAnalyticsData[]
@@ -32,6 +34,7 @@ export const PortfolioTable: React.FC<PortfolioTableProps> = ({
   onSort,
   prefixDataTestId = 'portfolio-table'
 }) => {
+  const { t } = useTranslation(translations)
   const renderSortIcon = (field: SortableField) => {
     if (sortField !== field) return null
     return sortOrder === 'asc' ? (
@@ -97,32 +100,32 @@ export const PortfolioTable: React.FC<PortfolioTableProps> = ({
         <TableHeader>
           <TableRow>
             <TableHead className="gba:cursor-pointer gba:hover:bg-muted/50" onClick={() => handleHeaderClick('name')}>
-              Project {renderSortIcon('name')}
+              {t('table-project')} {renderSortIcon('name')}
             </TableHead>
-            <TableHead className="gba:text-center">Manager</TableHead>
+            <TableHead className="gba:text-center">{t('table-manager')}</TableHead>
             <TableHead
               className="gba:cursor-pointer gba:hover:bg-muted/50 gba:text-center"
               onClick={() => handleHeaderClick('budgetConsumptionPercent')}
             >
-              Budget Used {renderSortIcon('budgetConsumptionPercent')}
+              {t('table-budget-used')} {renderSortIcon('budgetConsumptionPercent')}
             </TableHead>
             <TableHead
               className="gba:cursor-pointer gba:hover:bg-muted/50 gba:text-center"
               onClick={() => handleHeaderClick('elapsedTimePercent')}
             >
-              Time Elapsed {renderSortIcon('elapsedTimePercent')}
+              {t('table-time-elapsed')} {renderSortIcon('elapsedTimePercent')}
             </TableHead>
             <TableHead
               className="gba:cursor-pointer gba:hover:bg-muted/50 gba:text-center"
               onClick={() => handleHeaderClick('remainingHours')}
             >
-              Remaining {renderSortIcon('remainingHours')}
+              {t('table-remaining')} {renderSortIcon('remainingHours')}
             </TableHead>
             <TableHead
               className="gba:cursor-pointer gba:hover:bg-muted/50 gba:text-center"
               onClick={() => handleHeaderClick('riskStatus')}
             >
-              Risk {renderSortIcon('riskStatus')}
+              {t('table-risk')} {renderSortIcon('riskStatus')}
             </TableHead>
             <TableHead className="gba:w-[60px]"></TableHead>
           </TableRow>
@@ -131,7 +134,7 @@ export const PortfolioTable: React.FC<PortfolioTableProps> = ({
           {sortedProjects.length === 0 ? (
             <TableRow>
               <TableCell colSpan={7} className="gba:text-center gba:py-8 gba:text-muted-foreground">
-                No projects found
+                {t('no-projects-found')}
               </TableCell>
             </TableRow>
           ) : (

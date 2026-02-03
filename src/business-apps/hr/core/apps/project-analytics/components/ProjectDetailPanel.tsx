@@ -9,13 +9,16 @@ import {
   Badge,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent
+  ChartTooltipContent,
+  useTranslation
 } from '@newwork/nw-design-system'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
+// NOSONAR - Cell is the correct component from recharts library, not deprecated in actual usage
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { ClockIcon, UsersIcon, TrendUpIcon, LightbulbIcon } from '@phosphor-icons/react'
 import { ProjectAnalyticsData } from '../types'
 import { RiskIndicator } from './RiskIndicator'
 import { formatHoursToText } from '../utils/calculations'
+import translations from '../_i18n'
 
 interface ProjectDetailPanelProps {
   project: ProjectAnalyticsData
@@ -28,10 +31,11 @@ export const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
   project,
   prefixDataTestId = 'project-detail'
 }) => {
+  const { t } = useTranslation(translations)
   // Prepare burn rate chart data
   const burnRateChartConfig = {
-    hoursLogged: { label: 'Hours Logged', color: '#3B82F6' },
-    burnRate: { label: 'Burn Rate', color: '#10B981' }
+    hoursLogged: { label: t('kpi-hours-logged'), color: '#3B82F6' },
+    burnRate: { label: t('burn-rate-trend'), color: '#10B981' }
   }
 
   const burnRateData = project.weeklyBurnRates.map(week => ({
@@ -75,7 +79,7 @@ export const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
         <Card className="gba:p-4">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
             <TrendUpIcon className="gba:w-4 gba:h-4 gba:text-primary" />
-            <span className="gba:text-sm gba:text-muted-foreground">Budget Used</span>
+            <span className="gba:text-sm gba:text-muted-foreground">{t('budget-used')}</span>
           </div>
           <div className="gba:text-2xl gba:font-bold">{project.budgetConsumptionPercent}%</div>
           <Progress value={Math.min(project.budgetConsumptionPercent, 100)} className="gba:mt-2 gba:h-2" />
@@ -88,7 +92,7 @@ export const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
         <Card className="gba:p-4">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
             <ClockIcon className="gba:w-4 gba:h-4 gba:text-info" />
-            <span className="gba:text-sm gba:text-muted-foreground">Time Elapsed</span>
+            <span className="gba:text-sm gba:text-muted-foreground">{t('time-elapsed')}</span>
           </div>
           <div className="gba:text-2xl gba:font-bold">{project.elapsedTimePercent}%</div>
           <Progress value={project.elapsedTimePercent} className="gba:mt-2 gba:h-2" />
@@ -96,12 +100,12 @@ export const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
             <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
               {(() => {
                 if (project.daysUntilDeadline > 0) {
-                  return `${project.daysUntilDeadline} days remaining`
+                  return t('days-remaining', { days: project.daysUntilDeadline })
                 }
                 if (project.daysUntilDeadline === 0) {
-                  return 'Due today'
+                  return t('due-today')
                 }
-                return `${Math.abs(project.daysUntilDeadline)} days overdue`
+                return t('days-overdue', { days: Math.abs(project.daysUntilDeadline) })
               })()}
             </p>
           )}
@@ -111,21 +115,23 @@ export const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
         <Card className="gba:p-4">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
             <ClockIcon className="gba:w-4 gba:h-4 gba:text-accent" />
-            <span className="gba:text-sm gba:text-muted-foreground">Remaining</span>
+            <span className="gba:text-sm gba:text-muted-foreground">{t('remaining')}</span>
           </div>
           <div className="gba:text-2xl gba:font-bold">{formatHoursToText(project.remainingHours)}</div>
-          <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">Burn rate: {project.burnRatePerDay}h/day</p>
+          <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+            {t('burn-rate', { rate: project.burnRatePerDay })}
+          </p>
         </Card>
 
         {/* Contributors */}
         <Card className="gba:p-4">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
             <UsersIcon className="gba:w-4 gba:h-4 gba:text-success" />
-            <span className="gba:text-sm gba:text-muted-foreground">Contributors</span>
+            <span className="gba:text-sm gba:text-muted-foreground">{t('contributors')}</span>
           </div>
           <div className="gba:text-2xl gba:font-bold">{project.activeContributorsCount}</div>
           <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-            Avg: {project.avgHoursPerContributor}h per person
+            {t('avg-per-person', { hours: project.avgHoursPerContributor })}
           </p>
         </Card>
       </div>
@@ -135,28 +141,32 @@ export const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
         {/* Burn Rate Trend */}
         <Card>
           <CardHeader>
-            <CardTitle className="gba:text-base">Burn Rate Trend</CardTitle>
+            <CardTitle className="gba:text-base">{t('burn-rate-trend')}</CardTitle>
           </CardHeader>
           <CardContent>
             {burnRateData.length > 0 ? (
-              <ChartContainer config={burnRateChartConfig} className="gba:h-[200px]">
-                <LineChart data={burnRateData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" tickLine={false} axisLine={false} />
-                  <YAxis tickLine={false} axisLine={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line
-                    type="monotone"
-                    dataKey="hoursLogged"
-                    stroke="var(--color-hoursLogged)"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                  />
-                </LineChart>
-              </ChartContainer>
+              <div className="gba:w-full gba:h-[200px] gba:overflow-hidden">
+                <ChartContainer config={burnRateChartConfig} className="gba:w-full gba:h-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={burnRateData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="week" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} />
+                      <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} width={40} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Line
+                        type="monotone"
+                        dataKey="hoursLogged"
+                        stroke="var(--color-hoursLogged)"
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </div>
             ) : (
               <div className="gba:h-[200px] gba:flex gba:items-center gba:justify-center gba:text-muted-foreground">
-                No data available
+                {t('no-data-available')}
               </div>
             )}
           </CardContent>
@@ -165,28 +175,32 @@ export const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
         {/* Team Allocation */}
         <Card>
           <CardHeader>
-            <CardTitle className="gba:text-base">Team Allocation</CardTitle>
+            <CardTitle className="gba:text-base">{t('team-allocation')}</CardTitle>
           </CardHeader>
           <CardContent>
             {contributorData.length > 0 ? (
               <div className="gba:flex gba:items-center gba:gap-4">
-                <ChartContainer config={contributorChartConfig} className="gba:h-[200px] gba:w-[200px]">
-                  <PieChart>
-                    <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                    <Pie
-                      data={contributorData}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius="50%"
-                      outerRadius="80%"
-                      strokeWidth={2}
-                    >
-                      {contributorData.map(entry => (
-                        <Cell key={`cell-${entry.name}`} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ChartContainer>
+                <div className="gba:h-[200px] gba:w-[200px] gba:flex-shrink-0 gba:overflow-hidden">
+                  <ChartContainer config={contributorChartConfig} className="gba:w-full gba:h-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                        <Pie
+                          data={contributorData}
+                          dataKey="value"
+                          nameKey="name"
+                          innerRadius="50%"
+                          outerRadius="80%"
+                          strokeWidth={2}
+                        >
+                          {contributorData.map(entry => (
+                            <Cell key={`cell-${entry.name}`} fill={entry.fill} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
                 <div className="gba:flex-1 gba:space-y-2">
                   {project.topContributors.slice(0, 4).map(contributor => (
                     <div key={contributor.employeeId} className="gba:flex gba:items-center gba:gap-2">
@@ -207,7 +221,7 @@ export const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
               </div>
             ) : (
               <div className="gba:h-[200px] gba:flex gba:items-center gba:justify-center gba:text-muted-foreground">
-                No contributors yet
+                {t('no-contributors-yet')}
               </div>
             )}
           </CardContent>
@@ -220,7 +234,7 @@ export const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
           <CardHeader>
             <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
               <LightbulbIcon className="gba:w-5 gba:h-5 gba:text-warning" />
-              Smart Insights
+              {t('smart-insights')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -242,7 +256,7 @@ export const ProjectDetailPanel: React.FC<ProjectDetailPanelProps> = ({
           <CardContent className="gba:pt-4">
             <div className="gba:flex gba:items-start gba:gap-2">
               <Badge variant={project.riskStatus === 'over-budget' ? 'destructive' : 'warning'}>
-                {project.riskStatus === 'over-budget' ? 'Budget Alert' : 'Risk Alert'}
+                {project.riskStatus === 'over-budget' ? t('budget-alert') : t('risk-alert')}
               </Badge>
               <ul className="gba:space-y-1">
                 {project.riskReasons.map((reason, index) => (
