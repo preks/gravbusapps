@@ -221,6 +221,11 @@ export const McpToolsPanel: React.FC<Pick<TabProps, 'context' | 'state' | 'actio
                     <Badge variant="outline" className="gba:text-xs">
                       MCP
                     </Badge>
+                    {cap.sourceMeta?.internal && (
+                      <Badge variant="secondary" className="gba:text-xs">
+                        Internal
+                      </Badge>
+                    )}
                   </div>
                   {cap.description && (
                     <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{cap.description}</p>

@@ -75,7 +75,8 @@ export const useUnifiedCapabilitiesCatalog = (
             sourceMeta: {
               promptManagerToolId: tool._id,
               mcpUrl: mcpConfig.url,
-              transport: mcpConfig.transport
+              transport: mcpConfig.transport,
+              internal: !!tool.internal
             }
           })
         }

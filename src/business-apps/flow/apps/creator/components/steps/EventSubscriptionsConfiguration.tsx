@@ -41,6 +41,7 @@ interface EventSubscriptionsConfigurationProps {
 }
 
 const EVENT_TYPE_OPTIONS = [
+  { value: 'task.created', label: 'Task Created' },
   { value: 'task.action.*', label: 'Any Action' },
   { value: 'task.action.claimed', label: 'Claim' },
   { value: 'task.action.unclaimed', label: 'Unclaim' },

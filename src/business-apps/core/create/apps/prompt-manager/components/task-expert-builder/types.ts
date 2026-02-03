@@ -25,6 +25,7 @@ export interface UnifiedCapability {
     mcpUrl?: string
     transport?: 'http' | 'sse' | 'websocket'
     promptManagerToolId?: string
+    internal?: boolean
   }
 }
 

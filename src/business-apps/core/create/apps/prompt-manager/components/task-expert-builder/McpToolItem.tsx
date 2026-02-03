@@ -28,9 +28,10 @@ export const McpToolItem: React.FC<McpToolItemProps> = props => {
   const [isTesting, setIsTesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<'connected' | 'disconnected' | 'error'>('disconnected')
-  const [isInternal, setIsInternal] = useState(false)
+  const isInternal = !!capability.sourceMeta?.internal
 
   const [draft, setDraft] = useState<McpToolDraft | null>(null)
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false)
 
   const load = useCallback(async () => {
     setIsLoading(true)
@@ -38,7 +39,7 @@ export const McpToolItem: React.FC<McpToolItemProps> = props => {
     try {
       const tool = await client.getMcpTool(toolId)
       const config = tool.config as MCPConfig
-      setIsInternal(!!tool.internal)
+      setHasAttemptedLoad(true)
 
       const authType = (getSettingsString(tool, 'auth.type') as McpToolAuthType) || 'none'
       const headersJson = getSettingsString(tool, 'http.headersJson') || '{}'
@@ -57,16 +58,20 @@ export const McpToolItem: React.FC<McpToolItemProps> = props => {
       })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load MCP tool')
+      setHasAttemptedLoad(true)
     } finally {
       setIsLoading(false)
     }
   }, [client, toolId, capability.name])
 
   useEffect(() => {
-    if (expanded && !draft && !isLoading) {
+    if (!expanded) return
+    if (isInternal) return
+    if (draft || isLoading || hasAttemptedLoad) return
+    {
       load().catch(() => undefined)
     }
-  }, [expanded, draft, isLoading, load])
+  }, [expanded, draft, isLoading, load, hasAttemptedLoad, isInternal])
 
   const canTest = !isInternal && !!draft?.url?.trim()
 
@@ -187,16 +192,36 @@ export const McpToolItem: React.FC<McpToolItemProps> = props => {
             data-testid={`agent-builder-configure-mcp-tool-${toolId}`}
           >
             <Settings className="gba:w-4 gba:h-4 gba:mr-1" />
-            Configure
+            {isInternal ? 'View' : 'Configure'}
           </Button>
         </div>
       </div>
 
       {expanded && (
         <div className="gba:border-t gba:p-4 gba:space-y-4">
-          {isLoading || !draft ? (
+          {isInternal ? (
+            <div className="gba:text-sm gba:text-muted-foreground gba:space-y-1">
+              <div>This is an internal MCP tool managed by the system.</div>
+              <div className="gba:font-mono gba:text-xs">{capability.sourceMeta?.mcpUrl || '—'}</div>
+            </div>
+          ) : isLoading || (!draft && !hasAttemptedLoad) ? (
             <div className="gba:flex gba:items-center gba:justify-center gba:py-6">
               <Loader2 className="gba:w-5 gba:h-5 gba:animate-spin" />
+            </div>
+          ) : !draft ? (
+            <div className="gba:text-sm gba:text-destructive gba:space-y-2">
+              <div>{error || 'Failed to load MCP tool'}</div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setHasAttemptedLoad(false)
+                  load().catch(() => undefined)
+                }}
+                data-testid={`agent-builder-retry-mcp-tool-${toolId}`}
+              >
+                Retry
+              </Button>
             </div>
           ) : (
             <McpToolConfigForm
