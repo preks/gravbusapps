@@ -224,11 +224,18 @@ const EngagementView: React.FC<EngagementViewProps> = ({ accessToken, userInfo }
       data-testid="engagement-view"
     >
       <div className="gba:w-full gba:max-w-[1300px] gba:mx-auto gba:mb-10 gba:px-4">
+        {/* Section Header */}
+        <div className="gba:pt-6 gba:mb-6">
+          <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+            {t('engagement-dashboard-title')}
+          </h3>
+        </div>
+
         {/* Engagement Dashboard Card */}
         <Card className="gba:mb-8 gba:p-8 gba:bg-primary gba:text-primary-foreground">
           <div className="gba:flex gba:items-start gba:justify-between gba:mb-6">
             <div>
-              <h1 className="gba:text-4xl gba:font-bold gba:mb-2">{t('engagement-dashboard-title')}</h1>
+              <h2 className="gba:text-3xl gba:font-bold gba:mb-2">{t('total-score')}</h2>
               <p className="gba:text-lg gba:opacity-90">{t('engagement-dashboard-subtitle')}</p>
             </div>
             <TrendingUp className="gba:w-16 gba:h-16 gba:opacity-80" />

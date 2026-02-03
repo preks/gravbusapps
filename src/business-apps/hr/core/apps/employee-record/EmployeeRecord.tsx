@@ -578,26 +578,22 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             }
           ]
         : []),
-      ...(devFeatureFlag
-        ? [
-            {
-              value: TAB_KEYS.timeTracking,
-              label: t('employee-record-tab-time-tracking'),
-              icon: <ClockCounterClockwiseIcon className="gba:mr-2" size={20} />,
-              content: (
-                <div className="gba:col-span-full">
-                  <TimeTrackingTab
-                    employee={employee}
-                    accessToken={accessToken}
-                    employeeId={employeeIdToShow}
-                    userId={userInfo?.id || ''}
-                    isSelfView={isSelfView}
-                  />
-                </div>
-              )
-            }
-          ]
-        : []),
+      {
+        value: TAB_KEYS.timeTracking,
+        label: t('employee-record-tab-time-tracking'),
+        icon: <ClockCounterClockwiseIcon className="gba:mr-2" size={20} />,
+        content: (
+          <div className="gba:col-span-full">
+            <TimeTrackingTab
+              employee={employee}
+              accessToken={accessToken}
+              employeeId={employeeIdToShow}
+              userId={userInfo?.id || ''}
+              isSelfView={isSelfView}
+            />
+          </div>
+        )
+      },
       {
         value: TAB_KEYS.absences,
         label: t('employee-record-tab-absences'),
