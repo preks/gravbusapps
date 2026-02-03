@@ -318,6 +318,15 @@ participants-declined-invite = Declined invite
 participants-not-answered = Not answered
 participants-ringing = Ringing...
 participants-available-to-invite = Available to invite
+participants-mute-all-confirm-title = Mute all participants?
+participants-mute-all-confirm-message = Are you sure you want to mute all other participants? They will need to unmute themselves to speak.
+participants-muted-by = You were muted by {$name}
+participants-muted-by-all = You were muted by {$name} (mute all)
+participants-mute-failed = Failed to mute your microphone
+participants-cancel = Cancel
+participants-not-answered = Not answered
+participants-ringing = Ringing...
+participants-available-to-invite = Available to invite
 
 # Video Grid
 videogrid-page-info = Page {$current} of {$total}

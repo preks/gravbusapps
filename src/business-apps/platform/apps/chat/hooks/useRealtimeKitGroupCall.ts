@@ -75,6 +75,7 @@ export interface UseRealtimeKitGroupCallOptions {
   onParticipantJoined?: (participant: CallParticipant) => void
   onParticipantLeft?: (participantId: string) => void
   accessToken?: string | null
+  translate?: (key: string, params?: Record<string, any>) => string
 }
 
 interface CallState extends GroupCallUIState {
@@ -90,7 +91,7 @@ interface CallState extends GroupCallUIState {
 }
 
 export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions): UseGroupCallReturn => {
-  const { wsClient, apiClient, currentUser, onCallStarted, onCallEnded } = options
+  const { wsClient, apiClient, currentUser, onCallStarted, onCallEnded, translate } = options
 
   // Core call state
   const [callState, setCallState] = useState<CallState>({
@@ -201,7 +202,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     meetingId: callState.meetingId,
     currentUser,
     meeting: stableMeeting, // Pass stable meeting reference
-    onReactionReceived: handleReactionReceived
+    onReactionReceived: handleReactionReceived,
+    translate
   })
 
   // Participant management

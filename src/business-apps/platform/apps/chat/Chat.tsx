@@ -383,7 +383,8 @@ const ChatInner: React.FC<ChatProps> = memo(
       wsClient: wsClient || null,
       apiClient: realtimeKitApiClient,
       currentUser: currentUserAsParticipant,
-      accessToken: stableAccessToken
+      accessToken: stableAccessToken,
+      translate: t
     })
 
     // Route to appropriate implementation based on feature flag

@@ -318,6 +318,15 @@ participants-declined-invite = Invitație refuzată
 participants-not-answered = Nu a răspuns
 participants-ringing = Sună...
 participants-available-to-invite = Disponibili pentru invitare
+participants-mute-all-confirm-title = Mut toți participanții?
+participants-mute-all-confirm-message = Sigur doriți să mut toți ceilalți participanți? Aceștia vor trebui să se demuteze singuri pentru a vorbi.
+participants-muted-by = Ai fost mut de {$name}
+participants-muted-by-all = Ai fost mut de {$name} (mut toți)
+participants-mute-failed = Nu s-a putut muta microfonul
+participants-cancel = Anulează
+participants-not-answered = Nu a răspuns
+participants-ringing = Sună...
+participants-available-to-invite = Disponibili pentru invitare
 
 # Video Grid
 videogrid-page-info = Pagina {$current} din {$total}

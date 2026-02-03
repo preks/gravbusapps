@@ -30,7 +30,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Button
 } from '@newwork/nw-design-system'
 import { useRealtimeKitSelector } from '@cloudflare/realtimekit-react'
 import { getInitials } from '../../utils/callUtils'
@@ -103,7 +110,24 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [invitingParticipantIds, setInvitingParticipantIds] = useState<Set<string>>(new Set())
+  const [showMuteAllConfirm, setShowMuteAllConfirm] = useState(false)
   const inviteTimeoutsRef = React.useRef<Map<string, NodeJS.Timeout>>(new Map())
+
+  // Handler to mute all participants with confirmation
+  const handleMuteAllClick = () => {
+    setShowMuteAllConfirm(true)
+  }
+
+  const handleMuteAllConfirm = () => {
+    setShowMuteAllConfirm(false)
+    if (onMuteAll) {
+      onMuteAll()
+    }
+  }
+
+  const handleMuteAllCancel = () => {
+    setShowMuteAllConfirm(false)
+  }
 
   // Keep a persistent record of everyone who's been in the call
   // This ensures they remain visible even after leaving
@@ -460,7 +484,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
           <h3 className="gba:font-semibold gba:text-sm">{t('groupCall-participants')}</h3>
           {onMuteAll && activeParticipants.length > 0 && (
             <button
-              onClick={onMuteAll}
+              onClick={handleMuteAllClick}
               className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive-secondary gba:text-destructive-secondary-foreground hover:gba:bg-destructive gba:rounded gba:transition-colors"
               aria-label={t('participants-mute-all')}
               data-testid={`${prefixDataTestId}-mute-all-btn`}
@@ -786,6 +810,36 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
           </>
         )}
       </div>
+
+      {/* Mute All Confirmation Dialog */}
+      <Dialog open={showMuteAllConfirm} onOpenChange={setShowMuteAllConfirm}>
+        <DialogContent data-testid={`${prefixDataTestId}-mute-all-confirm-dialog`}>
+          <DialogHeader>
+            <DialogTitle>{t('participants-mute-all-confirm-title') || 'Mute all participants?'}</DialogTitle>
+            <DialogDescription>
+              {t('participants-mute-all-confirm-message') ||
+                'Are you sure you want to mute all other participants? They will need to unmute themselves to speak.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleMuteAllCancel}
+              data-testid={`${prefixDataTestId}-mute-all-cancel-btn`}
+            >
+              {t('participants-cancel') || 'Cancel'}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleMuteAllConfirm}
+              data-testid={`${prefixDataTestId}-mute-all-confirm-btn`}
+            >
+              <SpeakerXIcon className="gba:h-4 gba:w-4 gba:mr-2" weight="fill" />
+              {t('participants-mute-all') || 'Mute all'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -318,6 +318,15 @@ participants-declined-invite = Einladung abgelehnt
 participants-not-answered = Nicht beantwortet
 participants-ringing = Klingelt...
 participants-available-to-invite = Zum Einladen verfügbar
+participants-mute-all-confirm-title = Alle Teilnehmer stummschalten?
+participants-mute-all-confirm-message = Möchten Sie wirklich alle anderen Teilnehmer stummschalten? Sie müssen sich selbst wieder aktivieren, um zu sprechen.
+participants-muted-by = Sie wurden stummgeschaltet von {$name}
+participants-muted-by-all = Sie wurden stummgeschaltet von {$name} (alle stummschalten)
+participants-mute-failed = Mikrofon konnte nicht stummgeschaltet werden
+participants-cancel = Abbrechen
+participants-not-answered = Nicht beantwortet
+participants-ringing = Klingelt...
+participants-available-to-invite = Zum Einladen verfügbar
 
 # Video Grid
 videogrid-page-info = Seite {$current} von {$total}
