@@ -167,15 +167,26 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
 
     const initials = getInitials(employeeData, creatorName)
 
+    const containerClassName = useMemo(() => {
+      const base =
+        'gba:relative gba:cursor-pointer gba:transition-all gba:duration-150 gba:pl-10 gba:pr-3 gba:py-2.5 gba:rounded-lg gba:mb-2 gba:border-2 gba:overflow-hidden'
+
+      if (isSelected) {
+        return `${base} gba:bg-card gba:border-foreground gba:shadow-sm`
+      }
+
+      // Unread tasks: subtle premium highlight (background + soft border),
+      // without being loud or breaking dark/light themes.
+      if (isUnread) {
+        return `${base} gba:bg-primary/5 gba:border-primary/10 gba:hover:bg-primary/7`
+      }
+
+      return `${base} gba:bg-card gba:border-transparent gba:hover:bg-accent/50`
+    }, [isSelected, isUnread])
+
     // Always use compact split view layout (since detail panel is always visible)
     return (
-      <div
-        className={`gba:relative gba:cursor-pointer gba:transition-all gba:duration-150 gba:pl-10 gba:pr-3 gba:py-2.5 gba:bg-card gba:rounded-lg gba:mb-2 gba:border-2 gba:overflow-hidden ${
-          isSelected ? 'gba:border-foreground gba:shadow-sm' : 'gba:border-transparent gba:hover:bg-accent/50'
-        }`}
-        onClick={() => onView(task)}
-        data-testid={`task-card-${task.id}`}
-      >
+      <div className={containerClassName} onClick={() => onView(task)} data-testid={`task-card-${task.id}`}>
         {/* Corner Avatar */}
         <div className="gba:absolute gba:left-2 gba:top-0 gba:bottom-0 gba:w-8 gba:flex gba:items-center gba:justify-center">
           <Avatar className="gba:h-6 gba:w-6">
