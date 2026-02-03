@@ -10,7 +10,7 @@
  * - Empty state
  */
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Users, ChevronLeft, ChevronRight } from 'lucide-react'
 
 export interface GridLayout {
@@ -57,6 +57,18 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
   minTileSize = 250,
   gridLayout
 }) => {
+  // Track window size for responsive grid
+  const [, setWindowWidth] = useState(window.innerWidth)
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth)
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
   // Empty state
   if (isEmpty) {
     return (
@@ -69,9 +81,27 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
     )
   }
 
-  // Calculate optimal number of columns for auto-fit mode
-  // This prevents creating too many thin columns
+  // Calculate optimal number of columns based on screen size and item count
+  // This prevents creating too many thin columns on small screens
   const calculateOptimalColumns = (itemCount: number): number => {
+    const screenWidth = window.innerWidth
+
+    // Mobile screens (< 768px)
+    if (screenWidth < 768) {
+      if (itemCount <= 1) return 1
+      if (itemCount <= 4) return 2
+      return 2 // Max 2 columns on mobile
+    }
+
+    // Tablet screens (768px - 1023px)
+    if (screenWidth < 1024) {
+      if (itemCount <= 1) return 1
+      if (itemCount <= 4) return 2
+      if (itemCount <= 9) return 3
+      return 3 // Max 3 columns on tablet
+    }
+
+    // Desktop screens (>= 1024px)
     if (itemCount <= 1) return 1
     if (itemCount <= 4) return 2
     if (itemCount <= 9) return 3
@@ -81,12 +111,27 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
     return Math.min(Math.ceil(Math.sqrt(itemCount)), 6)
   }
 
+  // Calculate optimal row height based on screen size
+  const calculateRowHeight = (): string => {
+    const screenWidth = window.innerWidth
+
+    // On mobile, make tiles taller to fill vertical space better
+    if (screenWidth < 768) {
+      // For 2 columns, calculate height to fill available space
+      // Account for gap and padding
+      return `minmax(${minTileSize * 0.8}px, 1fr)`
+    }
+
+    // On larger screens, maintain aspect ratio
+    return 'minmax(200px, 1fr)'
+  }
+
   // Determine grid style based on mode
   const gridStyle =
     mode === 'auto-fit'
       ? {
           gridTemplateColumns: `repeat(${calculateOptimalColumns(gridItems.length)}, minmax(${minTileSize}px, 1fr))`,
-          gridAutoRows: '1fr'
+          gridAutoRows: calculateRowHeight()
         }
       : {
           gridTemplateColumns: `repeat(${gridLayout?.cols || 1}, 1fr)`,

@@ -197,7 +197,14 @@ export const GroupSettingsModal: React.FC<GroupSettingsModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="gba:max-w-2xl gba:max-h-[80vh]" data-testid={prefixDataTestId}>
+      <DialogContent
+        className="gba:max-h-[80vh]"
+        style={{
+          width: '90vw',
+          maxWidth: window.innerWidth >= 1280 ? '896px' : window.innerWidth >= 1024 ? '768px' : '90vw'
+        }}
+        data-testid={prefixDataTestId}
+      >
         <DialogHeader>
           <DialogTitle>{conversation.name || 'Group Settings'}</DialogTitle>
         </DialogHeader>
