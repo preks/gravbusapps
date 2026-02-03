@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useMemo } from 'react'
-import { Card, Button, Badge, Input, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
+import { Card, Badge, Input, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
 import {
   FileText,
   Search,
@@ -18,7 +18,6 @@ import {
   ScrollText,
   BookOpen,
   LayoutTemplate,
-  Plus,
   Star,
   Clock,
   Users
@@ -29,7 +28,6 @@ import { TEMPLATE_CATEGORY_API_VALUES } from '../types'
 export interface TemplateGalleryProps {
   templates: TemplateSummary[]
   onSelectTemplate: (template: DocumentTemplate) => void
-  onCreateTemplate?: () => void
   onEditTemplate?: (template: TemplateSummary) => void
   'data-testid'?: string
 }
@@ -157,7 +155,6 @@ const TemplateCard: React.FC<{
  */
 export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
   templates,
-  onCreateTemplate,
   onEditTemplate,
   'data-testid': testId = 'template-gallery'
 }) => {
@@ -209,17 +206,9 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
   return (
     <div className="gba:space-y-6" data-testid={testId}>
       {/* Header */}
-      <div className="gba:flex gba:items-center gba:justify-between">
-        <div>
-          <h2 className="gba:text-xl gba:font-semibold gba:text-foreground">Template Gallery</h2>
-          <p className="gba:text-sm gba:text-muted-foreground">Start with a template to save time</p>
-        </div>
-        {onCreateTemplate && (
-          <Button variant="outline" onClick={onCreateTemplate}>
-            <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-            Create Template
-          </Button>
-        )}
+      <div>
+        <h2 className="gba:text-xl gba:font-semibold gba:text-foreground">Template Gallery</h2>
+        <p className="gba:text-sm gba:text-muted-foreground">Start with a template to save time</p>
       </div>
 
       {/* Search */}

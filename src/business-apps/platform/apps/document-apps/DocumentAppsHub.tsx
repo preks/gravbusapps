@@ -631,6 +631,16 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                   <div className="gba:text-xs gba:text-muted-foreground">Choose a template</div>
                 </div>
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setCreateTemplateDialogOpen(true)}
+                data-testid="document-apps-hub-new-create-template"
+              >
+                <LayoutTemplate className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
+                <div>
+                  <div className="gba:font-medium">Create Template</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">Create a new template</div>
+                </div>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -919,7 +929,6 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
               <TemplateGallery
                 templates={templates}
                 onSelectTemplate={handleSelectTemplate}
-                onCreateTemplate={() => setCreateTemplateDialogOpen(true)}
                 onEditTemplate={handleEditTemplate}
                 data-testid={`${testId}-templates`}
               />
