@@ -13,13 +13,15 @@ import {
   SelectTrigger,
   SelectValue,
   SelectContent,
-  SelectItem
+  SelectItem,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   ChartPieIcon,
   ChartBarIcon as ChartBarIconAlt,
   TrendUpIcon as TrendUpIconAlt,
-  ChartBarIcon
+  ChartBarIcon,
+  CurrencyDollarIcon
 } from '@phosphor-icons/react'
 import { Button, Badge } from '@newwork/nw-design-system'
 import { WidgetGroup } from '@/components/widget-group'
@@ -31,6 +33,7 @@ import { useInvestmentPortfolioIntegration } from './hooks'
 import { PortfolioTimelineCharts } from './components/PortfolioTimelineCharts'
 import { PortfolioAnalyticsCharts } from './components/PortfolioAnalyticsCharts'
 import { PortfolioDistributionCharts } from './components/PortfolioDistributionCharts'
+import translations from './_i18n'
 
 // Typography components removed - using native HTML elements with nw-design-system styling
 
@@ -38,19 +41,20 @@ interface InvestmentPortfolioOverviewProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
-const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
-  if (previous === 0) return { value: 'N/A', positive: true }
-  const change = ((current - previous) / previous) * 100
-  return {
-    value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`,
-    positive: change >= 0
-  }
-}
-
 const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = props => {
+  const { t } = useTranslation(translations)
   const prefixDataTestId = props.prefixDataTestId || 'InvestmentPortfolioOverview'
   const [activeTab, setActiveTab] = useState('distribution')
   const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
+
+  const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
+    if (previous === 0) return { value: t('data-not-available'), positive: true }
+    const change = ((current - previous) / previous) * 100
+    return {
+      value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`,
+      positive: change >= 0
+    }
+  }
 
   const { kpis, previousKpis, isLoading, error, refetch } = useInvestmentPortfolioIntegration(props, selectedCurrency)
 
@@ -128,42 +132,6 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
         <WidgetGroup
           widgets={[
             {
-              key: 'total-portfolio-value',
-              title: getTranslationFromI18nKeyAndLabel('kpi.totalPortfolioValue', 'Total Portfolio Value'),
-              value: new Intl.NumberFormat('en-US', {
-                style: 'currency',
-                currency: selectedCurrency,
-                notation: 'compact',
-                compactDisplay: 'short',
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 1
-              }).format(kpis.totalPortfolioValue),
-              prefix: <ChartPieIcon />,
-              color: 'var(--nw-color-primary-500)',
-              valueIsString: true,
-              span: { xs: 24, sm: 12, lg: 6 },
-              description: 'All investments',
-              trend: {
-                value: calculateChange(kpis.totalPortfolioValue, previousKpis.totalPortfolioValue).value,
-                positive: calculateChange(kpis.totalPortfolioValue, previousKpis.totalPortfolioValue).positive,
-                description: 'vs last quarter'
-              }
-            },
-            {
-              key: 'total-investments',
-              title: getTranslationFromI18nKeyAndLabel('kpi.totalInvestments', 'Total Investments'),
-              value: kpis.totalInvestments,
-              prefix: <ChartBarIconAlt />,
-              color: 'var(--nw-color-success-500)',
-              span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Investment count',
-              trend: {
-                value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
-                positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-                description: 'vs last quarter'
-              }
-            },
-            {
               key: 'total-amount-invested',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalAmountInvested', 'Total Amount Invested'),
               value: new Intl.NumberFormat('en-US', {
@@ -174,15 +142,51 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 1
               }).format(kpis.totalAmountInvested),
-              prefix: <ChartBarIconAlt />,
+              prefix: <CurrencyDollarIcon />,
               color: 'var(--nw-color-warning-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Total capital',
+              description: t('kpi-description-total-capital'),
               trend: {
                 value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
                 positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
-                description: 'vs last quarter'
+                description: t('trend-vs-last-quarter')
+              }
+            },
+            {
+              key: 'total-investments',
+              title: getTranslationFromI18nKeyAndLabel('kpi.totalInvestments', 'Total Investments'),
+              value: kpis.totalInvestments,
+              prefix: <ChartBarIconAlt />,
+              color: 'var(--nw-color-success-500)',
+              span: { xs: 24, sm: 12, lg: 6 },
+              description: t('kpi-description-investment-count'),
+              trend: {
+                value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
+                positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
+                description: t('trend-vs-last-quarter')
+              }
+            },
+            {
+              key: 'avg-investment-amount',
+              title: getTranslationFromI18nKeyAndLabel('kpi.avgInvestmentAmount', 'Avg. Investment Amount'),
+              value: new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: selectedCurrency,
+                notation: 'compact',
+                compactDisplay: 'short',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 1
+              }).format(kpis.averageInvestmentValue),
+              prefix: <ChartPieIcon />,
+              color: 'var(--nw-color-primary-500)',
+              valueIsString: true,
+              span: { xs: 24, sm: 12, lg: 6 },
+              description: t('kpi-description-per-investment'),
+              trend: {
+                value: calculateChange(kpis.averageInvestmentValue, previousKpis.averageInvestmentValue).value,
+                positive: calculateChange(kpis.averageInvestmentValue, previousKpis.averageInvestmentValue).positive,
+                description: t('trend-vs-last-quarter')
               }
             },
             {
@@ -192,11 +196,11 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               prefix: <TrendUpIconAlt />,
               color: 'var(--nw-color-purple-500)',
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Active positions',
+              description: t('kpi-description-active-positions'),
               trend: {
                 value: calculateChange(kpis.activeInvestments, previousKpis.activeInvestments).value,
                 positive: calculateChange(kpis.activeInvestments, previousKpis.activeInvestments).positive,
-                description: 'vs last quarter'
+                description: t('trend-vs-last-quarter')
               }
             }
           ]}

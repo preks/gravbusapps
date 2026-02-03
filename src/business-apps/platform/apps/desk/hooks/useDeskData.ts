@@ -20,6 +20,7 @@ export interface ContentItem {
   createdAt: string
   isShared?: boolean
   isOwner?: boolean
+  isPdf?: boolean // For PDF documents
 }
 
 /** Statistics for each app */
@@ -89,25 +90,13 @@ export function useDeskData(accessToken: string | undefined, userId: string): Us
   const [isInitialized, setIsInitialized] = useState(false)
 
   // Fetch data from each app
-  const {
-    documents: rawDocuments,
-    isLoading: isLoadingDocuments
-  } = useDocumentApps(accessToken, userId)
+  const { documents: rawDocuments, isLoading: isLoadingDocuments } = useDocumentApps(accessToken, userId)
 
-  const {
-    apps: rawSpreadsheets,
-    isLoading: isLoadingSpreadsheets
-  } = useSpreadsheetApps(accessToken, userId)
+  const { apps: rawSpreadsheets, isLoading: isLoadingSpreadsheets } = useSpreadsheetApps(accessToken, userId)
 
-  const {
-    notes: rawNotes,
-    isLoading: isLoadingNotes
-  } = useNotes({ accessToken, userId })
+  const { notes: rawNotes, isLoading: isLoadingNotes } = useNotes({ accessToken, userId })
 
-  const {
-    slides: rawSlides,
-    isLoading: isLoadingSlides
-  } = useSlides(accessToken, userId)
+  const { slides: rawSlides, isLoading: isLoadingSlides } = useSlides(accessToken, userId)
 
   // Mark as initialized after first load
   useEffect(() => {
@@ -125,7 +114,8 @@ export function useDeskData(accessToken: string | undefined, userId: string): Us
       updatedAt: doc.updatedAt,
       createdAt: doc.createdAt,
       isShared: doc.isShared,
-      isOwner: doc.isOwner
+      isOwner: doc.isOwner,
+      isPdf: doc.isPdf
     }))
   }, [rawDocuments])
 
@@ -171,31 +161,32 @@ export function useDeskData(accessToken: string | undefined, userId: string): Us
   // Combine and sort recent items
   const recentItems: ContentItem[] = useMemo(() => {
     const allItems = [...documents, ...spreadsheets, ...notes, ...slides]
-    return allItems
-      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .slice(0, 10)
+    return allItems.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 10)
   }, [documents, spreadsheets, notes, slides])
 
   // Calculate stats
-  const stats: DeskStats = useMemo(() => ({
-    documents: {
-      total: documents.length,
-      shared: documents.filter(d => d.isShared && !d.isOwner).length
-    },
-    spreadsheets: {
-      total: spreadsheets.length,
-      shared: spreadsheets.filter(s => s.isShared && !s.isOwner).length
-    },
-    notes: {
-      total: notes.length,
-      shared: notes.filter(n => n.isShared && !n.isOwner).length
-    },
-    slides: {
-      total: slides.length,
-      shared: slides.filter(s => s.isShared && !s.isOwner).length
-    },
-    totalItems: documents.length + spreadsheets.length + notes.length + slides.length
-  }), [documents, spreadsheets, notes, slides])
+  const stats: DeskStats = useMemo(
+    () => ({
+      documents: {
+        total: documents.length,
+        shared: documents.filter(d => d.isShared && !d.isOwner).length
+      },
+      spreadsheets: {
+        total: spreadsheets.length,
+        shared: spreadsheets.filter(s => s.isShared && !s.isOwner).length
+      },
+      notes: {
+        total: notes.length,
+        shared: notes.filter(n => n.isShared && !n.isOwner).length
+      },
+      slides: {
+        total: slides.length,
+        shared: slides.filter(s => s.isShared && !s.isOwner).length
+      },
+      totalItems: documents.length + spreadsheets.length + notes.length + slides.length
+    }),
+    [documents, spreadsheets, notes, slides]
+  )
 
   // Generate activity data for the last 7 days
   const activityData: ActivityDataPoint[] = useMemo(() => {

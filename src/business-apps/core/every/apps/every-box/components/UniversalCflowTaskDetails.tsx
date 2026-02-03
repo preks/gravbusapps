@@ -12,7 +12,8 @@ import {
   AlertDescription,
   AlertTitle,
   useTranslation,
-  useLocale
+  useLocale,
+  toast
 } from '@newwork/nw-design-system'
 import {
   Clock,
@@ -27,7 +28,6 @@ import {
   AlertCircle,
   Calendar
 } from 'lucide-react'
-import { message } from 'antd'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
 import isToday from 'dayjs/plugin/isToday'
@@ -368,10 +368,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
       // Show error message with list of missing fields
       const errorMessage = validation.errors.join('\n')
-      message.error({
-        content: errorMessage,
-        duration: 5
-      })
+      toast.error(errorMessage)
       return
     }
 
@@ -399,10 +396,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       throw new Error(errorData.error || 'Failed to complete task')
     }
 
-    message.success({
-      content: t('task-dialog-completed-success'),
-      duration: 3
-    })
+    toast.success(t('task-dialog-completed-success'))
 
     if (onTaskCompleted && task.id) {
       onTaskCompleted(task.id)
@@ -433,10 +427,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       throw new Error(errorData.error || 'Failed to reject task')
     }
 
-    message.success({
-      content: t('task-details-task-rejected'),
-      duration: 3
-    })
+    toast.success(t('task-details-task-rejected'))
 
     if (onTaskCompleted && task.id) {
       onTaskCompleted(task.id)
@@ -461,10 +452,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       throw new Error(errorData.error || 'Failed to claim task')
     }
 
-    message.success({
-      content: t('task-details-task-claimed'),
-      duration: 3
-    })
+    toast.success(t('task-details-task-claimed'))
 
     onTaskUpdated()
     onClose()
@@ -486,10 +474,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       throw new Error(errorData.error || 'Failed to unclaim task')
     }
 
-    message.success({
-      content: t('task-details-task-unclaimed'),
-      duration: 3
-    })
+    toast.success(t('task-details-task-unclaimed'))
 
     onTaskUpdated()
     onClose()
@@ -498,7 +483,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   // Unified handler for all task actions
   const handleTaskAction = async (action: string, data?: any) => {
     if (!task.id || !userId) {
-      message.error(t('task-details-action-error'))
+      toast.error(t('task-details-action-error'))
       return
     }
 
@@ -517,20 +502,17 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           await handleRejectTask(flowEngineApi, data)
           break
         case 'reassign':
-          message.info(t('task-details-reassign-coming'))
+          toast.info(t('task-details-reassign-coming'))
           break
         case 'unclaim':
           await handleUnclaimTask(flowEngineApi)
           break
         default:
-          message.warning(t('task-details-unknown-action', { action }))
+          toast.warning(t('task-details-unknown-action', { action }))
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t('task-details-action-failed', { action })
-      message.error({
-        content: errorMessage,
-        duration: 5
-      })
+      toast.error(errorMessage)
     } finally {
       setIsCompleting(false)
     }
