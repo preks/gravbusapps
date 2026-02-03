@@ -4,7 +4,15 @@
  */
 
 import React, { memo, useMemo } from 'react'
-import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
+import {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Badge,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent
+} from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
@@ -139,7 +147,6 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     // Display data
     const creatorName = getCreatorDisplayName(task, employeeData, areAvatarsLoading, t)
     const createdAt = task.createdAt || task.scheduledAt || task.sourceMetadata?.createdAt
-    const dueDate = task.dueDate
     const isUnread = !task.userState?.isRead
     const isPinned = Boolean(task.userState?.isPinned)
     const userPriority = task.userState?.userPriority ?? null
@@ -199,38 +206,40 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
       return `${base} gba:bg-card gba:border-transparent gba:hover:bg-accent/50`
     }, [isSelected, isUnread])
 
-    const dueBadge = useMemo(() => {
-      if (!dueDate) return null
-      if (task.status === 'COMPLETED') return null
+    const dueInline = useMemo(() => {
+      const dm = task.dueMeta
+      if (!dm) return null
 
-      const d = dayjs(dueDate)
-      if (!d.isValid()) return null
+      const isOverdue = dm.status === 'overdue'
+      const days = isOverdue ? dm.daysOverdue : dm.daysRemaining
+      const hours = isOverdue ? dm.hoursOverdue : dm.hoursRemaining
 
-      const now = dayjs()
-      const isOverdue = d.isBefore(now)
-      const hoursUntil = d.diff(now, 'hour', true)
-      const isDueSoon = !isOverdue && hoursUntil <= 72
-
-      const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
-      const dateLabel = d.locale(baseLocale).format('L')
-
-      if (isOverdue) {
+      if (days) {
         return {
-          label: `${t('task-card-overdue')} · ${d.fromNow(true)}`,
-          className: 'gba:bg-red-500/10 gba:text-red-700 gba:border gba:border-red-500/20 gba:dark:text-red-200'
+          token: `${days}d`,
+          tooltip: isOverdue
+            ? t('task-card-tooltip-overdue-days', { days })
+            : t('task-card-tooltip-due-days', { days }),
+          className: isOverdue
+            ? 'gba:text-rose-700/80 gba:dark:text-rose-200/80 gba:hover:text-rose-700/95 gba:dark:hover:text-rose-200/95'
+            : 'gba:text-amber-700/75 gba:dark:text-amber-200/75 gba:hover:text-amber-700/90 gba:dark:hover:text-amber-200/90'
         }
       }
-      if (isDueSoon) {
+
+      if (hours) {
         return {
-          label: `${t('task-card-due-soon')} · ${d.fromNow(true)}`,
-          className: 'gba:bg-amber-500/10 gba:text-amber-800 gba:border gba:border-amber-500/20 gba:dark:text-amber-200'
+          token: `${hours}h`,
+          tooltip: isOverdue
+            ? t('task-card-tooltip-overdue-hours', { hours })
+            : t('task-card-tooltip-due-hours', { hours }),
+          className: isOverdue
+            ? 'gba:text-rose-700/80 gba:dark:text-rose-200/80 gba:hover:text-rose-700/95 gba:dark:hover:text-rose-200/95'
+            : 'gba:text-amber-700/75 gba:dark:text-amber-200/75 gba:hover:text-amber-700/90 gba:dark:hover:text-amber-200/90'
         }
       }
-      return {
-        label: t('task-card-due', { date: dateLabel }),
-        className: 'gba:bg-muted gba:text-muted-foreground gba:border gba:border-muted-foreground/15'
-      }
-    }, [dueDate, locale, t, task.status])
+
+      return null
+    }, [task.dueMeta, t])
 
     // Always use compact split view layout (since detail panel is always visible)
     return (
@@ -270,7 +279,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
 
           {/* Right: Pinned + Timestamp */}
           <div className="gba:flex gba:flex-col gba:items-end gba:gap-1 gba:flex-shrink-0">
-            {(isPinned || priorityIndicator) && (
+            {(isPinned || priorityIndicator || dueInline) && (
               <div className="gba:flex gba:items-center gba:justify-end gba:gap-1 gba:flex-wrap">
                 {isPinned && (
                   <Badge
@@ -291,12 +300,21 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
                     <span>{priorityIndicator.label}</span>
                   </Badge>
                 )}
+
+                {dueInline && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        className={`gba:text-[11px] gba:font-medium gba:tabular-nums gba:leading-none gba:px-0.5 gba:cursor-default ${dueInline.className}`}
+                        aria-label={dueInline.tooltip}
+                      >
+                        {dueInline.token}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{dueInline.tooltip}</TooltipContent>
+                  </Tooltip>
+                )}
               </div>
-            )}
-            {dueBadge && (
-              <Badge variant="secondary" className={`gba:h-5 gba:px-2 gba:text-xs gba:gap-1 ${dueBadge.className}`}>
-                {dueBadge.label}
-              </Badge>
             )}
             <span className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap" data-testid="task-created-at">
               {task.status === 'COMPLETED' && task.completedAt

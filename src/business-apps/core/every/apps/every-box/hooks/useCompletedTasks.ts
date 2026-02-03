@@ -37,6 +37,7 @@ export const useCompletedTasks = (
     search?: string
     sortBy?: 'createdAt' | 'dueDate' | 'priority' | 'status' | 'title'
     sortOrder?: 'asc' | 'desc'
+    dueFilter?: 'any' | 'dueSoon24h' | 'overdue' | 'hasDueDate' | 'noDueDate'
   }
 ): UseCompletedTasksResult => {
   const [allFetchedTasks, setAllFetchedTasks] = useState<UnifiedTask[]>([])
@@ -49,6 +50,7 @@ export const useCompletedTasks = (
   const search = (options?.search || '').trim()
   const sortBy = options?.sortBy || 'createdAt'
   const sortOrder = options?.sortOrder || 'desc'
+  const dueFilter = options?.dueFilter || 'any'
   const hasInitialFetchRef = useRef(false)
   const lastTaskKeysRef = useRef<Set<string>>(new Set())
   const previousUserIdRef = useRef<string>('')
@@ -70,15 +72,16 @@ export const useCompletedTasks = (
         offset,
         ...(search ? { search } : {}),
         sortBy,
-        sortOrder
+        sortOrder,
+        dueFilter
       })
 
       return { tasks: response.tasks, hasMore: response.hasMore, totalCount: response.totalCount }
     },
-    [userId, context.accessToken, search, sortBy, sortOrder]
+    [userId, context.accessToken, search, sortBy, sortOrder, dueFilter]
   )
 
-  const currentKey = `${userId}:${search}:${sortBy}:${sortOrder}`
+  const currentKey = `${userId}:${search}:${sortBy}:${sortOrder}:${dueFilter}`
 
   const prefetchNext = useCallback(
     (offset: number) => {
@@ -258,7 +261,7 @@ export const useCompletedTasks = (
   useEffect(() => {
     if (previousSearchRef.current !== search) {
       previousSearchRef.current = search
-      previousSortRef.current = `${sortBy}:${sortOrder}`
+      previousSortRef.current = `${sortBy}:${sortOrder}:${dueFilter}`
       hasInitialFetchRef.current = false
       setAllFetchedTasks([])
       setHasMoreToFetch(true)
@@ -266,11 +269,11 @@ export const useCompletedTasks = (
       prefetchRef.current = null
       loadInitial()
     }
-  }, [search, sortBy, sortOrder, loadInitial])
+  }, [search, sortBy, sortOrder, dueFilter, loadInitial])
 
   // Reset and refetch on sort change
   useEffect(() => {
-    const next = `${sortBy}:${sortOrder}`
+    const next = `${sortBy}:${sortOrder}:${dueFilter}`
     if (previousSortRef.current !== next) {
       previousSortRef.current = next
       hasInitialFetchRef.current = false
@@ -280,7 +283,7 @@ export const useCompletedTasks = (
       prefetchRef.current = null
       loadInitial()
     }
-  }, [sortBy, sortOrder, loadInitial])
+  }, [sortBy, sortOrder, dueFilter, loadInitial])
 
   useEffect(() => {
     // Reset when userId changes

@@ -52,7 +52,6 @@ interface InboxViewProps extends BusinessAppContextProps {
   hasMore: boolean
   sortBy?: 'createdAt' | 'dueDate' | 'priority' | 'status' | 'title'
   sortOrder?: 'asc' | 'desc'
-  dueDateFilter?: 'any' | 'overdue' | 'dueSoon' | 'hasDueDate' | 'noDueDate'
   // Blink tasks from dedicated API endpoint
   blinkCount?: number
   blinkCountLoading?: boolean
@@ -141,7 +140,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
   hasMore,
   sortBy = 'createdAt',
   sortOrder = 'desc',
-  dueDateFilter = 'any',
   blinkTasks,
   blinkTasksLoading,
   blinkHasMore,
@@ -686,32 +684,6 @@ export const InboxView: React.FC<InboxViewProps> = ({
       result = applyTypeFilter(result, filterType)
     }
 
-    // Due date filtering
-    if (dueDateFilter !== 'any') {
-      const now = Date.now()
-      const DUE_SOON_MS = 3 * 24 * 60 * 60 * 1000 // 3 days
-      result = result.filter(t => {
-        const dueRaw = t.dueDate
-        const dueMs = dueRaw ? new Date(dueRaw).getTime() : NaN
-        const hasDue = Number.isFinite(dueMs)
-        const isOverdue = hasDue ? dueMs < now : false
-        const isDueSoon = hasDue ? dueMs >= now && dueMs - now <= DUE_SOON_MS : false
-
-        switch (dueDateFilter) {
-          case 'overdue':
-            return hasDue && isOverdue
-          case 'dueSoon':
-            return hasDue && isDueSoon
-          case 'hasDueDate':
-            return hasDue
-          case 'noDueDate':
-            return !hasDue
-          default:
-            return true
-        }
-      })
-    }
-
     // Search is handled server-side (debounced) for performance; avoid filtering locally
     // to prevent hiding backend results (e.g. fuzzy/semantic matching in the future).
 
@@ -719,7 +691,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
     // No additional sorting needed here
 
     return result
-  }, [currentTasks, globalSearch, filterType, employeeMap, applyTypeFilter, dueDateFilter])
+  }, [currentTasks, globalSearch, filterType, employeeMap, applyTypeFilter])
 
   // Slice to displayedCount for pagination (show 20 initially, load more on demand)
   const filteredTasks = useMemo(() => {

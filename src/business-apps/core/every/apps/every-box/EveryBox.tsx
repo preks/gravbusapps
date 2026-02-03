@@ -63,7 +63,7 @@ interface EveryBoxProps extends BusinessAppContextProps {
 
 type ViewType = 'inbox' | 'outbox'
 type SortOption = 'newest' | 'oldest' | 'priority'
-type DueDateFilter = 'any' | 'overdue' | 'dueSoon' | 'hasDueDate' | 'noDueDate'
+type DueDateFilter = 'any' | 'overdue' | 'dueSoon24h' | 'hasDueDate' | 'noDueDate'
 
 /**
  * Get initial view from URL
@@ -145,7 +145,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     loadMore: loadMoreTasks,
     hasMore: hasMoreTasks,
     backgroundRefresh: backgroundRefreshInbox
-  } = useInboxTasks(context, { search: debouncedSearch, sortBy, sortOrder })
+  } = useInboxTasks(context, { search: debouncedSearch, sortBy, sortOrder, dueFilter: dueDateFilter })
 
   // Fetch outbox flows
   const { flows, isLoading: flowsLoading, error: flowsError, refetch: refetchFlows } = useOutboxFlows(context)
@@ -160,7 +160,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     loadMore: loadMoreCompleted,
     hasMore: hasMoreCompleted,
     backgroundRefresh: backgroundRefreshCompleted
-  } = useCompletedTasks(context, { search: debouncedSearch, sortBy, sortOrder })
+  } = useCompletedTasks(context, { search: debouncedSearch, sortBy, sortOrder, dueFilter: dueDateFilter })
 
   // Fetch blink tasks using tag filtering (response contains totalCount for badge)
   const {
@@ -521,7 +521,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                         <DropdownMenuRadioItem value="overdue">
                           {t('every-box-due-filter-overdue')}
                         </DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="dueSoon">
+                        <DropdownMenuRadioItem value="dueSoon24h">
                           {t('every-box-due-filter-due-soon')}
                         </DropdownMenuRadioItem>
                         <DropdownMenuSeparator />
@@ -603,7 +603,6 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     error={tasksError}
                     sortBy={sortBy}
                     sortOrder={sortOrder}
-                    dueDateFilter={dueDateFilter}
                     onRefresh={refetchTasks}
                     onLoadMore={loadMoreTasks}
                     hasMore={hasMoreTasks}

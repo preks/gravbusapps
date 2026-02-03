@@ -15,7 +15,7 @@ every-box-refresh-label = Aktualisieren
 every-box-due-filter-label = Fälligkeit
 every-box-due-filter-any = Alle
 every-box-due-filter-overdue = Überfällig
-every-box-due-filter-due-soon = Bald fällig
+every-box-due-filter-due-soon = Fällig in <24h
 every-box-due-filter-has = Mit Fälligkeitsdatum
 every-box-due-filter-none = Ohne Fälligkeitsdatum
 
@@ -84,6 +84,14 @@ blink-upload-error = Anhänge konnten nicht hochgeladen werden: {$error}
 task-card-overdue = Überfällig
 task-card-due-soon = Bald fällig
 task-card-due = Fällig {$date}
+task-card-due-in-hours = Fällig in {$hours}h
+task-card-overdue-hours = Überfällig {$hours}h
+task-card-due-in-days = Fällig in {$days}d
+task-card-overdue-days = Überfällig {$days}d
+task-card-tooltip-due-hours = Fällig in {$hours} Stunden
+task-card-tooltip-due-days = Fällig in {$days} Tagen
+task-card-tooltip-overdue-hours = Überfällig: {$hours} Stunden
+task-card-tooltip-overdue-days = Überfällig: {$days} Tage
 
 # Task meta actions (Everybox-service)
 task-meta-pin = Anheften

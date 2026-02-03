@@ -16,7 +16,7 @@ every-box-refresh-label = Refresh
 every-box-due-filter-label = Due date
 every-box-due-filter-any = Any
 every-box-due-filter-overdue = Overdue
-every-box-due-filter-due-soon = Due soon
+every-box-due-filter-due-soon = Due in <24h
 every-box-due-filter-has = Has due date
 every-box-due-filter-none = No due date
 
@@ -90,6 +90,14 @@ blink-upload-error = Failed to upload attachments: {$error}
 task-card-overdue = Overdue
 task-card-due-soon = Due soon
 task-card-due = Due {$date}
+task-card-due-in-hours = Due in {$hours}h
+task-card-overdue-hours = Overdue {$hours}h
+task-card-due-in-days = Due in {$days}d
+task-card-overdue-days = Overdue {$days}d
+task-card-tooltip-due-hours = Due in {$hours} hours
+task-card-tooltip-due-days = Due in {$days} days
+task-card-tooltip-overdue-hours = Overdue: {$hours} hours
+task-card-tooltip-overdue-days = Overdue: {$days} days
 
 # Task meta actions (Everybox-service)
 task-meta-pin = Pin

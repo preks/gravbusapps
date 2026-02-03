@@ -61,6 +61,7 @@ function toEveryboxQuery(filters?: Partial<TaskFilters>): Record<string, string 
     priority: filters.priority,
     taskCategory: filters.taskCategory,
     assignedTo: filters.assignedTo,
+    dueFilter: filters.dueFilter,
     limit: filters.limit,
     offset: filters.offset,
     sortBy: filters.sortBy,

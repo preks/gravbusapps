@@ -64,6 +64,19 @@ export interface UnifiedTask {
   createdAt?: string
   completedAt?: string
 
+  /**
+   * Backend-computed due date metadata (everybox-service).
+   * Keeps frontend rendering fast (no client-side date math).
+   */
+  dueMeta?: {
+    status: 'dueSoon24h' | 'overdue'
+    dueAt: string
+    hoursRemaining?: number
+    daysRemaining?: number
+    hoursOverdue?: number
+    daysOverdue?: number
+  }
+
   // Content
   message?: string
   description?: string
