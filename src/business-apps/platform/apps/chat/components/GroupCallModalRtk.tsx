@@ -84,6 +84,7 @@ interface GroupCallModalRtkProps {
   currentUser?: any // Full user object for AI context
   conversationName?: string
   wsClient?: ChatWebSocketClient | null
+  transcriptionEnabled?: boolean
   apiClient?: ChatApiClient
   activeConversation?: any // For looking up avatar URLs from conversation participants
   activeExperts?: any[] // Every AI experts for mentions in chat
@@ -181,6 +182,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   prefixDataTestId = 'rtk-group-call',
   conversationName,
   wsClient,
+  transcriptionEnabled,
   apiClient,
   accessToken,
   currentUserId,
@@ -193,17 +195,28 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   // CRITICAL: Use ref + effect to maintain stable object reference
   const callConversationRef = useRef<any>(null)
 
-  // Update the ref only when roomId changes (the primary key)
+  // Update the ref only when roomId or calendarMeetingId changes
   useEffect(() => {
     if (!callState.roomId) {
       callConversationRef.current = null
       return
     }
 
-    // Only create/update if roomId changed
-    if (!callConversationRef.current || callConversationRef.current.id !== callState.roomId) {
+    // For chat panel: Use calendarMeetingId if available (calendar meeting case)
+    // For call session: Still use roomId (meeting ID)
+    const chatConversationId = callState.calendarMeetingId || callState.roomId
+
+    // Only create/update if the chat conversation ID changed
+    if (!callConversationRef.current || callConversationRef.current.id !== chatConversationId) {
+      rtkDebug.log('[RTK Modal] Creating call conversation for chat:', {
+        roomId: callState.roomId,
+        calendarMeetingId: callState.calendarMeetingId,
+        chatConversationId,
+        isCalendarMeeting: !!callState.calendarMeetingId
+      })
+
       callConversationRef.current = {
-        id: callState.roomId,
+        id: chatConversationId, // Use the real conversation ID for chat
         name: conversationName || 'Group Call',
         type: ConversationType.GROUP,
         participants: activeConversation?.participants || [],
@@ -213,9 +226,9 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         updatedAt: activeConversation?.updatedAt || new Date().toISOString()
       }
     }
-  }, [callState.roomId]) // ONLY depend on roomId
+  }, [callState.roomId, callState.calendarMeetingId]) // Depend on both roomId and calendarMeetingId
 
-  // Return the stable reference - this never changes unless roomId changes
+  // Return the stable reference - this never changes unless chat conversation ID changes
   const callConversation = callConversationRef.current
   const t = useChatTranslation()
   const localVideoRef = useRef<HTMLVideoElement>(null)
@@ -481,7 +494,9 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
   // Subscribe to remote participants from SDK
   const remotePeers: GroupCallParticipant[] = useRealtimeKitSelector((m: any): GroupCallParticipant[] => {
-    if (!m?.participants?.joined) return []
+    // CRITICAL: Only return participants when actually in an active call
+    // This prevents showing stale participants from previous calls during the transition
+    if (!m?.participants?.joined || !m?.self?.roomJoined) return []
 
     try {
       const joined = Array.from(m.participants.joined.values())
@@ -536,7 +551,9 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
   // Get local screen share track from SDK
   const localScreenShareTrack = useRealtimeKitSelector((m: any) => {
-    if (!m?.self) return null
+    // CRITICAL: Only return screen share track when actually in an active call
+    // This prevents showing stale screen share from previous calls during transition
+    if (!m?.self || !m?.self?.roomJoined) return null
 
     // Extract tracks from various possible structures
     const screenShareTracks = extractTracksFromCollection(m.self.screenShareTracks)
@@ -600,6 +617,19 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     .join('|')
 
   const stableRemotePeers = useMemo(() => {
+    // CRITICAL: Don't show any participants if we're not in an active connected call
+    // This prevents stale participants from previous calls from appearing during transitions
+    const isConnected = callState.status === 'connected' || callState.status === 'joining'
+    const isRoomJoined = meeting?.self?.roomJoined
+
+    if (!isConnected || !isRoomJoined) {
+      rtkDebug.log('[RTK Modal] 🚫 Not showing participants - call not active', {
+        callStatus: callState.status,
+        isRoomJoined
+      })
+      return []
+    }
+
     // TEST MODE: If participants prop has significantly more items than SDK reports,
     // use the participants prop instead (indicates test mode)
     const isTestMode = participants.length > remotePeers.length + 1 // +1 for local participant
@@ -649,8 +679,10 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     meeting?.self?.id,
     meeting?.self?.userId,
     meeting?.self?.customParticipantId,
+    meeting?.self?.roomJoined,
     currentUserId,
-    remotePeers.length
+    remotePeers.length,
+    callState.status
   ])
 
   rtkDebug.log('[RTK Modal] Remote peers count:', stableRemotePeers?.length || 0)
@@ -2344,7 +2376,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       {createPortal(
         <Dialog open={isOpen} onOpenChange={() => {}}>
           <DialogContent
-            className="gba:max-w-[1400px] gba:w-[90vw] gba:h-[85vh] gba:p-0 gba:overflow-hidden gba:flex gba:flex-col gba:gap-0"
+            className="gba:!max-w-[1400px] gba:!w-[90vw] gba:h-[85vh] gba:p-0 gba:overflow-hidden gba:flex gba:flex-col gba:gap-0"
             data-testid={`${prefixDataTestId}-modal`}
           >
             <style>{`
@@ -2619,6 +2651,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                 isScreenSharing={callState.isScreenSharing}
                 backgroundEnabled={callState.backgroundEnabled}
                 handRaised={callState.handRaised}
+                transcriptionActive={transcriptionEnabled}
                 onToggleMute={onToggleMute}
                 onToggleVideo={onToggleVideo}
                 onToggleScreenShare={onToggleScreenShare}

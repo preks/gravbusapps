@@ -152,13 +152,14 @@ export class CalendarApiClient {
   }
 
   /**
-   * Link a WebRTC session to a meeting (for starting video/audio calls)
+   * Resolve and store Cloudflare Session ID from Meeting ID
+   * This should be called after the host joins the call
    */
-  async linkWebrtcSession(meetingId: string, webrtcSessionId: string): Promise<Meeting> {
-    const response = await this.client.post<{ meeting: Meeting }>(`/meetings/${meetingId}/link-call`, {
-      webrtcSessionId
-    })
-    return response.data.meeting
+  async resolveAndLinkSession(meetingId: string): Promise<{ meeting: Meeting; sessionId: string | null }> {
+    const response = await this.client.post<{ meeting: Meeting; sessionId: string | null }>(
+      `/meetings/${meetingId}/resolve-session`
+    )
+    return response.data
   }
 }
 
