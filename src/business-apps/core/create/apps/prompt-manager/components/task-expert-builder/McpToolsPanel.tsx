@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Button,
+  Badge,
   Card,
   CardContent,
   CardDescription,
@@ -15,7 +16,7 @@ import {
   SelectValue,
   Textarea
 } from '@newwork/nw-design-system'
-import { Plug, Plus } from 'lucide-react'
+import { Plug, Plus, Search } from 'lucide-react'
 import type { MCPConfig } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import type { TabProps, UnifiedCapability } from './types'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
@@ -39,6 +40,7 @@ export const McpToolsPanel: React.FC<Pick<TabProps, 'context' | 'state' | 'actio
   const [expandedToolId, setExpandedToolId] = useState<string | null>(null)
   const [pendingSelectPmToolId, setPendingSelectPmToolId] = useState<string | null>(null)
 
+  const [search, setSearch] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [createDraft, setCreateDraft] = useState<CreateDraft>({
     name: '',
@@ -51,10 +53,18 @@ export const McpToolsPanel: React.FC<Pick<TabProps, 'context' | 'state' | 'actio
 
   const mcpCapabilities = useMemo(() => catalogs.capabilities.filter(c => c.kind === 'mcp'), [catalogs.capabilities])
 
+  const filteredMcpCapabilities = useMemo(() => {
+    if (!search) return mcpCapabilities
+    const q = search.toLowerCase()
+    return mcpCapabilities.filter(c => c.name.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q))
+  }, [mcpCapabilities, search])
+
   const selectedMcpCapabilities = useMemo(
     () => mcpCapabilities.filter(c => state.selectedToolIds.includes(c.id)),
     [mcpCapabilities, state.selectedToolIds]
   )
+
+  const selectedMcpCount = selectedMcpCapabilities.length
 
   const ensureSelected = useCallback(
     (capabilityId: string) => {
@@ -62,6 +72,27 @@ export const McpToolsPanel: React.FC<Pick<TabProps, 'context' | 'state' | 'actio
       actions.setSelectedToolIds([...state.selectedToolIds, capabilityId])
     },
     [actions, state.selectedToolIds]
+  )
+
+  const ensureDeselected = useCallback(
+    (capabilityId: string) => {
+      if (!state.selectedToolIds.includes(capabilityId)) return
+      actions.setSelectedToolIds(state.selectedToolIds.filter(id => id !== capabilityId))
+    },
+    [actions, state.selectedToolIds]
+  )
+
+  const toggleMcpTool = useCallback(
+    (cap: UnifiedCapability) => {
+      if (state.selectedToolIds.includes(cap.id)) {
+        ensureDeselected(cap.id)
+        const pmId = cap.sourceMeta?.promptManagerToolId
+        if (pmId && expandedToolId === pmId) setExpandedToolId(null)
+      } else {
+        ensureSelected(cap.id)
+      }
+    },
+    [ensureDeselected, ensureSelected, expandedToolId, state.selectedToolIds]
   )
 
   const findCapabilityByPmToolId = useCallback(
@@ -124,7 +155,7 @@ export const McpToolsPanel: React.FC<Pick<TabProps, 'context' | 'state' | 'actio
               <Plug className="gba:w-5 gba:h-5" />
               MCP Tools
             </CardTitle>
-            <CardDescription>Select MCP tools in the Tools list above, then configure them here</CardDescription>
+            <CardDescription>Select MCP tools and configure them</CardDescription>
           </div>
           <div className="gba:flex gba:items-center gba:gap-2">
             <Button
@@ -143,6 +174,62 @@ export const McpToolsPanel: React.FC<Pick<TabProps, 'context' | 'state' | 'actio
 
       <CardContent className="gba:space-y-4">
         {createError && <div className="gba:text-sm gba:text-destructive">{createError}</div>}
+
+        <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+          <div className="gba:relative gba:flex-1">
+            <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search MCP tools..."
+              className="gba:pl-9"
+              data-testid="agent-builder-mcp-tool-search"
+            />
+          </div>
+          <Badge variant="secondary" data-testid="agent-builder-mcp-selected-count">
+            {selectedMcpCount} selected
+          </Badge>
+        </div>
+
+        <div
+          className="gba:border gba:rounded-lg gba:divide-y gba:max-h-[240px] gba:overflow-y-auto"
+          data-testid="agent-builder-mcp-tool-selector"
+        >
+          {filteredMcpCapabilities.length === 0 ? (
+            <div className="gba:p-6 gba:text-center gba:text-muted-foreground">
+              {search ? 'No MCP tools match your search' : 'No MCP tools available'}
+            </div>
+          ) : (
+            filteredMcpCapabilities.map(cap => (
+              <div
+                key={cap.id}
+                className={`gba:p-3 gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:transition-colors ${
+                  state.selectedToolIds.includes(cap.id) ? 'gba:bg-primary/5' : 'gba:hover:bg-muted/50'
+                }`}
+                onClick={() => toggleMcpTool(cap)}
+                data-testid={`agent-builder-mcp-tool-option-${cap.id}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={state.selectedToolIds.includes(cap.id)}
+                  onChange={() => toggleMcpTool(cap)}
+                  className="gba:w-4 gba:h-4"
+                />
+                <div className="gba:flex-1 gba:min-w-0">
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <span className="gba:font-medium">{cap.name}</span>
+                    <Badge variant="outline" className="gba:text-xs">
+                      MCP
+                    </Badge>
+                  </div>
+                  {cap.description && (
+                    <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{cap.description}</p>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
 
         {showCreate && (
           <div className="gba:border gba:rounded-lg gba:p-4 gba:space-y-4" data-testid="agent-builder-mcp-create-form">

@@ -1,44 +1,42 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import {
-  Input,
-  Button,
   Badge,
-  Spinner,
   Card,
+  CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardContent,
-  CardDescription
+  Input,
+  Spinner
 } from '@newwork/nw-design-system'
 import { Search, Wrench } from 'lucide-react'
 import type { TabProps, UnifiedCapability } from './types'
 
-const CATEGORY_FILTERS = [
-  { id: 'all', label: 'All' },
-  { id: 'internal', label: 'Internal' },
-  { id: 'function', label: 'Business Tools' },
-  { id: 'mcp', label: 'MCP' }
-]
-
-export const ToolsPickerPanel: React.FC<Pick<TabProps, 'state' | 'actions' | 'catalogs'>> = ({
+export const FunctionToolsPanel: React.FC<Pick<TabProps, 'state' | 'actions' | 'catalogs'>> = ({
   state,
   actions,
   catalogs
 }) => {
   const [search, setSearch] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState('all')
 
-  const filteredCapabilities = useMemo(() => {
-    let result = catalogs.capabilities
-    if (categoryFilter !== 'all') {
-      result = result.filter(c => c.kind === categoryFilter)
-    }
+  const functionCapabilities = useMemo(
+    () => catalogs.capabilities.filter(c => c.kind === 'function'),
+    [catalogs.capabilities]
+  )
+
+  const filtered = useMemo(() => {
+    let result = functionCapabilities
     if (search) {
       const q = search.toLowerCase()
       result = result.filter(c => c.name.toLowerCase().includes(q) || c.description?.toLowerCase().includes(q))
     }
     return result
-  }, [catalogs.capabilities, categoryFilter, search])
+  }, [functionCapabilities, search])
+
+  const selectedFunctionCount = useMemo(
+    () => functionCapabilities.filter(c => state.selectedToolIds.includes(c.id)).length,
+    [functionCapabilities, state.selectedToolIds]
+  )
 
   const toggleTool = useCallback(
     (tool: UnifiedCapability) => {
@@ -51,23 +49,21 @@ export const ToolsPickerPanel: React.FC<Pick<TabProps, 'state' | 'actions' | 'ca
         actions.setSelectedToolIds([...state.selectedToolIds, tool.id])
       }
     },
-    [state.selectedToolIds, state.selectedToolVersion, actions]
+    [actions, state.selectedToolIds, state.selectedToolVersion]
   )
 
-  const selectedCount = state.selectedToolIds.length
-
   return (
-    <Card className="gba:!bg-background">
+    <Card className="gba:!bg-background" data-testid="agent-builder-function-tools-panel">
       <CardHeader>
         <div className="gba:flex gba:items-center gba:justify-between">
           <div>
             <CardTitle className="gba:flex gba:items-center gba:gap-2">
               <Wrench className="gba:w-5 gba:h-5" />
-              Tools
+              Function Tools
             </CardTitle>
-            <CardDescription>Select tools the agent can use</CardDescription>
+            <CardDescription>Select the functions the agent can call</CardDescription>
           </div>
-          <Badge variant="secondary">{selectedCount} selected</Badge>
+          <Badge variant="secondary">{selectedFunctionCount} selected</Badge>
         </div>
       </CardHeader>
       <CardContent className="gba:space-y-4">
@@ -77,23 +73,10 @@ export const ToolsPickerPanel: React.FC<Pick<TabProps, 'state' | 'actions' | 'ca
             <Input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search tools..."
+              placeholder="Search function tools..."
               className="gba:pl-9"
-              data-testid="agent-builder-tool-search"
+              data-testid="agent-builder-function-tool-search"
             />
-          </div>
-          <div className="gba:flex gba:gap-1">
-            {CATEGORY_FILTERS.map(cat => (
-              <Button
-                key={cat.id}
-                size="sm"
-                variant={categoryFilter === cat.id ? 'default' : 'outline'}
-                onClick={() => setCategoryFilter(cat.id)}
-                data-testid={`agent-builder-filter-${cat.id}`}
-              >
-                {cat.label}
-              </Button>
-            ))}
           </div>
         </div>
 
@@ -104,19 +87,19 @@ export const ToolsPickerPanel: React.FC<Pick<TabProps, 'state' | 'actions' | 'ca
             </div>
           ) : catalogs.capabilitiesError ? (
             <div className="gba:p-4 gba:text-destructive gba:text-sm">{catalogs.capabilitiesError}</div>
-          ) : filteredCapabilities.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <div className="gba:p-8 gba:text-center gba:text-muted-foreground">
-              {search ? 'No tools match your search' : 'No tools available'}
+              {search ? 'No function tools match your search' : 'No function tools available'}
             </div>
           ) : (
-            filteredCapabilities.map(tool => (
+            filtered.map(tool => (
               <div
                 key={tool.id}
                 className={`gba:p-3 gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:transition-colors ${
                   state.selectedToolIds.includes(tool.id) ? 'gba:bg-primary/5' : 'gba:hover:bg-muted/50'
                 }`}
                 onClick={() => toggleTool(tool)}
-                data-testid={`agent-builder-tool-${tool.id}`}
+                data-testid={`agent-builder-function-tool-${tool.id}`}
               >
                 <input
                   type="checkbox"
@@ -128,7 +111,7 @@ export const ToolsPickerPanel: React.FC<Pick<TabProps, 'state' | 'actions' | 'ca
                   <div className="gba:flex gba:items-center gba:gap-2">
                     <span className="gba:font-medium">{tool.name}</span>
                     <Badge variant="outline" className="gba:text-xs">
-                      {tool.kind === 'internal' ? 'Internal' : tool.kind === 'function' ? 'Business' : 'MCP'}
+                      Function
                     </Badge>
                   </div>
                   {tool.description && (
@@ -144,4 +127,4 @@ export const ToolsPickerPanel: React.FC<Pick<TabProps, 'state' | 'actions' | 'ca
   )
 }
 
-export default ToolsPickerPanel
+export default FunctionToolsPanel

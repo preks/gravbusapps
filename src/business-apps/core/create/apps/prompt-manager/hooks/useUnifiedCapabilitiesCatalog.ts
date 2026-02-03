@@ -3,7 +3,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FunctionsServiceClient, LatestFunctionItem } from '@/common/network/functions/FunctionsServiceClient'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { ToolODM, MCPConfig } from '@/common/network/ai/prompt-manager/PromptManagerClient'
-import { INTERNAL_TOOLS, type InternalToolDefinition } from '../definitions/internal-tools'
 import type { UnifiedCapability } from '../components/task-expert-builder/types'
 
 export interface UseUnifiedCapabilitiesCatalogResult {
@@ -15,9 +14,8 @@ export interface UseUnifiedCapabilitiesCatalogResult {
 
 /**
  * Unified capabilities catalog merging:
- * - Internal tools (hardcoded)
  * - Functions Service tools (workflow-enabled functions)
- * - Prompt Manager tool library (MCP + function tools)
+ * - Prompt Manager tool library (MCP)
  */
 export const useUnifiedCapabilitiesCatalog = (
   context: BusinessAppContextProps
@@ -47,20 +45,7 @@ export const useUnifiedCapabilitiesCatalog = (
 
       const unified: UnifiedCapability[] = []
 
-      // 1. Internal tools (always available)
-      INTERNAL_TOOLS.forEach((tool: InternalToolDefinition) => {
-        unified.push({
-          id: `internal-${tool.id}`,
-          code: `internal.${tool.id}`,
-          name: tool.name,
-          description: tool.description,
-          kind: 'internal',
-          category: tool.category,
-          supportsVersion: false
-        })
-      })
-
-      // 2. Functions Service tools
+      // 1. Functions Service tools
       functionsResult.forEach(func => {
         unified.push({
           id: func.id,
@@ -75,7 +60,7 @@ export const useUnifiedCapabilitiesCatalog = (
         })
       })
 
-      // 3. Prompt Manager tool library
+      // 2. Prompt Manager tool library (MCP tools)
       pmToolsResult.data.forEach(tool => {
         const backendCode = (tool as any).code as string | undefined
         if (tool.type === 'mcp') {
