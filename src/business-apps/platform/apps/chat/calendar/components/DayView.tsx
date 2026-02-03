@@ -16,6 +16,8 @@ interface DayViewProps {
   events: CalendarEvent[]
   onEventClick: (event: CalendarEvent) => void
   onTimeSlotClick?: (date: Date, hour: number) => void
+  activeConversationCalls?: Map<string, any>
+  onJoinCall?: (event: CalendarEvent) => void
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
@@ -68,7 +70,14 @@ const getEventPosition = (event: CalendarEvent, dayStart: Date): { top: number; 
   return { top, height }
 }
 
-export const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventClick, onTimeSlotClick }) => {
+export const DayView: React.FC<DayViewProps> = ({
+  currentDate,
+  events,
+  onEventClick,
+  onTimeSlotClick,
+  activeConversationCalls,
+  onJoinCall
+}) => {
   const t = useChatTranslation()
   const { locale } = useLocale()
   const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
@@ -168,7 +177,15 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventCl
           <div className="gba:text-xs gba:text-muted-foreground gba:mb-2">All Day</div>
           <div className="gba:space-y-1">
             {allDayEvents.map(event => (
-              <CalendarEventItem key={event.id} event={event} compact onClick={() => onEventClick(event)} t={t} />
+              <CalendarEventItem
+                key={event.id}
+                event={event}
+                compact
+                onClick={() => onEventClick(event)}
+                t={t}
+                activeConversationCalls={activeConversationCalls}
+                onJoinCall={onJoinCall}
+              />
             ))}
           </div>
         </div>
@@ -243,6 +260,8 @@ export const DayView: React.FC<DayViewProps> = ({ currentDate, events, onEventCl
                   height={position.height}
                   onClick={() => onEventClick(event)}
                   t={t}
+                  activeConversationCalls={activeConversationCalls}
+                  onJoinCall={onJoinCall}
                 />
               </div>
             )

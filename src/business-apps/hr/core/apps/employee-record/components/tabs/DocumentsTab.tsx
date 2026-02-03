@@ -375,21 +375,14 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
   }
 
   const groupedDocuments = useMemo(() => {
-    const groups: { [key: string]: Document[] } = {
-      Salary: [],
-      Expenses: [],
-      Development: [],
-      Personal: [],
-      Other: []
-    }
+    const groups: { [key: string]: Document[] } = {}
 
     documents.forEach(doc => {
-      const groupKey = doc.documentGroupKey
-      if (groupKey && ['Salary', 'Expenses', 'Development', 'Personal'].includes(groupKey)) {
-        groups[groupKey].push(doc)
-      } else {
-        groups['Other'].push(doc)
+      const groupKey = doc.documentGroupKey || 'Other'
+      if (!groups[groupKey]) {
+        groups[groupKey] = []
       }
+      groups[groupKey].push(doc)
     })
 
     return groups
@@ -436,21 +429,14 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
   }, [documents, searchQuery, searchField])
 
   const filteredGroupedDocuments = useMemo(() => {
-    const groups: { [key: string]: Document[] } = {
-      Salary: [],
-      Expenses: [],
-      Development: [],
-      Personal: [],
-      Other: []
-    }
+    const groups: { [key: string]: Document[] } = {}
 
     filteredDocuments.forEach(doc => {
-      const groupKey = doc.documentGroupKey
-      if (groupKey && ['Salary', 'Expenses', 'Development', 'Personal'].includes(groupKey)) {
-        groups[groupKey].push(doc)
-      } else {
-        groups['Other'].push(doc)
+      const groupKey = doc.documentGroupKey || 'Other'
+      if (!groups[groupKey]) {
+        groups[groupKey] = []
       }
+      groups[groupKey].push(doc)
     })
 
     return groups

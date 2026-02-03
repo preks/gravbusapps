@@ -16,6 +16,8 @@ interface WeekViewProps {
   events: CalendarEvent[]
   onEventClick: (event: CalendarEvent) => void
   onTimeSlotClick?: (date: Date, hour: number) => void
+  activeConversationCalls?: Map<string, any>
+  onJoinCall?: (event: CalendarEvent) => void
 }
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i)
@@ -89,7 +91,14 @@ const getEventPosition = (event: CalendarEvent, dayStart: Date): { top: number; 
   return { top, height }
 }
 
-export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventClick, onTimeSlotClick }) => {
+export const WeekView: React.FC<WeekViewProps> = ({
+  dateRange,
+  events,
+  onEventClick,
+  onTimeSlotClick,
+  activeConversationCalls,
+  onJoinCall
+}) => {
   const { locale } = useLocale()
   const t = useChatTranslation()
   const baseLocale = locale?.split('-')[0]?.toLowerCase() || 'en'
@@ -284,6 +293,8 @@ export const WeekView: React.FC<WeekViewProps> = ({ dateRange, events, onEventCl
                       height={position.height}
                       onClick={() => onEventClick(event)}
                       t={t}
+                      activeConversationCalls={activeConversationCalls}
+                      onJoinCall={onJoinCall}
                     />
                   </div>
                 )

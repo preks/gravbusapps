@@ -20,6 +20,7 @@ interface ArticleViewProps {
   targetLanguage?: string | null
   translatedTexts?: TranslatedTexts | null
   onTranslateComments?: (commentTexts: string[], targetLanguage: string) => Promise<string[]>
+  onReactionSuccess?: () => void
 }
 
 /**
@@ -32,6 +33,7 @@ const ArticleView: React.FC<ArticleViewProps> = ({
   employeeId,
   allowedReactions,
   reactionCatalogMap,
+  onReactionSuccess,
   targetLanguage,
   translatedTexts,
   onTranslateComments
@@ -182,6 +184,7 @@ const ArticleView: React.FC<ArticleViewProps> = ({
           employeeId={employeeId}
           allowedReactions={allowedReactions}
           reactionCatalogMap={reactionCatalogMap}
+          onReactionSuccess={onReactionSuccess}
         />
 
         {/* Comment Section */}

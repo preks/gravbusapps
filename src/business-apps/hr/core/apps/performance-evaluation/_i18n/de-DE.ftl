@@ -76,6 +76,16 @@ frequency-custom = Benutzerdefiniert
 
 # Bewertungsskalen-Tabelle
 empty-no-rating-scales = Noch keine Bewertungsskalen definiert.
+scale-saved-to-database = Bewertungsskala "{ $name }" gespeichert.
+scale-deleted-to-database = Bewertungsskala "{ $name }" gelöscht.
+cycle-saved-to-database = Leistungszyklus "{ $name }" gespeichert.
+cycle-activated-to-database = "{ $name }" aktiviert.
+cycle-deactivated-to-database = "{ $name }" deaktiviert.
+cycle-deleted-to-database = "{ $name }" gelöscht.
+value-saved-to-database = Firmenwert "{ $title }" gespeichert.
+value-deleted-to-database = "{ $title }" gelöscht.
+value-activated-to-database = "{ $title }" aktiviert.
+value-deactivated-to-database = "{ $title }" deaktiviert.
 table-values = Werte
 button-edit = Bearbeiten
 
