@@ -6,8 +6,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { fetchCflowBlinkTasks } from '@/business-apps/core/every/apps/every-api/utils/CflowClient'
-import { adaptCflowTasks } from '@/business-apps/core/every/apps/every-api/services/TaskAdapterService'
+import { fetchBlinkUserTasks } from '@/business-apps/core/every/apps/every-api'
 import { UnifiedTask } from '@/business-apps/core/every/apps/every-api/types'
 
 interface UseBlinkTasksResult {
@@ -42,11 +41,7 @@ export const useBlinkCount = (
     setError(null)
 
     try {
-      // Fetch with limit=1 just to get the totalCount from the response
-      const result = await fetchCflowBlinkTasks(userId, context.accessToken, {
-        limit: '1' // We only need the totalCount, not the tasks
-      })
-
+      const result = await fetchBlinkUserTasks(userId, context.accessToken, { limit: 1, offset: 0 })
       setCount(result.totalCount)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch blink count'
@@ -96,17 +91,15 @@ export const useBlinkTasks = (context: BusinessAppContextProps): UseBlinkTasksRe
       setError(null)
 
       try {
-        const result = await fetchCflowBlinkTasks(userId, context.accessToken, {
-          limit: BLINK_FETCH_SIZE.toString(),
-          offset: currentOffset.toString()
+        const result = await fetchBlinkUserTasks(userId, context.accessToken, {
+          limit: BLINK_FETCH_SIZE,
+          offset: currentOffset
         })
 
-        const adaptedTasks = adaptCflowTasks(result.tasks)
-
         if (append) {
-          setTasks(prev => [...prev, ...adaptedTasks])
+          setTasks(prev => [...prev, ...result.tasks])
         } else {
-          setTasks(adaptedTasks)
+          setTasks(result.tasks)
         }
 
         setTotalCount(result.totalCount)

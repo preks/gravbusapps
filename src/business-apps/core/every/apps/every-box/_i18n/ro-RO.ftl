@@ -7,6 +7,17 @@ every-box-tab-inflows = Intrări
 every-box-tab-outflows = Ieșiri
 every-box-blink-description = Creați și atribuiți rapid o sarcină
 every-box-search-placeholder = Căutare...
+every-box-sort-label = Sortare
+every-box-sort-newest = Cele mai noi
+every-box-sort-oldest = Cele mai vechi
+every-box-sort-priority = Prioritate
+every-box-refresh-label = Reîmprospătare
+every-box-due-filter-label = Termen
+every-box-due-filter-any = Oricare
+every-box-due-filter-overdue = Întârziat
+every-box-due-filter-due-soon = Scadent în <24h
+every-box-due-filter-has = Are termen
+every-box-due-filter-none = Fără termen
 
 # Filters Dropdown
 filters-dropdown-label = Filtre
@@ -73,9 +84,28 @@ blink-upload-error = Nu s-au putut încărca atașamentele: {$error}
 task-card-overdue = Întârziat
 task-card-due-soon = Scadent în curând
 task-card-due = Scadent {$date}
+task-card-due-in-hours = Scadent în {$hours}h
+task-card-overdue-hours = Întârziat {$hours}h
+task-card-due-in-days = Scadent în {$days}z
+task-card-overdue-days = Întârziat {$days}z
+task-card-tooltip-due-hours = Scadent în {$hours} ore
+task-card-tooltip-due-days = Scadent în {$days} zile
+task-card-tooltip-overdue-hours = Întârziat: {$hours} ore
+task-card-tooltip-overdue-days = Întârziat: {$days} zile
 task-card-blink = Blink
 task-card-unknown-creator = Necunoscut
 task-card-untitled = Sarcină fără titlu
+task-card-pinned = Fixată
+
+# Task meta actions (Everybox-service)
+task-meta-pin = Fixează
+task-meta-unpin = Anulează fixarea
+task-meta-mark-unread = Marchează ca necitit
+task-meta-priority = Prioritate
+task-meta-priority-none = Niciuna
+task-meta-priority-high = Ridicată
+task-meta-priority-medium = Medie
+task-meta-priority-low = Scăzută
 
 # FlowCard Component
 flow-card-blink = Blink
