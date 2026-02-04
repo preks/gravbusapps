@@ -29,10 +29,10 @@ export const Canvas: React.FC<CanvasProps> = ({
 }) => {
   return (
     <div className={cn('gba:flex gba:flex-col gba:h-full gba:relative', className)} data-testid={testId}>
-      {/* Header - Optional, fixed height to align with ChatPanel, NO BORDER */}
+      {/* Header - Optional, fixed height, aligned with content */}
       {(title || subtitle || actions) && (
         <div className="gba:px-8 gba:py-4 gba:bg-background gba:sticky gba:top-0 gba:z-20 gba:h-[73px] gba:flex gba:items-center gba:shrink-0">
-          <div className="gba:flex gba:items-center gba:justify-between gba:w-full">
+          <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:max-w-5xl gba:mx-auto">
             <div>
               {title && (
                 <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:leading-tight">{title}</h2>
@@ -46,34 +46,41 @@ export const Canvas: React.FC<CanvasProps> = ({
         </div>
       )}
 
-      {/* Top Gradient Fade - Sticky overlay below header */}
-      {showGradientFade && (title || subtitle || actions) && (
+      {/* Content - fully scrollable, no height constraints! */}
+      <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:px-8 gba:py-6 gba:relative">
+        <div className={cn('gba:max-w-5xl gba:mx-auto', floatingAction && 'gba:pb-24')}>{children}</div>
+      </div>
+
+      {/* Top Gradient Fade - Fixed overlay at top edge only */}
+      {showGradientFade && (
         <div
-          className="gba:sticky gba:top-[73px] gba:left-0 gba:right-0 gba:h-32 gba:pointer-events-none gba:z-10 gba:-mt-32"
+          className={cn(
+            'gba:absolute gba:left-0 gba:right-0 gba:pointer-events-none gba:z-10 gba:h-16 gba:bg-background',
+            title || subtitle || actions ? 'gba:top-[73px]' : 'gba:top-0'
+          )}
           style={{
-            background:
-              'linear-gradient(to bottom, hsl(var(--nw-background) / 1) 0%, hsl(var(--nw-background) / 0.95) 15%, hsl(var(--nw-background) / 0.8) 30%, hsl(var(--nw-background) / 0.5) 50%, hsl(var(--nw-background) / 0.2) 75%, hsl(var(--nw-background) / 0) 100%)'
+            maskImage:
+              'linear-gradient(to bottom, black 0%, rgba(0,0,0,0.9) 20%, rgba(0,0,0,0.7) 40%, rgba(0,0,0,0.4) 65%, rgba(0,0,0,0.15) 85%, transparent 100%)',
+            WebkitMaskImage:
+              'linear-gradient(to bottom, black 0%, rgba(0,0,0,0.9) 20%, rgba(0,0,0,0.7) 40%, rgba(0,0,0,0.4) 65%, rgba(0,0,0,0.15) 85%, transparent 100%)'
           }}
         />
       )}
 
-      {/* Content - fully scrollable, no height constraints! */}
-      <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:px-8 gba:py-6 gba:relative">
-        <div className={cn('gba:max-w-5xl gba:mx-auto', floatingAction && 'gba:pb-24')}>{children}</div>
+      {/* Bottom Gradient Fade - Extends to bottom, button sits on top */}
+      {showGradientFade && (
+        <div
+          className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-64 gba:pointer-events-none gba:z-10 gba:bg-background"
+          style={{
+            maskImage:
+              'linear-gradient(to top, black 0%, rgba(0,0,0,0.95) 12%, rgba(0,0,0,0.85) 25%, rgba(0,0,0,0.65) 42%, rgba(0,0,0,0.4) 60%, rgba(0,0,0,0.15) 82%, transparent 100%)',
+            WebkitMaskImage:
+              'linear-gradient(to top, black 0%, rgba(0,0,0,0.95) 12%, rgba(0,0,0,0.85) 25%, rgba(0,0,0,0.65) 42%, rgba(0,0,0,0.4) 60%, rgba(0,0,0,0.15) 82%, transparent 100%)'
+          }}
+        />
+      )}
 
-        {/* Bottom Gradient Fade Overlay - prominent, dreamy effect */}
-        {showGradientFade && (
-          <div
-            className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-48 gba:pointer-events-none gba:z-10"
-            style={{
-              background:
-                'linear-gradient(to top, hsl(var(--nw-background) / 1) 0%, hsl(var(--nw-background) / 1) 10%, hsl(var(--nw-background) / 0.98) 20%, hsl(var(--nw-background) / 0.9) 35%, hsl(var(--nw-background) / 0.7) 50%, hsl(var(--nw-background) / 0.4) 70%, hsl(var(--nw-background) / 0) 100%)'
-            }}
-          />
-        )}
-      </div>
-
-      {/* Floating Action Button - always visible */}
+      {/* Floating Action Button - always visible above gradients */}
       {floatingAction && (
         <div
           className="gba:absolute gba:bottom-20 gba:right-8 gba:z-20"

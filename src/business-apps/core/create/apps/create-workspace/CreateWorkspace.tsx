@@ -12,8 +12,8 @@ import {
   NeuralBackground,
   ConnectionsVisualization,
   ToolCardProps
-} from './components'
-import { OrchestratorViewConversational } from './components/OrchestratorViewConversational'
+} from './features/landing'
+import { OrchestratorViewConversational } from './features/orchestrator/views'
 
 export interface NewworkCreateProps extends BusinessAppContextProps {
   'data-testid'?: string
