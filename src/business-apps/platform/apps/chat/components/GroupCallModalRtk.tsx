@@ -489,8 +489,33 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     }
   }, [wsClient, callConversation, sidebarView, currentUserId])
 
-  // Pagination config: max participants per page
-  const PARTICIPANTS_PER_PAGE = 9
+  // Track screen size for responsive pagination
+  const [screenWidth, setScreenWidth] = useState(window.innerWidth)
+
+  useEffect(() => {
+    const handleResize = () => {
+      setScreenWidth(window.innerWidth)
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  // Pagination config: max participants per page (responsive)
+  const PARTICIPANTS_PER_PAGE = useMemo(() => {
+    // Mobile: 4 participants per page (2x2 grid) - like MS Teams
+    if (screenWidth < 768) {
+      return 4
+    }
+
+    // Tablet: 6 participants per page (3x2 grid)
+    if (screenWidth < 1024) {
+      return 6
+    }
+
+    // Desktop: 9 participants per page (3x3 grid)
+    return 9
+  }, [screenWidth])
 
   // Subscribe to remote participants from SDK
   const remotePeers: GroupCallParticipant[] = useRealtimeKitSelector((m: any): GroupCallParticipant[] => {
@@ -1913,10 +1938,35 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     }
   }, [gridItems.length, currentPage, PARTICIPANTS_PER_PAGE])
 
-  // Calculate minimum tile size for auto-fit grid based on panel state
+  // Calculate responsive values based on screen size
+  const [responsiveConfig, setResponsiveConfig] = useState(() => {
+    const width = window.innerWidth
+    return {
+      sidebarWidth: width < 768 ? 280 : width < 1024 ? 320 : 360,
+      minTileSize: width < 768 ? 150 : width < 1024 ? 180 : 250,
+      minTileSizeWithSidebar: width < 768 ? 120 : width < 1024 ? 150 : 200
+    }
+  })
+
+  // Update responsive config on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth
+      setResponsiveConfig({
+        sidebarWidth: width < 768 ? 280 : width < 1024 ? 320 : 360,
+        minTileSize: width < 768 ? 150 : width < 1024 ? 180 : 250,
+        minTileSizeWithSidebar: width < 768 ? 120 : width < 1024 ? 150 : 200
+      })
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  // Calculate minimum tile size for auto-fit grid based on panel state and screen size
   const minTileSize = useMemo(() => {
-    return sidebarView !== 'closed' ? 200 : 250
-  }, [sidebarView])
+    return sidebarView !== 'closed' ? responsiveConfig.minTileSizeWithSidebar : responsiveConfig.minTileSize
+  }, [sidebarView, responsiveConfig])
 
   // Create stable track IDs for dependency tracking
   const screenShareTrackIds = useMemo(() => {
@@ -2349,6 +2399,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         firstRemoteStream={firstRemoteStream}
         remotePeerCount={stableRemotePeers.length}
         callStartTime={callState.startTime}
+        callType={callState.callType}
         isMuted={callState.isMuted}
         isVideoEnabled={callState.isVideoEnabled}
         isHandRaised={isFirstPeerHandRaised}
@@ -2376,7 +2427,11 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       {createPortal(
         <Dialog open={isOpen} onOpenChange={() => {}}>
           <DialogContent
-            className="gba:!max-w-[1400px] gba:!w-[90vw] gba:h-[85vh] gba:p-0 gba:overflow-hidden gba:flex gba:flex-col gba:gap-0"
+            className="gba:h-[85vh] gba:p-0 gba:overflow-hidden gba:flex gba:flex-col gba:gap-0"
+            style={{
+              width: '90vw',
+              maxWidth: window.innerWidth >= 1280 ? '1800px' : window.innerWidth >= 1024 ? '1600px' : '90vw'
+            }}
             data-testid={`${prefixDataTestId}-modal`}
           >
             <style>{`
@@ -2416,7 +2471,9 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
             {/* Row 2: Video Area + Sidebar (Grid Layout) */}
             <div
               className="gba:flex-1 gba:grid gba:min-h-0 gba:overflow-hidden gba:bg-muted/30"
-              style={{ gridTemplateColumns: sidebarView !== 'closed' ? '1fr 360px' : '1fr' }}
+              style={{
+                gridTemplateColumns: sidebarView !== 'closed' ? `1fr ${responsiveConfig.sidebarWidth}px` : '1fr'
+              }}
             >
               {/* Video Area */}
               <div className="gba:flex gba:flex-col gba:gap-4 gba:p-4 gba:min-h-0 gba:overflow-hidden">
@@ -2537,7 +2594,9 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                       <div
                         key={item.id}
                         className="gba:relative gba:w-full gba:h-full gba:rounded-lg gba:overflow-hidden gba:bg-muted"
-                        style={{ aspectRatio: '16/9' }}
+                        style={{
+                          aspectRatio: window.innerWidth < 768 ? '4/3' : '16/9'
+                        }}
                         data-testid={`${prefixDataTestId}-grid-item-${item.id}`}
                       >
                         <MemoizedParticipantVideoTile
@@ -2607,7 +2666,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                     <ParticipantsPanel
                       meeting={meeting}
                       isOpen={true}
-                      onClose={() => setSidebarView('closed')}
                       prefixDataTestId={prefixDataTestId}
                       availableParticipants={availableParticipants}
                       pendingInvites={pendingInvites}

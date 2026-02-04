@@ -2,6 +2,9 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { Button, Textarea, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
 import { Plus, Paperclip, Globe, Trash, PaperPlaneTilt, Camera, At } from '@phosphor-icons/react'
 import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '../hooks/useFileUploadManager'
+import { VoiceModeButton } from './voice/VoiceModeButton'
+import { useEntityMentions, type EntityReference } from '@/common/hooks/useEntityMentions'
+import { EntityMentionPopover } from '@/common/components/entity-mentions'
 
 // Detect if running on a mobile device with camera capabilities
 function useIsMobileWithCamera(): boolean {
@@ -16,9 +19,7 @@ function useIsMobileWithCamera(): boolean {
     const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
     return (hasTouch || isMobileUA) && hasMediaDevices
   }, [])
-import { VoiceModeButton } from './voice/VoiceModeButton'
-import { useEntityMentions, type EntityReference } from '@/common/hooks/useEntityMentions'
-import { EntityMentionPopover } from '@/common/components/entity-mentions'
+}
 
 type Suggestion = string | { heading?: string; message?: string }
 
