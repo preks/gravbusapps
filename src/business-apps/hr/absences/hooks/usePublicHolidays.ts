@@ -3,7 +3,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { HolidayEntry, convertHolidaysToDateSet } from '../utils/vacationCalculations'
 import { GET_EMPLOYMENT_REGION_HOLIDAYS, GET_EMPLOYEE_REGION } from '../queries/holidaysQueries'
@@ -54,7 +54,7 @@ export const usePublicHolidays = ({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const graphqlClient = useGraphqlClient(accessToken)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchHolidays = useCallback(async () => {
     if (!accessToken) {
