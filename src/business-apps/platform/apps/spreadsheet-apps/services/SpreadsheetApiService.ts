@@ -123,7 +123,16 @@ interface PaginatedResponse<T> {
   totalPages: number
 }
 
-type SpreadsheetRowData = Record<string, unknown> & {
+type SpreadsheetCellValue =
+  | unknown
+  | {
+      v?: unknown
+      f?: string
+      m?: string
+      ct?: Record<string, unknown>
+    }
+
+type SpreadsheetRowData = Record<string, SpreadsheetCellValue> & {
   _clientRowId?: string
 }
 

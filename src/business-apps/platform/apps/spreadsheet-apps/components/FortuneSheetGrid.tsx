@@ -293,18 +293,16 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         // Defer state updates to avoid setState-during-render warning
         const rowId = context.rowIndexToId.get(rowIndex)
         const columnId = context.columnIndexToId.get(colIndex)
+        const isFormulaOnly = isFormula && typeof value === 'string'
         setTimeout(() => {
           if (onCellChange && rowId && columnId) {
             const column = columns.find(c => c.id === columnId)
             const columnName = column?.name ?? columnId
-            // For formulas, pass the computed value (not the formula object)
-            // The parent data model stores simple values, not formula objects
-            const changeValue = isFullCellWithFormula ? (value as any).v : value
+            const changeValue = isFormulaOnly ? { f: value } : value
             onCellChange(rowId, columnName, changeValue, { fromRemote: true })
           }
-          // DON'T call onRemoteChangeApplied for formula cells
-          // It causes a Workbook remount which loses the formula since parent data doesn't store formulas
-          if (!isFullCellWithFormula) {
+          // Avoid remount for formula cells to preserve formula state
+          if (!isFullCellWithFormula && !isFormulaOnly) {
             onRemoteChangeApplied?.()
           }
         }, 0)
@@ -478,8 +476,13 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
 
             // Extract cell value - handle both direct values and cell objects
             let cellValue = op.value
-            if (cellValue && typeof cellValue === 'object' && 'v' in cellValue) {
+            const isCellObject = cellValue && typeof cellValue === 'object' && !Array.isArray(cellValue)
+            if (isCellObject && 'f' in (cellValue as Record<string, unknown>)) {
+              // Preserve full cell object when it includes a formula
+            } else if (isCellObject && 'v' in (cellValue as Record<string, unknown>)) {
               cellValue = (cellValue as { v: unknown }).v
+            } else if (isCellObject) {
+              cellValue = ''
             }
 
             // Handle new column - user edited beyond existing columns (auto-create)
