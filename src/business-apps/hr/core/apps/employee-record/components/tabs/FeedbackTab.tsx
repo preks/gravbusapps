@@ -497,7 +497,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                         return (
                           <Card
                             key={request.id}
-                            className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1 gba:cursor-pointer"
+                            className="gba:p-1 gba:cursor-pointer"
                             size="small"
                             data-testid={`received-request-item-${request.id}`}
                             onClick={() => handleRespondClick(request)}
@@ -604,7 +604,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                         return (
                           <Card
                             key={request.id}
-                            className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1"
+                            className="gba:p-1"
                             size="small"
                             data-testid={`requested-request-item-${request.id}`}
                           >
@@ -721,7 +721,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
             {formattedFilteredFeedback.map((feedback, index) => (
               <Card
                 key={feedback.id || index}
-                className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:h-full"
+                className="gba:h-full"
                 bodyStyle={{ height: '100%', display: 'flex', flexDirection: 'column' }}
                 data-testid={`feedback-card-${index}`}
               >
