@@ -7,6 +7,7 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
 
 // Components
 import {
@@ -14,7 +15,7 @@ import {
   SpaceStats,
   SpacePinned,
   SpaceActivity,
-  SpaceContent,
+  SpaceDriveView,
   SpaceMembers,
   AddContentDialog
 } from './components'
@@ -28,12 +29,12 @@ import { useSpaceContent } from './hooks/useSpaceContent'
 import { useSpaceActivity } from './hooks/useSpaceActivity'
 import { useSpaceUserLookup } from './hooks/useSpaceUserLookup'
 import type {
-    SpaceContentItem,
-    AddMemberInput,
-    MoveContentInput,
-    SpaceMemberRole,
-    UpdateSpaceInput
-  } from './types/space.types'
+  SpaceContentItem,
+  AddMemberInput,
+  MoveContentInput,
+  SpaceMemberRole,
+  UpdateSpaceInput
+} from './types/space.types'
 
 export interface SpaceDetailProps extends BusinessAppContextProps {
   spaceId: string
@@ -53,6 +54,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
   const [moveDialogOpen, setMoveDialogOpen] = useState(false)
   const [addContentDialogOpen, setAddContentDialogOpen] = useState(false)
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<'overview' | 'drive'>('overview')
 
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
@@ -281,62 +283,88 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
 
       {/* Content */}
       <main className="gba:max-w-7xl gba:mx-auto gba:px-6 gba:py-8 gba:space-y-8">
-        {/* Quick Stats */}
-        <SpaceStats
-          documents={stats.documents}
-          spreadsheets={stats.spreadsheets}
-          notes={stats.notes}
-          slides={stats.slides}
-          recentActivity={stats.recentActivity}
-          data-testid={`${testId}-stats`}
-        />
+        <Tabs
+          value={activeTab}
+          onValueChange={value => setActiveTab(value as 'overview' | 'drive')}
+          className="gba:space-y-6"
+        >
+          <TabsList className="gba:w-fit" data-testid={`${testId}-tabs`}>
+            <TabsTrigger value="overview" data-testid={`${testId}-tab-overview`}>
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="drive" data-testid={`${testId}-tab-drive`}>
+              Drive
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Pinned Content */}
-        {pinnedItems.length > 0 && (
-          <section>
-            <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Pinned</h2>
-            <SpacePinned items={pinnedItems} onItemClick={handleItemClick} data-testid={`${testId}-pinned`} />
-          </section>
-        )}
+          <TabsContent value="overview" className="gba:space-y-8" data-testid={`${testId}-tab-content-overview`}>
+            {/* Quick Stats */}
+            <SpaceStats
+              documents={stats.documents}
+              spreadsheets={stats.spreadsheets}
+              notes={stats.notes}
+              slides={stats.slides}
+              recentActivity={stats.recentActivity}
+              data-testid={`${testId}-stats`}
+            />
 
-        {/* Two Column Layout: Activity & Members */}
-        <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-3 gba:gap-8">
-          {/* Left: Activity Feed */}
-          <section className="gba:lg:col-span-2">
-            <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Recent Activity</h2>
-            <div className="gba:rounded-lg gba:bg-card gba:p-4">
-              <SpaceActivity activities={activities} isLoading={activityLoading} data-testid={`${testId}-activity`} />
+            {/* Pinned Content */}
+            {pinnedItems.length > 0 && (
+              <section>
+                <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Pinned</h2>
+                <SpacePinned items={pinnedItems} onItemClick={handleItemClick} data-testid={`${testId}-pinned`} />
+              </section>
+            )}
+
+            {/* Two Column Layout: Activity & Members */}
+            <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-3 gba:gap-8">
+              {/* Left: Activity Feed */}
+              <section className="gba:lg:col-span-2">
+                <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Recent Activity</h2>
+                <div className="gba:rounded-lg gba:bg-card gba:p-4">
+                  <SpaceActivity
+                    activities={activities}
+                    isLoading={activityLoading}
+                    data-testid={`${testId}-activity`}
+                  />
+                </div>
+              </section>
+
+              {/* Right: Members */}
+              <section>
+                <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Members</h2>
+                <div className="gba:rounded-lg gba:bg-card gba:p-4">
+                  <SpaceMembers
+                    members={enrichedMembers}
+                    currentUserId={currentUserId}
+                    isOwner={isOwner}
+                    canManageMembers={canManageMembers}
+                    onInvite={() => setInviteDialogOpen(true)}
+                    onUpdateRole={handleUpdateMemberRole}
+                    onRemoveMember={handleRemoveMember}
+                    data-testid={`${testId}-members`}
+                  />
+                </div>
+              </section>
             </div>
-          </section>
+          </TabsContent>
 
-          {/* Right: Members */}
-          <section>
-            <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Members</h2>
-            <div className="gba:rounded-lg gba:bg-card gba:p-4">
-              <SpaceMembers
-                members={enrichedMembers}
-                currentUserId={currentUserId}
-                isOwner={isOwner}
-                canManageMembers={canManageMembers}
-                onInvite={() => setInviteDialogOpen(true)}
-                onUpdateRole={handleUpdateMemberRole}
-                onRemoveMember={handleRemoveMember}
-                data-testid={`${testId}-members`}
-              />
-            </div>
-          </section>
-        </div>
-
-        {/* Content Browser */}
-        <section>
-          <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">All Content</h2>
-          <SpaceContent
-            items={allContent}
-            isLoading={contentLoading}
-            onItemClick={handleItemClick}
-            data-testid={`${testId}-content`}
-          />
-        </section>
+          <TabsContent value="drive" data-testid={`${testId}-tab-content-drive`}>
+            <SpaceDriveView
+              spaceId={spaceId}
+              accessToken={accessToken}
+              space={space}
+              items={allContent}
+              isLoading={contentLoading}
+              canEdit={canEdit}
+              onItemClick={handleItemClick}
+              onMoveItemToFolder={async (item, folderId) => {
+                await moveContent({ contentType: item.type, entityId: item.id, folderId })
+              }}
+              data-testid={`${testId}-drive`}
+            />
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Dialogs */}
