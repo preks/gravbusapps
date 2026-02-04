@@ -5,6 +5,20 @@ import { EnhancedAbsence } from '../types/enhancedAbsence'
 import { getCurrentActiveUserLocale, getCatalogValue } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
 
+// Extracted helper to module scope to avoid re-creating per render and reduce function complexity
+const extractColorFromObjectValue = (objectValue: any): string => {
+  if (!objectValue || typeof objectValue !== 'object') {
+    return 'var(--nw-muted-foreground)'
+  }
+
+  const color = objectValue.color
+  if (!color) {
+    return 'var(--nw-muted-foreground)'
+  }
+
+  return color.startsWith('#') ? color : `#${color}`
+}
+
 export interface UseAbsenceDataProps {
   accessToken: string
   employeeId: string
@@ -73,19 +87,6 @@ export const useAbsenceData = ({ accessToken, employeeId, filters }: UseAbsenceD
     const interval = setInterval(checkLocale, 1000)
     return () => clearInterval(interval)
   }, [currentLocale])
-
-  const extractColorFromObjectValue = (objectValue: any): string => {
-    if (!objectValue || typeof objectValue !== 'object') {
-      return 'var(--nw-muted-foreground)'
-    }
-
-    const color = objectValue.color
-    if (!color) {
-      return 'var(--nw-muted-foreground)'
-    }
-
-    return color.startsWith('#') ? color : `#${color}`
-  }
 
   const fetchAbsences = useCallback(async () => {
     if (!accessToken || !employeeId) {
