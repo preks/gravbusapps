@@ -13,6 +13,23 @@ import React, { useState, useEffect } from 'react'
 import { Users, Minimize2, MessageSquare } from 'lucide-react'
 import { formatDuration } from '../../utils/callUtils'
 
+/**
+ * Parse direct call meeting name format: "Call {Name A} | {Name B}"
+ * For direct calls, strip the participant names and return just "Call"
+ */
+const parseDirectCallTitle = (conversationName?: string, conversationType?: string): string | undefined => {
+  if (!conversationName || conversationType !== 'direct') return conversationName
+
+  // Check if it matches the format "Call {Name A} | {Name B}"
+  const match = conversationName.match(/^Call\s+(.+?)\s+\|\s+(.+)$/)
+  if (match) {
+    // For direct calls in the active call modal, just return "Call" (strip the participant names)
+    return 'Call'
+  }
+
+  return conversationName
+}
+
 export interface CallHeaderProps {
   /** Call title or conversation name */
   conversationName?: string
@@ -24,6 +41,8 @@ export interface CallHeaderProps {
   availableParticipantsCount?: number
   /** Type of call (audio or video) */
   callType: 'audio' | 'video'
+  /** Type of conversation (direct, group, meeting) - used to determine title */
+  conversationType?: 'direct' | 'group' | 'meeting'
   /** Whether participants panel is shown */
   showParticipantsPanel?: boolean
   /** Whether chat panel is shown */
@@ -49,6 +68,7 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
   callStartTime,
   participantCount,
   callType,
+  conversationType = 'group', // Default to group for backward compatibility
   showParticipantsPanel = false,
   showChatPanel = false,
   unreadChatCount = 0,
@@ -79,11 +99,39 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
     return () => clearInterval(timer)
   }, [callStartTime])
 
+  // Determine the call title based on conversation type
+  const getCallTitle = (): string => {
+    // Parse the conversationName to strip participant names for direct calls
+    // This handles the "Call {Name A} | {Name B}" format from the backend
+    const parsedName = parseDirectCallTitle(conversationName, conversationType)
+
+    // If conversationName is explicitly provided (after parsing), use it
+    if (parsedName) {
+      return parsedName
+    }
+
+    // Otherwise, use appropriate default based on conversation type
+    switch (conversationType) {
+      case 'direct':
+        // 1-on-1 call
+        return t('chat-directCall') || 'Call'
+      case 'meeting':
+        // Calendar meeting
+        return t('chat-meeting') || 'Meeting'
+      case 'group':
+      default:
+        // Group call
+        return t('groupCall-title') || 'Group Call'
+    }
+  }
+
+  const callTitle = getCallTitle()
+
   return (
     <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-2.5 gba:flex-shrink-0">
       {/* Left side - Title and info */}
       <div className="gba:flex gba:items-center gba:gap-3">
-        <h3 className="gba:font-semibold gba:text-sm">{conversationName || t('groupCall-title')}</h3>
+        <h3 className="gba:font-semibold gba:text-sm">{callTitle}</h3>
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
           {/* Duration - updates independently */}
           <span className="gba:font-mono gba:font-medium">{formatDuration(duration)}</span>

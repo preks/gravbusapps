@@ -24,7 +24,7 @@ import {
 import { env } from '@/common/env/EnvUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 
-export interface UseEntityImportReturn<T extends ConvertedEntity> {
+export interface UseEntityImportReturn<T> {
   // File state
   file: File | null
   csvText: string
@@ -45,7 +45,7 @@ export interface UseEntityImportReturn<T extends ConvertedEntity> {
   // Handlers
   handleFileChange: (file: File | null) => Promise<void>
   analyzeWithAgent: () => Promise<void>
-  convertData: (mappings: FieldMapping[]) => void
+  convertData: (mappings: FieldMapping[], transformFn?: (entity: ConvertedEntity) => T) => void
   importToBackend: () => Promise<void>
   downloadJSON: () => void
   reset: () => void
@@ -60,7 +60,82 @@ function getRequiredCatalogIdentifiers(config: ImportConfig): string[] {
   return config.targetFields.filter(field => field.type === 'catalog' && field.catalog).map(field => field.catalog!)
 }
 
-export function useEntityImport<T extends ConvertedEntity>(
+// Entity type configuration maps
+const INVESTMENT_TYPE_MAP = {
+  'real-estate-investment': 'realEstateInvestment',
+  'equity-investment': 'equityInvestment',
+  'liquid-fund-investment': 'liquidFundInvestment'
+} as const
+
+const STANDARD_ENTITY_ENDPOINTS = {
+  lead: 'Leads',
+  contact: 'Contacts',
+  account: 'Accounts'
+} as const
+
+// Helper function to build investment payload
+function buildInvestmentPayload(
+  entities: any[],
+  investmentType: 'realEstateInvestment' | 'equityInvestment' | 'liquidFundInvestment',
+  ownerEmployeeId?: string
+) {
+  return {
+    investments: entities.map((entity: any) => {
+      const { investment, [investmentType]: specificInvestment } = entity
+      return {
+        investmentRequest: {
+          investment: {
+            ...investment,
+            ownerEmployee: ownerEmployeeId
+          },
+          [investmentType]: specificInvestment
+        }
+      }
+    })
+  }
+}
+
+// Helper function to process investment API response
+function processInvestmentResponse(response: any): ImportResult {
+  const hasErrors = response.validationResponse?.errors?.length > 0
+  const createdInvestments = response.investments || []
+
+  return {
+    success: !hasErrors && createdInvestments.length > 0,
+    successCount: createdInvestments.length,
+    errorCount: hasErrors ? response.validationResponse.errors.length : 0,
+    errors: hasErrors
+      ? response.validationResponse.errors.map((err: any, idx: number) => ({
+          rowIndex: idx,
+          entityData: {},
+          error: `${err.code || 'ERROR'}: ${err.detail || err.title || 'Unknown error'}`
+        }))
+      : [],
+    createdIds: createdInvestments.map((inv: any) => inv.investment?.id).filter(Boolean)
+  }
+}
+
+// Helper function to process standard entity API response
+function processStandardEntityResponse(response: any, entityTypePlural: string): ImportResult {
+  const hasErrors = response.validationResponse?.errors?.length > 0
+  const createdEntities = response[entityTypePlural] || []
+
+  return {
+    success: !hasErrors && createdEntities.length > 0,
+    successCount: createdEntities.length,
+    errorCount: hasErrors ? response.validationResponse.errors.length : 0,
+    errors: hasErrors
+      ? response.validationResponse.errors.map((err: any, idx: number) => ({
+          rowIndex: idx,
+          entityData: {},
+          error: `${err.code || 'ERROR'}: ${err.detail || err.title || 'Unknown error'}`
+        }))
+      : [],
+    createdIds: createdEntities.map((entity: any) => entity.id)
+  }
+}
+
+export function useEntityImport<T = ConvertedEntity>(
   props: BusinessAppContextProps,
   config: ImportConfig
 ): UseEntityImportReturn<T> {
@@ -177,7 +252,7 @@ export function useEntityImport<T extends ConvertedEntity>(
 
   // Convert data
   const convertData = useCallback(
-    (mappings: FieldMapping[]) => {
+    (mappings: FieldMapping[], transformFn?: (entity: ConvertedEntity) => T) => {
       if (parsedData.length === 0 || mappings.length === 0) {
         setError('No data or mappings available')
         return
@@ -187,15 +262,18 @@ export function useEntityImport<T extends ConvertedEntity>(
       setError(null)
 
       try {
-        const converted = convertParsedDataToEntities(parsedData, mappings, lookupCatalogEntry) as T[]
+        const converted = convertParsedDataToEntities(parsedData, mappings, lookupCatalogEntry)
+
+        // Apply transformation function if provided (for nested structures like investments)
+        const transformedEntities = transformFn ? converted.map(transformFn) : (converted as T[])
 
         // Post-process: Transform flat communication fields into communicationChannels array for contacts and accounts
-        const transformedEntities =
+        const finalEntities =
           config.entityType === 'contact' || config.entityType === 'account'
-            ? converted.map(entity => transformCommunicationChannels(entity))
-            : converted
+            ? transformedEntities.map(entity => transformCommunicationChannels(entity as ConvertedEntity))
+            : transformedEntities
 
-        setConvertedEntities(transformedEntities as T[])
+        setConvertedEntities(finalEntities as T[])
         setStep('result')
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Conversion failed')
@@ -217,66 +295,51 @@ export function useEntityImport<T extends ConvertedEntity>(
     setError(null)
 
     try {
-      // Get employee ID from user info
       const ownerEmployeeId = props.userInfo?.employeeDetails?.employeeId
 
       // Inject ownerEmployee into all entities before import
-      // Note: Backend expects 'ownerEmployee' field, not 'ownerEmployeeId'
-      const entitiesWithOwner = convertedEntities.map(entity => ({
+      const entitiesWithOwner = convertedEntities.map((entity: any) => ({
         ...entity,
-        ownerEmployee: ownerEmployeeId || entity.ownerEmployee || entity.ownerEmployeeId // Preserve existing if already set
+        ownerEmployee: ownerEmployeeId || entity.ownerEmployee || entity.ownerEmployeeId
       }))
 
-      // Map entity type to endpoint with domain-aware routing
-      const entityTypePlural = `${config.entityType}s`
-      const domainPrefix = config.domain === 'investment' ? 'investment-relations' : 'customer-relations'
-      const entityPrefix = config.domain === 'investment' ? 'Investment' : ''
-      let endpoint: string
+      let result: ImportResult
 
-      if (config.entityType === 'lead') {
-        endpoint = `/${domainPrefix}/create${entityPrefix}Leads`
-      } else if (config.entityType === 'contact') {
-        endpoint = `/${domainPrefix}/create${entityPrefix}Contacts`
-      } else if (config.entityType === 'account') {
-        endpoint = `/${domainPrefix}/create${entityPrefix}Accounts`
+      // Handle investment imports (real-estate, equity, liquid-fund)
+      if (config.entityType in INVESTMENT_TYPE_MAP) {
+        const investmentType = INVESTMENT_TYPE_MAP[config.entityType as keyof typeof INVESTMENT_TYPE_MAP]
+        const payload = buildInvestmentPayload(entitiesWithOwner, investmentType, ownerEmployeeId)
+
+        const response = await restClient.post('/investment-relations/createInvestments', payload, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        })
+
+        result = processInvestmentResponse(response)
+      }
+      // Handle standard entity imports (lead, contact, account)
+      else if (config.entityType in STANDARD_ENTITY_ENDPOINTS) {
+        const domainPrefix = config.domain === 'investment' ? 'investment-relations' : 'customer-relations'
+        const entityPrefix = config.domain === 'investment' ? 'Investment' : ''
+        const entitySuffix = STANDARD_ENTITY_ENDPOINTS[config.entityType as keyof typeof STANDARD_ENTITY_ENDPOINTS]
+        const endpoint = `/${domainPrefix}/create${entityPrefix}${entitySuffix}`
+        const entityTypePlural = `${config.entityType}s`
+
+        const response = await restClient.post(
+          endpoint,
+          { [entityTypePlural]: entitiesWithOwner },
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        )
+
+        result = processStandardEntityResponse(response, entityTypePlural)
       } else {
         throw new Error(`Unsupported entity type: ${config.entityType}`)
       }
 
-      // Make API call using RestClient
-      const response = await restClient.post(
-        endpoint,
-        { [entityTypePlural]: entitiesWithOwner },
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
-        }
-      )
-
-      // Transform response - all CRM endpoints use Kogito process response format
-      const hasErrors = response.validationResponse?.errors?.length > 0
-      const createdEntities = response[entityTypePlural] || []
-
-      const result: ImportResult = {
-        success: !hasErrors && createdEntities.length > 0,
-        successCount: createdEntities.length,
-        errorCount: hasErrors ? response.validationResponse.errors.length : 0,
-        errors: hasErrors
-          ? response.validationResponse.errors.map((err: any, idx: number) => ({
-              rowIndex: idx,
-              entityData: {},
-              error: `${err.code || 'ERROR'}: ${err.detail || err.title || 'Unknown error'}`
-            }))
-          : [],
-        createdIds: createdEntities.map((entity: any) => entity.id)
-      }
-
+      // Handle result
       if (result.success === false) {
         setError(`Import failed: ${result.errors?.[0]?.error || 'Unknown error'}`)
         setImportResult(null)
       } else {
-        // Success - store result and clear any errors
         setImportResult(result)
         setError(null)
       }
@@ -287,7 +350,7 @@ export function useEntityImport<T extends ConvertedEntity>(
     } finally {
       setIsLoading(false)
     }
-  }, [convertedEntities, config.entityType, props.userInfo, restClient, accessToken])
+  }, [convertedEntities, config.entityType, config.domain, props.userInfo, restClient, accessToken])
 
   // Download JSON
   const downloadJSON = useCallback(() => {

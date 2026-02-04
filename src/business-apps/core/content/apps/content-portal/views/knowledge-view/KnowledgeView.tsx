@@ -11,7 +11,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useContentFilterGroups } from '@/common/data/content/hooks/useContentFilterGroups'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { useInfiniteScroll } from '@/common/hooks/useInfiniteScroll'
-import { BookOpen, ChevronRight } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import CategorySidebar, { GLOSSARY_VIEW_MODE } from './components/CategorySidebar'
 import FeaturedArticlesSection from './components/FeaturedArticlesSection'
@@ -295,22 +295,18 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
         {!isGlossaryMode && (
           <>
             {isLoading ? (
-              <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
-                <div className="gba:flex gba:items-center gba:gap-3">
-                  <Skeleton className="gba:h-8 gba:w-8 gba:rounded-md" />
-                  <Skeleton className="gba:h-9 gba:w-64" />
-                </div>
+              <div className="gba:mb-6 gba:pt-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
+                <Skeleton className="gba:h-5 gba:w-48" />
                 <div className="gba:flex gba:gap-2 gba:items-center">
                   <Skeleton className="gba:h-10 gba:w-[300px]" />
                   <Skeleton className="gba:h-10 gba:w-32" />
                 </div>
               </div>
             ) : (
-              <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
-                <div className="gba:flex gba:items-center gba:gap-3">
-                  <BookOpen className="gba:w-8 gba:h-8 gba:text-primary" />
-                  <h1 className="gba:text-3xl gba:font-bold gba:text-foreground">{t('knowledge-welcome-title')}</h1>
-                </div>
+              <div className="gba:mb-6 gba:pt-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
+                <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+                  {t('knowledge-welcome-title')}
+                </h3>
                 <div className="gba:flex gba:gap-2 gba:items-center">
                   <SearchInput onSearch={handleSearch} placeholder={t('search_knowledge')} className="gba:w-[300px]" />
                   <AppAction

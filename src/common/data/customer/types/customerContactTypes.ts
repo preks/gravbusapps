@@ -70,7 +70,7 @@ export type CustomerContactFieldName = (typeof CustomerContactFields)[keyof type
 export const CUSTOMER_CONTACT_DESCRIPTORS: Descriptor[] = [
   // Filter out descriptors that need structural overrides
   ...createContactDescriptors(CustomerContactFields as Record<keyof typeof ContactFields, string>).filter(
-    d => !['contact', 'description', 'fullName', 'notes', 'leads'].includes(d.key)
+    d => !['contact', 'description', 'fullName', 'notes', 'leads', 'jobPositions'].includes(d.key)
   ),
 
   // CRM-specific structural overrides
@@ -91,6 +91,15 @@ export const CUSTOMER_CONTACT_DESCRIPTORS: Descriptor[] = [
     searchPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'], // CRM uses singular "lead"
     sortPaths: ['lead.firstName', 'lead.lastName', 'lead.companyName'],
     type: 'text'
+  },
+  {
+    key: 'jobPositions',
+    path: CustomerContactFields.jobPosition, // CRM uses 'jobTitle' in backend
+    filterLabel: 'Job Position',
+    optionSelectPaths: [CustomerContactFields.jobPosition],
+    optionSearchPaths: [CustomerContactFields.jobPosition],
+    optionDistinctOn: [CustomerContactFields.jobPosition],
+    kind: 'inIds'
   }
 ]
 

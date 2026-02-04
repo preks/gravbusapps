@@ -12,6 +12,7 @@ import { Mic, MicOff, Video, VideoOff, PhoneOff, Maximize2, Users } from 'lucide
 import { globalCallManager, type GlobalCallState } from '../services/globalCallManager'
 import type { GroupCallParticipant } from '../services/groupWebrtcClient'
 import { useChatTranslation } from '../contexts/TranslationContext'
+import { rtkDebug } from '../utils/rtkDebug'
 
 // Format duration as MM:SS or HH:MM:SS
 const formatDuration = (seconds: number): string => {
@@ -37,7 +38,6 @@ const getInitials = (name: string): string => {
 
 interface MinimizedCallUIProps {
   callState: GlobalCallState
-  localStream: MediaStream | null
   remoteStreams: Map<string, MediaStream>
   participants: GroupCallParticipant[]
   onToggleMute: () => void
@@ -48,8 +48,6 @@ interface MinimizedCallUIProps {
 
 const MinimizedCallUI: React.FC<MinimizedCallUIProps> = ({
   callState,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  localStream,
   remoteStreams,
   participants,
   onToggleMute,
@@ -312,12 +310,20 @@ export const GlobalMinimizedCall: React.FC = () => {
     window.dispatchEvent(new Event('popstate'))
   }
 
-  const handleEndCall = () => {
-    if (callData.webrtcClient) {
-      callData.webrtcClient.leaveRoom()
-      callData.webrtcClient.destroy()
+  const handleEndCall = async () => {
+    // ✅ Use the proper leaveCall function if available (sends socket event + status restoration)
+    if (callData.leaveCall) {
+      rtkDebug.log('[GlobalMinimizedCall] Using stored leaveCall function (sends socket event)')
+      await callData.leaveCall()
+    } else {
+      // Fallback: old behavior (won't trigger status restoration!)
+      console.warn('[GlobalMinimizedCall] ⚠️ No leaveCall function, falling back to manual cleanup')
+      if (callData.webrtcClient) {
+        callData.webrtcClient.leaveRoom()
+        callData.webrtcClient.destroy()
+      }
+      globalCallManager.clearCall()
     }
-    globalCallManager.clearCall()
   }
 
   // Render as portal to a dedicated container
@@ -333,7 +339,6 @@ export const GlobalMinimizedCall: React.FC = () => {
   return createPortal(
     <MinimizedCallUI
       callState={callData.callState}
-      localStream={callData.localStream}
       remoteStreams={callData.remoteStreams}
       participants={callData.participants}
       onToggleMute={handleToggleMute}

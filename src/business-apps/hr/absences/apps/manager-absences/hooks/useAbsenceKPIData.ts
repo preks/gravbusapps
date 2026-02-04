@@ -3,6 +3,37 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
+// Module-level month metadata to avoid recreating arrays per render
+const MONTH_I18N_KEYS = [
+  'lowcoder:absence_report.employee_table.january',
+  'lowcoder:absence_report.employee_table.february',
+  'lowcoder:absence_report.employee_table.march',
+  'lowcoder:absence_report.employee_table.april',
+  'lowcoder:absence_report.employee_table.may',
+  'lowcoder:absence_report.employee_table.june',
+  'lowcoder:absence_report.employee_table.july',
+  'lowcoder:absence_report.employee_table.august',
+  'lowcoder:absence_report.employee_table.september',
+  'lowcoder:absence_report.employee_table.october',
+  'lowcoder:absence_report.employee_table.november',
+  'lowcoder:absence_report.employee_table.december'
+]
+
+const MONTH_LABELS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December'
+]
+
 const GET_EMPLOYEE_ABSENCES_FOR_KPI = `
   query GetEmployeeAbsencesForKPI($supervisorId: uuid!) {
     EmployeeAbsence(
@@ -129,35 +160,7 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps) => {
 
   const getMonthName = (date: string): string => {
     const monthIndex = new Date(date).getMonth()
-    const monthKeys = [
-      'lowcoder:absence_report.employee_table.january',
-      'lowcoder:absence_report.employee_table.february',
-      'lowcoder:absence_report.employee_table.march',
-      'lowcoder:absence_report.employee_table.april',
-      'lowcoder:absence_report.employee_table.may',
-      'lowcoder:absence_report.employee_table.june',
-      'lowcoder:absence_report.employee_table.july',
-      'lowcoder:absence_report.employee_table.august',
-      'lowcoder:absence_report.employee_table.september',
-      'lowcoder:absence_report.employee_table.october',
-      'lowcoder:absence_report.employee_table.november',
-      'lowcoder:absence_report.employee_table.december'
-    ]
-    const monthNames = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December'
-    ]
-    return getTranslationFromI18nKeyAndLabel(monthKeys[monthIndex], monthNames[monthIndex])
+    return getTranslationFromI18nKeyAndLabel(MONTH_I18N_KEYS[monthIndex], MONTH_LABELS[monthIndex])
   }
 
   const getTranslatedName = (translations: { localeCode: string; value: string }[], currentLocale: string): string => {
@@ -194,36 +197,8 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps) => {
       organizedAbsences[month][type] += 1
     })
 
-    const monthKeys = [
-      'lowcoder:absence_report.employee_table.january',
-      'lowcoder:absence_report.employee_table.february',
-      'lowcoder:absence_report.employee_table.march',
-      'lowcoder:absence_report.employee_table.april',
-      'lowcoder:absence_report.employee_table.may',
-      'lowcoder:absence_report.employee_table.june',
-      'lowcoder:absence_report.employee_table.july',
-      'lowcoder:absence_report.employee_table.august',
-      'lowcoder:absence_report.employee_table.september',
-      'lowcoder:absence_report.employee_table.october',
-      'lowcoder:absence_report.employee_table.november',
-      'lowcoder:absence_report.employee_table.december'
-    ]
-    const monthNames = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December'
-    ]
-    const translatedMonthNames = monthKeys.map((key, index) =>
-      getTranslationFromI18nKeyAndLabel(key, monthNames[index])
+    const translatedMonthNames = MONTH_I18N_KEYS.map((key, index) =>
+      getTranslationFromI18nKeyAndLabel(key, MONTH_LABELS[index])
     )
 
     const allGroupsInData = new Set<string>()

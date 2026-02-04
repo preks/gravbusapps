@@ -4,6 +4,7 @@
 
 import { SelfieSegmentation, Results } from '@mediapipe/selfie_segmentation'
 import backgroundPoster from '../assets/background-poster.jpg'
+import { rtkDebug } from '../utils/rtkDebug'
 
 export interface RTKVideoMiddlewareOptions {
   backgroundImageUrl?: string
@@ -27,7 +28,7 @@ export class RTKVideoMiddleware {
   async initialize(): Promise<void> {
     if (this.isInitialized) return
 
-    console.log('[RTK Middleware] 🎨 Initializing video effects...')
+    rtkDebug.log('[RTK Middleware] 🎨 Initializing video effects...')
 
     // Load background image (use NewWork preset by default)
     await this.loadBackgroundImage(this.options.backgroundImageUrl || backgroundPoster)
@@ -49,7 +50,7 @@ export class RTKVideoMiddleware {
     await this.selfieSegmentation.initialize()
     this.isInitialized = true
     this.isProcessing = true
-    console.log('[RTK Middleware] ✅ Video effects initialized')
+    rtkDebug.log('[RTK Middleware] ✅ Video effects initialized')
   }
 
   private async loadBackgroundImage(url: string): Promise<void> {
@@ -58,7 +59,7 @@ export class RTKVideoMiddleware {
       img.crossOrigin = 'anonymous'
       img.onload = () => {
         this.backgroundImage = img
-        console.log('[RTK Middleware] 🖼️ Background image loaded')
+        rtkDebug.log('[RTK Middleware] 🖼️ Background image loaded')
         resolve()
       }
       img.onerror = err => {
@@ -81,7 +82,7 @@ export class RTKVideoMiddleware {
       // Check if canvas has valid dimensions
       if (!canvas.width || !canvas.height || canvas.width === 0 || canvas.height === 0) {
         if (frameCount <= 3) {
-          console.log(`[RTK Middleware] ⏳ Frame ${frameCount} - waiting for canvas dimensions:`, {
+          rtkDebug.log(`[RTK Middleware] ⏳ Frame ${frameCount} - waiting for canvas dimensions:`, {
             width: canvas.width,
             height: canvas.height
           })
@@ -91,7 +92,7 @@ export class RTKVideoMiddleware {
 
       // Log first few valid frames
       if (frameCount <= 3) {
-        console.log(`[RTK Middleware] 🎬 Frame ${frameCount} received:`, {
+        rtkDebug.log(`[RTK Middleware] 🎬 Frame ${frameCount} received:`, {
           canvasSize: `${canvas.width}x${canvas.height}`,
           hasCtx: !!ctx,
           isProcessing: this.isProcessing,
@@ -119,7 +120,7 @@ export class RTKVideoMiddleware {
 
       // Log every 30th frame to show processing is happening
       if (frameCount % 30 === 0) {
-        console.log(`[RTK Middleware] 🎨 Processing frame ${frameCount}`)
+        rtkDebug.log(`[RTK Middleware] 🎨 Processing frame ${frameCount}`)
       }
 
       try {
@@ -206,12 +207,12 @@ export class RTKVideoMiddleware {
 
   pause(): void {
     this.isProcessing = false
-    console.log('[RTK Middleware] ⏸️ Video effects paused')
+    rtkDebug.log('[RTK Middleware] ⏸️ Video effects paused')
   }
 
   resume(): void {
     this.isProcessing = true
-    console.log('[RTK Middleware] ▶️ Video effects resumed')
+    rtkDebug.log('[RTK Middleware] ▶️ Video effects resumed')
   }
 
   destroy(): void {
@@ -225,6 +226,6 @@ export class RTKVideoMiddleware {
 
     this.backgroundImage = null
     this.latestMask = null
-    console.log('[RTK Middleware] 🗑️ Video effects destroyed')
+    rtkDebug.log('[RTK Middleware] 🗑️ Video effects destroyed')
   }
 }

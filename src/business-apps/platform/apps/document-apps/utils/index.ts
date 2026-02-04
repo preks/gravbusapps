@@ -3,3 +3,4 @@
  */
 
 export { exportToWord, exportToPDF, exportToHTML, exportToText } from './exportUtils'
+export { resolvePlaceholders, extractEntityKeysFromContent } from './templatePlaceholders'

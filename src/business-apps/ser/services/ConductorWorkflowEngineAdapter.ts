@@ -691,7 +691,8 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
         requestId: flowData.id || flowData.flowId,
         requesterId: flowData.initiatedBy || this.currentUserId,
         requesterName: this.extractRequesterName(flowData),
-        flowInitiatedBy: flowData.flowInitiatedBy || flowData.initiatedBy, // Flow initiator from API (try new field first, fallback to old)
+        flowInitiatedById: flowData.flowInitiatedById || flowData.initiatedBy, // Flow initiator ID (UUID) from API
+        flowInitiatedBy: flowData.flowInitiatedBy, // Flow initiator display name from API
 
         // Additional rich details for the UI
         description: step.message,
@@ -910,7 +911,8 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       requestId: taskData.flowId, // Use flowId as requestId
       requesterId: flowDetail?.initiatedBy || this.currentUserId, // Get from flow context
       requesterName: extractedRequesterName,
-      flowInitiatedBy: flowDetail?.flowInitiatedBy || flowDetail?.initiatedBy, // Flow initiator from API (try new field first, fallback to old)
+      flowInitiatedById: taskData.flowInitiatedById || flowDetail?.flowInitiatedById || flowDetail?.initiatedBy, // Flow initiator ID (UUID) from API
+      flowInitiatedBy: taskData.flowInitiatedBy || flowDetail?.flowInitiatedBy, // Flow initiator display name from API
       message: taskData.message, // ✅ PRESERVE message from task data
       availableActions: taskData.availableActions || this.getDefaultAvailableActions(taskData),
       dueDate: taskData.dueDate,
@@ -1881,7 +1883,8 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       desk: desk,
       requestId: task.flowId || 'unknown', // Use flowId as requestId
       requesterId: task.requesterId || 'unknown', // Use requesterId from API response
-      flowInitiatedBy: task.flowInitiatedBy, // Flow initiator from API
+      flowInitiatedById: task.flowInitiatedById, // Flow initiator ID (UUID) from API
+      flowInitiatedBy: task.flowInitiatedBy, // Flow initiator display name from API
       requesterName: undefined,
       startedAt: task.scheduledAt || new Date().toISOString(),
       updatedAt: task.updatedAt,

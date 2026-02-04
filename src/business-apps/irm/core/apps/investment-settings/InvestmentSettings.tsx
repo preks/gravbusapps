@@ -19,7 +19,6 @@ import OpportunityDataPage from './pages/opportunity-data/OpportunityDataPage'
 import AccountDataPage from './pages/account-data/AccountDataPage'
 import InvestmentDataPage from './pages/investment-data/InvestmentDataPage'
 import InvestmentSpecificDataPage from './pages/investment-specific-data/InvestmentSpecificDataPage'
-import TemplateDataPage from './pages/template-data/TemplateDataPage'
 import TaskTemplateDataPage from './pages/task-template-data/TaskTemplateDataPage'
 import DocumentDataPage from './pages/document-data/DocumentDataPage'
 import { FolderTemplateDataPage, ModuleType } from '@/common/components/common-relations/setting-pages/folder-templates'
@@ -120,14 +119,10 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
     },
     {
       title: t('crm.templates', 'Templates'),
-      description: t('crm.templates_description', 'Manage document and task templates for investments'),
+      description: t('crm.templates_description', 'Manage folder and task templates for investments'),
       icon: FileHtmlIcon,
       iconSize: 'md' as const,
       entries: [
-        {
-          label: t('crm.document_templates', 'Document Templates'),
-          onClick: () => handleInlinePageChange({ key: 'template-data' })
-        },
         {
           label: t('crm.folder_templates', 'Folder Templates'),
           onClick: () => handleInlinePageChange({ key: 'folder-templates' })
@@ -246,16 +241,6 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
         prefixDataTestId={`${prefixDataTestId || ''}-InvestmentSpecificSettings`}
         onBack={() => handleInlinePageChange(null)}
         initialTab={initialTab || 'roles'}
-      />
-    )
-  }
-
-  if (inlinePage?.key === 'template-data') {
-    return (
-      <TemplateDataPage
-        {...context}
-        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentTemplateSettings`}
-        onBack={() => handleInlinePageChange(null)}
       />
     )
   }

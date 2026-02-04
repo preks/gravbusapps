@@ -7,17 +7,17 @@ import {
 
 export type DisplayMode = 'value' | 'letters' | 'stars' | 'custom'
 
-/** API RatingScaleType enum: NUMERIC | CUSTOM_LABEL | ALPHABETIC (no STAR). */
+/** API RatingScaleType enum: NUMERIC_RATING_SCALE_TYPE | CUSTOM_LABEL_RATING_SCALE_TYPE | ALPHABETIC_RATING_SCALE_TYPE. */
 function displayModeToScaleType(mode: DisplayMode): string {
   switch (mode) {
     case 'letters':
-      return 'ALPHABETIC'
+      return 'ALPHABETIC_RATING_SCALE_TYPE'
     case 'stars':
-      return 'CUSTOM_LABEL'
+      return 'CUSTOM_LABEL_RATING_SCALE_TYPE'
     case 'custom':
-      return 'CUSTOM_LABEL'
+      return 'CUSTOM_LABEL_RATING_SCALE_TYPE'
     default:
-      return 'NUMERIC'
+      return 'NUMERIC_RATING_SCALE_TYPE'
   }
 }
 
@@ -58,7 +58,7 @@ function buildSavePayload(form: RatingScaleFormValues): SaveRatingScalePayload {
       name: form.name.trim(),
       description: '',
       scaleType,
-      active: true,
+      recordState: 'active',
       notes: '',
       values
     }

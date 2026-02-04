@@ -5,7 +5,7 @@
  * page breaks, and Word-like editing experience.
  */
 
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
@@ -62,17 +62,15 @@ import {
   Upload
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import type { Document, DocumentApprovalRequest } from '../../types'
+import { useDocumentEditorAvatars, useYjsDocumentSync, useDocumentEditorShortcuts } from '../../hooks'
 import { PageBreak } from './extensions/PageBreak'
 import { createYjsCursorExtension } from './extensions/YjsCursor'
 import { EditorToolbar } from './EditorToolbar'
 import { exportToWord, exportToPDF, printHtmlDocument } from '../../utils/exportUtils'
 import { DocumentApiService } from '../../services/DocumentApiService'
 import { useCollaboration } from '../../../shared/hooks/useCollaboration'
-import type { DocumentParticipant } from '../../../shared/services/CollaborationClient'
 import { PresenceIndicator } from '../../../shared/components/PresenceIndicator'
-import { SocketIoYjsProvider } from '../../../shared/services/SocketIoYjsProvider'
 import { useVersioning } from '../../../shared/hooks/useVersioning'
 import { useFileLock } from '../../../shared/hooks/useFileLock'
 import { useComments } from '../../../shared/hooks/useComments'
@@ -292,7 +290,13 @@ export interface PagedDocumentEditorProps extends Partial<BusinessAppContextProp
   onSaveAsTemplate?: (title: string, content: string) => void
   onSendForApproval?: () => void
   isReadOnly?: boolean
+  /** Left panel (e.g. Insert field for templates); shown when editing a template */
+  leftPanel?: React.ReactNode
   'data-testid'?: string
+}
+
+export interface PagedDocumentEditorRef {
+  insertAtCursor: (htmlOrText: string) => void
 }
 
 function findInlineCommentSelection(editor: any, commentId: string): { from: number; to: number } | null {
@@ -326,946 +330,731 @@ function scrollInlineCommentDomIntoView(commentId: string) {
 /**
  * PagedDocumentEditor Component
  */
-export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
-  document,
-  initialContent = '',
-  initialTitle = 'Untitled Document',
-  onSave,
-  onBack,
-  onSaveAsTemplate,
-  onSendForApproval,
-  isReadOnly = false,
-  accessToken: accessTokenProp,
-  'data-testid': testId = 'paged-document-editor'
-}) => {
-  // Editor state
-  const [title, setTitle] = useState(document?.title || initialTitle)
-  const [isSaving, setIsSaving] = useState(false)
-  const [lastSaved, setLastSaved] = useState<Date | null>(document ? new Date(document.updatedAt) : null)
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
-  const [isExporting, setIsExporting] = useState(false)
-  const [zoom, setZoom] = useState(100)
-  const [pageCount, setPageCount] = useState(1)
-  const [currentPage, setCurrentPage] = useState(1)
+export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocumentEditorProps>(
+  function PagedDocumentEditor(
+    {
+      document,
+      initialContent = '',
+      initialTitle = 'Untitled Document',
+      onSave,
+      onBack,
+      onSaveAsTemplate,
+      onSendForApproval,
+      isReadOnly = false,
+      leftPanel,
+      accessToken: accessTokenProp,
+      'data-testid': testId = 'paged-document-editor'
+    },
+    ref
+  ) {
+    // Editor state
+    const [title, setTitle] = useState(document?.title || initialTitle)
+    const [isSaving, setIsSaving] = useState(false)
+    const [lastSaved, setLastSaved] = useState<Date | null>(document ? new Date(document.updatedAt) : null)
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+    const [isExporting, setIsExporting] = useState(false)
+    const [zoom, setZoom] = useState(100)
+    const [pageCount, setPageCount] = useState(1)
+    const [currentPage, setCurrentPage] = useState(1)
 
-  const editorContainerRef = useRef<HTMLDivElement>(null)
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const titleInputRef = useRef<HTMLInputElement>(null)
-  const editorRef = useRef<any>(null) // Store editor instance
+    const editorContainerRef = useRef<HTMLDivElement>(null)
+    const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const titleInputRef = useRef<HTMLInputElement>(null)
+    const editorRef = useRef<any>(null) // Store editor instance
 
-  useEffect(() => {
-    DocumentApiService.setAccessToken(accessTokenProp || null)
-  }, [accessTokenProp])
+    useEffect(() => {
+      DocumentApiService.setAccessToken(accessTokenProp || null)
+    }, [accessTokenProp])
 
-  // Current user (used for Yjs awareness user info)
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [currentUserName, setCurrentUserName] = useState<string | null>(null)
-  const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(null)
+    // Versioning UI state
+    const [showVersionHistory, setShowVersionHistory] = useState(false)
+    const [showCheckpointDialog, setShowCheckpointDialog] = useState(false)
+    const [showPublishDialog, setShowPublishDialog] = useState(false)
+    const [showComments, setShowComments] = useState(false)
+    const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
+    const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
+    const [pendingSelection, setPendingSelection] = useState<{ from: number; to: number; text: string } | null>(null)
 
-  // Versioning UI state
-  const [showVersionHistory, setShowVersionHistory] = useState(false)
-  const [showCheckpointDialog, setShowCheckpointDialog] = useState(false)
-  const [showPublishDialog, setShowPublishDialog] = useState(false)
-  const [showComments, setShowComments] = useState(false)
-  const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
-  const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
-  const [pendingSelection, setPendingSelection] = useState<{ from: number; to: number; text: string } | null>(null)
+    const ydoc = React.useMemo(() => new Y.Doc(), [document?.id])
+    const awareness = React.useMemo(() => new Awareness(ydoc), [ydoc])
 
-  // Yjs CRDT state for true concurrent co-editing
-  const [isYjsSynced, setIsYjsSynced] = useState(false)
-  const ydoc = React.useMemo(() => new Y.Doc(), [document?.id])
-  const awareness = React.useMemo(() => new Awareness(ydoc), [ydoc])
-  const yjsProviderRef = useRef<SocketIoYjsProvider | null>(null)
-  const scheduleSnapshotSaveRef = useRef<(editor: any) => void>(() => {})
+    const collaborationExtension = React.useMemo(
+      () => (document?.id ? Collaboration.configure({ document: ydoc }) : null),
+      [document?.id, ydoc]
+    )
+    const yjsCursorExtension = React.useMemo(
+      () => (document?.id ? createYjsCursorExtension(awareness) : null),
+      [document?.id, awareness]
+    )
 
-  const collaborationExtension = React.useMemo(
-    () => (document?.id ? Collaboration.configure({ document: ydoc }) : null),
-    [document?.id, ydoc]
-  )
-  const yjsCursorExtension = React.useMemo(
-    () => (document?.id ? createYjsCursorExtension(awareness) : null),
-    [document?.id, awareness]
-  )
+    const onErrorCallback = useCallback((error: Error) => {
+      console.error('[PagedDocumentEditor] Collaboration error:', error)
+    }, [])
 
-  const onErrorCallback = useCallback((error: Error) => {
-    console.error('[PagedDocumentEditor] Collaboration error:', error)
-  }, [])
+    // Get access token for collaboration and avatar fetching - prefer prop, fallback to localStorage
+    const accessToken = accessTokenProp || localStorage.getItem('business-app-ide-access-token') || ''
 
-  // Get access token for collaboration and avatar fetching - prefer prop, fallback to localStorage
-  const accessToken = accessTokenProp || localStorage.getItem('business-app-ide-access-token') || ''
+    // Collaboration state
+    const { participants: rawParticipants, socket: collaborationSocket } = useCollaboration({
+      entityType: 'document',
+      entityId: document?.id || '',
+      enabled: !!document?.id,
+      accessToken,
+      onError: onErrorCallback
+    })
 
-  // Collaboration state
-  const { participants: rawParticipants, socket: collaborationSocket } = useCollaboration({
-    entityType: 'document',
-    entityId: document?.id || '',
-    enabled: !!document?.id,
-    accessToken,
-    onError: onErrorCallback
-  })
+    const { participants, currentUserId, currentUserName, currentUserAvatar } = useDocumentEditorAvatars({
+      accessToken,
+      rawParticipants
+    })
 
-  // Enriched participants with avatars (populated by useEffect after graphqlClient is initialized)
-  const [participants, setParticipants] = useState<DocumentParticipant[]>(rawParticipants)
+    // Versioning, Comments, Locking, Publishing hooks
+    const versioning = useVersioning({
+      entityId: document?.id || '',
+      entityType: 'document',
+      apiService: DocumentApiService,
+      autoSaveEnabled: !!document?.id && !isReadOnly,
+      autoSaveInterval: 30000,
+      onVersionCreated: () => {}
+    })
 
-  // Versioning, Comments, Locking, Publishing hooks
-  const versioning = useVersioning({
-    entityId: document?.id || '',
-    entityType: 'document',
-    apiService: DocumentApiService,
-    autoSaveEnabled: !!document?.id && !isReadOnly,
-    autoSaveInterval: 30000,
-    onVersionCreated: version => {
-      console.log('[PagedDocumentEditor] Version created:', version.version)
-    }
-  })
+    const comments = useComments({
+      entityId: document?.id || '',
+      entityType: 'document',
+      apiService: DocumentApiService
+    })
 
-  const comments = useComments({
-    entityId: document?.id || '',
-    entityType: 'document',
-    apiService: DocumentApiService
-  })
+    const fileLock = useFileLock({
+      entityId: document?.id || '',
+      entityType: 'document',
+      currentUserId: currentUserId || undefined,
+      apiService: DocumentApiService
+    })
 
-  const fileLock = useFileLock({
-    entityId: document?.id || '',
-    entityType: 'document',
-    currentUserId: currentUserId || undefined,
-    apiService: DocumentApiService
-  })
+    const publishing = usePublishing({
+      entityId: document?.id || '',
+      entityType: 'document',
+      currentStatus: document?.publishMetadata?.status || 'draft',
+      apiService: DocumentApiService
+    })
 
-  const publishing = usePublishing({
-    entityId: document?.id || '',
-    entityType: 'document',
-    currentStatus: document?.publishMetadata?.status || 'draft',
-    apiService: DocumentApiService
-  })
-
-  // Drive Yjs sync + awareness over our existing Socket.IO connection.
-  useEffect(() => {
-    if (!document?.id) return
-    if (!collaborationSocket) return
-
-    // Build provider (and keep it stable while the socket/doc changes).
-    const provider = new SocketIoYjsProvider({
-      socket: collaborationSocket,
-      documentId: document.id,
+    const { isYjsSynced } = useYjsDocumentSync({
+      documentId: document?.id,
+      collaborationSocket,
       ydoc,
       awareness,
-      onSyncedChange: setIsYjsSynced,
-      onBootstrapRequired: async (html: string) => {
-        // Initializer: seed Yjs from legacy HTML (best-effort).
-        // We keep it simple: set the editor content once TipTap is ready.
-        // The collaboration extension will translate this into Yjs state.
-        const start = Date.now()
-        while (!editorRef.current && Date.now() - start < 5000) {
-          await new Promise(resolve => setTimeout(resolve, 25))
-        }
-        const ed = editorRef.current
-        if (!ed) {
-          throw new Error('Editor not ready for bootstrap')
-        }
-        console.log('[PagedDocumentEditor] Bootstrap: setting content:', html?.substring(0, 100))
-        console.log('[PagedDocumentEditor] Bootstrap: editor exists:', !!ed)
-        console.log('[PagedDocumentEditor] Bootstrap: editor isEditable BEFORE:', ed.isEditable)
-
-        // Temporarily make editor editable for setContent to work with Collaboration extension
-        const wasEditable = ed.isEditable
-        if (!wasEditable) {
-          ed.setEditable(true)
-        }
-
-        ed.commands.setContent(html || '<p></p>', true)
-
-        // Give TipTap time to propagate the change to Yjs
-        await new Promise(resolve => setTimeout(resolve, 100))
-
-        // Debug: check what's in the Y.Doc now (TipTap uses 'default' fragment by default)
-        const defaultFragment = ydoc.getXmlFragment('default')
-        console.log('[PagedDocumentEditor] Bootstrap: Y.Doc default fragment length:', defaultFragment.length)
-        console.log('[PagedDocumentEditor] Bootstrap: Y.Doc default fragment:', defaultFragment.toJSON())
-        // Also check the editor's current content
-        console.log('[PagedDocumentEditor] Bootstrap: editor HTML after setContent:', ed.getHTML())
-        console.log('[PagedDocumentEditor] Bootstrap: editor isEditable AFTER:', ed.isEditable)
-
-        // Note: Don't restore editable to false - the bootstrap process will mark sync as complete
-        // which will trigger the setEditable effect to set the correct state
-      },
-      onLocalDocumentChange: () => {
-        const ed = editorRef.current
-        if (!ed) return
-        scheduleSnapshotSaveRef.current(ed)
-      }
+      editorRef,
+      isReadOnly,
+      title,
+      setLastSaved,
+      setHasUnsavedChanges
     })
 
-    yjsProviderRef.current = provider
-    provider.start()
+    const editorContent = React.useMemo(
+      () => (document?.id ? '<p></p>' : document?.content || initialContent || '<p></p>'),
+      [document?.id, document?.content, initialContent]
+    )
+    const editorEditable = React.useMemo(
+      () => !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit)),
+      [isReadOnly, document?.id, isYjsSynced, fileLock.canEdit]
+    )
 
-    return () => {
-      provider.destroy()
-      yjsProviderRef.current = null
-      setIsYjsSynced(false)
-    }
-  }, [document?.id, collaborationSocket, ydoc, awareness])
-
-  // Set local awareness state (user meta shown in cursors/selections)
-  useEffect(() => {
-    if (!document?.id) return
-    if (!currentUserId) return
-    if (!isYjsSynced) return
-
-    awareness.setLocalStateField('user', {
-      id: currentUserId,
-      userId: currentUserId,
-      name: currentUserName || 'User',
-      color: participants.find(p => p.userId === currentUserId)?.userColor || '#4ECDC4',
-      avatar: currentUserAvatar // Include avatar URL for cursor rendering
-    })
-  }, [document?.id, awareness, currentUserId, currentUserName, currentUserAvatar, participants, isYjsSynced])
-
-  // Debounced snapshot save for exports/search. This does NOT drive collaboration.
-  const scheduleSnapshotSave = useCallback(
-    (currentEditor: any) => {
-      if (!document?.id || isReadOnly) return
+    // Set local awareness state (user meta shown in cursors/selections)
+    useEffect(() => {
+      if (!document?.id) return
+      if (!currentUserId) return
       if (!isYjsSynced) return
 
-      setHasUnsavedChanges(true)
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current)
-      }
+      awareness.setLocalStateField('user', {
+        id: currentUserId,
+        userId: currentUserId,
+        name: currentUserName || 'User',
+        color: participants.find(p => p.userId === currentUserId)?.userColor || '#4ECDC4',
+        avatar: currentUserAvatar // Include avatar URL for cursor rendering
+      })
+    }, [document?.id, awareness, currentUserId, currentUserName, currentUserAvatar, participants, isYjsSynced])
 
-      autoSaveTimeoutRef.current = setTimeout(() => {
-        const html = currentEditor?.getHTML?.() || ''
-        // Persist HTML snapshot without version churn (CRDT updates are the source of truth).
-        DocumentApiService.updateDocument(
-          document.id,
-          {
-            title,
-            content: html
-          },
-          { createVersion: false }
-        )
-          .then(() => {
-            setLastSaved(new Date())
-            setHasUnsavedChanges(false)
-          })
-          .catch(error => {
-            console.error('[PagedDocumentEditor] Snapshot save failed:', error)
-          })
-      }, 2000)
-    },
-    [document?.id, isReadOnly, isYjsSynced, title]
-  )
-
-  useEffect(() => {
-    scheduleSnapshotSaveRef.current = scheduleSnapshotSave
-  }, [scheduleSnapshotSave])
-
-  const graphqlClient = useGraphQLClient(accessToken)
-
-  // Fetch avatars for participants when they change
-  useEffect(() => {
-    const fetchParticipantAvatars = async () => {
-      if (!rawParticipants.length || !accessToken) {
-        setParticipants(rawParticipants)
-        return
-      }
-
-      const userIds = rawParticipants.map(p => p.userId).filter(Boolean)
-      if (userIds.length === 0) {
-        setParticipants(rawParticipants)
-        return
-      }
-
-      try {
-        const query = `
-          query GetEmployeeAvatars($userIds: [String!]) {
-            Employee(where: {userId: {_in: $userIds}}) {
-              userId
-              pictureThumbnail
+    // Initialize TipTap editor
+    const editor = useEditor(
+      {
+        extensions: [
+          StarterKit.configure({
+            heading: {
+              levels: [1, 2, 3, 4, 5, 6]
+            },
+            // Disable history when using Collaboration (Yjs provides its own history)
+            history: document?.id ? false : {}
+          }),
+          Placeholder.configure({
+            placeholder: 'Start writing your document...'
+          }),
+          TextAlign.configure({
+            types: ['heading', 'paragraph']
+          }),
+          Underline,
+          TextStyle,
+          Color,
+          Highlight.configure({
+            multicolor: true
+          }),
+          Link.configure({
+            openOnClick: false,
+            HTMLAttributes: {
+              class: 'editor-link'
             }
-          }
-        `
-        const result = await graphqlClient.request<{
-          Employee: Array<{ userId: string; pictureThumbnail: string | null }>
-        }>(query, { userIds })
-
-        const avatarMap = new Map<string, string>()
-        result?.Employee?.forEach(emp => {
-          if (emp.pictureThumbnail) {
-            const avatarUrl = emp.pictureThumbnail.startsWith('data:')
-              ? emp.pictureThumbnail
-              : `data:image/png;base64,${emp.pictureThumbnail}`
-            avatarMap.set(emp.userId, avatarUrl)
-          }
-        })
-
-        // Enrich participants with avatar URLs
-        const enrichedParticipants = rawParticipants.map(p => ({
-          ...p,
-          avatarUrl: avatarMap.get(p.userId) || undefined
-        }))
-        setParticipants(enrichedParticipants)
-      } catch (error) {
-        console.error('[PagedDocumentEditor] Failed to fetch participant avatars:', error)
-        setParticipants(rawParticipants)
-      }
-    }
-
-    fetchParticipantAvatars()
-  }, [rawParticipants, accessToken, graphqlClient])
-
-  // Get current user ID
-  useEffect(() => {
-    try {
-      // Prefer accessToken prop (published screens may not have token in localStorage)
-      const token = accessToken || localStorage.getItem('business-app-ide-access-token')
-      if (token) {
-        const payload = JSON.parse(atob(token.split('.')[1]))
-        setCurrentUserId(payload.sub || payload.userId || null)
-        setCurrentUserName(payload.name || payload.preferred_username || payload.username || null)
-      }
-    } catch {}
-  }, [accessToken])
-
-  // Fetch current user's avatar from Employee table
-  useEffect(() => {
-    if (!currentUserId || !accessToken) return
-
-    const fetchAvatar = async () => {
-      try {
-        const query = `
-          query GetEmployeeAvatar($userId: String!) {
-            Employee(where: {userId: {_eq: $userId}}, limit: 1) {
-              pictureThumbnail
+          }),
+          Image.configure({
+            HTMLAttributes: {
+              class: 'editor-image'
             }
+          }),
+          Table.configure({
+            resizable: true,
+            HTMLAttributes: {
+              class: 'editor-table'
+            }
+          }),
+          TableRow,
+          TableHeader,
+          TableCell,
+          FontFamily,
+          Subscript,
+          Superscript,
+          Typography,
+          PageBreak,
+          InlineCommentExtension.configure({
+            onCommentClick: commentId => {
+              setShowComments(true)
+              setTimeout(() => {
+                const commentElement = globalThis.document.querySelector(`[data-testid="comment-thread-${commentId}"]`)
+                commentElement?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }, 300)
+            }
+          }),
+          ...(collaborationExtension ? [collaborationExtension] : []),
+          ...(yjsCursorExtension ? [yjsCursorExtension] : [])
+        ],
+        // In CRDT mode, the Yjs doc becomes the single source of truth.
+        content: editorContent,
+        editable: editorEditable,
+        onUpdate: () => {
+          updatePageCount()
+          if (document?.id) versioning.markAsChanged()
+          if (!document?.id) {
+            setHasUnsavedChanges(true)
+            if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current)
+            autoSaveTimeoutRef.current = setTimeout(() => handleSave(), 3000)
           }
-        `
-        const result = await graphqlClient.request<{ Employee: Array<{ pictureThumbnail: string | null }> }>(query, {
-          userId: currentUserId
-        })
-
-        if (result?.Employee?.[0]?.pictureThumbnail) {
-          const thumbnail = result.Employee[0].pictureThumbnail
-          // Convert to data URL if it's raw base64
-          const avatarUrl = thumbnail.startsWith('data:') ? thumbnail : `data:image/png;base64,${thumbnail}`
-          setCurrentUserAvatar(avatarUrl)
         }
-      } catch (error) {
-        console.error('[PagedDocumentEditor] Failed to fetch user avatar:', error)
+      },
+      [document?.id, ydoc, editorContent, editorEditable]
+    )
+
+    // Inject collaboration cursor styles once on mount
+    useEffect(() => {
+      // Guard against SSR / non-browser environments
+      if (typeof window === 'undefined') return
+
+      const styleId = 'collaboration-cursor-styles'
+      // Use window.document to avoid shadowing from the 'document' prop
+      if (!window.document.getElementById(styleId)) {
+        const styleEl = window.document.createElement('style')
+        styleEl.id = styleId
+        styleEl.textContent = CURSOR_STYLES
+        window.document.head.appendChild(styleEl)
       }
-    }
+      return () => {
+        // Don't remove on unmount - other editors might need it
+      }
+    }, [])
 
-    fetchAvatar()
-  }, [currentUserId, accessToken, graphqlClient])
+    // Update refs when values change
+    useEffect(() => {
+      editorRef.current = editor
+    }, [editor])
 
-  // Initialize TipTap editor
-  const editor = useEditor(
-    {
-      extensions: [
-        StarterKit.configure({
-          heading: {
-            levels: [1, 2, 3, 4, 5, 6]
-          },
-          // Disable history when using Collaboration (Yjs provides its own history)
-          history: document?.id ? false : {}
-        }),
-        Placeholder.configure({
-          placeholder: 'Start writing your document...'
-        }),
-        TextAlign.configure({
-          types: ['heading', 'paragraph']
-        }),
-        Underline,
-        TextStyle,
-        Color,
-        Highlight.configure({
-          multicolor: true
-        }),
-        Link.configure({
-          openOnClick: false,
-          HTMLAttributes: {
-            class: 'editor-link'
-          }
-        }),
-        Image.configure({
-          HTMLAttributes: {
-            class: 'editor-image'
-          }
-        }),
-        Table.configure({
-          resizable: true,
-          HTMLAttributes: {
-            class: 'editor-table'
-          }
-        }),
-        TableRow,
-        TableHeader,
-        TableCell,
-        FontFamily,
-        Subscript,
-        Superscript,
-        Typography,
-        PageBreak,
-        InlineCommentExtension.configure({
-          onCommentClick: commentId => {
-            // Open comment panel
-            setShowComments(true)
-            // Scroll to the specific comment after panel opens
-            setTimeout(() => {
-              const commentElement = document.querySelector(`[data-testid="comment-thread-${commentId}"]`)
-              commentElement?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            }, 300)
-          }
-        }),
-        ...(collaborationExtension ? [collaborationExtension] : []),
-        ...(yjsCursorExtension ? [yjsCursorExtension] : [])
-      ],
-      // In CRDT mode, the Yjs doc becomes the single source of truth.
-      content: document?.id ? '<p></p>' : document?.content || initialContent || '<p></p>',
-      editable: !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit)),
-      onUpdate: () => {
-        updatePageCount()
-
-        // Mark as changed for versioning system
-        if (document?.id) {
-          versioning.markAsChanged()
+    // Expose insertAtCursor for template "Insert field" panel
+    useImperativeHandle(
+      ref,
+      () => ({
+        insertAtCursor(htmlOrText: string) {
+          const ed = editorRef.current
+          if (ed) ed.commands.insertContent(htmlOrText)
         }
+      }),
+      []
+    )
 
-        // For documents without an ID (not yet persisted), fallback to REST save debounce.
-        if (!document?.id) {
-          setHasUnsavedChanges(true)
-          if (autoSaveTimeoutRef.current) {
-            clearTimeout(autoSaveTimeoutRef.current)
-          }
-          autoSaveTimeoutRef.current = setTimeout(() => {
-            handleSave()
-          }, 3000)
-        }
+    // Update editor editable state when Yjs sync status or lock changes
+    useEffect(() => {
+      if (!editor) return
+      // For new documents (no ID), always editable if not read-only
+      // For existing documents, check Yjs sync and lock status
+      const shouldBeEditable = !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit))
+      if (editor.isEditable !== shouldBeEditable) {
+        editor.setEditable(shouldBeEditable)
       }
-    },
-    [document?.id, ydoc]
-  )
+    }, [editor, isReadOnly, document?.id, isYjsSynced, fileLock.canEdit])
 
-  // Inject collaboration cursor styles once on mount
-  useEffect(() => {
-    // Guard against SSR / non-browser environments
-    if (typeof window === 'undefined') return
-
-    const styleId = 'collaboration-cursor-styles'
-    // Use window.document to avoid shadowing from the 'document' prop
-    if (!window.document.getElementById(styleId)) {
-      const styleEl = window.document.createElement('style')
-      styleEl.id = styleId
-      styleEl.textContent = CURSOR_STYLES
-      window.document.head.appendChild(styleEl)
-    }
-    return () => {
-      // Don't remove on unmount - other editors might need it
-    }
-  }, [])
-
-  // Update refs when values change
-  useEffect(() => {
-    editorRef.current = editor
-    // Debug: check if Collaboration extension is loaded
-    if (editor) {
-      const extensionNames = editor.extensionManager.extensions.map(e => e.name)
-      console.log('[PagedDocumentEditor] Loaded extensions:', extensionNames.join(', '))
-      const hasCollaboration = extensionNames.includes('collaboration')
-      console.log('[PagedDocumentEditor] Has Collaboration extension:', hasCollaboration)
-    }
-  }, [editor])
-
-  // Update editor editable state when Yjs sync status or lock changes
-  useEffect(() => {
-    if (!editor) return
-    // For new documents (no ID), always editable if not read-only
-    // For existing documents, check Yjs sync and lock status
-    const shouldBeEditable = !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit))
-    console.log('[PagedDocumentEditor] Editable state check:', {
-      isReadOnly,
-      hasDocId: !!document?.id,
-      isYjsSynced,
-      canEdit: fileLock.canEdit,
-      shouldBeEditable,
-      currentIsEditable: editor.isEditable
-    })
-    if (editor.isEditable !== shouldBeEditable) {
-      console.log('[PagedDocumentEditor] Setting editor editable to:', shouldBeEditable)
-      editor.setEditable(shouldBeEditable)
-    }
-  }, [editor, isReadOnly, document?.id, isYjsSynced, fileLock.canEdit])
-
-  // Handler for inline comment (defined after editor)
-  const handleAddInlineComment = useCallback(() => {
-    if (!editor) return
-
-    const { from, to } = editor.state.selection
-    if (from === to) return // No selection
-
-    const selectedText = editor.state.doc.textBetween(from, to)
-    const { view } = editor
-    const coords = view.coordsAtPos(from)
-
-    setPendingSelection({ from, to, text: selectedText })
-    setInlineCommentPosition({
-      top: coords.top + window.scrollY + 30,
-      left: coords.left + window.scrollX
-    })
-    setShowInlineCommentPopover(true)
-  }, [editor])
-
-  // Calculate page count based on content height
-  const updatePageCount = useCallback(() => {
-    if (!editorContainerRef.current) return
-
-    const editorContent = editorContainerRef.current.querySelector('.ProseMirror')
-    if (!editorContent) return
-
-    const contentHeight = editorContent.scrollHeight
-    const pageContentHeight = A4_HEIGHT_PX - PAGE_MARGIN_PX * 2
-    const pages = Math.max(1, Math.ceil(contentHeight / pageContentHeight))
-    setPageCount(pages)
-  }, [])
-
-  // Update page count when content changes
-  useEffect(() => {
-    updatePageCount()
-
-    // Also update on window resize
-    window.addEventListener('resize', updatePageCount)
-    return () => window.removeEventListener('resize', updatePageCount)
-  }, [updatePageCount])
-
-  // Handle scroll to track current page
-  const handleScroll = useCallback(
-    (e: React.UIEvent<HTMLDivElement>) => {
-      const scrollTop = e.currentTarget.scrollTop
-      const pageContentHeight = A4_HEIGHT_PX - PAGE_MARGIN_PX * 2
-      const currentPageNum = Math.floor(scrollTop / pageContentHeight) + 1
-      setCurrentPage(Math.min(currentPageNum, pageCount))
-    },
-    [pageCount]
-  )
-
-  // Cleanup auto-save timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  // Handle title changes
-  const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setTitle(e.target.value)
-    setHasUnsavedChanges(true)
-  }, [])
-
-  // Save document
-  const handleSave = useCallback(async () => {
-    if (isReadOnly || isSaving || !editor) return
-
-    setIsSaving(true)
-    try {
-      const content = editor.getHTML()
-      await onSave(title, content)
-      setLastSaved(new Date())
-      setHasUnsavedChanges(false)
-    } catch (error) {
-      console.error('[PagedDocumentEditor] Save failed:', error)
-    } finally {
-      setIsSaving(false)
-    }
-  }, [title, editor, onSave, isReadOnly, isSaving])
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl+S - Save
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault()
-        handleSave()
-      }
-
-      // Cmd/Ctrl+Shift+M - Add inline comment
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'm') {
-        e.preventDefault()
-        handleAddInlineComment()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleSave, handleAddInlineComment])
-
-  // Context menu for inline comments
-  useEffect(() => {
-    const handleContextMenu = (e: MouseEvent) => {
-      // Only show if text is selected
+    // Handler for inline comment (defined after editor)
+    const handleAddInlineComment = useCallback(() => {
       if (!editor) return
 
       const { from, to } = editor.state.selection
       if (from === to) return // No selection
 
-      e.preventDefault()
-      handleAddInlineComment()
-    }
+      const selectedText = editor.state.doc.textBetween(from, to)
+      const { view } = editor
+      const coords = view.coordsAtPos(from)
 
-    const editorElement = editorContainerRef.current?.querySelector('.ProseMirror')
-    if (editorElement) {
-      editorElement.addEventListener('contextmenu', handleContextMenu)
-      return () => editorElement.removeEventListener('contextmenu', handleContextMenu)
-    }
-  }, [editor, handleAddInlineComment])
+      setPendingSelection({ from, to, text: selectedText })
+      setInlineCommentPosition({
+        top: coords.top + window.scrollY + 30,
+        left: coords.left + window.scrollX
+      })
+      setShowInlineCommentPopover(true)
+    }, [editor])
 
-  // Export to Word
-  const handleExportWord = useCallback(async () => {
-    if (!editor) return
-    setIsExporting(true)
-    try {
-      await exportToWord(title, editor.getHTML())
-    } catch (error) {
-      console.error('[PagedDocumentEditor] Export to Word failed:', error)
-    } finally {
-      setIsExporting(false)
-    }
-  }, [title, editor])
+    // Calculate page count based on content height
+    const updatePageCount = useCallback(() => {
+      if (!editorContainerRef.current) return
 
-  // Export to PDF
-  const handleExportPDF = useCallback(async () => {
-    if (!editor) return
-    setIsExporting(true)
-    try {
-      await exportToPDF(title, editor.getHTML())
-    } catch (error) {
-      console.error('[PagedDocumentEditor] Export to PDF failed:', error)
-    } finally {
-      setIsExporting(false)
-    }
-  }, [title, editor])
+      const editorContent = editorContainerRef.current.querySelector('.ProseMirror')
+      if (!editorContent) return
 
-  // Print document
-  const handlePrint = useCallback(() => {
-    if (!editor) return
-    printHtmlDocument({
-      title,
-      htmlContent: editor.getHTML(),
-      extraCss: `
+      const contentHeight = editorContent.scrollHeight
+      const pageContentHeight = A4_HEIGHT_PX - PAGE_MARGIN_PX * 2
+      const pages = Math.max(1, Math.ceil(contentHeight / pageContentHeight))
+      setPageCount(pages)
+    }, [])
+
+    // Update page count when content changes
+    useEffect(() => {
+      updatePageCount()
+
+      // Also update on window resize
+      window.addEventListener('resize', updatePageCount)
+      return () => window.removeEventListener('resize', updatePageCount)
+    }, [updatePageCount])
+
+    // Handle scroll to track current page
+    const handleScroll = useCallback(
+      (e: React.UIEvent<HTMLDivElement>) => {
+        const scrollTop = e.currentTarget.scrollTop
+        const pageContentHeight = A4_HEIGHT_PX - PAGE_MARGIN_PX * 2
+        const currentPageNum = Math.floor(scrollTop / pageContentHeight) + 1
+        setCurrentPage(Math.min(currentPageNum, pageCount))
+      },
+      [pageCount]
+    )
+
+    // Cleanup auto-save timeout on unmount
+    useEffect(() => {
+      return () => {
+        if (autoSaveTimeoutRef.current) {
+          clearTimeout(autoSaveTimeoutRef.current)
+        }
+      }
+    }, [])
+
+    // Handle title changes
+    const handleTitleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+      setTitle(e.target.value)
+      setHasUnsavedChanges(true)
+    }, [])
+
+    // Save document
+    const handleSave = useCallback(async () => {
+      if (isReadOnly || isSaving || !editor) return
+
+      setIsSaving(true)
+      try {
+        const content = editor.getHTML()
+        await onSave(title, content)
+        setLastSaved(new Date())
+        setHasUnsavedChanges(false)
+      } catch (error) {
+        console.error('[PagedDocumentEditor] Save failed:', error)
+      } finally {
+        setIsSaving(false)
+      }
+    }, [title, editor, onSave, isReadOnly, isSaving])
+
+    useDocumentEditorShortcuts({
+      onSave: () => {
+        void handleSave()
+      },
+      onAddInlineComment: handleAddInlineComment,
+      editor,
+      editorContainerRef
+    })
+
+    // Export to Word
+    const handleExportWord = useCallback(async () => {
+      if (!editor) return
+      setIsExporting(true)
+      try {
+        await exportToWord(title, editor.getHTML())
+      } catch (error) {
+        console.error('[PagedDocumentEditor] Export to Word failed:', error)
+      } finally {
+        setIsExporting(false)
+      }
+    }, [title, editor])
+
+    // Export to PDF
+    const handleExportPDF = useCallback(async () => {
+      if (!editor) return
+      setIsExporting(true)
+      try {
+        await exportToPDF(title, editor.getHTML())
+      } catch (error) {
+        console.error('[PagedDocumentEditor] Export to PDF failed:', error)
+      } finally {
+        setIsExporting(false)
+      }
+    }, [title, editor])
+
+    // Print document
+    const handlePrint = useCallback(() => {
+      if (!editor) return
+      printHtmlDocument({
+        title,
+        htmlContent: editor.getHTML(),
+        extraCss: `
         .page-break { page-break-after: always; break-after: page; }
         @media print { .page-break { page-break-after: always; break-after: page; height: 0; border: none; } }
       `
-    })
-  }, [title, editor])
+      })
+    }, [title, editor])
 
-  // Zoom controls
-  const handleZoomIn = useCallback(() => {
-    setZoom(prev => Math.min(prev + 10, 200))
-  }, [])
+    // Zoom controls
+    const handleZoomIn = useCallback(() => {
+      setZoom(prev => Math.min(prev + 10, 200))
+    }, [])
 
-  const handleZoomOut = useCallback(() => {
-    setZoom(prev => Math.max(prev - 10, 50))
-  }, [])
+    const handleZoomOut = useCallback(() => {
+      setZoom(prev => Math.max(prev - 10, 50))
+    }, [])
 
-  const handleZoomReset = useCallback(() => {
-    setZoom(100)
-  }, [])
+    const handleZoomReset = useCallback(() => {
+      setZoom(100)
+    }, [])
 
-  // Get word count
-  const wordCount =
-    editor?.storage.characterCount?.words?.() || editor?.getText().trim().split(/\s+/).filter(Boolean).length || 0
+    // Get word count
+    const wordCount =
+      editor?.storage.characterCount?.words?.() || editor?.getText().trim().split(/\s+/).filter(Boolean).length || 0
 
-  // Get character count
-  const charCount = editor?.storage.characterCount?.characters?.() || editor?.getText().length || 0
+    // Get character count
+    const charCount = editor?.storage.characterCount?.characters?.() || editor?.getText().length || 0
 
-  // Format last saved time
-  const formatLastSaved = (date: Date | null): string => {
-    if (!date) return 'Not saved'
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMinutes = Math.floor(diffMs / 60000)
+    // Format last saved time
+    const formatLastSaved = (date: Date | null): string => {
+      if (!date) return 'Not saved'
+      const now = new Date()
+      const diffMs = now.getTime() - date.getTime()
+      const diffMinutes = Math.floor(diffMs / 60000)
 
-    if (diffMinutes < 1) return 'Saved just now'
-    if (diffMinutes === 1) return 'Saved 1 minute ago'
-    if (diffMinutes < 60) return `Saved ${diffMinutes} minutes ago`
+      if (diffMinutes < 1) return 'Saved just now'
+      if (diffMinutes === 1) return 'Saved 1 minute ago'
+      if (diffMinutes < 60) return `Saved ${diffMinutes} minutes ago`
 
-    return `Saved at ${date.toLocaleTimeString()}`
-  }
+      return `Saved at ${date.toLocaleTimeString()}`
+    }
 
-  return (
-    <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
-      {/* Header */}
-      <div className="gba:border-b gba:bg-card gba:shadow-sm">
-        <div className="gba:px-4 gba:py-3">
-          <div className="gba:flex gba:items-center gba:justify-between">
-            {/* Left side - Back button and title */}
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <Button variant="ghost" size="icon" onClick={onBack} title="Back to documents">
-                <ArrowLeft className="gba:w-5 gba:h-5" />
-              </Button>
+    return (
+      <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+        {/* Header */}
+        <div className="gba:border-b gba:bg-card gba:shadow-sm">
+          <div className="gba:px-4 gba:py-3">
+            <div className="gba:flex gba:items-center gba:justify-between">
+              {/* Left side - Back button and title */}
+              <div className="gba:flex gba:items-center gba:gap-4">
+                <Button variant="ghost" size="icon" onClick={onBack} title="Back to documents">
+                  <ArrowLeft className="gba:w-5 gba:h-5" />
+                </Button>
 
-              <div className="gba:flex gba:items-center gba:gap-3">
-                <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
-                  <FileText className="gba:w-5 gba:h-5 gba:text-primary" />
-                </div>
-                <div className="gba:flex gba:flex-col">
-                  <Input
-                    ref={titleInputRef}
-                    value={title}
-                    onChange={handleTitleChange}
-                    placeholder="Document Title"
-                    disabled={isReadOnly}
-                    className="gba:text-lg gba:font-semibold gba:border-0 gba:p-0 gba:h-auto gba:bg-transparent focus-visible:gba:ring-0 focus-visible:gba:ring-offset-0"
-                  />
-                  <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
-                    <span>{wordCount.toLocaleString()} words</span>
-                    <span>•</span>
-                    <span>{charCount.toLocaleString()} characters</span>
-                    <span>•</span>
-                    <span>
-                      Page {currentPage} of {pageCount}
-                    </span>
+                <div className="gba:flex gba:items-center gba:gap-3">
+                  <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
+                    <FileText className="gba:w-5 gba:h-5 gba:text-primary" />
+                  </div>
+                  <div className="gba:flex gba:flex-col">
+                    <Input
+                      ref={titleInputRef}
+                      value={title}
+                      onChange={handleTitleChange}
+                      placeholder="Document Title"
+                      disabled={isReadOnly}
+                      className="gba:text-lg gba:font-semibold gba:border-0 gba:p-0 gba:h-auto gba:bg-transparent focus-visible:gba:ring-0 focus-visible:gba:ring-offset-0"
+                    />
+                    <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
+                      <span>{wordCount.toLocaleString()} words</span>
+                      <span>•</span>
+                      <span>{charCount.toLocaleString()} characters</span>
+                      <span>•</span>
+                      <span>
+                        Page {currentPage} of {pageCount}
+                      </span>
+                    </div>
                   </div>
                 </div>
+
+                {/* Approval Status Badge */}
+                {document?.approvalRequest && <ApprovalStatusBadge approvalRequest={document.approvalRequest} />}
               </div>
 
-              {/* Approval Status Badge */}
-              {document?.approvalRequest && <ApprovalStatusBadge approvalRequest={document.approvalRequest} />}
-            </div>
-
-            {/* Right side - Actions */}
-            <div className="gba:flex gba:items-center gba:gap-2">
-              {/* Collaboration presence indicator */}
-              {participants.length > 0 && (
-                <PresenceIndicator
-                  participants={participants}
-                  maxVisible={3}
-                  size="sm"
-                  showLabel={false}
-                  className="gba:mr-2"
-                />
-              )}
-              {/* Save status */}
-              <div className="gba:flex gba:items-center gba:gap-2 gba:mr-2">
-                {isSaving ? (
-                  <Badge variant="secondary" className="gba:gap-1">
-                    <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
-                    Saving...
-                  </Badge>
-                ) : hasUnsavedChanges ? (
-                  <Badge variant="outline" className="gba:gap-1">
-                    <Clock className="gba:w-3 gba:h-3" />
-                    Unsaved changes
-                  </Badge>
-                ) : lastSaved ? (
-                  <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
-                    <CheckCircle className="gba:w-3 gba:h-3 gba:text-success" />
-                    {formatLastSaved(lastSaved)}
-                  </span>
-                ) : null}
-              </div>
-
-              <Separator orientation="vertical" className="gba:h-6" />
-
-              {/* Zoom controls */}
-              <div className="gba:flex gba:items-center gba:gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleZoomOut}
-                  title="Zoom Out"
-                  className="gba:h-8 gba:w-8"
-                >
-                  <ZoomOut className="gba:w-4 gba:h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleZoomReset}
-                  className="gba:h-8 gba:px-2 gba:text-xs gba:min-w-[50px]"
-                >
-                  {zoom}%
-                </Button>
-                <Button variant="ghost" size="icon" onClick={handleZoomIn} title="Zoom In" className="gba:h-8 gba:w-8">
-                  <ZoomIn className="gba:w-4 gba:h-4" />
-                </Button>
-              </div>
-
-              <Separator orientation="vertical" className="gba:h-6" />
-
-              {/* For new documents, show prominent save button */}
-              {!document?.id && !isReadOnly && (
-                <Button
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  variant="default"
-                  size="sm"
-                  data-testid="save-new-document-button"
-                  className="gba:bg-primary gba:text-primary-foreground"
-                >
-                  <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-                  {isSaving ? 'Saving...' : 'Save Document'}
-                </Button>
-              )}
-
-              {/* Versioning Features - Clean & Compact (for existing documents) */}
-              {document?.id && (
-                <>
-                  {/* Auto-save indicator */}
-                  <AutoSaveIndicator
-                    isSaving={versioning.isSaving}
-                    lastSaveTime={versioning.lastSaveTime}
-                    hasUnsavedChanges={versioning.hasUnsavedChanges}
-                    onManualSave={() => setShowCheckpointDialog(true)}
-                    data-testid="auto-save-indicator"
-                  />
-
-                  {/* Comments button */}
-                  <Button
-                    variant={showComments ? 'default' : 'ghost'}
+              {/* Right side - Actions */}
+              <div className="gba:flex gba:items-center gba:gap-2">
+                {/* Collaboration presence indicator */}
+                {participants.length > 0 && (
+                  <PresenceIndicator
+                    participants={participants}
+                    maxVisible={3}
                     size="sm"
-                    onClick={() => setShowComments(!showComments)}
-                    title="Comments (Right-click on text to add inline comment)"
-                    data-testid="comments-button"
-                    className="gba:h-8"
+                    showLabel={false}
+                    className="gba:mr-2"
+                  />
+                )}
+                {/* Save status */}
+                <div className="gba:flex gba:items-center gba:gap-2 gba:mr-2">
+                  {isSaving ? (
+                    <Badge variant="secondary" className="gba:gap-1">
+                      <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
+                      Saving...
+                    </Badge>
+                  ) : hasUnsavedChanges ? (
+                    <Badge variant="outline" className="gba:gap-1">
+                      <Clock className="gba:w-3 gba:h-3" />
+                      Unsaved changes
+                    </Badge>
+                  ) : lastSaved ? (
+                    <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
+                      <CheckCircle className="gba:w-3 gba:h-3 gba:text-success" />
+                      {formatLastSaved(lastSaved)}
+                    </span>
+                  ) : null}
+                </div>
+
+                <Separator orientation="vertical" className="gba:h-6" />
+
+                {/* Zoom controls */}
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleZoomOut}
+                    title="Zoom Out"
+                    className="gba:h-8 gba:w-8"
                   >
-                    <MessageSquare className="gba:w-4 gba:h-4" />
-                    {comments.unresolvedCount > 0 && (
-                      <Badge variant="warning" className="gba:ml-1 gba:px-1 gba:py-0 gba:h-4 gba:text-xs">
-                        {comments.unresolvedCount}
+                    <ZoomOut className="gba:w-4 gba:h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleZoomReset}
+                    className="gba:h-8 gba:px-2 gba:text-xs gba:min-w-[50px]"
+                  >
+                    {zoom}%
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleZoomIn}
+                    title="Zoom In"
+                    className="gba:h-8 gba:w-8"
+                  >
+                    <ZoomIn className="gba:w-4 gba:h-4" />
+                  </Button>
+                </div>
+
+                <Separator orientation="vertical" className="gba:h-6" />
+
+                {/* For new documents, show prominent save button */}
+                {!document?.id && !isReadOnly && (
+                  <Button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    variant="default"
+                    size="sm"
+                    data-testid="save-new-document-button"
+                    className="gba:bg-primary gba:text-primary-foreground"
+                  >
+                    <Save className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {isSaving ? 'Saving...' : 'Save Document'}
+                  </Button>
+                )}
+
+                {/* Versioning Features - Clean & Compact (for existing documents) */}
+                {document?.id && (
+                  <>
+                    {/* Auto-save indicator */}
+                    <AutoSaveIndicator
+                      isSaving={versioning.isSaving}
+                      lastSaveTime={versioning.lastSaveTime}
+                      hasUnsavedChanges={versioning.hasUnsavedChanges}
+                      onManualSave={() => setShowCheckpointDialog(true)}
+                      data-testid="auto-save-indicator"
+                    />
+
+                    {/* Comments button */}
+                    <Button
+                      variant={showComments ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setShowComments(!showComments)}
+                      title="Comments (Right-click on text to add inline comment)"
+                      data-testid="comments-button"
+                      className="gba:h-8"
+                    >
+                      <MessageSquare className="gba:w-4 gba:h-4" />
+                      {comments.unresolvedCount > 0 && (
+                        <Badge variant="warning" className="gba:ml-1 gba:px-1 gba:py-0 gba:h-4 gba:text-xs">
+                          {comments.unresolvedCount}
+                        </Badge>
+                      )}
+                    </Button>
+
+                    {/* Lock status indicator (compact) */}
+                    {fileLock.lock?.isLocked && fileLock.isLockedByMe && (
+                      <Badge variant="default" className="gba:flex gba:items-center gba:gap-1">
+                        <Lock className="gba:h-3 gba:w-3" />
+                        Locked
                       </Badge>
                     )}
-                  </Button>
 
-                  {/* Lock status indicator (compact) */}
-                  {fileLock.lock?.isLocked && fileLock.isLockedByMe && (
-                    <Badge variant="default" className="gba:flex gba:items-center gba:gap-1">
-                      <Lock className="gba:h-3 gba:w-3" />
-                      Locked
-                    </Badge>
-                  )}
+                    {/* Status badge */}
+                    <StatusBadge status={publishing.metadata?.status || 'draft'} />
+                  </>
+                )}
 
-                  {/* Status badge */}
-                  <StatusBadge status={publishing.metadata?.status || 'draft'} />
-                </>
-              )}
+                <Separator orientation="vertical" className="gba:h-6" />
 
-              <Separator orientation="vertical" className="gba:h-6" />
+                {/* Document Actions Menu */}
+                {document?.id && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
+                        Document
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setShowVersionHistory(true)}>
+                        <History className="gba:w-4 gba:h-4 gba:mr-2" />
+                        Version History
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setShowCheckpointDialog(true)}>
+                        <Save className="gba:w-4 gba:h-4 gba:mr-2" />
+                        Save Checkpoint
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {fileLock.isLockedByMe ? (
+                        <DropdownMenuItem onClick={() => fileLock.releaseLock()}>
+                          <Unlock className="gba:w-4 gba:h-4 gba:mr-2" />
+                          Unlock Document
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem onClick={() => fileLock.acquireLock()}>
+                          <Lock className="gba:w-4 gba:h-4 gba:mr-2" />
+                          Lock Document
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setShowPublishDialog(true)}>
+                        <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
+                        Publish...
+                      </DropdownMenuItem>
+                      {onSaveAsTemplate && (
+                        <DropdownMenuItem onClick={() => editor && onSaveAsTemplate(title, editor.getHTML())}>
+                          <BookTemplate className="gba:w-4 gba:h-4 gba:mr-2" />
+                          Save as Template
+                        </DropdownMenuItem>
+                      )}
+                      {onSendForApproval && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={onSendForApproval}>
+                            <Send className="gba:w-4 gba:h-4 gba:mr-2" />
+                            Send for Approval
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
 
-              {/* Document Actions Menu */}
-              {document?.id && (
+                {/* Export dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Document
+                    <Button variant="outline" size="sm" disabled={isExporting}>
+                      <Download className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Export
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setShowVersionHistory(true)}>
-                      <History className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Version History
+                    <DropdownMenuItem onClick={handleExportWord}>
+                      <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Export as Word (.docx)
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setShowCheckpointDialog(true)}>
-                      <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Save Checkpoint
+                    <DropdownMenuItem onClick={handleExportPDF}>
+                      <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Export as PDF
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    {fileLock.isLockedByMe ? (
-                      <DropdownMenuItem onClick={() => fileLock.releaseLock()}>
-                        <Unlock className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Unlock Document
-                      </DropdownMenuItem>
-                    ) : (
-                      <DropdownMenuItem onClick={() => fileLock.acquireLock()}>
-                        <Lock className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Lock Document
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setShowPublishDialog(true)}>
-                      <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Publish...
+                    <DropdownMenuItem onClick={handlePrint}>
+                      <Printer className="gba:w-4 gba:h-4 gba:mr-2" />
+                      Print
                     </DropdownMenuItem>
-                    {onSaveAsTemplate && (
-                      <DropdownMenuItem onClick={() => editor && onSaveAsTemplate(title, editor.getHTML())}>
-                        <BookTemplate className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Save as Template
-                      </DropdownMenuItem>
-                    )}
-                    {onSendForApproval && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={onSendForApproval}>
-                          <Send className="gba:w-4 gba:h-4 gba:mr-2" />
-                          Send for Approval
-                        </DropdownMenuItem>
-                      </>
-                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
-              )}
-
-              {/* Export dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={isExporting}>
-                    <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Export
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleExportWord}>
-                    <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Export as Word (.docx)
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleExportPDF}>
-                    <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Export as PDF
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handlePrint}>
-                    <Printer className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Print
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              </div>
             </div>
           </div>
+
+          {/* Toolbar */}
+          <EditorToolbar editor={editor} data-testid={`${testId}-toolbar`} />
         </div>
 
-        {/* Toolbar */}
-        <EditorToolbar editor={editor} data-testid={`${testId}-toolbar`} />
-      </div>
-
-      {/* Editor Area with Page Layout */}
-      <div ref={editorContainerRef} className="gba:flex-1 gba:overflow-auto gba:bg-muted/50" onScroll={handleScroll}>
-        <div className="gba:flex gba:justify-center gba:py-8" style={{ minHeight: '100%' }}>
+        {/* Main content: optional left panel + editor area */}
+        <div className={`gba:flex gba:flex-1 gba:min-h-0 ${leftPanel ? 'gba:flex-row' : 'gba:flex-col'}`}>
+          {leftPanel ? (
+            <div className="gba:flex-shrink-0 gba:w-64 gba:min-h-0 gba:flex gba:flex-col gba:overflow-hidden">
+              {leftPanel}
+            </div>
+          ) : null}
+          {/* Editor Area with Page Layout */}
           <div
-            className="paged-document-editor"
-            style={{
-              transform: `scale(${zoom / 100})`,
-              transformOrigin: 'top center'
-            }}
+            ref={editorContainerRef}
+            className="gba:flex-1 gba:overflow-auto gba:bg-muted/50 gba:min-w-0"
+            onScroll={handleScroll}
           >
-            {/* Page visual representation */}
-            <div
-              className="gba:bg-white gba:shadow-lg gba:rounded-sm gba:relative"
-              style={{
-                width: `${A4_WIDTH_PX}px`,
-                minHeight: `${A4_HEIGHT_PX}px`,
-                padding: `${PAGE_MARGIN_PX}px`
-              }}
-            >
-              <EditorContent editor={editor} className="editor-content" />
+            <div className="gba:flex gba:justify-center gba:py-8" style={{ minHeight: '100%' }}>
+              <div
+                className="paged-document-editor"
+                style={{
+                  transform: `scale(${zoom / 100})`,
+                  transformOrigin: 'top center'
+                }}
+              >
+                {/* Page visual representation */}
+                <div
+                  className="gba:bg-white gba:shadow-lg gba:rounded-sm gba:relative"
+                  style={{
+                    width: `${A4_WIDTH_PX}px`,
+                    minHeight: `${A4_HEIGHT_PX}px`,
+                    padding: `${PAGE_MARGIN_PX}px`
+                  }}
+                >
+                  <EditorContent editor={editor} className="editor-content" />
 
-              {/* Cursors/selections are rendered by Yjs cursor plugin inside the editor. */}
+                  {/* Cursors/selections are rendered by Yjs cursor plugin inside the editor. */}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Editor Styles */}
-      <style>{`
+        {/* Editor Styles */}
+        <style>{`
         .paged-document-editor .ProseMirror {
           outline: none;
           font-family: 'Times New Roman', Georgia, serif;
@@ -1470,155 +1259,149 @@ export const PagedDocumentEditor: React.FC<PagedDocumentEditorProps> = ({
         }
       `}</style>
 
-      {/* Versioning Dialogs */}
-      {document?.id && showVersionHistory && (
-        <VersionHistory
-          versions={versioning.versions}
-          isLoading={versioning.isLoading}
-          onRestore={async versionNumber => {
-            console.log('[PagedDocumentEditor] Restoring to version:', versionNumber)
+        {/* Versioning Dialogs */}
+        {document?.id && showVersionHistory && (
+          <VersionHistory
+            versions={versioning.versions}
+            isLoading={versioning.isLoading}
+            onRestore={async versionNumber => {
+              // Get the version data first
+              const versionData = await DocumentApiService.getVersion(document.id, versionNumber)
 
-            // Get the version data first
-            const versionData = await DocumentApiService.getVersion(document.id, versionNumber)
-            console.log('[PagedDocumentEditor] Version data retrieved:', versionData)
+              if (!versionData) {
+                console.error('[PagedDocumentEditor] Failed to get version data')
+                return
+              }
 
-            if (!versionData) {
-              console.error('[PagedDocumentEditor] Failed to get version data')
-              return
-            }
+              // Now restore on backend
+              const success = await versioning.restoreVersion(versionNumber)
 
-            // Now restore on backend
-            const success = await versioning.restoreVersion(versionNumber)
-            console.log('[PagedDocumentEditor] Backend restore result:', success)
+              if (success && editor && versionData.content) {
+                editor.commands.setContent(versionData.content)
+                setTitle(versionData.title)
+                setHasUnsavedChanges(false)
+                setLastSaved(new Date())
 
-            if (success && editor && versionData.content) {
-              // Update editor content directly
-              console.log('[PagedDocumentEditor] Updating editor with restored content...')
-              editor.commands.setContent(versionData.content)
-              setTitle(versionData.title)
-              setHasUnsavedChanges(false)
-              setLastSaved(new Date())
-              console.log('[PagedDocumentEditor] Editor content updated!')
+                // Reload versions to show the new "Restored" checkpoint
+                await versioning.loadVersions()
 
-              // Reload versions to show the new "Restored" checkpoint
-              await versioning.loadVersions()
+                // Close the dialog
+                setShowVersionHistory(false)
+              }
+            }}
+            onClose={() => setShowVersionHistory(false)}
+            currentVersion={versioning.currentVersion?.version}
+            showAutoSaves={false}
+            data-testid="document-version-history"
+          />
+        )}
 
-              // Close the dialog
-              setShowVersionHistory(false)
-            }
-          }}
-          onClose={() => setShowVersionHistory(false)}
-          currentVersion={versioning.currentVersion?.version}
-          showAutoSaves={false}
-          data-testid="document-version-history"
-        />
-      )}
+        {document?.id && showCheckpointDialog && (
+          <CheckpointDialog
+            isOpen={showCheckpointDialog}
+            onClose={() => setShowCheckpointDialog(false)}
+            onSave={versioning.createCheckpoint}
+            isSaving={versioning.isSaving}
+            data-testid="document-checkpoint-dialog"
+          />
+        )}
 
-      {document?.id && showCheckpointDialog && (
-        <CheckpointDialog
-          isOpen={showCheckpointDialog}
-          onClose={() => setShowCheckpointDialog(false)}
-          onSave={versioning.createCheckpoint}
-          isSaving={versioning.isSaving}
-          data-testid="document-checkpoint-dialog"
-        />
-      )}
+        {document?.id && showPublishDialog && (
+          <PublishDialog
+            isOpen={showPublishDialog}
+            onClose={() => setShowPublishDialog(false)}
+            onPublish={publishing.publish}
+            isPublishing={publishing.isPublishing}
+            entityType="document"
+            data-testid="document-publish-dialog"
+          />
+        )}
 
-      {document?.id && showPublishDialog && (
-        <PublishDialog
-          isOpen={showPublishDialog}
-          onClose={() => setShowPublishDialog(false)}
-          onPublish={publishing.publish}
-          isPublishing={publishing.isPublishing}
-          entityType="document"
-          data-testid="document-publish-dialog"
-        />
-      )}
+        {document?.id && showComments && (
+          <CommentPanel
+            comments={comments.comments}
+            unresolvedCount={comments.unresolvedCount}
+            isLoading={comments.isLoading}
+            onCreateComment={async (content, parentId) => {
+              await comments.createComment({
+                type: parentId ? 'document' : 'document',
+                content,
+                parentId,
+                // Pass current user info to avoid fetching on every comment
+                createdByName: currentUserName || undefined,
+                createdByAvatar: currentUserAvatar || undefined
+              })
+            }}
+            onUpdateComment={async (commentId, content) => {
+              await comments.updateComment(commentId, { content })
+            }}
+            onResolveComment={comments.resolveComment}
+            onDeleteComment={comments.deleteComment}
+            onClose={() => setShowComments(false)}
+            currentUserId={currentUserId || undefined}
+            currentUserName={currentUserName || undefined}
+            currentUserAvatar={currentUserAvatar || undefined}
+            accessToken={accessToken}
+            headerHeight={120}
+            onUnhighlight={commentId => {
+              if (!editor) return
+              const selection = findInlineCommentSelection(editor, commentId)
+              if (!selection) return
+              editor.chain().setTextSelection(selection).unsetInlineComment().run()
+            }}
+            onScrollToHighlight={commentId => {
+              if (!editor) return
+              const selection = findInlineCommentSelection(editor, commentId)
+              if (!selection) return
+              editor.chain().setTextSelection(selection).focus().run()
+              scrollInlineCommentDomIntoView(commentId)
+            }}
+            data-testid="document-comment-panel"
+          />
+        )}
 
-      {document?.id && showComments && (
-        <CommentPanel
-          comments={comments.comments}
-          unresolvedCount={comments.unresolvedCount}
-          isLoading={comments.isLoading}
-          onCreateComment={async (content, parentId) => {
-            await comments.createComment({
-              type: parentId ? 'document' : 'document',
+        {/* Inline comment popover (Google Docs style) */}
+        <InlineCommentPopover
+          isOpen={showInlineCommentPopover}
+          position={inlineCommentPosition}
+          onSubmit={async content => {
+            if (!pendingSelection || !editor) return
+
+            const comment = await comments.createComment({
+              type: 'inline',
               content,
-              parentId,
-              // Pass current user info to avoid fetching on every comment
+              selectionStart: pendingSelection.from,
+              selectionEnd: pendingSelection.to,
+              selectedText: pendingSelection.text,
               createdByName: currentUserName || undefined,
               createdByAvatar: currentUserAvatar || undefined
             })
+
+            if (comment) {
+              // Highlight the text with comment marker
+              editor
+                .chain()
+                .focus()
+                .setInlineComment({
+                  commentId: comment.id,
+                  commentType: 'inline',
+                  createdBy: currentUserId || '',
+                  createdAt: comment.createdAt
+                })
+                .run()
+            }
+
+            setPendingSelection(null)
           }}
-          onUpdateComment={async (commentId, content) => {
-            await comments.updateComment(commentId, { content })
+          onClose={() => {
+            setShowInlineCommentPopover(false)
+            setPendingSelection(null)
           }}
-          onResolveComment={comments.resolveComment}
-          onDeleteComment={comments.deleteComment}
-          onClose={() => setShowComments(false)}
-          currentUserId={currentUserId || undefined}
-          currentUserName={currentUserName || undefined}
-          currentUserAvatar={currentUserAvatar || undefined}
-          accessToken={accessToken}
-          headerHeight={120}
-          onUnhighlight={commentId => {
-            if (!editor) return
-            const selection = findInlineCommentSelection(editor, commentId)
-            if (!selection) return
-            editor.chain().setTextSelection(selection).unsetInlineComment().run()
-          }}
-          onScrollToHighlight={commentId => {
-            if (!editor) return
-            const selection = findInlineCommentSelection(editor, commentId)
-            if (!selection) return
-            editor.chain().setTextSelection(selection).focus().run()
-            scrollInlineCommentDomIntoView(commentId)
-          }}
-          data-testid="document-comment-panel"
+          data-testid="document-inline-comment-popover"
         />
-      )}
-
-      {/* Inline comment popover (Google Docs style) */}
-      <InlineCommentPopover
-        isOpen={showInlineCommentPopover}
-        position={inlineCommentPosition}
-        onSubmit={async content => {
-          if (!pendingSelection || !editor) return
-
-          const comment = await comments.createComment({
-            type: 'inline',
-            content,
-            selectionStart: pendingSelection.from,
-            selectionEnd: pendingSelection.to,
-            selectedText: pendingSelection.text,
-            createdByName: currentUserName || undefined,
-            createdByAvatar: currentUserAvatar || undefined
-          })
-
-          if (comment) {
-            // Highlight the text with comment marker
-            editor
-              .chain()
-              .focus()
-              .setInlineComment({
-                commentId: comment.id,
-                commentType: 'inline',
-                createdBy: currentUserId || '',
-                createdAt: comment.createdAt
-              })
-              .run()
-          }
-
-          setPendingSelection(null)
-        }}
-        onClose={() => {
-          setShowInlineCommentPopover(false)
-          setPendingSelection(null)
-        }}
-        data-testid="document-inline-comment-popover"
-      />
-    </div>
-  )
-}
+      </div>
+    )
+  }
+)
 
 export default PagedDocumentEditor

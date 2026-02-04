@@ -21,6 +21,7 @@ import {
   UserIcon
 } from '@phosphor-icons/react'
 import { useChatTranslation } from '../contexts/TranslationContext'
+import { rtkDebug } from '../utils/rtkDebug'
 
 // Helper to get user initials from name
 const getInitials = (name: string): string => {
@@ -67,14 +68,31 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
 
     const isVideoCall = callType === 'video'
 
+    // CRITICAL: Reset state when dialog opens or callType changes
+    // This ensures fresh defaults for each new call
+    useEffect(() => {
+      if (isOpen) {
+        rtkDebug.log('[RejoinCallDialog] Dialog opened - resetting to defaults', {
+          callType,
+          willSetMic: true,
+          willSetCamera: callType === 'video',
+          willSetBackground: true
+        })
+        setIsJoining(false)
+        setMicEnabled(true)
+        setCameraEnabled(callType === 'video')
+        setBackgroundEnabled(true)
+      }
+    }, [isOpen, callType])
+
     const handleJoin = () => {
       if (isJoining) {
-        console.log('[RejoinCallDialog] Already joining, ignoring duplicate click')
+        rtkDebug.log('[RejoinCallDialog] Already joining, ignoring duplicate click')
         return
       }
 
       setIsJoining(true)
-      console.log('[RejoinCallDialog] Joining with preferences:', {
+      rtkDebug.log('[RejoinCallDialog] Joining with preferences:', {
         micEnabled,
         cameraEnabled,
         backgroundEnabled
@@ -88,7 +106,7 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
 
     const handleCancel = () => {
       if (isJoining) {
-        console.log('[RejoinCallDialog] Already joining, ignoring cancel')
+        rtkDebug.log('[RejoinCallDialog] Already joining, ignoring cancel')
         return
       }
 
@@ -98,7 +116,7 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
 
     // Cleanup preview stream
     const cleanupPreview = useCallback(() => {
-      console.log('[RejoinCallDialog] Cleaning up preview')
+      rtkDebug.log('[RejoinCallDialog] Cleaning up preview')
 
       // Stop all tracks
       streamTracksRef.current.forEach(track => {
@@ -124,7 +142,7 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
 
       const initPreview = async () => {
         try {
-          console.log('[RejoinCallDialog] Requesting camera access for preview')
+          rtkDebug.log('[RejoinCallDialog] Requesting camera access for preview')
 
           const stream = await navigator.mediaDevices.getUserMedia({
             video: { width: 640, height: 360 },
@@ -148,9 +166,9 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
             videoRef.current.srcObject = stream
           }
 
-          console.log('[RejoinCallDialog] Camera preview ready')
+          rtkDebug.log('[RejoinCallDialog] Camera preview ready')
         } catch (error) {
-          console.error('[RejoinCallDialog] Failed to access camera:', error)
+          rtkDebug.error('[RejoinCallDialog] Failed to access camera:', error)
         } finally {
           if (isMounted) {
             setIsLoadingPreview(false)
@@ -231,7 +249,9 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
                         {backgroundEnabled && (
                           <div className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded gba:bg-primary/90 gba:shadow-lg">
                             <MagicWandIcon className="gba:w-3.5 gba:h-3.5 gba:text-primary-foreground" weight="fill" />
-                            <span className="gba:text-xs gba:text-primary-foreground">Preview</span>
+                            <span className="gba:text-xs gba:text-primary-foreground">
+                              {t('call-backgroundWillBeApplied') || 'Background will be applied in call'}
+                            </span>
                           </div>
                         )}
                       </div>

@@ -8,7 +8,15 @@
  */
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { Button, Alert, AlertTitle, AlertDescription, useTranslation, useLocale } from '@newwork/nw-design-system'
+import {
+  Button,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  EmptyState as DesignEmptyState,
+  useTranslation,
+  useLocale
+} from '@newwork/nw-design-system'
 import translations from '../_i18n'
 import { Flow } from '../types'
 import { FlowCard } from './FlowCard'
@@ -314,11 +322,13 @@ export const OutboxView: React.FC<OutboxViewProps> = ({
             <FlowDetailContent flow={selectedFlow} onClose={handleCloseFlow} accessToken={accessToken} />
           </div>
         ) : (
-          <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-background gba:text-muted-foreground">
-            <div className="gba:text-center">
-              <p className="gba:text-lg gba:font-medium">{t('outbox-no-flow-selected')}</p>
-              <p className="gba:text-sm gba:mt-2">{t('outbox-select-flow-prompt')}</p>
-            </div>
+          <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-background">
+            <DesignEmptyState
+              type="no-data"
+              title={t('outbox-no-flow-selected')}
+              description={t('outbox-select-flow-prompt')}
+              data-testid="flow-detail-empty"
+            />
           </div>
         )}
       </div>

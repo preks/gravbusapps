@@ -40,9 +40,10 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
     payloadItemsLoaded,
     setPayloadItemsLoaded,
     payloadItemIds,
-    setPayloadItemIds
+    setPayloadItemIds,
+    showSelectItems,
+    setShowSelectItems
   } = useExpenseRequestWizardContext()
-  const [showSelectItems, setShowSelectItems] = useState<boolean>(false)
   const [selectItemsList, setSelectItemsList] = useState<any[]>([])
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [isLoading, setIsLoading] = useState<boolean>(false)
@@ -171,7 +172,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
           ...countVariables,
           limit: Number(apiNeeded),
           offset: Math.max(0, Number(apiOffset)),
-          titleSearch: searchQuery ? `%${searchQuery}%` : '%%'
+          titleSearch: searchQuery ? `%${searchQuery}%` : '%'
         }
         const response = await graphQLClient.request(fetchEmployeeExpenseItems, variables)
         items = response?.ExpenseItemEmployee || []
@@ -345,6 +346,19 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
     return expenseItems.slice(startIndex, endIndex)
   }, [expenseItems, initialCurrentPage, itemListLimit])
 
+  // When current page is empty after deleting items (e.g. were on page 2, deleted all on page 2),
+  // go to last valid page so the user sees remaining items instead of a blank page.
+  const lastValidInitialPage = useMemo(
+    () =>
+      expenseItems.length > 0 && itemListLimit > 0 ? Math.max(1, Math.ceil(expenseItems.length / itemListLimit)) : 1,
+    [expenseItems.length, itemListLimit]
+  )
+  useEffect(() => {
+    if (expenseItems.length > 0 && initialCurrentPage > lastValidInitialPage) {
+      setInitialCurrentPage(lastValidInitialPage)
+    }
+  }, [expenseItems.length, initialCurrentPage, lastValidInitialPage])
+
   /**
    * Extracts valid item IDs from payload
    */
@@ -439,7 +453,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
         if (newItemIds.length === 0) return
 
         // Determine currency and fetch items
-        const itemCurrency = determineItemCurrency(currentCurrency, expenseRequestData, additionalData)
+        const itemCurrency = determineItemCurrency(currentCurrency ?? '', expenseRequestData, additionalData)
         await fetchAndAddPayloadItems(newItemIds, itemCurrency)
       } catch {
         showToast(
@@ -574,16 +588,13 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
         >
           <SearchBarWithLabel
             onSearch={handleSearch}
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:modify_expense_request.expense_header_title',
-              'My Expense Items'
-            )}
-            label={
+            placeholder={
               getTranslationFromI18nKeyAndLabel(
                 'lowcoder:modify_expense_request.search_module',
                 'Search In Expense Items List'
               ) + ` (${totalItems})`
             }
+            alwaysExpanded
             data-testid="expense-request-wizard-search-bar"
           />
         </div>

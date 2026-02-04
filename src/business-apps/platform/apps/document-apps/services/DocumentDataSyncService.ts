@@ -12,24 +12,6 @@
 const PROMPT_MANAGER_ENDPOINT = '/prompt-manager/api/v1/user-data'
 const DOCUMENT_INDEX_KEY = 'document-apps-index'
 
-const isDocumentAppsDebugEnabled = (): boolean => {
-  try {
-    return (
-      typeof window !== 'undefined' &&
-      typeof window.localStorage !== 'undefined' &&
-      window.localStorage.getItem('debug:document-apps') === '1'
-    )
-  } catch {
-    return false
-  }
-}
-
-const debugLog = (...args: unknown[]) => {
-  if (isDocumentAppsDebugEnabled()) {
-    console.debug('[DocumentSync]', ...args)
-  }
-}
-
 interface UserDataResponse {
   user_id: string
   key: string
@@ -68,7 +50,6 @@ export class DocumentDataSyncService {
    */
   async getSyncData(): Promise<DocumentSyncData | null> {
     const url = `${PROMPT_MANAGER_ENDPOINT}/${DOCUMENT_INDEX_KEY}?user_id=${encodeURIComponent(this.userId)}`
-    console.log('[DocumentSync] GET:', url)
 
     try {
       const response = await fetch(url, {
@@ -79,10 +60,7 @@ export class DocumentDataSyncService {
         }
       })
 
-      console.log('[DocumentSync] GET response status:', response.status)
-
       if (response.status === 404 || response.status === 204) {
-        console.log('[DocumentSync] No sync data found in backend (404/204)')
         return null
       }
 
@@ -93,19 +71,11 @@ export class DocumentDataSyncService {
       }
 
       const data: UserDataResponse | null = await response.json()
-      console.log('[DocumentSync] GET data:', data)
 
       if (!data || !data.data) {
-        console.log('[DocumentSync] Response had no data field')
         return null
       }
 
-      console.log(
-        '[DocumentSync] Sync data loaded from backend:',
-        data.updated_at,
-        'indexFilePath:',
-        data.data.indexFilePath
-      )
       return data.data
     } catch (error) {
       console.warn('[DocumentSync] Error getting sync data:', error)
@@ -135,8 +105,6 @@ export class DocumentDataSyncService {
    */
   async saveSyncData(data: DocumentSyncData): Promise<boolean> {
     const url = `${PROMPT_MANAGER_ENDPOINT}/${DOCUMENT_INDEX_KEY}?user_id=${encodeURIComponent(this.userId)}`
-    console.log('[DocumentSync] PUT:', url)
-    console.log('[DocumentSync] PUT body:', { data })
 
     try {
       const response = await fetch(url, {
@@ -148,15 +116,12 @@ export class DocumentDataSyncService {
         body: JSON.stringify({ data })
       })
 
-      console.log('[DocumentSync] PUT response status:', response.status)
-
       if (!response.ok) {
         const errorText = await response.text()
         console.warn('[DocumentSync] Failed to save sync data:', response.status, errorText)
         return false
       }
 
-      console.log('[DocumentSync] Sync data saved to backend successfully')
       return true
     } catch (error) {
       console.warn('[DocumentSync] Error saving sync data:', error)
@@ -255,7 +220,6 @@ export class DocumentDataSyncService {
         return false
       }
 
-      debugLog('Document shared with user:', recipientUserId)
       return true
     } catch (error) {
       console.warn('[DocumentSync] Error sharing document:', error)

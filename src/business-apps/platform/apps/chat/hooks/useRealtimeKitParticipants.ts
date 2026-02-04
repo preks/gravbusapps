@@ -19,9 +19,10 @@ export interface UseRealtimeKitParticipantsOptions {
   callType: CallType
   currentUser: CallParticipant | null
   localStream: MediaStream | null
-  callStatus: 'idle' | 'joining' | 'connected' | 'reconnecting' | 'ended'
+  callStatus: 'idle' | 'setup' | 'joining' | 'connected' | 'reconnecting' | 'ended'
   emitSocketEvent: (event: string, data: any) => void
   cleanupParticipantHandState?: (participantId: string, peerId?: string, userId?: string) => void
+  calendarMeetingId?: string | null // Calendar meeting ID for AI transcription
 }
 
 export interface UseRealtimeKitParticipantsReturn {
@@ -33,7 +34,8 @@ export interface UseRealtimeKitParticipantsReturn {
     conversationName?: string,
     overrideMeetingId?: string,
     overrideRoomId?: string,
-    overrideCallType?: 'audio' | 'video'
+    overrideCallType?: 'audio' | 'video',
+    overrideCalendarMeetingId?: string | null
   ) => void
   reconnectParticipant: (participantId: string) => Promise<void>
   handleDeclinedInvite: (participantId: string, status?: 'declined' | 'not-answered') => void
@@ -62,7 +64,8 @@ export const useRealtimeKitParticipants = ({
   localStream,
   callStatus,
   emitSocketEvent,
-  cleanupParticipantHandState
+  cleanupParticipantHandState,
+  calendarMeetingId
 }: UseRealtimeKitParticipantsOptions): UseRealtimeKitParticipantsReturn => {
   const [participants, setParticipants] = useState<GroupCallParticipant[]>([])
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map())
@@ -143,7 +146,7 @@ export const useRealtimeKitParticipants = ({
         conversationName
       })
     },
-    [emitSocketEvent, roomId, meetingId, callType, currentUser, participants]
+    [emitSocketEvent, roomId, meetingId, callType, currentUser, participants, calendarMeetingId]
   )
 
   /**

@@ -220,8 +220,16 @@ export const CallModal: React.FC<CallModalProps> = memo(
           className={`gba:p-0 gba:overflow-hidden gba:bg-gray-900 ${
             isFullscreen
               ? 'gba:w-screen gba:h-screen gba:max-w-none gba:max-h-none gba:rounded-none'
-              : 'gba:w-[90vw] gba:max-w-xl gba:aspect-[4/3]'
+              : 'gba:aspect-[4/3]'
           }`}
+          style={
+            isFullscreen
+              ? undefined
+              : {
+                  width: '90vw',
+                  maxWidth: window.innerWidth >= 1280 ? '768px' : window.innerWidth >= 1024 ? '672px' : '90vw'
+                }
+          }
           data-testid={prefixDataTestId}
           showCloseButton={false}
           // Prevent closing by clicking outside or pressing escape during call

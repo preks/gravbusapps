@@ -345,9 +345,12 @@ export const TaskForm: React.FC<TaskFormProps> = ({ accessToken, userInfo, addit
           statusCatalog={'InvestmentTaskStatus:v1'}
           // Type selection control
           initialTypeRef={typeRef}
-          catalogSelectConfig={{
-            code: { mode: 'omit', values: ['APPROVAL'] }
-          }}
+          disableTypeSelection={isApprovalTask}
+          catalogSelectConfig={
+            isApprovalTask
+              ? undefined // Don't filter when approval context is set
+              : { code: { mode: 'omit', values: ['APPROVAL'] } }
+          }
           // Assignee selection control - hide in update mode (tasks cannot be reassigned)
           hideAssigneeSelection={!!taskId}
           // Entity search - hide if any entity is set
