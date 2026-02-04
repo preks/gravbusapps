@@ -7,7 +7,14 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { OrchestratorClient } from '@/common/network/ai/orchestrator/OrchestratorClient'
-import type { AnalyzeRequest, AnalyzeResponse, BuildPlan, BuildJobStatus } from '../types/orchestrator'
+import type {
+  AnalyzeRequest,
+  AnalyzeResponse,
+  BuildPlan,
+  BuildJobStatus,
+  UpdatePlanRequest,
+  RefinePlanRequest
+} from '../types'
 
 export interface UseOrchestratorClientOptions {
   accessToken: string
@@ -18,13 +25,19 @@ export interface UseOrchestratorClientResult {
   isAnalyzing: boolean
   analyzeError: string | null
   currentPlan: BuildPlan | null
+  isRefining: boolean
+  refineError: string | null
+  refinementSummary: string | null
 
   // Methods
   analyze: (prompt: string, context?: Record<string, unknown>) => Promise<AnalyzeResponse>
   reanalyze: (answers: Record<string, string>) => Promise<AnalyzeResponse>
+  refinePlan: (jobId: string, feedback: string) => Promise<AnalyzeResponse>
+  updatePlan: (jobId: string, request: UpdatePlanRequest) => Promise<BuildPlan>
   getJobStatus: (jobId: string) => Promise<BuildJobStatus>
   cancelBuild: (jobId: string) => Promise<void>
   clearPlan: () => void
+  clearRefinementSummary: () => void
   client: OrchestratorClient
 }
 
@@ -37,6 +50,9 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
   const [currentPlan, setCurrentPlan] = useState<BuildPlan | null>(null)
   const [lastPrompt, setLastPrompt] = useState<string>('')
   const [lastContext, setLastContext] = useState<Record<string, unknown> | undefined>()
+  const [isRefining, setIsRefining] = useState(false)
+  const [refineError, setRefineError] = useState<string | null>(null)
+  const [refinementSummary, setRefinementSummary] = useState<string | null>(null)
 
   // Create memoized client
   const client = useMemo(() => new OrchestratorClient(accessToken), [accessToken])
@@ -112,6 +128,55 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
   )
 
   /**
+   * Refine a build plan with natural language feedback
+   */
+  const refinePlan = useCallback(
+    async (jobId: string, feedback: string): Promise<AnalyzeResponse> => {
+      setIsRefining(true)
+      setRefineError(null)
+      setRefinementSummary(null)
+
+      try {
+        const request: RefinePlanRequest = { feedback }
+        const response = await client.refinePlan(jobId, request)
+
+        if (response.success && response.plan) {
+          setCurrentPlan(response.plan)
+          setRefinementSummary(response.refinement_summary || null)
+        } else {
+          setRefineError(response.error || 'Refinement failed')
+        }
+
+        return response
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Refinement failed'
+        setRefineError(errorMessage)
+        return { success: false, error: errorMessage }
+      } finally {
+        setIsRefining(false)
+      }
+    },
+    [client]
+  )
+
+  /**
+   * Update a build plan
+   */
+  const updatePlan = useCallback(
+    async (jobId: string, request: UpdatePlanRequest): Promise<BuildPlan> => {
+      const updatedPlan = await client.updatePlan(jobId, request)
+
+      // Update local state with the updated plan
+      if (currentPlan?.job_id === jobId) {
+        setCurrentPlan(updatedPlan)
+      }
+
+      return updatedPlan
+    },
+    [client, currentPlan]
+  )
+
+  /**
    * Get the status of a build job
    */
   const getJobStatus = useCallback(
@@ -140,19 +205,34 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
   const clearPlan = useCallback(() => {
     setCurrentPlan(null)
     setAnalyzeError(null)
+    setRefineError(null)
+    setRefinementSummary(null)
     setLastPrompt('')
     setLastContext(undefined)
+  }, [])
+
+  /**
+   * Clear refinement summary
+   */
+  const clearRefinementSummary = useCallback(() => {
+    setRefinementSummary(null)
   }, [])
 
   return {
     isAnalyzing,
     analyzeError,
     currentPlan,
+    isRefining,
+    refineError,
+    refinementSummary,
     analyze,
     reanalyze,
+    refinePlan,
+    updatePlan,
     getJobStatus,
     cancelBuild,
     clearPlan,
+    clearRefinementSummary,
     client
   }
 }

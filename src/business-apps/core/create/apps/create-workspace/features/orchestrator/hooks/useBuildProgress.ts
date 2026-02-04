@@ -15,7 +15,7 @@ import type {
   TileState,
   ExecuteRequest,
   BuildPhase
-} from '../types/orchestrator'
+} from '../types'
 
 export interface UseBuildProgressOptions {
   client: OrchestratorClient
