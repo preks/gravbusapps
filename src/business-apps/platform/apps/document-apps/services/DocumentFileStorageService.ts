@@ -44,24 +44,6 @@ const TEMPLATE_INDEX_FILE_NAME = 'document-templates-index.json'
 const DOCUMENT_FILE_PREFIX = 'document'
 const TEMPLATE_FILE_PREFIX = 'document-template'
 
-const isDocumentAppsDebugEnabled = (): boolean => {
-  try {
-    return (
-      typeof window !== 'undefined' &&
-      typeof window.localStorage !== 'undefined' &&
-      window.localStorage.getItem('debug:document-apps') === '1'
-    )
-  } catch {
-    return false
-  }
-}
-
-const debugLog = (...args: unknown[]) => {
-  if (isDocumentAppsDebugEnabled()) {
-    console.debug('[DocumentStorage]', ...args)
-  }
-}
-
 interface DocumentIndexEntry {
   id: string
   title: string
@@ -204,7 +186,6 @@ export class DocumentFileStorageService {
     }
 
     await this.saveDocumentIndex(index)
-    debugLog('Added document to local index:', document.id)
   }
 
   /**
@@ -250,8 +231,6 @@ export class DocumentFileStorageService {
       const separator = filePath.includes('?') ? '&' : '?'
       const url = `${baseUrl}${filePath.startsWith('/') ? filePath : '/' + filePath}${separator}${cacheBuster}`
 
-      console.log('[DocumentStorage] Reading file:', url)
-
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -295,7 +274,6 @@ export class DocumentFileStorageService {
    */
   private async getDocumentIndex(): Promise<DocumentsIndex> {
     const localStorageKey = `document-apps-index-${this.currentUserId}`
-    console.log('[DocumentStorage] Getting index for user:', this.currentUserId)
 
     const localIndex = await this.loadIndexFromLocalStorage(localStorageKey)
     if (localIndex) return localIndex
@@ -303,7 +281,6 @@ export class DocumentFileStorageService {
     const syncedIndex = await this.loadIndexFromSyncService(localStorageKey)
     if (syncedIndex) return syncedIndex
 
-    console.log('[DocumentStorage] Creating new empty index')
     return this.createEmptyIndex()
   }
 
@@ -317,25 +294,20 @@ export class DocumentFileStorageService {
 
   private async loadIndexFromLocalStorage(localStorageKey: string): Promise<DocumentsIndex | null> {
     const storedInfoStr = localStorage.getItem(localStorageKey)
-    console.log('[DocumentStorage] localStorage key:', localStorageKey, 'value:', storedInfoStr ? 'found' : 'not found')
 
     if (!storedInfoStr) return null
 
     try {
       const storedInfo: StoredIndexInfo = JSON.parse(storedInfoStr)
-      console.log('[DocumentStorage] Stored info:', storedInfo)
 
       if (!storedInfo.filePath) return null
 
-      console.log('[DocumentStorage] Attempting to read index from filePath:', storedInfo.filePath)
       const index = await this.readJsonFileByPath<DocumentsIndex>(storedInfo.filePath)
       if (!index) {
-        console.log('[DocumentStorage] Failed to read index from filePath, removing localStorage')
         localStorage.removeItem(localStorageKey)
         return null
       }
 
-      console.log('[DocumentStorage] Successfully loaded index with', index.documents.length, 'documents')
       if (!storedInfo.fileId) {
         storedInfo.fileId = this.extractFileIdFromPath(storedInfo.filePath)
       }
@@ -349,21 +321,15 @@ export class DocumentFileStorageService {
   }
 
   private async loadIndexFromSyncService(localStorageKey: string): Promise<DocumentsIndex | null> {
-    console.log('[DocumentStorage] Trying sync service...')
     try {
       const syncData = await this.syncService.getIndex()
-      console.log('[DocumentStorage] Sync service returned:', syncData)
       if (!syncData?.indexFilePath) return null
 
-      debugLog('Found index via sync service:', syncData.indexFilePath)
-      console.log('[DocumentStorage] Attempting to read index from sync filePath:', syncData.indexFilePath)
       const index = await this.readJsonFileByPath<DocumentsIndex>(syncData.indexFilePath)
       if (!index) {
-        console.log('[DocumentStorage] Failed to read index from sync filePath')
         return null
       }
 
-      console.log('[DocumentStorage] Successfully loaded index from sync with', index.documents.length, 'documents')
       const fileId = this.extractFileIdFromPath(syncData.indexFilePath)
       this.documentIndexInfo = { fileId, filePath: syncData.indexFilePath }
       localStorage.setItem(localStorageKey, JSON.stringify(this.documentIndexInfo))
@@ -380,7 +346,6 @@ export class DocumentFileStorageService {
   private async saveDocumentIndex(index: DocumentsIndex): Promise<void> {
     index.updatedAt = new Date().toISOString()
     const file = this.createJsonFile(index, INDEX_FILE_NAME)
-    console.log('[DocumentStorage] Saving index with', index.documents.length, 'documents')
 
     try {
       let filePath: string
@@ -389,13 +354,9 @@ export class DocumentFileStorageService {
 
       if (!existingFileId && this.documentIndexInfo?.filePath) {
         existingFileId = this.extractFileIdFromPath(this.documentIndexInfo.filePath)
-        console.log('[DocumentStorage] Extracted fileId from path:', existingFileId)
       }
 
-      console.log('[DocumentStorage] existingFileId:', existingFileId)
-
       if (existingFileId) {
-        console.log('[DocumentStorage] Updating existing index file:', existingFileId)
         const response = await fileClient.updateFile(
           file,
           { accessScope: FILE_SCOPE, fileId: existingFileId },
@@ -403,9 +364,7 @@ export class DocumentFileStorageService {
         )
         filePath = this.normalizeFilePath(response.fileInfo.path)
         fileId = response.fileInfo.fileId
-        console.log('[DocumentStorage] Index updated, path:', filePath, 'fileId:', fileId)
       } else {
-        console.log('[DocumentStorage] Creating new index file')
         const response = await fileClient.uploadFile(
           file,
           { accessScope: FILE_SCOPE },
@@ -413,18 +372,14 @@ export class DocumentFileStorageService {
         )
         filePath = this.normalizeFilePath(response.fileInfo.path)
         fileId = response.fileInfo.fileId
-        console.log('[DocumentStorage] Index created, path:', filePath, 'fileId:', fileId)
       }
 
       this.documentIndexInfo = { fileId, filePath }
       const localStorageKey = `document-apps-index-${this.currentUserId}`
       localStorage.setItem(localStorageKey, JSON.stringify(this.documentIndexInfo))
-      console.log('[DocumentStorage] Saved to localStorage:', localStorageKey)
 
       // Sync to backend for cross-device access
-      const syncResult = await this.syncService.saveIndex(filePath)
-      console.log('[DocumentStorage] Sync service saveIndex result:', syncResult)
-      debugLog('Index synced to backend:', filePath)
+      await this.syncService.saveIndex(filePath)
     } catch (error) {
       console.error('[DocumentStorage] Failed to save index:', error)
       throw error
@@ -523,8 +478,6 @@ export class DocumentFileStorageService {
    * @returns Document with permission info, or null if access denied
    */
   async getDocument(id: string, directFilePath?: string): Promise<Document | null> {
-    debugLog('Loading document:', id, directFilePath ? '(via direct path)' : '')
-
     // If a direct file path is provided (from URL for cross-device access), use it directly
     if (directFilePath) {
       const direct = await this.tryLoadDocumentViaDirectPath(id, directFilePath)
@@ -566,7 +519,6 @@ export class DocumentFileStorageService {
   }
 
   private async tryLoadDocumentViaDirectPath(id: string, directFilePath: string): Promise<Document | null> {
-    debugLog('Loading via direct path:', directFilePath)
     try {
       const document = await this.readJsonFileByPath<Document>(directFilePath)
       if (!document) return null
@@ -633,7 +585,6 @@ export class DocumentFileStorageService {
       const index = await this.getDocumentIndex()
       // Store the fileId exactly as returned by the file service (do NOT strip .json)
       const fileId = response.fileInfo.fileId || ''
-      debugLog('Storing document with fileId:', fileId)
 
       index.documents.push({
         id,
@@ -653,7 +604,6 @@ export class DocumentFileStorageService {
       })
 
       await this.saveDocumentIndex(index)
-      debugLog('Created document:', id)
 
       return newDocument
     } catch (error) {
@@ -669,15 +619,9 @@ export class DocumentFileStorageService {
    * The fileId and filePath remain the same - no new files created!
    */
   async updateDocument(id: string, updates: Partial<Document>): Promise<Document | null> {
-    console.log('[DocumentStorage] === updateDocument() START ===')
-    console.log('[DocumentStorage] Document ID:', id)
-    console.log('[DocumentStorage] Updates:', Object.keys(updates))
-
     const index = await this.getDocumentIndex()
-    console.log('[DocumentStorage] Got index with', index.documents.length, 'documents')
 
     const entryIndex = index.documents.findIndex(d => d.id === id)
-    console.log('[DocumentStorage] Found entry at index:', entryIndex)
 
     if (entryIndex === -1) {
       console.warn('[DocumentStorage] Document not found in index:', id)
@@ -685,7 +629,6 @@ export class DocumentFileStorageService {
     }
 
     const entry = index.documents[entryIndex]
-    console.log('[DocumentStorage] Entry:', { id: entry.id, fileId: entry.fileId, filePath: entry.filePath })
 
     if (!entry.filePath) {
       console.error('[DocumentStorage] Document has no filePath:', id)
@@ -698,16 +641,13 @@ export class DocumentFileStorageService {
       console.error('[DocumentStorage] Failed to load document from:', entry.filePath)
       return null
     }
-    console.log('[DocumentStorage] Loaded document, content length:', document.content?.length || 0)
 
     // Ensure we have a fileId - use stored fileId or extract from filePath
     let fileId = entry.fileId
-    console.log('[DocumentStorage] Entry fileId (raw):', fileId)
 
     if (!fileId) {
       // Extract from filePath - this will include .json extension which is correct
       fileId = this.extractFileIdFromPath(entry.filePath)
-      console.log('[DocumentStorage] Extracted fileId from path:', fileId)
 
       // Update index with the extracted fileId for future use
       if (fileId) {
@@ -720,8 +660,6 @@ export class DocumentFileStorageService {
       return null
     }
 
-    console.log('[DocumentStorage] Using fileId for PUT:', fileId)
-
     // Merge updates
     const now = new Date().toISOString()
     const updatedDocument: Document = {
@@ -733,11 +671,9 @@ export class DocumentFileStorageService {
       version: (document.version || 1) + 1,
       filePath: entry.filePath // Keep same filePath
     }
-    console.log('[DocumentStorage] Updated content length:', updatedDocument.content?.length || 0)
 
     // Update the file IN PLACE using PUT (same fileId, same path!)
     const file = this.createJsonFile(updatedDocument, `${DOCUMENT_FILE_PREFIX}-${id}.json`)
-    console.log('[DocumentStorage] *** CALLING PUT to update document file ***:', fileId)
 
     try {
       await fileClient.updateFile(
@@ -745,7 +681,6 @@ export class DocumentFileStorageService {
         { accessScope: FILE_SCOPE, fileId },
         { appName: APP_NAME, folderPath: FOLDER_PATH, mimeType: 'application/json' }
       )
-      console.log('[DocumentStorage] PUT completed successfully')
 
       // Update index entry (fileId and filePath stay the same!)
       index.documents[entryIndex] = {
@@ -762,15 +697,11 @@ export class DocumentFileStorageService {
         approvalRequest: updatedDocument.approvalRequest
       }
 
-      console.log('[DocumentStorage] Saving updated index...')
       await this.saveDocumentIndex(index)
-      console.log('[DocumentStorage] Document updated in place (same fileId):', entry.fileId)
-      console.log('[DocumentStorage] === updateDocument() END ===')
 
       return updatedDocument
     } catch (error) {
       console.error('[DocumentStorage] Failed to update document:', error)
-      console.log('[DocumentStorage] === updateDocument() END (error) ===')
       return null
     }
   }
@@ -799,7 +730,6 @@ export class DocumentFileStorageService {
       // Update index
       index.documents.splice(entryIndex, 1)
       await this.saveDocumentIndex(index)
-      debugLog('Deleted document:', id)
 
       return true
     } catch (error) {
@@ -892,7 +822,6 @@ export class DocumentFileStorageService {
 
         await this.updateDocument(documentId, { sharedWith: updatedSharedWith })
       }
-      debugLog('Document shared successfully:', documentId, 'with', recipientUserIds.length, 'users')
     } else {
       console.warn('[DocumentStorage] Some shares failed')
     }
@@ -942,7 +871,6 @@ export class DocumentFileStorageService {
         const updatedSharedWith = document.sharedWith.filter(s => s.userId !== recipientUserId)
         await this.updateDocument(documentId, { sharedWith: updatedSharedWith })
       }
-      debugLog('Access revoked for document:', documentId, 'user:', recipientUserId)
     }
 
     return syncSuccess
@@ -1108,7 +1036,6 @@ export class DocumentFileStorageService {
       })
 
       await this.saveTemplateIndex(index)
-      debugLog('Created template:', id)
 
       return newTemplate
     } catch (error) {
@@ -1149,7 +1076,6 @@ export class DocumentFileStorageService {
 
       index.templates.splice(entryIndex, 1)
       await this.saveTemplateIndex(index)
-      debugLog('Deleted template:', id)
 
       return true
     } catch (error) {
