@@ -1,6 +1,6 @@
 import React from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
-import { Card } from '@newwork/gravity-ui-catalog'
+import { Card } from '@newwork/nw-design-system'
 import { Spin } from 'antd'
 import { ChartsSectionProps } from '../../../queries/types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'

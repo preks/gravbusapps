@@ -2,7 +2,7 @@
 
 import React from 'react'
 import dayjs from 'dayjs'
-import { Card } from '@newwork/gravity-ui-catalog'
+import { Card } from '@newwork/nw-design-system'
 import { Employee } from '../../hooks/useEmployeeData'
 import { formatPhoneNumberWithCountryCode, getTranslatedValue } from '../../utils/formatters'
 import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions'

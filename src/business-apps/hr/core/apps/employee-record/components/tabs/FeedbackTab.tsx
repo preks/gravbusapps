@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData'
-import { Card, Avatar } from '@newwork/gravity-ui-catalog'
-import { Button, useTranslation, Badge } from '@newwork/nw-design-system'
+import { Avatar } from '@newwork/gravity-ui-catalog'
+import { Card, Button, useTranslation, Badge } from '@newwork/nw-design-system'
 import { Empty, Spin, Input, Select, Rate, Pagination } from 'antd'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT } from './queries/EmployeeFeedbackRequestQueries'

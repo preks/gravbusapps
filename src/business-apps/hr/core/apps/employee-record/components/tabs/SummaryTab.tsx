@@ -9,7 +9,8 @@ import { Employee, EmployeeAbsenceEntitlement } from '../../hooks/useEmployeeDat
 // Extend dayjs with plugins
 dayjs.extend(isSameOrAfter)
 dayjs.extend(isSameOrBefore)
-import { Card, Avatar } from '@newwork/gravity-ui-catalog'
+import { Avatar } from '@newwork/gravity-ui-catalog'
+import { Card } from '@newwork/nw-design-system'
 import {
   PiBriefcase,
   PiStack,
