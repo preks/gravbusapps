@@ -5,7 +5,7 @@
  * Shows messages like "Jens is editing 'Q4 Report'"
  */
 
-import React, { useEffect } from 'react'
+import React, { useEffect, useCallback } from 'react'
 import {
   Card,
   CardContent,
@@ -17,6 +17,7 @@ import {
 } from '@newwork/nw-design-system'
 import { Pulse, FileText, Note, Table, Presentation } from '@phosphor-icons/react'
 import { useSpaceDocumentActivity, type DocumentActivity, type DocumentType } from '../hooks/useSpaceDocumentActivity'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { SpaceContentItem } from '../types/space.types'
 
 export interface SpaceRealTimeActivityProps {
@@ -30,6 +31,8 @@ export interface SpaceRealTimeActivityProps {
   currentUserId?: string
   /** Maximum number of activities to show */
   maxActivities?: number
+  /** Callback when an activity is clicked */
+  onActivityClick?: (activity: DocumentActivity) => void
   'data-testid'?: string
 }
 
@@ -82,6 +85,7 @@ export const SpaceRealTimeActivity: React.FC<SpaceRealTimeActivityProps> = ({
   accessToken,
   currentUserId,
   maxActivities = 5,
+  onActivityClick,
   'data-testid': testId = 'space-realtime-activity'
 }) => {
   const { activities, hasActivity, isPresenceConnected } = useSpaceDocumentActivity(
@@ -89,6 +93,62 @@ export const SpaceRealTimeActivity: React.FC<SpaceRealTimeActivityProps> = ({
     spaceContent,
     accessToken,
     currentUserId
+  )
+
+  // Navigate to the document when activity is clicked
+  const handleActivityClick = useCallback(
+    (activity: DocumentActivity) => {
+      if (onActivityClick) {
+        onActivityClick(activity)
+        return
+      }
+
+      // Default navigation behavior
+      const isProduction = process.env.NODE_ENV === 'production'
+      const spaceParam = `spaceId=${encodeURIComponent(spaceId)}`
+      let url: string
+
+      // Store the current space URL in sessionStorage for the back button
+      const currentSpaceUrl = isProduction
+        ? `/platform/spaces?spaceId=${encodeURIComponent(spaceId)}`
+        : `/platform/apps/spaces?spaceId=${encodeURIComponent(spaceId)}`
+
+      try {
+        sessionStorage.setItem('space_return_url', currentSpaceUrl)
+      } catch (e) {
+        console.warn('Failed to store return URL in sessionStorage:', e)
+      }
+
+      switch (activity.documentType) {
+        case 'document':
+          url = isProduction
+            ? `/platform/documents?documentId=${encodeURIComponent(activity.documentId)}`
+            : `/platform/apps/documents?documentId=${encodeURIComponent(activity.documentId)}`
+          break
+        case 'note':
+          url = isProduction
+            ? `/platform/notes?noteId=${encodeURIComponent(activity.documentId)}`
+            : `/platform/apps/notes?noteId=${encodeURIComponent(activity.documentId)}`
+          break
+        case 'spreadsheet':
+          url = isProduction
+            ? `/platform/spreadsheets?spreadsheetId=${encodeURIComponent(activity.documentId)}`
+            : `/platform/apps/spreadsheets?spreadsheetId=${encodeURIComponent(activity.documentId)}`
+          break
+        case 'slide':
+          url = isProduction
+            ? `/platform/slides?slideId=${encodeURIComponent(activity.documentId)}`
+            : `/platform/apps/slides?slideId=${encodeURIComponent(activity.documentId)}`
+          break
+        default:
+          return
+      }
+
+      // Include spaceId parameter
+      const urlWithParams = url.includes('?') ? `${url}&${spaceParam}` : `${url}?${spaceParam}`
+      navigateTo(buildPlatformUrl(urlWithParams))
+    },
+    [spaceId, onActivityClick]
   )
 
   // Debug: prove component + hook are running in this screen
@@ -168,7 +228,8 @@ export const SpaceRealTimeActivity: React.FC<SpaceRealTimeActivityProps> = ({
             {displayedActivities.map(activity => (
               <div
                 key={activity.key}
-                className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:rounded-lg gba:bg-success/5 gba:border gba:border-success/20"
+                className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:rounded-lg gba:bg-success/5 gba:border gba:border-success/20 gba:cursor-pointer gba:transition-all gba:hover:bg-success/10 gba:hover:border-success/30"
+                onClick={() => handleActivityClick(activity)}
                 data-testid={`${testId}-activity-${activity.key}`}
               >
                 {/* User avatar with activity indicator */}

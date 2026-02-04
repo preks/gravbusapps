@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { createCollaborationClient, CollaborationClient } from '../../shared/services/CollaborationClient'
+import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
 import type { SpaceContentItem } from '../types/space.types'
 
 export type ActivityType = 'editing' | 'viewing'
@@ -71,6 +72,52 @@ const MAX_PRESENCE_BATCH_SIZE = 50
 // Singleton channel for broadcasting activity
 let activityChannel: BroadcastChannel | null = null
 
+/**
+ * GraphQL query to fetch employee avatars by user IDs
+ */
+const GET_EMPLOYEES_AVATARS = `
+  query GetEmployeesAvatars($userIds: [String!]!) {
+    Employee(where: { userId: { _in: $userIds }, isDeleted: { _eq: false } }) {
+      userId
+      pictureThumbnail
+    }
+  }
+`
+
+/**
+ * Normalize image src (handles base64, URLs, etc.)
+ */
+function normalizeImageSrc(raw?: string): string | undefined {
+  if (!raw) return undefined
+
+  const value = raw.trim()
+  if (!value) return undefined
+
+  // Already a full src
+  if (
+    value.startsWith('data:') ||
+    value.startsWith('http://') ||
+    value.startsWith('https://') ||
+    value.startsWith('/')
+  ) {
+    return value
+  }
+
+  // Signature-based mime detection
+  if (value.startsWith('UklGR')) return `data:image/webp;base64,${value}`
+  if (value.startsWith('iVBOR')) return `data:image/png;base64,${value}`
+  if (value.startsWith('/9j/')) return `data:image/jpeg;base64,${value}`
+  if (value.startsWith('R0lGOD')) return `data:image/gif;base64,${value}`
+
+  // Generic fallback for base64
+  const base64Only = /^[A-Za-z0-9+/=]+$/
+  if (base64Only.test(value) && value.length > 64) {
+    return `data:image/jpeg;base64,${value}`
+  }
+
+  return value
+}
+
 function isActivityDebugEnabled(): boolean {
   try {
     return typeof window !== 'undefined' && window.localStorage?.getItem(DEBUG_ACTIVITY_STORAGE_KEY) === '1'
@@ -112,6 +159,7 @@ export function useSpaceDocumentActivity(
   const channelRef = useRef<BroadcastChannel | null>(null)
   const collaborationClientRef = useRef<CollaborationClient | null>(null)
   const socketRef = useRef<ReturnType<CollaborationClient['connect']> | null>(null)
+  const avatarCacheRef = useRef<Map<string, string | undefined>>(new Map())
   const debugEnabledRef = useRef<boolean>(false)
 
   // Update content IDs ref when content changes
@@ -141,6 +189,62 @@ export function useSpaceDocumentActivity(
       }
     })
   }, [spaceContent])
+
+  // Fetch avatars for a list of user IDs
+  const fetchAvatars = useCallback(
+    async (userIds: string[]): Promise<Map<string, string | undefined>> => {
+      const cache = avatarCacheRef.current
+      const result = new Map<string, string | undefined>()
+
+      // Check cache first
+      const uncachedIds = userIds.filter(id => !cache.has(id))
+
+      // Return cached values if all are cached
+      if (uncachedIds.length === 0) {
+        for (const id of userIds) {
+          result.set(id, cache.get(id))
+        }
+        return result
+      }
+
+      // Set access token for GraphQL client
+      if (accessToken) {
+        graphQLClient.setAccessToken(accessToken)
+      }
+
+      try {
+        const response = await graphQLClient.request<{
+          Employee: Array<{ userId?: string; pictureThumbnail?: string }>
+        }>(GET_EMPLOYEES_AVATARS, { userIds: uncachedIds })
+
+        for (const emp of response?.Employee ?? []) {
+          if (!emp.userId) continue
+          const avatar = normalizeImageSrc(emp.pictureThumbnail)
+          cache.set(emp.userId, avatar)
+          result.set(emp.userId, avatar)
+        }
+
+        // Cache undefined for users not found
+        for (const id of uncachedIds) {
+          if (!cache.has(id)) {
+            cache.set(id, undefined)
+          }
+        }
+
+        // Add cached values
+        for (const id of userIds) {
+          if (!result.has(id)) {
+            result.set(id, cache.get(id))
+          }
+        }
+      } catch (error) {
+        console.error('[SpaceActivity] Failed to fetch avatars:', error)
+      }
+
+      return result
+    },
+    [accessToken]
+  )
 
   // Process incoming activity data
   const processActivityData = useCallback(
@@ -413,7 +517,7 @@ export function useSpaceDocumentActivity(
       socket.emit(
         'get_multi_presence',
         { entities: entitiesForPresence },
-        (response: {
+        async (response: {
           success: boolean
           presence?: Record<
             string,
@@ -435,6 +539,19 @@ export function useSpaceDocumentActivity(
             })
           }
 
+          // Collect unique user IDs from presence data
+          const userIds = new Set<string>()
+          for (const participants of Object.values(response.presence)) {
+            for (const p of participants) {
+              if (p.odId) userIds.add(p.odId)
+              if (p.userId) userIds.add(p.userId)
+            }
+          }
+
+          // Fetch avatars for all users
+          const avatarMap =
+            userIds.size > 0 ? await fetchAvatars(Array.from(userIds)) : new Map<string, string | undefined>()
+
           // Convert presence response to activities
           const now = new Date()
           const presenceActivities: DocumentActivity[] = []
@@ -449,11 +566,14 @@ export function useSpaceDocumentActivity(
             for (const participant of participants) {
               const key = `${participant.userId}:${entityId}`
 
+              // Get avatar from our fetched map
+              const avatar = avatarMap.get(participant.odId) || avatarMap.get(participant.userId)
+
               presenceActivities.push({
                 key,
                 userId: participant.userId,
                 userName: participant.userName,
-                userAvatar: participant.avatar,
+                userAvatar: avatar,
                 documentId: entityId,
                 documentTitle: contentItem?.title || 'Unknown',
                 documentType: entityType as DocumentType,
@@ -464,7 +584,7 @@ export function useSpaceDocumentActivity(
             }
           }
 
-          // Merge with existing activities (prefer newer data)
+          // Merge with existing activities (prefer newer data, but keep startedAt from existing)
           setActivities(prev => {
             const merged = new Map<string, DocumentActivity>()
 
@@ -476,7 +596,14 @@ export function useSpaceDocumentActivity(
             // Add/update with presence activities (from WebSocket)
             for (const activity of presenceActivities) {
               const existing = merged.get(activity.key)
-              if (!existing || existing.lastUpdatedAt < activity.lastUpdatedAt) {
+              if (existing) {
+                // Keep the original startedAt time to show accurate duration
+                merged.set(activity.key, {
+                  ...activity,
+                  startedAt: existing.startedAt,
+                  lastUpdatedAt: activity.lastUpdatedAt
+                })
+              } else {
                 merged.set(activity.key, activity)
               }
             }
