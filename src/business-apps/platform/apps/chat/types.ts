@@ -62,6 +62,7 @@ export interface Conversation {
   participants?: ConversationParticipant[]
   lastMessage?: Message
   lastMessageAt?: Date | string // Timestamp of the last message (from backend)
+  lastReadAt?: Date | string // Timestamp when current user last read this conversation (from backend)
   unreadCount?: number
   activeCall?: ActiveCall | null
   activeExperts?: string[] // Array of Every Expert prompt IDs
