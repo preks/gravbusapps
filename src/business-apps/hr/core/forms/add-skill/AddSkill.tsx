@@ -9,10 +9,7 @@ import { AddSkillProvider, useAddSkill } from './AddSkillContext'
 import { DebouncedInput } from '@/components/debounced-input'
 import { getSkillValidationError, buildEmployeeSkillsPayload } from './utils/addSkillUtils'
 import { AddSkillSearchDropdown } from './components/AddSkillSearchDropdown'
-import { SelectedSkillsChips } from './components/SelectedSkillsChips'
-import { XCircleIcon } from 'lucide-react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Button } from '@newwork/nw-design-system'
-
+import { SkillLevelRow } from './components/SkillLevelRow'
 interface AddSkillFormValues {
   targetEmployeeId?: string
 }
@@ -30,18 +27,6 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
   const [inputKey, setInputKey] = useState(0)
   const [addedNames, setAddedNames] = useState<string[]>([])
   const [addError, setAddError] = useState<string | null>(null)
-  const [selectedCategory, setSelectedCategory] = useState<string>('all')
-
-  // Hardcoded skill categories
-  const skillCategories = [
-    { value: 'all', label: 'All Categories' },
-    { value: 'technical', label: 'Technical Skills' },
-    { value: 'soft', label: 'Soft Skills' },
-    { value: 'languages', label: 'Languages' },
-    { value: 'certifications', label: 'Certifications' },
-    { value: 'tools', label: 'Tools & Software' },
-    { value: 'domain', label: 'Domain Knowledgeeeeeeeeee' }
-  ]
 
   // Filter search results to exclude already selected skills (by id or name) - both in employee skills and pending
   const filteredResults = useMemo(() => {
@@ -88,12 +73,26 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
 
   // Initialize selected skills from employee existing skills
   useEffect(() => {
-    const existing = ((employee?.skills || []) as Array<{ skill?: { id: string; name: string } }>).map(s => ({
-      id: (s.skill?.id || '') as string,
-      name: (s.skill?.name || '') as string,
-      isNew: false
-    }))
-    const deduped: Record<string, { id: string; name: string }> = {}
+    const existing = (
+      (employee?.skills || []) as Array<{
+        skill?: { id: string; name: string }
+        level?: string | number | null
+      }>
+    ).map(s => {
+      // Parse level - convert string to number, default to 1 if null/undefined
+      let level = 1
+      if (s.level !== null && s.level !== undefined) {
+        const parsed = typeof s.level === 'string' ? parseInt(s.level, 10) : s.level
+        level = isNaN(parsed) ? 1 : Math.max(1, Math.min(10, parsed))
+      }
+      return {
+        id: (s.skill?.id || '') as string,
+        name: (s.skill?.name || '') as string,
+        isNew: false,
+        level
+      }
+    })
+    const deduped: Record<string, { id: string; name: string; isNew: boolean; level: number }> = {}
     existing.forEach(s => {
       if (s.id) deduped[s.id] = s
     })
@@ -107,12 +106,42 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const isSubmitDisabled = useMemo(() => {
-    const initial = ((employee?.skills || []) as Array<{ skill?: { id: string } }>)
-      .map(s => s.skill?.id)
-      .filter(Boolean)
-    const current = selectedSkills.map(s => s.id)
-    const changed = initial.length !== current.length || initial.some(id => !current.includes(id as string))
-    return !changed
+    // Check if skills were added or removed
+    const initialSkills = (employee?.skills || []) as Array<{
+      skill?: { id: string }
+      level?: string | number | null
+    }>
+    const initialSkillMap = new Map<string, number>()
+    initialSkills.forEach(s => {
+      const skillId = s.skill?.id
+      if (skillId) {
+        let level = 1
+        if (s.level !== null && s.level !== undefined) {
+          const parsed = typeof s.level === 'string' ? parseInt(s.level, 10) : s.level
+          level = isNaN(parsed) ? 1 : Math.max(1, Math.min(10, parsed))
+        }
+        initialSkillMap.set(skillId, level)
+      }
+    })
+
+    const currentSkillMap = new Map<string, number>()
+    selectedSkills.forEach(s => {
+      currentSkillMap.set(s.id, s.level || 1)
+    })
+
+    // Check if skills were added or removed
+    const skillsChanged =
+      initialSkillMap.size !== currentSkillMap.size ||
+      Array.from(initialSkillMap.keys()).some(id => !currentSkillMap.has(id)) ||
+      Array.from(currentSkillMap.keys()).some(id => !initialSkillMap.has(id))
+
+    // Check if levels changed
+    const levelsChanged = Array.from(initialSkillMap.entries()).some(([id, level]) => {
+      const currentLevel = currentSkillMap.get(id)
+      return currentLevel !== undefined && currentLevel !== level
+    })
+
+    return !(skillsChanged || levelsChanged)
   }, [employee?.skills, selectedSkills])
   useEffect(() => {
     let isActive = true
@@ -307,6 +336,10 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
     setPendingSkills(prev => prev.map(s => (s.id === id ? { ...s, level } : s)))
   }
 
+  const handleUpdateExistingSkillLevel = (id: string, level: number) => {
+    setSelectedSkills(prev => prev.map(s => (s.id === id ? { ...s, level } : s)))
+  }
+
   const handleAddPendingSkillToEmployee = (pendingSkill: { id: string; name: string; level: number }) => {
     // Add to employee skills with level
     setSelectedSkills(prev => {
@@ -315,6 +348,19 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
     })
     // Remove from pending
     setPendingSkills(prev => prev.filter(s => s.id !== pendingSkill.id))
+  }
+
+  const handleModifyExistingSkill = (skill: { id: string; name: string; level: number }) => {
+    // The level is already updated via handleUpdateExistingSkillLevel
+    // This handler is called when "Modify" button is clicked
+    // For now, we just ensure the skill is in the selectedSkills with the updated level
+    setSelectedSkills(prev => {
+      const existing = prev.find(x => x.id === skill.id)
+      if (existing) {
+        return prev.map(s => (s.id === skill.id ? { ...s, level: skill.level } : s))
+      }
+      return [...prev, { id: skill.id, name: skill.name, isNew: false, level: skill.level }]
+    })
   }
 
   return (
@@ -361,10 +407,15 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
             const employeeId = ctxEmployeeId || values.targetEmployeeId
             const existingSkills = employee?.skills || []
             const selectedIds = selectedSkills.map(s => s.id)
+            const selectedLevels = new Map<string, number>()
+            selectedSkills.forEach(s => {
+              selectedLevels.set(s.id, s.level || 1)
+            })
 
             const payload = buildEmployeeSkillsPayload({
               employeeId,
               selectedSkillIds: selectedIds,
+              selectedSkillLevels: selectedLevels,
               existingSkills: existingSkills as any,
               event: 'pse_submit'
             })
@@ -383,36 +434,6 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
               )}
             </span>
             <div className="gba:flex gba:flex-col gba:gap-2" data-testid="add-skill-search-filters">
-              <div className="gba:w-full gba:max-w-[200px]">
-                <Select
-                  value={selectedCategory}
-                  onValueChange={setSelectedCategory}
-                  data-testid="add-skill-category-select"
-                >
-                  <SelectTrigger
-                    size="sm"
-                    className="gba:w-full [&>span:first-child]:gba:flex-1 [&>span:first-child]:gba:min-w-0 [&>span:last-child]:gba:flex-shrink-0"
-                  >
-                    <SelectValue placeholder="Category">
-                      {(() => {
-                        const selected = skillCategories.find(cat => cat.value === selectedCategory)
-                        return selected ? (
-                          <span className="gba:block gba:truncate gba:text-left gba:overflow-hidden gba:whitespace-nowrap gba:max-w-full gba:min-w-0">
-                            {selected.label}
-                          </span>
-                        ) : null
-                      })()}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="gba:min-w-[200px]">
-                    {skillCategories.map(category => (
-                      <SelectItem key={category.value} value={category.value}>
-                        {category.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
               <div
                 className="gba:relative gba:w-full"
                 data-testid="add-skill-search-container"
@@ -474,56 +495,18 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
                   data-testid="add-skill-pending-container"
                 >
                   {pendingSkills.map(skill => (
-                    <div
+                    <SkillLevelRow
                       key={skill.id}
-                      className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:border gba:border-border gba:rounded-lg gba:bg-card"
-                      data-testid={`add-skill-pending-item-${skill.id}`}
-                    >
-                      <span className="gba:flex-1 gba:min-w-0 gba:truncate" title={skill.name}>
-                        {skill.name}
-                      </span>
-                      <Select
-                        value={skill.level.toString()}
-                        onValueChange={value => handleUpdatePendingSkillLevel(skill.id, parseInt(value, 10))}
-                        data-testid={`add-skill-pending-level-${skill.id}`}
-                      >
-                        <SelectTrigger className="gba:w-20" size="sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 10 }, (_, i) => i + 1).map(level => (
-                            <SelectItem key={level} value={level.toString()}>
-                              {level}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => handleAddPendingSkillToEmployee(skill)}
-                        data-testid={`add-skill-pending-add-${skill.id}`}
-                      >
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:employee_profile.details_layout.add_skill_form.add_button',
-                          'Add'
-                        )}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemovePendingSkill(skill.id)}
-                        aria-label={getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:employee_profile.details_layout.add_skill_form.remove_aria_label',
-                          'Remove'
-                        )}
-                        data-testid={`add-skill-pending-remove-${skill.id}`}
-                        className="gba:p-1"
-                      >
-                        <XCircleIcon className="gba:w-4 gba:h-4" />
-                      </Button>
-                    </div>
+                      skill={skill}
+                      onLevelChange={handleUpdatePendingSkillLevel}
+                      onAction={handleAddPendingSkillToEmployee}
+                      onRemove={handleRemovePendingSkill}
+                      actionButtonText={getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:employee_profile.details_layout.add_skill_form.add_button',
+                        'Add'
+                      )}
+                      actionButtonTestId={`add-skill-pending-add-${skill.id}`}
+                    />
                   ))}
                 </div>
               </div>
@@ -539,8 +522,41 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
               )}
             </span>
 
-            {/* Selected Skills chips (includes existing and newly selected) */}
-            <SelectedSkillsChips skills={selectedSkills as any} onRemove={handleRemoveSkill} />
+            {/* Current Employee Skills with level modification */}
+            {selectedSkills.length > 0 ? (
+              <div
+                className="gba:flex gba:flex-col gba:gap-2 gba:max-h-[350px] gba:overflow-y-auto"
+                data-testid="add-skill-existing-container"
+              >
+                {selectedSkills
+                  .filter(skill => skill.level !== undefined)
+                  .map(skill => (
+                    <SkillLevelRow
+                      key={skill.id}
+                      skill={{
+                        id: skill.id,
+                        name: skill.name,
+                        level: skill.level || 1
+                      }}
+                      onLevelChange={handleUpdateExistingSkillLevel}
+                      onAction={handleModifyExistingSkill}
+                      onRemove={handleRemoveSkill}
+                      actionButtonText={getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:employee_profile.details_layout.add_skill_form.modify_button',
+                        'Modify'
+                      )}
+                      actionButtonTestId={`add-skill-existing-modify-${skill.id}`}
+                    />
+                  ))}
+              </div>
+            ) : (
+              <div className="gba:text-sm gba:text-muted-foreground gba:py-2">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_profile.details_layout.add_skill_form.no_current_skills',
+                  'No current skills'
+                )}
+              </div>
+            )}
           </div>
         </AppActionForm>
       </div>
