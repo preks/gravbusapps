@@ -334,15 +334,22 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       const createdApp = await createApp(appSchema)
 
       if (createdApp) {
-        setSelectedAppId(createdApp.id)
-        setCurrentView('viewer')
-        updateUrl(createdApp.id, 'viewer', createdApp.filePath)
+        const loadedApp = await loadApp(createdApp.id)
+        if (loadedApp) {
+          setSelectedAppId(loadedApp.id)
+          setCurrentView('editor')
+          updateUrl(loadedApp.id, 'editor', loadedApp.filePath ?? createdApp.filePath)
+        } else {
+          setSelectedAppId(createdApp.id)
+          setCurrentView('viewer')
+          updateUrl(createdApp.id, 'viewer', createdApp.filePath)
+        }
         setParsedFile(null)
         setAnalysis(null)
         resetAI()
       }
     },
-    [parsedFile, userInfo, createApp, resetAI, updateUrl]
+    [parsedFile, userInfo, createApp, loadApp, resetAI, updateUrl]
   )
 
   const handleReanalyze = useCallback(async () => {
