@@ -49,7 +49,7 @@ export const TaskExpertTestPanel: React.FC<TaskExpertTestPanelProps> = props => 
     <Dialog open={open} onOpenChange={v => (!v ? onClose() : undefined)}>
       <DialogContent data-testid="task-expert-test-dialog">
         <DialogHeader>
-          <DialogTitle>Test Task Expert</DialogTitle>
+          <DialogTitle>Test AI Task Expert</DialogTitle>
         </DialogHeader>
         <div className="gba:space-y-3">
           {error && (

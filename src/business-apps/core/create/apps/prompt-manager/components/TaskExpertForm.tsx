@@ -89,7 +89,7 @@ export const TaskExpertForm: React.FC<TaskExpertFormProps> = props => {
       onClose()
     } catch (e) {
       setLoading(false)
-      setError(e instanceof Error ? e.message : 'Failed to create task expert')
+      setError(e instanceof Error ? e.message : 'Failed to create AI task expert')
     }
   }, [client, name, description, workspaceId, modelId, userContent, systemContent, onSaved, onClose])
 
@@ -97,7 +97,7 @@ export const TaskExpertForm: React.FC<TaskExpertFormProps> = props => {
     <Dialog open={open} onOpenChange={v => (!v ? onClose() : undefined)}>
       <DialogContent data-testid="task-expert-form-dialog">
         <DialogHeader>
-          <DialogTitle>Create Task Expert</DialogTitle>
+          <DialogTitle>Create AI Task Expert</DialogTitle>
         </DialogHeader>
         <div className="gba:space-y-4">
           {error && (
