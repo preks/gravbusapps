@@ -338,10 +338,10 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                   <Badge
                     key={capItem.capability?.id || `capability-${index}`}
                     variant="secondary"
-                    data-testid={`capability-${capItem.capability!.id}`}
+                    data-testid={`capability-${capItem.capability?.id || `capability-${index}`}`}
                   >
                     <BookmarksIcon className="gba:h-4 gba:w-4 gba:mr-1" size={16} />
-                    {capItem.capability!.name}
+                    {capItem.capability?.name}
                   </Badge>
                 ))
             ) : (

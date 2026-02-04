@@ -1,4 +1,4 @@
-import { CalendarX, Calendar } from '@phosphor-icons/react'
+import { CalendarBlankIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
@@ -35,7 +35,7 @@ export const transformAbsenceData = (absences: any[]): AbsenceListCardAbsence[] 
         }`
       : '',
     description: absence.description || '',
-    icon: CalendarX,
+    icon: CalendarBlankIcon,
     typeColor: absence.type?.objectValue?.color ? absence.type.objectValue.color : 'blue',
     statusColor: getAbsenceStatusConfig(absence.status).color,
     requestDate: absence.createdAt
@@ -66,7 +66,7 @@ export const transformEntitlementsData = (employeeAbsenceEntitlement: EmployeeAb
     total: ent.total,
     pending: ent.pending,
     available: ent.available,
-    icon: Calendar,
+    icon: CalendarBlankIcon,
     checkEntitlement: ent.type?.objectValue?.checkEntitlement
   }))
 }
