@@ -18,6 +18,7 @@ interface EveryOneDashboardProps {
   }
   isActive?: boolean
   onOpenChat?: (userId: string) => void
+  onStartCall?: (userId: string, displayName: string, avatarUrl?: string) => void
   'data-testid'?: string
 }
 
@@ -30,6 +31,7 @@ export const EveryOneDashboard: React.FC<EveryOneDashboardProps> = ({
   userInfo,
   isActive = true,
   onOpenChat,
+  onStartCall,
   'data-testid': testId = 'everyone-dashboard'
 }) => {
   // Create API client
@@ -115,6 +117,7 @@ export const EveryOneDashboard: React.FC<EveryOneDashboardProps> = ({
               accessToken={accessToken}
               isLoading={showSkeleton}
               onContactClick={handleContactClick}
+              onStartCall={onStartCall}
               data-testid={`${testId}-contacts`}
             />
 

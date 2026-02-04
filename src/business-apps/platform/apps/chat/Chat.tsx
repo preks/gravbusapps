@@ -10,6 +10,7 @@ import { RealtimeKitApiClient } from './services/realtimeKitApiClient'
 import { useEveryAIChat } from './hooks/useEveryAIChat'
 import { useChatExperts } from './hooks/useChatExperts'
 import { useOpenChatFromPlatform } from './hooks/useOpenChatFromPlatform'
+import { useStartCallFromPlatform } from './hooks/useStartCallFromPlatform'
 import { ConversationList } from './components/ConversationList'
 import { ExpertSelectorPanel } from './components/ExpertSelectorPanel.tsx'
 import { ActiveExpertsBar } from './components/ActiveExpertsBar.tsx'
@@ -367,6 +368,13 @@ const ChatInner: React.FC<ChatProps> = memo(
       wsClient: wsClient || null,
       apiClient: apiClient || null,
       currentUser: currentUserAsParticipant
+    })
+
+    // Listen for platform messages to start calls with specific users
+    useStartCallFromPlatform({
+      initiateCall,
+      createDirectConversation,
+      isConnected
     })
 
     // Group Call functionality - Conditionally use Realtime Kit or Mesh topology

@@ -242,6 +242,16 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
                   window.dispatchEvent(new CustomEvent('chat:open-with-user', { detail: { userId } }))
                 }, 100)
               }}
+              onStartCall={(userId, displayName, avatarUrl) => {
+                setActiveTab('chat')
+                setTimeout(() => {
+                  window.dispatchEvent(
+                    new CustomEvent('chat:start-call-with-user', {
+                      detail: { userId, displayName, avatarUrl, callType: 'audio' }
+                    })
+                  )
+                }, 100)
+              }}
               data-testid={`${prefixDataTestId}-dashboard`}
             />
           </TabSwitchContent>
@@ -253,7 +263,13 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
             forceMount
             className={`gba:flex-1 gba:m-0 gba:h-full gba:min-h-0 gba:overflow-hidden ${activeTab !== 'everyai' ? 'gba:hidden' : ''}`}
           >
-            <EveryAI accessToken={accessToken} userInfo={userInfo} isActive={activeTab === 'everyai'} compactSuggestions={isInSidepanel} {...props} />
+            <EveryAI
+              accessToken={accessToken}
+              userInfo={userInfo}
+              isActive={activeTab === 'everyai'}
+              compactSuggestions={isInSidepanel}
+              {...props}
+            />
           </TabSwitchContent>
         )}
 

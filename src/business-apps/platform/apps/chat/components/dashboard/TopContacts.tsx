@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect } from 'react'
 import { Avatar, AvatarFallback, AvatarImage, Button } from '@newwork/nw-design-system'
-import { MessageSquare, Clock, UserPlus, ArrowRight } from 'lucide-react'
+import { MessageSquare, Clock, UserPlus, ArrowRight, Phone } from 'lucide-react'
 import type { UserContactsResponse, ContactInfo, ReachOutSuggestion } from '../../services/chatApiClient'
 import { useEmployeeAvatarsCache } from '../../hooks/useEmployeeAvatarsCache'
 
@@ -9,6 +9,7 @@ interface TopContactsProps {
   accessToken?: string
   isLoading?: boolean
   onContactClick?: (userId: string) => void
+  onStartCall?: (userId: string, displayName: string, avatarUrl?: string) => void
   'data-testid'?: string
 }
 
@@ -44,6 +45,7 @@ interface MostContactedCardProps {
   contact: ContactInfo
   accessToken?: string
   onClick?: () => void
+  onStartCall?: () => void
   'data-testid'?: string
 }
 
@@ -55,6 +57,7 @@ const MostContactedCard: React.FC<MostContactedCardProps> = ({
   contact,
   accessToken,
   onClick,
+  onStartCall,
   'data-testid': testId
 }) => {
   // Use avatar cache hook for proper avatar resolution
@@ -91,7 +94,23 @@ const MostContactedCard: React.FC<MostContactedCardProps> = ({
             {contact.messageCount.toLocaleString()} messages · {formatLastContact(contact.lastContact)}
           </p>
         </div>
-        <ArrowRight className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity" />
+        <div className="gba:flex gba:items-center gba:gap-1">
+          {onStartCall && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={e => {
+                e.stopPropagation()
+                onStartCall()
+              }}
+              className="gba:h-8 gba:w-8 gba:p-0 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity"
+              data-testid={testId ? `${testId}-call` : undefined}
+            >
+              <Phone className="gba:w-4 gba:h-4" />
+            </Button>
+          )}
+          <ArrowRight className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity" />
+        </div>
       </div>
     </div>
   )
@@ -169,6 +188,7 @@ export const TopContacts: React.FC<TopContactsProps> = ({
   accessToken,
   isLoading = false,
   onContactClick,
+  onStartCall,
   'data-testid': testId = 'top-contacts'
 }) => {
   const mostContacted = contacts?.mostContacted ?? []
@@ -251,6 +271,9 @@ export const TopContacts: React.FC<TopContactsProps> = ({
                   contact={contact}
                   accessToken={accessToken}
                   onClick={() => onContactClick?.(contact.userId)}
+                  onStartCall={
+                    onStartCall ? () => onStartCall(contact.userId, contact.displayName, contact.avatarUrl) : undefined
+                  }
                   data-testid={`${testId}-most-contacted-${index}`}
                 />
               ))}
