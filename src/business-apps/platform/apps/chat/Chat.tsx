@@ -23,6 +23,7 @@ import { AIThinkingIndicator, AIResponseRenderer, ExpertThinkingIndicator } from
 import { playNudgeSound, applyShakeAnimation, injectNudgeStyles } from './utils/nudgeUtils'
 import { IncomingCallDialog } from './components/IncomingCallDialog'
 import { IncomingGroupCallDialog } from './components/IncomingGroupCallDialog'
+import { PreCallSetupDialog } from './components/PreCallSetupDialog'
 import { RejoinCallDialog } from './components/RejoinCallDialog'
 import { CallModal } from './components/CallModal'
 import { GroupCallModal } from './components/GroupCallModal'
@@ -43,7 +44,7 @@ interface ChatProps extends BusinessAppContextProps {
 }
 
 const ChatInner: React.FC<ChatProps> = memo(
-  ({ accessToken: accessTokenProp, prefixDataTestId = 'chat' }) => {
+  ({ accessToken: accessTokenProp, additionalData, prefixDataTestId = 'chat' }) => {
     const t = useChatTranslation()
     const containerRef = useRef<HTMLDivElement>(null)
     const chatViewRef = useRef<HTMLDivElement>(null)
@@ -70,6 +71,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     const presenceInitializedUsersRef = useRef<Set<string>>(new Set())
     const lastNudgeTimeRef = useRef<number>(0)
     const NUDGE_COOLDOWN_MS = 30000 // 30 seconds
+    const isEmbeddedMobile = additionalData?.__mobile === true
 
     // Inject nudge animation styles on mount
     useEffect(() => {
@@ -382,7 +384,8 @@ const ChatInner: React.FC<ChatProps> = memo(
       wsClient: wsClient || null,
       apiClient: realtimeKitApiClient,
       currentUser: currentUserAsParticipant,
-      accessToken: stableAccessToken
+      accessToken: stableAccessToken,
+      translate: t
     })
 
     // Route to appropriate implementation based on feature flag
@@ -395,7 +398,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       remoteStreams: groupRemoteStreams,
       participants: groupParticipantsRaw,
       incomingInvite: incomingGroupCallInvite,
-      startCall: startGroupCall,
+      initiateCall: initiateGroupCall,
       joinCall: joinGroupCall,
       acceptInvite: acceptGroupInvite,
       declineInvite: declineGroupInvite,
@@ -430,19 +433,21 @@ const ChatInner: React.FC<ChatProps> = memo(
         ;(window as any).TestParticipantPresets = TestParticipantPresets
         ;(window as any).seedTestParticipants = seedTestParticipants
         ;(window as any).setTestParticipants = (countOrPreset: number | string) => {
-          console.log('[TEST] setTestParticipants called with:', countOrPreset)
+          rtkDebug.log('[TEST] setTestParticipants called with:', countOrPreset)
           try {
             let participants: GroupCallParticipant[]
             if (typeof countOrPreset === 'number') {
               participants = seedTestParticipants(countOrPreset)
-              console.log(`✅ Test participants set to ${countOrPreset}, generated ${participants.length} participants`)
+              rtkDebug.log(
+                `✅ Test participants set to ${countOrPreset}, generated ${participants.length} participants`
+              )
             } else if (
               typeof countOrPreset === 'string' &&
               TestParticipantPresets[countOrPreset as keyof typeof TestParticipantPresets]
             ) {
               const preset = TestParticipantPresets[countOrPreset as keyof typeof TestParticipantPresets]
               participants = preset()
-              console.log(
+              rtkDebug.log(
                 `✅ Test participants set to preset: ${countOrPreset}, generated ${participants.length} participants`
               )
             } else {
@@ -453,7 +458,7 @@ const ChatInner: React.FC<ChatProps> = memo(
             }
             // Use ref to ensure we have the latest setter
             setTestParticipantsOverrideRef.current(participants)
-            console.log(
+            rtkDebug.log(
               '[TEST] State updated, participants:',
               participants.map(p => p.odName)
             )
@@ -462,30 +467,30 @@ const ChatInner: React.FC<ChatProps> = memo(
           }
         }
         ;(window as any).clearTestParticipants = () => {
-          console.log('[TEST] Clearing test participants')
+          rtkDebug.log('[TEST] Clearing test participants')
           setTestParticipantsOverrideRef.current(null)
-          console.log('✅ Test participants cleared, using real participants')
+          rtkDebug.log('✅ Test participants cleared, using real participants')
         }
         ;(window as any).getTestParticipants = () => {
-          console.log('[TEST] Current test participants override:', testParticipantsOverride)
-          console.log('[TEST] Current real participants count:', groupParticipantsRaw.length)
+          rtkDebug.log('[TEST] Current test participants override:', testParticipantsOverride)
+          rtkDebug.log('[TEST] Current real participants count:', groupParticipantsRaw.length)
           return testParticipantsOverride
         }
         ;(window as any).testParticipantsDebug = () => {
-          console.log('🔍 Test Participants Debug Info:')
-          console.log('  - Function exists:', typeof (window as any).setTestParticipants === 'function')
-          console.log('  - Current override:', testParticipantsOverride)
-          console.log('  - Current override count:', testParticipantsOverride?.length || 0)
-          console.log('  - Real participants count:', groupParticipantsRaw.length)
-          console.log('  - Is in call:', groupCallState.status !== 'idle')
-          console.log('  - Call status:', groupCallState.status)
+          rtkDebug.log('🔍 Test Participants Debug Info:')
+          rtkDebug.log('  - Function exists:', typeof (window as any).setTestParticipants === 'function')
+          rtkDebug.log('  - Current override:', testParticipantsOverride)
+          rtkDebug.log('  - Current override count:', testParticipantsOverride?.length || 0)
+          rtkDebug.log('  - Real participants count:', groupParticipantsRaw.length)
+          rtkDebug.log('  - Is in call:', groupCallState.status !== 'idle')
+          rtkDebug.log('  - Call status:', groupCallState.status)
         }
-        console.log('🎮 Test participant utilities available:')
-        console.log('  - window.setTestParticipants(5)')
-        console.log('  - window.setTestParticipants("nine")')
-        console.log('  - window.clearTestParticipants()')
-        console.log('  - window.getTestParticipants()')
-        console.log('  - window.testParticipantsDebug()')
+        rtkDebug.log('🎮 Test participant utilities available:')
+        rtkDebug.log('  - window.setTestParticipants(5)')
+        rtkDebug.log('  - window.setTestParticipants("nine")')
+        rtkDebug.log('  - window.clearTestParticipants()')
+        rtkDebug.log('  - window.getTestParticipants()')
+        rtkDebug.log('  - window.testParticipantsDebug()')
       }
     }, [])
 
@@ -495,13 +500,13 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Debug log when participants change
     useEffect(() => {
       if (testParticipantsOverride) {
-        console.log(
+        rtkDebug.log(
           '[TEST] ✅ Using test participants:',
           testParticipantsOverride.length,
           testParticipantsOverride.map(p => p.odName)
         )
       } else {
-        console.log('[TEST] Using real participants:', groupParticipantsRaw.length)
+        rtkDebug.log('[TEST] Using real participants:', groupParticipantsRaw.length)
       }
     }, [testParticipantsOverride, groupParticipantsRaw.length])
 
@@ -519,7 +524,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Reset isStartingCall when call actually connects
     useEffect(() => {
       if (isInAnyCall && isStartingCall) {
-        console.log('[CHAT] Call connected, resetting isStartingCall flag')
+        rtkDebug.log('[CHAT] Call connected, resetting isStartingCall flag')
         setIsStartingCall(false)
       }
     }, [isInAnyCall, isStartingCall])
@@ -570,7 +575,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     const handleAudioCall = () => {
       // Guard: prevent duplicate call initiation
       if (isStartingCall) {
-        console.log('[CHAT] Already starting a call, ignoring duplicate request')
+        rtkDebug.log('[CHAT] Already starting a call, ignoring duplicate request')
         return
       }
 
@@ -620,7 +625,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     const handleVideoCall = () => {
       // Guard: prevent duplicate call initiation
       if (isStartingCall) {
-        console.log('[CHAT] Already starting a call, ignoring duplicate request')
+        rtkDebug.log('[CHAT] Already starting a call, ignoring duplicate request')
         return
       }
 
@@ -721,7 +726,9 @@ const ChatInner: React.FC<ChatProps> = memo(
             }) || []
 
         // Use conversation ID as the room ID, pass conversation name for the invite
-        startGroupCall(activeConversation.id, callType, callParticipants, activeConversation.name)
+        if (initiateGroupCall) {
+          initiateGroupCall(activeConversation.id, callType, callParticipants, activeConversation.name)
+        }
       }
     }
 
@@ -744,7 +751,9 @@ const ChatInner: React.FC<ChatProps> = memo(
         // Generate a new room ID for the group call (use conversation ID or create new)
         const roomId = activeConversation.id
         const callType = callState.type || 'video'
-        startGroupCall(roomId, callType, callParticipants, activeConversation.name)
+        if (initiateGroupCall) {
+          initiateGroupCall(roomId, callType, callParticipants, activeConversation.name)
+        }
       }, 100)
     }
 
@@ -784,7 +793,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                 // Initialize presence with full status details
                 updatePresence(userId, { state, lastSeen: lastSeenString, userStatus })
 
-                console.log('[Chat] Initialized presence from API for user:', userId, { state, userStatus })
+                rtkDebug.log('[Chat] Initialized presence from API for user:', userId, { state, userStatus })
               }
             }
           })
@@ -1378,6 +1387,14 @@ const ChatInner: React.FC<ChatProps> = memo(
 
     // Container-aware responsive view detection
     useEffect(() => {
+      // If this chat is rendered via the mobile WebView entrypoint (/platform/mobile/**),
+      // always force single-column mode. Android WebView can occasionally report a ~980px
+      // layout viewport, which would otherwise trigger split-pane desktop layout.
+      if (isEmbeddedMobile) {
+        setViewMode('mobile')
+        return
+      }
+
       const container = containerRef.current
       if (!container) return
 
@@ -1403,7 +1420,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       resizeObserver.observe(container)
 
       return () => resizeObserver.disconnect()
-    }, [])
+    }, [isEmbeddedMobile])
 
     // Restore active conversation from URL parameter (for panel reopen persistence)
     useEffect(() => {
@@ -2033,8 +2050,36 @@ const ChatInner: React.FC<ChatProps> = memo(
           prefixDataTestId={`${prefixDataTestId}-rejoin-call`}
         />
 
+        {/* Pre-Call Setup Dialog - Show during setup and joining, and connected until room is joined (outgoing calls only) */}
+        <PreCallSetupDialog
+          isOpen={
+            (groupCallState.status === 'setup' ||
+              groupCallState.status === 'joining' ||
+              (groupCallState.status === 'connected' && realtimeKitGroupCall.meeting?.self?.roomState !== 'joined')) &&
+            !groupCallState.isMinimized &&
+            !incomingGroupCallInvite
+          }
+          callType={groupCallState.callType}
+          conversationName={activeConversation?.name}
+          participantCount={groupParticipants.length}
+          userName={currentUserAsParticipant?.odName}
+          userAvatarUrl={currentUserAsParticipant?.avatarUrl}
+          onStart={preferences => {
+            if (realtimeKitGroupCall.confirmStartCall) {
+              realtimeKitGroupCall.confirmStartCall(preferences)
+            }
+          }}
+          onCancel={() => {
+            if (realtimeKitGroupCall.cancelSetup) {
+              realtimeKitGroupCall.cancelSetup()
+            }
+          }}
+          prefixDataTestId={`${prefixDataTestId}-pre-call-setup`}
+        />
+
         {/* Group Call Modal - Use Realtime Kit or Mesh based on feature flag */}
-        {groupCallState.status !== 'idle' &&
+        {groupCallState.status === 'connected' &&
+          realtimeKitGroupCall.meeting?.self?.roomState === 'joined' &&
           (useRealtimeKitForGroupCalls ? (
             <RealtimeKitProvider value={realtimeKitGroupCall.meeting}>
               <GroupCallModalRtk

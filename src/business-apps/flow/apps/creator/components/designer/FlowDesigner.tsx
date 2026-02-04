@@ -37,6 +37,7 @@ import { FlowTags } from '@/business-apps/flow/types'
 import { ExpressionInput } from '../shared/ExpressionInput'
 import { FunctionConfiguration } from '../steps/FunctionConfiguration'
 import { AgentConfiguration } from '../steps/AgentConfiguration'
+import { EventSubscriptionsConfiguration } from '../steps/EventSubscriptionsConfiguration'
 
 interface FlowDesignerProps extends BusinessAppContextProps {
   initialTemplate?: FlowTemplate | null
@@ -64,7 +65,8 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
         dueInMinutes: step.dueInMinutes || 60,
         form: step.form || step.inputs || [],
         links: step.links || [],
-        assignment: step.assignment
+        assignment: step.assignment,
+        eventSubscriptions: (step as any).eventSubscriptions || []
       }))
     }
 
@@ -78,14 +80,17 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
         dueInMinutes: 60,
         form: [],
         links: [],
-        assignment: { assignmentMode: AssignmentMode.CLAIM, targets: null, allowReassignment: true }
+        assignment: { assignmentMode: AssignmentMode.CLAIM, targets: null, allowReassignment: true },
+        eventSubscriptions: []
       }
     ]
   }
 
   const [steps, setSteps] = React.useState<FlowStep[]>(getInitialSteps)
   const [selectedStepIndex, setSelectedStepIndex] = React.useState<number>(0)
-  const [activeTab, setActiveTab] = React.useState<'general' | 'form' | 'assignment' | 'function' | 'agent'>('general')
+  const [activeTab, setActiveTab] = React.useState<'general' | 'form' | 'assignment' | 'parameters' | 'events'>(
+    'general'
+  )
   const [isSummarySelected, setIsSummarySelected] = React.useState<boolean>(false)
 
   // Template metadata state
@@ -215,7 +220,8 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
         kind: 'USER',
         form: [],
         links: [],
-        assignment: { assignmentMode: AssignmentMode.CLAIM, targets: null, allowReassignment: true }
+        assignment: { assignmentMode: AssignmentMode.CLAIM, targets: null, allowReassignment: true },
+        eventSubscriptions: []
       } as FlowStep
       const updated = [...prev]
       updated.splice(selectedStepIndex + 1, 0, newStep)
@@ -635,6 +641,13 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                       selectedStep.type !== FlowStepType.AI_TASK_EXPERT && (
                         <TabsTrigger value="assignment">Assignment</TabsTrigger>
                       )}
+                    {selectedStep.type !== FlowStepType.FUNCTION &&
+                      selectedStep.type !== FlowStepType.AI_AGENT &&
+                      selectedStep.type !== FlowStepType.AI_TASK_EXPERT && (
+                        <TabsTrigger value="events" data-testid={`${testId}-events-tab`}>
+                          Events
+                        </TabsTrigger>
+                      )}
                   </TabsList>
                   <div className="gba:flex-1 gba:min-h-0 gba:relative">
                     <TabsContent value="general" className="gba:absolute gba:inset-0 gba:overflow-auto">
@@ -923,6 +936,23 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                             data-testid={`${testId}-assignment-selector`}
                           />
                         </div>
+                      </div>
+                    </TabsContent>
+                    <TabsContent value="events" className="gba:absolute gba:inset-0 gba:overflow-auto">
+                      <div className="gba:space-y-4 gba:pr-2 gba:pb-4">
+                        {accessToken ? (
+                          <EventSubscriptionsConfiguration
+                            subscriptions={(selectedStep as any).eventSubscriptions || []}
+                            onUpdate={subscriptions => updateStep({ eventSubscriptions: subscriptions } as any)}
+                            stepIndex={selectedStepIndex}
+                            testId={`${testId}-event-subscriptions`}
+                            accessToken={accessToken}
+                          />
+                        ) : (
+                          <div className="gba:text-center gba:text-muted-foreground gba:p-4">
+                            Access token required for event subscriptions
+                          </div>
+                        )}
                       </div>
                     </TabsContent>
                   </div>

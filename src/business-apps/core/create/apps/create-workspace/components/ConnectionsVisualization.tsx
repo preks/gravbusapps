@@ -33,7 +33,7 @@ const TOOLS: ToolNode[] = [
   },
   {
     id: 'experts',
-    label: 'Task Experts',
+    label: 'AI Task Experts',
     icon: Bot,
     color: 'ai',
     description: 'AI assistants',
@@ -133,7 +133,7 @@ export const ConnectionsVisualization: React.FC<ConnectionsVisualizationProps> =
           </h2>
           <p className="gba:text-muted-foreground gba:max-w-xl gba:mx-auto">
             Each tool in NEWWORK CREATE works seamlessly with others. Build complete solutions by combining AI Builder,
-            Flow, Task Experts, and more.
+            Flow, AI Task Experts, and more.
           </p>
         </div>
 

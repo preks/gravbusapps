@@ -687,6 +687,8 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
                 onClearCancelledMessage={clearCancelledMessage}
                 darkMode={isEmptyState}
                 compactSuggestions={compactSuggestions}
+                // Access token for entity mentions
+                accessToken={accessToken}
               />
             </div>
           </div>
