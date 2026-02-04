@@ -210,9 +210,9 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
   const [selectedTask, setSelectedTask] = useState<UnifiedTask | null>(null)
   const lastAutoReadKeyRef = useRef<string>('')
-  // Avoid marking tasks as read due to initial auto-selection on page load.
-  // Users expect "Mark unread" to persist across refresh; auto-selection shouldn't override that.
-  const skipNextAutoReadKeyRef = useRef<string>('')
+  // Only auto-mark as read when selection is user-initiated (click).
+  // Programmatic selection (auto-select first task / URL / sync updates) must not override "mark unread".
+  const selectionOriginRef = useRef<'auto' | 'user'>('auto')
   const autoReadTimeoutRef = useRef<number | null>(null)
   // Map selectedFilters from parent to local filterType
   const filterType: TaskFilterType = selectedFilters.includes('all')
@@ -266,6 +266,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
     const all = [...localTasks, ...localCompletedTasks]
     const next = all.find(t => t.id === selectedTask.id && t.source === selectedTask.source)
     if (next) {
+      selectionOriginRef.current = 'auto'
       setSelectedTask(next)
     }
   }, [localTasks, localCompletedTasks, selectedTask?.id, selectedTask?.source])
@@ -279,17 +280,17 @@ export const InboxView: React.FC<InboxViewProps> = ({
         const allTasks = [...tasks, ...completedTasks]
         const taskToSelect = allTasks.find(t => t.id === taskIdFromUrl)
         if (taskToSelect) {
-          skipNextAutoReadKeyRef.current = `${taskToSelect.source}:${taskToSelect.id}`
+          selectionOriginRef.current = 'auto'
           setSelectedTask(taskToSelect)
         } else {
           // If task from URL not found, select first task
-          skipNextAutoReadKeyRef.current = `${tasks[0].source}:${tasks[0].id}`
+          selectionOriginRef.current = 'auto'
           setSelectedTask(tasks[0])
           updateTaskUrl(tasks[0].id)
         }
       } else {
         // No task in URL, auto-select first task
-        skipNextAutoReadKeyRef.current = `${tasks[0].source}:${tasks[0].id}`
+        selectionOriginRef.current = 'auto'
         setSelectedTask(tasks[0])
         updateTaskUrl(tasks[0].id)
       }
@@ -305,11 +306,14 @@ export const InboxView: React.FC<InboxViewProps> = ({
         const allTasks = [...localTasks, ...localCompletedTasks]
         const taskToSelect = allTasks.find(t => t.id === taskIdFromUrl)
         if (taskToSelect) {
+          selectionOriginRef.current = 'auto'
           setSelectedTask(taskToSelect)
         } else {
+          selectionOriginRef.current = 'auto'
           setSelectedTask(null)
         }
       } else {
+        selectionOriginRef.current = 'auto'
         setSelectedTask(null)
       }
     }
@@ -324,10 +328,12 @@ export const InboxView: React.FC<InboxViewProps> = ({
     (task: UnifiedTask | null) => {
       // If clicking on the currently selected task, deselect it (close detail panel)
       if (task && selectedTask?.id === task.id) {
+        selectionOriginRef.current = 'auto'
         setSelectedTask(null)
         updateTaskUrl(null)
       } else {
         // Otherwise, select the new task
+        selectionOriginRef.current = 'user'
         setSelectedTask(task)
         updateTaskUrl(task?.id || null)
       }
@@ -337,6 +343,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
   // Handler to close task detail
   const handleCloseTask = useCallback(() => {
+    selectionOriginRef.current = 'auto'
     setSelectedTask(null)
     updateTaskUrl(null)
   }, [])
@@ -471,6 +478,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
       if (selectedTask && selectedTask.id === task.id && selectedTask.source === task.source) {
         const key = `${selectedTask.source}:${selectedTask.id}`
         lastAutoReadKeyRef.current = key
+        selectionOriginRef.current = 'auto'
         if (autoReadTimeoutRef.current) {
           globalThis.clearTimeout(autoReadTimeoutRef.current)
           autoReadTimeoutRef.current = null
@@ -542,11 +550,10 @@ export const InboxView: React.FC<InboxViewProps> = ({
     if (!accessToken) return
     if (selectedTask.userState?.isRead) return
 
+    // Only mark as read for user-initiated selections.
+    if (selectionOriginRef.current !== 'user') return
+
     const key = `${selectedTask.source}:${selectedTask.id}`
-    if (skipNextAutoReadKeyRef.current === key) {
-      skipNextAutoReadKeyRef.current = ''
-      return
-    }
     if (lastAutoReadKeyRef.current === key) return
 
     if (autoReadTimeoutRef.current) {
