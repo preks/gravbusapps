@@ -787,43 +787,17 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
         // Send invites when starting a new call with participants
         // wasIdleBeforeStart ensures we don't send duplicate invites when rejoining
-        const shouldSendInvites = wasIdleBeforeStart && participants.length > 0 && !wasCancelledBeforeInvites
-
-        rtkDebug.log('[RTK] 📨 Invite decision:', {
-          wasIdleBeforeStart,
+        // NOTE: We don't call participantsHook.inviteToCall here because
+        // the rtk-group-call:start event below already includes all participants
+        // and will trigger invites on the backend. Calling inviteToCall here
+        // would cause duplicate invites to be sent.
+        rtkDebug.log('[RTK] 📨 Participants will be invited via rtk-group-call:start event:', {
           participantsCount: participants.length,
-          shouldSendInvites,
-          wasCancelled: wasCancelledBeforeInvites,
           conversationId,
           meetingId,
           callType,
           participants: participants.map(p => ({ id: p.id, name: p.odName }))
         })
-
-        if (shouldSendInvites) {
-          // CRITICAL: Pass callType explicitly to avoid stale closure from React state
-          rtkDebug.log('[RTK] 📤 Sending invites to participants:', {
-            count: participants.length,
-            meetingId,
-            conversationId,
-            callType,
-            calendarMeetingId
-          })
-          participantsHook.inviteToCall(
-            participants,
-            conversationName,
-            meetingId,
-            conversationId,
-            callType,
-            calendarMeetingId // Calendar meeting ID for AI transcription (not sent to backend)
-          )
-        } else {
-          rtkDebug.log('[RTK] ⏭️ Skipping invites:', {
-            reason: !wasIdleBeforeStart ? 'Not starting from idle state' : 'No participants to invite',
-            wasIdleBeforeStart,
-            participantsCount: participants.length
-          })
-        }
 
         // CRITICAL: Check again if call was cancelled (user might have clicked cancel during SDK initialization)
         if (isCancelledRef.current) {
