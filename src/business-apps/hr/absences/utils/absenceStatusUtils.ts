@@ -47,8 +47,8 @@ export function getAbsenceStatusConfig(status?: string): AbsenceStatusConfig {
     case 'PENDING':
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
-        variant: 'warning', // Orange - indicates pending approval
-        color: 'var(--nw-warning)',
+        variant: 'secondary', // Gray - indicates pending approval
+        color: 'var(--nw-muted-foreground)',
         type: 'pending',
         status: 'PENDING'
       }
@@ -126,6 +126,7 @@ export function getBadgeVariantBackgroundClass(variant: BadgeProps['variant']): 
   if (variant === 'destructive') return 'gba:bg-destructive-secondary/80'
   if (variant === 'info') return 'gba:bg-info-secondary/80'
   if (variant === 'offline') return 'gba:bg-offline-secondary/80'
+  if (variant === 'secondary') return 'gba:bg-secondary'
 
   // For other variants, use muted
   return 'gba:bg-muted'
