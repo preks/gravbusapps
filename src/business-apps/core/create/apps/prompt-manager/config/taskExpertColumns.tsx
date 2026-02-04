@@ -37,11 +37,38 @@ export const createTaskExpertColumns = (t: TranslationFn): ColumnDef<TaskExpertR
     }
   },
   {
-    id: 'specialty',
-    accessorKey: 'specialty',
-    header: t('column-specialty'),
-    size: 180,
-    meta: { type: 'text' }
+    id: 'tools',
+    header: t('column-tools'),
+    size: 140,
+    meta: { align: 'right' },
+    accessorFn: row => {
+      const raw = (row as any).tools
+      if (Array.isArray(raw)) return raw.length
+      if (typeof raw !== 'string') return 0
+      return raw
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean).length
+    },
+    cell: ({ row }) => {
+      const raw = row.original.tools
+      const list = Array.isArray(raw)
+        ? raw
+        : typeof raw === 'string'
+          ? raw
+              .split(',')
+              .map(s => s.trim())
+              .filter(Boolean)
+          : []
+
+      const count = list.length
+
+      return (
+        <div className="gba:flex gba:justify-end">
+          <Badge variant="secondary">{count}</Badge>
+        </div>
+      )
+    }
   },
   {
     id: 'version',
@@ -55,8 +82,8 @@ export const createTaskExpertColumns = (t: TranslationFn): ColumnDef<TaskExpertR
 export const taskExpertSortableColumns = [
   { id: 'name', label: 'Name' },
   { id: 'agentType', label: 'Agent Type' },
-  { id: 'specialty', label: 'Specialty' },
+  { id: 'tools', label: 'Tools' },
   { id: 'version', label: 'Version' }
 ]
 
-export const getDefaultVisibleColumns = (): string[] => ['name', 'agentType', 'specialty', 'version']
+export const getDefaultVisibleColumns = (): string[] => ['name', 'agentType', 'tools', 'version']

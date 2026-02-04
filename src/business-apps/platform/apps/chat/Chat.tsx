@@ -44,7 +44,7 @@ interface ChatProps extends BusinessAppContextProps {
 }
 
 const ChatInner: React.FC<ChatProps> = memo(
-  ({ accessToken: accessTokenProp, prefixDataTestId = 'chat' }) => {
+  ({ accessToken: accessTokenProp, additionalData, prefixDataTestId = 'chat' }) => {
     const t = useChatTranslation()
     const containerRef = useRef<HTMLDivElement>(null)
     const chatViewRef = useRef<HTMLDivElement>(null)
@@ -71,6 +71,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     const presenceInitializedUsersRef = useRef<Set<string>>(new Set())
     const lastNudgeTimeRef = useRef<number>(0)
     const NUDGE_COOLDOWN_MS = 30000 // 30 seconds
+    const isEmbeddedMobile = additionalData?.__mobile === true
 
     // Inject nudge animation styles on mount
     useEffect(() => {
@@ -1386,6 +1387,14 @@ const ChatInner: React.FC<ChatProps> = memo(
 
     // Container-aware responsive view detection
     useEffect(() => {
+      // If this chat is rendered via the mobile WebView entrypoint (/platform/mobile/**),
+      // always force single-column mode. Android WebView can occasionally report a ~980px
+      // layout viewport, which would otherwise trigger split-pane desktop layout.
+      if (isEmbeddedMobile) {
+        setViewMode('mobile')
+        return
+      }
+
       const container = containerRef.current
       if (!container) return
 
@@ -1411,7 +1420,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       resizeObserver.observe(container)
 
       return () => resizeObserver.disconnect()
-    }, [])
+    }, [isEmbeddedMobile])
 
     // Restore active conversation from URL parameter (for panel reopen persistence)
     useEffect(() => {
