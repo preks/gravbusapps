@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import { Card, CardContent, Button, Badge, cn } from '@newwork/nw-design-system'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import type { ComponentSpec, ComponentType } from '../types/orchestrator'
+import type { ComponentSpec, ComponentType } from '../../types'
 
 export interface SuccessStateProps {
   components: ComponentSpec[]

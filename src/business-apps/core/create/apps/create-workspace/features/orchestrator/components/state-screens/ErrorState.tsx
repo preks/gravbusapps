@@ -20,7 +20,7 @@ import {
   AccordionContent,
   cn
 } from '@newwork/nw-design-system'
-import type { ComponentSpec } from '../types/orchestrator'
+import type { ComponentSpec } from '../../types'
 
 export interface ErrorStateProps {
   error: string
