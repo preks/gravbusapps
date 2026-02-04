@@ -401,18 +401,11 @@ if (globalThis.__APP_BUILD_INFO__) {
           {
             name: '@dotenvx/dotenvx',
             config() {
-              const dotenvParsed = dotenv.config({ path: '.env' }).parsed || {}
-              const publicFromProcessEnv = Object.fromEntries(
-                Object.entries(process.env).filter(([k, v]) => {
-                  if (!v) return false
-                  return k.startsWith('NEXT_PUBLIC_') || k.startsWith('VITE_')
-                })
-              )
+              dotenv.config({ path: '.env' })
               return {
                 define: {
                   'process.env': {
-                    ...dotenvParsed,
-                    ...publicFromProcessEnv
+                    ...dotenv.config({ path: '.env' }).parsed
                   }
                 }
               }
