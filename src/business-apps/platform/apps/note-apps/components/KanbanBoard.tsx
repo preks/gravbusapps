@@ -88,10 +88,18 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
   })()
 
   // Keep participants in React state so the UI updates when NoteEditor mutates extension.storage.participants.
+  // Track previous participants to avoid unnecessary re-renders
+  const prevParticipantsRef = useRef<string>('')
+
   useEffect(() => {
     const sync = () => {
       const next = extension?.storage?.participants || []
-      setAvailableParticipants(next.length ? [...next] : [])
+      // Only update state if participants actually changed (compare by serialized value)
+      const nextSerialized = JSON.stringify(next.map(p => p.userId).sort())
+      if (nextSerialized !== prevParticipantsRef.current) {
+        prevParticipantsRef.current = nextSerialized
+        setAvailableParticipants(next.length ? [...next] : [])
+      }
     }
 
     sync()

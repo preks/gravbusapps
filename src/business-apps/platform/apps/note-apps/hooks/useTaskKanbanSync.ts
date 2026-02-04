@@ -254,6 +254,7 @@ export function useTaskKanbanSync({ editor, enabled = true }: UseTaskKanbanSyncO
   const previousKanbanContentsRef = useRef<Map<string, string>>(new Map())
   const previousKanbanColumnsRef = useRef<Map<string, string>>(new Map()) // Track card column changes
   const syncInProgressRef = useRef(false)
+  const trackingInitializedRef = useRef(false)
 
   /**
    * Sync task item content changes to Kanban cards
@@ -570,9 +571,26 @@ export function useTaskKanbanSync({ editor, enabled = true }: UseTaskKanbanSyncO
     return boards
   }, [editor])
 
-  // Subscribe to editor transactions for sync
+  // Store latest sync functions in refs to avoid dependency issues
+  const syncTaskToKanbanRef = useRef(syncTaskToKanban)
+  const syncKanbanToTaskRef = useRef(syncKanbanToTask)
+
+  // Keep refs up to date
   useEffect(() => {
-    if (!editor || !enabled) return
+    syncTaskToKanbanRef.current = syncTaskToKanban
+    syncKanbanToTaskRef.current = syncKanbanToTask
+  }, [syncTaskToKanban, syncKanbanToTask])
+
+  // Initialize tracking only once per editor instance
+  useEffect(() => {
+    if (!editor || !enabled) {
+      trackingInitializedRef.current = false
+      return
+    }
+
+    // Only initialize if not already done for this editor
+    if (trackingInitializedRef.current) return
+    trackingInitializedRef.current = true
 
     // Initialize tracking for existing linked tasks
     const linkedTasks = findLinkedTaskItems(editor)
@@ -589,15 +607,29 @@ export function useTaskKanbanSync({ editor, enabled = true }: UseTaskKanbanSyncO
       previousKanbanContentsRef.current.set(cardId, cardInfo.card.content)
       previousKanbanColumnsRef.current.set(cardId, cardInfo.columnId)
     })
+  }, [editor, enabled])
+
+  // Subscribe to editor transactions for sync (separate effect to avoid reinitializing tracking)
+  useEffect(() => {
+    if (!editor || !enabled) return
 
     // Debounced sync on transaction
     let syncTimeout: NodeJS.Timeout | null = null
+    let lastSyncTime = 0
+
     const handleTransaction = () => {
       if (syncTimeout) clearTimeout(syncTimeout)
+
+      // Prevent rapid-fire syncs - require at least 100ms between sync completions
+      const timeSinceLastSync = Date.now() - lastSyncTime
+      const delay = timeSinceLastSync < 100 ? 400 : 300
+
       syncTimeout = setTimeout(() => {
-        syncTaskToKanban()
-        syncKanbanToTask()
-      }, 300)
+        // Use refs to get latest functions without triggering effect reruns
+        syncTaskToKanbanRef.current()
+        syncKanbanToTaskRef.current()
+        lastSyncTime = Date.now()
+      }, delay)
     }
 
     editor.on('transaction', handleTransaction)
@@ -606,7 +638,7 @@ export function useTaskKanbanSync({ editor, enabled = true }: UseTaskKanbanSyncO
       editor.off('transaction', handleTransaction)
       if (syncTimeout) clearTimeout(syncTimeout)
     }
-  }, [editor, enabled, syncTaskToKanban, syncKanbanToTask])
+  }, [editor, enabled])
 
   return {
     addTaskToKanban,
