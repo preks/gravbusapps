@@ -36,6 +36,7 @@ interface PreCallSetupDialogProps {
   onStart: (preferences: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => void
   onCancel: () => void
   prefixDataTestId?: string
+  conversationType?: 'direct' | 'group' | 'meeting' // Type of conversation: direct (1-on-1), group, or meeting
 }
 
 const getInitials = (name: string): string => {
@@ -45,6 +46,20 @@ const getInitials = (name: string): string => {
     return parts[0].charAt(0).toUpperCase()
   }
   return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase()
+}
+
+/**
+ * Parse direct call meeting name format: "Call {Name A} | {Name B}"
+ * Returns the participant names as an array, or null if not a direct call format
+ */
+const parseDirectCallName = (conversationName?: string): string[] | null => {
+  if (!conversationName) return null
+
+  // Check if it matches the format "Call {Name A} | {Name B}"
+  const match = conversationName.match(/^Call\s+(.+?)\s+\|\s+(.+)$/)
+  if (!match) return null
+
+  return [match[1].trim(), match[2].trim()]
 }
 
 export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
@@ -57,7 +72,8 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
     userAvatarUrl,
     onStart,
     onCancel,
-    prefixDataTestId = 'pre-call-setup-dialog'
+    prefixDataTestId = 'pre-call-setup-dialog',
+    conversationType = 'group' // Default to group for backward compatibility
   }) => {
     const t = useChatTranslation()
     const [isStarting, setIsStarting] = useState(false)
@@ -70,7 +86,36 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
     const streamTracksRef = useRef<MediaStreamTrack[]>([])
 
     const isVideoCall = callType === 'video'
-    const groupName = conversationName || t('chat-groupCall') || 'Group Call'
+
+    // Determine the call title based on conversation type
+    const getCallTitle = (): string => {
+      switch (conversationType) {
+        case 'direct':
+          // 1-on-1 call - show "Call with {participant name}"
+          if (userName) {
+            return t('chat-callWith', { name: userName }) || `Call with ${userName}`
+          }
+
+          // Try to parse the conversationName if it's in "Call {Name A} | {Name B}" format
+          const participants = parseDirectCallName(conversationName)
+          if (participants && participants.length === 2) {
+            // For now, just show the first participant (we don't know which one is "other")
+            // In a real scenario, you'd filter out the current user's name
+            return t('chat-callWith', { name: participants[0] }) || `Call with ${participants[0]}`
+          }
+
+          return conversationName || t('chat-directCall') || '1-on-1 Call'
+        case 'meeting':
+          // Calendar meeting
+          return conversationName || t('chat-meeting') || 'Meeting'
+        case 'group':
+        default:
+          // Group call
+          return conversationName || t('chat-groupCall') || 'Group Call'
+      }
+    }
+
+    const callTitle = getCallTitle()
 
     // CRITICAL: Reset state when dialog opens or callType changes
     // This ensures fresh defaults for each new call
@@ -212,7 +257,7 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
               : t('call-startAudioCall') || 'Start Audio Call'}
           </DialogTitle>
           <DialogDescription className="gba:sr-only">
-            {t('call-setupYourCallSettings') || 'Setup your call settings before joining'} {groupName}
+            {t('call-setupYourCallSettings') || 'Setup your call settings before joining'} {callTitle}
           </DialogDescription>
 
           <div className="gba:flex gba:flex-col gba:items-center gba:py-6 gba:px-6">
@@ -291,7 +336,7 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
                 </div>
 
                 {/* Group Name */}
-                <h2 className="gba:text-lg gba:font-semibold gba:text-white gba:mb-1">{groupName}</h2>
+                <h2 className="gba:text-lg gba:font-semibold gba:text-white gba:mb-1">{callTitle}</h2>
 
                 {/* Participant Count */}
                 {participantCount > 0 && (
@@ -329,14 +374,14 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
                   ) : (
                     <IconAvatar
                       className="gba:w-28 gba:h-28 gba:relative gba:z-10 gba:bg-gray-700"
-                      label={groupName}
+                      label={callTitle}
                       icon={isVideoCall ? VideoIcon : UsersThreeIcon}
                     />
                   )}
                 </div>
 
                 {/* Group Name */}
-                <h2 className="gba:text-xl gba:font-semibold gba:text-white gba:mb-1">{groupName}</h2>
+                <h2 className="gba:text-xl gba:font-semibold gba:text-white gba:mb-1">{callTitle}</h2>
 
                 {/* Participant Count */}
                 {participantCount > 0 && (

@@ -185,6 +185,8 @@ chat-lastOwnerInfo = Sie sind der einzige Besitzer. Um diese Gruppe zu verlassen
 # Call Features
 chat-audioCall = Audioanruf
 chat-videoCall = Videoanruf
+chat-directCall = Anruf
+chat-meeting = Besprechung
 chat-groupCall = Gruppenanruf
 chat-endCall = Anruf beenden
 chat-mute = Stummschalten
@@ -250,6 +252,8 @@ call-failed = Anruf fehlgeschlagen
 call-disconnected = Getrennt
 
 # Call Settings
+call-video = Video
+call-audio = Audio
 call-videoQuality = Videoqualität
 call-highQuality = Hohe Qualität
 call-highQualityDesc = 720p, 30fps - Optimal für schnelle Verbindungen

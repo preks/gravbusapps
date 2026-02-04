@@ -185,6 +185,8 @@ chat-lastOwnerInfo = Ești singurul proprietar. Pentru a părăsi acest grup, f�
 # Call Features
 chat-audioCall = Apel Audio
 chat-videoCall = Apel Video
+chat-directCall = Apel
+chat-meeting = Întâlnire
 chat-groupCall = Apel de Grup
 chat-endCall = Închide Apel
 chat-mute = Mut
@@ -250,6 +252,8 @@ call-failed = Apel eșuat
 call-disconnected = Deconectat
 
 # Call Settings
+call-video = video
+call-audio = audio
 call-videoQuality = Calitate Video
 call-highQuality = Calitate Înaltă
 call-highQualityDesc = 720p, 30fps - Optimal pentru conexiuni rapide
