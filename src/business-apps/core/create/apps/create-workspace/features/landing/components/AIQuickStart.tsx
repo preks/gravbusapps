@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { AiButton, Textarea } from '@newwork/nw-design-system'
 import { Sparkles, ArrowRight, Lightbulb } from 'lucide-react'
 
-interface AIQuickStartProps {
+export interface AIQuickStartProps {
   onSubmit?: (prompt: string) => void
   'data-testid'?: string
 }
