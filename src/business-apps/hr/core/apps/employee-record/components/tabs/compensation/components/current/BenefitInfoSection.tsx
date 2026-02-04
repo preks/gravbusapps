@@ -36,7 +36,7 @@ const BenefitInfoSection: React.FC<BenefitInfoSectionProps> = ({
     <div className="gba:flex-1 gba:space-y-0.5">
       {/* Benefit Title */}
       <h3
-        className="gba:text-base gba:font-semibold gba:text-foreground gba:leading-tight"
+        className="gba:text-base gba:font-semibold gba:text-decorative-secondary-foreground gba:leading-tight"
         data-testid={`benefit-catalog-title-${benefit.code}`}
       >
         {getTranslatedBenefitType(benefit, locale)}
@@ -45,13 +45,13 @@ const BenefitInfoSection: React.FC<BenefitInfoSectionProps> = ({
       {/* Provider and Amount */}
       {(benefit.provider || valueDisplay) && (
         <div
-          className="gba:text-xs gba:text-muted-foreground gba:leading-tight"
+          className="gba:text-xs gba:text-decorative-secondary-foreground gba:leading-tight"
           data-testid={`benefit-provider-amount-${benefit.code}`}
         >
           {benefit.provider && <span>{getTranslatedCatalogEntryValue(benefit.provider, locale)}</span>}
           {benefit.provider && valueDisplay && <span> • </span>}
           {valueDisplay && (
-            <span className="gba:font-medium gba:text-foreground">
+            <span className="gba:font-medium gba:text-decorative-secondary-foreground">
               {formatCurrencyString(valueDisplay.amount, {
                 currency: benefit.currency?.code || currencyCode,
                 locale: locale,

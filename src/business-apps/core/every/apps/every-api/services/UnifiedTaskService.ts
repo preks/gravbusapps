@@ -22,6 +22,7 @@ import {
 } from '../utils/CflowClient'
 import { fetchKogitoUserTasks, fetchKogitoTask, fetchKogitoTaskStats } from '../utils/KogitoClient'
 import { getApiConfig } from '../utils/config'
+import { getEveryboxServiceApiUrl } from '../utils/everyboxServiceUrl'
 
 export interface FetchTasksResult {
   tasks: UnifiedTask[]
@@ -50,6 +51,55 @@ export interface FetchTaskStatsResult {
 
 // Fetch limits optimized for backend constraints
 const FETCH_LIMIT_PER_SOURCE = 50 // Backend max per request
+
+function toEveryboxQuery(filters?: Partial<TaskFilters>): Record<string, string | number | boolean | undefined> {
+  if (!filters) return {}
+  return {
+    status: filters.status,
+    search: filters.search,
+    source: filters.source,
+    priority: filters.priority,
+    taskCategory: filters.taskCategory,
+    assignedTo: filters.assignedTo,
+    dueFilter: filters.dueFilter,
+    limit: filters.limit,
+    offset: filters.offset,
+    sortBy: filters.sortBy,
+    sortOrder: filters.sortOrder,
+    claimableOnly: filters.claimableOnly,
+    assignedOnly: filters.assignedOnly
+  }
+}
+
+async function everyboxGet<T>(
+  path: string,
+  accessToken: string | undefined,
+  params?: Record<string, string | number | boolean | undefined>
+): Promise<T> {
+  const baseUrl = getEveryboxServiceApiUrl()
+  const url = new URL(`${baseUrl}${path}`)
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      if (v === undefined || v === null) return
+      url.searchParams.set(k, String(v))
+    })
+  }
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+    }
+  })
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`Everybox-service HTTP ${response.status}: ${text || response.statusText}`)
+  }
+
+  return (await response.json()) as T
+}
 
 /**
  * Parse and validate filter parameters
@@ -374,6 +424,14 @@ export async function fetchAllUserTasks(
     normalizedFilters.assignedTo = userId
   }
 
+  // Prefer everybox-service (backend) for fast server-side search/sort + user metadata
+  try {
+    return await everyboxGet<FetchTasksResult>(`/tasks/user/${userId}`, accessToken, toEveryboxQuery(normalizedFilters))
+  } catch (error) {
+    // Fallback to legacy in-browser aggregation (keeps UI functional if service is not yet routed)
+    console.warn('[UnifiedTaskService] everybox-service unavailable, falling back to legacy aggregation:', error)
+  }
+
   const parsedFilters = parseFilters(normalizedFilters)
   const warnings: string[] = []
 
@@ -416,6 +474,16 @@ export async function fetchCompletedUserTasks(
   accessToken?: string,
   filters?: Partial<TaskFilters>
 ): Promise<FetchTasksResult> {
+  // Prefer everybox-service for completed tasks (server-side filtering + consistent totals)
+  try {
+    return await everyboxGet<FetchTasksResult>(`/tasks/user/${userId}/completed`, accessToken, toEveryboxQuery(filters))
+  } catch (error) {
+    console.warn(
+      '[UnifiedTaskService] everybox-service unavailable (completed), falling back to legacy aggregation:',
+      error
+    )
+  }
+
   const parsedFilters = parseFilters(filters)
   const config = getApiConfig()
 
@@ -546,9 +614,57 @@ export async function fetchCompletedUserTasks(
 }
 
 /**
+ * Fetch BLINK (quick-task) tasks for a user.
+ *
+ * Prefer everybox-service, fall back to Flow Engine direct calls.
+ */
+export async function fetchBlinkUserTasks(
+  userId: string,
+  accessToken?: string,
+  filters?: Partial<TaskFilters>
+): Promise<FetchTasksResult> {
+  try {
+    return await everyboxGet<FetchTasksResult>(`/tasks/user/${userId}/blinks`, accessToken, toEveryboxQuery(filters))
+  } catch (error) {
+    console.warn('[UnifiedTaskService] everybox-service unavailable (blinks), falling back:', error)
+  }
+
+  // Fallback: use Flow Engine tag filtering (legacy)
+  const cflow = await fetchCflowUserAssignedTasks(userId, accessToken, {
+    limit: String(filters?.limit ?? 20),
+    offset: String(filters?.offset ?? 0),
+    'tags.app': 'quick-task',
+    ...(filters?.search ? { search: filters.search } : {})
+  })
+
+  const tasks = adaptCflowTasks(cflow.tasks)
+  return {
+    tasks,
+    totalCount: cflow.totalCount,
+    cflowTotalCount: cflow.totalCount,
+    kogitoTotalCount: 0,
+    errors: [],
+    warnings: [],
+    hasMore: Boolean(tasks.length && tasks.length >= (filters?.limit ?? 20))
+  }
+}
+
+/**
  * Fetch a single task by ID from all sources
  */
 export async function fetchTaskById(taskId: string, userId: string, accessToken?: string): Promise<UnifiedTask | null> {
+  // Prefer everybox-service for single-task lookup (includes userState)
+  try {
+    const res = await everyboxGet<{ status: 'success' | 'error'; task?: UnifiedTask }>(
+      `/tasks/${taskId}`,
+      accessToken,
+      { userId }
+    )
+    if (res.status === 'success' && res.task) return res.task
+  } catch (error) {
+    console.warn('[UnifiedTaskService] everybox-service unavailable (taskById), falling back:', error)
+  }
+
   // Try cflow first
   try {
     const cflowTask = await fetchCflowTask(taskId, userId, accessToken)
@@ -579,6 +695,13 @@ export async function fetchTaskById(taskId: string, userId: string, accessToken?
  * Optimized: Uses smaller sample size (100 tasks) for statistics
  */
 export async function fetchTaskStatistics(userId: string, accessToken?: string): Promise<FetchTaskStatsResult> {
+  // Prefer everybox-service for stats
+  try {
+    return await everyboxGet<FetchTaskStatsResult>(`/tasks/user/${userId}/stats`, accessToken)
+  } catch (error) {
+    console.warn('[UnifiedTaskService] everybox-service unavailable (stats), falling back:', error)
+  }
+
   const errors: FetchTaskStatsResult['errors'] = []
   const warnings: string[] = []
 

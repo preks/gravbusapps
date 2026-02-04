@@ -47,6 +47,13 @@ export interface TaskFilters {
   }
 
   /**
+   * Backend-computed due date filter (for everybox-service).
+   * - dueSoon24h: due within the next 24 hours
+   * - overdue: due date is in the past
+   */
+  dueFilter?: 'any' | 'dueSoon24h' | 'overdue' | 'hasDueDate' | 'noDueDate'
+
+  /**
    * Filter by creation date range
    */
   createdAt?: {
@@ -132,5 +139,6 @@ export const DEFAULT_FILTERS: ParsedTaskFilters = {
   limit: 20,
   offset: 0,
   sortBy: 'createdAt',
-  sortOrder: 'desc'
+  sortOrder: 'desc',
+  dueFilter: 'any'
 }

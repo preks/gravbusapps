@@ -55,7 +55,31 @@ export interface SpaceContentItem {
   createdAt: string
   ownerId: string
   spaceId?: string
+  folderId?: string | null
   isPdf?: boolean // For PDF documents
+}
+
+export interface SpaceFolder {
+  id: string
+  spaceId: string
+  parentId?: string | null
+  name: string
+  position: number
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateSpaceFolderInput {
+  name: string
+  parentId?: string
+  position?: number
+}
+
+export interface UpdateSpaceFolderInput {
+  name?: string
+  parentId?: string | null
+  position?: number
 }
 
 export interface SpaceActivity {
@@ -101,6 +125,7 @@ export interface MoveContentInput {
   contentType: 'document' | 'note' | 'spreadsheet' | 'slide'
   entityId: string
   targetSpaceId?: string
+  folderId?: string | null
 }
 
 export interface SpaceStats {

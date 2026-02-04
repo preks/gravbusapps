@@ -9,7 +9,8 @@ import { Employee, EmployeeAbsenceEntitlement } from '../../hooks/useEmployeeDat
 // Extend dayjs with plugins
 dayjs.extend(isSameOrAfter)
 dayjs.extend(isSameOrBefore)
-import { Card, Avatar } from '@newwork/gravity-ui-catalog'
+import { Avatar } from '@newwork/gravity-ui-catalog'
+import { Card, useTranslation } from '@newwork/nw-design-system'
 import {
   PiBriefcase,
   PiStack,
@@ -25,7 +26,6 @@ import {
 } from 'react-icons/pi'
 import { ArrowCircleLeftIcon } from '@phosphor-icons/react'
 import { UserInfoProps } from '@/common/BusinessAppContext'
-import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action/AppAction'
 import { AppActionMenu } from '@/components/app-action-menu'
@@ -210,13 +210,9 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6">
         {/* Organization Chart Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-          <Card
-            variant="outlined"
-            className="gba:shadow-md gba:hover:shadow-lg gba:border gba:border-border gba:transition-all gba:min-h-[420px] gba:bg-primary-foreground"
-            data-testid="summary-section-organization-chart"
-          >
+          <Card variant="outlined" className="gba:min-h-[420px]" data-testid="summary-section-organization-chart">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-              <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('summary-organization-chart')}</h3>
+              <h3 className="gba:text-xl gba:font-semibold">{t('summary-organization-chart')}</h3>
             </div>
             <div className="gba:p-4 gba:overflow-hidden gba:flex gba:flex-col gba:justify-center gba:items-center">
               <div
@@ -358,14 +354,9 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
 
         {/* Job Information Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-          <Card
-            variant="outlined"
-            className="gba:shadow-md gba:hover:shadow-lg gba:border gba:border-border gba:transition-all"
-            style={{ minHeight: '420px', backgroundColor: 'var(--nw-primary-foreground)' }}
-            data-testid="summary-section-job-information"
-          >
+          <Card variant="outlined" style={{ minHeight: '420px' }} data-testid="summary-section-job-information">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-              <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('summary-job-information')}</h3>
+              <h3 className="gba:text-xl gba:font-semibold">{t('summary-job-information')}</h3>
             </div>
             <div className="gba:p-4">
               <div className="gba:space-y-4">
@@ -471,14 +462,9 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
 
         {/* Availability & Schedule Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-          <Card
-            variant="outlined"
-            className="gba:shadow-md gba:hover:shadow-lg gba:border gba:border-border gba:transition-all"
-            style={{ minHeight: '420px', backgroundColor: 'var(--nw-primary-foreground)' }}
-            data-testid="summary-section-availability"
-          >
+          <Card variant="outlined" style={{ minHeight: '420px' }} data-testid="summary-section-availability">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-              <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('summary-availability-schedule')}</h3>
+              <h3 className="gba:text-xl gba:font-semibold">{t('summary-availability-schedule')}</h3>
             </div>
             <div className="gba:p-4">
               <div className="gba:space-y-4">

@@ -337,6 +337,20 @@ videogrid-page-info = Pagina {$current} din {$total}
 videogrid-previous-page = Pagina anterioară
 videogrid-next-page = Pagina următoare
 
+# Transcription
+chat-call-enableTranscription = Activează transcrierea
+chat-call-transcriptionActive = Înregistrare
+chat-call-recording = Înregistrare
+chat-transcript-ready = Transcriere gata: { $sessionName }
+chat-transcript-view = Vezi transcrierea
+chat-transcript-saved = Transcrierea întâlnirii a fost salvată
+chat-transcript-create-minutes-description = Creează notițe de întâlnire din transcrierea apelului în notițe
+chat-transcript-create-minutes-button = Creează notițe de întâlnire
+chat-transcript-generating-minutes = Se generează notițele de întâlnire...
+chat-transcript-generating-minutes-status = Se generează notițele de întâlnire...
+chat-transcript-failed-create-minutes = Eroare la crearea notițelor de întâlnire
+chat-transcript-retry = Reîncearcă
+
 # Notifications
 notifications-title = Notificări
 notifications-empty = Nu există notificări momentan

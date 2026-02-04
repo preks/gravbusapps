@@ -341,9 +341,15 @@ videogrid-next-page = Nächste Seite
 chat-call-enableTranscription = Transkription aktivieren
 chat-call-transcriptionActive = Aufnahme
 chat-call-recording = Aufnahme
-chat-transcript-ready = Meeting-Transkript bereit
+chat-transcript-ready = Transkript bereit: { $sessionName }
 chat-transcript-view = Transkript anzeigen
 chat-transcript-saved = Ihr Meeting-Transkript wurde gespeichert
+chat-transcript-create-minutes-description = Erstellen Sie Besprechungsnotizen aus dem Anruftranskript in Notizen
+chat-transcript-create-minutes-button = Besprechungsnotizen erstellen
+chat-transcript-generating-minutes = Besprechungsnotizen werden erstellt...
+chat-transcript-generating-minutes-status = Besprechungsnotizen werden erstellt...
+chat-transcript-failed-create-minutes = Fehler beim Erstellen der Besprechungsnotizen
+chat-transcript-retry = Wiederholen
 
 # Notifications
 notifications-title = Benachrichtigungen

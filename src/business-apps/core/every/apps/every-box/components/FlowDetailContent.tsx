@@ -274,7 +274,7 @@ export const FlowDetailContent: React.FC<FlowDetailContentProps> = ({
         <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
           <div className="gba:flex-1">
             <h2 className="gba:text-2xl gba:font-bold" data-testid="flow-detail-title">
-              {flow.templateName}
+              {typeof flow.templateName === 'string' ? flow.templateName : 'Unnamed Flow'}
             </h2>
           </div>
           {showCloseButton && onClose && (
@@ -436,12 +436,19 @@ export const FlowDetailContent: React.FC<FlowDetailContentProps> = ({
                       </div>
                       <div className="gba:flex-1">
                         <div className="gba:font-medium gba:text-sm">
-                          {t('flow-detail-step', { number: step.stepIndex + 1, title: step.title })}
+                          {t('flow-detail-step', {
+                            number: step.stepIndex + 1,
+                            title: typeof step.title === 'string' ? step.title : ''
+                          })}
                         </div>
                         <div className="gba:text-xs gba:text-muted-foreground">
-                          {step.type}
-                          {step.assignedTo && ` • ${t('flow-detail-assigned-to', { name: step.assignedTo })}`}
-                          {step.completedBy && ` • ${t('flow-detail-completed-by', { name: step.completedBy })}`}
+                          {typeof step.type === 'string' ? step.type : ''}
+                          {step.assignedTo &&
+                            typeof step.assignedTo === 'string' &&
+                            ` • ${t('flow-detail-assigned-to', { name: step.assignedTo })}`}
+                          {step.completedBy &&
+                            typeof step.completedBy === 'string' &&
+                            ` • ${t('flow-detail-completed-by', { name: step.completedBy })}`}
                         </div>
                         {step.completedAt && (
                           <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">

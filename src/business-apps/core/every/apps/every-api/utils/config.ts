@@ -13,7 +13,10 @@ export interface EveryApiConfig {
 
 export function getCflowEndpoint(): string {
   const endpoint = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-  return endpoint
+  const trimmed = (endpoint || '').trim().replace(/\/+$/, '')
+  // Some environments include `/api/v1` in the base URL already, but the client appends `/api/...`.
+  // Normalize to avoid `/api/v1/api/...` (404).
+  return trimmed.endsWith('/api/v1') ? trimmed.slice(0, -'/api/v1'.length) : trimmed
 }
 
 export function getFlowMetricsEndpoint(): string {

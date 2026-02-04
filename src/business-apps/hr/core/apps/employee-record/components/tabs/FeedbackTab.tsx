@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react'
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData'
-import { Card, Avatar } from '@newwork/gravity-ui-catalog'
-import { Button, useTranslation } from '@newwork/nw-design-system'
+import { Avatar } from '@newwork/gravity-ui-catalog'
+import { Card, Button, useTranslation, Badge } from '@newwork/nw-design-system'
 import { Empty, Spin, Input, Select, Rate, Pagination } from 'antd'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT } from './queries/EmployeeFeedbackRequestQueries'
@@ -497,7 +497,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                         return (
                           <Card
                             key={request.id}
-                            className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1 gba:cursor-pointer"
+                            className="gba:p-1 gba:cursor-pointer"
                             size="small"
                             data-testid={`received-request-item-${request.id}`}
                             onClick={() => handleRespondClick(request)}
@@ -604,7 +604,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                         return (
                           <Card
                             key={request.id}
-                            className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1"
+                            className="gba:p-1"
                             size="small"
                             data-testid={`requested-request-item-${request.id}`}
                           >
@@ -712,108 +712,113 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         </div>
 
         {/* Feedback Cards */}
-        {loading ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:h-40" data-testid="feedback-loading">
-            <Spin size="large" />
-          </div>
-        ) : formattedFilteredFeedback.length > 0 ? (
-          <div className="gba:space-y-4 gba:px-4" data-testid="feedback-list">
-            {formattedFilteredFeedback.map((feedback, index) => (
-              <Card
-                key={feedback.id || index}
-                className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:h-full"
-                bodyStyle={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-                data-testid={`feedback-card-${index}`}
-              >
-                <div className="gba:flex gba:items-start gba:gap-4">
-                  {/* Avatar */}
-                  <div className="gba:shrink-0 gba:mr-2" data-testid="feedback-avatar-container">
-                    <Avatar
-                      src={toAvatarSrc(feedback.avatar)}
-                      initials={`${feedback.firstName?.[0] || ''}${feedback.lastName?.[0] || ''}`}
-                      alt={`${feedback.firstName} ${feedback.lastName}`}
-                      // @ts-expect-error gravity-ui-catalog Avatar allows non-typed contentType
-                      contentType={feedback.avatar ? 'image' : 'initials'}
-                      // @ts-expect-error gravity-ui-catalog Avatar supports numeric/string size tokens
-                      size="lg"
-                      // @ts-expect-error gravity-ui-catalog Avatar supports circle shape
-                      shape="circle"
-                      // @ts-expect-error gravity-ui-catalog Avatar supports appearance prop
-                      appearance="gradient"
-                    />
-                  </div>
-
-                  {/* Feedback Content */}
-                  <div className="gba:flex-grow">
-                    <div className="gba:flex gba:items-center gba:flex-wrap gba:gap-2">
-                      <span className="gba:font-semibold gba:text-foreground" data-testid={`feedback-sender-${index}`}>
-                        {feedback.sender}
-                      </span>
-
-                      {/* Type Badge */}
-                      {feedback.type && (
-                        <span
-                          className={
-                            'gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-medium gba:bg-muted gba:text-foreground'
-                          }
-                          data-testid={`feedback-type-${index}`}
-                        >
-                          {feedback.type}
-                        </span>
-                      )}
-
-                      {/* Private Badge */}
-                      {feedback.private && (
-                        <span
-                          className="gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-medium gba:bg-destructive-secondary gba:text-destructive"
-                          data-testid={`feedback-privacy-${index}`}
-                        >
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.private_badge', 'Private')}
-                        </span>
-                      )}
-                    </div>
-
-                    <div
-                      className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground gba:text-sm gba:mt-1"
-                      data-testid={`feedback-date-${index}`}
-                    >
-                      <CalendarOutlined /> {feedback.date}
-                    </div>
-
-                    {/* Rating */}
-                    {feedback.rating !== undefined && (
-                      <div className="gba:my-2">
-                        <Rate disabled value={feedback.rating} className="gba:text-warning" />
-                      </div>
-                    )}
-
-                    <div
-                      className="gba:mt-3 gba:text-muted-foreground gba:border-t gba:border-border gba:pt-3"
-                      data-testid={`feedback-content-${index}`}
-                    >
-                      {feedback.content}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <>
-            <Empty
-              description={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:feedback_tab.no_feedback',
-                'No feedback available'
-              )}
-              data-testid="feedback-empty"
-            />
-            {error && (
-              <div className="gba:text-center gba:text-muted-foreground gba:py-4" data-testid="feedback-error-inline">
-                <p>{error}</p>
+        {(() => {
+          if (loading) {
+            return (
+              <div className="gba:flex gba:justify-center gba:items-center gba:h-40" data-testid="feedback-loading">
+                <Spin size="large" />
               </div>
-            )}
-          </>
-        )}
+            )
+          }
+
+          if (formattedFilteredFeedback.length > 0) {
+            return (
+              <div className="gba:space-y-4 gba:px-4" data-testid="feedback-list">
+                {formattedFilteredFeedback.map((feedback, index) => (
+                  <Card
+                    key={feedback.id || index}
+                    className="gba:h-full"
+                    bodyStyle={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+                    data-testid={`feedback-card-${index}`}
+                  >
+                    <div className="gba:flex gba:items-start gba:gap-4">
+                      {/* Avatar */}
+                      <div className="gba:shrink-0 gba:mr-2" data-testid="feedback-avatar-container">
+                        <Avatar
+                          src={toAvatarSrc(feedback.avatar)}
+                          initials={`${feedback.firstName?.[0] || ''}${feedback.lastName?.[0] || ''}`}
+                          alt={`${feedback.firstName} ${feedback.lastName}`}
+                          // @ts-expect-error gravity-ui-catalog Avatar allows non-typed contentType
+                          contentType={feedback.avatar ? 'image' : 'initials'}
+                          // @ts-expect-error gravity-ui-catalog Avatar supports numeric/string size tokens
+                          size="lg"
+                          // @ts-expect-error gravity-ui-catalog Avatar supports circle shape
+                          shape="circle"
+                          // @ts-expect-error gravity-ui-catalog Avatar supports appearance prop
+                          appearance="gradient"
+                        />
+                      </div>
+
+                      {/* Feedback Content */}
+                      <div className="gba:flex-grow">
+                        <div className="gba:flex gba:items-center gba:flex-wrap gba:gap-2">
+                          <span
+                            className="gba:font-semibold gba:text-foreground"
+                            data-testid={`feedback-sender-${index}`}
+                          >
+                            {feedback.sender}
+                          </span>
+
+                          {/* Type Badge */}
+                          {feedback.type && (
+                            <Badge variant="decorative" data-testid={`feedback-type-${index}`}>
+                              {feedback.type}
+                            </Badge>
+                          )}
+
+                          {/* Private Badge */}
+                          {feedback.private && (
+                            <Badge variant="destructive" data-testid={`feedback-privacy-${index}`}>
+                              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.private_badge', 'Private')}
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div
+                          className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground gba:text-sm gba:mt-1"
+                          data-testid={`feedback-date-${index}`}
+                        >
+                          <CalendarOutlined /> {feedback.date}
+                        </div>
+
+                        {/* Rating */}
+                        {feedback.rating !== undefined && (
+                          <div className="gba:my-2">
+                            <Rate disabled value={feedback.rating} className="gba:text-warning" />
+                          </div>
+                        )}
+
+                        <div
+                          className="gba:mt-3 gba:text-muted-foreground gba:border-t gba:border-border gba:pt-3"
+                          data-testid={`feedback-content-${index}`}
+                        >
+                          {feedback.content}
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )
+          }
+
+          return (
+            <>
+              <Empty
+                description={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:feedback_tab.no_feedback',
+                  'No feedback available'
+                )}
+                data-testid="feedback-empty"
+              />
+              {error && (
+                <div className="gba:text-center gba:text-muted-foreground gba:py-4" data-testid="feedback-error-inline">
+                  <p>{error}</p>
+                </div>
+              )}
+            </>
+          )
+        })()}
       </div>
     </div>
   )
