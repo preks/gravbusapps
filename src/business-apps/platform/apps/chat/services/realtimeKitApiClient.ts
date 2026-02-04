@@ -30,6 +30,11 @@ export interface MeetingDetailsResponse {
   data: RealtimeKitMeeting
 }
 
+export interface ParticipantInfo {
+  id: string
+  odName: string
+}
+
 export class RealtimeKitApiClient {
   private client: AxiosInstance
 
@@ -55,7 +60,9 @@ export class RealtimeKitApiClient {
     lastName?: string,
     meetingName?: string,
     transcriptionEnabled?: boolean,
-    calendarMeetingId?: string | null
+    calendarMeetingId?: string | null,
+    participants?: ParticipantInfo[],
+    conversationType?: 'direct' | 'group' | 'meeting'
   ): Promise<CreateMeetingResponse> {
     const response = await this.client.post<CreateMeetingResponse>('/meetings', {
       conversationId,
@@ -65,7 +72,9 @@ export class RealtimeKitApiClient {
       lastName,
       meetingName,
       transcriptionEnabled,
-      calendarMeetingId
+      calendarMeetingId,
+      participants,
+      conversationType
     })
     return response.data
   }

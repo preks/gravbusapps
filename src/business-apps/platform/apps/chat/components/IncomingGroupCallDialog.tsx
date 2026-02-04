@@ -72,8 +72,43 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
     const streamTracksRef = useRef<MediaStreamTrack[]>([])
 
     const callerName = invite.from.odName || 'Unknown'
-    const groupName = invite.conversationName || t('chat-groupCall')
     const isVideoCall = invite.callType === 'video'
+    const conversationType = invite.conversationType || 'group' // Default to group for backward compatibility
+
+    // Determine the call title based on conversation type
+    const getCallTitle = (): string => {
+      switch (conversationType) {
+        case 'direct':
+          // 1-on-1 call - show the full conversation name (e.g., "Call Mo Salah | Xmir Sali")
+          return invite.conversationName || t('chat-directCall') || '1-on-1 Call'
+        case 'meeting':
+          // Calendar meeting
+          return invite.conversationName || t('chat-meeting') || 'Meeting'
+        case 'group':
+        default:
+          // Group call
+          return invite.conversationName || t('chat-groupCall') || 'Group Call'
+      }
+    }
+
+    const callTitle = getCallTitle()
+
+    // Determine call type label (e.g., "Group video call", "1-on-1 audio call")
+    const getCallTypeLabel = (): string => {
+      const mediaType = isVideoCall ? t('call-video') || 'video' : t('call-audio') || 'audio'
+
+      switch (conversationType) {
+        case 'direct':
+          return `1-on-1 ${mediaType} call`
+        case 'meeting':
+          return `${t('chat-meeting') || 'Meeting'} ${mediaType} call`
+        case 'group':
+        default:
+          return `${t('chat-group') || 'Group'} ${mediaType} call`
+      }
+    }
+
+    const callTypeLabel = getCallTypeLabel()
 
     // CRITICAL: Reset state when invite changes
     // This ensures fresh defaults for each new invite
@@ -260,13 +295,13 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
         >
           <DialogTitle className="gba:sr-only">{t('chat-incomingGroupCall') || 'Incoming Group Call'}</DialogTitle>
           <DialogDescription className="gba:sr-only">
-            {callerName} {t('chat-isCallingYou') || 'is calling you'} to join {groupName}
+            {callerName} {t('chat-isCallingYou') || 'is calling you'} to join {callTitle}
           </DialogDescription>
           <div className="gba:flex gba:flex-col gba:items-center gba:py-6 gba:px-6">
             {/* Call Type Indicator */}
             <div className="gba:flex gba:items-center gba:gap-2 gba:text-gray-400 gba:text-sm gba:mb-4">
               <UsersThreeIcon className="gba:w-4 gba:h-4" weight="fill" />
-              <span>{isVideoCall ? t('call-incomingGroupVideoCall') : t('call-incomingGroupAudioCall')}</span>
+              <span>{callTypeLabel}</span>
             </div>
 
             {/* Video Preview or Caller Avatar */}
@@ -313,9 +348,20 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                   ) : (
                     <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:bg-gray-800">
                       <Avatar className="gba:w-24 gba:h-24 gba:ring-4 gba:ring-white/10">
-                        {userAvatarUrl && <AvatarImage src={userAvatarUrl} alt={userName || 'User'} />}
+                        {/* For direct calls, show caller's avatar; for group/meeting, show your avatar */}
+                        {conversationType === 'direct' && invite.from.avatarUrl ? (
+                          <AvatarImage src={invite.from.avatarUrl} alt={callerName} />
+                        ) : conversationType !== 'direct' && userAvatarUrl ? (
+                          <AvatarImage src={userAvatarUrl} alt={userName || 'User'} />
+                        ) : null}
                         <AvatarFallback className="gba:text-3xl gba:bg-gray-700 gba:text-white">
-                          {userName ? getInitials(userName) : <UserIcon className="gba:w-12 gba:h-12" weight="fill" />}
+                          {conversationType === 'direct' ? (
+                            getInitials(callerName)
+                          ) : userName ? (
+                            getInitials(userName)
+                          ) : (
+                            <UserIcon className="gba:w-12 gba:h-12" weight="fill" />
+                          )}
                         </AvatarFallback>
                       </Avatar>
                       {/* Status indicators overlay - mic only */}
@@ -334,7 +380,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                 </div>
 
                 {/* Group Name */}
-                <h2 className="gba:text-lg gba:font-semibold gba:text-white gba:mb-1">{groupName}</h2>
+                <h2 className="gba:text-lg gba:font-semibold gba:text-white gba:mb-1">{callTitle}</h2>
 
                 {/* Caller Name */}
                 <p className="gba:text-gray-400 gba:text-sm gba:mb-3">
@@ -378,7 +424,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                 </div>
 
                 {/* Group Name */}
-                <h2 className="gba:text-xl gba:font-semibold gba:text-white gba:mb-1">{groupName}</h2>
+                <h2 className="gba:text-xl gba:font-semibold gba:text-white gba:mb-1">{callTitle}</h2>
 
                 {/* Caller Name */}
                 <p className="gba:text-gray-400 gba:text-sm gba:mb-2">

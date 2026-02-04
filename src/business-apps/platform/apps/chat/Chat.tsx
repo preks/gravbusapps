@@ -584,7 +584,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       setIsStartingCall(true)
 
       try {
-        // For direct conversations, use 1:1 call
+        // For direct conversations
         if (activeConversation.type === 'direct') {
           const otherParticipant = activeConversation.participants?.find(
             p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
@@ -594,20 +594,31 @@ const ChatInner: React.FC<ChatProps> = memo(
             return
           }
           const user = otherParticipant.user
-          initiateCall(
-            {
-              id: user.id,
-              odId: user.id,
-              odName:
-                user.displayName ||
-                `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
-                user.username ||
-                'Unknown',
-              avatarUrl: user.avatarUrl
-            },
-            'audio',
-            activeConversation.id
-          )
+          const participant = {
+            id: user.id,
+            odId: user.id,
+            odName:
+              user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Unknown',
+            avatarUrl: user.avatarUrl
+          }
+
+          // Use RTK for 1-on-1 calls if feature flag enabled
+          if (useRealtimeKitForGroupCalls) {
+            rtkDebug.log('[CHAT] Starting 1-on-1 audio call with RTK for direct conversation')
+            if (initiateGroupCall) {
+              initiateGroupCall(
+                activeConversation.id,
+                'audio',
+                [participant], // Single participant array
+                undefined, // Don't pass participant name as conversationName for direct calls
+                null, // No calendar meeting
+                'direct' // Mark as direct conversation for 1-on-1 naming
+              )
+            }
+          } else {
+            // Legacy mesh P2P
+            initiateCall(participant, 'audio', activeConversation.id)
+          }
         } else if (activeConversation.type === 'group') {
           // For group conversations, use group call
           handleGroupCall('audio')
@@ -634,7 +645,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       setIsStartingCall(true)
 
       try {
-        // For direct conversations, use 1:1 call
+        // For direct conversations
         if (activeConversation.type === 'direct') {
           const otherParticipant = activeConversation.participants?.find(
             p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
@@ -644,20 +655,31 @@ const ChatInner: React.FC<ChatProps> = memo(
             return
           }
           const user = otherParticipant.user
-          initiateCall(
-            {
-              id: user.id,
-              odId: user.id,
-              odName:
-                user.displayName ||
-                `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
-                user.username ||
-                'Unknown',
-              avatarUrl: user.avatarUrl
-            },
-            'video',
-            activeConversation.id
-          )
+          const participant = {
+            id: user.id,
+            odId: user.id,
+            odName:
+              user.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Unknown',
+            avatarUrl: user.avatarUrl
+          }
+
+          // Use RTK for 1-on-1 calls if feature flag enabled
+          if (useRealtimeKitForGroupCalls) {
+            rtkDebug.log('[CHAT] Starting 1-on-1 video call with RTK for direct conversation')
+            if (initiateGroupCall) {
+              initiateGroupCall(
+                activeConversation.id,
+                'video',
+                [participant], // Single participant array
+                undefined, // Don't pass participant name as conversationName for direct calls
+                null, // No calendar meeting
+                'direct' // Mark as direct conversation for 1-on-1 naming
+              )
+            }
+          } else {
+            // Legacy mesh P2P
+            initiateCall(participant, 'video', activeConversation.id)
+          }
         } else if (activeConversation.type === 'group') {
           // For group conversations, use group call
           handleGroupCall('video')
@@ -727,7 +749,14 @@ const ChatInner: React.FC<ChatProps> = memo(
 
         // Use conversation ID as the room ID, pass conversation name for the invite
         if (initiateGroupCall) {
-          initiateGroupCall(activeConversation.id, callType, callParticipants, activeConversation.name)
+          initiateGroupCall(
+            activeConversation.id,
+            callType,
+            callParticipants,
+            activeConversation.name,
+            null, // No calendar meeting
+            'group' // Mark as group conversation
+          )
         }
       }
     }
@@ -2060,10 +2089,33 @@ const ChatInner: React.FC<ChatProps> = memo(
             !incomingGroupCallInvite
           }
           callType={groupCallState.callType}
-          conversationName={activeConversation?.name}
+          conversationName={
+            activeConversation?.type === 'direct'
+              ? undefined // For direct calls, don't pass conversation name (will show "Call")
+              : activeConversation?.name // For group/meeting, use conversation name
+          }
           participantCount={groupParticipants.length}
-          userName={currentUserAsParticipant?.odName}
-          userAvatarUrl={currentUserAsParticipant?.avatarUrl}
+          userName={
+            activeConversation?.type === 'direct'
+              ? // For direct calls, show the OTHER participant's name
+                activeConversation.participants?.find(
+                  p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
+                )?.user?.displayName ||
+                activeConversation.participants?.find(
+                  p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
+                )?.user?.username ||
+                'Unknown'
+              : currentUserAsParticipant?.odName // For group calls, show your name
+          }
+          userAvatarUrl={
+            activeConversation?.type === 'direct'
+              ? // For direct calls, show the OTHER participant's avatar
+                activeConversation.participants?.find(
+                  p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
+                )?.user?.avatarUrl
+              : currentUserAsParticipant?.avatarUrl // For group calls, show your avatar
+          }
+          conversationType={activeConversation?.type as 'direct' | 'group' | 'meeting'}
           onStart={preferences => {
             if (realtimeKitGroupCall.confirmStartCall) {
               realtimeKitGroupCall.confirmStartCall(preferences)
@@ -2115,6 +2167,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                 transcriptionEnabled={transcriptionEnabled}
                 activeConversation={activeConversation}
                 activeExperts={activeConversation?.activeExperts || activeExperts || []}
+                hideReactionsAndHandRaise={activeConversation?.type === 'direct' && groupParticipants.length <= 2}
               />
             </RealtimeKitProvider>
           ) : (
