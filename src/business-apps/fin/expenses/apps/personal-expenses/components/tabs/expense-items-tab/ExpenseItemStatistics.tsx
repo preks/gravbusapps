@@ -218,6 +218,7 @@ const ExpenseItemStatistics: React.FC<ExpenseItemStatisticsProps> = ({
         onRetry={fetchItemStatistics}
         onWidgetClick={handleWidgetClick}
         skeletonCount={4}
+        useWidgetStructureForLoading={true}
         emptyText={getTranslationFromI18nKeyAndLabel(
           'lowcoder:personal_expenses.no_expense_item_statistics_available',
           'No expense item statistics available.'

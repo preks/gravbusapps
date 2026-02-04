@@ -305,33 +305,35 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
           const isPinned = pinnedSubModule === subModuleId
           return (
             <div key={subModule} className="gba:bg-secondary gba:rounded gba:mb-2">
-              <Button
-                variant="ghost"
-                onClick={() => toggleSubModule(subModuleId)}
-                className="gba:w-full gba:justify-between gba:px-4 gba:py-2 gba:text-left"
-              >
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <FolderIcon className="gba:text-blue-500" />
-                  <span className="gba:text-sm gba:font-medium">{formatSubModuleName(subModule)}</span>
-                  <Badge variant="secondary">{apps.length}</Badge>
-                </div>
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={e => handlePinSubModule(module, subModule, e)}
-                    className="gba:p-1 gba:h-auto"
-                    data-testid={`IDE-PinSubModule-${subModuleId}`}
-                  >
-                    <PushPinIcon
-                      size={14}
-                      className={isPinned ? 'gba:text-primary' : 'gba:text-secondary-foreground'}
-                      weight={isPinned ? 'fill' : 'regular'}
-                    />
-                  </Button>
-                  {isExpanded ? <CaretDownIcon size={16} /> : <CaretRightIcon size={16} />}
-                </div>
-              </Button>
+              <div className="gba:flex gba:items-center gba:w-full">
+                <Button
+                  variant="ghost"
+                  onClick={() => toggleSubModule(subModuleId)}
+                  className="gba:flex-1 gba:justify-between gba:px-4 gba:py-2 gba:text-left"
+                >
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <FolderIcon className="gba:text-blue-500" />
+                    <span className="gba:text-sm gba:font-medium">{formatSubModuleName(subModule)}</span>
+                    <Badge variant="secondary">{apps.length}</Badge>
+                  </div>
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    {isExpanded ? <CaretDownIcon size={16} /> : <CaretRightIcon size={16} />}
+                  </div>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={e => handlePinSubModule(module, subModule, e)}
+                  className="gba:p-1 gba:h-auto gba:shrink-0"
+                  data-testid={`IDE-PinSubModule-${subModuleId}`}
+                >
+                  <PushPinIcon
+                    size={14}
+                    className={isPinned ? 'gba:text-primary' : 'gba:text-secondary-foreground'}
+                    weight={isPinned ? 'fill' : 'regular'}
+                  />
+                </Button>
+              </div>
               {isExpanded && (
                 <div className="gba:px-4 gba:pb-2 gba:space-y-1 gba:text-left">{apps.map(renderAppButton)}</div>
               )}
@@ -386,11 +388,11 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   {formatModuleName(pinnedSubModuleItems.module)} ›{' '}
                   {formatSubModuleName(pinnedSubModuleItems.subModule)}
                 </h4>
-                <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-4 gba:md:grid-cols-8 gba:lg:grid-cols-12 gba:auto-cols-fr gba:auto-rows-min gba:gap-6">
+                <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:gap-6">
                   {/* Apps */}
                   {pinnedSubModuleItems.apps.length > 0 && (
                     <Card
-                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
                       style={{ display: 'flex', flexDirection: 'column' }}
                     >
                       <CardContent
@@ -415,7 +417,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   {/* Forms */}
                   {pinnedSubModuleItems.forms.length > 0 && (
                     <Card
-                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
                       style={{ display: 'flex', flexDirection: 'column' }}
                     >
                       <CardContent
@@ -440,7 +442,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   {/* Popups */}
                   {pinnedSubModuleItems.popups.length > 0 && (
                     <Card
-                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
                       style={{ display: 'flex', flexDirection: 'column' }}
                     >
                       <CardContent
@@ -490,7 +492,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   {/* Records */}
                   {pinnedSubModuleItems.records.length > 0 && (
                     <Card
-                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
                       style={{ display: 'flex', flexDirection: 'column' }}
                     >
                       <CardContent
@@ -522,11 +524,11 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   <SquaresFourIcon className="gba:text-foreground" />
                   Examples
                 </h4>
-                <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-4 gba:md:grid-cols-8 gba:lg:grid-cols-12 gba:auto-cols-fr gba:auto-rows-min gba:gap-6">
+                <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:gap-6">
                   {/* Apps */}
                   {exampleItems.apps.length > 0 && (
                     <Card
-                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
                       style={{ display: 'flex', flexDirection: 'column' }}
                     >
                       <CardContent
@@ -549,7 +551,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   {/* Forms */}
                   {exampleItems.forms.length > 0 && (
                     <Card
-                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
                       style={{ display: 'flex', flexDirection: 'column' }}
                     >
                       <CardContent
@@ -572,7 +574,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   {/* Popups */}
                   {exampleItems.popups.length > 0 && (
                     <Card
-                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
                       style={{ display: 'flex', flexDirection: 'column' }}
                     >
                       <CardContent
@@ -625,11 +627,11 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                   <ClockIcon className="gba:text-foreground" />
                   Recently Used
                 </h4>
-                <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-4 gba:md:grid-cols-8 gba:lg:grid-cols-12 gba:auto-cols-fr gba:auto-rows-min gba:gap-4">
+                <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:gap-4">
                   {getRecentApps().map(app => (
                     <Card
                       key={app.screenKey}
-                      className="gba:col-span-1 gba:sm:col-span-2 gba:md:col-span-4 gba:lg:col-span-3 gba:shadow-sm hover:gba:shadow-md gba:transition-shadow gba:cursor-pointer"
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow gba:cursor-pointer"
                     >
                       <CardContent className="gba:p-3">
                         <a

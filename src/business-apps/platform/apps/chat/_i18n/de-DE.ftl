@@ -234,6 +234,17 @@ call-shareScreen = Bildschirm teilen
 call-endCall = Anruf beenden
 call-initiating = Anruf wird gestartet...
 call-connecting = Verbinde...
+call-startingCall = Anruf wird gestartet
+call-startingVideoCall = Videoanruf wird gestartet
+call-startingAudioCall = Audioanruf wird gestartet
+call-startVideoCall = Videoanruf starten
+call-startAudioCall = Audioanruf starten
+call-setupYourCallSettings = Richten Sie Ihre Anrufeinstellungen ein, bevor Sie beitreten
+call-readyToStart = Bereit zum Starten
+call-starting = Wird gestartet...
+call-start = Starten
+call-cancel = Abbrechen
+call-backgroundWillBeApplied = Hintergrund wird im Anruf angewendet
 call-ended = Anruf beendet
 call-failed = Anruf fehlgeschlagen
 call-disconnected = Getrennt
@@ -307,11 +318,28 @@ participants-declined-invite = Einladung abgelehnt
 participants-not-answered = Nicht beantwortet
 participants-ringing = Klingelt...
 participants-available-to-invite = Zum Einladen verfügbar
+participants-mute-all-confirm-title = Alle Teilnehmer stummschalten?
+participants-mute-all-confirm-message = Möchten Sie wirklich alle anderen Teilnehmer stummschalten? Sie müssen sich selbst wieder aktivieren, um zu sprechen.
+participants-muted-by = Sie wurden stummgeschaltet von {$name}
+participants-muted-by-all = Sie wurden stummgeschaltet von {$name} (alle stummschalten)
+participants-mute-failed = Mikrofon konnte nicht stummgeschaltet werden
+participants-cancel = Abbrechen
+participants-not-answered = Nicht beantwortet
+participants-ringing = Klingelt...
+participants-available-to-invite = Zum Einladen verfügbar
 
 # Video Grid
 videogrid-page-info = Seite {$current} von {$total}
 videogrid-previous-page = Vorherige Seite
 videogrid-next-page = Nächste Seite
+
+# Transcription
+chat-call-enableTranscription = Transkription aktivieren
+chat-call-transcriptionActive = Aufnahme
+chat-call-recording = Aufnahme
+chat-transcript-ready = Meeting-Transkript bereit
+chat-transcript-view = Transkript anzeigen
+chat-transcript-saved = Ihr Meeting-Transkript wurde gespeichert
 
 # Notifications
 notifications-title = Benachrichtigungen
@@ -408,6 +436,8 @@ calendar-accept = Zusagen
 calendar-maybe = Vielleicht
 calendar-decline = Absagen
 calendar-joinCall = Anruf beitreten
+calendar-startMeeting = Meeting starten
+calendar-joinMeeting = Meeting beitreten
 calendar-chat = Chat
 calendar-edit = Bearbeiten
 

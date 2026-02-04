@@ -7,7 +7,7 @@ import {
 } from '../queries/performanceCycleQueries'
 
 export type FrequencyType = 'Annual' | 'Quarterly' | 'Custom'
-export type ParticipantType = 'Self' | 'Peer' | 'Manager' | 'Calibration' | 'Team'
+export type ParticipantType = 'Self' | 'Peer' | 'Manager'
 export type CycleStatus = 'Active' | 'Upcoming' | 'Inactive'
 
 export interface EvaluationStage {
@@ -27,25 +27,32 @@ export interface PerformanceCycleFromApi {
   stages: EvaluationStage[]
   status: CycleStatus
   deactivated?: boolean
+  recordState?: string
   ratingScaleId?: string
   valueIds?: string[]
   /** true when loaded from Hasura (read-only for now) */
   fromApi?: boolean
+  /** Raw API participants with id/version for updates */
+  _apiParticipants?: PerformanceCycleParticipantApi[]
+  /** Raw API company values with id/version for updates */
+  _apiCompanyValues?: PerformanceCycleCompanyValueApi[]
 }
 
-/** Map API participant type (any casing) to UI ParticipantType. API has SELF, PEER, MANAGER, TEAM, HR_ADMIN (no CALIBRATION). */
-const PARTICIPANT_MAP: Record<string, ParticipantType> = {
-  Self: 'Self',
-  Peer: 'Peer',
-  Manager: 'Manager',
-  Calibration: 'Calibration',
-  Team: 'Team',
-  SELF: 'Self',
-  PEER: 'Peer',
-  MANAGER: 'Manager',
-  CALIBRATION: 'Calibration',
-  TEAM: 'Team',
-  HR_ADMIN: 'Calibration' // API uses HR_ADMIN; UI shows as Calibration for round-trip
+/** Map API participant type to UI ParticipantType */
+function apiParticipantToUi(apiParticipant: string | null): ParticipantType | null {
+  const participant = String(apiParticipant || '').toUpperCase()
+  if (participant.includes('SELF')) return 'Self'
+  if (participant.includes('PEER')) return 'Peer'
+  if (participant.includes('MANAGER')) return 'Manager'
+  return null
+}
+
+/** Map API frequency enum to UI FrequencyType */
+function apiFrequencyToUi(apiFrequency: string | null): FrequencyType {
+  const freq = String(apiFrequency || '').toUpperCase()
+  if (freq.includes('QUARTERLY')) return 'Quarterly'
+  if (freq.includes('CUSTOM')) return 'Custom'
+  return 'Annual'
 }
 
 function formatDateOnly(isoOrTimestamp: string | null): string {
@@ -58,19 +65,24 @@ function formatDateOnly(isoOrTimestamp: string | null): string {
   return `${y}-${m}-${day}`
 }
 
-/** API status values that mean the cycle is inactive (e.g. draft). */
-const INACTIVE_API_STATUSES = new Set(['DRAFT_CYCLE'])
-
-/** Map API status to UI CycleStatus. DRAFT_CYCLE -> Inactive; ACTIVE_CYCLE -> Active; else use dates/active. */
+/** Map API status to UI CycleStatus. Check recordState, then status, then dates. */
 function apiStatusToUiStatus(
   apiStatus: string | null,
+  recordState: string | null,
   startDate: string,
   endDate: string,
   active: boolean | null
 ): CycleStatus {
-  if (apiStatus === 'ACTIVE_CYCLE') return 'Active'
-  if (apiStatus != null && INACTIVE_API_STATUSES.has(apiStatus)) return 'Inactive'
+  // Check recordState first - archived/deleted cycles are always Inactive
+  if (recordState && recordState.toLowerCase() !== 'active') return 'Inactive'
+
+  // Check explicit status (only force Inactive for DEACTIVATED/COMPLETED)
+  if (apiStatus === 'ACTIVE_PERFORMANCE_CYCLE_STATUS') return 'Active'
+  if (apiStatus === 'DEACTIVATED_PERFORMANCE_CYCLE_STATUS') return 'Inactive'
+  if (apiStatus === 'COMPLETED_PERFORMANCE_CYCLE_STATUS') return 'Inactive'
   if (active === false) return 'Inactive'
+
+  // For DRAFT or other statuses, use date-based determination
   const today = new Date()
   const start = new Date(startDate)
   const end = new Date(endDate)
@@ -83,14 +95,11 @@ function mapApiCycleToUi(api: PerformanceCycleApi): PerformanceCycleFromApi {
   const startDate = formatDateOnly(api.startDate ?? '')
   const endDate = formatDateOnly(api.endDate ?? '')
   const participants = (api.performanceCycleParticipant ?? [])
-    .map(
-      p =>
-        p.participantType &&
-        (PARTICIPANT_MAP[p.participantType] ?? PARTICIPANT_MAP[String(p.participantType).toUpperCase()])
-    )
-    .filter((p): p is ParticipantType => Boolean(p))
-  const active = api.isActive ?? true
-  const status = apiStatusToUiStatus(api.status, startDate, endDate, active)
+    .filter(p => p.enabled === true)
+    .map(p => apiParticipantToUi(p.participantType))
+    .filter((p): p is ParticipantType => p !== null)
+  const active = true
+  const status = apiStatusToUiStatus(api.status, api.recordState, startDate, endDate, active)
   const valueIds = (api.performanceCycleCompanyValue ?? [])
     .map(pc => pc.companyValueId)
     .filter((id): id is string => id != null && id !== '')
@@ -100,14 +109,17 @@ function mapApiCycleToUi(api: PerformanceCycleApi): PerformanceCycleFromApi {
     name: api.name ?? '',
     startDate,
     endDate,
-    frequency: (api.frequency as FrequencyType) ?? 'Annual',
+    frequency: apiFrequencyToUi(api.frequency),
     participants: participants.length ? participants : ['Self', 'Manager'],
     stages: [],
     status,
     deactivated: status === 'Inactive',
+    recordState: api.recordState ?? undefined,
     ratingScaleId: api.ratingScaleId ?? undefined,
     valueIds,
-    fromApi: true
+    fromApi: true,
+    _apiParticipants: api.performanceCycleParticipant ?? [],
+    _apiCompanyValues: api.performanceCycleCompanyValue ?? []
   }
 }
 

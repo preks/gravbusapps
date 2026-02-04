@@ -54,25 +54,30 @@ const SalaryCalculationVisualization: React.FC<SalaryCalculationVisualizationPro
     return currentSalaryAnnual
   }, [adjustmentFrequency, currentSalaryAnnual, currentSalaryMonthly, currentSalaryHourly])
 
-  // Calculate adjustment amount
+  // Calculate adjustment amount (supports both positive and negative values)
   const adjustmentAmount = useMemo(() => {
-    if (amountIncrease && amountIncrease > 0) {
+    if (amountIncrease && amountIncrease !== 0) {
       return amountIncrease
     }
-    if (percentageIncrease && percentageIncrease > 0 && currentSalaryInFrequency) {
+    if (percentageIncrease && percentageIncrease !== 0 && currentSalaryInFrequency) {
       return calculateAmountFromPercentage(currentSalaryInFrequency, percentageIncrease)
     }
     return null
   }, [amountIncrease, percentageIncrease, currentSalaryInFrequency])
 
+  // Determine if this is a reduction (negative adjustment)
+  const isReduction = useMemo(() => {
+    return (amountIncrease !== null && amountIncrease < 0) || (percentageIncrease !== null && percentageIncrease < 0)
+  }, [amountIncrease, percentageIncrease])
+
   // Calculate new salary in selected frequency
   const newSalaryInFrequency = useMemo(() => {
-    // If there's an amount increase but no current salary, the new salary is just the increase
-    if (amountIncrease && amountIncrease > 0 && !currentSalaryInFrequency) {
-      return amountIncrease
+    // If there's an amount adjustment but no current salary, the new salary is just the adjustment
+    if (amountIncrease && amountIncrease !== 0 && !currentSalaryInFrequency) {
+      return Math.max(0, amountIncrease) // Prevent negative salary
     }
     if (!currentSalaryInFrequency || !adjustmentAmount) return null
-    return currentSalaryInFrequency + adjustmentAmount
+    return Math.max(0, currentSalaryInFrequency + adjustmentAmount) // Prevent negative salary
   }, [currentSalaryInFrequency, adjustmentAmount, amountIncrease])
 
   // ✅ ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
@@ -84,28 +89,28 @@ const SalaryCalculationVisualization: React.FC<SalaryCalculationVisualizationPro
 
   const newSalaryAnnual = useMemo(() => {
     if (!adjustmentAnnual) return currentSalaryAnnual
-    return currentSalaryAnnual + adjustmentAnnual
+    return Math.max(0, currentSalaryAnnual + adjustmentAnnual) // Prevent negative salary
   }, [currentSalaryAnnual, adjustmentAnnual])
 
   const newSalaryMonthly = useMemo(() => {
     return calculateMonthlyFromYearly(newSalaryAnnual)
   }, [newSalaryAnnual])
 
-  // Calculate percentage for display
+  // Calculate percentage for display (supports negative percentages for reductions)
   const adjustmentPercentage = useMemo(() => {
-    if (percentageIncrease && percentageIncrease > 0) {
+    if (percentageIncrease && percentageIncrease !== 0) {
       return percentageIncrease
     }
-    if (amountIncrease && amountIncrease > 0 && currentSalaryInFrequency && currentSalaryInFrequency > 0) {
+    if (amountIncrease && amountIncrease !== 0 && currentSalaryInFrequency && currentSalaryInFrequency > 0) {
       return (amountIncrease / currentSalaryInFrequency) * 100
     }
     return null
   }, [amountIncrease, percentageIncrease, currentSalaryInFrequency])
 
   // ✅ NOW DO CONDITIONAL RETURNS AFTER ALL HOOKS
-  // Early return AFTER all hooks - show if there's an adjustment amount OR if there's an amount increase (even without current salary)
-  if ((!adjustmentAmount || adjustmentAmount <= 0) && (!amountIncrease || amountIncrease <= 0)) return null
-  if (!newSalaryInFrequency && (!amountIncrease || amountIncrease <= 0)) return null
+  // Early return AFTER all hooks - show if there's an adjustment amount (positive or negative)
+  if (!adjustmentAmount || adjustmentAmount === 0) return null
+  if (!newSalaryInFrequency && !amountIncrease) return null
 
   // For hourly: Simplified vertical layout
   if (isHourlyFrequency(adjustmentFrequency)) {
@@ -135,8 +140,10 @@ const SalaryCalculationVisualization: React.FC<SalaryCalculationVisualizationPro
             <div className="gba:text-sm gba:text-muted-foreground">
               {amountIncrease ? t('adjust-salary-increase-amount') : t('adjust-salary-increase-percentage')}
             </div>
-            <div className="gba:text-base gba:font-semibold gba:text-success">
-              +
+            <div
+              className={`gba:text-base gba:font-semibold ${isReduction ? 'gba:text-destructive' : 'gba:text-success'}`}
+            >
+              {isReduction ? '' : '+'}
               {amountIncrease
                 ? formatCurrencyString(amountIncrease, {
                     currency: currencyCode,
@@ -202,8 +209,10 @@ const SalaryCalculationVisualization: React.FC<SalaryCalculationVisualizationPro
           <div className="gba:text-sm gba:text-muted-foreground">
             {amountIncrease ? t('adjust-salary-increase-amount') : t('adjust-salary-increase-percentage')}
           </div>
-          <div className="gba:text-base gba:font-semibold gba:text-success">
-            +
+          <div
+            className={`gba:text-base gba:font-semibold ${isReduction ? 'gba:text-destructive' : 'gba:text-success'}`}
+          >
+            {isReduction ? '' : '+'}
             {amountIncrease
               ? formatCurrencyString(amountIncrease, {
                   currency: currencyCode,

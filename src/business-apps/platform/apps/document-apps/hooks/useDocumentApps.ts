@@ -120,14 +120,6 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
           // Default to 'owner' if not specified (for newly created documents)
           const permission = document.permission || 'owner'
 
-          console.log('[useDocumentApps] loadDocument:', {
-            id: document.id,
-            createdBy: document.createdBy,
-            userId,
-            backendPermission: document.permission,
-            resolvedPermission: permission
-          })
-
           setState(prev => ({
             ...prev,
             currentDocument: document,
@@ -265,9 +257,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       if (!accessToken) return false
 
       try {
-        console.log('[useDocumentApps] shareDocument called with:', { id, userIds, permission })
         const shares = userIds.map(userId => ({ userId, permission }))
-        console.log('[useDocumentApps] shareDocument shares array:', shares)
         const success = await DocumentApiService.shareDocument(id, shares)
         if (success) {
           toast.success('Document shared successfully')

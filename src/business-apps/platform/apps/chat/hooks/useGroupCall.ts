@@ -22,6 +22,7 @@ export interface UseGroupCallOptions {
   onCallEnded?: (roomId: string, duration: number) => void
   onParticipantJoined?: (participant: CallParticipant) => void
   onParticipantLeft?: (participantId: string) => void
+  accessToken?: string | null
 }
 
 export interface GroupCallInvite {
@@ -35,7 +36,7 @@ export interface GroupCallInvite {
 export interface GroupCallUIState {
   roomId: string | null
   callType: CallType
-  status: 'idle' | 'joining' | 'connected' | 'reconnecting' | 'ended'
+  status: 'idle' | 'setup' | 'joining' | 'connected' | 'reconnecting' | 'ended'
   participants: GroupCallParticipant[]
   hostId: string | null // ID of the user who started the call
   isMuted: boolean
@@ -50,6 +51,7 @@ export interface GroupCallUIState {
   startTime: number | null
   duration: number
   callImplementation: 'mesh' | 'realtime-kit' | '1-on-1' // Track which implementation is used
+  calendarMeetingId?: string | null // Calendar meeting ID for AI transcription (only for calls started from calendar)
 }
 
 export interface ActiveConversationCall {
@@ -86,11 +88,48 @@ export interface UseGroupCallReturn {
   currentCallConversationName?: string // Conversation name for the current active call
   activeSpeakerId?: string | null // Current active speaker ID (RTK only)
   activeSpeakerHistory?: string[] // Recent speakers for sorting (RTK only)
+  /**
+   * Initiate call setup - Shows pre-call setup dialog (RTK only)
+   * @param roomId - The room/conversation ID for the call
+   * @param callType - Type of call (audio or video)
+   * @param participants - List of participants to invite
+   * @param conversationName - Optional name of the conversation
+   * @param calendarMeetingId - Optional calendar meeting ID for linking to AI transcription (RealtimeKit only)
+   */
+  initiateCall?: (
+    roomId: string,
+    callType: CallType,
+    participants: CallParticipant[],
+    conversationName?: string,
+    calendarMeetingId?: string | null
+  ) => void
+  /**
+   * Confirm and start call with user preferences (RTK only)
+   * @param preferences - User preferences for mic, camera, and background
+   */
+  confirmStartCall?: (preferences: {
+    micEnabled: boolean
+    cameraEnabled: boolean
+    backgroundEnabled: boolean
+  }) => Promise<void>
+  /**
+   * Cancel pre-call setup (RTK only)
+   */
+  cancelSetup?: () => void
+  /**
+   * Start a new group call (legacy, use initiateCall + confirmStartCall for RTK)
+   * @param roomId - The room/conversation ID for the call
+   * @param callType - Type of call (audio or video)
+   * @param participants - List of participants to invite
+   * @param conversationName - Optional name of the conversation
+   * @param calendarMeetingId - Optional calendar meeting ID for linking to AI transcription (RealtimeKit only, unused in mesh implementation)
+   */
   startCall: (
     roomId: string,
     callType: CallType,
     participants: CallParticipant[],
-    conversationName?: string
+    conversationName?: string,
+    calendarMeetingId?: string | null
   ) => Promise<void>
   joinCall: (roomId: string, callType: CallType, initialParticipants?: CallParticipant[]) => Promise<void>
   acceptInvite: () => Promise<void>
@@ -106,6 +145,8 @@ export interface UseGroupCallReturn {
   sendReaction?: (emoji: string) => Promise<void>
   inviteToCall: (participants: CallParticipant[], conversationName?: string) => void
   reconnectParticipant: (participantId: string) => Promise<void>
+  transcriptionEnabled?: boolean
+  toggleTranscription?: () => void
   // Debugging
   getConnectionDiagnostics: () => Map<string, any>
 }
@@ -577,12 +618,32 @@ export const useGroupCall = ({
   }, [fetchIceServers, onParticipantJoined, onParticipantLeft])
 
   // Start a group call and invite participants
+  /**
+   * Start a new group call with the specified participants.
+   *
+   * @param roomId - The room/conversation ID for the call
+   * @param callType - Type of call (audio or video)
+   * @param participants - List of participants to invite to the call
+   * @param conversationName - Optional conversation name to display in the call UI
+   * @param calendarMeetingId - Optional calendar meeting ID for linking call to AI transcription.
+   *                            This parameter is accepted for API compatibility with RealtimeKit implementation
+   *                            but is not used in the mesh topology implementation.
+   */
   const startCall = useCallback(
-    async (roomId: string, callType: CallType, participants: CallParticipant[], conversationName?: string) => {
+    async (
+      roomId: string,
+      callType: CallType,
+      participants: CallParticipant[],
+      conversationName?: string,
+      calendarMeetingId?: string | null
+    ) => {
       if (!currentUserRef.current || !wsClientRef.current) {
         console.error('Cannot start call: missing user or WebSocket client')
         return
       }
+
+      // Note: calendarMeetingId is unused in mesh implementation but accepted for API compatibility
+      void calendarMeetingId
 
       try {
         updateCallState({

@@ -16,6 +16,7 @@ interface ContentInfoSectionProps {
   employeeId: string | undefined
   allowedReactions?: string[]
   reactionCatalogMap?: Record<string, string>
+  onReactionSuccess?: () => void
 }
 
 const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({
@@ -24,9 +25,9 @@ const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({
   userId,
   employeeId,
   allowedReactions,
-  reactionCatalogMap
+  reactionCatalogMap,
+  onReactionSuccess
 }) => {
-  // Build reaction summary from contentEntryReactionCounts
   const reactionSummary = buildReactionSummaryFromCounts(item, userId)
 
   const formattedDate = useMemo(() => {
@@ -92,9 +93,7 @@ const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({
             allowReaction={item.allowReaction}
             accessToken={accessToken}
             employeeId={employeeId || ''}
-            onSuccess={() => {
-              // Refetch will be handled by parent component
-            }}
+            onSuccess={onReactionSuccess}
             size="md"
             allowedReactions={allowedReactions}
             reactionCatalogMap={reactionCatalogMap}

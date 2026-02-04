@@ -143,10 +143,14 @@ export interface ExpenseRequestRecord {
   employee: {
     id: string
     fullName: string
+    firstName?: string
+    lastName?: string
     pictureThumbnail?: string
     employeePosition?: {
       supervisor?: {
         fullName: string
+        firstName?: string
+        lastName?: string
       }
     }
   }
