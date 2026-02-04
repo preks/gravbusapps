@@ -191,7 +191,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
 
     const containerClassName = useMemo(() => {
       const base =
-        'gba:relative gba:cursor-pointer gba:transition-all gba:duration-150 gba:pl-10 gba:pr-3 gba:py-2.5 gba:rounded-lg gba:mb-2 gba:border-2 gba:overflow-hidden'
+        'gba:relative gba:cursor-pointer gba:transition-all gba:duration-150 gba:pl-[2.75rem] gba:pr-3 gba:py-2.5 gba:rounded-lg gba:mb-2 gba:border-2 gba:overflow-hidden'
 
       if (isSelected) {
         return `${base} gba:bg-card gba:border-foreground gba:shadow-sm`

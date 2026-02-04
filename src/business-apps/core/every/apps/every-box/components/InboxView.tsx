@@ -210,6 +210,9 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
   const [selectedTask, setSelectedTask] = useState<UnifiedTask | null>(null)
   const lastAutoReadKeyRef = useRef<string>('')
+  // Avoid marking tasks as read due to initial auto-selection on page load.
+  // Users expect "Mark unread" to persist across refresh; auto-selection shouldn't override that.
+  const skipNextAutoReadKeyRef = useRef<string>('')
   const autoReadTimeoutRef = useRef<number | null>(null)
   // Map selectedFilters from parent to local filterType
   const filterType: TaskFilterType = selectedFilters.includes('all')
@@ -276,14 +279,17 @@ export const InboxView: React.FC<InboxViewProps> = ({
         const allTasks = [...tasks, ...completedTasks]
         const taskToSelect = allTasks.find(t => t.id === taskIdFromUrl)
         if (taskToSelect) {
+          skipNextAutoReadKeyRef.current = `${taskToSelect.source}:${taskToSelect.id}`
           setSelectedTask(taskToSelect)
         } else {
           // If task from URL not found, select first task
+          skipNextAutoReadKeyRef.current = `${tasks[0].source}:${tasks[0].id}`
           setSelectedTask(tasks[0])
           updateTaskUrl(tasks[0].id)
         }
       } else {
         // No task in URL, auto-select first task
+        skipNextAutoReadKeyRef.current = `${tasks[0].source}:${tasks[0].id}`
         setSelectedTask(tasks[0])
         updateTaskUrl(tasks[0].id)
       }
@@ -537,6 +543,10 @@ export const InboxView: React.FC<InboxViewProps> = ({
     if (selectedTask.userState?.isRead) return
 
     const key = `${selectedTask.source}:${selectedTask.id}`
+    if (skipNextAutoReadKeyRef.current === key) {
+      skipNextAutoReadKeyRef.current = ''
+      return
+    }
     if (lastAutoReadKeyRef.current === key) return
 
     if (autoReadTimeoutRef.current) {
