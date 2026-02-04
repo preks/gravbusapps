@@ -185,6 +185,8 @@ chat-lastOwnerInfo = You are the only owner. To leave this group, first make ano
 # Call Features
 chat-audioCall = Audio Call
 chat-videoCall = Video Call
+chat-directCall = Call
+chat-meeting = Meeting
 chat-groupCall = Group Call
 chat-endCall = End Call
 chat-mute = Mute
@@ -250,6 +252,8 @@ call-failed = Call failed
 call-disconnected = Disconnected
 
 # Call Settings
+call-video = video
+call-audio = audio
 call-videoQuality = Video Quality
 call-highQuality = High Quality
 call-highQualityDesc = 720p, 30fps - Best for fast connections
