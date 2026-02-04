@@ -29,6 +29,10 @@ import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 import TablePagination, { PaginationChangeParams } from '../../../../../components/TablePagination'
+import { GenerateDocumentDialog } from '@/business-apps/platform/apps/document-apps/components'
+import { DocumentApiService } from '@/business-apps/platform/apps/document-apps/services/DocumentApiService'
+import { exportToWord } from '@/business-apps/platform/apps/document-apps/utils/exportUtils'
+import { toast } from 'sonner'
 
 const DATA_TEST_ID_PREFIX = 'AdvancePaymentsTable'
 const DEFAULT_STATUS_FILTER = ['PREPARED', 'PENDING']
@@ -68,6 +72,8 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   const [selectedItem, setSelectedItem] = useState<AdvancePayment | null>(null)
   const [selectedExpensePlan, setSelectedExpensePlan] = useState<any>(null)
   const [selectedExpenseRequest, setSelectedExpenseRequest] = useState<any>(null)
+  const [generateDocOpen, setGenerateDocOpen] = useState(false)
+  const [generateDocRecord, setGenerateDocRecord] = useState<AdvancePayment | null>(null)
 
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
@@ -97,6 +103,67 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     })
     return map
   }, [currencyStats])
+
+  const entityDataMapForDoc = useMemo((): Record<string, Record<string, unknown>> => {
+    if (!generateDocRecord) return {}
+    const plan = generateDocRecord.expensePlan
+    const currencyCode =
+      generateDocRecord.currency?.code ??
+      (typeof generateDocRecord.currencyRef === 'string' && generateDocRecord.currencyRef
+        ? generateDocRecord.currencyRef.replace(/^.*:([A-Za-z]{2,4})$/, '$1').toUpperCase()
+        : '')
+    const map: Record<string, Record<string, unknown>> = {
+      adv_payment: {
+        ...(generateDocRecord as unknown as Record<string, unknown>),
+        currencyCode
+      }
+    }
+    if (plan) {
+      map.expense_plan = plan as unknown as Record<string, unknown>
+      const emp = plan.employee
+      if (emp) {
+        const pos = emp.employeePosition
+        map.employee_position = {
+          firstName: emp.firstName ?? '',
+          lastName: emp.lastName ?? '',
+          fullName: emp.fullName ?? `${emp.firstName ?? ''} ${emp.lastName ?? ''}`.trim(),
+          jobPosition: pos?.jobPosition ? { name: pos.jobPosition.name ?? '' } : { name: '' },
+          organizationalUnit: pos?.organizationalUnit ? { name: pos.organizationalUnit.name ?? '' } : { name: '' }
+        }
+      }
+      const trips = plan.expenseRequestTrip ?? []
+      const destinationTrip = trips.find((t: { pointType?: string | null }) => t?.pointType === 'DESTINATION_POINT')
+      const tripForDoc = destinationTrip ?? trips[0]
+      const travelRegionValue =
+        tripForDoc?.travelRegion && typeof tripForDoc.travelRegion === 'object' && 'value' in tripForDoc.travelRegion
+          ? (tripForDoc.travelRegion as { value?: string }).value
+          : undefined
+      const countryValue =
+        tripForDoc?.country && typeof tripForDoc.country === 'object' && 'value' in tripForDoc.country
+          ? (tripForDoc.country as { value?: string }).value
+          : undefined
+      const countryRef = tripForDoc?.countryRef ?? ''
+      const countryCode =
+        countryValue ??
+        (typeof countryRef === 'string' && countryRef
+          ? countryRef.replace(/^.*:([A-Za-z]{2,4})$/, '$1').toUpperCase()
+          : '')
+      map.expense_request_trip = {
+        address: tripForDoc?.address ?? '',
+        pointType: tripForDoc?.pointType ?? '',
+        countryRef,
+        countryCode,
+        tripDateTime: tripForDoc?.tripDateTime ?? '',
+        tripOrder: tripForDoc?.tripOrder ?? '',
+        tripDirection: tripForDoc?.tripDirection ?? '',
+        travelRegion: travelRegionValue != null ? { value: travelRegionValue } : { value: '' },
+        country: countryValue != null ? { value: countryValue } : { value: '' },
+        destinationCountry: destinationTrip ? (countryValue ?? '') : '',
+        destinationAddress: destinationTrip ? (tripForDoc?.address ?? '') : ''
+      }
+    }
+    return map
+  }, [generateDocRecord])
 
   const prevFilterSignatureRef = useRef<string | null>(null)
 
@@ -303,9 +370,9 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   // Handle viewing expense request details
   const handleViewExpenseRequestDetails = useCallback((record: AdvancePayment) => {
     // For advance payments, we need to get the expense request from the expense plan
+    const firstRequestId = record.expensePlan?.expenseRequest?.[0]?.id ?? ''
     const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
-      expenseRequestId:
-        record.expensePlan && record.expensePlan.expenseRequest ? record?.expensePlan?.expenseRequest[0].id : '',
+      expenseRequestId: firstRequestId,
       referrer: '/platform/fin/expenses/personal-expenses?tab=advance-payments'
     })
     navigateTo(url)
@@ -518,7 +585,23 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                                         }
                                       }
                                     ]
-                                  : [])
+                                  : []),
+                                {
+                                  category: getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:employee_list.flows_button.navigations',
+                                    'Navigations'
+                                  ),
+                                  key: 'generate-document',
+                                  label: getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:hr_insights.generate_document',
+                                    'Generate document'
+                                  ),
+                                  onClick: (e?: React.MouseEvent) => {
+                                    e?.stopPropagation()
+                                    setGenerateDocRecord(record)
+                                    setGenerateDocOpen(true)
+                                  }
+                                }
                               ]}
                               accessToken={contextProps.accessToken}
                               emptyStateBehavior="enable"
@@ -813,6 +896,36 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
           </ExpenseDetailsShell>
         </SheetContent>
       </Sheet>
+
+      <GenerateDocumentDialog
+        open={generateDocOpen}
+        onOpenChange={open => {
+          setGenerateDocOpen(open)
+          if (!open) setGenerateDocRecord(null)
+        }}
+        entityDataMap={entityDataMapForDoc}
+        defaultTitle={
+          generateDocRecord?.expensePlan?.title ||
+          generateDocRecord?.expensePlan?.code ||
+          generateDocRecord?.code ||
+          'Advance payment'
+        }
+        onSuccess={async documentId => {
+          if (!contextProps.accessToken) return
+          DocumentApiService.setAccessToken(contextProps.accessToken)
+          try {
+            const doc = await DocumentApiService.getDocument(documentId)
+            if (doc?.content != null) {
+              await exportToWord(doc.title || 'Document', doc.content)
+              toast.success('Document downloaded')
+            }
+          } catch (err) {
+            console.error('Failed to download document:', err)
+            toast.error('Failed to download document')
+          }
+        }}
+        data-testid={`${DATA_TEST_ID_PREFIX}-generate-document-dialog`}
+      />
     </div>
   )
 })
