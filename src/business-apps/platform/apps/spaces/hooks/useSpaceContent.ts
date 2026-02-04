@@ -21,6 +21,8 @@ export interface UseSpaceContentResult {
   error: string | null
   moveContent: (input: Omit<MoveContentInput, 'targetSpaceId'>) => Promise<boolean>
   removeContent: (entityType: string, entityId: string) => Promise<boolean>
+  addItemsToLocalState: (items: Array<{ type: string; id: string; title?: string; name?: string }>) => void
+  refresh: () => Promise<void>
 }
 
 /**
@@ -151,7 +153,6 @@ export function useSpaceContent(
       }
 
       try {
-        setIsLoading(true)
         // Map content type to backend entity type
         const entityType = input.contentType === 'spreadsheet' ? 'spreadsheet_app' : input.contentType
 
@@ -164,7 +165,7 @@ export function useSpaceContent(
           body: JSON.stringify({
             entityType,
             entityId: input.entityId,
-            ...(input.folderId ? { folderId: input.folderId } : {})
+            ...(input.folderId !== undefined ? { folderId: input.folderId } : {})
           })
         })
 
@@ -173,20 +174,26 @@ export function useSpaceContent(
           throw new Error(errorData.message || `Failed to move content: ${response.statusText}`)
         }
 
-        // Refresh content and space data
-        await fetchContent()
-        onContentChange?.()
+        // Update local state immediately without full refresh
+        const updateItemFolder = (items: SpaceContentItem[]) =>
+          items.map(item =>
+            item.id === input.entityId ? { ...item, folderId: input.folderId ?? null, spaceId } : item
+          )
+
+        setDocuments(prev => updateItemFolder(prev))
+        setNotes(prev => updateItemFolder(prev))
+        setSpreadsheets(prev => updateItemFolder(prev))
+        setSlides(prev => updateItemFolder(prev))
+
         return true
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to move content'
         setError(message)
         console.error('[useSpaceContent] Move error:', err)
         return false
-      } finally {
-        setIsLoading(false)
       }
     },
-    [spaceId, accessToken, fetchContent, onContentChange]
+    [spaceId, accessToken]
   )
 
   const removeContent = useCallback(
@@ -228,6 +235,42 @@ export function useSpaceContent(
     [spaceId, accessToken, fetchContent, onContentChange]
   )
 
+  const addItemsToLocalState = useCallback(
+    (items: Array<{ type: string; id: string; title?: string; name?: string }>) => {
+      const now = new Date().toISOString()
+
+      items.forEach(item => {
+        const contentItem: SpaceContentItem = {
+          id: item.id,
+          type: item.type as 'document' | 'note' | 'spreadsheet' | 'slide',
+          title: item.title || item.name || 'Untitled',
+          description: '',
+          updatedAt: now,
+          createdAt: now,
+          ownerId: '',
+          spaceId: spaceId || '',
+          folderId: null
+        }
+
+        switch (item.type) {
+          case 'document':
+            setDocuments(prev => [...prev, contentItem])
+            break
+          case 'note':
+            setNotes(prev => [...prev, contentItem])
+            break
+          case 'spreadsheet':
+            setSpreadsheets(prev => [...prev, contentItem])
+            break
+          case 'slide':
+            setSlides(prev => [...prev, contentItem])
+            break
+        }
+      })
+    },
+    [spaceId]
+  )
+
   return {
     documents,
     notes,
@@ -237,6 +280,8 @@ export function useSpaceContent(
     isLoading,
     error,
     moveContent,
-    removeContent
+    removeContent,
+    addItemsToLocalState,
+    refresh: fetchContent
   }
 }

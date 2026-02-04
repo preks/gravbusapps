@@ -12,7 +12,6 @@ import type { SpaceFolder } from '../types/space.types'
 export interface SpaceBreadcrumbsProps {
   folders: SpaceFolder[]
   selectedFolderId: string | null
-  mode: 'all' | 'drive'
   onSelectRoot: () => void
   onSelectFolder: (folderId: string) => void
   'data-testid'?: string
@@ -21,13 +20,12 @@ export interface SpaceBreadcrumbsProps {
 export const SpaceBreadcrumbs: React.FC<SpaceBreadcrumbsProps> = ({
   folders,
   selectedFolderId,
-  mode,
   onSelectRoot,
   onSelectFolder,
   'data-testid': testId = 'space-breadcrumbs'
 }) => {
   const path = useMemo(() => {
-    if (mode !== 'drive' || !selectedFolderId) return []
+    if (!selectedFolderId) return []
     const byId = new Map(folders.map(f => [f.id, f]))
     const result: SpaceFolder[] = []
     let current = byId.get(selectedFolderId)
@@ -38,7 +36,7 @@ export const SpaceBreadcrumbs: React.FC<SpaceBreadcrumbsProps> = ({
       current = byId.get(parentId)
     }
     return result
-  }, [folders, selectedFolderId, mode])
+  }, [folders, selectedFolderId])
 
   return (
     <nav
@@ -50,7 +48,7 @@ export const SpaceBreadcrumbs: React.FC<SpaceBreadcrumbsProps> = ({
         type="button"
         onClick={onSelectRoot}
         className={`gba:inline-flex gba:items-center gba:gap-1.5 gba:px-2 gba:py-1 gba:rounded-md gba:text-sm gba:transition-colors ${
-          path.length === 0 && mode === 'drive'
+          path.length === 0
             ? 'gba:text-foreground gba:font-medium'
             : 'gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/50'
         }`}
