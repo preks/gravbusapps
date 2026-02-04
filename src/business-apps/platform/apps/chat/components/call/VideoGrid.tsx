@@ -120,7 +120,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
     // Tablet screens (768px - 1023px)
     if (screenWidth < 1024) {
       if (itemCount <= 1) return 1
-      if (itemCount <= 2) return 2 // Single column for 1-2 participants
+      if (itemCount <= 2) return 2
       if (itemCount <= 4) return 2
       if (itemCount <= 6) return 2 // 2×3 for better aspect ratio
       if (itemCount <= 9) return 3
@@ -129,7 +129,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
 
     // Desktop screens (>= 1024px)
     if (itemCount <= 1) return 1
-    if (itemCount <= 2) return 2 // Single column for 1-2 participants
+    if (itemCount <= 2) return 2
     if (itemCount <= 4) return 2
     if (itemCount <= 6) return 2 // 2×3 for better aspect ratio instead of 3×2
     if (itemCount <= 9) return 3 // 3×3 for 7-9 participants
