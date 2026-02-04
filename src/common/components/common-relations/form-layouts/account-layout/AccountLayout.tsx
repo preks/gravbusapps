@@ -51,7 +51,8 @@ interface AccountLayoutProps {
   avatarFileRef?: React.MutableRefObject<{ file: File; thumbnail: string } | null>
 
   // Context for prospective field label (determines non-prospective label)
-  accountContext?: 'crm' | 'irm'
+  // REQUIRED: Must be explicitly set to 'crm' or 'irm' to ensure correct labels
+  accountContext: 'crm' | 'irm'
 
   // Loading state - shows skeletons while data is being fetched
   loading?: boolean
@@ -72,7 +73,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
   communicationCustomFields,
   customSegments = [],
   avatarFileRef,
-  accountContext = 'crm',
+  accountContext,
   loading = false,
   isStepActive = true
 }) => {

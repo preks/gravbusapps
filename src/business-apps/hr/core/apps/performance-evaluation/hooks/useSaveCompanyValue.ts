@@ -17,12 +17,12 @@ function buildSavePayload(values: ValueEditorValues): SaveCompanyValuePayload {
     companyValue: {
       title: values.title.trim(),
       description: values.description.trim(),
-      active: values.active
+      recordState: values.recordState
     }
   }
 }
 
-/** Build payload for updateCompanyValue (POST) – shape { companyValue: { id, version?, title, description, active } }. */
+/** Build payload for updateCompanyValue (POST) – shape { companyValue: { id, version?, title, description, recordState } }. */
 function buildUpdatePayload(values: ValueEditorValues): UpdateCompanyValuePayload {
   return {
     companyValue: {
@@ -30,7 +30,7 @@ function buildUpdatePayload(values: ValueEditorValues): UpdateCompanyValuePayloa
       ...(values.version == null ? {} : { version: values.version }),
       title: values.title.trim(),
       description: values.description.trim(),
-      active: values.active
+      recordState: values.recordState
     }
   }
 }
@@ -44,20 +44,20 @@ function buildDeletePayload(value: ValueItemStored): SaveCompanyValuePayload {
       version: value.version ?? 0,
       title: '',
       description: '',
-      active: false
+      recordState: 'archived'
     }
   }
 }
 
 /** Build payload for activate/deactivate via updateCompanyValue – shape { companyValue: { ... } }. */
-function buildUpdateActivePayload(value: ValueItemStored, active: boolean): UpdateCompanyValuePayload {
+function buildUpdateRecordStatePayload(value: ValueItemStored, recordState: string): UpdateCompanyValuePayload {
   return {
     companyValue: {
       id: value.id,
       version: value.version ?? 0,
       title: value.title,
       description: value.description,
-      active
+      recordState: recordState.toUpperCase()
     }
   }
 }
@@ -67,7 +67,10 @@ export type CompanyValueApiResponse = SaveCompanyValueResponse | UpdateCompanyVa
 export interface UseSaveCompanyValueResult {
   saveCompanyValue: (values: ValueEditorValues) => Promise<CompanyValueApiResponse>
   deleteCompanyValue: (value: ValueItemStored) => Promise<SaveCompanyValueResponse | null>
-  updateCompanyValueActive: (value: ValueItemStored, active: boolean) => Promise<UpdateCompanyValueResponse | null>
+  updateCompanyValueRecordState: (
+    value: ValueItemStored,
+    recordState: string
+  ) => Promise<UpdateCompanyValueResponse | null>
 }
 
 export function useSaveCompanyValue(accessToken: string | undefined): UseSaveCompanyValueResult {
@@ -96,15 +99,15 @@ export function useSaveCompanyValue(accessToken: string | undefined): UseSaveCom
     [accessToken]
   )
 
-  const updateCompanyValueActive = useCallback(
-    async (value: ValueItemStored, active: boolean): Promise<UpdateCompanyValueResponse | null> => {
+  const updateCompanyValueRecordState = useCallback(
+    async (value: ValueItemStored, recordState: string): Promise<UpdateCompanyValueResponse | null> => {
       if (!accessToken) return null
-      const payload = buildUpdateActivePayload(value, active)
+      const payload = buildUpdateRecordStatePayload(value, recordState)
       const result = await updateCompanyValueApi(accessToken, payload)
       return result ?? null
     },
     [accessToken]
   )
 
-  return { saveCompanyValue, deleteCompanyValue, updateCompanyValueActive }
+  return { saveCompanyValue, deleteCompanyValue, updateCompanyValueRecordState }
 }

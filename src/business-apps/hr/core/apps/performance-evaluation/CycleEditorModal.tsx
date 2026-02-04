@@ -35,6 +35,15 @@ export interface CycleEditorValues {
   stages: EvaluationStage[]
   ratingScaleId?: string
   valueIds?: string[]
+  /** Raw API participants with id/version for updates */
+  _apiParticipants?: Array<{
+    id: string
+    version: number | null
+    participantType: string | null
+    enabled: boolean | null
+  }>
+  /** Raw API company values with id/version for updates */
+  _apiCompanyValues?: Array<{ id: string; version: number | null; companyValueId: string | null }>
 }
 
 const frequencyOptions: FrequencyType[] = ['Annual', 'Quarterly', 'Custom']
@@ -197,7 +206,10 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
       participants: selectedParticipants,
       stages: initialStages,
       ratingScaleId: selectedScaleId,
-      valueIds: valueIdsToSave
+      valueIds: valueIdsToSave,
+      // Preserve API metadata for optimistic locking
+      _apiParticipants: initialValues?._apiParticipants,
+      _apiCompanyValues: initialValues?._apiCompanyValues
     })
     onOpenChange(false)
   }
@@ -308,7 +320,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
           <div className="gba:space-y-2">
             <Label>{t('field-values')}</Label>
             {(() => {
-              const hasValues = availableValues.filter(v => v.active !== false).length > 0
+              const hasValues = availableValues.filter(v => v.recordState === 'active').length > 0
               const cycleValuesKey = open ? (initialValues?.id ?? 'new') : 'closed'
               if (!hasValues) {
                 return <div className="gba:text-sm gba:text-muted-foreground">{t('placeholder-no-values')}</div>
@@ -322,7 +334,9 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
                     const next = Array.isArray(ids) ? ids : ids ? [ids] : []
                     setSelectedValueIds([...new Set(next)])
                   }}
-                  options={availableValues.filter(v => v.active !== false).map(v => ({ label: v.title, value: v.id }))}
+                  options={availableValues
+                    .filter(v => v.recordState === 'active')
+                    .map(v => ({ label: v.title, value: v.id }))}
                   placeholder="Select values"
                   searchPlaceholder="Type to search values..."
                   emptyText="No results"
