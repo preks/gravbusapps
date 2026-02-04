@@ -8,17 +8,22 @@
  * - Confirm/Cancel actions
  */
 
-import React, { useState, useCallback } from 'react'
-import { Button, Input, Label, RadioGroup, RadioGroupItem, cn } from '@newwork/nw-design-system'
-import { Monitor, Bot, Code2, Workflow, Database, CheckCircle2, Edit2, type LucideIcon } from 'lucide-react'
-import type { BuildPlan, ComponentType, ClarifyingQuestion } from '../types/orchestrator'
+import React, { useState, useCallback, useEffect } from 'react'
+import { Button, Input, Label, RadioGroup, RadioGroupItem, Textarea, cn } from '@newwork/nw-design-system'
+import { Monitor, Bot, Code2, Workflow, Database, CheckCircle2, Edit2, Sparkles, type LucideIcon } from 'lucide-react'
+import type { BuildPlan, ComponentType, ClarifyingQuestion } from '../../types'
 
 export interface BuildPlanReviewProps {
   plan: BuildPlan
   onConfirm: (skipComponents?: string[]) => void
   onCancel: () => void
   onReanalyze?: (answers: Record<string, string>) => void
+  onEdit?: () => void
+  onRefine?: (feedback: string) => void
   isLoading?: boolean
+  isRefining?: boolean
+  refinementSummary?: string | null
+  refineError?: string | null
   hideActions?: boolean
   onSkippedComponentsChange?: (skippedIds: string[]) => void
   'data-testid'?: string
@@ -50,13 +55,19 @@ export const BuildPlanReview: React.FC<BuildPlanReviewProps> = ({
   onConfirm,
   onCancel,
   onReanalyze,
+  onEdit,
+  onRefine,
   isLoading = false,
+  isRefining = false,
+  refinementSummary,
+  refineError,
   hideActions = false,
   onSkippedComponentsChange,
   'data-testid': testId = 'build-plan-review'
 }) => {
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [skippedComponents, setSkippedComponents] = useState<Set<string>>(new Set())
+  const [feedback, setFeedback] = useState('')
 
   const hasQuestions = plan.questions && plan.questions.length > 0
   const allQuestionsAnswered = !hasQuestions || plan.questions!.every(q => !q.required || answers[q.id])
@@ -94,6 +105,29 @@ export const BuildPlanReview: React.FC<BuildPlanReviewProps> = ({
     onReanalyze?.(answers)
   }, [onReanalyze, answers])
 
+  const handleRefine = useCallback(() => {
+    if (feedback.trim().length >= 3) {
+      onRefine?.(feedback.trim())
+    }
+  }, [onRefine, feedback])
+
+  // Clear feedback on successful refinement
+  useEffect(() => {
+    if (refinementSummary) {
+      setFeedback('')
+      // Scroll to top to show updated summary
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }, [refinementSummary])
+
+  // Check if plan has user-friendly summary
+  const hasUserSummary = !!plan.user_summary
+
+  // Get component description (user-friendly if available)
+  const getComponentDescription = useCallback((comp: (typeof plan.components)[0]) => {
+    return comp.user_friendly_description || comp.description
+  }, [])
+
   // Group components by type
   const componentsByType = plan.components.reduce(
     (acc, comp) => {
@@ -104,6 +138,217 @@ export const BuildPlanReview: React.FC<BuildPlanReviewProps> = ({
     {} as Record<ComponentType, typeof plan.components>
   )
 
+  // Render user-friendly summary layout
+  if (hasUserSummary) {
+    const { user_summary } = plan
+
+    return (
+      <div className="gba:space-y-4" data-testid={testId}>
+        {/* Two-column layout for What You're Getting and What You Can Do */}
+        <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-3 md:gba:gap-5">
+          {/* What You're Getting */}
+          <div className="gba:space-y-1.5">
+            <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">What You're Getting</h3>
+            <ul className="gba:space-y-1">
+              {user_summary!.what_you_get.map((item, i) => (
+                <li key={i} className="gba:flex gba:gap-2 gba:text-sm gba:text-foreground gba:leading-relaxed">
+                  <span className="gba:text-muted-foreground gba:mt-0.5">•</span>
+                  <span className="gba:flex-1">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* What You Can Do */}
+          <div className="gba:space-y-1.5">
+            <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">What You Can Do</h3>
+            <ul className="gba:space-y-1">
+              {user_summary!.what_you_can_do.map((item, i) => (
+                <li key={i} className="gba:flex gba:gap-2 gba:text-sm gba:text-foreground gba:leading-relaxed">
+                  <span className="gba:text-muted-foreground gba:mt-0.5">•</span>
+                  <span className="gba:flex-1">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* Why This Matters */}
+        <div className="gba:space-y-1.5">
+          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Why This Matters</h3>
+          <p className="gba:text-sm gba:text-foreground gba:leading-relaxed">{user_summary!.business_value}</p>
+        </div>
+
+        {/* Build Time */}
+        <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:py-2 gba:border-y gba:border-border">
+          <span className="gba:font-medium">Build Time:</span>
+          <span>{user_summary!.estimated_time}</span>
+        </div>
+
+        {/* Clarifying Questions */}
+        {hasQuestions && (
+          <div className="gba:space-y-4 gba:py-4 gba:border-y gba:border-border">
+            <div className="gba:flex gba:items-center gba:justify-between">
+              <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Clarifying Questions</h3>
+              <span className="gba:text-xs gba:text-muted-foreground gba:font-medium">Required before building</span>
+            </div>
+            <div className="gba:space-y-5">
+              {plan.questions!.map(question => (
+                <QuestionField
+                  key={question.id}
+                  question={question}
+                  value={answers[question.id] || ''}
+                  onChange={value => handleAnswerChange(question.id, value)}
+                />
+              ))}
+              <Button
+                onClick={handleReanalyze}
+                disabled={!allQuestionsAnswered || isLoading}
+                variant="outline"
+                size="sm"
+              >
+                Re-analyze with Answers
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* What We'll Build - Flat list */}
+        <div className="gba:space-y-2.5">
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">
+              What We'll Build ({plan.components.length} {plan.components.length === 1 ? 'item' : 'items'})
+            </h3>
+            {onEdit && (
+              <Button variant="outline" size="sm" onClick={onEdit} disabled={isLoading} className="gba:text-xs">
+                <Edit2 className="gba:w-3 gba:h-3 gba:mr-1.5" />
+                Customize Components
+              </Button>
+            )}
+          </div>
+
+          <div className="gba:space-y-1.5">
+            {plan.components.map(comp => (
+              <div
+                key={comp.id}
+                className={cn(
+                  'gba:flex gba:items-start gba:gap-2.5 gba:py-2 gba:px-3 gba:rounded-lg gba:border gba:border-border gba:cursor-pointer gba:transition-all hover:gba:bg-muted/30',
+                  skippedComponents.has(comp.id) && 'gba:opacity-40 gba:bg-muted/10'
+                )}
+                onClick={() => toggleComponentSkip(comp.id)}
+              >
+                {/* Checkbox */}
+                <div className="gba:mt-0.5 gba:shrink-0">
+                  <CheckCircle2
+                    className={cn(
+                      'gba:w-[18px] gba:h-[18px] gba:transition-all',
+                      skippedComponents.has(comp.id)
+                        ? 'gba:text-muted-foreground gba:opacity-30'
+                        : 'gba:text-foreground'
+                    )}
+                  />
+                </div>
+
+                {/* Content */}
+                <div className="gba:flex-1 gba:min-w-0 gba:flex gba:items-baseline gba:gap-2">
+                  <div
+                    className={cn(
+                      'gba:text-sm gba:font-medium gba:text-foreground gba:leading-tight gba:shrink-0',
+                      skippedComponents.has(comp.id) && 'gba:line-through'
+                    )}
+                  >
+                    {comp.name}
+                  </div>
+                  <div className="gba:text-xs gba:text-muted-foreground gba:leading-tight gba:flex-1">
+                    {getComponentDescription(comp)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Refinement Section */}
+        {onRefine && (
+          <div className="gba:space-y-2.5 gba:pt-3 gba:border-t gba:border-border">
+            <div>
+              <h3 className="gba:text-sm gba:font-semibold gba:text-foreground gba:flex gba:items-center gba:gap-2">
+                <Sparkles className="gba:w-4 gba:h-4" />
+                Refine Your Plan
+              </h3>
+              <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
+                Describe any changes you'd like in plain English
+              </p>
+            </div>
+
+            {/* Refinement Summary - success feedback */}
+            {refinementSummary && !refineError && (
+              <div className="gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-lg gba:p-2.5">
+                <p className="gba:text-sm gba:text-green-800">
+                  <span className="gba:font-medium">Changes applied:</span> {refinementSummary}
+                </p>
+              </div>
+            )}
+
+            {/* Feedback textarea */}
+            <div className="gba:space-y-2">
+              <Textarea
+                value={feedback}
+                onChange={e => setFeedback(e.target.value)}
+                placeholder='e.g., "Add export to PDF" or "Remove the status filter"'
+                disabled={isRefining || isLoading}
+                rows={3}
+                maxLength={2000}
+                className="gba:resize-none gba:text-sm"
+              />
+              <div className="gba:flex gba:items-center gba:justify-between">
+                <span className="gba:text-xs gba:text-muted-foreground">{feedback.length}/2000 characters</span>
+                <div className="gba:flex gba:gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setFeedback('')}
+                    disabled={!feedback || isRefining || isLoading}
+                  >
+                    Clear
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefine}
+                    disabled={feedback.trim().length < 3 || isRefining || isLoading}
+                  >
+                    {isRefining ? 'Refining...' : 'Refine Plan'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Error display */}
+            {refineError && (
+              <div className="gba:bg-destructive/10 gba:border gba:border-destructive/20 gba:rounded-lg gba:p-2.5">
+                <p className="gba:text-sm gba:text-destructive gba:whitespace-pre-line">{refineError}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Actions (if not hidden) */}
+        {!hideActions && (
+          <div className="gba:flex gba:items-center gba:justify-end gba:gap-3 gba:pt-3 gba:border-t gba:border-border">
+            <Button variant="ghost" onClick={onCancel} disabled={isLoading || isRefining}>
+              Cancel
+            </Button>
+            <Button onClick={handleConfirm} disabled={isLoading || isRefining || !allQuestionsAnswered}>
+              {isLoading ? 'Starting...' : 'Start Building'}
+            </Button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Fallback: Render original technical layout if no user_summary
   return (
     <div className="gba:space-y-6" data-testid={testId}>
       {/* Summary Header - Compact single line with better spacing */}
@@ -122,14 +367,8 @@ export const BuildPlanReview: React.FC<BuildPlanReviewProps> = ({
           <span className="gba:text-sm gba:text-muted-foreground gba:capitalize">{plan.analysis.complexity}</span>
         </div>
 
-        {/* Edit Plan button - Coming soon */}
-        <Button
-          variant="outline"
-          size="sm"
-          disabled
-          title="Coming soon - Plan editing"
-          className="gba:text-xs gba:opacity-50"
-        >
+        {/* Edit Plan button */}
+        <Button variant="outline" size="sm" onClick={onEdit} disabled={isLoading || !onEdit} className="gba:text-xs">
           <Edit2 className="gba:w-3 gba:h-3 gba:mr-1.5" />
           Edit Plan
         </Button>
