@@ -2,11 +2,10 @@
 
 import React from 'react'
 import dayjs from 'dayjs'
-import { Card } from '@newwork/gravity-ui-catalog'
+import { Card, useTranslation } from '@newwork/nw-design-system'
 import { Employee } from '../../hooks/useEmployeeData'
 import { formatPhoneNumberWithCountryCode, getTranslatedValue } from '../../utils/formatters'
 import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions'
-import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -277,13 +276,9 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
 
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6" data-testid="details-cards">
         {/* Personal Data Card - Public info is always visible, private info requires permission */}
-        <Card
-          variant="outlined"
-          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
-          data-testid="details-section-personal"
-        >
+        <Card variant="outlined" data-testid="details-section-personal">
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('details-personal-data')}</h3>
+            <h3 className="gba:text-xl gba:font-semibold">{t('details-personal-data')}</h3>
             <AppAction
               variant="update-secondary"
               data-testid="personal-data-action-button"
@@ -300,13 +295,9 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
         </Card>
 
         {/* Address Card - Always visible but values may be masked */}
-        <Card
-          variant="outlined"
-          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
-          data-testid="details-section-address"
-        >
+        <Card variant="outlined" data-testid="details-section-address">
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('details-address')}</h3>
+            <h3 className="gba:text-xl gba:font-semibold">{t('details-address')}</h3>
             <AppAction
               variant="update-secondary"
               data-testid="employee-address-action-button"
@@ -320,13 +311,9 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
         </Card>
 
         {/* Bank Account Card - Always visible but values may be masked */}
-        <Card
-          variant="outlined"
-          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
-          data-testid="details-section-bank"
-        >
+        <Card variant="outlined" data-testid="details-section-bank">
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('details-bank-account')}</h3>
+            <h3 className="gba:text-xl gba:font-semibold">{t('details-bank-account')}</h3>
             <AppAction
               variant="update-secondary"
               data-testid="bank-account-action-button"
@@ -342,13 +329,9 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
         </Card>
 
         {/* Private Communication Card - Always visible but values may be masked */}
-        <Card
-          variant="outlined"
-          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
-          data-testid="details-section-communication"
-        >
+        <Card variant="outlined" data-testid="details-section-communication">
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('details-private-communication')}</h3>
+            <h3 className="gba:text-xl gba:font-semibold">{t('details-private-communication')}</h3>
             <AppAction
               variant="update-secondary"
               data-testid="private-communication-action-button"
@@ -366,13 +349,9 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
         </Card>
 
         {/* Emergency Contact Card - Always visible but values may be masked */}
-        <Card
-          variant="outlined"
-          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
-          data-testid="details-section-emergency"
-        >
+        <Card variant="outlined" data-testid="details-section-emergency">
           <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('details-emergency-contact')}</h3>
+            <h3 className="gba:text-xl gba:font-semibold">{t('details-emergency-contact')}</h3>
             <AppAction
               variant="update-secondary"
               data-testid="emergency-contact-action-button"
@@ -408,13 +387,9 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
             }))
           if (items.length === 0) return null
           return (
-            <Card
-              variant="outlined"
-              className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
-              data-testid="details-section-additional-attributes"
-            >
+            <Card variant="outlined" data-testid="details-section-additional-attributes">
               <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-                <h3 className="gba:text-xl gba:font-semibold gba:text-info">{t('details-additional-attributes')}</h3>
+                <h3 className="gba:text-xl gba:font-semibold">{t('details-additional-attributes')}</h3>
                 <AppAction
                   variant="update-secondary"
                   data-testid="additional-attributes-action-button"
