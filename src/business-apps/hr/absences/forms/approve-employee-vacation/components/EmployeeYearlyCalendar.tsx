@@ -7,7 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { Card, CardHeader, CardContent, Spinner, Alert, Button, useTranslation } from '@newwork/nw-design-system'
 import { CalendarDays, ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react'
 import dayjs from 'dayjs'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCatalogValue, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { usePublicHolidays } from '../../../hooks/usePublicHolidays'
 import translations from '../_i18n'
@@ -142,7 +142,7 @@ export const EmployeeYearlyCalendar: React.FC<EmployeeYearlyCalendarProps> = ({
     employeeId
   })
 
-  const graphqlClient = useGraphqlClient(accessToken)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   // Calculate the year based on when the vacation is actually happening
   // This ensures the calendar displays the correct year for the vacation dates, not the entitlement year
