@@ -91,6 +91,9 @@ const A4_WIDTH_PX = 794 // 210mm
 const A4_HEIGHT_PX = 1123 // 297mm
 const PAGE_MARGIN_PX = 96 // 1 inch = 96px at 96 DPI
 
+/** Delay before auto-saving new documents/templates (no document id). 5 minutes. */
+const AUTO_SAVE_DELAY_MS = 5 * 60 * 1000
+
 // Collaboration cursor styles
 const CURSOR_STYLES = `
   @keyframes cursor-fade-in {
@@ -543,7 +546,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           if (!document?.id) {
             setHasUnsavedChanges(true)
             if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current)
-            autoSaveTimeoutRef.current = setTimeout(() => handleSave(), 3000)
+            autoSaveTimeoutRef.current = setTimeout(() => handleSave(), AUTO_SAVE_DELAY_MS)
           }
         }
       },

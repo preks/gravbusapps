@@ -198,8 +198,8 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     urlEntityContext ??
     (templateBeingEdited
       ? (templateBeingEdited.context ??
-        getContextForEntityKeys(extractEntityKeysFromContent(templateBeingEdited.content)) ??
         sessionEntityContext ??
+        getContextForEntityKeys(extractEntityKeysFromContent(templateBeingEdited.content)) ??
         getContextForCategory(templateBeingEdited.category))
       : undefined) ??
     'candidate'

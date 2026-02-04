@@ -34,7 +34,8 @@ export function useSpaceContent(
   spaceId: string | null,
   accessToken: string | undefined,
   space: Space | null,
-  onContentChange?: () => void
+  onContentChange?: () => void,
+  options?: { folderId?: string | null }
 ): UseSpaceContentResult {
   const [documents, setDocuments] = useState<SpaceContentItem[]>([])
   const [notes, setNotes] = useState<SpaceContentItem[]>([])
@@ -52,9 +53,13 @@ export function useSpaceContent(
       setError(null)
 
       // Try to fetch from the space content endpoint
-      const url = `${API_URL}/spaces/${spaceId}/content`
+      const url = new URL(`${API_URL}/spaces/${spaceId}/content`)
+      if (options && 'folderId' in options) {
+        const folderId = options.folderId
+        url.searchParams.set('folderId', folderId ?? '')
+      }
 
-      const response = await fetch(url, {
+      const response = await fetch(url.toString(), {
         headers: { Authorization: `Bearer ${accessToken}` }
       })
 
@@ -94,6 +99,7 @@ export function useSpaceContent(
           createdAt: item.createdAt || item.addedAt || new Date().toISOString(),
           ownerId: item.ownerId || item.addedBy || '',
           spaceId: spaceId,
+          folderId: item.folderId ?? null,
           isPdf: type === 'document' && item.sourceFileInfo?.mimeType === 'application/pdf'
         }
 
@@ -123,7 +129,7 @@ export function useSpaceContent(
     } finally {
       setIsLoading(false)
     }
-  }, [spaceId, accessToken])
+  }, [spaceId, accessToken, options?.folderId])
 
   // Fetch content when spaceId changes or space is updated
   useEffect(() => {
@@ -157,7 +163,8 @@ export function useSpaceContent(
           },
           body: JSON.stringify({
             entityType,
-            entityId: input.entityId
+            entityId: input.entityId,
+            ...(input.folderId ? { folderId: input.folderId } : {})
           })
         })
 
