@@ -334,16 +334,15 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
             employee.employeePosition.employeeCapabilities.filter(cap => cap.capability).length > 0 ? (
               employee.employeePosition.employeeCapabilities
                 .filter(capItem => capItem.capability)
-                .map((capItem: EmployeeCapability, index: number) => (
-                  <Badge
-                    key={capItem.capability?.id || `capability-${index}`}
-                    variant="secondary"
-                    data-testid={`capability-${capItem.capability?.id || `capability-${index}`}`}
-                  >
-                    <BookmarksIcon className="gba:h-4 gba:w-4 gba:mr-1" size={16} />
-                    {capItem.capability?.name}
-                  </Badge>
-                ))
+                .map((capItem: EmployeeCapability, index: number) => {
+                  const capabilityId = capItem.capability?.id || `capability-${index}`
+                  return (
+                    <Badge key={capabilityId} variant="secondary" data-testid={`capability-${capabilityId}`}>
+                      <BookmarksIcon className="gba:h-4 gba:w-4 gba:mr-1" size={16} />
+                      {capItem.capability?.name}
+                    </Badge>
+                  )
+                })
             ) : (
               <span className="gba:text-muted-foreground gba:text-sm" data-testid="no-capabilities-message">
                 {t('profile-header-no-capabilities')}
