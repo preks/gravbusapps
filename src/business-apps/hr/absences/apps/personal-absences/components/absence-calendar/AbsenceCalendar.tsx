@@ -4,12 +4,13 @@ import { Calendar, Tag, Typography, Tabs } from 'antd'
 import { AbsenceListDisplay } from './components/AbsenceListDisplay'
 import dayjs, { Dayjs } from 'dayjs'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
-import { useGetEmployeeAbsences, EmployeeAbsence } from './hooks/useGetEmployeeAbsences'
+import { useGetEmployeeCalendarDays, CalendarLikeAbsence } from './hooks/useGetEmployeeCalendarDays'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import calendarIcon from '@/assets/icons/calendarIcon.svg'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
 import { getAbsenceStatusLabel, getAbsenceStatusConfig } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { useAbsenceTypeCatalog } from '../../hooks/useAbsenceTypeCatalog'
 dayjs.extend(weekday)
 dayjs.extend(localeData)
 dayjs.extend(isSameOrAfter)
@@ -41,17 +42,24 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({
   const { userInfo, accessToken } = props
   const employeeId = userInfo?.employeeDetails?.employeeId
 
-  const { absences, loading, error } = useGetEmployeeAbsences({
+  const { absences, loading, error } = useGetEmployeeCalendarDays({
     employeeId,
-    accessToken
+    accessToken,
+    month: calendarValue
   })
+
+  // Catalog mapping for labels/colors
+  const { mapType } = useAbsenceTypeCatalog(accessToken)
 
   const now = useMemo(() => dayjs(), [])
 
-  const mapAbsence = (absence: EmployeeAbsence) => {
-    let tagColor: string | undefined = undefined
+  const mapAbsence = (absence: CalendarLikeAbsence) => {
+    // Localize label/color using catalog mapping
+    const code = absence.type?.value
+    const mapped = code ? mapType(code) : undefined
+    let tagColor: string | undefined = mapped?.color
     const objectValue = absence.type?.objectValue
-    if (objectValue && typeof objectValue.color === 'string') {
+    if (!tagColor && objectValue && typeof objectValue.color === 'string') {
       tagColor = `#${objectValue.color.replace(/^#/, '')}`
     }
     const originalStatus = absence.status || ''
@@ -59,7 +67,7 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({
       id: absence.id,
       startDate: absence.startDate,
       endDate: absence.endDate,
-      type: absence.type.value,
+      type: mapped?.label || absence.type.value,
       status: getAbsenceStatusLabel(originalStatus), // Translated status
       originalStatus: originalStatus, // Keep original status for color logic
       tagColor,
