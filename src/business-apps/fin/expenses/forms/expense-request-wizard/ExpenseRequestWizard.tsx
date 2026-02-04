@@ -43,7 +43,9 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
     showExpenseItem,
     expenseItemParams,
     hideExpenseItem,
-    updateTripFormValidation
+    updateTripFormValidation,
+    showSelectItems,
+    setShowSelectItems
   } = useExpenseRequestWizardContext()
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData)
   const [currentScreen, setCurrentScreen] = useState<string>(SCREEN_NAMES_ENUM.LOAD_TAB)
@@ -208,6 +210,11 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
       }
     } catch {}
     updateTripFormValidation(true)
+    // When on items screen and "select items" sub-view is open, close it instead of going to trip screen
+    if (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && showSelectItems) {
+      setShowSelectItems(false)
+      return
+    }
     switch (currentScreen) {
       case SCREEN_NAMES_ENUM.CREATE_ITEM_TAB:
         setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB)

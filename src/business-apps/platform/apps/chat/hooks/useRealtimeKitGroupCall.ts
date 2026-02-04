@@ -369,7 +369,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       callType: CallType,
       participants: CallParticipant[],
       conversationName?: string,
-      calendarMeetingId?: string | null
+      calendarMeetingId?: string | null,
+      conversationType?: 'direct' | 'group' | 'meeting'
     ) => {
       if (!currentUser || !apiClient) {
         rtkDebug.error('[RTK] Cannot initiate call: missing currentUser or apiClient')
@@ -381,7 +382,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         callType,
         participantCount: participants.length,
         conversationName,
-        calendarMeetingId
+        calendarMeetingId,
+        conversationType
       })
 
       // CRITICAL: Reset cancellation flag for new call attempt
@@ -393,7 +395,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         status: 'setup' as const,
         roomId: conversationId,
         callType,
-        conversationName
+        conversationName,
+        conversationType // Store conversation type in state
       }))
 
       // Store participants and calendar meeting ID for when user confirms
@@ -419,6 +422,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       const calendarMeetingId = calendarMeetingIdRef.current
       const callType = callState.callType
       const conversationName = callState.conversationName
+      const conversationType = callState.conversationType // Get conversation type from state
 
       if (!conversationId) {
         rtkDebug.error('[RTK] Cannot start call: missing conversationId')
@@ -434,6 +438,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           callType,
           conversationName,
           calendarMeetingId,
+          conversationType,
           preferences,
           currentStatus: callState.status
         })
@@ -505,7 +510,15 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           undefined, // lastName
           conversationName, // meetingName
           transcriptionEnabled,
-          calendarMeetingId // Pass calendar meeting ID for linking
+          calendarMeetingId, // Pass calendar meeting ID for linking
+          // Pass participants (including host) for 1-on-1 naming ONLY for direct conversations
+          conversationType === 'direct' && participants && participants.length > 0
+            ? [
+                { id: currentUser.id, odName: currentUser.odName }, // Host
+                ...participants.map(p => ({ id: p.id, odName: p.odName })) // Other participants
+              ]
+            : undefined,
+          conversationType // Pass conversation type to determine naming strategy
         )
 
         // CRITICAL: Check if cancelled after backend meeting creation
@@ -519,6 +532,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         const sessionId = sessionResponse.data.sessionId // Database call session ID
         const meetingId = sessionResponse.data.meetingId // Cloudflare meeting ID
         const authToken = sessionResponse.data.hostAuthToken
+        const generatedMeetingName = sessionResponse.data.meetingName // Backend-generated meeting name
 
         rtkDebug.log('[RTK] ✅ Backend meeting created:', {
           conversationId,
@@ -527,7 +541,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           hasAuthToken: !!authToken,
           authTokenLength: authToken?.length,
           callType,
-          conversationName
+          conversationName,
+          generatedMeetingName
         })
 
         // Link Cloudflare meeting to calendar meeting for transcript polling
@@ -756,7 +771,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           sessionId,
           callStartTime,
           calendarMeetingId,
-          transcriptionEnabled
+          transcriptionEnabled,
+          conversationName: generatedMeetingName || prev.conversationName // Use backend-generated name
         }))
 
         // Save to localStorage for recovery
@@ -859,7 +875,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
             meetingId,
             sessionId,
             callType,
-            conversationName,
+            conversationName: generatedMeetingName || conversationName, // Use backend-generated name
+            conversationType, // Include conversation type for proper invite display
             from: {
               id: currentUser.id,
               odId: currentUser.id,
@@ -962,7 +979,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       callType: CallType,
       meetingId?: string,
       conversationName?: string,
-      initialPreferences?: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled?: boolean }
+      initialPreferences?: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled?: boolean },
+      conversationType?: 'direct' | 'group' | 'meeting'
     ) => {
       if (!currentUser || !apiClient) {
         rtkDebug.error('[RTK] Cannot join call: missing currentUser or apiClient')
@@ -975,6 +993,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           callType,
           meetingId: meetingId || 'will-generate',
           conversationName,
+          conversationType,
           currentStatus: callState.status,
           preferences: initialPreferences
         })
@@ -1153,6 +1172,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           roomId,
           meetingId: finalMeetingId,
           callType,
+          conversationName,
+          conversationType, // Include conversation type for proper header display
           callStartTime: startTimeRef.current, // Use the ref, not Date.now()!
           conversationName,
           calendarMeetingId: calendarMeetingIdForJoin
@@ -1264,13 +1285,15 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       // - meetingId from invite.roomId (backend meeting ID)
       // - conversationName from invite.conversationName
       // - initial preferences from pre-call dialog (mic/camera/background)
+      // - conversationType from invite for proper header display
       // Don't use the wrapper because invite has all the info we need!
       await joinCall(
         invite.conversationId || invite.roomId, // conversationId
         invite.callType,
         invite.roomId, // meetingId (stored in roomId field of invite)
         invite.conversationName, // conversationName
-        initialPreferences // initial mic/camera/background settings
+        initialPreferences, // initial mic/camera/background settings
+        invite.conversationType // conversation type for proper header display
       )
       setIncomingInvite(null)
     },
@@ -1653,7 +1676,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           callType: data.callType,
           from: data.from,
           conversationId: data.conversationId,
-          conversationName: data.conversationName || data.conversationId
+          conversationName: data.conversationName || data.conversationId,
+          conversationType: data.conversationType as 'direct' | 'group' | 'meeting' | undefined
         }
 
         rtkDebug.log('[RTK] ✅ Setting incoming invite:', newInvite)

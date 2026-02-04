@@ -8,22 +8,24 @@ const DELETE_PERFORMANCE_CYCLE_PATH = '/processes/employee/deletePerformanceCycl
 
 /** One participant entry in the save payload. */
 export interface PerformanceCycleParticipantItem {
+  id?: string
+  version?: number
   participantType: string
   enabled: boolean
 }
 
 /** One entry in companyValues: links a company value to the performance cycle. */
 export interface PerformanceCycleCompanyValueItem {
+  /** ID for updates (optimistic locking) */
   id?: string
+  /** Version for updates (optimistic locking) */
   version?: number
-  businessKey?: string
-  activeTo?: string
-  additionalProperties?: Record<string, string>
-  mandatory?: boolean
-  /** Cycle id (when updating); backend may set on insert. */
-  performanceCycle?: string
-  /** Company value definition id. */
+  /** Company value definition id */
   companyValue: string
+  /** Cycle id (when updating); backend may set on insert */
+  performanceCycle?: string
+  /** Whether this value is mandatory for the cycle */
+  mandatory?: boolean
 }
 
 export interface SavePerformanceCyclePayload {

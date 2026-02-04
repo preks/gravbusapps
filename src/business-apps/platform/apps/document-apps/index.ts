@@ -44,9 +44,15 @@ export type {
   ExportFormat,
   ExportOptions
 } from './types'
+export { TEMPLATE_CATEGORY_API_VALUES } from './types'
 
 // Utilities
 export { exportToWord, exportToPDF, exportToHTML, exportToText } from './utils/exportUtils'
+export { resolvePlaceholders, extractEntityKeysFromContent } from './utils/templatePlaceholders'
+
+// Template entity registry (middle link for placeholder mapping – no flow-engine)
+export { TEMPLATE_ENTITY_REGISTRY, formatTemplatePlaceholder, getTemplateEntities, getTemplateEntity } from './entities'
+export type { TemplateEntityContext, TemplateEntityDomain, TemplateEntityDefinition } from './entities'
 
 // Default export for module registration
 export { DocumentAppsHub as default } from './DocumentAppsHub'

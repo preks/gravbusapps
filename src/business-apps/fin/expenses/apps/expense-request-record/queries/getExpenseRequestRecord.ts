@@ -24,10 +24,14 @@ export const getExpenseRequestRecordQuery = `
       employee {
         id
         fullName
+        firstName
+        lastName
         picture
         employeePosition {
           supervisor {
             fullName
+            firstName
+            lastName
           }
         }
       }

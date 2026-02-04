@@ -628,13 +628,7 @@ export const DocumentPopup: React.FC<DocumentPopupProps> = ({
     addFileInfoToPayload(payload, fileInfoList[0], 0, formData)
     addEntityAssociationsToPayload(payload)
 
-    // CRM expects singular form for single document, IRM expects plural
-    if (appName === 'crm') {
-      return {
-        [payloadKey]: payload
-      }
-    }
-
+    // Both CRM and IRM use plural array format for consistency
     return {
       [`${payloadKey}s`]: [payload]
     }

@@ -276,20 +276,20 @@ const FeedbackFormComponent: React.FC = () => {
         <div className="gba:px-6 gba:py-4 gba:border-t gba:border-border gba:flex gba:gap-2 gba:justify-end">
           {!isRequestedFeedbackFlow && (
             <Button
-              variant="secondary"
+              type="button"
+              variant="outline"
               onClick={onCancel}
               data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
-              className="gba:px-6 gba:py-2 gba:rounded-lg"
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.cancel', 'Cancel')}
             </Button>
           )}
           <Button
+            type="button"
             variant="default"
             disabled={!isFormValid || isLoading || (hasPreSelectedEmployee && preSelectedEmployeeLoading)}
-            size="default"
             onClick={handleSubmit}
-            className="gba:bg-primary hover:gba:bg-primary gba:text-primary-foreground gba:px-6 gba:py-2 gba:rounded-lg"
+            className="gba:bg-foreground hover:gba:bg-muted gba:text-primary-foreground"
             data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
           >
             {isLoading && <Spinner size="sm" className="gba:mr-2" />}
