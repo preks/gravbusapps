@@ -14,14 +14,14 @@ import { Button, Card, CardContent, cn } from '@newwork/nw-design-system'
 import { Sparkles, ArrowLeft, RotateCcw } from 'lucide-react'
 import { useOrchestratorClient } from '../hooks/useOrchestratorClient'
 import { useBuildProgress } from '../hooks/useBuildProgress'
-import { BuildPlanReview } from './BuildPlanReview'
-import { ProgressTilesGrid } from './ProgressTilesGrid'
-import { ThinkingSteps, type ThinkingStep } from './ThinkingSteps'
-import { BuildConsoleLog, type BuildLogEntry } from './BuildConsoleLog'
-import { PhaseTimeline } from './PhaseTimeline'
-import { SuccessState } from './SuccessState'
-import { ErrorState } from './ErrorState'
-import type { OrchestratorViewState, BuildPhase } from '../types/orchestrator'
+import { BuildPlanReview } from '../components/widgets/BuildPlanReview'
+import { ProgressTilesGrid } from '../components/progress/ProgressTilesGrid'
+import { ThinkingSteps, type ThinkingStep } from '../components/widgets/ThinkingSteps'
+import { BuildConsoleLog, type BuildLogEntry } from '../components/widgets/BuildConsoleLog'
+import { PhaseTimeline } from '../components/widgets/PhaseTimeline'
+import { SuccessState } from '../components/state-screens/SuccessState'
+import { ErrorState } from '../components/state-screens/ErrorState'
+import type { OrchestratorViewState, BuildPhase, ComponentSpec } from '../types'
 
 export interface OrchestratorViewEnhancedProps {
   accessToken: string
@@ -376,6 +376,7 @@ export const OrchestratorViewEnhanced: React.FC<OrchestratorViewEnhancedProps> =
           <PhaseTimeline
             currentPhase={currentPhase}
             completedPhases={completedPhases}
+            overallProgress={overallProgress}
             className="gba:sticky gba:top-4 gba:z-10 gba:bg-background gba:py-4"
             data-testid={`${testId}-phase-timeline`}
           />
@@ -443,7 +444,7 @@ export const OrchestratorViewEnhanced: React.FC<OrchestratorViewEnhancedProps> =
       {viewState === 'error' && (
         <ErrorState
           error={buildError || analyzeError || 'An error occurred'}
-          partialComponents={currentPlan?.components.filter(c => c.status === 'completed')}
+          partialComponents={currentPlan?.components.filter((c: ComponentSpec) => c.status === 'completed')}
           onRetry={handleReset}
           onModifyPlan={() => setViewState('review')}
           data-testid={`${testId}-error`}

@@ -14,9 +14,9 @@ import { Button, Card, CardContent, cn } from '@newwork/nw-design-system'
 import { Sparkles, ArrowLeft, CheckCircle2, XCircle, RotateCcw } from 'lucide-react'
 import { useOrchestratorClient } from '../hooks/useOrchestratorClient'
 import { useBuildProgress } from '../hooks/useBuildProgress'
-import { BuildPlanReview } from './BuildPlanReview'
-import { ProgressTilesGrid } from './ProgressTilesGrid'
-import type { OrchestratorViewState } from '../types/orchestrator'
+import { BuildPlanReview } from '../components/widgets/BuildPlanReview'
+import { ProgressTilesGrid } from '../components/progress/ProgressTilesGrid'
+import type { OrchestratorViewState } from '../types'
 
 export interface OrchestratorViewProps {
   accessToken: string
