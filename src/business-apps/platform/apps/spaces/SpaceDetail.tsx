@@ -43,6 +43,7 @@ import type {
   SpaceMemberRole,
   UpdateSpaceInput
 } from './types/space.types'
+import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
 export interface SpaceDetailProps extends BusinessAppContextProps {
   spaceId: string
@@ -84,7 +85,10 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     slides,
     allContent,
     isLoading: contentLoading,
-    moveContent
+    moveContent,
+    removeContent,
+    addItemsToLocalState,
+    refresh: refreshContent
   } = useSpaceContent(spaceId, accessToken, space, refreshSpace)
   const { activities, isLoading: activityLoading } = useSpaceActivity(spaceId, accessToken, 20)
 
@@ -256,6 +260,17 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
       let url: string
       const spaceParam = `spaceId=${encodeURIComponent(spaceId)}`
 
+      // Store the current space URL in sessionStorage for the back button
+      const currentSpaceUrl = isProduction
+        ? `/platform/spaces?spaceId=${encodeURIComponent(spaceId)}`
+        : `/platform/apps/spaces?spaceId=${encodeURIComponent(spaceId)}`
+
+      try {
+        sessionStorage.setItem('space_return_url', currentSpaceUrl)
+      } catch (e) {
+        console.warn('Failed to store return URL in sessionStorage:', e)
+      }
+
       switch (item.type) {
         case 'document':
           url = isProduction
@@ -279,9 +294,9 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
           break
       }
 
-      // Always include spaceId so editors can broadcast activity for the correct Space
-      const urlWithSpace = url.includes('?') ? `${url}&${spaceParam}` : `${url}?${spaceParam}`
-      navigateTo(buildPlatformUrl(urlWithSpace))
+      // Include spaceId parameter
+      const urlWithParams = url.includes('?') ? `${url}&${spaceParam}` : `${url}?${spaceParam}`
+      navigateTo(buildPlatformUrl(urlWithParams))
     },
     [spaceId]
   )
@@ -293,14 +308,65 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     [moveContent]
   )
 
-  const handleAddContent = useCallback(
-    async (items: { type: 'document' | 'note' | 'spreadsheet' | 'slide'; id: string }[]) => {
-      // Add each item to the space
-      for (const item of items) {
-        await moveContent({ contentType: item.type, entityId: item.id })
+  const handleRemoveContent = useCallback(
+    async (item: SpaceContentItem) => {
+      const entityType = item.type === 'spreadsheet' ? 'spreadsheet_app' : item.type
+      const confirmed = confirm(`Remove "${item.title}" from this space?`)
+      if (!confirmed) return
+
+      const success = await removeContent(entityType, item.id)
+      if (success) {
+        // Content is already removed from local state by the hook
       }
     },
-    [moveContent]
+    [removeContent]
+  )
+
+  const handleAddContent = useCallback(
+    async (
+      items: { type: 'document' | 'note' | 'spreadsheet' | 'slide'; id: string; title?: string; name?: string }[]
+    ) => {
+      if (items.length === 0) return
+
+      try {
+        const API_URL = getDocumentServiceApiUrl()
+
+        // Add items to local state immediately for instant UI update
+        addItemsToLocalState(items)
+
+        const response = await fetch(`${API_URL}/spaces/${spaceId}/content/bulk`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            items: items.map(item => ({
+              entityType: item.type === 'spreadsheet' ? 'spreadsheet_app' : item.type,
+              entityId: item.id
+            }))
+          })
+        })
+
+        if (response.ok) {
+          // Fetch full data in background to get accurate info
+          await refreshContent()
+          return
+        }
+
+        // Fallback: add items individually
+        for (const item of items) {
+          await moveContent({ contentType: item.type, entityId: item.id })
+        }
+      } catch (error) {
+        console.error('Failed to add content:', error)
+        // Fallback to individual calls
+        for (const item of items) {
+          await moveContent({ contentType: item.type, entityId: item.id })
+        }
+      }
+    },
+    [spaceId, accessToken, moveContent, addItemsToLocalState, refreshContent]
   )
 
   // Loading state
@@ -481,6 +547,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
               onMoveItemToFolder={async (item, folderId) => {
                 await moveContent({ contentType: item.type, entityId: item.id, folderId })
               }}
+              onRemoveContent={handleRemoveContent}
               data-testid={`${testId}-drive`}
             />
           </TabsContent>

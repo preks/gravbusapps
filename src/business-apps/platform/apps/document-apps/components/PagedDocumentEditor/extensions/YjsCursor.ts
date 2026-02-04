@@ -1,7 +1,6 @@
 import { Extension } from '@tiptap/core'
 import type { Awareness } from 'y-protocols/awareness'
 import { defaultAwarenessStateFilter, yCursorPlugin } from '@tiptap/y-tiptap'
-import { fixUtf8Encoding } from '@/common/utils/textUtils'
 
 // Modern color palette for collaboration cursors
 const CURSOR_COLORS = [
@@ -50,7 +49,7 @@ const modernCursorBuilder = (user: {
 
   const colors = getColorForUser(user.userId || user.name || '')
   const cursorColor = user.color || colors.bg
-  const userName = fixUtf8Encoding(user.name) || 'Anonymous'
+  const userName = user.name || 'Anonymous'
   const initials = getInitials(userName)
   const avatarUrl = user.avatar
 

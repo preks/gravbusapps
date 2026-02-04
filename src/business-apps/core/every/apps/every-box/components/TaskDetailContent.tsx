@@ -421,12 +421,12 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   }
 
   return (
-    <div className={cn('gba:h-full gba:flex gba:flex-col', className)} data-testid="task-detail-content">
+    <div className={cn('gba:flex-1 gba:flex gba:flex-col gba:min-h-0', className)} data-testid="task-detail-content">
       <div
         className={cn(
           'gba:flex-1 gba:min-h-0',
           screenMetadata?.builderType === 'NATIVE_SCREEN'
-            ? 'gba:overflow-y-auto'
+            ? 'gba:overflow-hidden gba:flex gba:flex-col'
             : task.source === 'cflow' && !screenMetadata && !loadingScreen
               ? 'gba:overflow-hidden gba:flex gba:flex-col'
               : 'gba:overflow-y-auto'
