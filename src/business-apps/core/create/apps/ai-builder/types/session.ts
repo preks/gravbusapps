@@ -2,7 +2,7 @@
  * Session Management Types
  *
  * Defines the structure for AI Builder sessions including user info,
- * screen path, and metadata for tracking project progress.
+ * target path, and metadata for tracking project progress.
  */
 
 export interface SessionUser {
@@ -18,7 +18,8 @@ export interface SessionUser {
 
 export interface SessionMetadata {
   sessionId: string
-  screenPath: string | null
+  repoId?: string | null
+  targetPath: string | null
   resourceUrl: string | null
   createdAt: string
   lastModified: string

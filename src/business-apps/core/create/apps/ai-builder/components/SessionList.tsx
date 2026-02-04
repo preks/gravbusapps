@@ -37,7 +37,7 @@ export const SessionList: React.FC<SessionListProps> = ({
     const search = searchTerm.toLowerCase()
     const filtered = sessions.filter(
       session =>
-        session.screenPath?.toLowerCase().includes(search) ||
+        session.targetPath?.toLowerCase().includes(search) ||
         session.resourceUrl?.toLowerCase().includes(search) ||
         session.description?.toLowerCase().includes(search) ||
         session.createdBy.displayName.toLowerCase().includes(search) ||
@@ -252,7 +252,7 @@ export const SessionList: React.FC<SessionListProps> = ({
                       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
                         <FileCode className="gba:w-4 gba:h-4 gba:text-primary gba:flex-shrink-0" />
                         <span className="gba:text-sm gba:font-mono gba:truncate gba:text-foreground">
-                          {session.screenPath ||
+                          {session.targetPath ||
                             getTranslationFromI18nKeyAndLabel(
                               'lowcoder:ai_builder.sessions.untitled_screen',
                               'Untitled Screen'

@@ -8,9 +8,9 @@ import { SessionMetadata, SessionUser } from '../types/session'
 import { ENV } from '../config/environment'
 
 export interface SaveSessionRequest {
-  sessionId: string
+  sessionId?: string // Optional for new sessions, required for updates
   repoId?: string
-  screenPath: string | null
+  targetPath: string | null
   resourceUrl: string | null
   fileCount: number
   description?: string

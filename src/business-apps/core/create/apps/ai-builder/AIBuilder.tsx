@@ -258,19 +258,47 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content: rawContent }
 
 const API_URL = ENV.AI_SERVICE_API_URL
 
-// Fetch app config from service (returns repositoryIds and config status)
+// Fetch app config from admin endpoint (returns repositoryIds and config status)
 interface AppConfig {
-  repositoryIds: string[]
+  repositoryId: string
   configured: boolean
   message?: string
 }
 
 async function fetchAppConfig(): Promise<AppConfig> {
-  const response = await fetch(`${API_URL}/api/config`)
+  const response = await fetch(`${API_URL}/api/admin/auto-init-configs`)
   if (!response.ok) {
     throw new Error('Failed to fetch app configuration')
   }
-  return response.json()
+
+  const configs = await response.json()
+  const enabledConfigs = configs.filter((c: { enabled: boolean }) => c.enabled)
+
+  if (enabledConfigs.length === 0) {
+    return {
+      repositoryId: '',
+      configured: false,
+      message: 'No auto-init configurations found. Please configure repositories in Settings.'
+    }
+  }
+
+  // Extract repository IDs from configs that have been initialized
+  const repositoryIds = enabledConfigs
+    .filter((c: { repoId?: string | null }) => c.repoId)
+    .map((c: { repoId: string }) => c.repoId)
+
+  if (repositoryIds.length === 0) {
+    return {
+      repositoryId: '',
+      configured: true,
+      message: 'Repositories configured but not yet initialized. Please wait for initialization to complete.'
+    }
+  }
+
+  return {
+    repositoryId: repositoryIds[0],
+    configured: true
+  }
 }
 
 // Exact interfaces from the AI service
@@ -369,6 +397,10 @@ function getSafeHref(url: string | null): string {
     return '#'
   }
 
+  if (!trimmedUrl.startsWith('/platform')) {
+    return '/platform' + trimmedUrl
+  }
+
   return trimmedUrl
 }
 
@@ -417,9 +449,6 @@ async function getChanges(repoId: string, sessionId: string) {
 
 interface PublishRequest {
   repositoryId: string
-  files: Array<{ path: string; content: string; changeType: string }>
-  screenPath: string
-  resourceUrl: string
   sessionId: string
   accessToken: string
 }
@@ -455,7 +484,8 @@ interface EmployeeRecord {
 }
 
 async function publishScreen(request: PublishRequest) {
-  const response = await fetch(`${API_URL}/api/newwork/publish`, {
+  // targetPath and resourceUrl are retrieved from the session on the server
+  const response = await fetch(`${API_URL}/api/publish`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -463,13 +493,7 @@ async function publishScreen(request: PublishRequest) {
     },
     body: JSON.stringify({
       repoId: request.repositoryId,
-      sessionId: request.sessionId,
-      screenPath: request.screenPath,
-      resourceUrl: request.resourceUrl,
-      // Azure credentials - resolved by the publish service environment
-      azureStorageAccount: '', // Service will use its own env vars
-      azureSasToken: '', // Service will use its own env vars
-      azureContainerName: 'screens' // Standard container name
+      sessionId: request.sessionId
     })
   })
 
@@ -503,7 +527,7 @@ async function publishScreen(request: PublishRequest) {
   }
 
   const result = await response.json()
-  return result // { success: true, message: string, resourceUrl: string, ... }
+  return result // { success: true, message: string, targetPath: string, resourceUrl?: string, ... }
 }
 
 export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
@@ -532,9 +556,10 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
   const [sessionId, setSessionId] = useState<string>('')
   const [uniqueFileSummary, setUniqueFileSummary] = useState<UniqueFileSummary | null>(null)
   const [showPublishDialog, setShowPublishDialog] = useState(false)
-  const [screenPath, setScreenPath] = useState('')
-  const [detectedScreenPath, setDetectedScreenPath] = useState<string | null>(null)
+  const [targetPath, setTargetPath] = useState('')
+  const [detectedTargetPath, setDetectedTargetPath] = useState<string | null>(null)
   const [resourceUrl, setResourceUrl] = useState('')
+  const [publishError, setPublishError] = useState<string | null>(null)
 
   // File Explorer state (collapsed by default)
   const [showFileExplorer, setShowFileExplorer] = useState(() => {
@@ -583,8 +608,8 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
         setConfigError(null)
         setConfigMessage(null)
         const config = await fetchAppConfig()
-        if (config.repositoryIds.length > 0) {
-          setRepositoryId(config.repositoryIds[0])
+        if (config.repositoryId) {
+          setRepositoryId(config.repositoryId)
         }
         if (config.message) {
           setConfigMessage(config.message)
@@ -667,8 +692,9 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
   const saveSessionToAPI = async (session: SessionMetadata) => {
     try {
       await saveSession({
-        sessionId: session.sessionId,
-        screenPath: session.screenPath,
+        sessionId: session.sessionId, // Include sessionId to update existing session
+        repoId: repositoryId || undefined,
+        targetPath: session.targetPath,
         resourceUrl: session.resourceUrl,
         fileCount: session.fileCount,
         description: session.description,
@@ -685,16 +711,7 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
     setSessions(updatedSessions)
   }
 
-  // Legacy function for backwards compatibility - only saves the FIRST (newest) session
-  const saveSessions = async (updatedSessions: SessionMetadata[]) => {
-    updateSessionsState(updatedSessions)
-    // Only save the first session (the one that was just created/modified)
-    if (updatedSessions.length > 0) {
-      await saveSessionToAPI(updatedSessions[0])
-    }
-  }
-
-  const createNewSession = () => {
+  const createNewSession = async () => {
     if (!currentUser) {
       alert(
         getTranslationFromI18nKeyAndLabel(
@@ -705,33 +722,53 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
       return
     }
 
-    const randomBytes = new Uint8Array(8)
-    crypto.getRandomValues(randomBytes)
-    const randomPart = Array.from(randomBytes, b => b.toString(16).padStart(2, '0')).join('')
-    const newSessionId = `session-${Date.now()}-${randomPart}`
-    const newSession: SessionMetadata = {
-      sessionId: newSessionId,
-      screenPath: null,
-      resourceUrl: null,
-      createdAt: new Date().toISOString(),
-      lastModified: new Date().toISOString(),
-      fileCount: 0,
-      createdBy: currentUser,
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:ai_builder.new_session_description',
-        'New AI Builder session'
+    try {
+      // Create session on server - it will generate the sessionId
+      const response = await saveSession({
+        repoId: repositoryId || undefined,
+        targetPath: null,
+        resourceUrl: null,
+        fileCount: 0,
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:ai_builder.new_session_description',
+          'New AI Builder session'
+        ),
+        createdBy: currentUser
+      })
+
+      const newSession: SessionMetadata = {
+        sessionId: response.sessionId,
+        repoId: repositoryId || null,
+        targetPath: null,
+        resourceUrl: null,
+        createdAt: new Date().toISOString(),
+        lastModified: new Date().toISOString(),
+        fileCount: 0,
+        createdBy: currentUser,
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:ai_builder.new_session_description',
+          'New AI Builder session'
+        )
+      }
+
+      const updatedSessions = [newSession, ...sessions]
+      updateSessionsState(updatedSessions)
+      setSessionId(response.sessionId)
+      setShowSessionList(false)
+      setMessages([])
+      setTargetPath('')
+      setResourceUrl('')
+      setDetectedTargetPath(null)
+      setUniqueFileSummary(null)
+    } catch (error) {
+      console.error('Failed to create session:', error)
+      alert(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:ai_builder.create_session_failed',
+          'Failed to create session. Please try again.'
+        )
       )
     }
-
-    const updatedSessions = [newSession, ...sessions]
-    saveSessions(updatedSessions)
-    setSessionId(newSessionId)
-    setShowSessionList(false)
-    setMessages([])
-    setScreenPath('')
-    setResourceUrl('')
-    setDetectedScreenPath(null)
-    setUniqueFileSummary(null)
   }
 
   const selectSession = (sid: string) => {
@@ -784,24 +821,24 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
   useEffect(() => {
     if (!sessionId || !currentUser || showSessionList) return
 
-    const updateSession = () => {
-      const updated = sessions.map(s => {
-        if (s.sessionId === sessionId) {
-          return {
-            ...s,
-            screenPath: detectedScreenPath || screenPath || s.screenPath,
-            resourceUrl: resourceUrl || s.resourceUrl,
-            lastModified: new Date().toISOString(),
-            fileCount: uniqueFileSummary?.totalUniqueFiles || s.fileCount
-          }
-        }
-        return s
-      })
-      saveSessions(updated)
+    const currentSession = sessions.find(s => s.sessionId === sessionId)
+    if (!currentSession) return
+
+    const updatedSession: SessionMetadata = {
+      ...currentSession,
+      targetPath: detectedTargetPath || targetPath || currentSession.targetPath,
+      resourceUrl: resourceUrl || currentSession.resourceUrl,
+      lastModified: new Date().toISOString(),
+      fileCount: uniqueFileSummary?.totalUniqueFiles || currentSession.fileCount
     }
 
-    updateSession()
-  }, [sessionId, detectedScreenPath, screenPath, resourceUrl, uniqueFileSummary, showSessionList])
+    // Update local state
+    const updated = sessions.map(s => (s.sessionId === sessionId ? updatedSession : s))
+    updateSessionsState(updated)
+
+    // Save the current session to API (not just the first one)
+    saveSessionToAPI(updatedSession)
+  }, [sessionId, detectedTargetPath, targetPath, resourceUrl, uniqueFileSummary, showSessionList])
 
   // Auto-scroll
   useEffect(() => {
@@ -844,8 +881,17 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
       return
     }
 
+    // Use session's repoId if available, otherwise fall back to current repositoryId
+    const currentSession = sessions.find(s => s.sessionId === sessionId)
+    const repoIdToUse = currentSession?.repoId || repositoryId
+
+    if (!repoIdToUse) {
+      console.warn('No repository ID available for fetching changes')
+      return
+    }
+
     try {
-      const data: ChangesResponse = await getChanges(repositoryId, sessionId)
+      const data: ChangesResponse = await getChanges(repoIdToUse, sessionId)
 
       // Calculate unique files summary (not counting duplicates)
       if (data.summary && data.summary.files) {
@@ -901,13 +947,13 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
           const match = indexFiles[0].path.match(/src\/business-apps\/(.+)\/index\.ts$/)
           if (match) {
             const detectedPath = match[1]
-            setDetectedScreenPath(detectedPath)
-            setScreenPath(detectedPath) // Auto-populate
+            setDetectedTargetPath(detectedPath)
+            setTargetPath(detectedPath) // Auto-populate
 
-            // Auto-generate resource URL from the last segment (screen name)
+            // Auto-generate resource URL from the last segment (target path name)
             const segments = detectedPath.split('/')
             const screenName = segments[segments.length - 1]
-            const urlPath = '/' + screenName // e.g., "/hello-world"
+            const urlPath = '/platform/' + screenName // e.g., "/platform/hello-world"
             setResourceUrl(urlPath)
           }
         }
@@ -919,41 +965,42 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
 
   // Handle publish
   const handlePublish = async () => {
-    if (!screenPath || !resourceUrl) {
-      alert(
+    if (!targetPath || !resourceUrl) {
+      setPublishError(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:ai_builder.missing_publish_fields',
-          'Please enter both screen path and resource URL'
+          'Please enter both target path and resource URL'
         )
       )
       return
     }
 
     setIsPublishing(true)
+    setPublishError(null)
     try {
-      // Get all changes from the AI service (excluding deleted files)
-      const data: ChangesResponse = await getChanges(repositoryId, sessionId)
-      const files = (data.changes || [])
-        .filter((change: FileChange) => change.changeType !== 'delete')
-        .map((change: FileChange) => ({
-          path: change.filePath || change.path,
-          content: change.newContent || '',
-          changeType: change.changeType || change.type
-        }))
+      // Ensure session is saved with targetPath and resourceUrl before publishing
+      // The publish endpoint retrieves these from the session
+      const currentSession = sessions.find(s => s.sessionId === sessionId)
+      if (currentSession) {
+        await saveSessionToAPI({
+          ...currentSession,
+          targetPath,
+          resourceUrl,
+          lastModified: new Date().toISOString()
+        })
+      }
 
-      // Publish to platform
+      // Publish to platform (targetPath and resourceUrl are retrieved from session)
       await publishScreen({
         repositoryId,
-        files,
-        screenPath,
-        resourceUrl,
         sessionId,
         accessToken: context.accessToken
       })
 
-      const fullUrl = `/${screenPath}`
+      const fullUrl = `/${targetPath}`
       setPublishSuccess(fullUrl)
       setShowPublishDialog(false)
+      setPublishError(null)
 
       // Add success message to chat
       setMessages(prev => [
@@ -975,6 +1022,9 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
       // Extract the full error message
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
+      // Show error in dialog
+      setPublishError(errorMessage)
+
       // Format error message for AI (insert into input, don't auto-send)
       const errorPrompt = `The screen publishing failed with the following error:
 
@@ -984,28 +1034,8 @@ ${errorMessage}
 
 Please analyze the error, fix the issues, and let me know when it's ready to republish.`
 
-      // Close the publish dialog so user can see the chat
-      setShowPublishDialog(false)
-
       // Insert error into input field (don't auto-send)
       setInput(errorPrompt)
-
-      // Focus the input field so user can review and send
-      setTimeout(() => {
-        const inputElement = document.querySelector('textarea[data-testid="ai-builder-input"]') as HTMLTextAreaElement
-        if (inputElement) {
-          inputElement.focus()
-          inputElement.scrollTop = 0 // Scroll to top so user sees the error
-        }
-      }, 100)
-
-      // Show notification
-      alert(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:ai_builder.publish_failed_notification',
-          '❌ Publishing failed! The error has been inserted into the chat input. Please review and send it to the AI to fix the issues.'
-        )
-      )
     } finally {
       setIsPublishing(false)
     }
@@ -1559,7 +1589,10 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     <Button
                       size="sm"
                       variant="default"
-                      onClick={() => setShowPublishDialog(true)}
+                      onClick={() => {
+                        setPublishError(null)
+                        setShowPublishDialog(true)
+                      }}
                       className="gba:gap-2 gba:shadow-sm"
                     >
                       <Upload className="gba:w-4 gba:h-4" />
@@ -1952,8 +1985,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     </div>
                   </div>
 
-                  {/* Auto-Detected Screen Path */}
-                  {detectedScreenPath ? (
+                  {/* Auto-Detected Target Path */}
+                  {detectedTargetPath ? (
                     <Alert className="gba:bg-success-secondary gba:border-success">
                       <CheckCircle2 className="gba:w-4 gba:h-4 gba:text-success" />
                       <AlertDescription>
@@ -1968,19 +2001,19 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                             <p className="gba:text-xs gba:mt-1 gba:text-muted-foreground">
                               {getTranslationFromI18nKeyAndLabel(
                                 'lowcoder:ai_builder.auto_configured_message',
-                                'Everything is configured automatically. Just click "Publish Screen" below!'
+                                'Everything is configured automatically. Just click "Publish" below!'
                               )}
                             </p>
                           </div>
                           <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
                             <span className="gba:text-muted-foreground">
                               {getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:ai_builder.screen_path_label',
-                                'Screen path:'
+                                'lowcoder:ai_builder.target_path_label',
+                                'Target path:'
                               )}
                             </span>
                             <code className="gba:bg-background gba:px-2 gba:py-1 gba:rounded">
-                              {detectedScreenPath}
+                              {detectedTargetPath}
                             </code>
                           </div>
                           <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
@@ -2016,23 +2049,23 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                   )}
 
                   {/* Manual inputs - only show if auto-detection failed */}
-                  {!detectedScreenPath && (
+                  {!detectedTargetPath && (
                     <>
-                      {/* Screen Path */}
+                      {/* Target Path */}
                       <div className="gba:space-y-2">
-                        <Label htmlFor="screen-path">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.screen_path_field', 'Screen Path *')}
+                        <Label htmlFor="target-path">
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.target_path_field', 'Target Path *')}
                         </Label>
                         <Input
-                          id="screen-path"
-                          value={screenPath}
-                          onChange={e => setScreenPath(e.target.value)}
+                          id="target-path"
+                          value={targetPath}
+                          onChange={e => setTargetPath(e.target.value)}
                           placeholder="platform/examples/apps/my-screen"
                         />
                         <p className="gba:text-xs gba:text-muted-foreground">
                           {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:ai_builder.screen_path_format',
-                            'Format: module/sub-module/apps/screen-name (e.g., crm/customers/apps/lead-list)'
+                            'lowcoder:ai_builder.target_path_format',
+                            'The path relative to the configured publish base path'
                           )}
                         </p>
                       </div>
@@ -2048,8 +2081,14 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                         <Input
                           id="resource-url"
                           value={resourceUrl}
-                          onChange={e => setResourceUrl(e.target.value)}
-                          placeholder="/my-screen"
+                          onChange={e =>
+                            setResourceUrl(
+                              !e.target.value && e.target.value.startsWith('/platform')
+                                ? `/platform${e.target.value}`
+                                : e.target.value
+                            )
+                          }
+                          placeholder="/platform/my-screen"
                         />
                         <p className="gba:text-xs gba:text-muted-foreground">
                           {getTranslationFromI18nKeyAndLabel(
@@ -2072,6 +2111,16 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     </AlertDescription>
                   </Alert>
 
+                  {/* Error */}
+                  {publishError && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="gba:w-4 gba:h-4" />
+                      <AlertDescription className="gba:text-xs gba:max-h-40 gba:overflow-y-auto gba:whitespace-pre-wrap">
+                        {publishError}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                   {/* Actions */}
                   <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4 gba:border-t">
                     <Button variant="outline" onClick={() => setShowPublishDialog(false)} disabled={isPublishing}>
@@ -2079,7 +2128,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     </Button>
                     <Button
                       onClick={handlePublish}
-                      disabled={isPublishing || !screenPath || !resourceUrl}
+                      disabled={isPublishing || !targetPath || !resourceUrl}
                       className="gba:gap-2"
                     >
                       {isPublishing ? (

@@ -1,49 +1,48 @@
 /**
  * Publish Client
  *
- * Handles publishing generated screens to the NEWWORK platform
- * by interfacing with the publish-dev-screen.js script.
+ * Handles publishing generated content to the platform.
+ * The service fetches file changes from the session, builds the content,
+ * optionally uploads to Azure, and optionally registers with platform services.
+ *
+ * Note: targetPath and resourceUrl are retrieved from the session on the server.
+ * Make sure to save the session with the correct targetPath and resourceUrl before publishing.
  */
 
 import { ENV } from '../config/environment'
 
 const AI_SERVICE_API_URL = ENV.AI_SERVICE_API_URL
 
-export interface GeneratedFile {
-  path: string
-  content: string
-  changeType?: 'create' | 'update' | 'delete'
-}
-
 export interface PublishRequest {
-  files: GeneratedFile[]
-  screenPath: string
-  resourceUrl: string
+  repoId: string
   sessionId: string
   accessToken: string
 }
 
 export interface PublishResponse {
   success: boolean
-  screenPath: string
-  resourceUrl: string
-  azureUrl: string
+  targetPath: string
+  resourceUrl?: string
+  azureUrl?: string // Optional - only present if Azure upload is enabled
   message: string
   error?: string
 }
 
 /**
- * Publish generated screen to NEWWORK platform
+ * Publish generated content to the platform
  *
- * This function:
- * 1. Writes the generated files to the file system
- * 2. Calls the publish-dev-screen.js script
- * 3. Uploads the build to Azure
- * 4. Registers the screen in the platform
+ * This function calls the publish API which:
+ * 1. Gets targetPath and resourceUrl from the session
+ * 2. Fetches file changes from the session
+ * 3. Applies changes to the repository
+ * 4. Builds the content with npm run build
+ * 5. Optionally uploads to Azure blob storage (if enabled for the repo)
+ * 6. Optionally registers the content in the platform (if resourceUrl in session)
  */
 export async function publishScreen(request: PublishRequest): Promise<PublishResponse> {
   try {
     // Make HTTP request to the publish API
+    // targetPath and resourceUrl are retrieved from the session on the server
     const response = await fetch(`${AI_SERVICE_API_URL}/api/publish`, {
       method: 'POST',
       headers: {
@@ -51,16 +50,14 @@ export async function publishScreen(request: PublishRequest): Promise<PublishRes
         Authorization: `Bearer ${request.accessToken}`
       },
       body: JSON.stringify({
-        files: request.files,
-        screenPath: request.screenPath,
-        resourceUrl: request.resourceUrl,
+        repoId: request.repoId,
         sessionId: request.sessionId
       })
     })
 
     if (!response.ok) {
       // Try to get detailed error from response
-      let errorDetails = 'Failed to publish screen'
+      let errorDetails = 'Failed to publish'
       try {
         const errorData = await response.json()
         // Get the most detailed error message available
@@ -90,10 +87,10 @@ export async function publishScreen(request: PublishRequest): Promise<PublishRes
     const data = await response.json()
     return {
       success: true,
-      screenPath: request.screenPath,
-      resourceUrl: request.resourceUrl,
-      azureUrl: data.azureUrl || '',
-      message: data.message || 'Screen published successfully'
+      targetPath: data.targetPath,
+      resourceUrl: data.resourceUrl,
+      azureUrl: data.azureUrl,
+      message: data.message || 'Published successfully'
     }
   } catch (error) {
     // Re-throw the error with full details so it can be shown in the chat
@@ -102,22 +99,31 @@ export async function publishScreen(request: PublishRequest): Promise<PublishRes
 }
 
 /**
- * Validate screen path format
+ * Validate target path format
+ * Target path should be relative to the configured publish base path
  */
-export function validateScreenPath(path: string): {
+export function validateTargetPath(path: string): {
   valid: boolean
   error?: string
 } {
   if (!path) {
-    return { valid: false, error: 'Screen path is required' }
+    return { valid: false, error: 'Target path is required' }
   }
 
-  // Expected format: module/sub-module/apps/screen-name
-  const pathRegex = /^[a-z-]+\/[a-z-]+\/apps\/[a-z-]+$/
-  if (!pathRegex.test(path)) {
+  // Must not start with src/ (it's relative to the publish base path)
+  if (path.startsWith('src/')) {
     return {
       valid: false,
-      error: 'Invalid format. Expected: module/sub-module/apps/screen-name'
+      error: 'Target path should not include src/ prefix'
+    }
+  }
+
+  // Basic format check - at least one part
+  const parts = path.split('/').filter(p => p)
+  if (parts.length < 1) {
+    return {
+      valid: false,
+      error: 'Target path must have at least 1 part'
     }
   }
 
@@ -125,14 +131,15 @@ export function validateScreenPath(path: string): {
 }
 
 /**
- * Validate resource URL format
+ * Validate resource URL format (optional - can be empty)
  */
-export function validateResourceUrl(url: string): {
+export function validateResourceUrl(url: string | undefined): {
   valid: boolean
   error?: string
 } {
+  // Empty/undefined is valid - registration is optional
   if (!url) {
-    return { valid: false, error: 'Resource URL is required' }
+    return { valid: true }
   }
 
   if (!url.startsWith('/')) {
@@ -142,12 +149,12 @@ export function validateResourceUrl(url: string): {
     }
   }
 
-  // Expected format: /apps/module/screen-name
-  const urlRegex = /^\/apps\/[a-z-]+\/[a-z-]+$/
-  if (!urlRegex.test(url)) {
+  // Basic format check - at least /type/name
+  const parts = url.split('/').filter(p => p)
+  if (parts.length < 2) {
     return {
       valid: false,
-      error: 'Invalid format. Expected: /apps/module/screen-name'
+      error: 'Resource URL must have at least 2 parts (e.g., /apps/screen-name)'
     }
   }
 
@@ -155,11 +162,11 @@ export function validateResourceUrl(url: string): {
 }
 
 /**
- * Generate suggested resource URL from screen path
+ * Generate suggested resource URL from target path
  */
-export function suggestResourceUrl(screenPath: string): string {
+export function suggestResourceUrl(targetPath: string): string {
   // Convert: crm/customers/apps/my-screen -> /apps/crm/my-screen
-  const parts = screenPath.split('/')
+  const parts = targetPath.split('/')
   if (parts.length >= 4 && parts[2] === 'apps') {
     const module = parts[0]
     const screenName = parts[3]

@@ -16,29 +16,29 @@ interface GeneratedFile {
 interface PublishDialogProps {
   files: GeneratedFile[]
   onClose: () => void
-  onPublish: (screenPath: string, resourceUrl: string) => Promise<void>
+  onPublish: (targetPath: string, resourceUrl: string) => Promise<void>
 }
 
 export const PublishDialog: React.FC<PublishDialogProps> = ({ files, onClose, onPublish }) => {
-  const [screenPath, setScreenPath] = useState('')
+  const [targetPath, setTargetPath] = useState('')
   const [resourceUrl, setResourceUrl] = useState('')
   const [publishing, setPublishing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Auto-detect screen path from generated files
+  // Auto-detect target path from generated files
   React.useEffect(() => {
     const mainFile = files.find(f => f.path.includes('/apps/') && f.path.endsWith('.tsx'))
-    if (mainFile && !screenPath) {
+    if (mainFile && !targetPath) {
       // Extract path like: crm/customers/apps/my-screen
       const match = mainFile.path.match(/business-apps\/(.+?)\/[^/]+\.tsx$/)
       if (match) {
-        setScreenPath(match[1])
+        setTargetPath(match[1])
       }
     }
-  }, [files, screenPath])
+  }, [files, targetPath])
 
   const handlePublish = async () => {
-    if (!screenPath || !resourceUrl) {
+    if (!targetPath || !resourceUrl) {
       setError(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:ai_builder.publish_dialog.fill_required',
@@ -52,7 +52,7 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({ files, onClose, on
     setError(null)
 
     try {
-      await onPublish(screenPath, resourceUrl)
+      await onPublish(targetPath, resourceUrl)
       onClose()
     } catch (err) {
       setError(
@@ -113,22 +113,22 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({ files, onClose, on
             </div>
           </div>
 
-          {/* Screen Path */}
+          {/* Target Path */}
           <div className="gba:space-y-2">
-            <Label htmlFor="screen-path">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.publish_dialog.screen_path', 'Screen Path *')}
+            <Label htmlFor="target-path">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.publish_dialog.target_path', 'Target Path *')}
             </Label>
             <Input
-              id="screen-path"
-              value={screenPath}
-              onChange={e => setScreenPath(e.target.value)}
+              id="target-path"
+              value={targetPath}
+              onChange={e => setTargetPath(e.target.value)}
               placeholder="crm/customers/apps/my-screen"
-              data-testid="ai-builder-publish-screen-path"
+              data-testid="ai-builder-publish-target-path"
             />
             <p className="gba:text-xs gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:ai_builder.publish_dialog.screen_path_format',
-                "Format: '<module>/<sub-module>/apps/<screen-name>'"
+                'lowcoder:ai_builder.publish_dialog.target_path_format',
+                'The path relative to the configured publish base path'
               )}
             </p>
           </div>
@@ -179,7 +179,7 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({ files, onClose, on
             </Button>
             <Button
               onClick={handlePublish}
-              disabled={publishing || !screenPath || !resourceUrl}
+              disabled={publishing || !targetPath || !resourceUrl}
               className="gba:gap-2"
               data-testid="ai-builder-publish-confirm"
             >

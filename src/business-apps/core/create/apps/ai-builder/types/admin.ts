@@ -4,6 +4,7 @@
 
 export interface AutoInitConfig {
   id: string
+  repoId?: string | null // Repository ID if initialized
   url: string
   branch: string
   source: 'github' | 'bitbucket'
@@ -12,6 +13,11 @@ export interface AutoInitConfig {
   autoInitOnStartup: boolean
   blockedBranches: string[]
   enabled: boolean
+  // Publish configuration
+  supportsPublish: boolean
+  publishBasePath: string | null
+  publishAssetsPath: string | null
+  publishAzureEnabled: boolean
   createdAt: string
   updatedAt: string
 }
@@ -22,6 +28,11 @@ export interface CreateAutoInitConfigRequest {
   autoInitOnStartup?: boolean
   blockedBranches?: string[]
   enabled?: boolean
+  // Publish configuration
+  supportsPublish?: boolean
+  publishBasePath?: string
+  publishAssetsPath?: string
+  publishAzureEnabled?: boolean
 }
 
 export interface UpdateAutoInitConfigRequest {
@@ -29,4 +40,9 @@ export interface UpdateAutoInitConfigRequest {
   autoInitOnStartup?: boolean
   blockedBranches?: string[]
   enabled?: boolean
+  // Publish configuration
+  supportsPublish?: boolean
+  publishBasePath?: string
+  publishAssetsPath?: string
+  publishAzureEnabled?: boolean
 }

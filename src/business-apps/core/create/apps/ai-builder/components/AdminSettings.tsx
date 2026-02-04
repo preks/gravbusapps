@@ -49,7 +49,11 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
     branch: '',
     autoInitOnStartup: true,
     blockedBranches: [],
-    enabled: true
+    enabled: true,
+    supportsPublish: false,
+    publishBasePath: '',
+    publishAssetsPath: '',
+    publishAzureEnabled: false
   })
   const [blockedBranchesInput, setBlockedBranchesInput] = useState('')
 
@@ -69,13 +73,23 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
     loadConfigs()
   }, [])
 
-  // Load indexing status and poll while indexing is active
+  // Reference to track polling interval
+  const pollIntervalRef = React.useRef<NodeJS.Timeout | null>(null)
+
+  // Load indexing status - only poll when actively indexing or after sync
   useEffect(() => {
-    let pollInterval: NodeJS.Timeout | null = null
+    // Don't poll if no configs
+    if (configs.length === 0) return
+
+    let isMounted = true
 
     const loadStatus = async () => {
+      if (!isMounted) return
+
       try {
         const statuses = await getAllIndexingStatus()
+        if (!isMounted) return
+
         const statusMap = new Map<string, IndexingStatus>()
         statuses.forEach(s => statusMap.set(s.configId, s))
         setIndexingStatus(statusMap)
@@ -86,28 +100,81 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
         )
 
         // If active indexing, poll more frequently
-        if (hasActiveIndexing && !pollInterval) {
-          pollInterval = setInterval(loadStatus, 2000) // Poll every 2 seconds
-        } else if (!hasActiveIndexing && pollInterval) {
-          clearInterval(pollInterval)
-          pollInterval = null
+        if (hasActiveIndexing) {
+          if (!pollIntervalRef.current) {
+            pollIntervalRef.current = setInterval(loadStatus, 2000) // Poll every 2 seconds
+          }
+        } else {
+          // Stop polling when no active indexing
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current)
+            pollIntervalRef.current = null
+          }
         }
       } catch {
-        // Failed to load indexing status, will retry on next poll
+        // Failed to load indexing status, stop polling on error
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current)
+          pollIntervalRef.current = null
+        }
       }
     }
 
-    // Initial load
+    // Initial load only (no continuous polling unless active indexing)
     loadStatus()
 
-    // Slow poll even when not actively indexing (to catch new indexing)
-    const slowPoll = setInterval(loadStatus, 10000) // Every 10 seconds
-
     return () => {
-      if (pollInterval) clearInterval(pollInterval)
-      clearInterval(slowPoll)
+      isMounted = false
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
     }
   }, [configs.length]) // Re-run when configs change
+
+  // Reload status after sync completes and start polling if indexing begins
+  const reloadIndexingStatus = async () => {
+    if (configs.length === 0) return
+    try {
+      const statuses = await getAllIndexingStatus()
+      const statusMap = new Map<string, IndexingStatus>()
+      statuses.forEach(s => statusMap.set(s.configId, s))
+      setIndexingStatus(statusMap)
+
+      // Check if indexing started and enable polling
+      const hasActiveIndexing = statuses.some(
+        s => s.progress && ['scanning', 'parsing', 'embedding', 'storing'].includes(s.progress.status)
+      )
+      if (hasActiveIndexing && !pollIntervalRef.current) {
+        // Start polling since indexing is now active
+        const pollFn = async () => {
+          try {
+            const newStatuses = await getAllIndexingStatus()
+            const newStatusMap = new Map<string, IndexingStatus>()
+            newStatuses.forEach(s => newStatusMap.set(s.configId, s))
+            setIndexingStatus(newStatusMap)
+
+            const stillIndexing = newStatuses.some(
+              s => s.progress && ['scanning', 'parsing', 'embedding', 'storing'].includes(s.progress.status)
+            )
+            if (!stillIndexing && pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current)
+              pollIntervalRef.current = null
+            }
+          } catch {
+            // Stop polling on error
+            if (pollIntervalRef.current) {
+              clearInterval(pollIntervalRef.current)
+              pollIntervalRef.current = null
+            }
+          }
+        }
+        pollIntervalRef.current = setInterval(pollFn, 2000)
+      }
+    } catch {
+      // Ignore errors
+    }
+  }
 
   const loadConfigs = async () => {
     try {
@@ -152,7 +219,11 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
         branch: '',
         autoInitOnStartup: true,
         blockedBranches: [],
-        enabled: true
+        enabled: true,
+        supportsPublish: false,
+        publishBasePath: '',
+        publishAssetsPath: '',
+        publishAzureEnabled: false
       })
       setBlockedBranchesInput('')
       await loadConfigs()
@@ -229,7 +300,11 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
     setEditForm({
       branch: config.branch,
       autoInitOnStartup: config.autoInitOnStartup,
-      enabled: config.enabled
+      enabled: config.enabled,
+      supportsPublish: config.supportsPublish,
+      publishBasePath: config.publishBasePath || '',
+      publishAssetsPath: config.publishAssetsPath || '',
+      publishAzureEnabled: config.publishAzureEnabled
     })
     setEditBlockedBranches(config.blockedBranches.join(', '))
   }
@@ -256,6 +331,8 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
       const result = await syncAutoInitConfig(config.id, false)
       setSuccess(result.message)
       setTimeout(() => setSuccess(null), 5000)
+      // Reload indexing status after sync to check if indexing started
+      await reloadIndexingStatus()
     } catch (err) {
       setError(
         err instanceof Error
@@ -505,6 +582,89 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                   )}
                 </Label>
               </div>
+
+              {/* Publish Configuration Section */}
+              <div className="gba:border-t gba:pt-4 gba:mt-4">
+                <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-3">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:ai_builder.admin.publish_config',
+                    'Publish Configuration'
+                  )}
+                </h4>
+                <div className="gba:space-y-4">
+                  <div className="gba:flex gba:items-center gba:gap-3">
+                    <Switch
+                      checked={newConfig.supportsPublish}
+                      onCheckedChange={checked => setNewConfig({ ...newConfig, supportsPublish: checked })}
+                    />
+                    <Label className="gba:cursor-pointer">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:ai_builder.admin.supports_publish',
+                        'Enable publishing for this repository'
+                      )}
+                    </Label>
+                  </div>
+                  {newConfig.supportsPublish && (
+                    <div className="gba:ml-6 gba:pl-4 gba:border-l-2 gba:border-muted gba:space-y-4">
+                      <div className="gba:space-y-2">
+                        <Label htmlFor="publishBasePath">
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:ai_builder.admin.publish_base_path',
+                            'Publish Base Path'
+                          )}
+                        </Label>
+                        <Input
+                          id="publishBasePath"
+                          placeholder="src/business-apps"
+                          value={newConfig.publishBasePath || ''}
+                          onChange={e => setNewConfig({ ...newConfig, publishBasePath: e.target.value })}
+                        />
+                        <p className="gba:text-xs gba:text-muted-foreground">
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:ai_builder.admin.publish_base_path_help',
+                            'Source path prefix for target paths (leave empty for repo root)'
+                          )}
+                        </p>
+                      </div>
+                      <div className="gba:flex gba:items-center gba:gap-3">
+                        <Switch
+                          checked={newConfig.publishAzureEnabled}
+                          onCheckedChange={checked => setNewConfig({ ...newConfig, publishAzureEnabled: checked })}
+                        />
+                        <Label className="gba:cursor-pointer">
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:ai_builder.admin.azure_upload',
+                            'Upload to Azure Blob Storage'
+                          )}
+                        </Label>
+                      </div>
+                      {newConfig.publishAzureEnabled && (
+                        <div className="gba:ml-6 gba:pl-4 gba:border-l-2 gba:border-muted gba:space-y-2">
+                          <Label htmlFor="publishAssetsPath">
+                            {getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:ai_builder.admin.publish_assets_path',
+                              'Assets Path (relative to dist/)'
+                            )}
+                          </Label>
+                          <Input
+                            id="publishAssetsPath"
+                            placeholder="assets"
+                            value={newConfig.publishAssetsPath || ''}
+                            onChange={e => setNewConfig({ ...newConfig, publishAssetsPath: e.target.value })}
+                          />
+                          <p className="gba:text-xs gba:text-muted-foreground">
+                            {getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:ai_builder.admin.publish_assets_path_help',
+                              'Directory containing CSS/assets to upload (e.g., "assets" for dist/assets/)'
+                            )}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="gba:flex gba:gap-3 gba:pt-4">
                 <Button onClick={handleCreate} className="gba:gap-2">
                   <Save className="gba:w-4 gba:h-4" />
@@ -582,6 +742,89 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                           )}
                         </Label>
                       </div>
+
+                      {/* Publish Configuration Section */}
+                      <div className="gba:border-t gba:pt-4 gba:mt-2">
+                        <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-3">
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:ai_builder.admin.publish_config',
+                            'Publish Configuration'
+                          )}
+                        </h4>
+                        <div className="gba:space-y-4">
+                          <div className="gba:flex gba:items-center gba:gap-3">
+                            <Switch
+                              checked={editForm.supportsPublish ?? config.supportsPublish}
+                              onCheckedChange={checked => setEditForm({ ...editForm, supportsPublish: checked })}
+                            />
+                            <Label className="gba:cursor-pointer">
+                              {getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:ai_builder.admin.supports_publish',
+                                'Enable publishing for this repository'
+                              )}
+                            </Label>
+                          </div>
+                          {(editForm.supportsPublish ?? config.supportsPublish) && (
+                            <div className="gba:ml-6 gba:pl-4 gba:border-l-2 gba:border-muted gba:space-y-4">
+                              <div className="gba:space-y-2">
+                                <Label>
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:ai_builder.admin.publish_base_path',
+                                    'Publish Base Path'
+                                  )}
+                                </Label>
+                                <Input
+                                  placeholder="src/business-apps"
+                                  value={editForm.publishBasePath ?? config.publishBasePath ?? ''}
+                                  onChange={e => setEditForm({ ...editForm, publishBasePath: e.target.value })}
+                                />
+                                <p className="gba:text-xs gba:text-muted-foreground">
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:ai_builder.admin.publish_base_path_help',
+                                    'Source path prefix for target paths (leave empty for repo root)'
+                                  )}
+                                </p>
+                              </div>
+                              <div className="gba:flex gba:items-center gba:gap-3">
+                                <Switch
+                                  checked={editForm.publishAzureEnabled ?? config.publishAzureEnabled}
+                                  onCheckedChange={checked =>
+                                    setEditForm({ ...editForm, publishAzureEnabled: checked })
+                                  }
+                                />
+                                <Label className="gba:cursor-pointer">
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:ai_builder.admin.azure_upload',
+                                    'Upload to Azure Blob Storage'
+                                  )}
+                                </Label>
+                              </div>
+                              {(editForm.publishAzureEnabled ?? config.publishAzureEnabled) && (
+                                <div className="gba:ml-6 gba:pl-4 gba:border-l-2 gba:border-muted gba:space-y-2">
+                                  <Label>
+                                    {getTranslationFromI18nKeyAndLabel(
+                                      'lowcoder:ai_builder.admin.publish_assets_path',
+                                      'Assets Path (relative to dist/)'
+                                    )}
+                                  </Label>
+                                  <Input
+                                    placeholder="assets"
+                                    value={editForm.publishAssetsPath ?? config.publishAssetsPath ?? ''}
+                                    onChange={e => setEditForm({ ...editForm, publishAssetsPath: e.target.value })}
+                                  />
+                                  <p className="gba:text-xs gba:text-muted-foreground">
+                                    {getTranslationFromI18nKeyAndLabel(
+                                      'lowcoder:ai_builder.admin.publish_assets_path_help',
+                                      'Directory containing CSS/assets to upload (e.g., "assets" for dist/assets/)'
+                                    )}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
                       <div className="gba:flex gba:gap-3 gba:pt-2">
                         <Button size="sm" onClick={() => handleUpdate(config.id)} className="gba:gap-2">
                           <Save className="gba:w-4 gba:h-4" />
@@ -610,6 +853,25 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                             {config.autoInitOnStartup && (
                               <Badge variant="outline">
                                 {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.auto_init', 'Auto-init')}
+                              </Badge>
+                            )}
+                            {config.supportsPublish && (
+                              <Badge
+                                variant="outline"
+                                className="gba:bg-blue-100 gba:text-blue-700 dark:gba:bg-blue-900/30 dark:gba:text-blue-400"
+                              >
+                                {getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:ai_builder.admin.publish_enabled',
+                                  'Publish'
+                                )}
+                              </Badge>
+                            )}
+                            {config.publishAzureEnabled && (
+                              <Badge
+                                variant="outline"
+                                className="gba:bg-purple-100 gba:text-purple-700 dark:gba:bg-purple-900/30 dark:gba:text-purple-400"
+                              >
+                                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.azure', 'Azure')}
                               </Badge>
                             )}
                           </div>
