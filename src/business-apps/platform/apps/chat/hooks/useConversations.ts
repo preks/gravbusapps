@@ -194,6 +194,8 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
               id: c.id?.substring(0, 8),
               hasLastMessage: !!c.lastMessage,
               lastMessageCreatedAt: c.lastMessage?.createdAt,
+              lastReadAt: c.lastReadAt,
+              unreadCount: c.unreadCount,
               updatedAt: c.updatedAt,
               createdAt: c.createdAt
             }))
@@ -209,6 +211,18 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         const enrichedConversations = !hasLoadedOnce
           ? enrichConversationsWithAvatarsOnly(conversationsData)
           : await enrichConversations(conversationsData)
+
+        // Debug: Log after enrichment to verify data preservation
+        if (process.env.NODE_ENV === 'development') {
+          rtkDebug.debug(
+            '[useConversations] After enrichment:',
+            enrichedConversations.slice(0, 3).map((c: any) => ({
+              id: c.id?.substring(0, 8),
+              lastReadAt: c.lastReadAt,
+              unreadCount: c.unreadCount
+            }))
+          )
+        }
 
         // Sort by most recent activity
         // Priority: lastMessage.createdAt > lastMessageAt > updatedAt > createdAt
@@ -439,10 +453,14 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
 
   // Load conversations on mount
   useEffect(() => {
-    if (enabled) {
+    if (enabled && apiClient) {
       loadConversations()
     }
-  }, [enabled])
+    // Cleanup: clear the promise ref on unmount to ensure fresh loads
+    return () => {
+      loadConversationsPromiseRef.current = null
+    }
+  }, [enabled, apiClient, loadConversations])
 
   // Re-enrich conversations when avatars are loaded from cache
   // Use fast enrichment to avoid re-fetching user data
