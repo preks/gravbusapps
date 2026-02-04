@@ -1,24 +1,28 @@
 # Task Expert Studio Translations (English)
 
 # Page Header
-page-title = Task Expert Studio
+page-title = AI Task Expert Studio
 page-description = Create AI task experts from prompts and test integrations.
 
 # Section
-section-label = Task Experts
+section-label = AI Task Experts
 
 # Actions
-new-task-expert = New Task Expert
+new-task-expert = New AI Task Expert
 edit = Edit
 test = Test
-internal-tools = Internal Tools
+
+# Tabs
+tab-task-experts = AI Task Experts
+tab-tools = Settings
 
 # Search
-search-placeholder = Search task experts...
+search-placeholder = Search AI task experts...
 
 # Table Columns
 column-name = Name
 column-agent-type = Agent Type
+column-tools = Tools
 column-specialty = Specialty
 column-version = Version
 
@@ -31,8 +35,8 @@ agent-type-flow = FLOW
 badge-public = Public
 
 # Empty State
-empty-message = No task experts found. Click 'New Task Expert' to create one.
+empty-message = No AI task experts found. Click 'New AI Task Expert' to create one.
 
 # Editor
-create-task-expert = Create Task Expert
-edit-task-expert = Edit Task Expert
+create-task-expert = Create AI Task Expert
+edit-task-expert = Edit AI Task Expert

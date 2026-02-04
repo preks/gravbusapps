@@ -1,10 +1,25 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react'
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { Button, Textarea, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
-import { Plus, Paperclip, Globe, Trash, PaperPlaneTilt, At } from '@phosphor-icons/react'
+import { Plus, Paperclip, Globe, Trash, PaperPlaneTilt, Camera, At } from '@phosphor-icons/react'
 import { useFileUploadManager, MaxNumberOfFilesError, MaxTotalSizeError } from '../hooks/useFileUploadManager'
 import { VoiceModeButton } from './voice/VoiceModeButton'
 import { useEntityMentions, type EntityReference } from '@/common/hooks/useEntityMentions'
 import { EntityMentionPopover } from '@/common/components/entity-mentions'
+
+// Detect if running on a mobile device with camera capabilities
+function useIsMobileWithCamera(): boolean {
+  return useMemo(() => {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') return false
+    // Check for touch capability
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+    // Check user agent for mobile
+    const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i
+    const isMobileUA = mobileRegex.test(navigator.userAgent)
+    // Check for media devices (camera API)
+    const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+    return (hasTouch || isMobileUA) && hasMediaDevices
+  }, [])
+}
 
 type Suggestion = string | { heading?: string; message?: string }
 
@@ -94,7 +109,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0)
   const { files, uploadFile, removeFile, clearFiles } = useFileUploadManager()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const isMobileWithCamera = useIsMobileWithCamera()
 
   // Entity mentions hook
   const {
@@ -542,6 +559,34 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                         )}
                       </button>
 
+                      {/* Take Photo - only on mobile with camera */}
+                      {isMobileWithCamera && (
+                        <button
+                          onClick={() => cameraInputRef.current?.click()}
+                          className={`gba:group/option gba:flex gba:w-full gba:items-center gba:gap-3 gba:rounded-xl gba:px-3 gba:py-2.5 gba:text-left gba:text-sm gba:transition-all gba:duration-200 ${darkMode ? 'gba:text-white/90 hover:gba:bg-white/10' : 'gba:text-foreground'}`}
+                          onMouseEnter={e => {
+                            if (!darkMode)
+                              (e.currentTarget as HTMLButtonElement).style.background = `rgba(${goldRgb}, 0.08)`
+                          }}
+                          onMouseLeave={e => {
+                            if (!darkMode) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+                          }}
+                          disabled={disabled}
+                        >
+                          <div
+                            className="gba:flex-shrink-0 gba:h-8 gba:w-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-all"
+                            style={{ background: darkMode ? 'rgba(96, 165, 250, 0.2)' : `rgba(${goldRgb}, 0.12)` }}
+                          >
+                            <Camera
+                              className="gba:h-4 gba:w-4"
+                              style={{ color: darkMode ? 'rgb(147, 197, 253)' : `rgb(${goldRgb})` }}
+                              weight="bold"
+                            />
+                          </div>
+                          <span className="gba:font-medium">Take photo</span>
+                        </button>
+                      )}
+
                       {/* Mention Entity */}
                       <button
                         onClick={() => {
@@ -750,6 +795,19 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             ref={fileInputRef}
             type="file"
             multiple
+            className="gba:hidden"
+            onChange={e => {
+              const list = e.target.files
+              if (list && list.length) pickFiles(list)
+              if (e.target) e.target.value = ''
+            }}
+          />
+          {/* Camera input for mobile devices */}
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
             className="gba:hidden"
             onChange={e => {
               const list = e.target.files

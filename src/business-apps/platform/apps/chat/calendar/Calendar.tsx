@@ -8,6 +8,7 @@ import { CalendarHeader, DayView, WeekView, MonthView, CreateMeetingModal, Meeti
 import { CallModal } from '../components/CallModal'
 import { IncomingCallDialog } from '../components/IncomingCallDialog'
 import { RejoinCallDialog } from '../components/RejoinCallDialog'
+import { PreCallSetupDialog } from '../components/PreCallSetupDialog'
 import { debugLog } from '../utils/debugLog'
 import { GroupCallModal } from '../components/GroupCallModal'
 import { GroupCallModalRtk } from '../components/GroupCallModalRtk'
@@ -199,6 +200,7 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
     participants: groupParticipants,
     pendingInvites: groupPendingInvites,
     activeConversationCalls: groupActiveConversationCalls,
+    initiateCall: initiateGroupCall,
     startCall: startGroupCall,
     joinCall: joinGroupCall,
     leaveCall: leaveGroupCall,
@@ -718,13 +720,15 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
             calendarMeetingId: enrichedSelectedEvent.id,
             meetingMetadata: enrichedSelectedEvent.metadata
           })
-          startGroupCall(
-            conversationId,
-            'video',
-            callParticipants,
-            enrichedSelectedEvent.title,
-            enrichedSelectedEvent.id // Pass calendar meeting ID for AI transcription
-          )
+          if (initiateGroupCall) {
+            initiateGroupCall(
+              conversationId,
+              'video',
+              callParticipants,
+              enrichedSelectedEvent.title,
+              enrichedSelectedEvent.id // Pass calendar meeting ID for AI transcription
+            )
+          }
         }
       } else {
         // Old mesh implementation
@@ -1031,45 +1035,77 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
         prefixDataTestId={`${prefixDataTestId}-rejoin-call`}
       />
 
+      {/* Pre-Call Setup Dialog - Show during setup and joining, and connected until room is joined (outgoing calls only) */}
+      <PreCallSetupDialog
+        isOpen={
+          (groupCallState.status === 'setup' ||
+            groupCallState.status === 'joining' ||
+            (groupCallState.status === 'connected' && realtimeKitGroupCall.meeting?.self?.roomState !== 'joined')) &&
+          !groupCallState.isMinimized &&
+          !realtimeKitGroupCall.incomingInvite
+        }
+        callType={groupCallState.callType}
+        conversationName={selectedEvent?.title}
+        participantCount={groupParticipants.length}
+        userName={currentUserAsParticipant?.odName}
+        userAvatarUrl={currentUserAsParticipant?.avatarUrl}
+        onStart={preferences => {
+          if (realtimeKitGroupCall.confirmStartCall) {
+            realtimeKitGroupCall.confirmStartCall(preferences)
+          }
+        }}
+        onCancel={() => {
+          if (realtimeKitGroupCall.cancelSetup) {
+            realtimeKitGroupCall.cancelSetup()
+          }
+        }}
+        prefixDataTestId={`${prefixDataTestId}-pre-call-setup`}
+      />
+
       {/* Group Call Modal */}
-      {groupCallState.status !== 'idle' &&
-        (useRealtimeKitForGroupCalls && realtimeKitGroupCall.meeting ? (
-          <RealtimeKitProvider value={realtimeKitGroupCall.meeting}>
-            <GroupCallModalRtk
-              callState={groupCallState}
-              localStream={groupLocalStream}
-              remoteStreams={groupRemoteStreams}
-              participants={groupParticipants}
-              pendingInvites={groupPendingInvites}
-              availableParticipants={availableParticipantsForCall}
-              onEndCall={leaveGroupCall}
-              onToggleMute={toggleGroupMute}
-              onToggleVideo={toggleGroupVideo}
-              onToggleScreenShare={toggleGroupScreenShare}
-              onToggleMinimize={toggleGroupMinimize}
-              onToggleBackground={toggleGroupBackground}
-              onToggleRaiseHand={realtimeKitGroupCall.toggleRaiseHand}
-              onSendReaction={realtimeKitGroupCall.sendReaction}
-              onInviteParticipant={(participant: CallParticipant) => {
-                // Use RealtimeKit inviteToCall with conversation name
-                inviteToGroupCall(
-                  [participant],
-                  realtimeKitGroupCall.currentCallConversationName || enrichedSelectedEvent?.title
-                )
-              }}
-              apiClient={apiClient || undefined}
-              accessToken={accessToken}
-              currentUserId={currentUser?.id || null}
-              currentUser={currentUser}
-              conversationName={
-                realtimeKitGroupCall.currentCallConversationName ||
-                realtimeKitGroupCall.incomingInvite?.conversationName ||
-                (enrichedSelectedEvent ? enrichedSelectedEvent.title : undefined)
-              }
-              wsClient={wsClient}
-              activeExperts={[]}
-            />
-          </RealtimeKitProvider>
+      {groupCallState.status === 'connected' &&
+        realtimeKitGroupCall.meeting?.self?.roomState === 'joined' &&
+        (useRealtimeKitForGroupCalls ? (
+          realtimeKitGroupCall.meeting ? (
+            <RealtimeKitProvider value={realtimeKitGroupCall.meeting}>
+              <GroupCallModalRtk
+                callState={groupCallState}
+                localStream={groupLocalStream}
+                remoteStreams={groupRemoteStreams}
+                participants={groupParticipants}
+                pendingInvites={groupPendingInvites}
+                availableParticipants={availableParticipantsForCall}
+                onEndCall={leaveGroupCall}
+                onToggleMute={toggleGroupMute}
+                onToggleVideo={toggleGroupVideo}
+                onToggleScreenShare={toggleGroupScreenShare}
+                onToggleMinimize={toggleGroupMinimize}
+                onToggleBackground={toggleGroupBackground}
+                onToggleRaiseHand={realtimeKitGroupCall.toggleRaiseHand}
+                onSendReaction={realtimeKitGroupCall.sendReaction}
+                onInviteParticipant={(participant: CallParticipant) => {
+                  // Use RealtimeKit inviteToCall with conversation name
+                  inviteToGroupCall(
+                    [participant],
+                    realtimeKitGroupCall.currentCallConversationName || enrichedSelectedEvent?.title
+                  )
+                }}
+                apiClient={apiClient || undefined}
+                accessToken={accessToken}
+                currentUserId={currentUser?.id || null}
+                currentUser={currentUser}
+                conversationName={
+                  realtimeKitGroupCall.currentCallConversationName ||
+                  realtimeKitGroupCall.incomingInvite?.conversationName ||
+                  (enrichedSelectedEvent ? enrichedSelectedEvent.title : undefined)
+                }
+                wsClient={wsClient}
+                activeExperts={[]}
+              />
+            </RealtimeKitProvider>
+          ) : (
+            <div>Loading meeting...</div>
+          )
         ) : (
           <GroupCallModal
             callState={groupCallState}

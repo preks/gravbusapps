@@ -34,6 +34,7 @@ export const useTaskExpertToolsCatalog = (
       try {
         const res: ToolPage = await client.getTools({
           toolName: opts?.search !== undefined ? opts.search || null : search || null,
+          toolType: 'mcp',
           limit: opts?.limit ?? limit,
           offset: opts?.offset ?? offset,
           returnTotalRecords: true
@@ -55,22 +56,14 @@ export const useTaskExpertToolsCatalog = (
 
   const create = useCallback(
     async (entry: ToolDetails) => {
-      if (entry.type === 'mcp') {
-        return client.createMcpTool(entry)
-      } else {
-        return client.createFunctionTool(entry)
-      }
+      return client.createMcpTool(entry)
     },
     [client]
   )
 
   const update = useCallback(
     async (entryId: string, entry: ToolDetails) => {
-      if (entry.type === 'mcp') {
-        return client.putMcpTool(entryId, entry)
-      } else {
-        return client.putFunctionTool(entryId, entry)
-      }
+      return client.putMcpTool(entryId, entry)
     },
     [client]
   )

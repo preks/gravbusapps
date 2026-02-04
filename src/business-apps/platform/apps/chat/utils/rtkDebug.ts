@@ -25,7 +25,7 @@ const isDebugEnabled = (): boolean => {
 export const rtkDebug = {
   log: (...args: unknown[]) => {
     if (isDebugEnabled()) {
-      rtkDebug.log(...args)
+      console.log(...args)
     }
   },
 
@@ -36,10 +36,8 @@ export const rtkDebug = {
   },
 
   error: (...args: unknown[]) => {
-    // Only log errors when debug mode is enabled
-    if (isDebugEnabled()) {
-      console.error(...args)
-    }
+    // Always log errors regardless of debug mode
+    console.error(...args)
   },
 
   debug: (...args: unknown[]) => {
@@ -57,10 +55,10 @@ export const setRtkDebug = (enabled: boolean) => {
     try {
       if (enabled) {
         localStorage.setItem('RTK_DEBUG', 'true')
-        rtkDebug.log('✅ RTK Debug logging enabled. Reload the page to see logs.')
+        console.log('✅ RTK Debug logging enabled. Reload the page to see logs.')
       } else {
         localStorage.removeItem('RTK_DEBUG')
-        rtkDebug.log('❌ RTK Debug logging disabled.')
+        console.log('❌ RTK Debug logging disabled.')
       }
     } catch (err) {
       console.error('Failed to set RTK debug mode:', err)

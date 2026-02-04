@@ -68,6 +68,23 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
 
     const isVideoCall = callType === 'video'
 
+    // CRITICAL: Reset state when dialog opens or callType changes
+    // This ensures fresh defaults for each new call
+    useEffect(() => {
+      if (isOpen) {
+        rtkDebug.log('[RejoinCallDialog] Dialog opened - resetting to defaults', {
+          callType,
+          willSetMic: true,
+          willSetCamera: callType === 'video',
+          willSetBackground: true
+        })
+        setIsJoining(false)
+        setMicEnabled(true)
+        setCameraEnabled(callType === 'video')
+        setBackgroundEnabled(true)
+      }
+    }, [isOpen, callType])
+
     const handleJoin = () => {
       if (isJoining) {
         rtkDebug.log('[RejoinCallDialog] Already joining, ignoring duplicate click')
@@ -232,7 +249,9 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
                         {backgroundEnabled && (
                           <div className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded gba:bg-primary/90 gba:shadow-lg">
                             <MagicWandIcon className="gba:w-3.5 gba:h-3.5 gba:text-primary-foreground" weight="fill" />
-                            <span className="gba:text-xs gba:text-primary-foreground">Preview</span>
+                            <span className="gba:text-xs gba:text-primary-foreground">
+                              {t('call-backgroundWillBeApplied') || 'Background will be applied in call'}
+                            </span>
                           </div>
                         )}
                       </div>

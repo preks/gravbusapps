@@ -9,6 +9,7 @@ import {
   Card,
   CardHeader,
   CardTitle,
+  CardDescription,
   CardContent,
   Button,
   Input,
@@ -199,16 +200,18 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
   }
 
   return (
-    <Card data-testid={testId}>
+    <Card className="gba:!bg-background" data-testid={testId}>
       <CardHeader>
-        <CardTitle className="gba:text-base">📚 Knowledge Sources</CardTitle>
+        <CardTitle className="gba:flex gba:items-center gba:gap-2">
+          <BookOpen className="gba:w-5 gba:h-5" />
+          Knowledge Sources
+        </CardTitle>
+        <CardDescription>
+          Add documents, URLs, and knowledge bases to enhance your expert&apos;s knowledge. These sources will be used
+          to provide accurate, context-specific answers.
+        </CardDescription>
       </CardHeader>
       <CardContent className="gba:space-y-4">
-        <p className="gba:text-sm gba:text-muted-foreground">
-          Add documents, URLs, and knowledge bases to enhance your expert's knowledge. These sources will be used to
-          provide accurate, context-specific answers.
-        </p>
-
         {/* Upload Actions */}
         {true ? (
           <>
