@@ -37,16 +37,22 @@ export interface WidgetItem {
     xl?: number
   }
   /**
-   * Optional description text to show below the value
+   * Optional description text to show below the value (alias for footer; use footer for clarity)
    */
   description?: string
+  /**
+   * Optional footer text to show below the value (maps to KPI card footer)
+   */
+  footer?: string
   /**
    * Optional trend data for showing trend indicators
    */
   trend?: {
-    value: string
+    value?: string
     positive?: boolean
     description?: string
+    /** When true, hides the trend badge (e.g. for no-trend cards with value + empty row + footer). */
+    hideBadge?: boolean
   }
   customContent?: ReactNode
   /**
@@ -135,6 +141,13 @@ export interface WidgetGroupProps {
    * Custom className for the SectionKpiCards grid container
    */
   cardsClassName?: string
+
+  /**
+   * If true, uses the widgets array structure during loading to preserve height
+   * This ensures loading placeholders match the height of loaded widgets
+   * When true, also shows loading text in the footer/description area instead of the value area
+   */
+  useWidgetStructureForLoading?: boolean
 }
 
 /**
@@ -240,9 +253,9 @@ const transformWidgetToKpiCard = (widget: WidgetItem): KpiCardData => {
     prefix: isIconKeyword ? undefined : potentialPrefixText,
     suffix: reactNodeToString(widget.suffix),
     decimalPlaces: widget.precision,
-    footer: widget.description,
+    footer: widget.footer ?? widget.description,
     icon: iconNode,
-    trend: widget.trend
+    trend: widget.trend ? { ...widget.trend, value: widget.trend.value ?? '' } : undefined
     // Note: SectionKpiCards doesn't support onClick directly,
     // but we'll handle it in the component if needed
   }
@@ -261,24 +274,49 @@ export const WidgetGroup: React.FC<WidgetGroupProps> = ({
   className = 'gba:py-2',
   skeletonCount = 4,
   emptyText = 'No data available',
+  useWidgetStructureForLoading = false,
   'data-testid': dataTestId = 'widget-group'
 }) => {
   // Handle loading state
   if (isLoading) {
-    // Create placeholder KPI cards for loading state
-    const placeholderCards: KpiCardData[] = [...Array(skeletonCount)].map((_, index) => ({
-      id: `loading-${index}`,
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...'),
-      value: 0
-    }))
+    let loadingCards: KpiCardData[]
+
+    if (useWidgetStructureForLoading && widgets && widgets.length > 0) {
+      // Use the actual widget structure to preserve height
+      // Transform widgets but with loading values
+      // When useWidgetStructureForLoading is true, show loading text in footer/description area
+      loadingCards = widgets.map(widget => {
+        const kpiCard = transformWidgetToKpiCard(widget)
+        const loadingText = getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')
+        // Show "Loading..." in the footer/description area, keep value as 0 to preserve structure
+        // If widget has a trend, show trend skeleton to maintain layout
+        const trendSkeleton = widget.trend
+          ? {
+              value: '\u00A0',
+              positive: undefined,
+              description: '\u00A0'
+            }
+          : undefined
+
+        return {
+          ...kpiCard,
+          value: widget.valueIsString ? '0' : 0,
+          footer: loadingText,
+          trend: trendSkeleton
+        }
+      })
+    } else {
+      // Create placeholder KPI cards for loading state
+      loadingCards = [...Array(skeletonCount)].map((_, index) => ({
+        id: `loading-${index}`,
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...'),
+        value: 0
+      }))
+    }
 
     return (
       <div className={className} data-testid={`${dataTestId}-loading`}>
-        <SectionKpiCards
-          cards={placeholderCards}
-          className="gba:opacity-50"
-          data-testid={`${dataTestId}-loading-cards`}
-        />
+        <SectionKpiCards cards={loadingCards} className="gba:opacity-50" data-testid={`${dataTestId}-loading-cards`} />
       </div>
     )
   }

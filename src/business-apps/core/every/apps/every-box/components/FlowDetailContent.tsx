@@ -296,7 +296,6 @@ export const FlowDetailContent: React.FC<FlowDetailContentProps> = ({
         {/* Status Badge */}
         <div className="gba:flex gba:items-center gba:gap-2">
           <Badge variant={getFlowStatusBadgeVariant(flow.status)}>{formatFlowStatus(flow.status, t)}</Badge>
-          <span className="gba:text-sm gba:text-muted-foreground">{t('flow-detail-id', { id: flow.id })}</span>
         </div>
 
         {/* Assignee Progress (for grouped multi-user blinks) */}
@@ -379,11 +378,6 @@ export const FlowDetailContent: React.FC<FlowDetailContentProps> = ({
               <InitiatorInfo initiatorUserId={flow.initiatorUserId || flow.initiatedBy} accessToken={accessToken} />
             </div>
           )}
-
-          <div>
-            <div className="gba:text-xs gba:text-muted-foreground">{t('flow-detail-template')}</div>
-            <div className="gba:font-medium">{flow.templateId}</div>
-          </div>
         </div>
 
         {/* Assignee Status List (for grouped multi-user blinks) */}

@@ -3,6 +3,7 @@ import type { Conversation, Message, ConversationParticipant } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
 import { useUserManagementClient } from './useUserManagementClient'
 import { useEmployeeAvatarsCache } from './useEmployeeAvatarsCache'
+import { rtkDebug } from '../utils/rtkDebug'
 
 interface UseConversationsOptions {
   apiClient: ChatApiClient
@@ -180,7 +181,7 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
 
       // Log backend response for debugging sorting issues
       if (process.env.NODE_ENV === 'development') {
-        console.debug(
+        rtkDebug.debug(
           '[useConversations] Backend returned conversations:',
           conversationsData.slice(0, 3).map((c: any) => ({
             id: c.id?.substring(0, 8),
@@ -213,12 +214,24 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         const bTimestamp = new Date(bTime).getTime()
 
         if (process.env.NODE_ENV === 'development') {
-          // Log if we're using different time sources for debugging
-          const aSource = a.lastMessage?.createdAt ? 'lastMessage' : a.lastMessageAt ? 'lastMessageAt' : 'updatedAt'
-          const bSource = b.lastMessage?.createdAt ? 'lastMessage' : b.lastMessageAt ? 'lastMessageAt' : 'updatedAt'
+          // Log if we're using fallback time sources (not lastMessage.createdAt)
+          const aSource = a.lastMessage?.createdAt
+            ? 'lastMessage'
+            : a.lastMessageAt
+              ? 'lastMessageAt'
+              : a.updatedAt
+                ? 'updatedAt'
+                : 'createdAt'
+          const bSource = b.lastMessage?.createdAt
+            ? 'lastMessage'
+            : b.lastMessageAt
+              ? 'lastMessageAt'
+              : b.updatedAt
+                ? 'updatedAt'
+                : 'createdAt'
 
-          if (aSource !== 'lastMessageAt' || bSource !== 'lastMessageAt') {
-            console.debug('[useConversations] Sorting fallback used:', {
+          if (aSource !== 'lastMessage' || bSource !== 'lastMessage') {
+            rtkDebug.debug('[useConversations] Sorting fallback used:', {
               convA: { id: a.id.substring(0, 8), source: aSource, time: aTime },
               convB: { id: b.id.substring(0, 8), source: bSource, time: bTime }
             })

@@ -179,48 +179,9 @@ export interface SetUserStatusPayload {
   expiresAt?: string
 }
 
-// Entity Reference Types for @ mentions
-export type EntityType =
-  // AI Assistants
-  | 'ai_assistant'
-  | 'every_expert' // NEW: Specialized Every Experts
-  // CRM entities
-  | 'lead'
-  | 'contact'
-  | 'account'
-  | 'opportunity'
-  // IRM entities
-  | 'investment_lead'
-  | 'investment_contact'
-  | 'investment_account'
-  | 'investment_opportunity'
-  | 'investment'
-  // Intranet content
-  | 'news_article'
-  | 'knowledge_article'
-  | 'intranet_article'
-  | 'document_article'
-  // Other entities
-  | 'employee'
-  | 'campaign'
-  | 'expense_request'
-
-export interface EntityReference {
-  id: string
-  userId?: string // Open Directory ID (for employees - used by calendar/meetings API)
-  type: EntityType | string
-  name: string
-  subtitle?: string
-  pictureThumbnail?: string
-  // Document/content data (for sending full content to AI)
-  contentPreview?: string // Preview/excerpt of document content
-  contentData?: any // Full content data if available
-}
-
-export interface MessageEntityReference extends EntityReference {
-  startIndex: number
-  endIndex: number
-}
+// Entity Reference Types for @ mentions - re-exported from common hooks for backward compatibility
+export type { EntityType, EntityReference, MessageEntityReference } from '@/common/hooks/useEntityMentions'
+import type { EntityType } from '@/common/hooks/useEntityMentions'
 
 // Entity navigation paths (platform URLs that work with navigateTo)
 export const ENTITY_NAVIGATION_PATHS: Record<EntityType, string> = {

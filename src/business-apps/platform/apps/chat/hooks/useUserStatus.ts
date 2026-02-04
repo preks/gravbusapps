@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { UserPresenceStatus, UserStatus, UserStatusChangeEvent, SetUserStatusPayload } from '../types'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
+import { rtkDebug } from '../utils/rtkDebug'
 
 interface UseUserStatusOptions {
   client: ChatWebSocketClient | null
@@ -44,7 +45,7 @@ export function useUserStatus({ client, isConnected, currentUserId }: UseUserSta
 
       // ✅ CRITICAL: Update myStatus if this event is for the current user
       if (currentUserId && data.userId === currentUserId) {
-        console.log('[useUserStatus] ✅ Received status update for SELF:', statusUpdate)
+        rtkDebug.log('[useUserStatus] ✅ Received status update for SELF:', statusUpdate)
         setMyStatus(statusUpdate)
       }
 

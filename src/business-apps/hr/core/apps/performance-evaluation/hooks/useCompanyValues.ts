@@ -13,7 +13,7 @@ function mapApiValueToUi(api: CompanyValueApi): ValueItemStored {
     version: api.version ?? undefined,
     title: api.title ?? '',
     description: api.description ?? '',
-    active: api.isActive ?? true
+    recordState: api.recordState ?? ''
   }
 }
 
