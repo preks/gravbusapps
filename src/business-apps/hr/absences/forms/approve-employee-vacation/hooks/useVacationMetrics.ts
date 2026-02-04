@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
 
 interface UseVacationMetricsProps {
@@ -59,7 +59,7 @@ export const useVacationMetrics = ({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const graphqlClient = useGraphqlClient(accessToken)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   useEffect(() => {
     // Use isMounted flag for cleanup

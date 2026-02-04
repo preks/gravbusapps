@@ -345,7 +345,10 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
             <span className="gba:text-gray-500">
               {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requester', 'Requester')}:{' '}
             </span>
-            <span>{expenseRequest?.employee?.fullName}</span>
+            <span>
+              {expenseRequest?.employee?.fullName ??
+                expenseRequest?.employee?.firstName + ' ' + expenseRequest?.employee?.lastName}
+            </span>
           </div>
           {expenseRequest?.employee?.employeePosition?.supervisor && (
             <div>
@@ -356,7 +359,12 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
                 )}
                 :{' '}
               </span>
-              <span>{expenseRequest.employee.employeePosition.supervisor.fullName}</span>
+              <span>
+                {expenseRequest.employee.employeePosition.supervisor.fullName ??
+                  expenseRequest.employee.employeePosition.supervisor.firstName +
+                    ' ' +
+                    expenseRequest.employee.employeePosition.supervisor.lastName}
+              </span>
             </div>
           )}
           <div>

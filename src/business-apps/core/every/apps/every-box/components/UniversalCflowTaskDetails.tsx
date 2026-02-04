@@ -24,7 +24,9 @@ import {
   FileText,
   Download,
   CheckCircle,
-  XCircle
+  XCircle,
+  AlertCircle,
+  Calendar
 } from 'lucide-react'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
@@ -44,6 +46,7 @@ import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
 import { InputRenderer } from '@/business-apps/flow/apps/creator/components/shared/InputRenderer'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { MarkdownRenderer } from '@/business-apps/ai/forms/scheduled-task-result/components/MarkdownRenderer'
+import { calculateDueDateCriticality, getCriticalityBadgeVariant } from '../utils/dueDateUtils'
 import translations from '../_i18n'
 
 dayjs.extend(localizedFormat)
@@ -798,6 +801,50 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       />
 
       <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0 gba:px-6">
+        {/* Due Date & Starting Date Section */}
+        {(task.dueDate || task.scheduledAt) && (
+          <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4 gba:pb-4 gba:border-b">
+            {/* Due Date with Criticality */}
+            {task.dueDate &&
+              (() => {
+                const criticality = calculateDueDateCriticality(task.dueDate, t)
+                if (!criticality) return null
+
+                const Icon =
+                  criticality.status === 'overdue'
+                    ? AlertCircle
+                    : criticality.status === 'warning'
+                      ? Clock
+                      : CheckCircle
+
+                return (
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Icon
+                      className={`gba:w-4 gba:h-4 ${
+                        criticality.status === 'overdue'
+                          ? 'gba:text-destructive'
+                          : criticality.status === 'warning'
+                            ? 'gba:text-warning'
+                            : 'gba:text-success'
+                      }`}
+                    />
+                    <span className="gba:text-sm gba:font-medium gba:text-foreground">{t('task-due-date-label')}:</span>
+                    <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.dueDate)}</span>
+                    <Badge variant={getCriticalityBadgeVariant(criticality.status)}>{criticality.label}</Badge>
+                  </div>
+                )
+              })()}
+
+            {/* Starting Date - use scheduledAt as the start date */}
+            {task.scheduledAt && (
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Calendar className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                <span className="gba:text-sm gba:font-medium gba:text-foreground">{t('task-start-date-label')}:</span>
+                <span className="gba:text-sm gba:text-muted-foreground">{formatDateTime(task.scheduledAt)}</span>
+              </div>
+            )}
+          </div>
+        )}
         {/* Completion Details - Only show for completed tasks */}
         {isCompleted && (
           <Card className="gba:border-success/50 gba:bg-success/5">

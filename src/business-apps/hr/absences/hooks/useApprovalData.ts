@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 interface UseApprovalDataParams {
   accessToken: string
@@ -38,7 +38,7 @@ export const useApprovalData = ({
   const [actualApprovalDate, setActualApprovalDate] = useState<string | null>(null)
   const [isLoadingApprovalData, setIsLoadingApprovalData] = useState(false)
 
-  const graphqlClient = useGraphqlClient(accessToken)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   useEffect(() => {
     let mounted = true

@@ -79,7 +79,7 @@ function getIconForType(type: ComponentType): string {
 function createInitialTileState(plan: BuildPlan | null): TileState {
   const tiles: TileState = {
     screen: createInitialTile('screen', 'Screens', 'UI screens and dashboards'),
-    agent: createInitialTile('agent', 'Task Experts', 'AI-powered assistants'),
+    agent: createInitialTile('agent', 'AI Task Experts', 'AI-powered assistants'),
     function: createInitialTile('function', 'Functions', 'Serverless tools'),
     flow: createInitialTile('flow', 'Flows', 'Automated workflows'),
     data_model: createInitialTile('data_model', 'Data Models', 'Catalogs and entities')

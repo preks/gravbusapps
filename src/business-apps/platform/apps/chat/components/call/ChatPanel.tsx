@@ -15,6 +15,7 @@ import type { ChatApiClient } from '../../services/chatApiClient'
 import type { ChatWebSocketClient } from '../../services/chatWebSocketClient'
 import type { Conversation, MessageEntityReference } from '../../types'
 import type { ActiveExpert } from '../../hooks/useConversationExperts'
+import { rtkDebug } from '../../utils/rtkDebug'
 
 export interface ChatPanelProps {
   /** Current conversation */
@@ -118,7 +119,7 @@ const ChatPanelComponent: React.FC<ChatPanelProps> = ({
           metadata.attachments = attachments
         }
 
-        console.log('[ChatPanel] Sending message:', {
+        rtkDebug.log('[ChatPanel] Sending message:', {
           conversationId: conversation.id,
           contentLength: content.trim().length,
           senderId: currentUserId,
@@ -148,7 +149,7 @@ const ChatPanelComponent: React.FC<ChatPanelProps> = ({
 
         // Check for @Every AI mention
         if (hasEveryMention(entityReferences)) {
-          console.log('[ChatPanel] @Every mention detected, processing AI request')
+          rtkDebug.log('[ChatPanel] @Every mention detected, processing AI request')
 
           // Build conversation context
           const participants = conversation.participants
@@ -325,7 +326,7 @@ const ChatPanelComponent: React.FC<ChatPanelProps> = ({
         <div className="gba:flex gba:items-center gba:gap-2">
           {/* Live indicator */}
           <div className="gba:h-2 gba:w-2 gba:rounded-full gba:bg-success gba:animate-pulse" />
-          <h3 className="gba:font-semibold gba:text-sm">In-Call Chat</h3>
+          <h3 className="gba:font-semibold gba:text-sm">{t('groupCall-chat') || 'Chat'}</h3>
         </div>
       </div>
 
