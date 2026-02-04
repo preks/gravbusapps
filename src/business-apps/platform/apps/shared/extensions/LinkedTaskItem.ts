@@ -55,6 +55,7 @@ export const LinkedTaskItem = TaskItem.extend<LinkedTaskItemOptions>({
       },
       kanbanCardId: {
         default: null,
+        keepOnSplit: false, // New task items should NOT inherit kanban link
         parseHTML: element => element.getAttribute('data-kanban-card-id'),
         renderHTML: attributes => {
           if (!attributes.kanbanCardId) return {}
@@ -63,6 +64,7 @@ export const LinkedTaskItem = TaskItem.extend<LinkedTaskItemOptions>({
       },
       kanbanId: {
         default: null,
+        keepOnSplit: false, // New task items should NOT inherit kanban link
         parseHTML: element => element.getAttribute('data-kanban-id'),
         renderHTML: attributes => {
           if (!attributes.kanbanId) return {}

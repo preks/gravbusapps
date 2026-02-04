@@ -20,7 +20,7 @@ import {
   PopoverContent,
   PopoverTrigger
 } from '@newwork/nw-design-system'
-import { Plus, GripVertical, X, User, Palette, Link2 } from 'lucide-react'
+import { Plus, GripVertical, X, User, Link2 } from 'lucide-react'
 import type { KanbanData, KanbanCardColor, KanbanParticipant } from '../../shared/extensions/Kanban'
 import { KanbanAssigneeFilter } from './kanban/KanbanAssigneeFilter'
 
@@ -63,29 +63,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
   const [availableParticipants, setAvailableParticipants] = useState<KanbanParticipant[]>(
     () => extension?.storage?.participants || []
   )
-  const participantsDebug = (extension?.storage as any)?.participantsDebug as
-    | {
-        status?: string
-        sharedUsersCount?: number
-        collaborationParticipantsCount?: number
-        finalCount?: number
-        hasOwnerId?: boolean
-        hasCurrentUserId?: boolean
-        updatedAt?: string
-        lastError?: string
-      }
-    | undefined
-
-  const isDebugEnabled = (() => {
-    try {
-      return (
-        typeof window !== 'undefined' &&
-        (window.localStorage.getItem('debug:note-apps') === '1' || window.localStorage.getItem('debug:kanban') === '1')
-      )
-    } catch {
-      return false
-    }
-  })()
 
   // Keep participants in React state so the UI updates when NoteEditor mutates extension.storage.participants.
   // Track previous participants to avoid unnecessary re-renders
@@ -167,6 +144,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
 
   // Track the last dataJson we processed to detect external changes
   const lastProcessedDataJsonRef = useRef<string | null>(null)
+  // Track current data in a ref to avoid dependency issues
+  const dataRef = useRef(data)
+  dataRef.current = data
 
   // Sync local state when node.attrs.dataJson changes externally (e.g., from task list sync)
   useEffect(() => {
@@ -180,7 +160,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
       const parsed = JSON.parse(currentDataJson) as KanbanData
       if (parsed?.id && Array.isArray(parsed.columns)) {
         // Only update if there's an actual change (compare stringified versions)
-        const currentStringified = JSON.stringify(data)
+        const currentStringified = JSON.stringify(dataRef.current)
         const newStringified = JSON.stringify(parsed)
 
         if (currentStringified !== newStringified) {
@@ -192,7 +172,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
     } catch {
       // Invalid JSON, ignore
     }
-  }, [node.attrs.dataJson, data])
+  }, [node.attrs.dataJson])
 
   const persistData = useCallback(
     (newData: KanbanData) => {
@@ -514,11 +494,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
           testId={`kanban-board-${data.id}`}
         />
 
-        <div className="gba:flex gba:gap-2 gba:min-w-max">
+        <div className="gba:flex gba:gap-3 gba:min-w-max">
           {data.columns.map(column => (
             <div
               key={column.id}
-              className={`gba:flex-shrink-0 gba:w-44 gba:rounded-lg gba:p-1.5 gba:transition-all gba:duration-200 ${
+              className={`gba:flex-shrink-0 gba:w-56 gba:rounded-lg gba:p-2 gba:transition-all gba:duration-200 ${
                 draggedOverColumn === column.id ? 'gba:bg-primary/5 gba:ring-1 gba:ring-primary/30' : 'gba:bg-muted/40'
               }`}
               onDragOver={e => handleDragOver(e, column.id)}
@@ -546,13 +526,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
                         setEditingColumnTitle({ ...editingColumnTitle, [column.id]: false })
                       }
                     }}
-                    className="gba:h-5 gba:text-[8px] gba:font-medium"
+                    className="gba:h-6 gba:text-xs gba:font-medium"
                     autoFocus
                   />
                 ) : (
-                  <div className="gba:flex gba:items-center gba:gap-1 gba:flex-1 gba:min-w-0">
+                  <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-1 gba:min-w-0">
                     <h3
-                      className="gba:text-[8px] gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:cursor-pointer gba:truncate gba:flex-1 hover:gba:text-foreground gba:transition-colors"
+                      className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide gba:cursor-pointer gba:truncate gba:flex-1 hover:gba:text-foreground gba:transition-colors"
                       onClick={() => {
                         setEditingColumnTitle({ ...editingColumnTitle, [column.id]: true })
                         setColumnTitleInput({ ...columnTitleInput, [column.id]: column.title })
@@ -560,7 +540,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
                     >
                       {column.title}
                     </h3>
-                    <span className="gba:text-[9px] gba:font-medium gba:text-muted-foreground gba:bg-background gba:px-1 gba:py-0.5 gba:rounded-full">
+                    <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:bg-background gba:px-1.5 gba:py-0.5 gba:rounded-full">
                       {assigneeFilterId
                         ? column.cards.filter(c => c.assigneeId === assigneeFilterId).length
                         : column.cards.length}
@@ -646,13 +626,132 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
                                   }
                                 }}
                                 placeholder="Enter card content..."
-                                className="gba:text-[10px] gba:h-5"
+                                className="gba:text-sm gba:h-7"
                                 autoFocus
                               />
                             </div>
                           ) : (
                             <div className="gba:flex-1 gba:min-w-0">
-                              <div className="gba:flex gba:items-start gba:gap-1">
+                              {/* Card content with avatar inline */}
+                              <div className="gba:flex gba:items-start gba:gap-1.5">
+                                {/* Assignee avatar - clickable with color picker inside */}
+                                <Popover
+                                  open={openAssigneePopover === card.id}
+                                  onOpenChange={open => setOpenAssigneePopover(open ? card.id : null)}
+                                >
+                                  <PopoverTrigger asChild>
+                                    <button
+                                      type="button"
+                                      className="gba:flex-shrink-0 gba:mt-0.5 gba:rounded-full gba:transition-opacity hover:gba:opacity-80"
+                                      draggable={false}
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        setOpenAssigneePopover(openAssigneePopover === card.id ? null : card.id)
+                                      }}
+                                      title={assignee ? assignee.userName : 'Assign & customize'}
+                                    >
+                                      {card.assigneeId ? (
+                                        <div
+                                          className="gba:h-5 gba:w-5 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:overflow-hidden"
+                                          style={{ backgroundColor: assignee?.userColor || '#6366f1' }}
+                                        >
+                                          {assignee?.userAvatar ? (
+                                            <img
+                                              src={assignee.userAvatar}
+                                              alt={assignee.userName || ''}
+                                              className="gba:w-full gba:h-full gba:object-cover"
+                                            />
+                                          ) : (
+                                            <span className="gba:text-[9px] gba:font-bold gba:text-primary-foreground">
+                                              {(assignee?.userName || card.assigneeName || '?').charAt(0).toUpperCase()}
+                                            </span>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="gba:h-5 gba:w-5 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:opacity-50 group-hover:gba:opacity-80 gba:transition-opacity">
+                                          <User className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
+                                        </div>
+                                      )}
+                                    </button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="gba:w-40 gba:p-1.5" align="start">
+                                    {/* Assignee section */}
+                                    <div className="gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:px-1 gba:pb-1">
+                                      Assign to
+                                    </div>
+                                    {card.assigneeId && (
+                                      <button
+                                        type="button"
+                                        className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded gba:text-[10px] hover:gba:bg-muted gba:text-destructive"
+                                        onClick={e => {
+                                          e.stopPropagation()
+                                          assignCardToUser(card.id, column.id, null)
+                                        }}
+                                        draggable={false}
+                                      >
+                                        <X className="gba:w-3 gba:h-3" />
+                                        Unassign
+                                      </button>
+                                    )}
+                                    {availableParticipants.map(p => (
+                                      <button
+                                        type="button"
+                                        key={p.userId}
+                                        className={`gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded gba:text-[10px] hover:gba:bg-muted ${
+                                          card.assigneeId === p.userId ? 'gba:bg-muted' : ''
+                                        }`}
+                                        onClick={e => {
+                                          e.stopPropagation()
+                                          assignCardToUser(card.id, column.id, p)
+                                        }}
+                                        draggable={false}
+                                      >
+                                        <Avatar className="gba:h-4 gba:w-4">
+                                          {p.userAvatar ? <AvatarImage src={p.userAvatar} alt={p.userName} /> : null}
+                                          <AvatarFallback className="gba:text-[8px]">
+                                            {p.userName?.charAt(0)?.toUpperCase() || '?'}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        <span className="gba:truncate">{p.userName}</span>
+                                      </button>
+                                    ))}
+                                    {availableParticipants.length === 0 && (
+                                      <div className="gba:px-2 gba:py-1 gba:text-[10px] gba:text-muted-foreground">
+                                        No participants
+                                      </div>
+                                    )}
+
+                                    {/* Color picker section */}
+                                    <div className="gba:border-t gba:border-border/50 gba:mt-1.5 gba:pt-1.5">
+                                      <div className="gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:px-1 gba:pb-1">
+                                        Card color
+                                      </div>
+                                      <div className="gba:grid gba:grid-cols-4 gba:gap-1 gba:px-1">
+                                        {CARD_COLORS.map(c => (
+                                          <Tooltip key={c.id}>
+                                            <TooltipTrigger asChild>
+                                              <button
+                                                className={`gba:w-5 gba:h-5 gba:rounded gba:border ${c.bg} ${c.border} ${
+                                                  card.color === c.id || (!card.color && c.id === 'default')
+                                                    ? 'gba:ring-1 gba:ring-primary gba:ring-offset-1'
+                                                    : ''
+                                                } gba:transition-all hover:gba:scale-110`}
+                                                onClick={e => {
+                                                  e.stopPropagation()
+                                                  handleColorChange(card.id, column.id, c.id)
+                                                }}
+                                              />
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="gba:text-[10px]">
+                                              {c.label}
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+
                                 {/* Link indicator for cards linked to task items */}
                                 {card.linkedTaskItemId && (
                                   <Tooltip>
@@ -666,8 +765,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
                                     </TooltipContent>
                                   </Tooltip>
                                 )}
+
+                                {/* Card text content */}
                                 <div
-                                  className="gba:flex-1 gba:text-[11px] gba:text-foreground gba:cursor-text gba:leading-snug gba:break-words"
+                                  className="gba:flex-1 gba:text-sm gba:text-foreground gba:cursor-text gba:leading-snug gba:break-words"
                                   onClick={() => {
                                     setEditingCard({ cardId: card.id, columnId: column.id })
                                     setNewCardContent({ ...newCardContent, [card.id]: card.content })
@@ -675,205 +776,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
                                 >
                                   {card.content || <span className="gba:text-muted-foreground gba:italic">Empty</span>}
                                 </div>
-                              </div>
-                              {/* Card footer with assignee and actions */}
-                              <div className="gba:flex gba:items-center gba:justify-between gba:mt-1 gba:pt-1 gba:border-t gba:border-border/30">
-                                <div className="gba:flex gba:items-center gba:gap-1">
-                                  {/* Assignee */}
-                                  <Popover
-                                    open={openAssigneePopover === card.id}
-                                    onOpenChange={open => setOpenAssigneePopover(open ? card.id : null)}
-                                  >
-                                    <PopoverTrigger asChild>
-                                      <button
-                                        type="button"
-                                        className="gba:flex gba:items-center gba:rounded-full gba:transition-opacity hover:gba:opacity-80"
-                                        draggable={false}
-                                        onClick={e => {
-                                          e.stopPropagation()
-                                          setOpenAssigneePopover(openAssigneePopover === card.id ? null : card.id)
-                                        }}
-                                        title={assignee ? assignee.userName : 'Assign to someone'}
-                                      >
-                                        {card.assigneeId ? (
-                                          // Show avatar image if available, otherwise show initial
-                                          <div
-                                            className="gba:h-5 gba:w-5 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:overflow-hidden gba:bg-primary"
-                                            style={{ backgroundColor: assignee?.userColor || '#6366f1' }}
-                                          >
-                                            {assignee?.userAvatar ? (
-                                              <img
-                                                src={assignee.userAvatar}
-                                                alt={assignee.userName || ''}
-                                                className="gba:w-full gba:h-full gba:object-cover"
-                                              />
-                                            ) : (
-                                              <span className="gba:text-[9px] gba:font-bold gba:text-primary-foreground">
-                                                {(assignee?.userName || card.assigneeName || '?')
-                                                  .charAt(0)
-                                                  .toUpperCase()}
-                                              </span>
-                                            )}
-                                          </div>
-                                        ) : (
-                                          <div className="gba:h-5 gba:w-5 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:opacity-50 group-hover:gba:opacity-80 gba:transition-opacity">
-                                            <User className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
-                                          </div>
-                                        )}
-                                      </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="gba:w-36 gba:p-1" align="start">
-                                      <div className="gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:px-2 gba:py-1">
-                                        Assign to
-                                      </div>
-                                      {card.assigneeId && (
-                                        <button
-                                          type="button"
-                                          className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded gba:text-[10px] hover:gba:bg-muted gba:text-destructive"
-                                          onClick={e => {
-                                            e.stopPropagation()
-                                            assignCardToUser(card.id, column.id, null)
-                                          }}
-                                          draggable={false}
-                                        >
-                                          <X className="gba:w-3 gba:h-3" />
-                                          Unassign
-                                        </button>
-                                      )}
-                                      {availableParticipants.map(p => (
-                                        <button
-                                          type="button"
-                                          key={p.userId}
-                                          className={`gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded gba:text-[10px] hover:gba:bg-muted ${
-                                            card.assigneeId === p.userId ? 'gba:bg-muted' : ''
-                                          }`}
-                                          onClick={e => {
-                                            e.stopPropagation()
-                                            assignCardToUser(card.id, column.id, p)
-                                          }}
-                                          draggable={false}
-                                        >
-                                          <Avatar className="gba:h-4 gba:w-4">
-                                            {p.userAvatar ? <AvatarImage src={p.userAvatar} alt={p.userName} /> : null}
-                                            <AvatarFallback className="gba:text-[8px]">
-                                              {p.userName?.charAt(0)?.toUpperCase() || '?'}
-                                            </AvatarFallback>
-                                          </Avatar>
-                                          <span className="gba:truncate">{p.userName}</span>
-                                        </button>
-                                      ))}
-                                      {availableParticipants.length === 0 && (
-                                        <div className="gba:px-2 gba:py-2">
-                                          <div className="gba:text-[10px] gba:text-muted-foreground">
-                                            {participantsDebug?.status === 'loading'
-                                              ? 'Loading participants…'
-                                              : 'No participants'}
-                                          </div>
-                                          {isDebugEnabled && (
-                                            <div className="gba:mt-1 gba:text-[10px] gba:text-muted-foreground gba:space-y-0.5">
-                                              <div>
-                                                status:{' '}
-                                                <span className="gba:font-medium">
-                                                  {participantsDebug?.status || 'n/a'}
-                                                </span>
-                                              </div>
-                                              <div>
-                                                sharedUsers:{' '}
-                                                <span className="gba:font-medium">
-                                                  {participantsDebug?.sharedUsersCount ?? 'n/a'}
-                                                </span>
-                                                {' • '}collab:{' '}
-                                                <span className="gba:font-medium">
-                                                  {participantsDebug?.collaborationParticipantsCount ?? 'n/a'}
-                                                </span>
-                                              </div>
-                                              <div>
-                                                hasOwnerId:{' '}
-                                                <span className="gba:font-medium">
-                                                  {String(participantsDebug?.hasOwnerId ?? 'n/a')}
-                                                </span>
-                                                {' • '}hasCurrentUserId:{' '}
-                                                <span className="gba:font-medium">
-                                                  {String(participantsDebug?.hasCurrentUserId ?? 'n/a')}
-                                                </span>
-                                              </div>
-                                              <div>
-                                                finalCount:{' '}
-                                                <span className="gba:font-medium">
-                                                  {participantsDebug?.finalCount ?? 'n/a'}
-                                                </span>
-                                              </div>
-                                              {participantsDebug?.lastError && (
-                                                <div className="gba:text-destructive gba:break-words">
-                                                  error: {participantsDebug.lastError}
-                                                </div>
-                                              )}
-                                              {participantsDebug?.updatedAt && (
-                                                <div>updated: {participantsDebug.updatedAt}</div>
-                                              )}
-                                            </div>
-                                          )}
-                                        </div>
-                                      )}
-                                    </PopoverContent>
-                                  </Popover>
-
-                                  {isDebugEnabled && (
-                                    <span className="gba:text-[9px] gba:text-muted-foreground gba:ml-1 gba:select-text">
-                                      {card.assigneeId ? `assigneeId:${card.assigneeId}` : 'assigneeId:-'}
-                                    </span>
-                                  )}
-
-                                  {/* Color picker */}
-                                  <Popover>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <PopoverTrigger asChild>
-                                          <button
-                                            type="button"
-                                            className="gba:opacity-70 group-hover:gba:opacity-95 hover:gba:opacity-100 gba:transition-opacity"
-                                            draggable={false}
-                                          >
-                                            <Palette className="gba:w-4 gba:h-4 gba:text-foreground/60" />
-                                          </button>
-                                        </PopoverTrigger>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top" className="gba:text-[10px]">
-                                        Change color
-                                      </TooltipContent>
-                                    </Tooltip>
-                                    <PopoverContent className="gba:w-28 gba:p-1.5" align="start">
-                                      <div className="gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:px-1 gba:pb-1">
-                                        Card color
-                                      </div>
-                                      <div className="gba:grid gba:grid-cols-4 gba:gap-1">
-                                        {CARD_COLORS.map(c => (
-                                          <Tooltip key={c.id}>
-                                            <TooltipTrigger asChild>
-                                              <button
-                                                className={`gba:w-5 gba:h-5 gba:rounded gba:border ${c.bg} ${c.border} ${
-                                                  card.color === c.id || (!card.color && c.id === 'default')
-                                                    ? 'gba:ring-1 gba:ring-primary gba:ring-offset-1'
-                                                    : ''
-                                                } gba:transition-all hover:gba:scale-110`}
-                                                onClick={() => handleColorChange(card.id, column.id, c.id)}
-                                              />
-                                            </TooltipTrigger>
-                                            <TooltipContent side="top" className="gba:text-[10px]">
-                                              {c.label}
-                                            </TooltipContent>
-                                          </Tooltip>
-                                        ))}
-                                      </div>
-                                    </PopoverContent>
-                                  </Popover>
-                                </div>
 
                                 {/* Delete button */}
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="gba:h-4 gba:w-4 gba:flex-shrink-0 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity"
+                                  className="gba:h-4 gba:w-4 gba:flex-shrink-0 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:-mt-0.5"
                                   onClick={() => handleDeleteCard(card.id, column.id)}
                                 >
                                   <X className="gba:w-2 gba:h-2" />
@@ -892,7 +800,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
               <Button
                 variant="ghost"
                 size="sm"
-                className="gba:w-full gba:mt-1 gba:h-6 gba:justify-start gba:text-muted-foreground gba:text-[10px] gba:px-1.5 hover:gba:bg-background/60"
+                className="gba:w-full gba:mt-2 gba:h-7 gba:justify-start gba:text-muted-foreground gba:text-xs gba:px-2 hover:gba:bg-background/60"
                 onClick={() => handleAddCard(column.id)}
               >
                 <Plus className="gba:w-2.5 gba:h-2.5 gba:mr-1" />
@@ -906,7 +814,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
             <Button
               variant="ghost"
               size="sm"
-              className="gba:h-6 gba:px-2 gba:text-[10px] gba:text-muted-foreground hover:gba:text-foreground hover:gba:bg-muted/40 gba:rounded-md gba:transition-all"
+              className="gba:h-7 gba:px-3 gba:text-xs gba:text-muted-foreground hover:gba:text-foreground hover:gba:bg-muted/40 gba:rounded-md gba:transition-all"
               onClick={handleAddColumn}
             >
               <Plus className="gba:w-2.5 gba:h-2.5 gba:mr-1" />

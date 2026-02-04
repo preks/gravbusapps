@@ -18,3 +18,13 @@ export { MoveContentDialog } from './MoveContentDialog'
 export { AddContentDialog } from './AddContentDialog'
 export { MoveToSpaceDialog } from './MoveToSpaceDialog'
 export { SpaceSettingsDialog } from './SpaceSettingsDialog'
+
+// Team Collaboration components
+export { SpaceTeamChat } from './SpaceTeamChat'
+export { SpaceCalendar } from './SpaceCalendar'
+export { ScheduleMeetingButton } from './ScheduleMeetingButton'
+export { SpaceQuickHuddle } from './SpaceQuickHuddle'
+export { SpaceMessagePreview } from './SpaceMessagePreview'
+export { SpaceTeamPresence } from './SpaceTeamPresence'
+export { SpaceRealTimeActivity } from './SpaceRealTimeActivity'
+export { SpaceTeamChatPanel } from './SpaceTeamChatPanel'

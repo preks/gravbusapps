@@ -478,3 +478,23 @@ calendar-pending-invitations = Pending Invitations
 calendar-accept = Accept
 calendar-decline = Decline
 calendar-tentative = Tentative
+
+# Calendar - Agenda
+calendar-agenda = Agenda
+calendar-agendaOptional = Agenda (optional)
+calendar-addAgendaItem = Add agenda item
+calendar-agendaItemTitle = Topic
+calendar-agendaItemTitlePlaceholder = Enter topic...
+calendar-agendaItemDuration = Duration (min)
+calendar-agendaItemAssignee = Assign to
+calendar-agendaItemUnassigned = Unassigned
+calendar-agendaItemRemove = Remove item
+calendar-agendaItemMoveUp = Move up
+calendar-agendaItemMoveDown = Move down
+calendar-agendaItems = {$count ->
+  [one] {$count} agenda item
+  *[other] {$count} agenda items
+}
+calendar-agendaTotalDuration = Total: {$minutes} min
+calendar-agendaAssignedTo = Assigned to {$name}
+calendar-noAgenda = No agenda items

@@ -255,6 +255,8 @@ export function useTaskKanbanSync({ editor, enabled = true }: UseTaskKanbanSyncO
   const previousKanbanColumnsRef = useRef<Map<string, string>>(new Map()) // Track card column changes
   const syncInProgressRef = useRef(false)
   const trackingInitializedRef = useRef(false)
+  // Track when sync made changes to ignore subsequent transactions from those changes
+  const lastSyncChangeTimeRef = useRef(0)
 
   /**
    * Sync task item content changes to Kanban cards
@@ -263,6 +265,7 @@ export function useTaskKanbanSync({ editor, enabled = true }: UseTaskKanbanSyncO
     if (!editor || !enabled || syncInProgressRef.current) return
 
     syncInProgressRef.current = true
+    let madeChanges = false
 
     try {
       const linkedTasks = findLinkedTaskItems(editor)
@@ -278,6 +281,7 @@ export function useTaskKanbanSync({ editor, enabled = true }: UseTaskKanbanSyncO
           updateKanbanCardContent(editor, task.kanbanId, task.kanbanCardId, currentContent)
           // Also update Kanban tracking to prevent reverse sync
           previousKanbanContentsRef.current.set(task.kanbanCardId, currentContent)
+          madeChanges = true
         }
 
         // Checked state changed - move card
@@ -289,6 +293,7 @@ export function useTaskKanbanSync({ editor, enabled = true }: UseTaskKanbanSyncO
             // Task was unchecked - move back to To Do
             moveKanbanCardToColumn(editor, task.kanbanId, task.kanbanCardId, 'todo')
           }
+          madeChanges = true
         }
 
         // Update previous state
@@ -296,6 +301,11 @@ export function useTaskKanbanSync({ editor, enabled = true }: UseTaskKanbanSyncO
           content: currentContent,
           checked: currentChecked
         })
+      }
+
+      // Track when we made changes to avoid re-syncing from our own transactions
+      if (madeChanges) {
+        lastSyncChangeTimeRef.current = Date.now()
       }
     } finally {
       syncInProgressRef.current = false
@@ -309,6 +319,7 @@ export function useTaskKanbanSync({ editor, enabled = true }: UseTaskKanbanSyncO
     if (!editor || !enabled || syncInProgressRef.current) return
 
     syncInProgressRef.current = true
+    let madeChanges = false
 
     try {
       const linkedCards = findLinkedKanbanCards(editor)
@@ -340,6 +351,7 @@ export function useTaskKanbanSync({ editor, enabled = true }: UseTaskKanbanSyncO
               content: currentContent,
               checked: task.checked
             })
+            madeChanges = true
           }
         }
 
@@ -356,6 +368,7 @@ export function useTaskKanbanSync({ editor, enabled = true }: UseTaskKanbanSyncO
                 content: task.content,
                 checked: shouldBeChecked
               })
+              madeChanges = true
             }
           }
         }
@@ -364,6 +377,11 @@ export function useTaskKanbanSync({ editor, enabled = true }: UseTaskKanbanSyncO
         previousKanbanContents.set(cardId, currentContent)
         previousKanbanColumns.set(cardId, currentColumn)
       })
+
+      // Track when we made changes to avoid re-syncing from our own transactions
+      if (madeChanges) {
+        lastSyncChangeTimeRef.current = Date.now()
+      }
     } finally {
       syncInProgressRef.current = false
     }
@@ -615,21 +633,28 @@ export function useTaskKanbanSync({ editor, enabled = true }: UseTaskKanbanSyncO
 
     // Debounced sync on transaction
     let syncTimeout: NodeJS.Timeout | null = null
-    let lastSyncTime = 0
 
     const handleTransaction = () => {
+      // Ignore transactions that happen shortly after a sync made changes
+      // This prevents the sync from re-triggering on its own editor modifications
+      const timeSinceLastChange = Date.now() - lastSyncChangeTimeRef.current
+      if (timeSinceLastChange < 100) {
+        return
+      }
+
       if (syncTimeout) clearTimeout(syncTimeout)
 
-      // Prevent rapid-fire syncs - require at least 100ms between sync completions
-      const timeSinceLastSync = Date.now() - lastSyncTime
-      const delay = timeSinceLastSync < 100 ? 400 : 300
-
       syncTimeout = setTimeout(() => {
+        // Double-check we're not in a sync-triggered transaction window
+        const timeSinceChange = Date.now() - lastSyncChangeTimeRef.current
+        if (timeSinceChange < 150) {
+          return
+        }
+
         // Use refs to get latest functions without triggering effect reruns
         syncTaskToKanbanRef.current()
         syncKanbanToTaskRef.current()
-        lastSyncTime = Date.now()
-      }, delay)
+      }, 350)
     }
 
     editor.on('transaction', handleTransaction)

@@ -75,6 +75,7 @@ import { useVersioning } from '../../../shared/hooks/useVersioning'
 import { useFileLock } from '../../../shared/hooks/useFileLock'
 import { useComments } from '../../../shared/hooks/useComments'
 import { usePublishing } from '../../../shared/hooks/usePublishing'
+import { emitDocumentActivity, emitDocumentActivityEnd } from '../../../spaces/hooks/useSpaceDocumentActivity'
 import { VersionHistory } from '../../../shared/components/VersionHistory'
 import { CheckpointDialog } from '../../../shared/components/CheckpointDialog'
 import { AutoSaveIndicator } from '../../../shared/components/AutoSaveIndicator'
@@ -476,6 +477,48 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         avatar: currentUserAvatar // Include avatar URL for cursor rendering
       })
     }, [document?.id, awareness, currentUserId, currentUserName, currentUserAvatar, participants, isYjsSynced])
+
+    // Broadcast document activity to Spaces app
+    useEffect(() => {
+      if (!document?.id || !currentUserId) return
+
+      const activityType = isReadOnly ? 'viewing' : 'editing'
+      const docTitle = document.title || 'Untitled Document'
+      const urlSpaceId =
+        typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('spaceId') : null
+
+      // Emit activity when starting
+      emitDocumentActivity({
+        userId: currentUserId,
+        userName: currentUserName || 'User',
+        userAvatar: currentUserAvatar,
+        documentId: document.id,
+        documentTitle: docTitle,
+        documentType: 'document',
+        activityType,
+        spaceId: urlSpaceId || undefined
+      })
+
+      // Keep-alive: re-emit activity every 30 seconds
+      const keepAliveInterval = setInterval(() => {
+        emitDocumentActivity({
+          userId: currentUserId,
+          userName: currentUserName || 'User',
+          userAvatar: currentUserAvatar,
+          documentId: document.id,
+          documentTitle: docTitle,
+          documentType: 'document',
+          activityType,
+          spaceId: urlSpaceId || undefined
+        })
+      }, 30000)
+
+      // Cleanup: emit activity end when leaving
+      return () => {
+        clearInterval(keepAliveInterval)
+        emitDocumentActivityEnd(currentUserId, document.id)
+      }
+    }, [document?.id, document?.title, currentUserId, currentUserName, currentUserAvatar, isReadOnly])
 
     // Initialize TipTap editor
     const editor = useEditor(

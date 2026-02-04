@@ -476,3 +476,23 @@ calendar-pending-invitations = Ausstehende Einladungen
 calendar-accept = Annehmen
 calendar-decline = Ablehnen
 calendar-tentative = Mit Vorbehalt
+
+# Calendar - Agenda
+calendar-agenda = Agenda
+calendar-agendaOptional = Agenda (optional)
+calendar-addAgendaItem = Agendapunkt hinzufügen
+calendar-agendaItemTitle = Thema
+calendar-agendaItemTitlePlaceholder = Thema eingeben...
+calendar-agendaItemDuration = Dauer (Min)
+calendar-agendaItemAssignee = Zuweisen an
+calendar-agendaItemUnassigned = Nicht zugewiesen
+calendar-agendaItemRemove = Entfernen
+calendar-agendaItemMoveUp = Nach oben
+calendar-agendaItemMoveDown = Nach unten
+calendar-agendaItems = {$count ->
+  [one] {$count} Agendapunkt
+  *[other] {$count} Agendapunkte
+}
+calendar-agendaTotalDuration = Gesamt: {$minutes} Min
+calendar-agendaAssignedTo = Zugewiesen an {$name}
+calendar-noAgenda = Keine Agendapunkte

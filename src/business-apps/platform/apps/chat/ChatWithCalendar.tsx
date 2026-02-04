@@ -25,6 +25,12 @@ interface ChatWithCalendarProps extends BusinessAppContextProps {
   defaultTab?: TabValue
 }
 
+// Presence info type (same as in Chat.tsx)
+interface PresenceInfo {
+  state: 'online' | 'offline'
+  lastSeen?: string
+}
+
 const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   accessToken,
   userInfo,
@@ -34,6 +40,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
 }) => {
   const t = useChatTranslation()
   const [overdueRemindersCount, setOverdueRemindersCount] = useState<number>(0)
+  const [presenceMap, setPresenceMap] = useState<Map<string, PresenceInfo>>(new Map())
 
   const isInSidepanel = useMemo(() => {
     if (typeof window === 'undefined') return false
@@ -236,18 +243,34 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
               accessToken={accessToken}
               userInfo={userInfo}
               isActive={activeTab === 'dashboard'}
+              presenceMap={presenceMap}
               onOpenChat={userId => {
                 setActiveTab('chat')
                 setTimeout(() => {
                   window.dispatchEvent(new CustomEvent('chat:open-with-user', { detail: { userId } }))
                 }, 100)
               }}
-              onStartCall={(userId, displayName, avatarUrl) => {
+              onStartCall={(userId, displayName, callType, avatarUrl) => {
                 setActiveTab('chat')
                 setTimeout(() => {
                   window.dispatchEvent(
                     new CustomEvent('chat:start-call-with-user', {
-                      detail: { userId, displayName, avatarUrl, callType: 'audio' }
+                      detail: { userId, displayName, avatarUrl, callType }
+                    })
+                  )
+                }, 100)
+              }}
+              onJoinMeeting={meeting => {
+                // Switch to chat tab and dispatch join meeting event
+                setActiveTab('chat')
+                setTimeout(() => {
+                  window.dispatchEvent(
+                    new CustomEvent('chat:join-meeting', {
+                      detail: {
+                        meetingId: meeting.id,
+                        conversationId: meeting.conversationId,
+                        title: meeting.title
+                      }
                     })
                   )
                 }, 100)
@@ -282,6 +305,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
             accessToken={accessToken}
             userInfo={userInfo}
             prefixDataTestId={`${prefixDataTestId}-chat`}
+            onPresenceMapChange={setPresenceMap}
             {...props}
           />
         </TabSwitchContent>

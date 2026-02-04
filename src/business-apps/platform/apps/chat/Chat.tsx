@@ -18,7 +18,7 @@ import { ConversationHeader, type ActiveCallInfo } from './components/Conversati
 import { MessageList } from './components/MessageList'
 import { PerformanceMonitor } from './components/PerformanceMonitor'
 import { MessageInput } from './components/MessageInput'
-import { CreateGroupModal } from './components/CreateGroupModal'
+import { CreateGroupModal, type DimensionContext } from './components/CreateGroupModal'
 import { GroupSettingsModal } from './components/GroupSettingsModal'
 import { AIThinkingIndicator, AIResponseRenderer, ExpertThinkingIndicator } from './components/AIResponseRenderer'
 import { playNudgeSound, applyShakeAnimation, injectNudgeStyles } from './utils/nudgeUtils'
@@ -40,12 +40,19 @@ import { seedTestParticipants, TestParticipantPresets } from './utils/seedTestPa
 
 type ViewMode = 'full' | 'compact' | 'mobile'
 
+// Presence info type for sharing with other components
+export interface PresenceInfo {
+  state: 'online' | 'offline'
+  lastSeen?: string
+}
+
 interface ChatProps extends BusinessAppContextProps {
   prefixDataTestId?: string
+  onPresenceMapChange?: (presenceMap: Map<string, PresenceInfo>) => void
 }
 
 const ChatInner: React.FC<ChatProps> = memo(
-  ({ accessToken: accessTokenProp, additionalData, prefixDataTestId = 'chat' }) => {
+  ({ accessToken: accessTokenProp, additionalData, prefixDataTestId = 'chat', onPresenceMapChange }) => {
     const t = useChatTranslation()
     const containerRef = useRef<HTMLDivElement>(null)
     const chatViewRef = useRef<HTMLDivElement>(null)
@@ -68,6 +75,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     const focusInputRef = useRef<(() => void) | null>(null)
     const urlContextProcessed = useRef(false)
     const conversationIdFromUrlProcessed = useRef(false)
+    const urlCallActionProcessed = useRef(false)
     const activeConversationIdRef = useRef<string | null>(null)
     const presenceInitializedUsersRef = useRef<Set<string>>(new Set())
     const lastNudgeTimeRef = useRef<number>(0)
@@ -218,6 +226,37 @@ const ChatInner: React.FC<ChatProps> = memo(
       wsClient,
       activeCalls
     } = chatClient
+
+    // Notify parent component when presence map changes
+    useEffect(() => {
+      if (presenceMap) {
+        // Convert to simpler format for dashboard (only online/offline)
+        const simplifiedMap = new Map<string, PresenceInfo>()
+        presenceMap.forEach((value, key) => {
+          // Map 'away' to 'offline' for simplified dashboard view
+          const state: 'online' | 'offline' = value.state === 'online' ? 'online' : 'offline'
+          simplifiedMap.set(key, {
+            state,
+            lastSeen: value.lastSeen
+          })
+        })
+
+        // Notify parent if callback provided
+        if (onPresenceMapChange) {
+          onPresenceMapChange(simplifiedMap)
+        }
+
+        // Broadcast presence to other apps (e.g., Spaces) via window event
+        window.dispatchEvent(
+          new CustomEvent('chat:presence-broadcast', {
+            detail: {
+              presenceMap: Object.fromEntries(simplifiedMap),
+              timestamp: Date.now()
+            }
+          })
+        )
+      }
+    }, [presenceMap, presenceVersion, onPresenceMapChange])
 
     // Keep last known active conversation to avoid transient unmounts when list refreshes
     const lastActiveConversationRef = useRef<typeof activeConversation>(null)
@@ -372,13 +411,6 @@ const ChatInner: React.FC<ChatProps> = memo(
       currentUser: currentUserAsParticipant
     })
 
-    // Listen for platform messages to start calls with specific users
-    useStartCallFromPlatform({
-      initiateCall,
-      createDirectConversation,
-      isConnected
-    })
-
     // Group Call functionality - Conditionally use Realtime Kit or Mesh topology
     // Default: Use RealtimeKit. Set NEXT_PUBLIC_ENABLE_REALTIME_KIT_GROUP_CALLS=false to use old mesh implementation
     const meshGroupCall = useGroupCall({
@@ -426,6 +458,13 @@ const ChatInner: React.FC<ChatProps> = memo(
       transcriptionEnabled
       // toggleTranscription - Available but not used here (should be in pre-call UI)
     } = groupCall
+
+    // Listen for platform messages to start calls with specific users (via Cloudflare RealtimeKit)
+    useStartCallFromPlatform({
+      initiateGroupCall,
+      createDirectConversation,
+      isConnected
+    })
 
     // TEST MODE: Allow overriding participants from browser console
     // Usage in console: window.setTestParticipants(5) or window.setTestParticipants('nine')
@@ -1307,12 +1346,20 @@ const ChatInner: React.FC<ChatProps> = memo(
     }, [])
 
     const handleCreateGroupSubmit = useCallback(
-      async (name: string, participantIds: string[], description?: string) => {
+      async (name: string, participantIds: string[], description?: string, dimensionContext?: DimensionContext) => {
         try {
           // Mark as processed to prevent URL restoration effect from re-triggering
           conversationIdFromUrlProcessed.current = true
 
-          const conversation = await createGroupConversation(name, participantIds, description)
+          // Pass dimension context to link group chat with organizational dimensions (for space integration)
+          const conversation = await createGroupConversation(
+            name,
+            participantIds,
+            description,
+            undefined, // avatarUrl
+            dimensionContext?.type,
+            dimensionContext?.id
+          )
           setShowCreateGroupModal(false)
 
           // Persist conversation ID in URL for panel reopen persistence
@@ -1502,6 +1549,60 @@ const ChatInner: React.FC<ChatProps> = memo(
           })
       }
     }, [conversations, setActiveConversation, activeConversationId, apiClient, conversationsLoading])
+
+    // Handle URL parameters for starting calls (from Spaces or other apps)
+    useEffect(() => {
+      // Only process once
+      if (urlCallActionProcessed.current) {
+        return
+      }
+
+      const urlParams = new URLSearchParams(window.location.search)
+      const actionParam = urlParams.get('action')
+      const callTypeParam = urlParams.get('callType') as 'audio' | 'video' | null
+      const conversationIdParam = urlParams.get('conversationId')
+
+      // Only handle startCall action
+      if (actionParam !== 'startCall' || !conversationIdParam) {
+        return
+      }
+
+      // Wait until we have an active conversation that matches the URL param
+      if (!activeConversation || activeConversation.id !== conversationIdParam) {
+        return
+      }
+
+      // Wait until we can initiate calls
+      if (!initiateGroupCall || !isConnected) {
+        return
+      }
+
+      // Mark as processed to prevent duplicate calls
+      urlCallActionProcessed.current = true
+
+      // Get participants from the conversation
+      const callParticipants = (activeConversation.participants || [])
+        .filter(p => p.userId !== currentUser?.id)
+        .map(p => ({
+          id: p.userId,
+          odId: p.userId,
+          odName: p.user?.displayName || p.user?.firstName || 'Unknown',
+          avatarUrl: p.user?.avatarUrl
+        }))
+
+      const callType = callTypeParam || 'audio'
+
+      // Small delay to ensure UI is ready
+      setTimeout(() => {
+        initiateGroupCall(activeConversation.id, callType, callParticipants, activeConversation.name)
+
+        // Clean up URL params after starting call
+        const url = new URL(window.location.href)
+        url.searchParams.delete('action')
+        url.searchParams.delete('callType')
+        window.history.replaceState({}, '', url.toString())
+      }, 500)
+    }, [activeConversation, initiateGroupCall, isConnected, currentUser])
 
     // Handle URL parameters for context and AI agent conversations (only once)
     useEffect(() => {

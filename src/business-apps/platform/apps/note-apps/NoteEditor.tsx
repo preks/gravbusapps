@@ -85,6 +85,7 @@ import { useVersioning } from '../shared/hooks/useVersioning'
 import { useFileLock } from '../shared/hooks/useFileLock'
 import { useComments } from '../shared/hooks/useComments'
 import { usePublishing } from '../shared/hooks/usePublishing'
+import { emitDocumentActivity, emitDocumentActivityEnd } from '../spaces/hooks/useSpaceDocumentActivity'
 import { VersionHistory } from '../shared/components/VersionHistory'
 import { CheckpointDialog } from '../shared/components/CheckpointDialog'
 import { AutoSaveIndicator } from '../shared/components/AutoSaveIndicator'
@@ -570,6 +571,47 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       avatar: currentUserAvatar
     })
   }, [note.id, awareness, currentUserId, currentUserName, currentUserAvatar, participants, isYjsSynced])
+
+  // Broadcast document activity to Spaces app
+  useEffect(() => {
+    if (!note.id || !currentUserId) return
+
+    const activityType = isReadOnly ? 'viewing' : 'editing'
+    const docTitle = title || note.title || 'Untitled Note'
+    const urlSpaceId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('spaceId') : null
+
+    // Emit activity when starting
+    emitDocumentActivity({
+      userId: currentUserId,
+      userName: currentUserName || 'User',
+      userAvatar: currentUserAvatar,
+      documentId: note.id,
+      documentTitle: docTitle,
+      documentType: 'note',
+      activityType,
+      spaceId: urlSpaceId || undefined
+    })
+
+    // Keep-alive: re-emit activity every 30 seconds
+    const keepAliveInterval = setInterval(() => {
+      emitDocumentActivity({
+        userId: currentUserId,
+        userName: currentUserName || 'User',
+        userAvatar: currentUserAvatar,
+        documentId: note.id,
+        documentTitle: docTitle,
+        documentType: 'note',
+        activityType,
+        spaceId: urlSpaceId || undefined
+      })
+    }, 30000)
+
+    // Cleanup: emit activity end when leaving
+    return () => {
+      clearInterval(keepAliveInterval)
+      emitDocumentActivityEnd(currentUserId, note.id)
+    }
+  }, [note.id, note.title, currentUserId, currentUserName, currentUserAvatar, isReadOnly, title])
 
   // Debounced snapshot save - works even without Yjs collaboration
   const scheduleSnapshotSave = useCallback(
@@ -1514,16 +1556,31 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
         // Collect task items to add - check if there's a selection spanning multiple items
         const { from, to } = editor.state.selection
-        const taskItemPositions: number[] = []
+        const taskItemPositionsSet = new Set<number>()
+
+        // Build a set of valid kanban IDs in this document
+        const validKanbanIds = new Set<string>()
+        editor.state.doc.descendants(node => {
+          if (node.type.name === 'kanban' && node.attrs.id) {
+            validKanbanIds.add(node.attrs.id)
+          }
+        })
 
         // If there's a selection, find all task items within it
         if (from !== to) {
           editor.state.doc.nodesBetween(from, to, (node, pos) => {
-            if (node.type.name === 'taskItem' && !node.attrs.kanbanCardId) {
-              taskItemPositions.push(pos)
+            if (node.type.name === 'taskItem') {
+              // Include if: no kanban link, OR kanban link is orphaned (kanban doesn't exist in doc)
+              const hasValidKanbanLink =
+                node.attrs.kanbanCardId && node.attrs.kanbanId && validKanbanIds.has(node.attrs.kanbanId)
+              if (!hasValidKanbanLink) {
+                taskItemPositionsSet.add(pos)
+              }
             }
           })
         }
+
+        const taskItemPositions = Array.from(taskItemPositionsSet)
 
         // If no selection or no task items in selection, use the clicked item
         if (taskItemPositions.length === 0) {
@@ -1557,15 +1614,17 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
           const node = editor.state.doc.nodeAt(resolvedPos)
 
-          // Check if task is already linked
-          if (node?.type.name === 'taskItem' && node.attrs.kanbanCardId) {
-            console.debug('[NoteEditor] Task already linked to Kanban')
-            return
-          }
-
           // Verify we found a valid taskItem
           if (!node || node.type.name !== 'taskItem') {
             console.debug('[NoteEditor] Could not find taskItem node at pos:', resolvedPos)
+            return
+          }
+
+          // Check if task is already linked to a VALID kanban in this document
+          const hasValidKanbanLink =
+            node.attrs.kanbanCardId && node.attrs.kanbanId && validKanbanIds.has(node.attrs.kanbanId)
+          if (hasValidKanbanLink) {
+            console.debug('[NoteEditor] Task already linked to valid Kanban')
             return
           }
 
@@ -1639,7 +1698,16 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   const handleCreateKanbanWithTasks = useCallback(() => {
     if (!taskContextMenu || !editor) return
 
-    const positions = taskContextMenu.taskItemPositions
+    // Capture the text content of selected task items to find them after kanban insertion
+    // (positions become invalid after inserting the kanban)
+    const taskContents: string[] = []
+    for (const pos of taskContextMenu.taskItemPositions) {
+      const node = editor.state.doc.nodeAt(pos)
+      if (node?.type.name === 'taskItem') {
+        taskContents.push(node.textContent)
+      }
+    }
+
     const kanbanId = `kanban-${Date.now()}`
 
     // First, create the Kanban board
@@ -1651,17 +1719,38 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       return
     }
 
-    // Wait a tick for the Kanban to be inserted, then add tasks
+    // Wait a tick for the Kanban to be inserted, then find and add tasks
     setTimeout(() => {
       const addedCards: string[] = []
+      const addedContents = new Set<string>()
 
-      // Add each task item to the new Kanban (in reverse order to maintain positions)
-      for (const pos of [...positions].reverse()) {
-        const cardId = addTaskToKanban(pos, kanbanId, 'todo')
-        if (cardId) {
-          addedCards.push(cardId)
+      // Build set of valid kanban IDs to check for orphaned links
+      const validKanbanIds = new Set<string>()
+      editor.state.doc.descendants(node => {
+        if (node.type.name === 'kanban' && node.attrs.id) {
+          validKanbanIds.add(node.attrs.id)
         }
-      }
+      })
+
+      // Find task items by their content (positions have shifted after kanban insertion)
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'taskItem') {
+          const content = node.textContent
+          // Check if this content matches one of our selected tasks
+          if (taskContents.includes(content) && !addedContents.has(content)) {
+            // Only add if not already linked to a valid kanban
+            const hasValidKanbanLink =
+              node.attrs.kanbanCardId && node.attrs.kanbanId && validKanbanIds.has(node.attrs.kanbanId)
+            if (!hasValidKanbanLink) {
+              const cardId = addTaskToKanban(pos, kanbanId, 'todo')
+              if (cardId) {
+                addedCards.push(cardId)
+                addedContents.add(content) // Prevent duplicates
+              }
+            }
+          }
+        }
+      })
 
       console.debug('[NoteEditor] Created Kanban and linked tasks:', {
         kanbanId,
@@ -2248,7 +2337,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
       {/* Editor Area */}
       <div className="gba:flex-1 gba:flex gba:overflow-hidden">
         <div className="gba:flex-1 gba:overflow-auto gba:relative">
-          <div className="gba:max-w-3xl gba:mx-auto gba:px-8 gba:py-8">
+          <div className="gba:max-w-3xl gba:lg:max-w-4xl gba:xl:max-w-5xl gba:2xl:max-w-6xl gba:mx-auto gba:px-4 gba:sm:px-6 gba:md:px-8 gba:py-6 gba:md:py-8">
             {/* Title */}
             <input
               ref={titleInputRef}

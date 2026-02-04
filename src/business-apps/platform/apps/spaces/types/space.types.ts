@@ -5,6 +5,22 @@ export enum SpaceMemberRole {
   VIEWER = 'viewer'
 }
 
+/**
+ * Dimension types for creating spaces based on organizational groups
+ * Mirrors the dimension types used in group chat creation
+ */
+export type SpaceDimensionType = 'organization_unit' | 'matrix_team' | 'location' | 'legal_entity' | 'capability'
+
+/**
+ * Dimension information stored in space settings
+ * Used to link spaces to organizational groups and match with group chats
+ */
+export interface SpaceDimension {
+  type: SpaceDimensionType
+  id: string
+  name: string
+}
+
 export interface SpaceMember {
   id: string
   spaceId: string
@@ -15,6 +31,22 @@ export interface SpaceMember {
   joinedAt: string
 }
 
+export interface SpaceSettings {
+  contentCounts?: {
+    documents: number
+    notes: number
+    spreadsheets: number
+    slides: number
+    total: number
+  }
+  pinnedItems?: string[]
+  /** Dimension info when space is created based on an organizational group */
+  dimension?: SpaceDimension
+  /** ID of the linked group chat conversation (if created from same dimension) */
+  linkedConversationId?: string
+  [key: string]: unknown
+}
+
 export interface Space {
   id: string
   name: string
@@ -23,17 +55,7 @@ export interface Space {
   color?: string
   coverImage?: string
   isPublic: boolean
-  settings: {
-    contentCounts?: {
-      documents: number
-      notes: number
-      spreadsheets: number
-      slides: number
-      total: number
-    }
-    pinnedItems?: string[]
-    [key: string]: any
-  }
+  settings: SpaceSettings
   ownerId: string
   members?: SpaceMember[]
   // Content items - populated when fetched with includeContent=true
@@ -103,6 +125,10 @@ export interface CreateSpaceInput {
   color?: string
   coverImage?: string
   isPublic?: boolean
+  /** Dimension info when creating space based on an organizational group */
+  dimension?: SpaceDimension
+  /** User IDs to automatically add as members (for dimension-based creation) */
+  memberIds?: string[]
 }
 
 export interface UpdateSpaceInput {
@@ -112,7 +138,7 @@ export interface UpdateSpaceInput {
   color?: string
   coverImage?: string
   isPublic?: boolean
-  settings?: Record<string, any>
+  settings?: Partial<SpaceSettings>
 }
 
 export interface AddMemberInput {
@@ -136,4 +162,21 @@ export interface SpaceStats {
   totalContent: number
   totalMembers: number
   recentActivity: number
+}
+
+/**
+ * Linked conversation interface for team collaboration
+ * Represents a group chat linked to a space via dimension context
+ */
+export interface LinkedConversation {
+  id: string
+  name: string
+  description?: string
+  type: 'group'
+  contextEntity?: string
+  contextEntityId?: string
+  participantCount?: number
+  lastMessageAt?: string
+  createdAt: string
+  updatedAt: string
 }

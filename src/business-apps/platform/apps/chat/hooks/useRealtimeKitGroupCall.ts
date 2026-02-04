@@ -1175,7 +1175,6 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           conversationName,
           conversationType, // Include conversation type for proper header display
           callStartTime: startTimeRef.current, // Use the ref, not Date.now()!
-          conversationName,
           calendarMeetingId: calendarMeetingIdForJoin
         }))
 

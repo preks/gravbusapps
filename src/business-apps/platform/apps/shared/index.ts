@@ -17,11 +17,26 @@ export {
 
 // Hooks
 export { useCollaboration, type UseCollaborationOptions, type UseCollaborationReturn } from './hooks/useCollaboration'
+export {
+  useOrganizationalDimensions,
+  type UseOrganizationalDimensionsResult
+} from './hooks/useOrganizationalDimensions'
 
 // Components
 export { PresenceIndicator, type PresenceIndicatorProps } from './components/PresenceIndicator'
 export { CollaboratorCursor, type CollaboratorCursorProps } from './components/CollaboratorCursor'
 export { CellCollaboratorIndicator, type CellCollaboratorIndicatorProps } from './components/CellCollaboratorIndicator'
+export { DimensionPicker, type DimensionPickerProps } from './components/DimensionPicker'
+
+// Types
+export {
+  type DimensionType,
+  type DimensionOption,
+  type DimensionWithMembers,
+  type SelectedDimension,
+  type DimensionPickerTranslations,
+  DEFAULT_DIMENSION_TRANSLATIONS
+} from './types/dimensions'
 
 /**
  * Default export exists to satisfy the auto-generated wrapped entry at
