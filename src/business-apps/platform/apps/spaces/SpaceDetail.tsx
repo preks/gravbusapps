@@ -485,6 +485,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
                     <SpaceRealTimeActivity
                       spaceId={spaceId}
                       spaceContent={allContent}
+                      accessToken={accessToken}
                       currentUserId={currentUserId}
                       maxActivities={5}
                       data-testid={`${testId}-realtime-activity`}

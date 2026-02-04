@@ -24,6 +24,8 @@ export interface SpaceRealTimeActivityProps {
   spaceId: string
   /** Content items in the space */
   spaceContent: SpaceContentItem[]
+  /** Access token for WebSocket authentication */
+  accessToken: string | undefined
   /** Current user ID to exclude their own activity */
   currentUserId?: string
   /** Maximum number of activities to show */
@@ -77,11 +79,17 @@ const formatDuration = (startedAt: Date) => {
 export const SpaceRealTimeActivity: React.FC<SpaceRealTimeActivityProps> = ({
   spaceId,
   spaceContent,
+  accessToken,
   currentUserId,
   maxActivities = 5,
   'data-testid': testId = 'space-realtime-activity'
 }) => {
-  const { activities, hasActivity } = useSpaceDocumentActivity(spaceId, spaceContent, currentUserId)
+  const { activities, hasActivity, isPresenceConnected } = useSpaceDocumentActivity(
+    spaceId,
+    spaceContent,
+    accessToken,
+    currentUserId
+  )
 
   // Debug: prove component + hook are running in this screen
   useEffect(() => {
@@ -122,6 +130,26 @@ export const SpaceRealTimeActivity: React.FC<SpaceRealTimeActivityProps> = ({
               <span className="gba:relative gba:inline-flex gba:rounded-full gba:h-2 gba:w-2 gba:bg-success" />
             </span>
           )}
+          {/* Connection status indicator - only shown when debug is enabled */}
+          {(() => {
+            try {
+              if (typeof window !== 'undefined' && window.localStorage?.getItem('gba:debug:space-activity') === '1') {
+                return (
+                  <span
+                    className={`gba:text-xs gba:px-1.5 gba:py-0.5 gba:rounded-full ${
+                      isPresenceConnected ? 'gba:bg-success/20 gba:text-success' : 'gba:bg-warning/20 gba:text-warning'
+                    }`}
+                    title={isPresenceConnected ? 'WebSocket connected' : 'WebSocket disconnected'}
+                  >
+                    {isPresenceConnected ? '●' : '○'}
+                  </span>
+                )
+              }
+            } catch {
+              return null
+            }
+            return null
+          })()}
         </CardTitle>
       </CardHeader>
       <CardContent className="gba:pt-0">

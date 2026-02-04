@@ -2,10 +2,13 @@
  * useSpaceDocumentActivity Hook
  *
  * Tracks real-time document activity within a Space.
- * Uses BroadcastChannel for cross-tab communication so activity from other tabs/pages is visible.
+ * Uses both:
+ * - BroadcastChannel for cross-tab communication (instant local feedback)
+ * - WebSocket collaboration service for server-tracked presence (cross-browser/device)
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { createCollaborationClient, CollaborationClient } from '../../shared/services/CollaborationClient'
 import type { SpaceContentItem } from '../types/space.types'
 
 export type ActivityType = 'editing' | 'viewing'
@@ -35,6 +38,8 @@ export interface UseSpaceDocumentActivityResult {
   activities: DocumentActivity[]
   /** Whether there are any active activities */
   hasActivity: boolean
+  /** Whether the WebSocket presence service is connected */
+  isPresenceConnected: boolean
 }
 
 /** Event payload for document activity */
@@ -56,6 +61,12 @@ const ACTIVITY_TIMEOUT_MS = 60000
 const ACTIVITY_CHANNEL_NAME = 'newwork-document-activity'
 
 const DEBUG_ACTIVITY_STORAGE_KEY = 'gba:debug:space-activity'
+
+// Interval for fetching presence updates (every 10 seconds)
+const PRESENCE_FETCH_INTERVAL_MS = 10000
+
+// Maximum number of entities to fetch presence for at once (to avoid huge requests)
+const MAX_PRESENCE_BATCH_SIZE = 50
 
 // Singleton channel for broadcasting activity
 let activityChannel: BroadcastChannel | null = null
@@ -83,18 +94,24 @@ function getActivityChannel(): BroadcastChannel | null {
  *
  * @param spaceId - The space to track activity for
  * @param spaceContent - Content items in the space (to filter relevant activity)
+ * @param accessToken - Access token for WebSocket authentication
  * @param _currentUserId - Current user ID (used for UI labeling in the caller)
  */
 export function useSpaceDocumentActivity(
   spaceId: string,
   spaceContent: SpaceContentItem[],
+  accessToken: string | undefined,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- API param for caller UI labeling
   _currentUserId?: string
 ): UseSpaceDocumentActivityResult {
   const [activities, setActivities] = useState<DocumentActivity[]>([])
+  const [isPresenceConnected, setIsPresenceConnected] = useState(false)
   const contentIdsRef = useRef<Set<string>>(new Set())
   const cleanupIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const presenceFetchIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const channelRef = useRef<BroadcastChannel | null>(null)
+  const collaborationClientRef = useRef<CollaborationClient | null>(null)
+  const socketRef = useRef<ReturnType<CollaborationClient['connect']> | null>(null)
   const debugEnabledRef = useRef<boolean>(false)
 
   // Update content IDs ref when content changes
@@ -110,6 +127,19 @@ export function useSpaceDocumentActivity(
         sample
       })
     }
+  }, [spaceContent, spaceId])
+
+  // Prepare entities list for presence fetching
+  const entitiesForPresence = useMemo(() => {
+    return spaceContent.slice(0, MAX_PRESENCE_BATCH_SIZE).map(item => {
+      // Map spreadsheet to spreadsheet_app to match server entity types
+      const entityType = item.type === 'spreadsheet' ? 'spreadsheet' : item.type
+      return {
+        entityType,
+        entityId: item.id,
+        title: item.title
+      }
+    })
   }, [spaceContent])
 
   // Process incoming activity data
@@ -293,6 +323,183 @@ export function useSpaceDocumentActivity(
     }
   }, [processActivityData, processActivityEnd])
 
+  // Initialize WebSocket collaboration client for presence tracking
+  useEffect(() => {
+    if (!accessToken) {
+      if (debugEnabledRef.current) {
+        console.warn('[SpaceActivity] No access token, skipping WebSocket presence')
+      }
+      return
+    }
+
+    if (debugEnabledRef.current) {
+      console.warn('[SpaceActivity] Initializing WebSocket presence', { spaceId })
+    }
+
+    try {
+      const client = createCollaborationClient()
+      collaborationClientRef.current = client
+
+      const socket = client.connect(accessToken)
+      socketRef.current = socket
+
+      socket.on('connect', () => {
+        if (debugEnabledRef.current) {
+          console.warn('[SpaceActivity] WebSocket connected', { spaceId })
+        }
+        setIsPresenceConnected(true)
+      })
+
+      socket.on('disconnect', reason => {
+        if (debugEnabledRef.current) {
+          console.warn('[SpaceActivity] WebSocket disconnected', { spaceId, reason })
+        }
+        setIsPresenceConnected(false)
+      })
+
+      socket.on('connect_error', error => {
+        console.error('[SpaceActivity] WebSocket connection error:', error.message)
+      })
+
+      // Listen for real-time user join/leave events
+      socket.on('user_joined', (data: { userId: string; userName: string; userColor: string }) => {
+        if (debugEnabledRef.current) {
+          console.warn('[SpaceActivity] User joined via WebSocket', { spaceId, userName: data.userName })
+        }
+      })
+
+      socket.on('user_left', (data: { userId: string }) => {
+        if (debugEnabledRef.current) {
+          console.warn('[SpaceActivity] User left via WebSocket', { spaceId, userId: data.userId })
+        }
+        // Remove activities for this user
+        setActivities(prev => prev.filter(a => a.userId !== data.userId))
+      })
+    } catch (error) {
+      console.error('[SpaceActivity] Failed to initialize WebSocket presence:', error)
+    }
+
+    return () => {
+      if (debugEnabledRef.current) {
+        console.warn('[SpaceActivity] Cleaning up WebSocket presence', { spaceId })
+      }
+      if (collaborationClientRef.current) {
+        collaborationClientRef.current.disconnect()
+        socketRef.current = null
+        collaborationClientRef.current = null
+      }
+    }
+  }, [accessToken, spaceId])
+
+  // Fetch presence from WebSocket server periodically
+  useEffect(() => {
+    if (!socketRef.current || entitiesForPresence.length === 0) {
+      return
+    }
+
+    const fetchPresenceFromServer = () => {
+      const socket = socketRef.current
+      if (!socket?.connected) {
+        if (debugEnabledRef.current) {
+          console.warn('[SpaceActivity] Socket not connected, skipping presence fetch')
+        }
+        return
+      }
+
+      if (debugEnabledRef.current) {
+        console.warn('[SpaceActivity] Fetching presence for', entitiesForPresence.length, 'entities')
+      }
+
+      socket.emit(
+        'get_multi_presence',
+        { entities: entitiesForPresence },
+        (response: {
+          success: boolean
+          presence?: Record<
+            string,
+            Array<{ odId: string; userId: string; userName: string; userColor: string; avatar?: string }>
+          >
+          error?: string
+        }) => {
+          if (!response?.success || !response.presence) {
+            if (debugEnabledRef.current) {
+              console.warn('[SpaceActivity] Presence fetch failed:', response?.error || 'Unknown error')
+            }
+            return
+          }
+
+          if (debugEnabledRef.current) {
+            console.warn('[SpaceActivity] Presence response:', {
+              entityCount: Object.keys(response.presence).length,
+              totalUsers: Object.values(response.presence).reduce((sum, users) => sum + users.length, 0)
+            })
+          }
+
+          // Convert presence response to activities
+          const now = new Date()
+          const presenceActivities: DocumentActivity[] = []
+
+          for (const [entityKey, participants] of Object.entries(response.presence)) {
+            // entityKey format: "entityType:entityId"
+            const [entityType, entityId] = entityKey.split(':')
+
+            // Find the content item to get the title
+            const contentItem = entitiesForPresence.find(e => e.entityId === entityId && e.entityType === entityType)
+
+            for (const participant of participants) {
+              const key = `${participant.userId}:${entityId}`
+
+              presenceActivities.push({
+                key,
+                userId: participant.userId,
+                userName: participant.userName,
+                userAvatar: participant.avatar,
+                documentId: entityId,
+                documentTitle: contentItem?.title || 'Unknown',
+                documentType: entityType as DocumentType,
+                activityType: 'editing', // Assume editing since they're connected
+                startedAt: now,
+                lastUpdatedAt: now
+              })
+            }
+          }
+
+          // Merge with existing activities (prefer newer data)
+          setActivities(prev => {
+            const merged = new Map<string, DocumentActivity>()
+
+            // Add existing activities (from BroadcastChannel)
+            for (const activity of prev) {
+              merged.set(activity.key, activity)
+            }
+
+            // Add/update with presence activities (from WebSocket)
+            for (const activity of presenceActivities) {
+              const existing = merged.get(activity.key)
+              if (!existing || existing.lastUpdatedAt < activity.lastUpdatedAt) {
+                merged.set(activity.key, activity)
+              }
+            }
+
+            return Array.from(merged.values())
+          })
+        }
+      )
+    }
+
+    // Fetch immediately
+    fetchPresenceFromServer()
+
+    // Then fetch periodically
+    presenceFetchIntervalRef.current = setInterval(fetchPresenceFromServer, PRESENCE_FETCH_INTERVAL_MS)
+
+    return () => {
+      if (presenceFetchIntervalRef.current) {
+        clearInterval(presenceFetchIntervalRef.current)
+      }
+    }
+  }, [entitiesForPresence])
+
   // Cleanup stale activities periodically
   useEffect(() => {
     cleanupIntervalRef.current = setInterval(() => {
@@ -309,7 +516,8 @@ export function useSpaceDocumentActivity(
 
   return {
     activities,
-    hasActivity: activities.length > 0
+    hasActivity: activities.length > 0,
+    isPresenceConnected
   }
 }
 
