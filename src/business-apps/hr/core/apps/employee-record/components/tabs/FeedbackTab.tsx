@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData'
 import { Card, Avatar } from '@newwork/gravity-ui-catalog'
-import { Button, useTranslation } from '@newwork/nw-design-system'
+import { Button, useTranslation, Badge } from '@newwork/nw-design-system'
 import { Empty, Spin, Input, Select, Rate, Pagination } from 'antd'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT } from './queries/EmployeeFeedbackRequestQueries'
@@ -761,24 +761,16 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
                           {/* Type Badge */}
                           {feedback.type && (
-                            <span
-                              className={
-                                'gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-medium gba:bg-muted gba:text-foreground'
-                              }
-                              data-testid={`feedback-type-${index}`}
-                            >
+                            <Badge variant="decorative" data-testid={`feedback-type-${index}`}>
                               {feedback.type}
-                            </span>
+                            </Badge>
                           )}
 
                           {/* Private Badge */}
                           {feedback.private && (
-                            <span
-                              className="gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-medium gba:bg-destructive-secondary gba:text-destructive"
-                              data-testid={`feedback-privacy-${index}`}
-                            >
+                            <Badge variant="destructive" data-testid={`feedback-privacy-${index}`}>
                               {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.private_badge', 'Private')}
-                            </span>
+                            </Badge>
                           )}
                         </div>
 

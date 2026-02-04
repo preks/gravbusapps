@@ -130,7 +130,16 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.by_type', 'By Type')}
           </div>
           {(() => {
-            const absenceByTypeId: Record<string, { count: number; translatedName: string; color: string }> = {}
+            const chartColors = [
+              'var(--nw-chart-1)',
+              'var(--nw-chart-2)',
+              'var(--nw-chart-3)',
+              'var(--nw-chart-4)',
+              'var(--nw-chart-5)',
+              'var(--nw-chart-6)'
+            ]
+
+            const absenceByTypeId: Record<string, { count: number; translatedName: string }> = {}
             absenceList.forEach(absence => {
               const originalStatus = absence.originalStatus || ''
               const isApproved =
@@ -146,30 +155,19 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                 if (!absenceByTypeId[typeId]) {
                   absenceByTypeId[typeId] = {
                     count: 0,
-                    translatedName: translatedName,
-                    color: 'var(--nw-color-chart-3)'
+                    translatedName: translatedName
                   }
                 }
                 const durationMatch = absence.duration?.match(/(\d+\.?\d*)/)
                 const duration = durationMatch ? parseFloat(durationMatch[1]) : 0
                 absenceByTypeId[typeId].count += duration
-
-                let color = absence.typeColor || 'var(--nw-color-chart-3)'
-                if (color && typeof color === 'string') {
-                  if (!color.startsWith('#') && /^([0-9A-Fa-f]{6})$/.test(color)) {
-                    color = `#${color}`
-                  }
-                } else {
-                  color = 'var(--nw-color-chart-3)'
-                }
-                absenceByTypeId[typeId].color = color
               }
             })
 
-            const data = Object.keys(absenceByTypeId).map(typeId => ({
+            const data = Object.keys(absenceByTypeId).map((typeId, index) => ({
               name: absenceByTypeId[typeId].translatedName,
               value: absenceByTypeId[typeId].count,
-              color: absenceByTypeId[typeId].color
+              color: chartColors[index % chartColors.length]
             }))
 
             return (
